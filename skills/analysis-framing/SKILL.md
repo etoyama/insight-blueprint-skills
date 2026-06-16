@@ -37,6 +37,10 @@ Accept the analysis theme from `$ARGUMENTS` or ask the user for one.
   - Ask the user to select or refine a direction before proceeding
   - Do NOT depend on development-partner for theme narrowing --- handle it independently
 - If forwarded from development-partner: accept the framing context from the conversation and build upon it
+- If an **RQ Brief** is present in the conversation (forwarded from `/rq-problematization`):
+  use its `テーマ` as the theme and its `検証の方向性` as the seed direction. The research
+  questions are theory-driven and not yet grounded — your job is to ground them in
+  available data. Carry the central assumption forward into the Direction Dialogue (Step 4).
 - If `.insight/` directory does not exist: inform the user that the project is not initialized and guide them to run `insight-blueprint init`. Stop the workflow here.
 
 ### Step 2: Domain Exploration (Agentic Search)
@@ -168,6 +172,7 @@ After outputting the Framing Brief, suggest:
 | From | To | When |
 |------|-----|------|
 | /development-partner* | → /analysis-framing | 分析テーマが出て、ドメイン接地が必要: "データと既存分析を探索するなら /analysis-framing" |
+| /rq-problematization | → /analysis-framing | RQ が出てデータ接地が必要（RQ Brief 付き）: "RQ をデータに接地して検証枠組みにするなら /analysis-framing" |
 | /analysis-design | → /analysis-framing | データ不足で仮説の方向を再検討: "データを探し直すなら /analysis-framing" |
 | /analysis-reflection | → /analysis-framing | 新仮説が必要だがデータ・方向の探索が先: "新しい角度を探すなら /analysis-framing" |
 | /catalog-register | → /analysis-framing | データ登録完了、フレーミングに戻る: "フレーミングに戻るなら /analysis-framing" |

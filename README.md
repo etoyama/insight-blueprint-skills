@@ -87,8 +87,9 @@ A browser-based dashboard (http://127.0.0.1:3000) with two tabs:
 
 ### Bundled Skills
 
-The plugin provides 9 analysis skills that are automatically available after installation:
+The plugin provides 10 analysis skills that are automatically available after installation:
 
+- `/rq-problematization` -- Generate impactful research questions by problematizing the assumptions in prior research (upstream of framing)
 - `/analysis-framing` -- Explore available data and existing analyses to frame a hypothesis direction
 - `/analysis-design` -- Guided workflow for creating hypothesis documents
 - `/analysis-journal` -- Record reasoning steps during analysis (observations, evidence, decisions, questions)
@@ -106,6 +107,8 @@ Skills support both English and Japanese trigger phrases.
 Skills chain together to support the full hypothesis-driven analysis lifecycle:
 
 ```
+/rq-problematization (problematize assumptions → research questions)  ← optional upstream
+    ↓ (RQ Brief)
 /analysis-framing (explore data, frame direction)
     ↓
 /analysis-design (create hypothesis)

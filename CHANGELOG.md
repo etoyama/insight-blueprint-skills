@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-16
+
+### Added
+
+- New skill `/rq-problematization` — generate impactful research questions via the Alvesson & Sandberg (2011) problematization framework: surface taken-for-granted assumptions across five types and challenge them with a devil's-advocate critic subagent (assumption-challenging over gap-spotting)
+  - Positioned upstream of `/analysis-framing`: rq-problematization (theory-driven RQ) → analysis-framing (data grounding) → analysis-design. Does not chain directly to analysis-design — framing is the data-grounding gate
+  - Re-generation path from `/analysis-reflection`: when a hypothesis is rejected/inconclusive, question the underlying assumption instead of only seeking a new angle
+  - Bundled `evals/evals.json` — the repository's first eval suite, focused on gap-spotting regression and citation-fabrication checks
+
 ## [0.5.1] - 2026-04-21
 
 ### Fixed
@@ -127,7 +136,8 @@ Version bumps and maintenance releases. See git history for details:
 - YAML direct edit resilience (extra field preservation + corrupt file isolation)
 - SQLite FTS5 full-text search index
 
-[unreleased]: https://github.com/etoyama/insight-blueprint/compare/v0.5.1...HEAD
+[unreleased]: https://github.com/etoyama/insight-blueprint/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/etoyama/insight-blueprint/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/etoyama/insight-blueprint/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/etoyama/insight-blueprint/compare/v0.4.4...v0.5.0
 [0.4.1]: https://github.com/etoyama/insight-blueprint/compare/v0.4.0...v0.4.1

@@ -1,0 +1,45 @@
+{
+  "skill_name": "rq-problematization",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "組織改善と業績の連動性について、インパクトのあるリサーチクエスチョンを考えたい。",
+      "expected_output": "A Japanese markdown document that problematizes the assumed link between organizational improvement and performance: it surfaces a taken-for-granted assumption (e.g., the assumed causal direction improvement→performance), challenges it via a critic, and produces RQs with verification plans plus an RQ Brief for /analysis-framing.",
+      "expectations": [
+        "The challenged target is an assumption the literature takes for granted (e.g., 'improvement causes performance is assumed', or a reverse-causation / co-relation framing), NOT a statement that some area is 'under-researched' (problematization, not gap-spotting)",
+        "Every cited work carries a verification-status tag ([検索で確認済] / [要旨のみ確認] / [未確認・要検証]); no reference appears without a status, and no fabricated author/year/title/venue is presented as verified",
+        "The challenge summary table contains all five columns: challenged assumption (with type) / impact-if-overturned labeled with a Davis typology / why-now feasibility / research question / verification plan",
+        "Candidate assumptions are drawn from more than one of the five types (in-house / root metaphor / paradigm / ideology / field)",
+        "The audience-persuasion step (Alvesson step 5: who holds the assumption, how to persuade, expected pushback) is present",
+        "A devil's-advocate critic subagent was launched (Agent tool) and the assumptions were refined as a result (gap-rephrasings removed)",
+        "An RQ Brief is emitted and the skill suggests /analysis-framing (not /analysis-design) as the next step"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "リモートワークと組織コミットメントの関係で問題化したい。先行研究の前提を疑いたい。",
+      "expected_output": "A Japanese markdown document that challenges an assumption underlying remote-work / organizational-commitment research, leveraging recent contextual change (post-pandemic normalization) as the 'why now', with verification-tagged citations and an RQ Brief.",
+      "expectations": [
+        "The challenged target is a taken-for-granted assumption (e.g., physical co-presence is assumed necessary for commitment), NOT a 'not yet studied' gap (problematization, not gap-spotting)",
+        "Every cited work carries a verification-status tag and no fabricated citation is presented as verified",
+        "The why-now column gives a concrete reason the assumption is challengeable now (e.g., post-pandemic remote-work normalization, new longitudinal data), not a vague 'it is important'",
+        "The challenge summary table contains all five columns including a Davis-typed impact label",
+        "A devil's-advocate critic subagent was launched and assumptions were refined",
+        "An RQ Brief is emitted and /analysis-framing is suggested as the next step"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "心理的安全性とチームパフォーマンスについて、研究テーマから問いを立てたい。",
+      "expected_output": "A Japanese markdown document that problematizes the popular psychological-safety / team-performance construct, questioning an assumption that has hardened due to the concept's popularity, with verification-tagged citations and an RQ Brief.",
+      "expectations": [
+        "The challenged target is an assumption the literature takes for granted (e.g., psychological safety is assumed uniformly beneficial / its function is assumed positive), NOT an 'under-researched area' framing (problematization, not gap-spotting)",
+        "Every cited work carries a verification-status tag and no fabricated citation is presented as verified",
+        "At least one challenge uses a Davis typology of Function or Evaluation (what is deemed good is actually harmful in some condition), reflecting the over-popularized nature of the construct",
+        "The challenge summary table contains all five columns",
+        "A devil's-advocate critic subagent was launched and assumptions were refined",
+        "An RQ Brief is emitted and /analysis-framing is suggested as the next step"
+      ]
+    }
+  ]
+}
