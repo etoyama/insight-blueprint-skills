@@ -13,6 +13,8 @@ from insight_blueprint.models.catalog import DomainKnowledgeEntry, KnowledgeCate
 from insight_blueprint.models.design import AnalysisDesign, DesignStatus
 from insight_blueprint.models.review import BatchComment, ReviewBatch, ReviewComment
 from insight_blueprint.storage.yaml_store import read_yaml, write_yaml
+from insight_blueprint.validate import VALID_TRANSITIONS
+from insight_blueprint.validate import validate_transition as _validate_transition
 
 logger = logging.getLogger(__name__)
 
@@ -50,27 +52,9 @@ ALLOWED_TARGET_SECTIONS: set[str] = {
     "analysis_intent",
 }
 
-VALID_TRANSITIONS: dict[DesignStatus, set[DesignStatus]] = {
-    DesignStatus.in_review: {
-        DesignStatus.revision_requested,
-        DesignStatus.analyzing,
-        DesignStatus.supported,
-        DesignStatus.rejected,
-        DesignStatus.inconclusive,
-    },
-    DesignStatus.revision_requested: {
-        DesignStatus.in_review,
-        DesignStatus.revision_requested,
-        DesignStatus.analyzing,
-        DesignStatus.supported,
-        DesignStatus.rejected,
-        DesignStatus.inconclusive,
-    },
-    DesignStatus.analyzing: {DesignStatus.in_review},
-    DesignStatus.supported: set(),
-    DesignStatus.rejected: set(),
-    DesignStatus.inconclusive: set(),
-}
+# VALID_TRANSITIONS and validate_transition are imported from
+# insight_blueprint.validate (the single source of truth, ADR-0001 / Epic 02).
+# They are re-imported above so existing call sites keep their names.
 
 
 def _parse_knowledge_line(line: str) -> tuple[KnowledgeCategory, str]:
@@ -115,21 +99,6 @@ def _ensure_reviewable(design: AnalysisDesign | None, operation: str) -> None:
         raise ValueError(
             f"Design must be in reviewable status to {operation}, "
             f"current status: '{design.status}'"
-        )
-
-
-def _validate_transition(current: DesignStatus, target: DesignStatus) -> None:
-    """Validate that a transition from current to target is allowed."""
-    valid_targets = VALID_TRANSITIONS.get(current, set())
-    if target not in valid_targets:
-        valid_str = (
-            ", ".join(sorted(s.value for s in valid_targets))
-            if valid_targets
-            else "none"
-        )
-        raise ValueError(
-            f"Cannot transition from '{current.value}' to '{target.value}'. "
-            f"Valid targets: {valid_str}"
         )
 
 
