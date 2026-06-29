@@ -1,7 +1,6 @@
 """Tests for core/reviews.py (SPEC-3 Tasks 2.1 + 2.2)."""
 
 import logging
-import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -1240,35 +1239,6 @@ class TestListReviewBatches:
             batches = review_service.list_review_batches("DES-corrupt")
         assert batches == []
         assert len(caplog.records) > 0
-
-
-# ---------------------------------------------------------------------------
-# Section Definition Sync Contract Test (P4 — Task 4.2)
-# ---------------------------------------------------------------------------
-
-_SECTIONS_TS_PATH = Path(__file__).resolve().parent.parent / (
-    "frontend/src/pages/design-detail/components/sections.ts"
-)
-
-
-class TestSectionDefinitionSync:
-    """NFR-7: Backend ALLOWED_TARGET_SECTIONS must match frontend COMMENTABLE_SECTIONS."""
-
-    def test_backend_and_frontend_section_ids_match(self) -> None:
-        """Contract test: section IDs are identical between backend and frontend."""
-        from insight_blueprint.core.reviews import ALLOWED_TARGET_SECTIONS
-
-        # Parse frontend TypeScript source to extract section IDs
-        ts_source = _SECTIONS_TS_PATH.read_text(encoding="utf-8")
-        # Match lines like: { id: "hypothesis_statement", ...
-        frontend_ids = set(re.findall(r'id:\s*"([^"]+)"', ts_source))
-
-        assert frontend_ids, "Failed to parse any section IDs from sections.ts"
-        assert frontend_ids == ALLOWED_TARGET_SECTIONS, (
-            f"Section ID mismatch!\n"
-            f"  Backend only:  {sorted(ALLOWED_TARGET_SECTIONS - frontend_ids)}\n"
-            f"  Frontend only: {sorted(frontend_ids - ALLOWED_TARGET_SECTIONS)}"
-        )
 
 
 # ---------------------------------------------------------------------------

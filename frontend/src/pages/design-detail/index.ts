@@ -1,1 +1,0 @@
-export { DesignDetail } from "./DesignDetail";

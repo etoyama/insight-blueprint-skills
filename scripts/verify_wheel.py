@@ -1,8 +1,6 @@
 """Verify that a built wheel contains required files.
 
 Checks:
-- insight_blueprint/static/index.html exists
-- At least one .js file under insight_blueprint/static/assets/
 - insight_blueprint/py.typed exists (PEP 561)
 
 Usage:
@@ -32,33 +30,12 @@ def verify_wheel(whl_path: Path) -> tuple[bool, list[str]]:
     with zipfile.ZipFile(whl_path) as zf:
         names = zf.namelist()
 
-        # Check index.html
-        has_html = any("static/index.html" in n for n in names)
-        if has_html:
-            messages.append("OK: insight_blueprint/static/index.html found")
-        else:
-            errors.append("ERROR: insight_blueprint/static/index.html not found")
-
-        # Check JS assets
-        has_js = any("static/assets/" in n and n.endswith(".js") for n in names)
-        if has_js:
-            js_files = [n for n in names if "static/assets/" in n and n.endswith(".js")]
-            messages.append(f"OK: {len(js_files)} .js file(s) found in static/assets/")
-        else:
-            errors.append(
-                "ERROR: No .js files found under insight_blueprint/static/assets/"
-            )
-
-        # Check py.typed
+        # Check py.typed (PEP 561)
         has_py_typed = any(n.endswith("py.typed") for n in names)
         if has_py_typed:
             messages.append("OK: insight_blueprint/py.typed found")
         else:
             errors.append("ERROR: insight_blueprint/py.typed not found")
-
-        # Summary
-        static_count = sum(1 for n in names if "static/" in n)
-        messages.append(f"Total static files in wheel: {static_count}")
 
     all_messages = errors + messages
     return len(errors) == 0, all_messages

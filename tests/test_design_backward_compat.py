@@ -6,11 +6,9 @@ is complete and legacy data is fully converted.
 """
 
 import asyncio
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from starlette.testclient import TestClient
 
 import insight_blueprint._registry as registry
 import insight_blueprint.server as server_module
@@ -21,7 +19,6 @@ from insight_blueprint.models.design import (
     MetricTier,
     VariableRole,
 )
-from insight_blueprint.storage.project import init_project
 
 
 @pytest.fixture
@@ -106,35 +103,3 @@ def test_create_design_invalid_role_returns_error(initialized_server: Path) -> N
         )
     )
     assert "error" in result
-
-
-# ---------------------------------------------------------------------------
-# BC-04: REST API with invalid enum value returns 400/422
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def client(tmp_path: Path) -> Iterator[TestClient]:
-    """Yield a TestClient with DesignService wired."""
-    init_project(tmp_path)
-    original_d = registry.design_service
-    registry.design_service = DesignService(tmp_path)
-    from insight_blueprint.web import app
-
-    with TestClient(app, raise_server_exceptions=False) as c:
-        yield c
-    registry.design_service = original_d
-
-
-def test_create_design_api_invalid_role_returns_422(client: TestClient) -> None:
-    """BC-04: REST API with invalid enum value returns 400/422."""
-    resp = client.post(
-        "/api/designs",
-        json={
-            "title": "t",
-            "hypothesis_statement": "s",
-            "hypothesis_background": "b",
-            "explanatory": [{"name": "x1", "role": "invalid_role"}],
-        },
-    )
-    assert resp.status_code in (400, 422)
