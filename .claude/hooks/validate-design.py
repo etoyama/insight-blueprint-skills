@@ -37,7 +37,7 @@ EXIT_BLOCK = 2
 DESIGN_SUFFIX = "_hypothesis.yaml"
 
 
-def _yaml():  # noqa: ANN202 - ruamel YAML instance
+def _yaml():  # returns a ruamel YAML instance
     from ruamel.yaml import YAML
 
     yaml = YAML()
@@ -130,14 +130,14 @@ def evaluate(tool_name: str, tool_input: dict) -> list[str]:
     new_text = reconstruct_content(tool_name, tool_input, current_text or "")
     try:
         new_data = parse_yaml(new_text)
-    except Exception as exc:  # noqa: BLE001 - any parse failure blocks the write
+    except Exception as exc:  # any parse failure blocks the write
         return [f"invalid YAML: {exc}"]
 
     current_data: dict | None = None
     if current_text is not None:
         try:
             current_data = parse_yaml(current_text)
-        except Exception:  # noqa: BLE001 - pre-existing corruption: skip transition
+        except Exception:  # pre-existing corruption: skip the transition check
             current_data = None
 
     return validate_design_change(new_data, current_data)
@@ -146,7 +146,7 @@ def evaluate(tool_name: str, tool_input: dict) -> list[str]:
 def main() -> int:
     try:
         payload = json.load(sys.stdin)
-    except Exception as exc:  # noqa: BLE001 - malformed payload: fail open
+    except Exception as exc:  # malformed payload: fail open
         print(f"validate-design hook: could not read payload ({exc})", file=sys.stderr)
         return EXIT_ALLOW
 
@@ -155,7 +155,7 @@ def main() -> int:
 
     try:
         errors = evaluate(tool_name, tool_input)
-    except Exception as exc:  # noqa: BLE001 - hook bug must not brick writes
+    except Exception as exc:  # a hook bug must not brick every design write
         print(
             f"validate-design hook: internal error, allowing ({exc})", file=sys.stderr
         )
