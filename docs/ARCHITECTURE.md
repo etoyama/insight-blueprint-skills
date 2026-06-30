@@ -62,6 +62,41 @@ flowchart TD
 - **Skill-managed YAML（`.insight/`）** — designs / journals / catalog / knowledge。skill が直接管理する。
 - **marimo + lineage（`src/insight_blueprint/lineage/`, `_templates/`）** — notebook 契約と加工の透明性・追跡。
 
+## 代表シーケンス（分析ワークフロー）
+
+分析者とモジュールの時系列インタラクション。仮説設計 → 検証ガード → 分析 → 記録の代表フローを示す
+（個別 Epic の詳細シーケンスは各 Epic Design Doc 側）。
+
+```mermaid
+sequenceDiagram
+    actor U as 分析者
+    participant CC as Claude Code
+    participant SK as Skill layer
+    participant H as pre-write hook
+    participant V as validate.py
+    participant FS as .insight/（YAML）
+    participant MO as marimo + lineage
+
+    U->>CC: 「仮説を設計したい」等の依頼
+    CC->>SK: skill 起動（例: /analysis-design）
+    SK->>CC: hypothesis.yaml を Write/Edit
+    Note over CC,H: *_hypothesis.yaml への書込は PreToolUse で捕捉
+    CC->>H: PreToolUse(tool_input)
+    H->>FS: read_yaml(現ファイル)
+    FS-->>H: current_data | None
+    H->>V: validate_design_change(new_data, current_data)
+    V-->>H: list[str]（空=合格）
+    alt 違反
+        H-->>CC: exit 2（書込ブロック）
+        CC-->>U: 検証エラーを提示
+    else 合格
+        H-->>FS: 書込実行（exit 0）
+        SK->>MO: 分析 notebook 実行・lineage 記録
+        SK->>FS: journal / reflection を更新
+        SK-->>U: 結果・次アクションを提示
+    end
+```
+
 ## Epic マッピング
 
 | Epic | 主に触るコンポーネント |
