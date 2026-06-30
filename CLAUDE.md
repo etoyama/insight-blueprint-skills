@@ -23,22 +23,16 @@ rationale.
 tree and are removed across Epics E1–E4 (see ADR-0001 → Related). Until then, treat
 this document as the **target architecture and the active development flow**.
 
-## 2. Architecture (target state)
+## 2. Architecture
 
-- **Skill layer** (`skills/`) — all analysis capabilities. The extension point.
-- **Validation library** (`src/insight_blueprint/validate.py`) — pure functions:
-  Pydantic schema validation + state-transition guard. The single source of truth
-  for design-document integrity.
-- **pre-write hook** (`.claude/hooks/validate-design.py`) — invokes `validate.py`
-  before any write to `.insight/designs/*_hypothesis.yaml`; blocks on violation
-  (`exit 2`).
-- **Skill-managed YAML** (`.insight/`) — designs, journals, catalog, knowledge.
-  Skills read/write these directly (same idiom as journal/reflection today).
-- **marimo + lineage** (`src/insight_blueprint/lineage/`, `_templates/`) — notebook
-  contract and transformation transparency.
+Invariants: **No daemon. No MCP server. No SQLite.** Validation lives in a library
+(`validate.py`), not a process — the same trade SQLite makes by embedding instead of
+running a server. Components: skill layer (`skills/`), validation library
+(`validate.py`), pre-write hook, skill-managed YAML (`.insight/`), marimo + lineage.
 
-No daemon. No MCP server. No SQLite. Validation lives in a library, not a process —
-the same trade SQLite makes by embedding instead of running a server.
+The full architecture (component map, current→target migration diagram, Epic mapping)
+is canonical in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**; product requirements
+live in **[docs/PRD.md](docs/PRD.md)**.
 
 ## 3. Tech Stack
 
@@ -51,16 +45,20 @@ GitHub issue-driven, **two tiers**:
 
 - **Epic** (`type:epic`): a coherent step toward the lightweight target; accompanied
   by `docs/design/epic-NN-<topic>.md` ([template](.claude/rules/design-doc-template.md)).
-- **Story** (`type:story`): 0.5–3 day unit, ≤5 acceptance criteria, one PR.
+- **Story** (`type:story`): 0.5–3 day unit, ≤5 acceptance criteria.
 
-Branch naming:
+Branching model is **trunk-based with stacked Epics** (`main` is the trunk; no `dev`
+integration branch — see [ADR-0002](docs/adr/0002-trunk-based-epic-stacking.md)):
 
-- Epic: `epic/<num>-<slug>` cut from `dev`
-- Story: `(feat|fix|chore|refactor)/<story-num>-<slug>` cut from the Epic branch
-- Story PRs target the Epic branch. Epic PRs target `dev`.
+- Epic: `epic/<num>-<slug>` cut from `main`. Epic PRs target `main`.
+- Story: by default, commit Stories directly onto the Epic branch. Only when a Story
+  warrants independent review, cut `(feat|fix|chore|refactor)/<story-num>-<slug>` from
+  the Epic branch and PR it into the Epic branch (a stacked PR).
+- Releases are tag-driven (`publish.yml` on `v*`), so merging an Epic to `main` does
+  not publish.
 
-**AI assistants must not merge Epic PRs into the main branch.** The user reviews and
-merges manually.
+**AI assistants must not merge Epic PRs into `main`.** The user reviews and merges
+manually.
 
 ## 5. Architecture Decision Records (ADR) — hard rule
 

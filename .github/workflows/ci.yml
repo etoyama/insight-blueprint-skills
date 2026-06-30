@@ -3,8 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
+  # No base-branch filter: run on every PR, including stacked Story->Epic PRs
+  # (base = epic/*) and Epic->main PRs. Closes the gap where non-main-base PRs
+  # were not CI-gated (ADR-0002).
   pull_request:
-    branches: [main]
 
 jobs:
   python:
