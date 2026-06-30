@@ -6,13 +6,13 @@ lineage の変換は E3.5 に分離する（[ADR-0003](../adr/0003-skill-yaml-io
 
 ## Acceptance Criteria
 
-- [ ] AC1: `skills/_shared/design_io.py` が設計書 CRUD（create/update/get/list/transition）と reviews
+- [x] AC1: `skills/_shared/design_io.py` が設計書 CRUD（create/update/get/list/transition）と reviews
   batch の読み書きを純 Python で提供し、書込前に `validate.py` を呼ぶ
-- [ ] AC2: analysis-design / analysis-journal / analysis-reflection / analysis-revision の SKILL.md が
-  MCP tool（`create_analysis_design` 等）でなく design_io を使う
-- [ ] AC3: 生成 YAML が現 DesignService 産と同形（id 形式 `{theme}-H{nn}` / JST timestamp / schema）
-- [ ] AC4: `tests/test_design_io.py` が CRUD・id 衝突回避・merge・transition・reviews を網羅し全緑
-- [ ] AC5: MCP サーバは温存（E3 では未削除）。既存 server テストは緑のまま（挙動不変）
+- [x] AC2: analysis-design / analysis-journal / analysis-reflection / analysis-revision の SKILL.md が
+  MCP tool（`create_analysis_design` 等）でなく design_io を使う（残存 MCP CRUD 参照ゼロを確認）
+- [x] AC3: 生成 YAML が現 DesignService 産と同形（id 形式 `{theme}-H{nn}` / JST timestamp / schema）
+- [x] AC4: `tests/test_design_io.py`（20 件）が CRUD・id 衝突回避・merge・transition・reviews を網羅し全緑
+- [x] AC5: MCP サーバは温存（E3 では未削除）。既存 server テストは緑のまま（958 passed / 1 skipped）
 
 ## Glossary
 
@@ -131,12 +131,15 @@ design_io の入出力は dict（YAML 同形）。journal/revision は skill 管
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| Story 3.1 design_io | ☐ | ☐ (CLI subprocess) | — |
-| Story 3.2 design/journal skill | — | — | ☐ (手動 run) |
-| Story 3.3 reflection/revision skill | — | — | ☐ (手動 run) |
+| Story 3.1 design_io | ✓ (test_design_io 20) | ✓ (CLI subprocess) | ✓ (CLI create→transition) |
+| Story 3.2 design/journal skill | — | — | ✓ (CLI 経路で確認) |
+| Story 3.3 reflection/revision skill | — | — | ✓ (CLI 経路で確認) |
 
 完了時に ✓。pytest 全緑が Epic PR レビューゲート。
 
 ## Story Timeline
 
 - 2026-06-30 — Epic 03 起票: main から epic/3-skills-yaml-io を切り、Design Doc + ADR-0003 作成。
+- 2026-06-30 — Story 3.1 完了: design_io.py 新設（CRUD/transition/reviews/CLI）+ test_design_io 20 件。typecheck に skills/ を追加。
+- 2026-06-30 — Story 3.2 完了: analysis-design / -journal を design_io へ。「MCP-Only Editing」節を直接 I/O + hook 検証へ書換。
+- 2026-06-30 — Story 3.3 完了: analysis-reflection / -revision を design_io へ。ADR-0001 / PRD / ARCHITECTURE のロードマップに E3.5 を追記。

@@ -49,9 +49,10 @@
 
 | Epic | 内容 | 状態 |
 |---|---|---|
-| E1 | WebUI / REST 削除 | 実装済（PR 化待ち） |
-| E2 | `validate.py` 抽出 + pre-write hook 新設 | 実装済（#13） |
-| E3 | skill を YAML 直接 I/O へ改修 | 未着手 |
+| E1 | WebUI / REST 削除 | 完了 |
+| E2 | `validate.py` 抽出 + pre-write hook 新設 | 完了 |
+| E3 | skill を YAML 直接 I/O（設計書ライフサイクル） | 進行中 |
+| E3.5 | catalog / premortem / lineage の MCP→YAML 変換（E4 前提） | 未着手 |
 | E4 | MCPサーバ層削除 | 未着手 |
 | E5 | catalog 柔軟化 + premortem 自立化 | 未着手 |
 
