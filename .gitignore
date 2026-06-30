@@ -71,14 +71,3 @@ logs/
 # Jupyter
 .ipynb_checkpoints/
 
-# Frontend build output (bundled into wheel via hatch artifacts)
-src/insight_blueprint/static/
-
-# Frontend dependencies
-frontend/node_modules/
-
-# Playwright test artifacts
-test-results/
-frontend/test-results/
-frontend/playwright-report/
-

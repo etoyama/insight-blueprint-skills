@@ -14,9 +14,6 @@ from pathlib import Path
 import pytest
 
 PYPROJECT_PATH = Path(__file__).resolve().parent.parent / "pyproject.toml"
-STATIC_DIR = (
-    Path(__file__).resolve().parent.parent / "src" / "insight_blueprint" / "static"
-)
 
 
 def _build_wheel(tmp_path: Path) -> Path:
@@ -105,36 +102,4 @@ class TestWheelContents:
         ), (
             f"Missing 'Topic :: Scientific/Engineering :: Information Analysis'. "
             f"Found classifiers: {classifiers}"
-        )
-
-
-class TestWheelStaticAssets:
-    """Tests for frontend static assets in the built wheel."""
-
-    def test_wheel_contains_index_html(self, tmp_path: Path) -> None:
-        """Integ-04: Built wheel should contain index.html."""
-        if not (STATIC_DIR / "index.html").exists():
-            pytest.skip("Frontend not built")
-
-        whl_path = _build_wheel(tmp_path)
-        names = _read_wheel_names(whl_path)
-        assert any(n == "insight_blueprint/static/index.html" for n in names), (
-            f"index.html not found in wheel. Static files: {[n for n in sorted(names) if 'static' in n]}"
-        )
-
-    def test_wheel_contains_js_bundle(self, tmp_path: Path) -> None:
-        """Integ-04b: Built wheel should contain JS bundle."""
-        if not (STATIC_DIR / "index.html").exists():
-            pytest.skip("Frontend not built")
-
-        whl_path = _build_wheel(tmp_path)
-        names = _read_wheel_names(whl_path)
-        js_files = [
-            n
-            for n in names
-            if n.startswith("insight_blueprint/static/assets/") and n.endswith(".js")
-        ]
-        assert len(js_files) > 0, (
-            f"No .js files found under insight_blueprint/static/assets/. "
-            f"Static files: {[n for n in sorted(names) if 'static' in n]}"
         )
