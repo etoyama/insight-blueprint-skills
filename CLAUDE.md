@@ -23,22 +23,16 @@ rationale.
 tree and are removed across Epics E1–E4 (see ADR-0001 → Related). Until then, treat
 this document as the **target architecture and the active development flow**.
 
-## 2. Architecture (target state)
+## 2. Architecture
 
-- **Skill layer** (`skills/`) — all analysis capabilities. The extension point.
-- **Validation library** (`src/insight_blueprint/validate.py`) — pure functions:
-  Pydantic schema validation + state-transition guard. The single source of truth
-  for design-document integrity.
-- **pre-write hook** (`.claude/hooks/validate-design.py`) — invokes `validate.py`
-  before any write to `.insight/designs/*_hypothesis.yaml`; blocks on violation
-  (`exit 2`).
-- **Skill-managed YAML** (`.insight/`) — designs, journals, catalog, knowledge.
-  Skills read/write these directly (same idiom as journal/reflection today).
-- **marimo + lineage** (`src/insight_blueprint/lineage/`, `_templates/`) — notebook
-  contract and transformation transparency.
+Invariants: **No daemon. No MCP server. No SQLite.** Validation lives in a library
+(`validate.py`), not a process — the same trade SQLite makes by embedding instead of
+running a server. Components: skill layer (`skills/`), validation library
+(`validate.py`), pre-write hook, skill-managed YAML (`.insight/`), marimo + lineage.
 
-No daemon. No MCP server. No SQLite. Validation lives in a library, not a process —
-the same trade SQLite makes by embedding instead of running a server.
+The full architecture (component map, current→target migration diagram, Epic mapping)
+is canonical in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**; product requirements
+live in **[docs/PRD.md](docs/PRD.md)**.
 
 ## 3. Tech Stack
 
