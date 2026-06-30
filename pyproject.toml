@@ -65,7 +65,9 @@ artifacts = ["src/insight_blueprint/static/**"]
 [tool.ruff]
 target-version = "py311"
 line-length = 88
-exclude = [".claude/"]
+# .claude/hooks/ is intentionally linted: the pre-write hook is the sole
+# design-validation enforcement point post-MCP, so it must stay under the CI
+# lint/type authority (CLAUDE.md §10). The repo's .claude/ holds no other .py.
 
 [tool.ruff.lint]
 select = [
@@ -101,7 +103,7 @@ shell = "uv run ruff check . && uv run ruff format --check ."
 shell = "uv run ruff check --fix . && uv run ruff format ."
 
 [tool.poe.tasks.typecheck]
-cmd = "uv run ty check src/"
+cmd = "uv run ty check src/ .claude/hooks/"
 
 [tool.poe.tasks.test]
 cmd = "uv run pytest -v"
