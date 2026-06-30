@@ -36,9 +36,11 @@ Based on Narrative Scaffolding (Huang+ IUI 2026) and Sensemaking Loop
 ### Step 1: Identify Target Design
 
 If `$ARGUMENTS` contains a design ID (e.g., "FP-H01"), use it directly.
-Otherwise, call `list_analysis_designs(status="analyzing")` and ask user to select.
+Otherwise, run `uv run python -m skills._shared.design_io list --status analyzing`
+and ask the user to select.
 
-Validate with `get_analysis_design(design_id)`.
+Validate with `uv run python -m skills._shared.design_io get --id {design_id}`
+(empty `{}` output means not found).
 
 ### Step 2: Load or Initialize Journal
 
@@ -91,15 +93,17 @@ Ask only when the user's statement implies a connection. Default to empty/null.
 When user wants to branch to an alternative hypothesis:
 
 1. Ask for: new `title`, new `hypothesis_statement`, optional `hypothesis_background`
-2. Call MCP tool:
-   ```
-   create_analysis_design(
-       title=new_title,
-       hypothesis_statement=new_hypothesis,
-       hypothesis_background=source.hypothesis_background,  # Inherit if not provided
-       parent_id=source_design_id,
-       theme_id=source.theme_id,
-   )
+2. Create the child design via design_io (inherits parent's `theme_id`; `methodology`
+   is required — carry over the source's or ask the user):
+   ```bash
+   echo '{
+     "title": "<new_title>",
+     "hypothesis_statement": "<new_hypothesis>",
+     "hypothesis_background": "<source.hypothesis_background if not provided>",
+     "parent_id": "<source_design_id>",
+     "theme_id": "<source.theme_id>",
+     "methodology": {"method": "<carry over or ask>"}
+   }' | uv run python -m skills._shared.design_io create
    ```
 3. Record `branch` event in source journal:
    ```yaml
@@ -152,7 +156,7 @@ Next: /analysis-reflection {design_id} で振り返りと結論導出
 | `question` | New question or uncertainty raised | `{priority?: "high" \| "medium" \| "low"}` |
 | `decide` | Method, tool, or approach chosen | `{method: str, package?: str, reason?: str}` |
 
-> **methodology への昇格**: decide イベントで記録した method/package は、analysis-design の methodology フィールドに昇格できる。`update_analysis_design` の `methodology` パラメータで `{method, package, reason}` を渡す。
+> **methodology への昇格**: decide イベントで記録した method/package は、analysis-design の methodology フィールドに昇格できる。`design_io update --id {design_id}` に `{"methodology": {method, package, reason}}` を渡す。
 
 | `reflect` | Meta-level thinking about the analysis | — |
 | `conclude` | Conclusion drawn from evidence | `{resolves?: event_id}` |
@@ -173,21 +177,17 @@ The current phase is inferred from the latest event type:
 
 `.insight/designs/{design_id}_journal.yaml`
 
-This file is skill-managed data, not MCP-managed (see YAML Format Reference
-in analysis-design SKILL.md).
+This file is skill-managed data (see the YAML Format Reference in analysis-design
+SKILL.md). `design_io` exposes `load_journal` / `write_journal` thin wrappers, but
+direct Read/Write of this file is also fine.
 
-## Sibling/Tree Queries (No MCP Required)
+## Sibling/Tree Queries
 
-To find sibling hypotheses:
+List designs via `design_io list` (JSON), then filter by `parent_id` / `theme_id`:
 ```
-designs = list_analysis_designs(theme_id=target.theme_id)
-siblings = [d for d in designs if d.parent_id == target.parent_id and d.id != target.id]
-```
-
-To build hypothesis tree:
-```
-designs = list_analysis_designs(theme_id=theme_id)
-roots = [d for d in designs if d.parent_id is None]
+designs = json(`design_io list`)          # list[dict]
+siblings = [d for d in designs if d["parent_id"] == target["parent_id"] and d["id"] != target["id"]]
+roots = [d for d in designs if d["parent_id"] is None]
 # Recursively build children from parent_id references
 ```
 
@@ -202,19 +202,21 @@ resolved_ids = {e.metadata.resolves for e in events if e.type == "conclude" and 
 open_questions = [q for q in questions if q.id not in resolved_ids]
 ```
 
-## MCP Tool Reference (Existing Only)
+## design_io Reference
 
-| Tool | Used for |
-|------|----------|
-| `get_analysis_design(design_id)` | Load target design |
-| `list_analysis_designs(status?, theme_id?)` | Find designs for tree/sibling queries |
-| `create_analysis_design(...)` | Branch workflow (create child design) |
+`python -m skills._shared.design_io <command>` (from project root):
+
+| Command | Used for |
+|---------|----------|
+| `get --id ID` | Load target design |
+| `list [--status S]` | Find designs for tree/sibling queries (filter by parent_id/theme_id in the JSON) |
+| `create` (stdin JSON) | Branch workflow (create child design) |
 
 ## Error Handling
 
 | Situation | Action |
 |---|---|
-| Design not found | Show error, suggest `list_analysis_designs()` |
+| Design not found | Show error, suggest `design_io list` |
 | Journal file corrupted | Backup corrupt file, reinitialize |
 | Event ID conflict | Re-scan existing IDs and use max+1 |
 
