@@ -20,18 +20,44 @@ Epic Issue body から転記する。
 |---|---|
 | <略語 or ドメイン用語> | <説明; 本文で略語を単独参照しない> |
 
+## Scope
+
+この Epic が [docs/PRD.md](../../docs/PRD.md) のどの要件と
+[docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) のどのコンポーネントを前進させるかを示す。
+
+- **Epic 範囲内**: <…>
+- **Epic 範囲外**: <…（どの Epic に委ねるか）>
+
 ## Architecture
 
-<図（ASCII or リンク画像）または構成を説明するテキスト。
-既存の関数・ファイルはパスで参照する。>
+mermaid の `flowchart` / `graph` で構成図を描く（ASCII 図は不可。GitHub が描画する）。
+既存の関数・ファイルはパスで参照する。
+
+```mermaid
+flowchart TD
+    A[Component A] --> B[Component B]
+```
 
 ## Module Responsibilities
 
 - `<path>::<function>` — <責務>
 
-## Data Flow
+## Sequence Diagram
 
-<シーケンス or データフローの説明。外部境界（ファイルシステム, ネットワーク, 外部API）を含める。>
+mermaid の `sequenceDiagram` で、ユーザ／クラス／外部境界（ファイルシステム・ネットワーク・
+外部API）のインタラクションを可視化する。誰がどの順で何を呼び、どう応答するかを表す。
+図で表せない補足（境界の説明など）は図の下に短く添える。
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant S as Service
+    participant X as External
+    U->>S: request
+    S->>X: call
+    X-->>S: result
+    S-->>U: response
+```
 
 ## Data Model
 
