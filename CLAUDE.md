@@ -51,16 +51,20 @@ GitHub issue-driven, **two tiers**:
 
 - **Epic** (`type:epic`): a coherent step toward the lightweight target; accompanied
   by `docs/design/epic-NN-<topic>.md` ([template](.claude/rules/design-doc-template.md)).
-- **Story** (`type:story`): 0.5–3 day unit, ≤5 acceptance criteria, one PR.
+- **Story** (`type:story`): 0.5–3 day unit, ≤5 acceptance criteria.
 
-Branch naming:
+Branching model is **trunk-based with stacked Epics** (`main` is the trunk; no `dev`
+integration branch — see [ADR-0002](docs/adr/0002-trunk-based-epic-stacking.md)):
 
-- Epic: `epic/<num>-<slug>` cut from `dev`
-- Story: `(feat|fix|chore|refactor)/<story-num>-<slug>` cut from the Epic branch
-- Story PRs target the Epic branch. Epic PRs target `dev`.
+- Epic: `epic/<num>-<slug>` cut from `main`. Epic PRs target `main`.
+- Story: by default, commit Stories directly onto the Epic branch. Only when a Story
+  warrants independent review, cut `(feat|fix|chore|refactor)/<story-num>-<slug>` from
+  the Epic branch and PR it into the Epic branch (a stacked PR).
+- Releases are tag-driven (`publish.yml` on `v*`), so merging an Epic to `main` does
+  not publish.
 
-**AI assistants must not merge Epic PRs into the main branch.** The user reviews and
-merges manually.
+**AI assistants must not merge Epic PRs into `main`.** The user reviews and merges
+manually.
 
 ## 5. Architecture Decision Records (ADR) — hard rule
 
