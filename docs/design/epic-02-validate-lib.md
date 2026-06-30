@@ -23,25 +23,39 @@
 | 状態遷移ガード | `VALID_TRANSITIONS` に基づき status 遷移の妥当性を検証する仕組み |
 | hypothesis.yaml | `.insight/designs/<id>_hypothesis.yaml`。検証対象の分析設計書 |
 
+## Scope
+
+本 Epic は [ARCHITECTURE.md](../ARCHITECTURE.md) の **Validation library（`validate.py`）** と
+**pre-write hook** コンポーネントを新設し、[PRD.md](../PRD.md) の要件
+「サーバを常駐させずに設計書整合性を強制する」を満たす段階に当たる。
+
+- **Epic 範囲内**: validate.py（スキーマ + 状態遷移の純関数集約）、pre-write hook、hook 登録、
+  reviews.py の import 委譲。
+- **Epic 範囲外**: MCPサーバ本体の削除（E4）、skill の YAML 直接 I/O 化（E3）。本 Epic では MCP 経路を温存する。
+
 ## Architecture
 
-```
-        Claude Code (Write/Edit/MultiEdit)
-                  │  PreToolUse
-                  ▼
-   .claude/settings.json  ──registers──►  .claude/hooks/validate-design.py  (I/O 殻)
-                                                  │ stdin: PreToolUse JSON
-                                                  │ ・対象パス判定 (*_hypothesis.yaml)
-                                                  │ ・結果YAML再構成 (Write/Edit/MultiEdit)
-                                                  │ ・現ファイル読込 (read_yaml)
-                                                  ▼
-                              src/insight_blueprint/validate.py  (純関数・I/O禁止)
-                                ├─ VALID_TRANSITIONS           ← 単一正本
-                                ├─ validate_transition()
-                                ├─ validate_schema()           → models/design.py:AnalysisDesign
-                                └─ validate_design_change()    → list[str] (空=合格)
-                                                  ▲
-                              core/reviews.py ──import 委譲──┘  (MCPサーバ経路, E4まで温存)
+```mermaid
+flowchart TD
+    CC["Claude Code (Write/Edit/MultiEdit)"]
+    settings[".claude/settings.json — PreToolUse 登録"]
+    hook[".claude/hooks/validate-design.py（I/O 殻）"]
+    reviews["core/reviews.py（MCP 経路・E4まで温存）"]
+    model["models/design.py::AnalysisDesign"]
+
+    subgraph VP["src/insight_blueprint/validate.py（純関数・I/O 禁止／単一正本）"]
+        vt["VALID_TRANSITIONS / validate_transition"]
+        vs["validate_schema"]
+        vc["validate_design_change → list[str]（空=合格）"]
+    end
+
+    CC -->|PreToolUse| settings
+    settings -->|registers| hook
+    hook -->|"対象判定 / 結果YAML再構成 / read_yaml"| vc
+    reviews -->|import 委譲| vt
+    vc --> vs
+    vc --> vt
+    vs -->|model_validate| model
 ```
 
 検証の正本は validate.py の1箇所。hook（skill 直書き経路）と reviews.py（MCP 経路）の双方が
@@ -57,17 +71,36 @@
 - `.claude/hooks/validate-design.py` — PreToolUse の I/O 殻。対象判定・結果YAML再構成・現ファイル読込・validate.py 呼出・exit code 制御
 - `.claude/settings.json` — PreToolUse matcher `Write|Edit|MultiEdit` に hook を登録（tracked）
 
-## Data Flow
+## Sequence Diagram
 
-1. Claude Code が `.insight/designs/<id>_hypothesis.yaml` への Write/Edit/MultiEdit を発行
-2. PreToolUse で hook 起動（`uv run python .claude/hooks/validate-design.py`）。stdin に `{tool_name, tool_input}` JSON
-3. hook が `tool_input` から書込先パスを取得。`*_hypothesis.yaml` 以外なら `exit 0`
-4. hook が結果テキストを再構成: Write→`content`、Edit→現テキストに `old_string`→`new_string` 適用、MultiEdit→順次適用
-5. hook が ruamel で結果テキストを dict 化（`new_data`）。`read_yaml(path)` で現ファイル dict（`current_data`、無ければ None）
-6. hook が `validate_design_change(new_data, current_data)` を呼ぶ
-7. エラーリストが空でなければ stderr へ整形出力して `exit 2`（書込ブロック）、空なら `exit 0`
+```mermaid
+sequenceDiagram
+    actor CC as Claude Code
+    participant Hook as pre-write hook
+    participant V as validate.py（純関数）
+    participant FS as Filesystem（designs YAML）
 
-外部境界: ファイルシステム（現ファイル読込）と stdin/stderr/exit code は hook に閉じる。validate.py は境界を持たない。
+    CC->>Hook: PreToolUse {tool_name, tool_input}
+    Note over Hook: 書込先が *_hypothesis.yaml か判定
+    alt 対象外
+        Hook-->>CC: exit 0（許可・素通り）
+    else 対象
+        Hook->>Hook: 結果YAML再構成（Write=content / Edit・MultiEdit=差分適用）
+        Hook->>FS: read_yaml(現ファイル)
+        FS-->>Hook: current_data | None（新規時）
+        Hook->>V: validate_design_change(new_data, current_data)
+        Note over V: schema 検証 +（status 変化時）遷移検証
+        V-->>Hook: list[str]（空=合格）
+        alt エラーあり
+            Hook-->>CC: stderr 出力 + exit 2（書込ブロック）
+        else 合格
+            Hook-->>CC: exit 0（書込実行）
+        end
+    end
+```
+
+外部境界（ファイルシステムの読込・stdin/stderr/exit code）はすべて hook 側に閉じる。
+validate.py は I/O 境界を持たない純関数で、dict を受け取り検証結果だけを返す。
 
 ## Data Model
 
@@ -131,3 +164,4 @@ Story 完了とキーイベントの追記専用ログ。
 - 2026-06-29 — Epic 02 起票: dev から epic/2-validate-lib を切り、Design Doc 作成。
 - 2026-06-29 — Story 2.1 完了: validate.py 新設（VALID_TRANSITIONS / validate_transition / validate_schema / validate_design_change）。reviews.py を import 委譲に置換。test_validate.py 29件追加、pytest 全緑（挙動不変）。
 - 2026-06-29 — Story 2.2 完了: validate-design.py hook 新設（Write/Edit/MultiEdit 再構成 + I/O殻）、.claude/settings.json に PreToolUse 登録、test_validate_hook.py 20件追加。pytest 1067 passed / 4 skipped。
+- 2026-06-30 — #13 レビュー対応: Architecture を mermaid flowchart に、Data Flow を mermaid Sequence Diagram に変更。Scope 節を追加し PRD/ARCHITECTURE 上の位置づけを明記。
