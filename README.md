@@ -97,8 +97,7 @@ The plugin provides 10 analysis skills that are automatically available after in
 - `/analysis-revision` -- Guided revision workflow for addressing review comments
 - `/catalog-register` -- Step-by-step data source registration
 - `/data-lineage` -- Track data transformations and export lineage diagrams (Mermaid)
-- `/batch-analysis` -- Overnight batch execution of queued designs (headless notebooks, self-review, journal recording)
-- `/premortem` -- Pre-flight risk evaluation of queued designs with approval token issuance (gates `/batch-analysis`)
+- `/premortem` -- Pre-flight cost/risk evaluation of queued designs with approval token issuance
 
 Skills support both English and Japanese trigger phrases.
 
@@ -112,55 +111,23 @@ Skills chain together to support the full hypothesis-driven analysis lifecycle:
 /analysis-framing (explore data, frame direction)
     ↓
 /analysis-design (create hypothesis)
-    ↓ (interactive)          ↓ (batch)
-/analysis-journal        /batch-analysis (overnight headless)
-    ↓                        ↓
     ↓
-/analysis-reflection (reflect → conclude or branch)      ← morning review
+/analysis-journal (record reasoning during analysis)
+    ↓
+/analysis-reflection (reflect → conclude or branch)
     ↓ ↗ back to /analysis-framing (new direction needed)
-    ↕ WebUI review → /analysis-revision (address review comments)
+    ↕ review → /analysis-revision (address review comments)
 /catalog-register (register findings as domain knowledge)
 ```
 
 Each design has an `analysis_intent` field (`exploratory`, `confirmatory`, or `mixed`) to distinguish whether you're testing a specific hypothesis or exploring data for patterns. The Insight Journal (`.insight/designs/{id}_journal.yaml`) tracks your reasoning process with 8 event types mapped to the Narrative Scaffolding framework (Huang+ IUI 2026).
 
-## Overnight Operation
+## Pre-flight Risk Evaluation (`/premortem`)
 
-Batch analysis runs overnight via a two-step workflow: risk evaluation
-followed by headless execution.
-
-### Workflow
-
-```
-/premortem --queued --yes --mode review
-    ↓ (exit 0: token issued)
-    ↓ (exit 2: HIGH detected, human triage needed)
-/batch-analysis --approved-by TOKEN
-    ↓
-Morning review: summary.md + /analysis-reflection per design
-```
-
-### Automation Modes
-
-| Mode | HIGH Risk Handling | Human Interaction |
-|------|-------------------|-------------------|
-| `manual` | Interactive prompt for every design | Required |
-| `review` | Blocks on HIGH (exit 2), auto-approves LOW/MEDIUM | Only when HIGH detected |
-| `auto` | Includes HIGH in approved set with warning | None |
-
-Set the mode in `.insight/config.yaml` under `batch.automation` (default: `review`).
-
-### Phased Rollout of `--approved-by`
-
-The `--approved-by TOKEN` argument is introduced in two phases:
-
-- **Phase A** (`batch.approved_by_required: false`): Omitting the flag prints a
-  warning and runs in legacy mode. Existing workflows are not broken.
-- **Phase B** (`batch.approved_by_required: true`): Omitting the flag causes
-  exit 1. All batch runs must go through `/premortem` first.
-
-Transition from Phase A to Phase B by setting `approved_by_required: true` in
-`.insight/config.yaml` when your team is ready.
+`/premortem` evaluates queued designs for cost/risk before expensive data access and
+issues an approval token. It runs in `manual` / `review` / `auto` modes (risk-gating
+strength). The overnight `batch-analysis` executor it used to gate was removed in E3.5
+(superseded by Claude Code auto mode); premortem's self-standing redefinition is E5.
 
 ## CLI Options
 

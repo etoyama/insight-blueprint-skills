@@ -87,43 +87,10 @@ class TestCrashRecoveryDetectIntegration:
         assert refs[0].run_id == "20260420_crash_01"
         assert refs[0].status == "running"
 
-    def test_stderr_mentions_detected_run_id(
-        self,
-        insight_root: Path,
-        config_review_a: Path,
-        stub_claude_env: None,
-    ) -> None:
-        """Launcher stderr mentions the detected incomplete run_id."""
-        token_id = create_valid_token(
-            insight_root,
-            approved_designs=[
-                {
-                    "design_id": "DES-REC",
-                    "design_hash": "sha256:rec",
-                    "risk_at_approval": "low",
-                    "est_min": 10.0,
-                }
-            ],
-        )
-        _create_incomplete_run(
-            insight_root,
-            "20260419_crashed",
-            token_id=token_id,
-        )
-
-        from tests.integration.conftest import run_launcher
-
-        result = run_launcher(
-            ["--approved-by", token_id],
-            cwd=insight_root.parent,
-            insight_base_dir=insight_root,
-        )
-        # Launcher should mention the incomplete run
-        assert (
-            "20260419_crashed" in result.stderr
-            or "incomplete" in result.stderr.lower()
-            or "detected" in result.stderr.lower()
-        )
+    # test_stderr_mentions_detected_run_id removed with batch-analysis (Epic 3.5):
+    # it exercised skills/batch-analysis/launcher.sh, which no longer exists.
+    # detect_incomplete() itself is covered by test_incomplete_run_from_crashed_state
+    # above and tests/batch_harness/test_crash_recovery.py.
 
 
 # =========================================================================

@@ -7,7 +7,6 @@ Provides:
   - ``sample_designs``: list of design dicts from fixtures
   - ``sample_design_payload``: ready-to-pipe JSON payload for cli.py
   - ``run_premortem_cli``: helper to invoke cli.py as subprocess
-  - ``run_launcher``: helper to invoke launcher.sh as subprocess
 """
 
 from __future__ import annotations
@@ -222,42 +221,8 @@ def run_premortem_cli(
     )
 
 
-def run_launcher(
-    args: list[str] | None = None,
-    *,
-    cwd: Path | None = None,
-    env_override: dict[str, str] | None = None,
-    timeout: int = 120,
-    insight_base_dir: Path | None = None,
-) -> subprocess.CompletedProcess:
-    """Run launcher.sh as subprocess.
-
-    When *insight_base_dir* is provided, sets ``INSIGHT_BASE_DIR`` and
-    ``INSIGHT_CONFIG_PATH`` so the launcher reads config and tokens from
-    the temporary directory rather than the real project root.
-    ``INSIGHT_ROOT`` is also set for ``stub_claude.py``.
-    """
-    launcher_path = _PROJECT_ROOT / "skills" / "batch-analysis" / "launcher.sh"
-    cmd = ["bash", str(launcher_path), *(args or [])]
-    env = os.environ.copy()
-    # Ensure stub claude on PATH
-    env["PATH"] = f"{_STUB_BIN_DIR}:{env.get('PATH', '')}"
-    if insight_base_dir is not None:
-        abs_base = str(insight_base_dir.resolve())
-        env["INSIGHT_BASE_DIR"] = abs_base
-        env["INSIGHT_CONFIG_PATH"] = str((insight_base_dir / "config.yaml").resolve())
-        # stub_claude.py uses INSIGHT_ROOT (parent of .insight)
-        env["INSIGHT_ROOT"] = str(insight_base_dir.parent.resolve())
-    if env_override:
-        env.update(env_override)
-    return subprocess.run(
-        cmd,
-        text=True,
-        capture_output=True,
-        cwd=cwd or Path.cwd(),
-        env=env,
-        timeout=timeout,
-    )
+# run_launcher was removed with batch-analysis (Epic 3.5); premortem/crash-recovery
+# integration now exercises the Python functions directly.
 
 
 def create_valid_token(

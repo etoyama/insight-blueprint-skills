@@ -88,8 +88,8 @@ plan did not anticipate, do **one** of the following before the PR can merge:
 | `/data-lineage` | Track transformations, export lineage diagrams (Mermaid) |
 | `/premortem` | Pre-flight cost/risk evaluation (redefined read-only in E5) |
 
-`batch-analysis` is slated for removal in E5 (superseded by Claude Code auto mode);
-`premortem` is being decoupled from it. See ADR-0001.
+`batch-analysis` was removed in E3.5 (superseded by Claude Code auto mode).
+`premortem` still references batch concepts; its self-standing redefinition is E5. See ADR-0001.
 
 ## 7. Skill-Managed Data (`.insight/`)
 

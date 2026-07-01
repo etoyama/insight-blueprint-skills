@@ -1,12 +1,11 @@
 ---
 name: premortem
 description: |
-  Pre-flight risk evaluation and approval token issuance for batch analysis designs.
+  Pre-flight cost/risk evaluation and approval token issuance for queued analysis designs.
   Evaluates queued designs against history-based extrapolation and static thresholds,
-  then issues an approval token for /batch-analysis --approved-by.
-  Triggers: "premortem", "事前チェック", "batch の承認", "リスク判定",
+  then issues an approval token that gates expensive downstream execution.
+  Triggers: "premortem", "事前チェック", "実行前チェック", "リスク判定",
   "pre-flight check", "run premortem".
-  Chains to: /batch-analysis --approved-by TOKEN
   evaluate-only (write-prohibition contract, AC-1.5).
 disable-model-invocation: true
 argument-hint: "[--queued | --design <id> | --all] [--yes] [--mode manual|review|auto]"
@@ -16,18 +15,17 @@ argument-hint: "[--queued | --design <id> | --all] [--yes] [--mode manual|review
 
 Standalone skill that scans queued (or specified) analysis designs, runs a
 deterministic risk decision tree (HARD_BLOCK / HIGH / MEDIUM / LOW / SKIP),
-and issues an approval token consumed by `/batch-analysis --approved-by TOKEN`.
+and issues an approval token that gates expensive downstream execution.
 
 ## When to Use
 
-- Before launching `/batch-analysis` to validate the queue
+- Before expensive data access / execution, to validate the queue
 - When you want to check risk levels of designs without executing them
-- As an automated gate in review / auto mode dispatched by the launcher
+- As an automated gate in review / auto mode
 
 ## When NOT to Use
 
 - Creating or editing designs (-> /analysis-design)
-- Executing batch analysis (-> /batch-analysis)
 - Reviewing completed results (-> /analysis-reflection)
 
 ## Workflow
@@ -58,7 +56,7 @@ and issues an approval token consumed by `/batch-analysis --approved-by TOKEN`.
 
 5. **Token issuance**:
    - `token_manager.issue()` writes `.insight/premortem/{TIMESTAMP}.yaml`
-   - stdout final line: `Launch with: /batch-analysis --approved-by {token_id}`
+   - stdout final line: `Approval token issued: {token_id} (use --approved-by {token_id})`
 
 ## Risk Levels
 

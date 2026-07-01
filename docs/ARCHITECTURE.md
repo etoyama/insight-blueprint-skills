@@ -104,7 +104,7 @@ sequenceDiagram
 | E1 | WebUI/REST（撤去）— full の縮小 |
 | E2 | Validation library + pre-write hook（新設） |
 | E3 | Skill layer ↔ Skill-managed YAML（設計書ライフサイクルの直接 I/O 化、design_io） |
-| E3.5 | catalog / premortem / lineage の MCP→YAML 変換（E4 前提） |
+| E3.5 | catalog / premortem / lineage の MCP→YAML 変換 + batch-analysis 撤去（E4 前提） |
 | E4 | MCP server（撤去） |
 | E5 | catalog（柔軟化）/ premortem（自立化） |
 

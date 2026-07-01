@@ -51,10 +51,10 @@
 |---|---|---|
 | E1 | WebUI / REST 削除 | 完了 |
 | E2 | `validate.py` 抽出 + pre-write hook 新設 | 完了 |
-| E3 | skill を YAML 直接 I/O（設計書ライフサイクル） | 進行中 |
-| E3.5 | catalog / premortem / lineage の MCP→YAML 変換（E4 前提） | 未着手 |
+| E3 | skill を YAML 直接 I/O（設計書ライフサイクル） | 完了 |
+| E3.5 | catalog / premortem / lineage の MCP→YAML 変換 + batch-analysis 撤去（E4 前提） | 進行中 |
 | E4 | MCPサーバ層削除 | 未着手 |
-| E5 | catalog 柔軟化 + premortem 自立化 | 未着手 |
+| E5 | catalog 柔軟化 + premortem 自立化 + knowledge 抽出強化 | 未着手 |
 
 各 Epic の Design Doc（`docs/design/epic-NN-*.md`）は `## Scope` 節で、本書のどの要件と
 ARCHITECTURE のどのコンポーネントを前進させるかを示す。
