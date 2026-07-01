@@ -205,7 +205,7 @@ class TestDataLineagePrerequisites:
 
 
 class TestReadme:
-    """Unit-10: README has plugin install, pypi install, optional package, migration."""
+    """Unit-10: README covers plugin install and the optional lineage package."""
 
     def test_readme_has_plugin_install(self) -> None:
         """README mentions claude plugin installation command."""
@@ -213,13 +213,8 @@ class TestReadme:
         content_lower = content.lower()
         assert "claude plugin install" in content_lower
 
-    def test_readme_has_pypi_install(self) -> None:
-        """README mentions 'uvx insight-blueprint'."""
-        content = (REPO_ROOT / "README.md").read_text()
-        assert "uvx insight-blueprint" in content
-
     def test_readme_has_optional_python_package(self) -> None:
-        """README mentions optional Python package."""
+        """README mentions the optional Python package (for lineage)."""
         content = (REPO_ROOT / "README.md").read_text()
         content_lower = content.lower()
         assert "optional" in content_lower
@@ -227,7 +222,8 @@ class TestReadme:
             "python package" in content_lower or "uv add insight-blueprint" in content
         )
 
-    def test_readme_has_migration_guide(self) -> None:
-        """README mentions migration from .claude/skills/."""
-        content = (REPO_ROOT / "README.md").read_text()
-        assert ".claude/skills/" in content or "migration" in content.lower()
+    def test_readme_has_no_mcp_server_framing(self) -> None:
+        """Post-E4: README must not describe an MCP server / server launch."""
+        content = (REPO_ROOT / "README.md").read_text().lower()
+        assert "mcp server" not in content
+        assert "uvx insight-blueprint" not in content

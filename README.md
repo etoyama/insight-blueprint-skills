@@ -6,11 +6,15 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/etoyama)
 
-A Python MCP server for hypothesis-driven data analysis. Manage analysis designs, data catalogs, and review workflows through Claude Code or any MCP-compatible client.
+A **Claude Code skills plugin** for hypothesis-driven EDA. Analysis designs, journals,
+reviews, and the data catalog live as YAML under `.insight/`; skills read and write them
+directly. Integrity is enforced by an **embedded validation library** (`validate.py`) plus
+a pre-write hook — **no server, no daemon, no SQLite**. See
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/PRD.md](docs/PRD.md).
 
 ## Installation
 
-### Recommended: Claude Code Plugin
+### Claude Code Plugin (recommended)
 
 ```bash
 # Option 1: From the official marketplace
@@ -25,36 +29,15 @@ git clone https://github.com/etoyama/insight-blueprint.git
 claude --plugin-dir ./insight-blueprint
 ```
 
-All options provide 8 analysis skills and auto-configure the MCP server. A WebUI dashboard opens automatically at http://127.0.0.1:3000.
+All options install the analysis skills. There is nothing to launch — skills operate on
+`.insight/` YAML directly.
 
-> **Tip:** Option 3 loads the plugin for the current session only. Add a shell alias for convenience:
+> **Tip:** Option 3 loads the plugin for the current session only. Add a shell alias:
 > ```bash
 > alias claude-ib='claude --plugin-dir /path/to/insight-blueprint'
 > ```
 
-### Alternative: Direct Execution
-
-```bash
-# Start the server without plugin (zero-install)
-uvx insight-blueprint --project /path/to/my-analysis
-
-# Or install permanently
-uv tool install insight-blueprint
-insight-blueprint --project /path/to/my-analysis
-```
-
-### Updating
-
-When a new version is published, run the following from within Claude Code to pull the latest plugin (auto-update is off by default for third-party marketplaces):
-
-```bash
-/plugin marketplace update insight-blueprint-marketplace
-/plugin update insight-blueprint@insight-blueprint-marketplace
-```
-
-See [CHANGELOG.md](CHANGELOG.md) for release notes.
-
-### Optional: Python Package
+### Optional: Python package (for lineage)
 
 For data-lineage tracking with `tracked_pipe` in your notebooks/scripts:
 
@@ -62,48 +45,36 @@ For data-lineage tracking with `tracked_pipe` in your notebooks/scripts:
 uv add insight-blueprint
 ```
 
-This is optional but recommended for analysis pipeline transparency. MCP tools work without it.
+This is optional but recommended for analysis-pipeline transparency. The skills themselves
+work without it.
 
-## Features
+See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
-### MCP Tools
+## How it works
 
-insight-blueprint exposes 18 tools via the [Model Context Protocol](https://modelcontextprotocol.io/), allowing AI assistants to manage your analysis workflow:
+- **Skills** (`skills/`) drive the workflow and read/write `.insight/` YAML via small
+  server-free helpers (`skills/_shared/design_io.py`, `catalog_io.py`).
+- **Validation** is centralized in `src/insight_blueprint/validate.py` (Pydantic schema +
+  state-transition guard). A **pre-write hook** (`.claude/hooks/validate-design.py`) calls
+  the same library to block invalid writes to `*_hypothesis.yaml`.
+- **Lineage** (`src/insight_blueprint/lineage/`) records DataFrame transformations and
+  exports Mermaid diagrams.
 
-| Category | Tools |
-|----------|-------|
-| **Analysis Design** | `create_analysis_design`, `update_analysis_design`, `get_analysis_design`, `list_analysis_designs` |
-| **Data Catalog** | `add_catalog_entry`, `update_catalog_entry`, `get_table_schema`, `search_catalog` |
-| **Domain Knowledge** | `get_domain_knowledge`, `extract_domain_knowledge`, `save_extracted_knowledge`, `suggest_knowledge_for_design`, `suggest_cautions` |
-| **Review Workflow** | `transition_design_status`, `save_review_comment`, `save_review_batch`, `get_review_comments` |
-| **Project** | `get_project_context` |
+## Skills
 
-### WebUI Dashboard
-
-A browser-based dashboard (http://127.0.0.1:3000) with two tabs:
-
-- **Designs** -- Browse analysis designs, view details (overview + history), and track status transitions
-- **Catalog** -- Search domain knowledge, browse data sources, and check cautions
-
-### Bundled Skills
-
-The plugin provides 10 analysis skills that are automatically available after installation:
-
-- `/rq-problematization` -- Generate impactful research questions by problematizing the assumptions in prior research (upstream of framing)
-- `/analysis-framing` -- Explore available data and existing analyses to frame a hypothesis direction
-- `/analysis-design` -- Guided workflow for creating hypothesis documents
-- `/analysis-journal` -- Record reasoning steps during analysis (observations, evidence, decisions, questions)
-- `/analysis-reflection` -- Structured reflection to draw conclusions or branch hypotheses
-- `/analysis-revision` -- Guided revision workflow for addressing review comments
-- `/catalog-register` -- Step-by-step data source registration
-- `/data-lineage` -- Track data transformations and export lineage diagrams (Mermaid)
-- `/premortem` -- Pre-flight cost/risk evaluation of queued designs with approval token issuance
+- `/rq-problematization` — Generate impactful research questions by problematizing prior-research assumptions (upstream of framing)
+- `/analysis-framing` — Explore available data and existing analyses to frame a direction
+- `/analysis-design` — Guided creation of hypothesis design documents
+- `/analysis-journal` — Record reasoning steps during analysis (observations, evidence, decisions, questions)
+- `/analysis-reflection` — Structured reflection to draw conclusions or branch hypotheses
+- `/analysis-revision` — Guided revision workflow for addressing review comments
+- `/catalog-register` — Step-by-step data source registration
+- `/data-lineage` — Track data transformations and export lineage diagrams (Mermaid)
+- `/premortem` — Pre-flight cost/risk evaluation of queued designs with approval-token issuance
 
 Skills support both English and Japanese trigger phrases.
 
-### Analysis Workflow
-
-Skills chain together to support the full hypothesis-driven analysis lifecycle:
+## Analysis Workflow
 
 ```
 /rq-problematization (problematize assumptions → research questions)  ← optional upstream
@@ -120,102 +91,31 @@ Skills chain together to support the full hypothesis-driven analysis lifecycle:
 /catalog-register (register findings as domain knowledge)
 ```
 
-Each design has an `analysis_intent` field (`exploratory`, `confirmatory`, or `mixed`) to distinguish whether you're testing a specific hypothesis or exploring data for patterns. The Insight Journal (`.insight/designs/{id}_journal.yaml`) tracks your reasoning process with 8 event types mapped to the Narrative Scaffolding framework (Huang+ IUI 2026).
+Each design has an `analysis_intent` field (`exploratory`, `confirmatory`, or `mixed`).
+The Insight Journal (`.insight/designs/{id}_journal.yaml`) tracks your reasoning with event
+types mapped to the Narrative Scaffolding framework (Huang+ IUI 2026).
 
 ## Pre-flight Risk Evaluation (`/premortem`)
 
-`/premortem` evaluates queued designs for cost/risk before expensive data access and
-issues an approval token. It runs in `manual` / `review` / `auto` modes (risk-gating
-strength). The overnight `batch-analysis` executor it used to gate was removed in E3.5
-(superseded by Claude Code auto mode); premortem's self-standing redefinition is E5.
-
-## CLI Options
-
-```bash
-insight-blueprint --project /path/to/project   # Specify project directory
-insight-blueprint --no-browser                  # Suppress browser auto-open
-insight-blueprint --version                     # Show version
-insight-blueprint                               # Use current directory
-```
-
-## Team Server Mode
-
-Multiple Claude Code instances can share a single insight-blueprint server via MCP SSE (Server-Sent Events).
-
-### Server mode (WebUI + MCP SSE)
-
-```bash
-insight-blueprint --project /path/to/project --mode server --port 4000
-```
-
-Each Claude Code instance connects by adding to `.claude/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "insight-blueprint": {
-      "type": "sse",
-      "url": "http://<host>:4000/mcp/sse"
-    }
-  }
-}
-```
-
-### Headless mode (MCP SSE only, no WebUI)
-
-```bash
-insight-blueprint --project /path/to/project --mode headless --port 4000
-```
-
-### Options
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--mode full` | (default) | stdio MCP + WebUI on localhost:3000. Standard single-user mode |
-| `--mode server` | - | HTTP MCP SSE + WebUI on the same port. For team/multi-client use |
-| `--mode headless` | - | HTTP MCP SSE only (no WebUI). Lightweight deployment |
-| `--host` | `0.0.0.0` | Bind address (server/headless mode only) |
-| `--port` | `4000` | Listen port (server/headless mode only) |
-| `--no-browser` | `false` | Suppress browser auto-open in full mode |
-
-> **WARNING: No authentication.** Phase 1 does not include authentication.
-> Run the server on a trusted network only, or bind to localhost with `--host 127.0.0.1`.
-
-## Migration Guide (from v0.3.x)
-
-If you previously used insight-blueprint without the plugin system, clean up the old skill copies:
-
-```bash
-# Remove old skill copies (now provided by the plugin)
-rm -rf .claude/skills/analysis-design .claude/skills/analysis-framing \
-       .claude/skills/analysis-journal .claude/skills/analysis-reflection \
-       .claude/skills/analysis-revision .claude/skills/catalog-register \
-       .claude/skills/data-lineage
-
-# Remove old rule copies (now integrated into skill definitions)
-rm -rf .claude/rules/analysis-workflow.md .claude/rules/catalog-workflow.md \
-       .claude/rules/insight-yaml.md .claude/rules/extension-policy.md
-```
-
-The plugin's skills take precedence, so old copies won't cause errors but should be removed to avoid confusion.
+`/premortem` evaluates queued designs for cost/risk before expensive data access and issues
+an approval token. It runs in `manual` / `review` / `auto` modes (risk-gating strength).
 
 ## Development
 
-Requires **Python 3.11+**, **uv**, and **Node.js** (for frontend build).
+Requires **Python 3.11+** and **uv**.
 
 ```bash
 git clone https://github.com/etoyama/insight-blueprint.git
 cd insight-blueprint
 uv sync --all-extras
 
-# Build frontend assets (required for WebUI)
-poe build-frontend
-
 # Run lint + typecheck + test
-poe all
+uv run poe all
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, code style, and how to submit pull requests.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, code style, and PRs.
+Contributor/architecture docs: [CLAUDE.md](CLAUDE.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
+[docs/PRD.md](docs/PRD.md).
 
 ### Tech Stack
 
@@ -225,8 +125,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, code style, and h
 | **ruff** | Linting and formatting |
 | **ty** | Type checking |
 | **pytest** | Testing |
-| **FastMCP** | MCP server framework |
-| **FastAPI** | WebUI backend |
+| **marimo** | Notebooks & lineage |
 
 ## Support
 

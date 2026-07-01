@@ -6,12 +6,12 @@ skill 側の MCP 依存がゼロになったため、MCPサーバ層一式を削
 
 ## Acceptance Criteria
 
-- [ ] AC1: `server.py` / `cli.py` / `__main__.py` / `_registry.py` / `core/` / `storage/` が削除される
-- [ ] AC2: 生存資産（`validate.py` / `models/` / `lineage/` / `_templates/`）のみで `pytest` 全緑
-- [ ] AC3: `pyproject.toml` から fastmcp/click/uvicorn/packaging 依存と `[project.scripts]` を除去、
+- [x] AC1: `server.py` / `cli.py` / `__main__.py` / `_registry.py` / `core/` / `storage/` が削除される
+- [x] AC2: 生存資産（`validate.py` / `models/` / `lineage/` / `_templates/`）のみで `pytest` 全緑（480 passed）
+- [x] AC3: `pyproject.toml` から fastmcp/click/uvicorn/packaging 依存と `[project.scripts]` を除去、
   `.mcp.json` / plugin マニフェストからサーバ記述を除去
-- [ ] AC4: README / CLAUDE.md / PRD / ARCHITECTURE がサーバ非依存の実態に更新される
-- [ ] AC5: 削除層（core/storage/server/_registry/cli）への参照が repo 全体でゼロ（grep 確認）
+- [x] AC4: README / CLAUDE.md / PRD / ARCHITECTURE がサーバ非依存の実態に更新される
+- [x] AC5: 削除層（core/storage/server/_registry/cli）への参照が repo 全体でゼロ（grep 確認）
 
 ## Glossary
 
@@ -121,3 +121,6 @@ sequenceDiagram
 ## Story Timeline
 
 - 2026-07-01 — Epic 04 起票: main から epic/4-remove-mcp-server を切り、Design Doc 作成。
+- 2026-07-01 — Story 4.1 完了: server/cli/__main__/_registry + core/ + storage/ と関連テスト12本削除、conftest 削除。pytest 484 passed。
+- 2026-07-01 — Story 4.2 完了: pyproject 依存(fastmcp/click/uvicorn/packaging)・scripts 削除、.mcp.json / plugin マニフェストのサーバ記述除去。pytest 480 passed。
+- 2026-07-01 — Story 4.3 完了: README を skills+lib に再フレーム、CLAUDE.md/PRD/ARCHITECTURE のステータス更新。

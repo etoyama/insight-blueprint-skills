@@ -19,9 +19,9 @@ rationale.
 - journal / reflection — interpreting results and drawing conclusions
 - premortem — cost-incident prevention before expensive data access
 
-**Migration is in progress.** The MCP server / WebUI / SQLite still exist in the
-tree and are removed across Epics E1–E4 (see ADR-0001 → Related). Until then, treat
-this document as the **target architecture and the active development flow**.
+**Migration status.** The MCP server / WebUI / SQLite have been removed (E1–E4 complete;
+see ADR-0001 → Related). The architecture below is now the actual state, not just a target.
+Remaining work is E5 (catalog flexibility / premortem self-standing / knowledge extraction).
 
 ## 2. Architecture
 
