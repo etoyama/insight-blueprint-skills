@@ -37,10 +37,11 @@ using `insight_blueprint.lineage`.
 3. If ImportError or command fails:
    - Ask the user: "data-lineage の tracked_pipe を使うには insight-blueprint Python パッケージが必要です。`uv add insight-blueprint` を実行しますか？（分析パイプラインの透明性追跡に推奨）"
    - If user approves: run `uv add insight-blueprint`, then re-check import
-   - If user declines: inform user that tracked_pipe features are unavailable, continue with MCP tools only (export/Mermaid diagram generation via MCP is still available)
+   - If user declines: inform user that lineage tracking/export is unavailable without the package
    - If install fails: show error, suggest manual install with `pip install insight-blueprint`
 
-> **Note**: MCP tools (Mermaid export, lineage graph generation) work without the Python package. Only `tracked_pipe` in user notebooks/scripts requires the package.
+> **Note**: All lineage features (`tracked_pipe`, `export_lineage_as_mermaid`) live in the
+> `insight_blueprint.lineage` Python package — no MCP server involved.
 
 ## Workflow
 
@@ -50,7 +51,8 @@ Help the user add `tracked_pipe` to an existing notebook.
 
 **Workflow:**
 
-1. Confirm the target AnalysisDesign (if design_id provided, call `get_analysis_design`)
+1. Confirm the target AnalysisDesign (if design_id provided, run
+   `uv run python -m skills._shared.design_io get --id {design_id}`; empty `{}` = not found)
 2. Locate the target notebook/script (ask the user if unclear)
 3. Read the notebook and identify DataFrame transformation steps (`.pipe()`, filter,
    merge, join, dropna, assign, query, etc.)

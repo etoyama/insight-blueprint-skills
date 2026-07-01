@@ -12,7 +12,21 @@ argument-hint: "[source_type: csv|api|sql]"
 # /catalog-register — Data Source Registration
 
 Guides Claude through exploring a data source's structure and registering it
-in the insight-blueprint catalog via MCP tools.
+in the insight-blueprint catalog by writing `.insight/catalog/` YAML directly via
+the `catalog_io` helper (no MCP server).
+
+**catalog_io CLI** (run from project root; JSON payload on stdin, JSON on stdout;
+`--base-dir` defaults to `.insight`):
+
+```bash
+echo '<source-json>' | uv run python -m skills._shared.catalog_io create
+echo '<changes-json>' | uv run python -m skills._shared.catalog_io update --id <source_id>
+uv run python -m skills._shared.catalog_io get --id <source_id>
+uv run python -m skills._shared.catalog_io get-schema --id <source_id>
+uv run python -m skills._shared.catalog_io search --query "<q>" [--type csv] [--tags a,b]
+```
+
+> Note: the create payload uses `id` (not `source_id`) for the source identifier.
 
 ## When to Use
 - User wants to register a new data source (CSV file, API endpoint, SQL table)
@@ -20,9 +34,9 @@ in the insight-blueprint catalog via MCP tools.
 - User mentions "データカタログ", "ソース登録", or "register"
 
 ## When NOT to Use
-- Updating an existing source (use `update_catalog_entry` directly)
-- Searching the catalog (use `search_catalog` directly)
-- Managing domain knowledge (future SPEC-3 scope)
+- Updating an existing source (use `catalog_io update` directly)
+- Searching the catalog (use `catalog_io search` directly)
+- Managing domain knowledge (knowledge authoring is deferred to E5)
 
 ## Workflow
 
@@ -49,11 +63,12 @@ Follow the appropriate exploration workflow below.
 
 ### Step 3: Build Registration
 
-Construct the `add_catalog_entry` call with discovered schema.
+Construct the `catalog_io create` JSON payload with the discovered schema.
 
 ### Step 4: Register and Confirm
 
-Call `add_catalog_entry` and show the result to the user.
+Pipe the payload to `catalog_io create` and show the returned JSON to the user.
+Optionally verify with `catalog_io get-schema --id <id>` and `catalog_io search`.
 
 ---
 
@@ -82,24 +97,19 @@ Ask the user for:
 
 ### Step 3a: Build Call
 
-```
-add_catalog_entry(
-    source_id="local-survey-2024",
-    name="Local Survey 2024",
-    type="csv",
-    description="Annual community survey results",
-    connection={
-        "file_path": "data/survey_2024.csv",
-        "encoding": "utf-8",
-        "delimiter": ","
-    },
-    columns=[
-        {"name": "respondent_id", "type": "integer", "description": "Unique respondent ID"},
-        {"name": "age", "type": "integer", "description": "Respondent age", "range": {"min": 18, "max": 99}},
-        ...
-    ],
-    tags=["survey", "local"],
-)
+```bash
+echo '{
+  "id": "local-survey-2024",
+  "name": "Local Survey 2024",
+  "type": "csv",
+  "description": "Annual community survey results",
+  "connection": {"file_path": "data/survey_2024.csv", "encoding": "utf-8", "delimiter": ","},
+  "columns": [
+    {"name": "respondent_id", "type": "integer", "description": "Unique respondent ID"},
+    {"name": "age", "type": "integer", "description": "Respondent age", "range": {"min": 18, "max": 99}}
+  ],
+  "tags": ["survey", "local"]
+}' | uv run python -m skills._shared.catalog_io create
 ```
 
 ---
@@ -131,30 +141,22 @@ Ask the user for:
 
 ### Step 3a: Build Call
 
-```
-add_catalog_entry(
-    source_id="estat-population",
-    name="e-Stat Population Census",
-    type="api",
-    description="Japanese population statistics from e-Stat",
-    connection={
-        "base_url": "https://api.e-stat.go.jp/rest/3.0",
-        "provider": "e-stat",
-        "table_id": "0003348423",
-        "auth": "api_key"
-    },
-    columns=[
-        {"name": "prefecture_code", "type": "string", "description": "JIS X 0401 code (01-47)",
-         "nullable": false, "examples": ["01", "13", "47"]},
-        {"name": "year", "type": "integer", "description": "Census year",
-         "range": {"min": 2000, "max": 2024}},
-        {"name": "population", "type": "integer", "description": "Total population",
-         "unit": "people"},
-    ],
-    tags=["government", "population", "demographics"],
-    primary_key=["prefecture_code", "year"],
-    row_count_estimate=2350,
-)
+```bash
+echo '{
+  "id": "estat-population",
+  "name": "e-Stat Population Census",
+  "type": "api",
+  "description": "Japanese population statistics from e-Stat",
+  "connection": {"base_url": "https://api.e-stat.go.jp/rest/3.0", "provider": "e-stat", "table_id": "0003348423", "auth": "api_key"},
+  "columns": [
+    {"name": "prefecture_code", "type": "string", "description": "JIS X 0401 code (01-47)", "nullable": false, "examples": ["01", "13", "47"]},
+    {"name": "year", "type": "integer", "description": "Census year", "range": {"min": 2000, "max": 2024}},
+    {"name": "population", "type": "integer", "description": "Total population", "unit": "people"}
+  ],
+  "tags": ["government", "population", "demographics"],
+  "primary_key": ["prefecture_code", "year"],
+  "row_count_estimate": 2350
+}' | uv run python -m skills._shared.catalog_io create
 ```
 
 ---
@@ -190,46 +192,50 @@ Ask the user for:
 
 ### Step 3a: Build Call
 
-```
-add_catalog_entry(
-    source_id="bq-sales-data",
-    name="BigQuery Sales Data",
-    type="sql",
-    description="Daily sales transaction data from BigQuery",
-    connection={
-        "provider": "bigquery",
-        "project_id": "my-gcp-project",
-        "dataset": "analytics",
-        "table": "daily_sales"
-    },
-    columns=[
-        {"name": "sale_date", "type": "date", "description": "Transaction date"},
-        {"name": "product_id", "type": "string", "description": "Product identifier"},
-        {"name": "amount", "type": "float", "description": "Sale amount", "unit": "JPY"},
-        {"name": "quantity", "type": "integer", "description": "Units sold"},
-    ],
-    tags=["sales", "bigquery"],
-    primary_key=["sale_date", "product_id"],
-    row_count_estimate=500000,
-)
+```bash
+echo '{
+  "id": "bq-sales-data",
+  "name": "BigQuery Sales Data",
+  "type": "sql",
+  "description": "Daily sales transaction data from BigQuery",
+  "connection": {"provider": "bigquery", "project_id": "my-gcp-project", "dataset": "analytics", "table": "daily_sales"},
+  "columns": [
+    {"name": "sale_date", "type": "date", "description": "Transaction date"},
+    {"name": "product_id", "type": "string", "description": "Product identifier"},
+    {"name": "amount", "type": "float", "description": "Sale amount", "unit": "JPY"},
+    {"name": "quantity", "type": "integer", "description": "Units sold"}
+  ],
+  "tags": ["sales", "bigquery"],
+  "primary_key": ["sale_date", "product_id"],
+  "row_count_estimate": 500000
+}' | uv run python -m skills._shared.catalog_io create
 ```
 
 ---
 
-## MCP Tool Reference
+## catalog_io Reference
 
-| Tool | Purpose |
-|------|---------|
-| `add_catalog_entry(...)` | Register a new data source |
-| `get_table_schema(source_id)` | Verify registered schema |
-| `search_catalog(query)` | Confirm source is searchable |
+`python -m skills._shared.catalog_io <command>` (from project root):
+
+| Command | Purpose | Input |
+|---------|---------|-------|
+| `create` | Register a new source (writes sources/ + empty knowledge/) | stdin: `{id, name, type, description, connection, columns?, tags?, primary_key?, row_count_estimate?}` |
+| `update --id ID` | Partial update | stdin: `{<fields>}` |
+| `get --id ID` | Full source YAML | — |
+| `get-schema --id ID` | Column schema | — |
+| `search --query Q [--type T] [--tags a,b]` | Compact hits across sources + knowledge | — |
+| `get-knowledge --id ID [--category C]` | Knowledge entries for a source | — |
+
+Validation runs inside `catalog_io` (DataSource model) before writing; invalid input
+exits non-zero with nothing written.
 
 ## Error Handling
 
-| Error | Cause | Action |
+| Error (stderr) | Cause | Action |
 |-------|-------|--------|
-| `"Source 'X' already exists"` | Duplicate source_id | Use `update_catalog_entry` or choose a different ID |
-| `"Invalid source type 'parquet'"` | Unsupported type | Use csv, api, or sql |
+| `Source 'X' already exists` | Duplicate id | Use `catalog_io update` or choose a different ID |
+| `Invalid source_id '...'` | id not `[a-zA-Z0-9_-]+` | Use a slug id |
+| pydantic `ValidationError` / `Invalid source type` | Bad type/schema | Use csv, api, or sql; fix payload |
 
 ## Chaining
 
@@ -257,13 +263,13 @@ add_catalog_entry(
 
 ### Schema Management
 
-- Schemas are stored within each source YAML under the `schema` field.
-- Schema changes should go through `catalog_update_source` MCP tool.
+- Schemas are stored within each source YAML under `schema_info.columns`.
+- Schema changes go through `catalog_io update` (pass a new `columns` list).
 - Breaking schema changes should be noted in the source description.
 
 ### Domain Knowledge
 
-- Extracted knowledge is stored in `.insight/catalog/knowledge/` as YAML files.
+- Knowledge is stored in `.insight/catalog/knowledge/{source_id}.yaml` (created empty on register).
 - Knowledge entries link back to their source via `source_id`.
-- Use `knowledge_store` MCP tool to add knowledge entries.
-- Knowledge is searchable via `knowledge_search` MCP tool (FTS5-backed).
+- Reads: `catalog_io get-knowledge --id <source_id>`; search spans knowledge too.
+- Knowledge **authoring/extraction** is deferred to E5; for now entries are edited directly.
