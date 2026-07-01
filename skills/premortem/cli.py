@@ -414,7 +414,7 @@ def _issue_token(
         base_dir=base_dir,
     )
 
-    print(f"\nLaunch with: /batch-analysis --approved-by {token_id}")
+    print(f"\nApproval token issued: {token_id} (use --approved-by {token_id})")
     return 0
 
 

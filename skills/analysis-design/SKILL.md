@@ -113,7 +113,7 @@ If the interview did not cover methodology, ask now:
 
 ### Step 2.6: Enrich Methodology with Code Patterns
 
-The batch-analysis LLM (sonnet) generates notebooks from methodology content. Concrete code patterns dramatically improve generation fidelity.
+Downstream notebook generation (Claude Code) works from methodology content. Concrete code patterns dramatically improve generation fidelity.
 
 **When `data_source` references a registered catalog source**, auto-generate a code pattern from the catalog schema and include it in `methodology.steps`:
 
@@ -208,7 +208,7 @@ same `validate.py` the pre-write hook uses. Invalid writes raise and write nothi
 | `methodology.method` | str | free text (required, non-empty) | — |
 | `methodology.package` | str | free text (optional) | `""` |
 | `methodology.reason` | str | free text (optional) | `""` |
-| `methodology.steps` | list[dict] | Each dict has `description` (str). Include concrete code patterns for batch LLM fidelity. | `[]` |
+| `methodology.steps` | list[dict] | Each dict has `description` (str). Include concrete code patterns for notebook-generation fidelity. | `[]` |
 
 **Backward compatibility**: `role`, `tier`, `intent` fields are optional in input. If omitted, defaults are applied automatically.
 

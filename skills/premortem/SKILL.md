@@ -1,12 +1,11 @@
 ---
 name: premortem
 description: |
-  Pre-flight risk evaluation and approval token issuance for batch analysis designs.
+  Pre-flight cost/risk evaluation and approval token issuance for queued analysis designs.
   Evaluates queued designs against history-based extrapolation and static thresholds,
-  then issues an approval token for /batch-analysis --approved-by.
-  Triggers: "premortem", "事前チェック", "batch の承認", "リスク判定",
+  then issues an approval token that gates expensive downstream execution.
+  Triggers: "premortem", "事前チェック", "実行前チェック", "リスク判定",
   "pre-flight check", "run premortem".
-  Chains to: /batch-analysis --approved-by TOKEN
   evaluate-only (write-prohibition contract, AC-1.5).
 disable-model-invocation: true
 argument-hint: "[--queued | --design <id> | --all] [--yes] [--mode manual|review|auto]"
@@ -16,32 +15,35 @@ argument-hint: "[--queued | --design <id> | --all] [--yes] [--mode manual|review
 
 Standalone skill that scans queued (or specified) analysis designs, runs a
 deterministic risk decision tree (HARD_BLOCK / HIGH / MEDIUM / LOW / SKIP),
-and issues an approval token consumed by `/batch-analysis --approved-by TOKEN`.
+and issues an approval token that gates expensive downstream execution.
 
 ## When to Use
 
-- Before launching `/batch-analysis` to validate the queue
+- Before expensive data access / execution, to validate the queue
 - When you want to check risk levels of designs without executing them
-- As an automated gate in review / auto mode dispatched by the launcher
+- As an automated gate in review / auto mode
 
 ## When NOT to Use
 
 - Creating or editing designs (-> /analysis-design)
-- Executing batch analysis (-> /batch-analysis)
 - Reviewing completed results (-> /analysis-reflection)
 
 ## Workflow
 
 1. **Parse arguments** -- Claude Code invokes `skills/premortem/cli.py` via
    Python subprocess. The CLI expects design data as JSON on stdin (Claude Code
-   reads MCP tools and pipes the result).
+   gathers it via `design_io` / `catalog_io` and pipes the result).
 
 2. **Collect design data** (Claude Code responsibility, before invoking cli.py):
-   - Call `list_analysis_designs()` and filter `next_action.type == "batch_execute"`
-     (or use `--design <id>` / `--all` to select differently)
-   - For each design: `get_analysis_design(id)`, `get_table_schema(source_id)`,
-     `search_catalog(source_id)` to build `source_checks_map`
+   - `uv run python -m skills._shared.design_io list` and filter
+     `next_action.type == "batch_execute"` (or use `--design <id>` / `--all` to select differently)
+   - For each design: `design_io get --id <id>`, then build `source_checks_map` from
+     `catalog_io get-schema --id <source_id>` and `catalog_io search --query <source_id>`
+     (source registered? location/allowlist/rows)
    - Pipe the JSON payload to cli.py stdin
+
+   > Note: the `batch_execute` selection is a remnant of batch-analysis (removed in E3.5);
+   > premortem's self-standing redefinition is E5. cli.py itself is unchanged.
 
 3. **Risk evaluation** (cli.py, pure decision engine):
    - For each design: `history_query.query()` + `risk_evaluator.evaluate()`
@@ -54,7 +56,7 @@ and issues an approval token consumed by `/batch-analysis --approved-by TOKEN`.
 
 5. **Token issuance**:
    - `token_manager.issue()` writes `.insight/premortem/{TIMESTAMP}.yaml`
-   - stdout final line: `Launch with: /batch-analysis --approved-by {token_id}`
+   - stdout final line: `Approval token issued: {token_id} (use --approved-by {token_id})`
 
 ## Risk Levels
 

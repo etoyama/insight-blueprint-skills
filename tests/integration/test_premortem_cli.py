@@ -69,7 +69,7 @@ class TestPremortemQueuedHappy:
         assert len(lines) == len(self.queued)
 
     def test_launch_message_last_line(self) -> None:
-        """Last line contains 'Launch with: /batch-analysis --approved-by'."""
+        """Last line reports the issued approval token."""
         result = run_premortem_cli(
             ["--queued", "--yes", "--mode", "review", "--base-dir", str(self.base_dir)],
             self.payload,
@@ -91,8 +91,8 @@ class TestPremortemQueuedHappy:
                 cwd=self.cwd,
             )
         last_line = result.stdout.strip().splitlines()[-1]
-        assert "Launch with:" in last_line
-        assert "/batch-analysis --approved-by" in last_line
+        assert "Approval token issued:" in last_line
+        assert "--approved-by" in last_line
 
 
 # =========================================================================
