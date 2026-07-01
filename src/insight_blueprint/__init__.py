@@ -1,4 +1,4 @@
-"""insight-blueprint: MCP server for analysis design management."""
+"""insight-blueprint: embedded validation library + lineage for the skills plugin."""
 
 from importlib.metadata import PackageNotFoundError, version
 

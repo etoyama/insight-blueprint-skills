@@ -6,7 +6,6 @@ plugin.json, .mcp.json, skills directory, legacy removal, and README.
 Test IDs Unit-01 through Unit-10 map to test-design.md specification.
 """
 
-import ast
 import json
 import re
 import tomllib
@@ -169,64 +168,6 @@ class TestLegacyRemoval:
 
 
 # ===========================================================================
-# Unit-05: Code removal (AST-based)
-# ===========================================================================
-
-_DELETED_SKILL_FUNCTIONS = [
-    "_copy_skills_template",
-    "_discover_bundled_skills",
-    "_hash_skill_directory",
-    "_hash_skill_directory_from_traversable",
-    "_collect_traversable_entries",
-    "_copy_skill_tree",
-    "_save_skill_state",
-    "_load_skill_state",
-    "_write_bundled_update",
-    "_get_skill_version_from_traversable",
-    "_parse_version_from_content",
-    "_get_skill_version",
-    "_hash_entries",
-    "_copy_traversable_recursive",
-]
-
-_DELETED_RULES_FUNCTIONS = [
-    "_copy_rules_template",
-    "_discover_bundled_rules",
-]
-
-
-class TestCodeRemoval:
-    """Unit-05: Deleted functions are not defined in project.py (AST check)."""
-
-    @pytest.fixture(scope="class")
-    def project_py_functions(self) -> set[str]:
-        """Parse project.py and return all top-level function names."""
-        source = (
-            REPO_ROOT / "src" / "insight_blueprint" / "storage" / "project.py"
-        ).read_text()
-        tree = ast.parse(source)
-        return {
-            node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
-        }
-
-    def test_skills_copy_functions_removed(
-        self, project_py_functions: set[str]
-    ) -> None:
-        """Skill copy functions are not defined in project.py."""
-        for func_name in _DELETED_SKILL_FUNCTIONS:
-            assert func_name not in project_py_functions, (
-                f"{func_name} still defined in project.py"
-            )
-
-    def test_rules_copy_functions_removed(self, project_py_functions: set[str]) -> None:
-        """Rules copy functions are not defined in project.py."""
-        for func_name in _DELETED_RULES_FUNCTIONS:
-            assert func_name not in project_py_functions, (
-                f"{func_name} still defined in project.py"
-            )
-
-
-# ===========================================================================
 # Unit-06: Rules integration into SKILL.md
 # ===========================================================================
 
@@ -248,27 +189,6 @@ class TestRulesIntegration:
         """catalog-register/SKILL.md contains 'Workflow Rules' section."""
         content = (REPO_ROOT / "skills" / "catalog-register" / "SKILL.md").read_text()
         assert "## Workflow Rules" in content
-
-
-# ===========================================================================
-# Unit-07: cli.py legacy import cleanup
-# ===========================================================================
-
-
-class TestCliCleanup:
-    """Unit-07: cli.py has no legacy imports."""
-
-    def test_cli_no_legacy_imports(self) -> None:
-        """cli.py does not import deleted functions."""
-        content = (REPO_ROOT / "src" / "insight_blueprint" / "cli.py").read_text()
-        legacy_names = [
-            "_copy_skills_template",
-            "_copy_rules_template",
-            "_discover_bundled_skills",
-            "_discover_bundled_rules",
-        ]
-        for name in legacy_names:
-            assert name not in content, f"Legacy import '{name}' found in cli.py"
 
 
 # ===========================================================================
