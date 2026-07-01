@@ -1,13 +1,5 @@
 {
   "mcpServers": {
-    "insight-blueprint": {
-      "command": "uvx",
-      "args": ["insight-blueprint", "--project", "."],
-      "env": {
-        "PYTHONUNBUFFERED": "1",
-        "MCP_TIMEOUT": "10000"
-      }
-    },
     "spec-workflow": {
       "command": "npx",
       "args": ["-y", "@pimzino/spec-workflow-mcp@latest", "."]

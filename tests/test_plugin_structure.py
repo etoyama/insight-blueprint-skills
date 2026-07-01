@@ -25,11 +25,6 @@ ALL_SKILLS = [
     "data-lineage",
 ]
 
-SECRET_PATTERNS = re.compile(
-    r"(api[_-]?key|password|secret|token|credential)", re.IGNORECASE
-)
-
-
 # ===========================================================================
 # Unit-01: plugin.json validation
 # ===========================================================================
@@ -68,46 +63,16 @@ class TestPluginJson:
 
 
 class TestMcpJson:
-    """Unit-02: .mcp.json exists and defines stdio transport correctly."""
+    """Unit-02: .mcp.json no longer registers the (removed) insight-blueprint server."""
 
     def test_mcp_json_exists(self) -> None:
         """.mcp.json exists at repo root."""
         assert (REPO_ROOT / ".mcp.json").is_file()
 
-    def test_mcp_json_has_insight_blueprint_server(self) -> None:
-        """mcpServers.insight-blueprint is defined."""
+    def test_no_insight_blueprint_server(self) -> None:
+        """The MCP server was removed in Epic 4; it must not be registered."""
         data = json.loads((REPO_ROOT / ".mcp.json").read_text())
-        assert "insight-blueprint" in data["mcpServers"]
-
-    def test_mcp_json_command_is_uvx(self) -> None:
-        """command is 'uvx'."""
-        data = json.loads((REPO_ROOT / ".mcp.json").read_text())
-        server = data["mcpServers"]["insight-blueprint"]
-        assert server["command"] == "uvx"
-
-    def test_mcp_json_no_mode_flag(self) -> None:
-        """args do not contain '--mode' (stdio guarantee)."""
-        data = json.loads((REPO_ROOT / ".mcp.json").read_text())
-        server = data["mcpServers"]["insight-blueprint"]
-        assert "--mode" not in server["args"]
-
-    def test_mcp_json_has_project_arg(self) -> None:
-        """args contain '--project' and '.'."""
-        data = json.loads((REPO_ROOT / ".mcp.json").read_text())
-        server = data["mcpServers"]["insight-blueprint"]
-        assert "--project" in server["args"]
-        assert "." in server["args"]
-
-    def test_mcp_json_no_secrets(self) -> None:
-        """env does not contain API keys, passwords, or secrets."""
-        data = json.loads((REPO_ROOT / ".mcp.json").read_text())
-        server = data["mcpServers"]["insight-blueprint"]
-        env = server.get("env", {})
-        for key, value in env.items():
-            assert not SECRET_PATTERNS.search(key), f"Suspicious env key: {key}"
-            assert not SECRET_PATTERNS.search(str(value)), (
-                f"Suspicious env value for {key}"
-            )
+        assert "insight-blueprint" not in data.get("mcpServers", {})
 
 
 # ===========================================================================
