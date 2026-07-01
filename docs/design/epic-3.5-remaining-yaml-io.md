@@ -64,15 +64,22 @@ catalog_io は sqlite/FTS5 を使わない。検索は sources と knowledge を
 
 ## Module Responsibilities
 
-- `skills/_shared/catalog_io.py::create_source` — DataSource 検証 → `sources/{id}.yaml` + 空 `knowledge/{id}.yaml` を atomic 書込
-- `catalog_io.py::update_source` — read-merge-write + `updated_at`
-- `catalog_io.py::get_schema` — `schema_info.columns` を ColumnSchema 検証して返す
-- `catalog_io.py::search` — sources + knowledge を横断し compact hit（出現回数で粗ランク、type/tags フィルタ）
-- `catalog_io.py::load_source / list_sources / load_knowledge / get_knowledge` — read 系
-- `catalog_io` CLI（`python -m skills._shared.catalog_io`）— skill 起動口（stdin JSON / stdout JSON）
-- `skills/catalog-register/SKILL.md` — MCP → catalog_io
-- `skills/premortem/SKILL.md` — 設計は design_io、source_checks_map は catalog_io（cli.py 不変）
-- `skills/data-lineage/SKILL.md` — get_analysis_design → design_io.load_design
+各モジュールの「責務（する）」と「境界（しない・どこへ委譲するか）」。catalog_io は design_io と同様
+**I/O とオーケストレーション**に徹し、モデル検証は `models.catalog`、原子書込は `_atomic`、設計書 I/O は
+`design_io` に委譲する（catalog YAML に pre-write hook は無いため、検証は catalog_io がモデル構築で行う）。
+
+| モジュール / 関数 | 責務（する） | 境界（しない → 委譲先） |
+|---|---|---|
+| `catalog_io.create_source` | id 検証・重複チェック・`sources/{id}.yaml` + 空 `knowledge/{id}.yaml` を書込 | スキーマ妥当性は `DataSource` モデル、原子書込は `_atomic.atomic_write_yaml` |
+| `catalog_io.update_source` | 既存読込→merge→`updated_at`→書込 | 妥当性は `DataSource` モデル（再構築で検証） |
+| `catalog_io.get_schema` | `schema_info.columns` を返す | 列定義の妥当性は `ColumnSchema` モデル |
+| `catalog_io.search` | sources + knowledge を glob→射影→substring マッチ、compact hit を出現回数で粗ランク（type/tags フィルタ） | 全文検索エンジン相当はしない（FTS5 不使用）。full 取得は `load_source`/`get_knowledge` |
+| `catalog_io.load_source` / `list_sources` / `load_knowledge` / `get_knowledge` | catalog YAML の read | 書込・検証はしない（読取専用） |
+| `catalog_io` CLI | skill 起動口（stdin JSON → 関数 → stdout JSON） | ロジックを持たない（各関数へ委譲）・対話しない |
+| `catalog-register` SKILL.md | ユーザー対話・スキーマ探索・catalog_io 呼出 | YAML 直接組立/検証はしない → catalog_io |
+| `premortem` SKILL.md | 設計/カタログ情報の収集（→ cli.py へ pipe） | 設計取得は `design_io`、source 情報は `catalog_io`。cli.py 自体は不変 |
+| `data-lineage` SKILL.md | 対象設計の確認 → tracked_pipe/export の案内 | 設計取得は `design_io.load_design`。lineage 本体は `insight_blueprint.lineage`（MCP-free） |
+| （他 Epic 領分）`design_io`（E3） | 設計書ライフサイクルの I/O | 本 Epic では import して再利用（premortem/lineage が使う） |
 
 ## Sequence Diagram
 
