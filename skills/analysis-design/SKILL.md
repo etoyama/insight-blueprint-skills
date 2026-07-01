@@ -11,8 +11,20 @@ argument-hint: "[theme_id]"
 
 # /analysis-design — Analysis Design Builder
 
-Guides Claude through creating a lightweight analysis design document using
-insight-blueprint MCP tools. Follows the hypothesis-driven EDA workflow.
+Guides Claude through creating a lightweight analysis design document by writing
+`.insight/designs/*_hypothesis.yaml` directly via the `design_io` helper (no MCP
+server). Follows the hypothesis-driven EDA workflow.
+
+**design_io CLI** (run from the project root; reads JSON payloads on stdin,
+prints JSON results; validation runs before every write):
+
+```bash
+echo '<json>' | uv run python -m skills._shared.design_io create
+echo '<changes-json>' | uv run python -m skills._shared.design_io update --id FP-H01
+uv run python -m skills._shared.design_io transition --id FP-H01 --target analyzing
+uv run python -m skills._shared.design_io get --id FP-H01
+uv run python -m skills._shared.design_io list [--status in_review]
+```
 
 ## When to Use
 - Starting a new exploratory analysis (user wants to formalize a hypothesis)
@@ -34,7 +46,7 @@ Before proceeding, confirm with the user:
 - If the user confirms, continue to Step 1
 
 ### Step 1: Check Current State
-Call `list_analysis_designs()` to understand existing designs:
+Run `design_io list` to understand existing designs:
 - Note existing theme IDs (e.g., "FP", "TX")
 - Check if a `parent_id` should be referenced
 
@@ -94,7 +106,7 @@ If the user passed `$ARGUMENTS`, use it as `theme_id` (validate format first).
 
 ### Step 2.5: Pre-creation Check
 
-Before calling `create_analysis_design`, verify that `methodology` is NOT null.
+Before creating the design, verify that `methodology` is NOT null.
 If the interview did not cover methodology, ask now:
 - "What analysis method will you use? (e.g., OLS, t-test, chi-square, DID)"
 - Set `methodology = {method: "<answer>", reason: "<why this method>"}` at minimum.
@@ -125,55 +137,66 @@ methodology = {
 
 ### Step 3: Create the Design
 
-```
-create_analysis_design(
-    title="<title>",
-    hypothesis_statement="<statement>",
-    hypothesis_background="<background>",
-    methodology=<dict>,                  # REQUIRED: {method, package?, reason?}
-    theme_id="<theme_id or DEFAULT>",
-    parent_id=<"FP-H01" or None>,
-    metrics=<list[dict] or None>,        # each dict: {target, tier?, data_source?, grouping?, filter?, aggregation?, comparison?}
-    explanatory=<list[dict] or None>,    # each dict: {name, description?, role?, data_source?, time_points?}
-    chart=<list[dict] or None>,          # each dict: {intent, type?, description?, x?, y?}
-    next_action=<dict or None>,
-)
+Build a JSON payload and pipe it to `design_io create`. `methodology` is REQUIRED.
+The helper generates the `id` (`{theme_id}-H{nn}`), sets timestamps, validates the
+schema, and writes `.insight/designs/{id}_hypothesis.yaml`.
+
+```bash
+echo '{
+  "title": "<title>",
+  "hypothesis_statement": "<statement>",
+  "hypothesis_background": "<background>",
+  "methodology": {"method": "OLS", "package": "statsmodels", "reason": "..."},
+  "theme_id": "FP",
+  "parent_id": null,
+  "metrics": [],
+  "explanatory": [],
+  "chart": [],
+  "next_action": null
+}' | uv run python -m skills._shared.design_io create
 ```
 
-Expected success response:
+Expected stdout (the written design as JSON):
 ```json
-{"id": "FP-H01", "title": "...", "status": "in_review", "message": "Analysis design 'FP-H01' created successfully."}
+{"id": "FP-H01", "title": "...", "status": "in_review", ...}
 ```
+
+If validation fails (e.g. empty `methodology.method`), the command exits non-zero
+with the error on stderr and **nothing is written** — fix the payload and retry.
 
 ### Step 3b: Update an Existing Design (optional)
 
-To add or modify fields on an already-created design, use `update_analysis_design()`:
+To add or modify fields, pipe a partial-changes JSON to `design_io update`. Only the
+provided fields change; `updated_at` is refreshed and `referenced_knowledge` is merged.
 
+```bash
+echo '{"next_action": {"if_supported": "パネルFEへ進む", "if_rejected": {"reason": "相関なし", "pivot": "時系列分析"}}}' \
+  | uv run python -m skills._shared.design_io update --id FP-H01
 ```
-update_analysis_design(
-    design_id="FP-H01",
-    next_action={"if_supported": "パネルFEへ進む", "if_rejected": {"reason": "相関なし", "pivot": "時系列分析"}},
-)
-```
-
-Only provided fields are updated; all others remain unchanged.
 
 ### Step 4: Confirm and Suggest Next Steps
 - Show the returned `id` (e.g., "FP-H01") to the user
 - Confirm the YAML file location: `.insight/designs/FP-H01_hypothesis.yaml`
 - Suggest next steps:
-  - Refine the hypothesis: add `chart` / `next_action` via `update_analysis_design()`
+  - Refine the hypothesis: add `chart` / `next_action` via `design_io update`
   - **Start recording reasoning: `/analysis-journal FP-H01`**
   - **Review and conclude: `/analysis-reflection FP-H01`**
 
-## MCP Tool Reference
+## design_io Reference
 
-| Tool | Purpose | Key Parameters |
-|------|---------|----------------|
-| `list_analysis_designs(status?)` | List existing designs | `status`: in_review \| revision_requested \| analyzing \| supported \| rejected \| inconclusive |
-| `create_analysis_design(...)` | Create new design | `title`, `hypothesis_statement`, `hypothesis_background`, **`methodology`**, `theme_id?`, `parent_id?`, `metrics?`, `explanatory?`, `chart?`, `next_action?`, `analysis_intent?` |
-| `update_analysis_design(...)` | Partially update existing design | `design_id`, `title?`, `hypothesis_statement?`, `hypothesis_background?`, `metrics?`, `explanatory?`, `chart?`, `methodology?`, `next_action?`, `analysis_intent?` |
-| `get_analysis_design(design_id)` | Retrieve a specific design | `design_id`: str (e.g., "FP-H01") |
+`python -m skills._shared.design_io <command>` (run from project root; `--base-dir`
+defaults to `.insight`). Payloads are JSON on stdin; results are JSON on stdout.
+
+| Command | Purpose | Input |
+|---------|---------|-------|
+| `list [--status S]` | List existing designs | — |
+| `get --id ID` | Retrieve a design | — |
+| `create` | Create new design (auto id, validated) | stdin: `{title, hypothesis_statement, hypothesis_background, methodology, theme_id?, parent_id?, metrics?, explanatory?, chart?, next_action?, analysis_intent?}` |
+| `update --id ID` | Partial update (merge, refresh updated_at) | stdin: `{<fields to change>}` |
+| `transition --id ID --target S` | Change status (validated) | — |
+
+Validation (schema + state transition) runs inside `design_io` before writing — the
+same `validate.py` the pre-write hook uses. Invalid writes raise and write nothing.
 
 ## Typed Field Values Reference
 
@@ -194,14 +217,15 @@ Only provided fields are updated; all others remain unchanged.
 - Must match `[A-Z][A-Z0-9]*` (uppercase letter first, then uppercase letters or digits)
 - Valid: `"FP"`, `"TX"`, `"ECON"`, `"DEFAULT"`, `"FP2"`
 - Invalid: `"fp"` (lowercase), `"FP/X"` (slash), `"1FP"` (starts with digit)
-- On invalid input, the MCP tool returns an error dict — ask the user to correct it
+- On invalid input, `design_io` exits non-zero with the error on stderr — ask the user to correct it
 
 ## Error Handling
 
-| Error Response | Cause | Action |
+| Error (stderr) | Cause | Action |
 |----------------|-------|--------|
-| `{"error": "Invalid theme_id 'fp': must match [A-Z][A-Z0-9]*"}` | Invalid theme_id format | Ask user for a valid uppercase theme_id |
-| `{"error": "Design 'FP-H99' not found"}` | Non-existent design_id | Confirm ID via `list_analysis_designs()` |
+| `Invalid theme_id 'fp': must match [A-Z][A-Z0-9]*` | Invalid theme_id format | Ask user for a valid uppercase theme_id |
+| `Design 'FP-H99' not found` | Non-existent design_id | Confirm ID via `design_io list` |
+| pydantic `ValidationError` (e.g. empty `methodology.method`) | Schema violation | Fix the payload; nothing was written |
 
 ## Chaining
 
@@ -225,19 +249,22 @@ Only provided fields are updated; all others remain unchanged.
 
 ### Status Flow
 
-Designs follow a strict status progression:
+Designs use the `DesignStatus` model. A new design starts `in_review`.
 
 ```
-draft → active → pending_review → supported | rejected | inconclusive
+in_review ─┬→ revision_requested → (back to in_review / analyzing / terminal)
+           ├→ analyzing → in_review
+           └→ supported | rejected | inconclusive   (terminal — no exit)
 ```
 
-- **draft**: Initial creation. Editable freely.
-- **active**: Hypothesis is being tested. Data collection in progress.
-- **pending_review**: Analysis complete, awaiting peer review.
-- **supported / rejected / inconclusive**: Final disposition after review.
+- **in_review**: Created, under review.
+- **revision_requested**: Review asked for changes.
+- **analyzing**: Hypothesis is being tested.
+- **supported / rejected / inconclusive**: Terminal disposition.
 
-Status transitions MUST use `design_update` MCP tool with valid `status` field.
-Skipping states (e.g., draft → supported) is not allowed.
+Status transitions MUST go through `design_io transition` (or `append_review_batch`),
+which validates the move against `VALID_TRANSITIONS` in `validate.py`. Illegal moves
+(e.g. `analyzing → supported`, or any exit from a terminal state) are rejected.
 
 ### Theme ID Rules
 
@@ -255,28 +282,25 @@ Skipping states (e.g., draft → supported) is not allowed.
 
 ### .insight/ YAML File Operation Rules
 
-#### MCP-Only Editing
+#### Design documents go through `design_io`
 
-All catalog and design YAML files under `.insight/` MUST be edited through
-insight-blueprint MCP tools. Direct file writes are prohibited to maintain
-schema integrity and event consistency.
+`.insight/designs/*_hypothesis.yaml` and `*_reviews.yaml` MUST be created/updated via
+the `design_io` helper, not hand-written. `design_io` owns id generation, timestamps,
+`referenced_knowledge` merge, and validation (`validate.py`). A `*_hypothesis.yaml`
+written via the Write/Edit tool is additionally guarded by the pre-write hook
+(`.claude/hooks/validate-design.py`), which calls the same `validate.py` — so schema
+and state-transition rules hold on either path.
 
-**Allowed MCP tools for editing:**
-- `catalog_add_source` / `catalog_update_source` — catalog/sources/*.yaml
-- `design_create` / `design_update` — designs/*.yaml
-- `knowledge_store` / `knowledge_update` — catalog/knowledge/*.yaml
-- `review_add_comment` / `review_submit_batch` — designs/*.yaml (review data)
+**Direct read is always OK** — use Read tool / glob / cat freely for analysis.
 
-**Direct read is always OK** — use Read tool or cat freely for analysis.
+#### Skill-managed directly (no design_io)
 
-#### Exceptions (Direct Edit Allowed)
-
-These files may be edited directly because they contain user-managed
-configuration, not MCP-managed data:
+These contain skill- or user-managed data and are edited directly (Read/Write):
 
 - `.insight/config.yaml` — project configuration
-- `.insight/rules/review_rules.yaml` — review rule definitions
-- `.insight/rules/analysis_rules.yaml` — analysis rule definitions
-- `.insight/rules/extracted_knowledge.yaml` — knowledge seed data
-- `.insight/designs/*_journal.yaml` — Insight Journal (managed by analysis-journal skill)
-- `.insight/designs/*_revision.yaml` — Revision Tracking (managed by analysis-revision skill)
+- `.insight/rules/*.yaml` — review / analysis rules, knowledge seed data
+- `.insight/designs/*_journal.yaml` — Insight Journal (analysis-journal; `design_io` has
+  `load_journal`/`write_journal` thin wrappers)
+- `.insight/designs/*_revision.yaml` — Revision Tracking (analysis-revision)
+
+> Catalog (`catalog/**`) is still MCP-backed until Epic 3.5.

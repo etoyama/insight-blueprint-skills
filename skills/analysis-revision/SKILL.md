@@ -3,7 +3,7 @@ name: analysis-revision
 version: "1.0.0"
 description: |
   Guides structured revision of an analysis design based on review comments.
-  Reads review feedback via MCP, tracks progress per comment, and helps fix each issue.
+  Reads review feedback via design_io, tracks progress per comment, and helps fix each issue.
   Triggers: "レビューを直して", "指摘を反映して", "revision対応して", "fix review",
   "address comments", "レビュー修正".
 disable-model-invocation: true
@@ -13,9 +13,9 @@ argument-hint: "[design_id]"
 # /analysis-revision — Structured Review Revision
 
 Guides the user through a structured revision workflow for an analysis design
-that has received review comments. Reads review feedback via MCP, creates a
-persistent tracking file for per-comment progress, and helps address each
-comment through interactive dialogue.
+that has received review comments. Reads review feedback via design_io
+(`list-reviews`), creates a persistent tracking file for per-comment progress,
+and helps address each comment through interactive dialogue.
 
 ## When to Use
 - Design status is `revision_requested` and review comments need to be addressed
@@ -33,9 +33,10 @@ comment through interactive dialogue.
 ### Phase 1: Situation Assessment
 
 1. If `$ARGUMENTS` contains a design ID (e.g., "FP-H01"), use it directly.
-   Otherwise, call `list_analysis_designs(status="revision_requested")` and ask the user to select.
+   Otherwise, run `uv run python -m skills._shared.design_io list --status revision_requested`
+   and ask the user to select.
 
-2. `get_analysis_design(design_id)` -- load the design.
+2. `uv run python -m skills._shared.design_io get --id {design_id}` -- load the design (JSON).
 
 3. **Status check**: If `status != "revision_requested"`, display an error and exit:
    ```
@@ -43,7 +44,7 @@ comment through interactive dialogue.
    レビューで修正依頼が出た後にこのスキルを使おう。
    ```
 
-4. `get_review_comments(design_id)` -- get all review batches.
+4. `uv run python -m skills._shared.design_io list-reviews --id {design_id}` -- get all review batches (JSON, newest first).
 
 5. **Batch selection** (important -- do NOT just pick the newest batch overall):
    - Filter the returned batches to only those where `status_after == "revision_requested"`
@@ -126,13 +127,13 @@ For each item in the tracking file where `status == "open"`:
    Section: {target_section or "general"}
    Comment: {full comment text from the batch}
    Target content: {target_content from the batch, if present}
-   Current value: {current value of that section from get_analysis_design, if target_section is set}
+   Current value: {current value of that section from design_io get, if target_section is set}
    Status: {status}
    ```
 
-   To get the current value, call `get_analysis_design(design_id)` and extract
+   To get the current value, run `design_io get --id {design_id}` and extract
    the field matching `target_section` (e.g., if `target_section == "hypothesis_statement"`,
-   show `design.hypothesis_statement`).
+   show `design["hypothesis_statement"]`).
 
 2. **Ask user for direction**:
    ```
@@ -144,7 +145,7 @@ For each item in the tracking file where `status == "open"`:
 
 3. **If fix**:
    - Discuss the fix with the user
-   - Apply the change via `update_analysis_design(design_id, **changes)`
+   - Apply the change: `echo '{<changed fields>}' | uv run python -m skills._shared.design_io update --id {design_id}`
    - Update tracking item: `status: "addressed"`, `addressed_at: "{now_jst}"`
 
 4. **If skip (wontfix)**:
@@ -176,39 +177,41 @@ For each item in the tracking file where `status == "open"`:
    ```
    全コメントへの対応が完了した。in_review に戻してレビュアーに再確認を依頼する？
    ```
-   If yes: `transition_design_status(design_id, "in_review")`
+   If yes: `uv run python -m skills._shared.design_io transition --id {design_id} --target in_review`
 
 4. **Suggest next steps**:
    - "大きな方針変更が必要なら /analysis-design {design_id} で再設計"
    - "調査してから修正したい場合は /analysis-journal {design_id} で記録しながら進めよう"
    - "in_review に戻した後、レビュアーは WebUI で再レビューできる"
 
-## MCP Tool Reference
+## design_io Reference
 
-| Tool | Used for |
-|------|----------|
-| `get_analysis_design(design_id)` | Load design details and check status |
-| `list_analysis_designs(status?)` | Find designs in revision_requested status |
-| `get_review_comments(design_id)` | Get review batches with comments |
-| `update_analysis_design(design_id, ...)` | Apply fixes to design fields |
-| `transition_design_status(design_id, new_status)` | Re-submit for review (-> in_review) |
+`python -m skills._shared.design_io <command>` (from project root):
+
+| Command | Used for |
+|---------|----------|
+| `get --id ID` | Load design details and check status |
+| `list --status revision_requested` | Find designs awaiting revision |
+| `list-reviews --id ID` | Get review batches with comments (newest first) |
+| `update --id ID` (stdin JSON) | Apply fixes to design fields |
+| `transition --id ID --target in_review` | Re-submit for review |
 
 ## Tracking File Location
 
 `.insight/designs/{design_id}_revision.yaml`
 
-This file is skill-managed data, not MCP-managed (see YAML Format Reference
+This file is skill-managed data, edited directly (see YAML Format Reference
 in analysis-design SKILL.md).
 
 ## Error Handling
 
 | Situation | Action |
 |---|---|
-| Design not found | Show error, suggest `list_analysis_designs()` |
+| Design not found | Show error, suggest `design_io list` |
 | Design not in revision_requested status | Show current status, exit with guidance |
-| No revision_requested batch found | Show message, suggest checking WebUI review |
+| No revision_requested batch found | Show message, suggest reviewing first |
 | Tracking file corrupted | Re-create from target batch, warn user |
-| update_analysis_design fails | Show error, ask user to retry or adjust |
+| `design_io update` fails | Show error, ask user to retry or adjust |
 | Session interrupted mid-loop | On next run, resume from tracking file (open items) |
 
 ## Chaining

@@ -30,7 +30,7 @@ identify remaining gaps, or decide to branch.
 
 ### Step 1: Load Design + Journal
 
-1. `get_analysis_design(design_id)` — load design
+1. `uv run python -m skills._shared.design_io get --id {design_id}` — load design (JSON)
 2. Read `.insight/designs/{design_id}_journal.yaml` using Read tool — load journal
 3. If no journal exists: "ジャーナルがない。まず /analysis-journal {id} で推論過程を記録してから振り返ろう" → exit
 
@@ -66,9 +66,10 @@ Contradicting: {count} items
   - {child_design_id}: {child_title} ({child_status})
 ```
 
-To find branches, use:
+To find branches, list designs and filter by parent_id:
 ```
-children = [d for d in list_analysis_designs(theme_id=design.theme_id) if d.parent_id == design_id]
+designs = json(`design_io list`)
+children = [d for d in designs if d["parent_id"] == design_id]
 ```
 
 ### Step 3: Guided Reflection (3 Questions)
@@ -107,17 +108,18 @@ If user chooses to conclude:
      created_at: "{now}"
    ```
 
-2. Suggest status transition:
+2. Suggest status transition (via design_io transition):
    "結論が出た。ステータスを変更する？"
-   - supported: `transition_design_status(design_id, "analyzing", "supported")`
-   - rejected: `transition_design_status(design_id, "analyzing", "rejected")`
-   - inconclusive: `transition_design_status(design_id, "analyzing", "inconclusive")`
+   - supported: `uv run python -m skills._shared.design_io transition --id {design_id} --target supported`
+   - rejected: `... --target rejected`
+   - inconclusive: `... --target inconclusive`
 
-   Note: Current status must be "analyzing" for terminal transition.
-   If status is "in_review", suggest going through the review process first.
+   Note: Current status must be "analyzing" for terminal transition (design_io
+   validates this via VALID_TRANSITIONS). If status is "in_review", go through the
+   review process first.
 
 3. Show final summary and suggest:
-   - "レビューコメントを残すなら save_review_comment を使う"
+   - "レビューコメントを残すなら /analysis-revision（design_io append_review_batch 経由）"
    - "この知見をカタログに登録するなら /catalog-register"
    - "派生仮説を立てるなら /analysis-design"
 
@@ -126,17 +128,19 @@ If user chooses to conclude:
 If user chooses to refine:
 
 1. Record `hypothesize` event with the refined hypothesis in journal
-2. Optionally call `update_analysis_design(design_id, hypothesis_statement=refined)`
+2. Optionally refine the design: `echo '{"hypothesis_statement": "<refined>"}' | uv run python -m skills._shared.design_io update --id {design_id}`
 3. Suggest: "/analysis-journal {id} で追加調査を続けよう"
 
-## MCP Tool Reference (Existing Only)
+## design_io Reference
 
-| Tool | Used for |
-|------|----------|
-| `get_analysis_design(design_id)` | Load design details |
-| `transition_design_status(design_id, current, new)` | Terminal status transition |
-| `update_analysis_design(design_id, ...)` | Hypothesis refinement |
-| `list_analysis_designs(theme_id?)` | Find child/sibling designs |
+`python -m skills._shared.design_io <command>` (from project root):
+
+| Command | Used for |
+|---------|----------|
+| `get --id ID` | Load design details |
+| `transition --id ID --target S` | Terminal status transition (validated) |
+| `update --id ID` (stdin JSON) | Hypothesis refinement |
+| `list` | Find child/sibling designs (filter the JSON by parent_id/theme_id) |
 
 ## Chaining
 
