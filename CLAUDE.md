@@ -21,7 +21,8 @@ rationale.
 
 **Migration status.** The MCP server / WebUI / SQLite have been removed (E1–E4 complete;
 see ADR-0001 → Related). The architecture below is now the actual state, not just a target.
-Remaining work is E5 (catalog flexibility / premortem self-standing / knowledge extraction).
+Remaining work is E5: premortem self-standing (E5a, done) / knowledge extraction (E5b) /
+catalog flexibility (E5c).
 
 ## 2. Architecture
 
@@ -86,10 +87,11 @@ plan did not anticipate, do **one** of the following before the PR can merge:
 | `/analysis-revision` | Guided revision workflow for review comments |
 | `/catalog-register` | Register a data source (flexibility extended in E5) |
 | `/data-lineage` | Track transformations, export lineage diagrams (Mermaid) |
-| `/premortem` | Pre-flight cost/risk evaluation (redefined read-only in E5) |
+| `/premortem` | Report-only pre-flight cost/risk evaluation (self-standing since E5a) |
 
 `batch-analysis` was removed in E3.5 (superseded by Claude Code auto mode).
-`premortem` still references batch concepts; its self-standing redefinition is E5. See ADR-0001.
+`premortem` is now report-only (token/run-history removed in E5a). Remaining E5 work:
+catalog flexibility (E5c) + knowledge extraction (E5b). See ADR-0001.
 
 ## 7. Skill-Managed Data (`.insight/`)
 

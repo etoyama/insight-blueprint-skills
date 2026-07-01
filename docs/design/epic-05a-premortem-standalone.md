@@ -5,13 +5,13 @@ batch 実行前提の機構が orphan 化した。これらを撤去し、premor
 
 ## Acceptance Criteria
 
-- [ ] AC1: token / run 履歴 / manifest / allowlist_loader の死んだ機構が撤去される
+- [x] AC1: token / run 履歴 / manifest / allowlist_loader の死んだ機構が撤去される
   （token_manager / manifest_writer / crash_recovery / history_query / allowlist_loader）
-- [ ] AC2: `risk_evaluator` が履歴 extrapolation を持たず**静的評価のみ**（source/allowlist/location + 行数しきい値）
-- [ ] AC3: `premortem/cli.py` が **report-only**（token 発行なし、`.insight/premortem/` へ書かない）。
+- [x] AC2: `risk_evaluator` が履歴 extrapolation を持たず**静的評価のみ**（source/allowlist/location + 行数しきい値）
+- [x] AC3: `premortem/cli.py` が **report-only**（token 発行なし、`.insight/premortem/` へ書かない）。
   HARD_BLOCK/HIGH があれば exit 2、無ければ 0
-- [ ] AC4: premortem SKILL.md が自立レポートに再フレーム（gate/batch/token/`--queued` 記述なし）
-- [ ] AC5: `pytest` 全緑、撤去シンボルの参照ゼロ
+- [x] AC4: premortem SKILL.md が自立レポートに再フレーム（gate/batch/token/`--queued` 記述なし）
+- [x] AC5: `pytest` 全緑（335 passed）、撤去シンボルの skills 内参照ゼロ
 
 ## Glossary
 
@@ -103,11 +103,13 @@ sequenceDiagram
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| Story 5a.1 infra/risk | ☐ (risk_evaluator/config 静的) | — | — |
-| Story 5a.2 cli/skill | ☐ (cli report-only) | ☐ (premortem io contract) | ☐ (stdin→表→exit) |
+| Story 5a.1 infra/risk | ✓ (risk_evaluator/config 静的) | — | — |
+| Story 5a.2 cli/skill | ✓ (cli report-only) | ✓ (test_premortem_report) | ✓ (stdin→表→exit) |
 
 完了時に ✓。pytest 全緑が Epic PR レビューゲート。
 
 ## Story Timeline
 
 - 2026-07-01 — Epic 05a 起票: main から epic/5a-premortem-standalone を切り、Design Doc 作成。
+- 2026-07-01 — Story 5a.1 完了: token/run/history インフラ撤去、models/config 整理、risk_evaluator 静的化、cli report-only 化。pytest 335 passed。
+- 2026-07-01 — Story 5a.2 完了: SKILL.md 再フレーム、config.example / CLAUDE.md / PRD / ARCHITECTURE 更新。

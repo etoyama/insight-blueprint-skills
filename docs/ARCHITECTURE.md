@@ -5,7 +5,7 @@
 
 **移行状況**: MCPサーバ / WebUI / SQLite は E1–E4 で除去済み
 （[ADR-0001](adr/0001-drop-mcp-server-embed-validation.md)）。本書は現行アーキテクチャを表す。
-残るは E5（catalog 柔軟化 / premortem 自立化 / knowledge 抽出強化）。
+残るは E5: premortem 自立化（E5a, report-only 化）/ knowledge 抽出強化（E5b）/ catalog 柔軟化（E5c）。
 
 ## 不変条件（invariants）
 
@@ -109,7 +109,9 @@ sequenceDiagram
 | E3 | Skill layer ↔ Skill-managed YAML（設計書ライフサイクルの直接 I/O 化、design_io） |
 | E3.5 | catalog / premortem / lineage の MCP→YAML 変換 + batch-analysis 撤去（E4 前提） |
 | E4 | MCP server（撤去） |
-| E5 | catalog（柔軟化）/ premortem（自立化） |
+| E5a | premortem（report-only 自立化） |
+| E5b | knowledge 抽出強化 |
+| E5c | catalog（柔軟化） |
 
 ## 参照
 

@@ -1,27 +1,26 @@
 ---
 name: premortem
 description: |
-  Pre-flight cost/risk evaluation and approval token issuance for queued analysis designs.
-  Evaluates queued designs against history-based extrapolation and static thresholds,
-  then issues an approval token that gates expensive downstream execution.
+  Report-only pre-flight cost/risk evaluation for analysis designs.
+  Before expensive data access, evaluates each design (source registered? BigQuery
+  location ok? methodology packages allowed? estimated rows?) and prints a risk
+  table (HARD_BLOCK / HIGH / MEDIUM / LOW / SKIP). Issues no token and writes nothing.
   Triggers: "premortem", "事前チェック", "実行前チェック", "リスク判定",
   "pre-flight check", "run premortem".
-  evaluate-only (write-prohibition contract, AC-1.5).
 disable-model-invocation: true
-argument-hint: "[--queued | --design <id> | --all] [--yes] [--mode manual|review|auto]"
+argument-hint: "[--design <id>]"
 ---
 
-# /premortem -- Pre-flight Risk Evaluation
+# /premortem -- Pre-flight Risk Evaluation (report-only)
 
-Standalone skill that scans queued (or specified) analysis designs, runs a
-deterministic risk decision tree (HARD_BLOCK / HIGH / MEDIUM / LOW / SKIP),
-and issues an approval token that gates expensive downstream execution.
+Standalone skill that evaluates analysis designs against a deterministic, static
+risk decision tree (HARD_BLOCK / HIGH / MEDIUM / LOW / SKIP) and prints a report.
+It does **not** issue tokens, gate execution, or write to disk — it advises.
 
 ## When to Use
 
-- Before expensive data access / execution, to validate the queue
-- When you want to check risk levels of designs without executing them
-- As an automated gate in review / auto mode
+- Before expensive data access, to see the cost/risk of the designs you're about to run
+- To check risk levels of designs without executing them
 
 ## When NOT to Use
 
@@ -30,68 +29,46 @@ and issues an approval token that gates expensive downstream execution.
 
 ## Workflow
 
-1. **Parse arguments** -- Claude Code invokes `skills/premortem/cli.py` via
-   Python subprocess. The CLI expects design data as JSON on stdin (Claude Code
-   gathers it via `design_io` / `catalog_io` and pipes the result).
-
-2. **Collect design data** (Claude Code responsibility, before invoking cli.py):
-   - `uv run python -m skills._shared.design_io list` and filter
-     `next_action.type == "batch_execute"` (or use `--design <id>` / `--all` to select differently)
+1. **Collect design data** (Claude Code responsibility):
+   - `uv run python -m skills._shared.design_io list` to enumerate designs
+     (use `--design <id>` to scope to one).
    - For each design: `design_io get --id <id>`, then build `source_checks_map` from
-     `catalog_io get-schema --id <source_id>` and `catalog_io search --query <source_id>`
-     (source registered? location/allowlist/rows)
-   - Pipe the JSON payload to cli.py stdin
+     `catalog_io get-schema --id <source_id>` / `catalog_io search --query <source_id>`
+     and `.insight/rules/package_allowlist.yaml` (source registered? location ok?
+     packages allowed? estimated rows?).
+   - Pipe `{ "designs": [...], "source_checks_map": {...} }` as JSON to cli.py stdin.
 
-   > Note: the `batch_execute` selection is a remnant of batch-analysis (removed in E3.5);
-   > premortem's self-standing redefinition is E5. cli.py itself is unchanged.
+2. **Evaluate** (cli.py, pure static decision engine):
+   ```bash
+   echo '<json>' | uv run python -m skills._shared... # (payload built above)
+   uv run python -m skills.premortem.cli            # reads stdin, prints table
+   ```
+   Prints one line per design (id / intent / est_rows / strategy / risk / reasons)
+   and exits 2 if any design is HARD_BLOCK/HIGH, else 0.
 
-3. **Risk evaluation** (cli.py, pure decision engine):
-   - For each design: `history_query.query()` + `risk_evaluator.evaluate()`
-   - Render 1-line-per-design table to stdout
-   - Apply mode logic (manual/review/auto) to decide approved vs skipped
+3. **Present** the risk table to the user and advise on next steps (e.g. fix
+   HARD_BLOCK designs, reconsider HIGH ones before running). No token, no gating.
 
-4. **Interactive gate** (manual mode or review+HIGH):
-   - Display `[s]kip / [e]dit / [a]bort / [c]ontinue` per HIGH design
-   - HARD_BLOCK: `[c]ontinue` is NOT offered
+## Risk Levels (static)
 
-5. **Token issuance**:
-   - `token_manager.issue()` writes `.insight/premortem/{TIMESTAMP}.yaml`
-   - stdout final line: `Approval token issued: {token_id} (use --approved-by {token_id})`
+| Level | Trigger | Suggested action |
+|-------|---------|------------------|
+| `HARD_BLOCK` | Unregistered source, allowlist violation, or BigQuery location mismatch | Don't run this design; fix it (`/analysis-design`) first |
+| `HIGH` | `estimated_rows` > `static_rows_high`, or a source check errored (location/allowlist `null`) | Reconsider before expensive access |
+| `MEDIUM` | `estimated_rows` > `static_rows_medium` | Proceed with awareness |
+| `LOW` | Small/unknown row count, all checks pass | Happy path |
+| `SKIP` | Terminal status (`supported` / `rejected` / `inconclusive`) | Not evaluated |
 
-## Risk Levels
-
-Every design is classified into one of five levels. The level determines
-what the operator (or automation) should do next.
-
-| Level | Trigger | Operator Action |
-|-------|---------|-----------------|
-| `HARD_BLOCK` | Unregistered source, allowlist violation, or BigQuery location mismatch. | Batch MUST NOT run this design. The `[c]ontinue` option is withheld; use `[s]kip`, `[e]dit` (fix the design), or `[a]bort` (stop the whole batch). |
-| `HIGH` | History median × buffer exceeds `time_high_min` **or** `estimated_rows` exceeds `static_rows_high` **or** success rate over `history_min_samples` samples drops below `success_rate_high_threshold`. | manual mode: operator prompt (s/e/a/c). review mode: batch STOPS (exit 2). auto mode: batch RUNS with a `WARNING: HIGH risk executed without human approval` line appended to `summary.md`. |
-| `MEDIUM` | Extrapolated time between `time_medium_min` and `time_high_min`. | Proceeds automatically in every mode. Logged for visibility. |
-| `LOW` | Nothing above triggered, history is healthy. | Proceeds automatically. The happy path. |
-| `SKIP` | Terminal status (`supported` / `rejected` / `inconclusive`) or `next_action` cleared. | Recorded as skipped with `skip_reason=terminal_status`; never enters the batch queue. |
-
-Thresholds live in `.insight/config.yaml` under `premortem.*` (see
-`.insight/config.example.yaml`). Change them there, not in code.
+Thresholds live in `.insight/config.yaml` under `premortem.*`
+(`static_rows_high`, `static_rows_medium`; see `.insight/config.example.yaml`).
 
 ## Exit Codes
 
 | Code | Meaning |
 |------|---------|
-| 0 | Token issued successfully, batch may proceed |
-| 2 | review mode + HIGH detected, batch should stop |
-| 1 | Unexpected error (config invalid, I/O failure, etc.) |
-
-## Writing Contract (AC-1.5)
-
-During `/premortem` execution, the following paths are NEVER written to:
-
-- `notebook.py` / marimo session JSON
-- `.insight/designs/*.yaml` / `.insight/designs/*_journal.yaml`
-- `.insight/runs/*/*/manifest.yaml` / `.insight/runs/*/run.yaml`
-- `.insight/catalog/**`
-
-Only `.insight/premortem/` receives writes (approval token).
+| 0 | No HARD_BLOCK / HIGH design |
+| 2 | At least one HARD_BLOCK / HIGH design (warning signal) |
+| 1 | Bad input (e.g. `--design` id not in payload) |
 
 ## Language Rules
 
