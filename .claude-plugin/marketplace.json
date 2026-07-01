@@ -11,9 +11,9 @@
     {
       "name": "insight-blueprint",
       "source": "./",
-      "description": "Hypothesis-driven data analysis workflow and catalog MCP server",
+      "description": "Hypothesis-driven EDA skills plugin with an embedded validation library",
       "license": "MIT",
-      "keywords": ["analysis", "hypothesis", "data-catalog", "mcp"]
+      "keywords": ["analysis", "hypothesis", "data-catalog", "skills", "eda"]
     }
   ]
 }

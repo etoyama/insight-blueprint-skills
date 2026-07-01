@@ -3,8 +3,9 @@
 本書は軽量版（target state）アーキテクチャの**正本**。CLAUDE.md §2 は要約とポインタのみを置く。
 プロダクト要件は [PRD.md](PRD.md)、個別決定は [docs/adr/](adr/) を参照。
 
-**移行中**: MCPサーバ / WebUI / SQLite はまだツリーに残り、Epic E1–E4 で段階的に除去される
-（[ADR-0001](adr/0001-drop-mcp-server-embed-validation.md)）。本書は移行の到達点を示す。
+**移行状況**: MCPサーバ / WebUI / SQLite は E1–E4 で除去済み
+（[ADR-0001](adr/0001-drop-mcp-server-embed-validation.md)）。本書は現行アーキテクチャを表す。
+残るは E5（catalog 柔軟化 / premortem 自立化 / knowledge 抽出強化）。
 
 ## 不変条件（invariants）
 
@@ -13,23 +14,25 @@
 - 設計書整合性の**正本は `validate.py` の1箇所**。hook と skill の双方が再利用する。
 - リリースは **tag 駆動**（`publish.yml` は `v*` タグで発火）。main マージ＝publish ではない。
 
-## 現状 → 目標
+## 構成（E1–E4 完了後）
+
+full（MCP server / WebUI / SQLite）は撤去済み。現行は軽量版のみ。
 
 ```mermaid
 flowchart LR
-    subgraph FULL["現状: full（移行で除去）"]
+    subgraph REMOVED["撤去済み（E1–E4）"]
         mcp["MCP server (FastMCP)"]
         web["WebUI / REST (FastAPI+React)"]
         sql["SQLite (FTS5)"]
     end
-    subgraph LIGHT["目標: lightweight"]
-        skills["Skill layer (skills/)"]
+    subgraph LIGHT["現行: lightweight"]
+        skills["Skill layer (skills/ + _shared/io)"]
         validate["Validation library (validate.py)"]
         hook["pre-write hook"]
         yaml["Skill-managed YAML (.insight/)"]
         marimo["marimo + lineage"]
     end
-    FULL -->|"E1–E4 で撤去"| LIGHT
+    REMOVED -.->|削除| LIGHT
 ```
 
 ## コンポーネントと責務

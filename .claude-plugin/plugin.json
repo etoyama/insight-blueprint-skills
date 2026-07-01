@@ -1,9 +1,9 @@
 {
   "name": "insight-blueprint",
   "version": "0.6.0",
-  "description": "Hypothesis-driven data analysis workflow and catalog MCP server",
+  "description": "Hypothesis-driven EDA skills plugin with an embedded validation library",
   "author": { "name": "Eto Yama" },
   "repository": "https://github.com/etoyama/insight-blueprint",
   "license": "MIT",
-  "keywords": ["analysis", "hypothesis", "data-catalog", "mcp"]
+  "keywords": ["analysis", "hypothesis", "data-catalog", "skills", "eda"]
 }

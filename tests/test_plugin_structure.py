@@ -6,7 +6,6 @@ plugin.json, .mcp.json, skills directory, legacy removal, and README.
 Test IDs Unit-01 through Unit-10 map to test-design.md specification.
 """
 
-import ast
 import json
 import re
 import tomllib
@@ -25,11 +24,6 @@ ALL_SKILLS = [
     "catalog-register",
     "data-lineage",
 ]
-
-SECRET_PATTERNS = re.compile(
-    r"(api[_-]?key|password|secret|token|credential)", re.IGNORECASE
-)
-
 
 # ===========================================================================
 # Unit-01: plugin.json validation
@@ -69,46 +63,16 @@ class TestPluginJson:
 
 
 class TestMcpJson:
-    """Unit-02: .mcp.json exists and defines stdio transport correctly."""
+    """Unit-02: .mcp.json no longer registers the (removed) insight-blueprint server."""
 
     def test_mcp_json_exists(self) -> None:
         """.mcp.json exists at repo root."""
         assert (REPO_ROOT / ".mcp.json").is_file()
 
-    def test_mcp_json_has_insight_blueprint_server(self) -> None:
-        """mcpServers.insight-blueprint is defined."""
+    def test_no_insight_blueprint_server(self) -> None:
+        """The MCP server was removed in Epic 4; it must not be registered."""
         data = json.loads((REPO_ROOT / ".mcp.json").read_text())
-        assert "insight-blueprint" in data["mcpServers"]
-
-    def test_mcp_json_command_is_uvx(self) -> None:
-        """command is 'uvx'."""
-        data = json.loads((REPO_ROOT / ".mcp.json").read_text())
-        server = data["mcpServers"]["insight-blueprint"]
-        assert server["command"] == "uvx"
-
-    def test_mcp_json_no_mode_flag(self) -> None:
-        """args do not contain '--mode' (stdio guarantee)."""
-        data = json.loads((REPO_ROOT / ".mcp.json").read_text())
-        server = data["mcpServers"]["insight-blueprint"]
-        assert "--mode" not in server["args"]
-
-    def test_mcp_json_has_project_arg(self) -> None:
-        """args contain '--project' and '.'."""
-        data = json.loads((REPO_ROOT / ".mcp.json").read_text())
-        server = data["mcpServers"]["insight-blueprint"]
-        assert "--project" in server["args"]
-        assert "." in server["args"]
-
-    def test_mcp_json_no_secrets(self) -> None:
-        """env does not contain API keys, passwords, or secrets."""
-        data = json.loads((REPO_ROOT / ".mcp.json").read_text())
-        server = data["mcpServers"]["insight-blueprint"]
-        env = server.get("env", {})
-        for key, value in env.items():
-            assert not SECRET_PATTERNS.search(key), f"Suspicious env key: {key}"
-            assert not SECRET_PATTERNS.search(str(value)), (
-                f"Suspicious env value for {key}"
-            )
+        assert "insight-blueprint" not in data.get("mcpServers", {})
 
 
 # ===========================================================================
@@ -169,64 +133,6 @@ class TestLegacyRemoval:
 
 
 # ===========================================================================
-# Unit-05: Code removal (AST-based)
-# ===========================================================================
-
-_DELETED_SKILL_FUNCTIONS = [
-    "_copy_skills_template",
-    "_discover_bundled_skills",
-    "_hash_skill_directory",
-    "_hash_skill_directory_from_traversable",
-    "_collect_traversable_entries",
-    "_copy_skill_tree",
-    "_save_skill_state",
-    "_load_skill_state",
-    "_write_bundled_update",
-    "_get_skill_version_from_traversable",
-    "_parse_version_from_content",
-    "_get_skill_version",
-    "_hash_entries",
-    "_copy_traversable_recursive",
-]
-
-_DELETED_RULES_FUNCTIONS = [
-    "_copy_rules_template",
-    "_discover_bundled_rules",
-]
-
-
-class TestCodeRemoval:
-    """Unit-05: Deleted functions are not defined in project.py (AST check)."""
-
-    @pytest.fixture(scope="class")
-    def project_py_functions(self) -> set[str]:
-        """Parse project.py and return all top-level function names."""
-        source = (
-            REPO_ROOT / "src" / "insight_blueprint" / "storage" / "project.py"
-        ).read_text()
-        tree = ast.parse(source)
-        return {
-            node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
-        }
-
-    def test_skills_copy_functions_removed(
-        self, project_py_functions: set[str]
-    ) -> None:
-        """Skill copy functions are not defined in project.py."""
-        for func_name in _DELETED_SKILL_FUNCTIONS:
-            assert func_name not in project_py_functions, (
-                f"{func_name} still defined in project.py"
-            )
-
-    def test_rules_copy_functions_removed(self, project_py_functions: set[str]) -> None:
-        """Rules copy functions are not defined in project.py."""
-        for func_name in _DELETED_RULES_FUNCTIONS:
-            assert func_name not in project_py_functions, (
-                f"{func_name} still defined in project.py"
-            )
-
-
-# ===========================================================================
 # Unit-06: Rules integration into SKILL.md
 # ===========================================================================
 
@@ -248,27 +154,6 @@ class TestRulesIntegration:
         """catalog-register/SKILL.md contains 'Workflow Rules' section."""
         content = (REPO_ROOT / "skills" / "catalog-register" / "SKILL.md").read_text()
         assert "## Workflow Rules" in content
-
-
-# ===========================================================================
-# Unit-07: cli.py legacy import cleanup
-# ===========================================================================
-
-
-class TestCliCleanup:
-    """Unit-07: cli.py has no legacy imports."""
-
-    def test_cli_no_legacy_imports(self) -> None:
-        """cli.py does not import deleted functions."""
-        content = (REPO_ROOT / "src" / "insight_blueprint" / "cli.py").read_text()
-        legacy_names = [
-            "_copy_skills_template",
-            "_copy_rules_template",
-            "_discover_bundled_skills",
-            "_discover_bundled_rules",
-        ]
-        for name in legacy_names:
-            assert name not in content, f"Legacy import '{name}' found in cli.py"
 
 
 # ===========================================================================
@@ -320,7 +205,7 @@ class TestDataLineagePrerequisites:
 
 
 class TestReadme:
-    """Unit-10: README has plugin install, pypi install, optional package, migration."""
+    """Unit-10: README covers plugin install and the optional lineage package."""
 
     def test_readme_has_plugin_install(self) -> None:
         """README mentions claude plugin installation command."""
@@ -328,13 +213,8 @@ class TestReadme:
         content_lower = content.lower()
         assert "claude plugin install" in content_lower
 
-    def test_readme_has_pypi_install(self) -> None:
-        """README mentions 'uvx insight-blueprint'."""
-        content = (REPO_ROOT / "README.md").read_text()
-        assert "uvx insight-blueprint" in content
-
     def test_readme_has_optional_python_package(self) -> None:
-        """README mentions optional Python package."""
+        """README mentions the optional Python package (for lineage)."""
         content = (REPO_ROOT / "README.md").read_text()
         content_lower = content.lower()
         assert "optional" in content_lower
@@ -342,7 +222,8 @@ class TestReadme:
             "python package" in content_lower or "uv add insight-blueprint" in content
         )
 
-    def test_readme_has_migration_guide(self) -> None:
-        """README mentions migration from .claude/skills/."""
-        content = (REPO_ROOT / "README.md").read_text()
-        assert ".claude/skills/" in content or "migration" in content.lower()
+    def test_readme_has_no_mcp_server_framing(self) -> None:
+        """Post-E4: README must not describe an MCP server / server launch."""
+        content = (REPO_ROOT / "README.md").read_text().lower()
+        assert "mcp server" not in content
+        assert "uvx insight-blueprint" not in content
