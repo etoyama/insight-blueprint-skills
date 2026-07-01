@@ -1,4 +1,4 @@
-"""Unit-08: PremortemConfig — config defaults and partial override tests."""
+"""PremortemConfig loading tests (Epic 5a: static row thresholds only)."""
 
 from __future__ import annotations
 
@@ -6,70 +6,47 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
+from skills._shared.config_loader import load_premortem_config
+from skills._shared.models import PremortemConfig
 
-class TestPremortemConfigDefaults:
-    """Verify load_premortem_config returns correct defaults."""
 
-    def test_defaults_when_no_config_file(self, tmp_path: Path) -> None:
-        """config.yaml does not exist -> all defaults applied."""
-        from skills._shared.config_loader import load_premortem_config
+def _write(path: Path, data: dict) -> None:
+    yaml = YAML()
+    with path.open("w", encoding="utf-8") as f:
+        yaml.dump(data, f)
 
-        cfg = load_premortem_config(tmp_path / "nonexistent.yaml")
 
-        assert cfg.time_high_min == 120
-        assert cfg.time_medium_min == 45
-        assert cfg.history_min_samples == 3
-        assert cfg.buffer == 1.3
-        assert cfg.success_rate_high_threshold == 0.6
-        assert cfg.static_rows_high == 10_000_000
-        assert cfg.token_ttl_hours == 24
-        assert cfg.automation == "review"
-        assert cfg.approved_by_required is False
-        assert cfg.max_turns == 200
-        assert cfg.max_budget_usd == 10
+def test_defaults_when_missing(tmp_path: Path) -> None:
+    cfg = load_premortem_config(tmp_path / "nope.yaml")
+    assert cfg == PremortemConfig()
+    assert cfg.static_rows_high == 10_000_000
+    assert cfg.static_rows_medium == 1_000_000
 
-    def test_partial_override(self, tmp_path: Path) -> None:
-        """Only premortem.time_high_min overridden -> rest are defaults."""
-        from skills._shared.config_loader import load_premortem_config
 
-        config_path = tmp_path / "config.yaml"
-        yaml = YAML()
-        yaml.dump({"premortem": {"time_high_min": 180}}, config_path)
+def test_partial_override(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    _write(path, {"premortem": {"static_rows_high": 5_000_000}})
+    cfg = load_premortem_config(path)
+    assert cfg.static_rows_high == 5_000_000
+    assert cfg.static_rows_medium == 1_000_000  # default retained
 
-        cfg = load_premortem_config(config_path)
 
-        assert cfg.time_high_min == 180
-        # All others remain default
-        assert cfg.time_medium_min == 45
-        assert cfg.history_min_samples == 3
-        assert cfg.buffer == 1.3
-        assert cfg.success_rate_high_threshold == 0.6
-        assert cfg.static_rows_high == 10_000_000
-        assert cfg.token_ttl_hours == 24
-        assert cfg.automation == "review"
-        assert cfg.approved_by_required is False
-        assert cfg.max_turns == 200
-        assert cfg.max_budget_usd == 10
+def test_both_thresholds(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    _write(path, {"premortem": {"static_rows_high": 9, "static_rows_medium": 3}})
+    cfg = load_premortem_config(path)
+    assert (cfg.static_rows_high, cfg.static_rows_medium) == (9, 3)
 
-    def test_batch_automation_default_review(self, tmp_path: Path) -> None:
-        """batch: section absent -> automation defaults to 'review'."""
-        from skills._shared.config_loader import load_premortem_config
 
-        config_path = tmp_path / "config.yaml"
-        yaml = YAML()
-        yaml.dump({"schema_version": 1}, config_path)
-
-        cfg = load_premortem_config(config_path)
-        assert cfg.automation == "review"
-
-    def test_approved_by_required_default_false(self, tmp_path: Path) -> None:
-        """batch.approved_by_required absent -> defaults to False (Phase A)."""
-        from skills._shared.config_loader import load_premortem_config
-
-        config_path = tmp_path / "config.yaml"
-        yaml = YAML()
-        yaml.dump({"batch": {"automation": "manual"}}, config_path)
-
-        cfg = load_premortem_config(config_path)
-        assert cfg.approved_by_required is False
-        assert cfg.automation == "manual"
+def test_ignores_unknown_and_batch_keys(tmp_path: Path) -> None:
+    """Legacy batch/history keys are ignored (removed in E5a)."""
+    path = tmp_path / "config.yaml"
+    _write(
+        path,
+        {
+            "premortem": {"static_rows_high": 7, "history_min_samples": 5},
+            "batch": {"automation": "auto"},
+        },
+    )
+    cfg = load_premortem_config(path)
+    assert cfg.static_rows_high == 7
