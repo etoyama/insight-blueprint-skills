@@ -5,8 +5,8 @@
 
 **移行状況**: MCPサーバ / WebUI / SQLite は E1–E4 で除去済み
 （[ADR-0001](adr/0001-drop-mcp-server-embed-validation.md)）。本書は現行アーキテクチャを表す。
-残るは E5: premortem 自立化（E5a, report-only 化, 完了）/ knowledge 抽出強化（E5b,
-Claude-native + source-scoped）/ catalog 柔軟化（E5c）。
+E5 で解体計画は完結: premortem 自立化（E5a, report-only 化）/ knowledge 抽出強化（E5b,
+Claude-native + source-scoped）/ catalog 柔軟化（E5c, open string taxonomy, [ADR-0004](adr/0004-open-string-catalog-taxonomy.md)）。
 
 ## 不変条件（invariants）
 
@@ -112,9 +112,11 @@ sequenceDiagram
 | E4 | MCP server（撤去） |
 | E5a | premortem（report-only 自立化） |
 | E5b | catalog_io（knowledge write/upsert）+ /knowledge-extract（Claude-native 抽出） |
-| E5c | catalog（柔軟化） |
+| E5c | models.catalog（open string taxonomy + extra=allow）+ 2 skill 汎用化 |
 
 ## 参照
 
 - [ADR-0001](adr/0001-drop-mcp-server-embed-validation.md) — MCPサーバ廃止・検証の埋め込み化
 - [ADR-0002](adr/0002-trunk-based-epic-stacking.md) — トランクベース + stacked Epic
+- [ADR-0003](adr/0003-skill-yaml-io-via-design-io.md) — skill の設計書 I/O を design_io に集約
+- [ADR-0004](adr/0004-open-string-catalog-taxonomy.md) — catalog の taxonomy を open string に

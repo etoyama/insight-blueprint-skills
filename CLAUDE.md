@@ -21,8 +21,8 @@ rationale.
 
 **Migration status.** The MCP server / WebUI / SQLite have been removed (E1–E4 complete;
 see ADR-0001 → Related). The architecture below is now the actual state, not just a target.
-Remaining work is E5: premortem self-standing (E5a, done) / knowledge extraction
-(E5b, done) / catalog flexibility (E5c).
+E5 completes the roadmap: premortem self-standing (E5a, done) / knowledge extraction
+(E5b, done) / catalog flexibility (E5c, done — open-string taxonomy, see ADR-0004).
 
 ## 2. Architecture
 
