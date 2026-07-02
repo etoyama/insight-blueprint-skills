@@ -8,29 +8,17 @@ from ruamel.yaml import YAML
 
 from skills._shared.models import PremortemConfig
 
-# Mapping: config YAML key -> PremortemConfig field name
+# Mapping: config YAML key -> PremortemConfig field name (static risk thresholds)
 _PREMORTEM_KEY_MAP: dict[str, str] = {
-    "time_high_min": "time_high_min",
-    "time_medium_min": "time_medium_min",
-    "history_min_samples": "history_min_samples",
-    "history_extrapolation_buffer": "buffer",
-    "success_rate_high_threshold": "success_rate_high_threshold",
     "static_rows_high": "static_rows_high",
-    "token_ttl_hours": "token_ttl_hours",
-}
-
-_BATCH_KEY_MAP: dict[str, str] = {
-    "automation": "automation",
-    "approved_by_required": "approved_by_required",
-    "max_turns": "max_turns",
-    "max_budget_usd": "max_budget_usd",
+    "static_rows_medium": "static_rows_medium",
 }
 
 
 def load_premortem_config(path: Path) -> PremortemConfig:
     """Load config from *path*, merging with defaults.
 
-    If the file does not exist or relevant sections are absent,
+    If the file does not exist or the ``premortem`` section is absent,
     ``PremortemConfig()`` defaults are used.
     """
     path = Path(path)
@@ -45,19 +33,10 @@ def load_premortem_config(path: Path) -> PremortemConfig:
         return PremortemConfig()
 
     overrides: dict[str, object] = {}
-
-    # premortem section
     premortem_section = raw.get("premortem")
     if isinstance(premortem_section, dict):
         for yaml_key, field_name in _PREMORTEM_KEY_MAP.items():
             if yaml_key in premortem_section:
                 overrides[field_name] = premortem_section[yaml_key]
-
-    # batch section
-    batch_section = raw.get("batch")
-    if isinstance(batch_section, dict):
-        for yaml_key, field_name in _BATCH_KEY_MAP.items():
-            if yaml_key in batch_section:
-                overrides[field_name] = batch_section[yaml_key]
 
     return PremortemConfig(**overrides)  # type: ignore[arg-type]

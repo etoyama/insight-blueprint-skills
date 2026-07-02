@@ -12,58 +12,11 @@ schema_version: 1
 # /premortem -- pre-flight risk evaluation
 # =========================================================================
 #
-# Thresholds and knobs for the decision tree inside skills/premortem.
-# Change these here, not in code. See skills/premortem/SKILL.md#risk-levels
-# for how each threshold maps to a risk level.
+# Static row-count thresholds for the premortem risk decision tree.
+# Change these here, not in code. See skills/premortem/SKILL.md#risk-levels.
 premortem:
-  # Extrapolated wall-clock time (median elapsed_min × history_extrapolation_buffer)
-  # above this triggers HIGH. Unit: minutes.
-  time_high_min: 120
-
-  # Extrapolated time above this triggers MEDIUM (and below time_high_min).
-  time_medium_min: 45
-
-  # Minimum number of past runs required before history-based extrapolation
-  # is trusted. Below this, static thresholds alone decide the level.
-  history_min_samples: 3
-
-  # Safety factor applied to the historical median when extrapolating the
-  # wall-clock time for the current batch. 1.3 means "expect 30% overhead".
-  history_extrapolation_buffer: 1.3
-
-  # If the historical success_rate for the matching source_ids drops below
-  # this threshold (over history_min_samples+ runs), the design is HIGH.
-  success_rate_high_threshold: 0.6
-
-  # Row count above this triggers HIGH regardless of history (static guard).
+  # estimated_rows above this triggers HIGH.
   static_rows_high: 10000000
 
-  # Approval token time-to-live. After this many hours the token is rejected
-  # by launcher.sh and the batch refuses to start (re-run /premortem).
-  token_ttl_hours: 24
-
-# =========================================================================
-# /batch-analysis -- overnight batch execution
-# =========================================================================
-#
-# Controls how launcher.sh consumes tokens and runs claude.
-batch:
-  # Automation mode. Must be one of:
-  #   manual -- every HIGH prompts the operator (s/e/a/c).
-  #   review -- HIGH stops the batch (launcher exit 2). DEFAULT.
-  #   auto   -- HIGH runs anyway; a WARNING line is appended to summary.md.
-  automation: review
-
-  # Phase gate for /premortem adoption.
-  #   false -- legacy mode allowed: `/batch-analysis` without --approved-by
-  #            prints a warning and runs. Existing projects. DEFAULT.
-  #   true  -- --approved-by is mandatory; launcher exits 1 if omitted.
-  approved_by_required: false
-
-  # Hard ceiling on Claude Code turns per session. Hitting this limit
-  # terminates claude; launcher.sh Step 9 records status=timeout.
-  max_turns: 200
-
-  # Hard ceiling on Claude API spend (USD) per session. Same handling as
-  # max_turns when exceeded.
-  max_budget_usd: 10
+  # estimated_rows above this (and at or below static_rows_high) triggers MEDIUM.
+  static_rows_medium: 1000000
