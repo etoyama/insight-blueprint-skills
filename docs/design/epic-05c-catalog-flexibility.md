@@ -54,6 +54,35 @@ flowchart TD
 | skill `/catalog-register` | 既知 source type を候補提示しつつ任意値も受ける | 値の強制はしない |
 | skill `/knowledge-extract` | 既知 category を候補提示しつつ分野固有値も受ける | 値の強制はしない、`finding` は emit しない（E5b） |
 
+## Sequence Diagram
+
+E5c は「enum coercion による拒否」を「非空 str 検証 + 任意値受理」に置き換える。妙味は
+分岐そのものより **どこで弾かれなくなったか**にあるので、慣習外の値（parquet）を登録する
+フローで示す。skill は `KNOWN_*` を候補提示するが、ライブラリは非空でありさえすれば通す。
+
+```mermaid
+sequenceDiagram
+    actor U as 分析者
+    participant CC as Claude Code (/catalog-register)
+    participant CIO as catalog_io create
+    participant M as models.catalog.DataSource
+    participant FS as .insight/catalog/sources/<id>.yaml
+
+    U->>CC: parquet ソースを登録したい
+    CC->>U: 候補提示（KNOWN_SOURCE_TYPES: csv/api/sql …）+ 任意値可
+    U-->>CC: type="parquet"（慣習外）+ 列に pii:true
+    CC->>CIO: create（type="parquet", columns[...]）
+    CIO->>M: DataSource(type="parquet", extra=allow)
+    Note over M: enum coercion は無い。<br/>非空チェックのみ → parquet 受理、pii は保持
+    M-->>CIO: 検証OK
+    CIO->>FS: atomic write（type と pii が往復で残る）
+    CIO-->>CC: 登録済み JSON
+    CC-->>U: 登録結果を提示
+```
+
+図の下段が E5c の核心: 旧実装なら `SourceType("parquet")` が `ValueError` で止まっていた地点を、
+非空検証だけが通す。`extra="allow"` により `pii` などの未知フィールドも捨てられず残る。
+
 ## Data Model
 
 | Field | Before | After |
