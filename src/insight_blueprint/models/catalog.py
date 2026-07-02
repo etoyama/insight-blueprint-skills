@@ -7,23 +7,23 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from insight_blueprint.models.common import now_jst
 
+# Source `type` and knowledge `category` are open strings (E5c / ADR-0004): the
+# catalog must accept new kinds (parquet, gsheet, bigquery, "regulatory", ...)
+# without a library release. These tuples are the *conventional* values — used for
+# UX hints / skill suggestions, NOT for validation. Any non-empty string is valid.
+KNOWN_SOURCE_TYPES: tuple[str, ...] = ("csv", "api", "sql")
 
-class SourceType(StrEnum):
-    """Supported data source types."""
+KNOWN_KNOWLEDGE_CATEGORIES: tuple[str, ...] = (
+    "methodology",
+    "caution",
+    "definition",
+    "context",
+    "finding",
+)
 
-    csv = "csv"
-    api = "api"
-    sql = "sql"
-
-
-class KnowledgeCategory(StrEnum):
-    """Category of domain knowledge entry."""
-
-    methodology = "methodology"
-    caution = "caution"
-    definition = "definition"
-    context = "context"
-    finding = "finding"
+# Named constant for the one category with special handling (findings are kept in
+# reflection, not the catalog — see /knowledge-extract, E5b).
+FINDING = "finding"
 
 
 class KnowledgeImportance(StrEnum):
@@ -35,7 +35,13 @@ class KnowledgeImportance(StrEnum):
 
 
 class ColumnSchema(BaseModel):
-    """Schema definition for a single column."""
+    """Schema definition for a single column.
+
+    ``extra="allow"`` (E5c): domain-specific column metadata (e.g. ``pii: true``,
+    ``source_system: "SAP"``) rides along and survives the read/write round-trip.
+    """
+
+    model_config = ConfigDict(extra="allow")
 
     name: str
     type: str
@@ -49,11 +55,11 @@ class ColumnSchema(BaseModel):
 class DataSource(BaseModel):
     """A registered data source in the catalog."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="allow")
 
     id: str
     name: str
-    type: SourceType
+    type: str = Field(min_length=1)  # open string (E5c); see KNOWN_SOURCE_TYPES
     description: str
     connection: dict
     schema_info: dict = Field(default_factory=lambda: {"columns": []})
@@ -68,7 +74,9 @@ class DomainKnowledgeEntry(BaseModel):
     key: str
     title: str
     content: str
-    category: KnowledgeCategory
+    category: str = Field(
+        min_length=1
+    )  # open string (E5c); see KNOWN_KNOWLEDGE_CATEGORIES
     importance: KnowledgeImportance = KnowledgeImportance.medium
     created_at: datetime = Field(default_factory=now_jst)
     source: str | None = None

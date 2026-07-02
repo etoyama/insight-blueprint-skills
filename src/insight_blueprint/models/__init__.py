@@ -1,18 +1,22 @@
 """Pydantic models for insight-blueprint."""
 
 from insight_blueprint.models.catalog import (
+    FINDING,
+    KNOWN_KNOWLEDGE_CATEGORIES,
+    KNOWN_SOURCE_TYPES,
     ColumnSchema,
     DataSource,
     DomainKnowledge,
     DomainKnowledgeEntry,
-    KnowledgeCategory,
     KnowledgeImportance,
-    SourceType,
 )
 from insight_blueprint.models.design import AnalysisDesign, DesignStatus
 from insight_blueprint.models.review import BatchComment, ReviewBatch, ReviewComment
 
 __all__ = [
+    "FINDING",
+    "KNOWN_KNOWLEDGE_CATEGORIES",
+    "KNOWN_SOURCE_TYPES",
     "AnalysisDesign",
     "BatchComment",
     "ColumnSchema",
@@ -20,9 +24,7 @@ __all__ = [
     "DesignStatus",
     "DomainKnowledge",
     "DomainKnowledgeEntry",
-    "KnowledgeCategory",
     "KnowledgeImportance",
     "ReviewBatch",
     "ReviewComment",
-    "SourceType",
 ]

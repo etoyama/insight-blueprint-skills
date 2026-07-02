@@ -29,8 +29,6 @@ from insight_blueprint.models.catalog import (
     DataSource,
     DomainKnowledge,
     DomainKnowledgeEntry,
-    KnowledgeCategory,
-    SourceType,
 )
 from insight_blueprint.models.common import now_jst
 from skills._shared._atomic import atomic_write_yaml
@@ -124,7 +122,7 @@ def create_source(
     source = DataSource(
         id=id,
         name=name,
-        type=SourceType(type),  # raises ValueError on invalid type
+        type=type,  # open string (E5c); DataSource enforces non-empty
         description=description,
         connection=connection,
         schema_info=schema_info,
@@ -189,8 +187,8 @@ def get_knowledge(
         return {}
     entries = data.get("entries", [])
     if category is not None:
-        cat = KnowledgeCategory(category).value
-        entries = [e for e in entries if e.get("category") == cat]
+        # category is an open string (E5c); filter by exact match, no enum coercion
+        entries = [e for e in entries if e.get("category") == category]
     return {"source_id": data.get("source_id", source_id), "entries": entries}
 
 

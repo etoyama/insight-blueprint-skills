@@ -1,30 +1,53 @@
-"""Tests for catalog Pydantic models (SPEC-2 Task 1.1)."""
+"""Tests for catalog Pydantic models.
+
+E5c / ADR-0004: source ``type`` and knowledge ``category`` are open strings
+(any non-empty value is valid); the conventional values live in the
+``KNOWN_*`` tuples for UX hints only. ``KnowledgeImportance`` stays a closed
+enum (ordinal scale). ``ColumnSchema`` / ``DataSource`` allow extra fields.
+"""
 
 from datetime import datetime
 
 import pytest
+from pydantic import ValidationError
 
 from insight_blueprint.models.catalog import (
+    FINDING,
+    KNOWN_KNOWLEDGE_CATEGORIES,
+    KNOWN_SOURCE_TYPES,
     ColumnSchema,
     DataSource,
     DomainKnowledge,
     DomainKnowledgeEntry,
-    KnowledgeCategory,
     KnowledgeImportance,
-    SourceType,
 )
 
 
-class TestSourceType:
-    def test_source_type_enum_has_csv_api_sql(self) -> None:
-        assert SourceType.csv == "csv"
-        assert SourceType.api == "api"
-        assert SourceType.sql == "sql"
-        assert len(SourceType) == 3
+def _source(**over: object) -> DataSource:
+    kwargs: dict = {
+        "id": "test-src",
+        "name": "Test Source",
+        "type": "csv",
+        "description": "A test source",
+        "connection": {"file_path": "data.csv"},
+        "schema_info": {"columns": []},
+    }
+    kwargs.update(over)
+    return DataSource(**kwargs)
 
-    def test_source_type_rejects_invalid_value(self) -> None:
-        with pytest.raises(ValueError):
-            SourceType("parquet")
+
+class TestSourceTypeOpen:
+    def test_known_source_types_are_conventional_values(self) -> None:
+        assert ("csv", "api", "sql") == KNOWN_SOURCE_TYPES
+
+    def test_accepts_arbitrary_source_type(self) -> None:
+        # the whole point of E5c: new kinds without a library release
+        for t in ("parquet", "gsheet", "bigquery", "graphql"):
+            assert _source(type=t).type == t
+
+    def test_rejects_empty_source_type(self) -> None:
+        with pytest.raises(ValidationError):
+            _source(type="")
 
 
 class TestColumnSchema:
@@ -41,51 +64,40 @@ class TestColumnSchema:
         assert col.range is None
         assert col.unit is None
 
+    def test_column_schema_allows_extra_domain_metadata(self) -> None:
+        # E5c: extra="allow" — domain metadata rides along and survives round-trip
+        col = ColumnSchema(
+            name="ssn",
+            type="string",
+            description="Social security number",
+            pii=True,
+            source_system="SAP",
+        )
+        data = col.model_dump()
+        assert data["pii"] is True
+        assert data["source_system"] == "SAP"
+        assert ColumnSchema(**data).model_dump()["pii"] is True
+
 
 class TestDataSource:
     def test_data_source_instantiation_with_all_required_fields(self) -> None:
-        source = DataSource(
-            id="test-src",
-            name="Test Source",
-            type=SourceType.csv,
-            description="A test CSV source",
-            connection={"file_path": "data.csv"},
-            schema_info={"columns": []},
-        )
+        source = _source()
         assert source.id == "test-src"
-        assert source.name == "Test Source"
-        assert source.type == SourceType.csv
-        assert source.description == "A test CSV source"
-        assert source.connection == {"file_path": "data.csv"}
-        assert source.schema_info == {"columns": []}
+        assert source.type == "csv"
         assert source.tags == []
 
     def test_data_source_timestamps_default_to_jst(self) -> None:
-        source = DataSource(
-            id="ts-test",
-            name="TS Test",
-            type=SourceType.api,
-            description="Timestamp test",
-            connection={},
-            schema_info={"columns": []},
-        )
+        source = _source(type="api")
         assert isinstance(source.created_at, datetime)
         assert isinstance(source.updated_at, datetime)
         assert source.created_at.tzinfo is not None
         assert str(source.created_at.tzinfo) == "Asia/Tokyo"
 
     def test_data_source_model_dump_json_round_trip(self) -> None:
-        source = DataSource(
+        source = _source(
             id="round-trip",
-            name="Round Trip",
-            type=SourceType.sql,
-            description="Round trip test",
+            type="sql",
             connection={"provider": "bigquery", "project_id": "my-proj"},
-            schema_info={
-                "columns": [
-                    {"name": "col1", "type": "string", "description": "Column 1"}
-                ]
-            },
             tags=["test", "demo"],
         )
         data = source.model_dump(mode="json")
@@ -95,50 +107,58 @@ class TestDataSource:
         assert restored.tags == source.tags
         assert restored.connection == source.connection
 
+    def test_data_source_allows_extra_fields(self) -> None:
+        # E5c: extra="allow" on the source itself too
+        source = _source(owner="data-team", refresh="daily")
+        assert source.model_dump()["owner"] == "data-team"
 
-class TestKnowledgeEnums:
-    def test_knowledge_category_enum_values(self) -> None:
-        assert KnowledgeCategory.methodology == "methodology"
-        assert KnowledgeCategory.caution == "caution"
-        assert KnowledgeCategory.definition == "definition"
-        assert KnowledgeCategory.context == "context"
-        assert KnowledgeCategory.finding == "finding"
-        assert len(KnowledgeCategory) == 5
 
-    def test_knowledge_category_finding_backward_compat(self) -> None:
-        """T-1.2: Existing categories still work after adding finding."""
+class TestKnowledgeCategoryOpen:
+    def test_known_categories_include_conventional_values(self) -> None:
+        assert set(KNOWN_KNOWLEDGE_CATEGORIES) == {
+            "methodology",
+            "caution",
+            "definition",
+            "context",
+            "finding",
+        }
+
+    def test_finding_constant(self) -> None:
+        assert FINDING == "finding"
+        assert FINDING in KNOWN_KNOWLEDGE_CATEGORIES
+
+    def test_accepts_arbitrary_category(self) -> None:
+        for cat in ("data-quality", "regulatory", "seasonality", "glossary"):
+            entry = DomainKnowledgeEntry(
+                key=f"k-{cat}", title="t", content="c", category=cat
+            )
+            assert entry.category == cat
+
+    def test_rejects_empty_category(self) -> None:
+        with pytest.raises(ValidationError):
+            DomainKnowledgeEntry(key="k", title="t", content="c", category="")
+
+    def test_category_round_trip(self) -> None:
         entry = DomainKnowledgeEntry(
-            key="compat-test",
-            title="Compat Test",
-            content="Testing backward compatibility",
-            category="methodology",
+            key="compat-test", title="t", content="c", category="methodology"
         )
-        assert entry.category == KnowledgeCategory.methodology
-        data = entry.model_dump(mode="json")
-        restored = DomainKnowledgeEntry(**data)
-        assert restored.category == KnowledgeCategory.methodology
+        restored = DomainKnowledgeEntry(**entry.model_dump(mode="json"))
+        assert restored.category == "methodology"
 
-    def test_knowledge_category_finding_creation(self) -> None:
-        """T-1.3: Finding category knowledge can be created and serialized."""
-        entry = DomainKnowledgeEntry(
-            key="test-finding",
-            title="[SUPPORTED] Test finding",
-            content="Hypothesis was supported",
-            category=KnowledgeCategory.finding,
-            source="design:TEST-H01",
-            affects_columns=["orders"],
-        )
-        assert entry.category == KnowledgeCategory.finding
-        data = entry.model_dump(mode="json")
-        restored = DomainKnowledgeEntry(**data)
-        assert restored.category == KnowledgeCategory.finding
-        assert restored.source == "design:TEST-H01"
 
-    def test_knowledge_importance_enum_values(self) -> None:
+class TestKnowledgeImportanceClosed:
+    def test_importance_enum_values(self) -> None:
+        # E5c keeps importance a closed ordinal scale (drives sort/UX)
         assert KnowledgeImportance.high == "high"
         assert KnowledgeImportance.medium == "medium"
         assert KnowledgeImportance.low == "low"
         assert len(KnowledgeImportance) == 3
+
+    def test_importance_rejects_unknown(self) -> None:
+        with pytest.raises(ValidationError):
+            DomainKnowledgeEntry(
+                key="k", title="t", content="c", category="caution", importance="urgent"
+            )
 
 
 class TestDomainKnowledge:
@@ -147,11 +167,11 @@ class TestDomainKnowledge:
             key="test-entry",
             title="Test Entry",
             content="Some knowledge content",
-            category=KnowledgeCategory.caution,
+            category="caution",
             importance=KnowledgeImportance.high,
         )
         assert entry.key == "test-entry"
-        assert entry.category == KnowledgeCategory.caution
+        assert entry.category == "caution"
         assert entry.importance == KnowledgeImportance.high
         assert entry.source is None
         assert entry.affects_columns == []

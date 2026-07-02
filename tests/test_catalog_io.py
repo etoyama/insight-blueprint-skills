@@ -64,9 +64,14 @@ class TestCreateSource:
         with pytest.raises(ValueError):
             _create(insight, id="bad id/slash")
 
-    def test_invalid_type_rejected(self, insight: Path) -> None:
+    def test_open_source_type_accepted(self, insight: Path) -> None:
+        # E5c: source type is an open string; new kinds need no library release
+        d = _create(insight, id="pq-src", type="parquet")
+        assert d["type"] == "parquet"
+
+    def test_empty_source_type_rejected(self, insight: Path) -> None:
         with pytest.raises(ValueError):
-            _create(insight, type="parquet")
+            _create(insight, id="empty-type", type="")
 
     def test_duplicate_rejected(self, insight: Path) -> None:
         _create(insight)
@@ -211,11 +216,19 @@ class TestAddKnowledge:
             )
         assert catalog_io.get_knowledge("jp-pop", base_dir=insight)["entries"] == []
 
-    def test_invalid_category_rejected(self, insight: Path) -> None:
+    def test_open_category_accepted(self, insight: Path) -> None:
+        # E5c: category is an open string; domain-specific categories are allowed
+        _create(insight)
+        result = catalog_io.add_knowledge(
+            "jp-pop", [_entry("k1", category="data-quality")], base_dir=insight
+        )
+        assert result["entries"][0]["category"] == "data-quality"
+
+    def test_empty_category_rejected(self, insight: Path) -> None:
         _create(insight)
         with pytest.raises(ValidationError):
             catalog_io.add_knowledge(
-                "jp-pop", [_entry("k1", category="bogus")], base_dir=insight
+                "jp-pop", [_entry("k1", category="")], base_dir=insight
             )
 
     def test_importance_defaults_to_medium(self, insight: Path) -> None:
