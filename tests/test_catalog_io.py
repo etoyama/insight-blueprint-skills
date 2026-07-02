@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from skills._shared import catalog_io
 
@@ -148,6 +149,82 @@ class TestKnowledge:
 
 
 # ---------------------------------------------------------------------------
+# add_knowledge (write / upsert-by-key; E5b)
+# ---------------------------------------------------------------------------
+
+
+def _entry(key: str, **over: object) -> dict:
+    e: dict = {
+        "key": key,
+        "title": f"title-{key}",
+        "content": f"content-{key}",
+        "category": "caution",
+    }
+    e.update(over)
+    return e
+
+
+class TestAddKnowledge:
+    def test_appends_entries_to_empty_source(self, insight: Path) -> None:
+        _create(insight)
+        result = catalog_io.add_knowledge(
+            "jp-pop", [_entry("k1"), _entry("k2")], base_dir=insight
+        )
+        assert [e["key"] for e in result["entries"]] == ["k1", "k2"]
+        # persisted round-trip
+        reloaded = catalog_io.get_knowledge("jp-pop", base_dir=insight)
+        assert [e["key"] for e in reloaded["entries"]] == ["k1", "k2"]
+
+    def test_upsert_by_key_replaces_in_place(self, insight: Path) -> None:
+        _create(insight)
+        catalog_io.add_knowledge(
+            "jp-pop", [_entry("k1", content="old"), _entry("k2")], base_dir=insight
+        )
+        catalog_io.add_knowledge(
+            "jp-pop", [_entry("k1", content="new")], base_dir=insight
+        )
+        entries = catalog_io.get_knowledge("jp-pop", base_dir=insight)["entries"]
+        # k1 updated in place (still first), k2 preserved — no duplicate key
+        assert [e["key"] for e in entries] == ["k1", "k2"]
+        k1 = next(e for e in entries if e["key"] == "k1")
+        assert k1["content"] == "new"
+
+    def test_new_keys_append_after_existing(self, insight: Path) -> None:
+        _create(insight)
+        catalog_io.add_knowledge("jp-pop", [_entry("k1")], base_dir=insight)
+        catalog_io.add_knowledge("jp-pop", [_entry("k2")], base_dir=insight)
+        entries = catalog_io.get_knowledge("jp-pop", base_dir=insight)["entries"]
+        assert [e["key"] for e in entries] == ["k1", "k2"]
+
+    def test_unknown_source_rejected(self, insight: Path) -> None:
+        with pytest.raises(ValueError, match="not found"):
+            catalog_io.add_knowledge("nope", [_entry("k1")], base_dir=insight)
+
+    def test_invalid_entry_rejected(self, insight: Path) -> None:
+        _create(insight)
+        # missing required 'content' -> Pydantic validation error, nothing written
+        with pytest.raises(ValidationError):
+            catalog_io.add_knowledge(
+                "jp-pop",
+                [{"key": "k1", "title": "t", "category": "caution"}],
+                base_dir=insight,
+            )
+        assert catalog_io.get_knowledge("jp-pop", base_dir=insight)["entries"] == []
+
+    def test_invalid_category_rejected(self, insight: Path) -> None:
+        _create(insight)
+        with pytest.raises(ValidationError):
+            catalog_io.add_knowledge(
+                "jp-pop", [_entry("k1", category="bogus")], base_dir=insight
+            )
+
+    def test_importance_defaults_to_medium(self, insight: Path) -> None:
+        _create(insight)
+        result = catalog_io.add_knowledge("jp-pop", [_entry("k1")], base_dir=insight)
+        assert result["entries"][0]["importance"] == "medium"
+
+
+# ---------------------------------------------------------------------------
 # search (glob + projection, source + knowledge)
 # ---------------------------------------------------------------------------
 
@@ -256,3 +333,38 @@ class TestCli:
         )
         assert res2.returncode == 0, res2.stderr
         assert any(h["id"] == "cli-src" for h in json.loads(res2.stdout))
+
+    def test_cli_add_knowledge_stdin_to_file(self, insight: Path) -> None:
+        _create(insight)
+        root = Path(__file__).resolve().parents[1]
+        payload = {
+            "entries": [
+                {
+                    "key": "seasonal",
+                    "title": "季節調整",
+                    "content": "人口は季節調整が必要",
+                    "category": "methodology",
+                }
+            ]
+        }
+        res = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "skills._shared.catalog_io",
+                "add-knowledge",
+                "--id",
+                "jp-pop",
+                "--base-dir",
+                str(insight),
+            ],
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            cwd=str(root),
+        )
+        assert res.returncode == 0, res.stderr
+        assert json.loads(res.stdout)["entries"][0]["key"] == "seasonal"
+        # persisted to the source-scoped knowledge file
+        reloaded = catalog_io.get_knowledge("jp-pop", base_dir=insight)
+        assert [e["key"] for e in reloaded["entries"]] == ["seasonal"]
