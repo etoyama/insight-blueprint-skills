@@ -28,6 +28,7 @@ from insight_blueprint.models.catalog import (
     ColumnSchema,
     DataSource,
     DomainKnowledge,
+    DomainKnowledgeEntry,
     KnowledgeCategory,
     SourceType,
 )
@@ -169,7 +170,7 @@ def get_schema(source_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Knowledge (read; writing/extraction is E5)
+# Knowledge (read + write; extraction itself is Claude-native, see /knowledge-extract)
 # ---------------------------------------------------------------------------
 
 
@@ -191,6 +192,41 @@ def get_knowledge(
         cat = KnowledgeCategory(category).value
         entries = [e for e in entries if e.get("category") == cat]
     return {"source_id": data.get("source_id", source_id), "entries": entries}
+
+
+def add_knowledge(
+    source_id: str,
+    entries: list[dict],
+    base_dir: Path = DEFAULT_BASE_DIR,
+) -> dict:
+    """Append/upsert domain-knowledge entries for a registered source.
+
+    Each entry is validated against ``DomainKnowledgeEntry`` and upserted by
+    ``key`` (same key replaces in place, new key appends), then the whole
+    container is written atomically. Raises if the source is not registered
+    (knowledge is source-scoped; there is no orphan knowledge without a source).
+
+    Extraction is Claude-native: the ``/knowledge-extract`` skill builds the
+    entries; this function only validates and persists them.
+    """
+    _validate_id(source_id)
+    if not load_source(source_id, base_dir):
+        raise ValueError(f"Source '{source_id}' not found")
+
+    validated = [DomainKnowledgeEntry.model_validate(e) for e in entries]
+
+    current = load_knowledge(source_id, base_dir)
+    merged: dict[str, dict] = {
+        e["key"]: e for e in current.get("entries", []) if "key" in e
+    }
+    for entry in validated:
+        merged[entry.key] = entry.model_dump(mode="json")
+
+    container = DomainKnowledge.model_validate(
+        {"source_id": source_id, "entries": list(merged.values())}
+    ).model_dump(mode="json")
+    write_yaml(_knowledge_dir(base_dir) / f"{source_id}.yaml", container)
+    return container
 
 
 # ---------------------------------------------------------------------------
@@ -301,6 +337,7 @@ def _main(argv: list[str] | None = None) -> int:
             "get-schema",
             "search",
             "get-knowledge",
+            "add-knowledge",
         ],
     )
     parser.add_argument("--base-dir", default=str(DEFAULT_BASE_DIR))
@@ -332,6 +369,8 @@ def _main(argv: list[str] | None = None) -> int:
         result = get_schema(args.id, base_dir=base)
     elif args.command == "get-knowledge":
         result = get_knowledge(args.id, category=args.category, base_dir=base)
+    elif args.command == "add-knowledge":
+        result = add_knowledge(args.id, payload.get("entries", []), base_dir=base)
     elif args.command == "search":
         result = search(
             args.query or payload.get("query", ""),

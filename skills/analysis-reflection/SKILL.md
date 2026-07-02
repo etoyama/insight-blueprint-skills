@@ -120,8 +120,12 @@ If user chooses to conclude:
 
 3. Show final summary and suggest:
    - "レビューコメントを残すなら /analysis-revision（design_io append_review_batch 経由）"
-   - "この知見をカタログに登録するなら /catalog-register"
+   - "この分析で分かったソースの再利用知識を残すなら /knowledge-extract"
+   - "新しいデータソース自体を登録するなら /catalog-register"
    - "派生仮説を立てるなら /analysis-design"
+
+   Note: 結論そのもの（finding）はここ（journal/reflection）に残す。/knowledge-extract は
+   データソースに紐づく再利用可能な知見だけを抽出する。
 
 ### Step 5: Record Refinement (if not concluding)
 
@@ -148,7 +152,9 @@ If user chooses to refine:
 |------|-----|------|
 | /analysis-journal | → /analysis-reflection | Evidence gathered |
 | /analysis-reflection | → /analysis-journal | Need more evidence or branching |
-| /analysis-reflection | → /catalog-register | Conclusion worth registering as knowledge |
+| /analysis-reflection | → /knowledge-extract | Conclusion produced reusable source knowledge |
+| /knowledge-extract | → /analysis-reflection | The learning is really a conclusion, not source knowledge |
+| /analysis-reflection | → /catalog-register | A new data source needs registering |
 | /analysis-reflection | → /analysis-framing | New hypothesis needed, explore data/direction first: "新しい角度を探すなら /analysis-framing" |
 | /analysis-reflection | → /rq-problematization | 仮説が棄却/不確定で、別角度でなく前提自体を問い直したい: "前提から問い直すなら /rq-problematization" |
 | /analysis-reflection | → /analysis-design | Derived hypothesis already clear: "派生仮説を作るなら /analysis-design" |
