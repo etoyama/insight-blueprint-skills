@@ -14,9 +14,11 @@ Claude Code skills provide interactive workflows.
 ├── designs/<design_id>.yaml     # Hypothesis design documents
 └── rules/
     ├── review_rules.yaml        # Review rule definitions
-    ├── analysis_rules.yaml      # Analysis rule definitions
-    └── extracted_knowledge.yaml # Knowledge seed data
+    └── analysis_rules.yaml      # Analysis rule definitions
 ```
+
+> Domain knowledge is source-scoped under `catalog/knowledge/<source_id>.yaml`,
+> authored via `/knowledge-extract` (`catalog_io add-knowledge`).
 
 ### Skills
 

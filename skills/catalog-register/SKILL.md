@@ -36,7 +36,7 @@ uv run python -m skills._shared.catalog_io search --query "<q>" [--type csv] [--
 ## When NOT to Use
 - Updating an existing source (use `catalog_io update` directly)
 - Searching the catalog (use `catalog_io search` directly)
-- Managing domain knowledge (knowledge authoring is deferred to E5)
+- Authoring domain knowledge for a source (→ /knowledge-extract)
 
 ## Workflow
 
@@ -225,6 +225,7 @@ echo '{
 | `get-schema --id ID` | Column schema | — |
 | `search --query Q [--type T] [--tags a,b]` | Compact hits across sources + knowledge | — |
 | `get-knowledge --id ID [--category C]` | Knowledge entries for a source | — |
+| `add-knowledge --id ID` | Append/upsert knowledge (authoring: → /knowledge-extract) | stdin: `{entries:[...]}` |
 
 Validation runs inside `catalog_io` (DataSource model) before writing; invalid input
 exits non-zero with nothing written.
@@ -242,7 +243,8 @@ exits non-zero with nothing written.
 | From | To | When |
 |------|-----|------|
 | /analysis-framing | → /catalog-register | Data missing: "必要なデータを登録するなら /catalog-register" |
-| /analysis-reflection | → /catalog-register | Register conclusion as knowledge |
+| /analysis-reflection | → /catalog-register | A new data source needs registering |
+| /catalog-register | → /knowledge-extract | Source registered; capture what's known about it |
 | /catalog-register | → /analysis-framing | Registration complete, return to framing: "フレーミングに戻るなら /analysis-framing" |
 | /catalog-register | → /analysis-design | Registration complete, continue design: "デザイン作成を続けるなら /analysis-design" |
 
@@ -272,4 +274,7 @@ exits non-zero with nothing written.
 - Knowledge is stored in `.insight/catalog/knowledge/{source_id}.yaml` (created empty on register).
 - Knowledge entries link back to their source via `source_id`.
 - Reads: `catalog_io get-knowledge --id <source_id>`; search spans knowledge too.
-- Knowledge **authoring/extraction** is deferred to E5; for now entries are edited directly.
+- Writes: `catalog_io add-knowledge --id <source_id>` (validates + upserts by `key`).
+- **Authoring/extraction** is Claude-native via `/knowledge-extract` (reads a
+  concluded analysis and proposes source-scoped entries). Findings/conclusions stay
+  in reflection, not the catalog.

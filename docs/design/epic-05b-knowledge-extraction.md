@@ -8,16 +8,16 @@ terminal 時の finding 自動抽出）が消え、catalog knowledge は **read 
 
 ## Acceptance Criteria
 
-- [ ] AC1: `catalog_io` に write パス `add-knowledge`。source 存在検証 + entry の Pydantic
+- [x] AC1: `catalog_io` に write パス `add-knowledge`。source 存在検証 + entry の Pydantic
   検証 + `key` による upsert + atomic write。read 側（get-knowledge/search）と同じ idiom
-- [ ] AC2: 抽出は Claude-native。新 skill `/knowledge-extract` が design の
+- [x] AC2: 抽出は Claude-native。新 skill `/knowledge-extract` が design の
   review/journal/reflection を読み、**source-scoped** な `DomainKnowledgeEntry` 候補を
   起こす → ユーザー確認 → `catalog_io add-knowledge` に流す
-- [ ] AC3: 分析結論（`finding`）は catalog に入れない。skill は `finding` category を emit せず、
+- [x] AC3: 分析結論（`finding`）は catalog に入れない。skill は `finding` category を emit せず、
   結論は reflection/journal に残す（E5a と同じ「消費者のいない永続を作らない」哲学）
-- [ ] AC4: `analysis-reflection` が結論時に `/knowledge-extract` を提案（source 知識の刈り取り）
-- [ ] AC5: `pytest` 全緑。unit（add_knowledge: append / upsert-by-key / unknown-source /
-  validation）+ integration（CLI stdin→file の E2E）
+- [x] AC4: `analysis-reflection` が結論時に `/knowledge-extract` を提案（source 知識の刈り取り）
+- [x] AC5: `pytest` 全緑（343 passed）。unit（add_knowledge: append / upsert-by-key /
+  unknown-source / invalid-entry / invalid-category）+ integration（CLI stdin→file の E2E）
 
 ## Glossary
 
@@ -132,11 +132,15 @@ dedup は `key`。`finding` category は enum に残るが skill からは出さ
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| Story 5b.1 add-knowledge | ☐ (append/upsert/unknown-source/validation) | ☐ (CLI stdin→file) | — |
-| Story 5b.2 skill/docs | — | — | ☐ (skill 手順の整合) |
+| Story 5b.1 add-knowledge | ✓ (append/upsert/unknown-source/validation) | ✓ (CLI stdin→file) | — |
+| Story 5b.2 skill/docs | — | — | ✓ (skill 手順の整合) |
 
 完了時に ✓。pytest 全緑が Epic PR レビューゲート。
 
 ## Story Timeline
 
 - 2026-07-02 — Epic 05b 起票: main から epic/5b-knowledge-extraction を切り、Design Doc 作成。
+- 2026-07-02 — Story 5b.1 完了: catalog_io.add_knowledge（source検証+検証+key upsert+atomic write）
+  + CLI add-knowledge + unit/integration。pytest 343 passed。
+- 2026-07-02 — Story 5b.2 完了: /knowledge-extract skill 新設（Claude-native, source-scoped,
+  finding除外）、analysis-reflection / catalog-register の導線繋ぎ替え、CLAUDE/PRD/ARCHITECTURE 更新。

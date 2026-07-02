@@ -21,8 +21,8 @@ rationale.
 
 **Migration status.** The MCP server / WebUI / SQLite have been removed (E1–E4 complete;
 see ADR-0001 → Related). The architecture below is now the actual state, not just a target.
-Remaining work is E5: premortem self-standing (E5a, done) / knowledge extraction (E5b) /
-catalog flexibility (E5c).
+Remaining work is E5: premortem self-standing (E5a, done) / knowledge extraction
+(E5b, done) / catalog flexibility (E5c).
 
 ## 2. Architecture
 
@@ -85,13 +85,15 @@ plan did not anticipate, do **one** of the following before the PR can merge:
 | `/analysis-journal` | Record observations, evidence, decisions during analysis |
 | `/analysis-reflection` | Structured reflection to conclude or branch a hypothesis |
 | `/analysis-revision` | Guided revision workflow for review comments |
-| `/catalog-register` | Register a data source (flexibility extended in E5) |
+| `/catalog-register` | Register a data source (flexibility extended in E5c) |
+| `/knowledge-extract` | Claude-native extraction of source-scoped domain knowledge (since E5b) |
 | `/data-lineage` | Track transformations, export lineage diagrams (Mermaid) |
 | `/premortem` | Report-only pre-flight cost/risk evaluation (self-standing since E5a) |
 
 `batch-analysis` was removed in E3.5 (superseded by Claude Code auto mode).
-`premortem` is now report-only (token/run-history removed in E5a). Remaining E5 work:
-catalog flexibility (E5c) + knowledge extraction (E5b). See ADR-0001.
+`premortem` is now report-only (token/run-history removed in E5a). `knowledge-extract`
+is Claude-native (regex extraction not restored; findings stay in reflection — E5b).
+Remaining E5 work: catalog flexibility (E5c). See ADR-0001.
 
 ## 7. Skill-Managed Data (`.insight/`)
 
