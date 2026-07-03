@@ -141,6 +141,7 @@ Validation (reviewable status, allowed `target_section`, non-empty comments, val
 |------|-----|------|
 | /analysis-design | -> /analysis-review | Design drafted: "作った design をレビューするなら /analysis-review {id}" |
 | /analysis-review | -> /analysis-revision | revision_requested: "指摘に対応するなら /analysis-revision {id}" |
+| /analysis-review | -> /analysis-notebook | analyzing (approved): "分析を実行するなら /analysis-notebook {id}" |
 | /analysis-review | -> /analysis-journal | analyzing (approved): "分析を始めるなら /analysis-journal {id}" |
 
 ## Language Rules

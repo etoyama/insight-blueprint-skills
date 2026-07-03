@@ -38,6 +38,15 @@ dev = [
     "poethepoet>=0.31",
     "pre-commit>=4.0",
 ]
+# Runtime deps for /analysis-notebook (marimo notebook generation + execution).
+# Install with: uv add "insight-blueprint-lineage[notebook]"
+# Methodology-specific libraries (scikit-learn, statsmodels, …) are added per analysis.
+notebook = [
+    "marimo>=0.21.1",
+    "pandas>=3.0.1",
+    "matplotlib>=3.10.8",
+    "numpy>=1.26",
+]
 
 [build-system]
 requires = ["hatchling"]

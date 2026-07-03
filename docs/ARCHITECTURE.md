@@ -65,9 +65,9 @@ flowchart TD
   Write/Edit/MultiEdit を `validate.py` で検証し、違反を `exit 2` でブロックする I/O 殻。
 - **Skill-managed YAML（`.insight/`）** — designs / journals / catalog / knowledge。skill が直接管理する。
 - **marimo + lineage（`src/insight_blueprint/lineage/`）** — 分析 notebook は同梱テンプレートでなく、
-  Claude Code が設計書の `methodology` から **ad-hoc に生成・実行**する（専用 skill は持たない）。
-  `lineage`（`tracked_pipe` / Mermaid export）は optional な `insight-blueprint-lineage` パッケージで、
-  notebook 内の加工を追跡・可視化する。
+  **`/analysis-notebook` skill が設計書の `methodology` から 8-cell 契約に沿って生成・実行**する
+  （`skills/analysis-notebook/references/notebook-contract.md`）。`lineage`（`tracked_pipe` / Mermaid export）は
+  optional な `insight-blueprint-lineage[notebook]` パッケージで、notebook 内の加工を追跡・可視化する。
 
 ### Skill invocation model
 
@@ -135,10 +135,11 @@ sequenceDiagram
         U->>CC: /premortem（高コストアクセス前の risk report, report-only）
     end
 
-    Note over U,MO: 分析実行: Claude Code が methodology から<br/>marimo notebook を ad-hoc 生成・実行（専用 skill なし）
-    U->>CC: 「notebook を作って分析して」
-    CC->>MO: notebook 生成・実行（optional: tracked_pipe で lineage 追跡）
+    Note over U,MO: 分析実行: /analysis-notebook が methodology から<br/>8-cell marimo notebook を生成・実行（tracked_pipe で lineage 追跡）
+    U->>CC: /analysis-notebook
+    CC->>MO: notebook 生成 → marimo export script → 実行 → verdict.json / lineage.mmd
     MO-->>CC: 結果・図表
+    CC->>IO: verdict を journal に追記（observe/evidence/question）
 
     U->>CC: /analysis-journal（観察・証拠・決定を記録）
     CC->>IO: journal 追記

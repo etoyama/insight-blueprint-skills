@@ -83,6 +83,7 @@ plan did not anticipate, do **one** of the following before the PR can merge:
 | `/analysis-framing` | Explore data & existing analyses to frame a direction |
 | `/analysis-design` | Guided hypothesis design-document creation |
 | `/analysis-review` | Produce a design review batch (producer side of the review loop) |
+| `/analysis-notebook` | Generate + run a marimo notebook from the design's methodology; record results to journal |
 | `/analysis-journal` | Record observations, evidence, decisions during analysis |
 | `/analysis-reflection` | Structured reflection to conclude or branch a hypothesis |
 | `/analysis-revision` | Guided revision workflow for review comments (consumer side) |

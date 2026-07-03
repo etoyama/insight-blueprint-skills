@@ -92,6 +92,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 - `/analysis-framing` — Explore available data and existing analyses to frame a direction
 - `/analysis-design` — Guided creation of hypothesis design documents
 - `/analysis-review` — Produce a structured review of a design and record it as a review batch
+- `/analysis-notebook` — Generate a marimo notebook from the design's methodology, run it, and record results to the journal
 - `/analysis-journal` — Record reasoning steps during analysis (observations, evidence, decisions, questions)
 - `/analysis-reflection` — Structured reflection to draw conclusions or branch hypotheses
 - `/analysis-revision` — Guided revision workflow for addressing review comments
@@ -112,7 +113,7 @@ Skills support both English and Japanese trigger phrases.
 /analysis-design (create hypothesis)
     ↓ ↘ /analysis-review (review the design) → /analysis-revision (address comments)
     ↓ ↘ /premortem (optional: cost/risk report before expensive data access)
-[ Claude Code generates & runs a marimo notebook from the design's methodology ]  ← ad-hoc, no skill
+/analysis-notebook (generate & run a marimo notebook from the methodology → record results)
     ↓ ↘ /data-lineage (optional: track transformations, export Mermaid)
 /analysis-journal (record reasoning during analysis)
     ↓
@@ -122,8 +123,9 @@ Skills support both English and Japanese trigger phrases.
 ```
 
 Skills are **invoked explicitly** (`/command`) and the flow is **interactive** — Claude Code
-does not auto-chain skills, and the actual analysis (generating and running the marimo
-notebook from the design's `methodology`) is an ad-hoc Claude Code step, not a dedicated skill.
+does not auto-chain skills. The actual analysis is run by `/analysis-notebook`, which
+generates a marimo notebook from the design's `methodology`, executes it, and records the
+results to the journal (`uv add "insight-blueprint-lineage[notebook]"` for the runtime deps).
 "Auto mode" means Claude assists step by step, not an unattended pipeline.
 
 `/catalog-register` sits upstream (register a data source before you frame against it);
