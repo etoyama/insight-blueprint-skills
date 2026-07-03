@@ -82,9 +82,10 @@ plan did not anticipate, do **one** of the following before the PR can merge:
 | `/rq-problematization` | Challenge prior-research assumptions, generate impactful RQs |
 | `/analysis-framing` | Explore data & existing analyses to frame a direction |
 | `/analysis-design` | Guided hypothesis design-document creation |
+| `/analysis-review` | Produce a design review batch (producer side of the review loop) |
 | `/analysis-journal` | Record observations, evidence, decisions during analysis |
 | `/analysis-reflection` | Structured reflection to conclude or branch a hypothesis |
-| `/analysis-revision` | Guided revision workflow for review comments |
+| `/analysis-revision` | Guided revision workflow for review comments (consumer side) |
 | `/catalog-register` | Register a data source (flexibility extended in E5c) |
 | `/knowledge-extract` | Claude-native extraction of source-scoped domain knowledge (since E5b) |
 | `/data-lineage` | Track transformations, export lineage diagrams (Mermaid) |
