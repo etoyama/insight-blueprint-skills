@@ -6,6 +6,7 @@ description: |
   in the insight-blueprint data catalog. Supports CSV, API, and SQL sources.
   Triggers: "register data source", "add to catalog", "catalog register",
   "データカタログ登録", "ソース登録", "カタログにデータを追加".
+disable-model-invocation: true
 argument-hint: "[source_type: csv|api|sql]"
 ---
 
