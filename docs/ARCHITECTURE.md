@@ -160,6 +160,60 @@ sequenceDiagram
     end
 ```
 
+### guided autopilot（`/analysis-auto`）の詳細シーケンス
+
+初学者が最初に使う想定の入口。driver `/analysis-auto` が各 skill を駆動し、**KEEP ゲート**（太字の
+`U に確認`）でだけ停止する。個々の skill・CLI・premortem・notebook 実行との詳細インタラクションを示す
+（[ADR-0005](adr/0005-selective-autonomous-chaining.md)）。
+
+```mermaid
+sequenceDiagram
+    actor U as 分析者
+    participant D as /analysis-auto (driver)
+    participant IO as design_io / catalog_io
+    participant H as pre-write hook + validate.py
+    participant PM as /premortem
+    participant NB as /analysis-notebook + marimo
+    participant FS as .insight/
+
+    U->>D: /analysis-auto {theme|design id}
+    D->>IO: get / list（現在地を判定）
+    IO-->>D: design（無 / in_review / analyzing / results）
+
+    Note over D,FS: framing→design（AUTO: framing brief から自動ドラフト）
+    D->>IO: catalog_io search / get（利用可能データ探索）
+    D->>U: 【KEEP】ドラフトした仮説を確定？
+    U-->>D: 確定（or 修正）
+    D->>IO: design_io create（*_hypothesis.yaml, status=in_review）
+    IO->>H: PreToolUse 検証
+    H-->>FS: 合格→書込（exit 0）
+
+    opt 任意: レビュー
+        D->>IO: design_io review-batch
+        D->>U: 【KEEP】可否（revision_requested なら /analysis-revision へ）
+    end
+
+    Note over D,PM: pre-flight ゲート（高コストデータアクセス前）
+    D->>IO: design_io get + catalog_io get-schema + package_allowlist.yaml
+    D->>PM: source_checks_map を渡して premortem 実行
+    alt HARD_BLOCK / HIGH（未登録/allowlist違反/location/高コスト）
+        PM-->>D: risk
+        D->>U: 【KEEP】停止しリスク提示（/catalog-register or コスト判断）
+    else LOW / MEDIUM
+        D->>IO: design_io transition（in_review→analyzing, AUTO）
+        D->>NB: 8-cell notebook 生成（.insight/notebooks/{id}.py）
+        alt 宣言 source + allowlist + ローカル計算
+            D->>NB: marimo export script → python（AUTO 実行）
+            NB->>FS: verdict.json / lineage/{id}.mmd
+            D->>FS: verdict→journal（observe/evidence/question, AUTO 記録）
+        else 非allowlist / 宣言 source 以外の外部通信 / 副作用
+            D->>U: 【KEEP】実行前に承認要求
+        end
+        D->>U: 【KEEP】/analysis-reflection で結論（conclude/refine/branch）+ terminal 遷移
+    end
+    D-->>U: 実行サマリ（自動進行した所 / 停止した所 / 最終状態）
+```
+
 ## Epic マッピング
 
 | Epic | 主に触るコンポーネント |
