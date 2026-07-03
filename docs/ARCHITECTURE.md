@@ -71,10 +71,15 @@ flowchart TD
 
 ### Skill invocation model
 
-全 skill は frontmatter で `disable-model-invocation: true`（明示 `/command` 起動）であり、
-分析ワークフローは **human-in-the-loop の対話型**。skill 間は自動連鎖せず、各ステップはユーザーが
-明示的に起動する。**「auto mode」は無人の自動連鎖を意味しない**（無人バッチ実行は batch-analysis の
-役割で、E3.5 で意図的に撤去された）。Claude Code が対話の中で各 skill・notebook 生成を支援する。
+**既定は明示・対話型**: 全 skill は frontmatter で `disable-model-invocation: true`（明示 `/command` 起動）
+であり、各ステップはユーザーが明示的に起動する。無人バッチ実行は batch-analysis の役割で E3.5 で意図的に撤去された。
+
+**selective autonomy（`/analysis-auto`）**: driver スキル `/analysis-auto` を起動したときに限り、Claude が
+既存 skill を順に駆動し、**本物の判断（KEEP ゲート）でだけ停止**する guided autopilot になる。invocation フラグは
+大域変更しない（自律性はこの run に限定）。KEEP ゲート = 仮説確定 / データソース登録 / premortem `HARD_BLOCK`・`HIGH` /
+notebook の非 allowlist・宣言 source 以外の外部通信 / 結論。notebook の auto 実行は premortem 通過 + allowlist +
+宣言 source 限定のときのみ。詳細は [ADR-0005](adr/0005-selective-autonomous-chaining.md)。**「auto mode」は無人ではなく
+guided autopilot**（対話型・オプトイン）である。
 
 ## 代表シーケンス
 
@@ -111,10 +116,11 @@ sequenceDiagram
 
 ### 分析ワークフロー全体（対話型・明示起動）
 
-end-to-end の代表フロー。**各 `/skill` はユーザーが明示的に起動する**（skill 間は自動連鎖しない）。
-**notebook の生成・実行は `/analysis-notebook` が design の `methodology` から 8-cell 契約に沿って行う**
-（詳細は `skills/analysis-notebook/references/notebook-contract.md`）。`/analysis-review`・`/premortem`・
-`/data-lineage` は任意ステップ。
+end-to-end の代表フロー。既定では**各 `/skill` はユーザーが明示的に起動する**が、`/analysis-auto`
+（guided autopilot）を使うと driver がこの同じ経路を駆動し KEEP ゲートでだけ停止する（上記 «Skill invocation model» /
+[ADR-0005](adr/0005-selective-autonomous-chaining.md)）。**notebook の生成・実行は `/analysis-notebook` が design の
+`methodology` から 8-cell 契約に沿って行う**（`skills/analysis-notebook/references/notebook-contract.md`）。
+`/analysis-review`・`/premortem`・`/data-lineage` は任意ステップ。
 
 ```mermaid
 sequenceDiagram

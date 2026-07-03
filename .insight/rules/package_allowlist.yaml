@@ -1,5 +1,9 @@
-# Package allowlist for batch-analysis skill
-# Primary source of truth; skills/batch-analysis/SKILL.md table is a fallback mirror
+# Package allowlist for analysis notebooks.
+# Consumed by /premortem (allowlist_ok risk check) and enforced by /analysis-auto: a
+# generated notebook may only import these packages. This tuple is the dependency /
+# external-communication boundary — anything outside it (a non-listed package, network
+# egress beyond the declared data source, other side-effects) is a KEEP gate that pauses
+# the autopilot for the user (see ADR-0005).
 allowed_packages:
   pandas: pandas
   matplotlib: matplotlib

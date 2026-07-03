@@ -100,6 +100,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 - `/knowledge-extract` — Extract reusable, source-scoped domain knowledge from a concluded analysis
 - `/data-lineage` — Track data transformations and export lineage diagrams (Mermaid)
 - `/premortem` — Report-only pre-flight cost/risk evaluation of designs before expensive data access
+- `/analysis-auto` — Guided autopilot: drives the pipeline, pausing only at genuine decisions
 
 Skills support both English and Japanese trigger phrases.
 
@@ -122,11 +123,18 @@ Skills support both English and Japanese trigger phrases.
 /knowledge-extract (save reusable, source-scoped knowledge)
 ```
 
-Skills are **invoked explicitly** (`/command`) and the flow is **interactive** — Claude Code
-does not auto-chain skills. The actual analysis is run by `/analysis-notebook`, which
-generates a marimo notebook from the design's `methodology`, executes it, and records the
-results to the journal (`uv add "insight-blueprint-lineage[notebook]"` for the runtime deps).
-"Auto mode" means Claude assists step by step, not an unattended pipeline.
+Skills are **invoked explicitly** (`/command`) by default and the flow is **interactive**. The
+actual analysis is run by `/analysis-notebook`, which generates a marimo notebook from the
+design's `methodology`, executes it, and records the results to the journal
+(`uv add "insight-blueprint-lineage[notebook]"` for the runtime deps).
+
+**Guided autopilot.** `/analysis-auto` drives the whole pipeline for you — auto-advancing the
+low-friction steps and **pausing only at genuine decisions**: confirming the hypothesis,
+registering a data source, a `HARD_BLOCK`/`HIGH` premortem, a notebook that would need
+out-of-allowlist packages or external communication beyond the declared source, and the
+conclusion. It is opt-in and still interactive — not an unattended pipeline. The individual
+skills stay explicit everywhere else. See
+[ADR-0005](docs/adr/0005-selective-autonomous-chaining.md).
 
 `/catalog-register` sits upstream (register a data source before you frame against it);
 `/knowledge-extract` sits downstream (harvest what a concluded analysis taught you about that source).
