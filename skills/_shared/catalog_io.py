@@ -79,6 +79,7 @@ def write_yaml(path: Path, data: dict) -> None:
 
 
 def load_source(source_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
+    _validate_id(source_id)
     return read_yaml(_sources_dir(base_dir) / f"{source_id}.yaml")
 
 
@@ -173,6 +174,7 @@ def get_schema(source_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
 
 
 def load_knowledge(source_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
+    _validate_id(source_id)
     return read_yaml(_knowledge_dir(base_dir) / f"{source_id}.yaml")
 
 

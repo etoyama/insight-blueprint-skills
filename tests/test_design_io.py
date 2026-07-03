@@ -40,6 +40,38 @@ def _create(insight: Path, **over: object) -> dict:
     return design_io.create_design(**kwargs)
 
 
+_BAD_IDS = ["../evil", "a/b", "..", "x/../y", "", "with space"]
+
+
+class TestIdValidation:
+    """design_id is interpolated into paths — reject anything that could escape."""
+
+    @pytest.mark.parametrize("bad", _BAD_IDS)
+    def test_readers_and_writers_reject_bad_id(self, insight: Path, bad: str) -> None:
+        with pytest.raises(ValueError):
+            design_io.load_design(bad, base_dir=insight)
+        with pytest.raises(ValueError):
+            design_io.load_journal(bad, base_dir=insight)
+        with pytest.raises(ValueError):
+            design_io.write_journal(bad, {"events": []}, base_dir=insight)
+        with pytest.raises(ValueError):
+            design_io.list_review_batches(bad, base_dir=insight)
+        with pytest.raises(ValueError):
+            design_io.update_design(bad, {}, base_dir=insight)
+        with pytest.raises(ValueError):
+            design_io.transition_status(bad, "analyzing", base_dir=insight)
+
+    def test_traversal_does_not_escape_insight(self, insight: Path) -> None:
+        target = insight.parent / "designs" / "pwned_journal.yaml"
+        with pytest.raises(ValueError):
+            design_io.write_journal("../../designs/pwned", {"x": 1}, base_dir=insight)
+        assert not target.exists()
+
+    def test_valid_id_passes(self, insight: Path) -> None:
+        d = _create(insight)  # FP-H01
+        assert design_io.load_design(d["id"], base_dir=insight)["id"] == d["id"]
+
+
 # ---------------------------------------------------------------------------
 # create / id generation
 # ---------------------------------------------------------------------------
