@@ -37,7 +37,7 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | Step | KEEP — pause for the user | AUTO — proceed without asking |
 |------|---------------------------|-------------------------------|
 | framing | **present the Data Map + candidate directions and settle the direction with the user** (Direction Dialogue) | agentic exploration of `.insight/`; Framing Brief construction once the direction is agreed |
-| design | **confirm the drafted hypothesis once** | auto-draft fields from the Framing Brief; Step-0 "proceed?" |
+| design | **review & confirm the full drafted design — hypothesis + methodology + metrics + explanatory roles (treatment/confounder/…) + intent — before create** | Step-0 "proceed?"; drafting the fields from the Framing Brief |
 | review (optional) | **the verdict** (revision_requested vs approve) | running the critique itself |
 | premortem | **result is `HARD_BLOCK`/`HIGH`** → stop, surface the risk | running premortem; `LOW`/`MEDIUM` |
 | notebook | **non-allowlisted package / external comms beyond the declared source / other side-effects** | generate + run when premortem cleared AND it's declared-source read + allowlisted + local compute |
@@ -68,8 +68,11 @@ gate policy above:
    **Data Map**, and **hold the Direction Dialogue with the user** (candidate directions, gaps, missing
    data). Do not silently auto-pick the direction — this is where a beginner's intent gets elicited.
    Settle the direction with the user, then produce the Framing Brief.
-2. **design**: run `/analysis-design`, auto-drafting fields from the agreed Framing Brief; **pause once**
-   for the user to confirm the hypothesis before `design_io create`.
+2. **design**: run `/analysis-design`, auto-drafting fields from the agreed Framing Brief. **Pause to
+   review the full drafted design with the user before `design_io create`** — not only the hypothesis,
+   but the methodology (method + code patterns), metrics, and especially the explanatory variables'
+   causal roles (treatment/confounder/covariate/…). These shape the analysis and are genuine choices,
+   so present the draft and let the user adjust — don't silently commit auto-picked methodology/roles.
 3. **review** (optional): if the user wants a review pass, run `/analysis-review`; **pause on the verdict**.
 4. **premortem**: always run `/premortem` before touching data. If `HARD_BLOCK`/`HIGH`, **stop** and
    surface the risk (unregistered source → offer /catalog-register; cost/allowlist/location → let the

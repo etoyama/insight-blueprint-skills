@@ -184,8 +184,8 @@ sequenceDiagram
     D->>IO: .insight/ 探索（catalog / 既存 design / 知識）
     D->>U: 【KEEP】Data Map 提示 + Direction Dialogue（方向を一緒に決める）
     U-->>D: 方向を合意 → Framing Brief
-    Note over D,FS: design（AUTO: Framing Brief から自動ドラフト）
-    D->>U: 【KEEP】ドラフトした仮説を確定？
+    Note over D,FS: design（AUTO: Framing Brief から各フィールドを自動ドラフト）
+    D->>U: 【KEEP】設計全体を確認（仮説 + 手法 + metrics + explanatory の因果役割 + intent）
     U-->>D: 確定（or 修正）
     D->>IO: design_io create（*_hypothesis.yaml, status=in_review）
     IO->>H: PreToolUse 検証
