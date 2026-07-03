@@ -1,6 +1,6 @@
 [project]
 name = "insight-blueprint-lineage"
-version = "0.6.0"
+version = "0.7.0"
 description = "Embedded validation library + lineage for the insight-blueprint hypothesis-driven EDA skills plugin"
 readme = "README.md"
 requires-python = ">=3.11"
