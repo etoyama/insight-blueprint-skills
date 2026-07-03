@@ -208,10 +208,13 @@ class TestReadme:
     """Unit-10: README covers plugin install and the optional lineage package."""
 
     def test_readme_has_plugin_install(self) -> None:
-        """README mentions claude plugin installation command."""
+        """README documents the real plugin-install flow (marketplace + install)."""
         content = (REPO_ROOT / "README.md").read_text()
         content_lower = content.lower()
-        assert "claude plugin install" in content_lower
+        # Claude Code has no `claude plugin install owner/repo`; installation is
+        # `/plugin marketplace add <owner/repo>` then `/plugin install <plugin>@<marketplace>`.
+        assert "/plugin marketplace add" in content_lower
+        assert "/plugin install" in content_lower
 
     def test_readme_has_optional_python_package(self) -> None:
         """README mentions the optional Python package (for lineage)."""

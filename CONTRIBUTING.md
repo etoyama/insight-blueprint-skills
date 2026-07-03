@@ -8,22 +8,18 @@ Thank you for your interest in contributing! This guide covers everything you ne
 
 - **Python 3.11+**
 - **[uv](https://docs.astral.sh/uv/)** -- Package manager (do not use pip directly)
-- **Node.js** -- For frontend build
 
 ### Setup
 
 ```bash
-git clone https://github.com/etoyama/insight-blueprint.git
-cd insight-blueprint
+git clone https://github.com/etoyama/insight-blueprint-skills.git
+cd insight-blueprint-skills
 
 # Install all dependencies (--all-extras is REQUIRED for dev tools: ruff, ty, pytest, poe)
 uv sync --all-extras
 
 # Set up pre-commit hooks (runs lint, typecheck, and tests before each commit)
 uv run pre-commit install
-
-# Build frontend assets
-poe build-frontend
 ```
 
 > **Note**: `uv sync` without `--all-extras` will NOT install development tools.
@@ -37,8 +33,7 @@ poe format          # Auto-fix lint issues and format
 poe typecheck       # Type check (ty)
 poe test            # Run tests (pytest)
 poe all             # Run lint + typecheck + test
-poe build-frontend  # Install deps and build frontend assets
-poe ci              # Run the full CI pipeline locally (Python + frontend)
+poe ci              # Run the full CI pipeline locally (lint + typecheck + test)
 ```
 
 ## Code Style
@@ -134,7 +129,6 @@ Before submitting code, verify:
 - [ ] Sensitive values come from environment variables
 - [ ] `.env` files are not committed
 - [ ] External input is validated (use Pydantic models)
-- [ ] SQL queries use parameterized statements (no string concatenation)
 - [ ] Error messages shown to users don't expose internal details
 - [ ] Logs don't contain sensitive information
 
