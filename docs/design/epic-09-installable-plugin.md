@@ -70,7 +70,7 @@ sequenceDiagram
 
     U->>CC: /analysis-design（cwd=利用者プロジェクト）
     CC->>W: design_io create（stdin JSON）
-    W->>W: cd ${CLAUDE_PLUGIN_ROOT}; export INSIGHT_BASE_DIR=${CLAUDE_PROJECT_DIR}/.insight; mkdir -p .insight/*
+    W->>W: cd ${CLAUDE_PLUGIN_ROOT} → export INSIGHT_BASE_DIR=${CLAUDE_PROJECT_DIR}/.insight → mkdir -p .insight/*
     W->>M: uv run python -m skills._shared.design_io create
     M->>FS: atomic write（利用者 .insight/designs/*_hypothesis.yaml）
     M-->>CC: JSON
