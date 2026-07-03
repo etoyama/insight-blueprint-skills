@@ -232,6 +232,7 @@ same `validate.py` the pre-write hook uses. Invalid writes raise and write nothi
 | From | To | When |
 |------|-----|------|
 | /analysis-framing | → /analysis-design | Framing Brief 付きでフォワーディング |
+| /analysis-design | → /analysis-review | デザイン作成後にレビューを受ける: "作った design をレビューするなら /analysis-review {id}" |
 | /analysis-design | → /analysis-journal | デザイン作成後: "推論過程を記録するなら /analysis-journal {id}" |
 | /analysis-design | → /analysis-framing | データ不足で仮説の方向を再検討: "データを探し直すなら /analysis-framing" |
 | /catalog-register | → /analysis-design | データ登録完了後にデザイン作成を続行 |

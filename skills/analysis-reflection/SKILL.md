@@ -119,7 +119,7 @@ If user chooses to conclude:
    review process first.
 
 3. Show final summary and suggest:
-   - "レビューコメントを残すなら /analysis-revision（design_io append_review_batch 経由）"
+   - "レビューコメントを付けるなら /analysis-review（記録後 /analysis-revision で対応）"
    - "この分析で分かったソースの再利用知識を残すなら /knowledge-extract"
    - "新しいデータソース自体を登録するなら /catalog-register"
    - "派生仮説を立てるなら /analysis-design"

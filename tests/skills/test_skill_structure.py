@@ -33,6 +33,7 @@ ALL_SKILLS: list[str] = [
     "analysis-design",
     "analysis-journal",
     "analysis-reflection",
+    "analysis-review",
     "analysis-revision",
     "catalog-register",
     "knowledge-extract",

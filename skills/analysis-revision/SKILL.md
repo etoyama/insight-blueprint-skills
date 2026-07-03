@@ -219,7 +219,7 @@ in analysis-design SKILL.md).
 
 | From | To | When |
 |------|-----|------|
-| review batch (design_io append_review_batch) | -> /analysis-revision | Review recorded with revision_requested status |
+| /analysis-review | -> /analysis-revision | Review recorded with revision_requested status |
 | /analysis-revision | -> /analysis-design | Major redesign needed: "大きな方針変更が必要なら /analysis-design {id}" |
 | /analysis-revision | -> /analysis-journal | Need to investigate before fixing: "調査してから修正するなら /analysis-journal {id}" |
 | /analysis-revision | -> (reviewer) | After transition to in_review, the reviewer records a new review batch via design_io |
