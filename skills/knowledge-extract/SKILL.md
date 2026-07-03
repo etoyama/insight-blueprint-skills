@@ -44,9 +44,9 @@ they live in reflection.
 
 ### Step 1: Load the Analysis Artifacts
 
-1. `uv run python -m skills._shared.design_io get --id {design_id}` — load the design
+1. `design_io get --id {design_id}` — load the design
 2. Read `.insight/designs/{design_id}_journal.yaml` (Read tool) — evidence, decisions
-3. `uv run python -m skills._shared.design_io list-reviews --id {design_id}` — review comments (if any)
+3. `design_io list-reviews --id {design_id}` — review comments (if any)
 4. If nothing to read: "抽出元がない。まず /analysis-journal / /analysis-reflection で記録してから" → exit
 
 ### Step 2: Identify the Target Source
@@ -55,7 +55,7 @@ Knowledge is source-scoped, so decide which registered source each learning atta
 
 1. Infer candidate sources from the design's data references / methodology.
 2. Confirm with the user: "この知見はどのデータソースに紐づく？"
-3. Verify it is registered: `uv run python -m skills._shared.catalog_io get --id {source_id}`
+3. Verify it is registered: `catalog_io get --id {source_id}`
    (empty → not registered → suggest /catalog-register first, or pick another source).
 
 ### Step 3: Draft Knowledge Candidates (Claude-native)
@@ -97,7 +97,7 @@ echo '{
       "source": "{design_id}"
     }
   ]
-}' | uv run python -m skills._shared.catalog_io add-knowledge --id {source_id}
+}' | catalog_io add-knowledge --id {source_id}
 ```
 
 Show the returned container and confirm. Verify with
@@ -105,7 +105,7 @@ Show the returned container and confirm. Verify with
 
 ## catalog_io Reference
 
-`python -m skills._shared.catalog_io <command>` (from project root):
+`catalog_io <command>` (available on PATH via the plugin):
 
 | Command | Purpose | Input |
 |---------|---------|-------|

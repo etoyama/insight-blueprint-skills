@@ -41,7 +41,10 @@ Accept the analysis theme from `$ARGUMENTS` or ask the user for one.
   use its `テーマ` as the theme and its `検証の方向性` as the seed direction. The research
   questions are theory-driven and not yet grounded — your job is to ground them in
   available data. Carry the central assumption forward into the Direction Dialogue (Step 4).
-- If `.insight/` directory does not exist: inform the user that the project is not initialized and guide them to run `insight-blueprint init`. Stop the workflow here.
+- If `.insight/` does not exist yet, that's fine — it holds nothing to explore, so tell the user
+  it's empty and proceed to frame from the conversation/theme. The `.insight/` directory tree is
+  created automatically the first time a skill writes to it (via the `design_io`/`catalog_io`
+  wrappers); there is no separate init step.
 
 ### Step 2: Domain Exploration (Agentic Search)
 

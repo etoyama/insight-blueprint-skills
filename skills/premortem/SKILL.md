@@ -30,7 +30,7 @@ It does **not** issue tokens, gate execution, or write to disk — it advises.
 ## Workflow
 
 1. **Collect design data** (Claude Code responsibility):
-   - `uv run python -m skills._shared.design_io list` to enumerate designs
+   - `design_io list` to enumerate designs
      (use `--design <id>` to scope to one).
    - For each design: `design_io get --id <id>`, then build `source_checks_map` from
      `catalog_io get-schema --id <source_id>` / `catalog_io search --query <source_id>`
@@ -38,13 +38,13 @@ It does **not** issue tokens, gate execution, or write to disk — it advises.
      packages allowed? estimated rows?).
    - Pipe `{ "designs": [...], "source_checks_map": {...} }` as JSON to cli.py stdin.
 
-2. **Evaluate** (cli.py, pure static decision engine):
+2. **Evaluate** (pure static decision engine):
    ```bash
-   echo '<json>' | uv run python -m skills._shared... # (payload built above)
-   uv run python -m skills.premortem.cli            # reads stdin, prints table
+   echo '{ "designs": [...], "source_checks_map": {...} }' | premortem   # reads stdin, prints table
    ```
-   Prints one line per design (id / intent / est_rows / strategy / risk / reasons)
-   and exits 2 if any design is HARD_BLOCK/HIGH, else 0.
+   `premortem` (on PATH via the plugin) reads the JSON payload on stdin, prints one line per
+   design (id / intent / est_rows / strategy / risk / reasons), and exits 2 if any design is
+   HARD_BLOCK/HIGH, else 0.
 
 3. **Present** the risk table to the user and advise on next steps (e.g. fix
    HARD_BLOCK designs, reconsider HIGH ones before running). No token, no gating.

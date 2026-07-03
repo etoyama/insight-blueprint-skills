@@ -99,7 +99,7 @@ shell = "uv run ruff check . && uv run ruff format --check ."
 shell = "uv run ruff check --fix . && uv run ruff format ."
 
 [tool.poe.tasks.typecheck]
-cmd = "uv run ty check src/ .claude/hooks/ skills/"
+cmd = "uv run ty check src/ hooks/ skills/"
 
 [tool.poe.tasks.test]
 cmd = "uv run pytest -v"

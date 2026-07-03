@@ -13,8 +13,10 @@ Contract:
   exits 0 (allow).
 - On a schema or state-transition violation: prints details to stderr and exits
   2 (block the write).
-- On an unexpected internal error: warns on stderr and exits 0 (fail open) so a
-  hook bug cannot brick every design write. The MCP path still validates.
+- On an unexpected internal error: if the target is a design document, exits 2
+  (fail CLOSED — an unvalidated design write is the one thing this hook exists to
+  prevent). For any other file it exits 0 (fail open) so a hook bug cannot brick
+  unrelated writes.
 """
 
 from __future__ import annotations
@@ -24,9 +26,11 @@ import sys
 from io import StringIO
 from pathlib import Path
 
-# Make the insight_blueprint package importable even when the hook is run with a
-# bare ``python3`` (settings.json uses ``uv run`` where it is already installed).
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+# Make the insight_blueprint package importable when run with a bare ``python3``.
+# Normally it runs via ``uv run --project`` (plugin) / ``uv run`` (dev) where it is
+# already installed; this src fallback is belt-and-suspenders.
+# Script lives at <plugin_root>/hooks/validate-design.py → src is one level up.
+_REPO_ROOT = Path(__file__).resolve().parents[1]
 _SRC = _REPO_ROOT / "src"
 if _SRC.is_dir() and str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
@@ -155,7 +159,19 @@ def main() -> int:
 
     try:
         errors = evaluate(tool_name, tool_input)
-    except Exception as exc:  # a hook bug must not brick every design write
+    except Exception as exc:
+        # Fail CLOSED for design documents: an internal error means we could not
+        # validate the pending write, and letting an unvalidated design through
+        # defeats the hook's only purpose (Epic 09 security review M2). For any
+        # other file, fail open so a hook bug cannot brick unrelated writes.
+        target = extract_target_path(tool_input)
+        if is_design_file(target):
+            print(
+                f"validate-design hook: internal error validating {target}; "
+                f"blocking to preserve design integrity ({exc})",
+                file=sys.stderr,
+            )
+            return EXIT_BLOCK
         print(
             f"validate-design hook: internal error, allowing ({exc})", file=sys.stderr
         )

@@ -16,15 +16,15 @@ Guides Claude through creating a lightweight analysis design document by writing
 `.insight/designs/*_hypothesis.yaml` directly via the `design_io` helper (no MCP
 server). Follows the hypothesis-driven EDA workflow.
 
-**design_io CLI** (run from the project root; reads JSON payloads on stdin,
-prints JSON results; validation runs before every write):
+**design_io CLI** (provided on PATH by the plugin; reads JSON payloads on stdin,
+prints JSON results; writes to your project's `.insight/`; validation runs before every write):
 
 ```bash
-echo '<json>' | uv run python -m skills._shared.design_io create
-echo '<changes-json>' | uv run python -m skills._shared.design_io update --id FP-H01
-uv run python -m skills._shared.design_io transition --id FP-H01 --target analyzing
-uv run python -m skills._shared.design_io get --id FP-H01
-uv run python -m skills._shared.design_io list [--status in_review]
+echo '<json>' | design_io create
+echo '<changes-json>' | design_io update --id FP-H01
+design_io transition --id FP-H01 --target analyzing
+design_io get --id FP-H01
+design_io list [--status in_review]
 ```
 
 ## When to Use
@@ -154,7 +154,7 @@ echo '{
   "explanatory": [],
   "chart": [],
   "next_action": null
-}' | uv run python -m skills._shared.design_io create
+}' | design_io create
 ```
 
 Expected stdout (the written design as JSON):
@@ -172,7 +172,7 @@ provided fields change; `updated_at` is refreshed and `referenced_knowledge` is 
 
 ```bash
 echo '{"next_action": {"if_supported": "パネルFEへ進む", "if_rejected": {"reason": "相関なし", "pivot": "時系列分析"}}}' \
-  | uv run python -m skills._shared.design_io update --id FP-H01
+  | design_io update --id FP-H01
 ```
 
 ### Step 4: Confirm and Suggest Next Steps
@@ -185,8 +185,8 @@ echo '{"next_action": {"if_supported": "パネルFEへ進む", "if_rejected": {"
 
 ## design_io Reference
 
-`python -m skills._shared.design_io <command>` (run from project root; `--base-dir`
-defaults to `.insight`). Payloads are JSON on stdin; results are JSON on stdout.
+`design_io <command>` (provided on PATH by the plugin; targets your project's
+`.insight/`). Payloads are JSON on stdin; results are JSON on stdout.
 
 | Command | Purpose | Input |
 |---------|---------|-------|
@@ -292,7 +292,7 @@ which validates the move against `VALID_TRANSITIONS` in `validate.py`. Illegal m
 the `design_io` helper, not hand-written. `design_io` owns id generation, timestamps,
 `referenced_knowledge` merge, and validation (`validate.py`). A `*_hypothesis.yaml`
 written via the Write/Edit tool is additionally guarded by the pre-write hook
-(`.claude/hooks/validate-design.py`), which calls the same `validate.py` — so schema
+(`hooks/validate-design.py`), which calls the same `validate.py` — so schema
 and state-transition rules hold on either path.
 
 **Direct read is always OK** — use Read tool / glob / cat freely for analysis.

@@ -19,7 +19,7 @@ import pytest
 from ruamel.yaml import YAML
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-HOOK_PATH = REPO_ROOT / ".claude" / "hooks" / "validate-design.py"
+HOOK_PATH = REPO_ROOT / "hooks" / "validate-design.py"
 
 
 def load_hook_module() -> ModuleType:
@@ -277,3 +277,34 @@ def test_hook_handles_all_three_tools(tmp_path: Path, tool_name: str) -> None:
         }
     result = run_hook({"tool_name": tool_name, "tool_input": tool_input})
     assert result.returncode == 0, result.stderr
+
+
+class TestFailClosed:
+    """On an internal error, design writes fail CLOSED; others fail open (M2)."""
+
+    def _run_main_with_broken_evaluate(
+        self, monkeypatch: pytest.MonkeyPatch, file_path: str
+    ) -> int:
+        from io import StringIO
+
+        def boom(*_a: object, **_k: object) -> list[str]:
+            raise RuntimeError("simulated hook bug")
+
+        monkeypatch.setattr(hook, "evaluate", boom)
+        payload = json.dumps(
+            {"tool_name": "Write", "tool_input": {"file_path": file_path}}
+        )
+        monkeypatch.setattr(hook.sys, "stdin", StringIO(payload))
+        return hook.main()
+
+    def test_design_write_fails_closed(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        path = tmp_path / ".insight" / "designs" / "FP-H01_hypothesis.yaml"
+        assert self._run_main_with_broken_evaluate(monkeypatch, str(path)) == 2
+
+    def test_non_design_write_fails_open(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        path = tmp_path / "notes.md"
+        assert self._run_main_with_broken_evaluate(monkeypatch, str(path)) == 0

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -21,8 +22,10 @@ from skills._shared.config_loader import load_premortem_config
 from skills._shared.models import RiskLevel, SourceChecks
 from skills.premortem.lib.risk_evaluator import evaluate as risk_evaluate
 
-_CONFIG_PATH = Path(".insight/config.yaml")
-_DEFAULT_BASE_DIR = Path(".insight")
+# Honor INSIGHT_BASE_DIR (exported by bin/premortem) so the config is read from
+# the user project's .insight/, not the plugin root after the wrapper's cd.
+# Mirrors design_io/catalog_io. See ADR-0006.
+_DEFAULT_BASE_DIR = Path(os.environ.get("INSIGHT_BASE_DIR", ".insight"))
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -46,8 +49,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--config",
         type=Path,
-        default=_CONFIG_PATH,
-        help=argparse.SUPPRESS,  # testing override
+        default=None,
+        help=argparse.SUPPRESS,  # explicit override; else derived from --base-dir
     )
     return parser
 
@@ -118,7 +121,10 @@ def main(argv: list[str] | None = None, stdin_data: dict | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    config = load_premortem_config(args.config)
+    config_path = (
+        args.config if args.config is not None else args.base_dir / "config.yaml"
+    )
+    config = load_premortem_config(config_path)
 
     payload = stdin_data if stdin_data is not None else _read_stdin_payload()
     designs = payload.get("designs", [])

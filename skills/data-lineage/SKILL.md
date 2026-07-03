@@ -52,7 +52,7 @@ Help the user add `tracked_pipe` to an existing notebook.
 **Workflow:**
 
 1. Confirm the target AnalysisDesign (if design_id provided, run
-   `uv run python -m skills._shared.design_io get --id {design_id}`; empty `{}` = not found)
+   `design_io get --id {design_id}`; empty `{}` = not found)
 2. Locate the target notebook/script (ask the user if unclear)
 3. Read the notebook and identify DataFrame transformation steps (`.pipe()`, filter,
    merge, join, dropna, assign, query, etc.)
