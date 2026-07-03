@@ -91,6 +91,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 - `/rq-problematization` — Generate impactful research questions by problematizing prior-research assumptions (upstream of framing)
 - `/analysis-framing` — Explore available data and existing analyses to frame a direction
 - `/analysis-design` — Guided creation of hypothesis design documents
+- `/analysis-review` — Produce a structured review of a design and record it as a review batch
 - `/analysis-journal` — Record reasoning steps during analysis (observations, evidence, decisions, questions)
 - `/analysis-reflection` — Structured reflection to draw conclusions or branch hypotheses
 - `/analysis-revision` — Guided revision workflow for addressing review comments
@@ -109,12 +110,11 @@ Skills support both English and Japanese trigger phrases.
 /analysis-framing (explore data, frame direction)
     ↓
 /analysis-design (create hypothesis)
-    ↓
+    ↓ ↘ /analysis-review (review the design) → /analysis-revision (address comments)
 /analysis-journal (record reasoning during analysis)
     ↓
 /analysis-reflection (reflect → conclude or branch)
     ↓ ↗ back to /analysis-framing (new direction needed)
-    ↕ review → /analysis-revision (address review comments)
 /knowledge-extract (save reusable, source-scoped knowledge)
 ```
 
@@ -132,10 +132,12 @@ There is no web UI — everything is skill-driven over `.insight/` YAML:
 - **Status transitions** are performed by the skills, not by hand. `/analysis-reflection`
   proposes the terminal transition (e.g. `analyzing → supported`) and runs it via
   `design_io transition`; the pre-write hook enforces the allowed transitions.
-- **Review** is recorded as review batches under `.insight/designs/{id}_reviews.yaml`
-  (written by `design_io append_review_batch`, read by `list-reviews`). `/analysis-revision`
-  then walks you through addressing each comment — tracking per-comment progress in
-  `.insight/designs/{id}_revision.yaml` — and re-submitting for review.
+- **Review** is a producer/consumer pair (no dashboard): `/analysis-review` critiques a
+  design and records a review batch under `.insight/designs/{id}_reviews.yaml` (via
+  `design_io review-batch`), setting the design to `revision_requested` or `analyzing`.
+  `/analysis-revision` then consumes a `revision_requested` batch, walking you through each
+  comment — tracking per-comment progress in `.insight/designs/{id}_revision.yaml` — and
+  re-submitting for review.
 
 ## Capturing knowledge (`/knowledge-extract`)
 
