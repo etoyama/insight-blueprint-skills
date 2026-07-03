@@ -226,6 +226,7 @@ open_questions = [q for q in questions if q.id not in resolved_ids]
 |------|-----|------|
 | /analysis-design | → /analysis-journal | After design creation: "推論過程を記録するなら /analysis-journal {id}" |
 | /analysis-review | → /analysis-journal | Design approved (analyzing): "分析を始めるなら /analysis-journal {id}" |
+| /analysis-notebook | → /analysis-journal | Notebook を実行後に手動の推論を追記 |
 | /analysis-journal | → /analysis-reflection | Evidence gathered: "振り返りと結論は /analysis-reflection {id}" |
 | /analysis-journal | → /analysis-journal | After branch: "分岐先のジャーナル: /analysis-journal {new_id}" |
 | /analysis-reflection | → /analysis-journal | Need more evidence: "追加調査は /analysis-journal {id}" |

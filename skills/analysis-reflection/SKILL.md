@@ -151,6 +151,7 @@ If user chooses to refine:
 | From | To | When |
 |------|-----|------|
 | /analysis-journal | → /analysis-reflection | Evidence gathered |
+| /analysis-notebook | → /analysis-reflection | Notebook 実行の結果が揃った: 結論づけへ |
 | /analysis-reflection | → /analysis-journal | Need more evidence or branching |
 | /analysis-reflection | → /knowledge-extract | Conclusion produced reusable source knowledge |
 | /knowledge-extract | → /analysis-reflection | The learning is really a conclusion, not source knowledge |
