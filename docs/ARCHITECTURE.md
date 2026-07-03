@@ -83,6 +83,90 @@ notebook の非 allowlist・宣言 source 以外の外部通信 / 結論。noteb
 宣言 source 限定のときのみ。詳細は [ADR-0005](adr/0005-selective-autonomous-chaining.md)。**「auto mode」は無人ではなく
 guided autopilot**（対話型・オプトイン）である。
 
+## ディレクトリ構成（開発時 vs plugin 利用時）
+
+この plugin は **コードの在処**（plugin 本体）と **データの在処**（利用者の分析成果物 `.insight/`）を
+分離する。開発リポジトリでは両者が**同一ツリーに同居**するため混同しやすい。実際、install 先で
+動かない不具合（Epic 09）はこの2役割の混同が根本原因だった（cwd 前提・repo レイアウト前提のコマンドが
+「コード置き場＝データ置き場」を暗黙に仮定していた）。以下で2つの視点を明確に分ける。
+実行時のパス解決の詳細は [ADR-0006](adr/0006-plugin-execution-model.md)。
+
+### 1. 開発リポジトリ上の構成（このリポジトリ）
+
+開発時は **cwd = リポジトリルート** で、plugin コードと自分の分析データ（`.insight/`）が
+**同じツリーに同居**する。これが「開発では動くのに install 先で動かない」錯覚を生む。
+
+```
+insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配布物の中身）
+├── .claude-plugin/                # plugin マニフェスト（plugin.json / marketplace.json）
+├── bin/                           # plugin 有効時に PATH に載る: design_io / catalog_io / premortem ラッパー
+├── hooks/                         # plugin 同梱 hook: hooks.json + validate-design.py
+├── skills/                        # 全 skill + _shared/（design_io.py / catalog_io.py / config_loader.py / models.py）+ premortem/
+├── src/insight_blueprint/         # PyPI パッケージ insight-blueprint-lineage: models/ · validate.py · lineage/
+├── tests/  docs/  scripts/
+├── pyproject.toml · uv.lock       # ← この uv プロジェクトが「plugin の実行環境」を供給する
+├── .claude/                       # dev 専用: settings.json が hook をローカル配線（配布されない）
+└── .insight/                      # dev 専用のサンプル作業データ（config.yaml + rules/。このリポジトリ自身の分析ワークスペース）
+```
+
+- **配布物** = リポジトリツリーそのもの。install 時これが `${CLAUDE_PLUGIN_ROOT}` に展開される。
+- **dev 専用**（配布物ではない）: `.claude/`（ローカル hook 配線）と リポジトリ直下の `.insight/`。
+  後者はこのリポジトリを「1人の利用者プロジェクト」として使うときの作業データで、利用者の `.insight/` とは無関係。
+- したがって dev では `${CLAUDE_PLUGIN_ROOT}`（コード）と `${CLAUDE_PROJECT_DIR}`（データ）が
+  **たまたま同じ**（どちらもリポジトリルート）。install 先ではこれが分離する（下記）。
+
+### 2. plugin 利用者視点の構成
+
+`/plugin marketplace add … && /plugin install …` で導入すると、2つのルートが**物理的に分離**する。
+
+| ルート | 変数 | 実体 | 誰が触る |
+|---|---|---|---|
+| plugin コード | `${CLAUDE_PLUGIN_ROOT}` | Claude Code の plugin キャッシュ（例 `~/.claude/plugins/cache/…/insight-blueprint-skills/`） | 触らない（読み取り専用の配布物） |
+| 利用者データ | `${CLAUDE_PROJECT_DIR}/.insight/` | **自分のプロジェクト直下** | 分析成果物すべてがここに出る |
+
+利用者の分析成果物は**すべて自分のプロジェクトの `.insight/`** に出力される（plugin 側には一切書かない）:
+
+```
+<あなたのプロジェクト>/.insight/          ← ${CLAUDE_PROJECT_DIR}/.insight
+├── config.yaml                     # 任意: premortem 閾値など（無ければ既定値）
+├── rules/
+│   └── package_allowlist.yaml      # 任意: notebook が使ってよいパッケージ許可リスト
+├── designs/
+│   ├── {id}_hypothesis.yaml        # design_io create/update（pre-write hook が検証）
+│   ├── {id}_journal.yaml           # journal イベント
+│   └── {id}_reviews.yaml           # review バッチ
+├── catalog/
+│   ├── sources/{id}.yaml           # /catalog-register
+│   └── knowledge/{id}.yaml         # /knowledge-extract
+├── notebooks/
+│   ├── {id}.py                     # /analysis-notebook が生成する 8-cell marimo notebook
+│   ├── {id}_flat.py                # marimo export script（実行可能なフラット版）
+│   ├── {id}_verdict.json           # verdict 副作用（skill が読み戻して journal に反映）
+│   └── {id}.html                   # 任意: 閲覧用レポート
+└── lineage/
+    └── {id}.mmd                    # lineage の Mermaid 図
+```
+
+**marimo notebook はどこに出るか（混乱ポイントの明示回答）**: 利用者プロジェクトの
+`${CLAUDE_PROJECT_DIR}/.insight/notebooks/`（および `lineage/`）に出る。**plugin ディレクトリではない**。
+理由は下のパス解決機構にある。
+
+### パス解決機構（なぜ同じ `.insight/` に着地するのか）
+
+コードは `${CLAUDE_PLUGIN_ROOT}` にあるのに、出力は `${CLAUDE_PROJECT_DIR}/.insight/` に落ちる。
+これを実現する経路は**2種類**あり、着地先は同じでも仕組みが違う。
+
+| 経路 | cwd | パス解決 | 出力先 |
+|---|---|---|---|
+| `design_io` / `catalog_io` / `premortem`（bin ラッパー） | `cd ${CLAUDE_PLUGIN_ROOT}` に**移動する** | 絶対パス env `INSIGHT_BASE_DIR=${CLAUDE_PROJECT_DIR}/.insight` で解決 | 利用者 `.insight/` |
+| `/analysis-notebook`（marimo 実行） | **利用者プロジェクトのまま**（移動しない） | 相対パス `.insight/notebooks/…`（cwd 基準） | 利用者 `.insight/` |
+
+ポイントは notebook 経路の `uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook …`:
+`--project` は **実行環境（marimo/pandas/insight_blueprint を供給する uv 環境）だけを plugin から借りる**
+指定で、**cwd は移動しない**。だから notebook 内の相対 `.insight/…` は利用者プロジェクトに解決される。
+一方 bin ラッパーは `cd` で plugin へ移動する代わりに、絶対 `INSIGHT_BASE_DIR` でデータ先を指す。
+どちらも「コードは plugin・データは利用者プロジェクト」を別の手段で満たしている。
+
 ## 代表シーケンス
 
 ### 設計書の書込と検証ガード
