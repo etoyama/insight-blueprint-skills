@@ -407,7 +407,7 @@ wheels = [
 ]
 
 [[package]]
-name = "insight-blueprint"
+name = "insight-blueprint-lineage"
 version = "0.6.0"
 source = { editable = "." }
 dependencies = [

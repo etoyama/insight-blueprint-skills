@@ -1,6 +1,6 @@
 # insight-blueprint
 
-[![PyPI](https://img.shields.io/pypi/v/insight-blueprint)](https://pypi.org/project/insight-blueprint/)
+[![PyPI](https://img.shields.io/pypi/v/insight-blueprint-lineage)](https://pypi.org/project/insight-blueprint-lineage/)
 [![CI](https://github.com/etoyama/insight-blueprint-skills/actions/workflows/ci.yml/badge.svg)](https://github.com/etoyama/insight-blueprint-skills/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
@@ -64,10 +64,11 @@ alias claude-ib='claude --plugin-dir /path/to/insight-blueprint-skills'
 
 ### Optional: Python package (for lineage)
 
-For data-lineage tracking with `tracked_pipe` in your notebooks/scripts:
+For data-lineage tracking with `tracked_pipe` in your notebooks/scripts, install the
+`insight-blueprint-lineage` package (the import name stays `insight_blueprint`):
 
 ```bash
-uv add insight-blueprint
+uv add insight-blueprint-lineage
 ```
 
 This is optional but recommended for analysis-pipeline transparency. The skills themselves

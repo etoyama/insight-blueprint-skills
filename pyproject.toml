@@ -1,5 +1,5 @@
 [project]
-name = "insight-blueprint"
+name = "insight-blueprint-lineage"
 version = "0.6.0"
 description = "Embedded validation library + lineage for the insight-blueprint hypothesis-driven EDA skills plugin"
 readme = "README.md"
@@ -25,9 +25,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/etoyama/insight-blueprint"
-Repository = "https://github.com/etoyama/insight-blueprint"
-"Bug Tracker" = "https://github.com/etoyama/insight-blueprint/issues"
+Homepage = "https://github.com/etoyama/insight-blueprint-skills"
+Repository = "https://github.com/etoyama/insight-blueprint-skills"
+"Bug Tracker" = "https://github.com/etoyama/insight-blueprint-skills/issues"
 
 [project.optional-dependencies]
 dev = [

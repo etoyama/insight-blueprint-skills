@@ -6,9 +6,9 @@ This repository ships **two things**, released differently:
   straight from this Git repository via the marketplace in
   [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). Merging to `main`
   makes the latest plugin available; there is no separate build/publish step for it.
-- **The `insight-blueprint` Python package** (the lineage + validation library under
-  `src/insight_blueprint/`, used optionally via `uv add insight-blueprint`) is published to
-  **PyPI**, and that is what this document covers.
+- **The `insight-blueprint-lineage` Python package** (the lineage + validation library under
+  `src/insight_blueprint/` — the import name stays `insight_blueprint`, used optionally via
+  `uv add insight-blueprint-lineage`) is published to **PyPI**, and that is what this document covers.
 
 Publishing to PyPI is **tag-driven and automated**: pushing a `v*` tag runs
 [`.github/workflows/publish.yml`](../.github/workflows/publish.yml), which builds, verifies,
@@ -59,10 +59,10 @@ This triggers `publish.yml`, which re-runs `check_tag_version` → `uv build` �
 
 ```bash
 # PyPI page
-open https://pypi.org/project/insight-blueprint/
+open https://pypi.org/project/insight-blueprint-lineage/
 
 # Fresh install of the library (there is no CLI; verify it imports)
-uv run --with insight-blueprint --no-project python -c "import insight_blueprint; print(insight_blueprint.__name__)"
+uv run --with insight-blueprint-lineage --no-project python -c "import insight_blueprint; print(insight_blueprint.__version__)"
 ```
 
 ## Troubleshooting
