@@ -50,12 +50,15 @@ Before proceeding, confirm with the user:
 
 ### Step 1: Determine Source Type
 
-Ask the user which type of data source to register:
-- **CSV** — Local file with headers
-- **API** — REST API endpoint (e.g., e-Stat, custom API)
-- **SQL** — Database table (e.g., BigQuery, PostgreSQL)
+`type` is an **open string** (E5c / ADR-0004): any non-empty value is valid. Suggest
+the conventional values but accept whatever fits the source:
+- **csv** — Local file with headers
+- **api** — REST API endpoint (e.g., e-Stat, custom API)
+- **sql** — Database table (e.g., BigQuery, PostgreSQL)
+- …or another kind: `parquet`, `gsheet`, `bigquery`, `graphql`, `excel`, etc.
 
-If `$ARGUMENTS` is provided, use it as the source type.
+If `$ARGUMENTS` is provided, use it as the source type. The workflows below cover the
+three most common cases; for other types, reuse the closest one and adjust `connection`.
 
 ### Step 2: Explore Data Structure
 
@@ -236,7 +239,7 @@ exits non-zero with nothing written.
 |-------|-------|--------|
 | `Source 'X' already exists` | Duplicate id | Use `catalog_io update` or choose a different ID |
 | `Invalid source_id '...'` | id not `[a-zA-Z0-9_-]+` | Use a slug id |
-| pydantic `ValidationError` / `Invalid source type` | Bad type/schema | Use csv, api, or sql; fix payload |
+| pydantic `ValidationError` | Missing required field, or empty `type` | `type` may be any non-empty string; fix the payload |
 
 ## Chaining
 

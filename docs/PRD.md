@@ -55,8 +55,8 @@
 | E3.5 | catalog / premortem / lineage の MCP→YAML 変換 + batch-analysis 撤去 | 完了 |
 | E4 | MCPサーバ層削除 | 完了 |
 | E5a | premortem 自立化（report-only 化） | 完了 |
-| E5b | knowledge 抽出強化（Claude-native + source-scoped） | 進行中 |
-| E5c | catalog 柔軟化 | 未着手 |
+| E5b | knowledge 抽出強化（Claude-native + source-scoped） | 完了 |
+| E5c | catalog 柔軟化（open string taxonomy） | 進行中 |
 
 各 Epic の Design Doc（`docs/design/epic-NN-*.md`）は `## Scope` 節で、本書のどの要件と
 ARCHITECTURE のどのコンポーネントを前進させるかを示す。

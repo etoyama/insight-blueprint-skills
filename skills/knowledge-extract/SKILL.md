@@ -67,7 +67,7 @@ Read the artifacts and synthesize candidate entries. For each, decide:
 | `key` | short stable slug, unique per source (e.g. `pop-null-pre-2019`) — re-running upserts by this key |
 | `title` | one-line label |
 | `content` | the reusable fact, stated so it helps a *future* analyst of this source |
-| `category` | one of `methodology` / `caution` / `definition` / `context` (**never `finding`**) |
+| `category` | open string (E5c). Prefer a conventional value — `methodology` / `caution` / `definition` / `context` — or a domain-specific one (`data-quality`, `regulatory`, …). **Never `finding`** (findings stay in reflection) |
 | `importance` | `high` / `medium` (default) / `low` |
 | `affects_columns` | column names this touches (optional) |
 | `source` | provenance — set to the originating `design_id` |
