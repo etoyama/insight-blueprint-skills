@@ -12,7 +12,7 @@ If you discover a security vulnerability in this project, please report it respo
 
 **Do not open a public issue.**
 
-Instead, please send an email to the repository owner or use [GitHub's private vulnerability reporting](https://github.com/etoyama/insight-blueprint/security/advisories/new).
+Instead, please send an email to the repository owner or use [GitHub's private vulnerability reporting](https://github.com/etoyama/insight-blueprint-skills/security/advisories/new).
 
 ### What to include
 

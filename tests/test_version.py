@@ -58,7 +58,7 @@ class TestVersionFallback:
         try:
             with patch(
                 "importlib.metadata.version",
-                side_effect=PackageNotFoundError("insight-blueprint"),
+                side_effect=PackageNotFoundError("insight-blueprint-lineage"),
             ):
                 importlib.reload(insight_blueprint)
                 assert insight_blueprint.__version__ == "0.0.0+unknown"
@@ -72,7 +72,7 @@ class TestVersionFallback:
         try:
             with patch(
                 "importlib.metadata.version",
-                side_effect=PackageNotFoundError("insight-blueprint"),
+                side_effect=PackageNotFoundError("insight-blueprint-lineage"),
             ):
                 importlib.reload(insight_blueprint)
                 fallback = insight_blueprint.__version__

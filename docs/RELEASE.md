@@ -1,182 +1,84 @@
 # Release Procedure
 
-Step-by-step guide for publishing insight-blueprint to PyPI.
+This repository ships **two things**, released differently:
+
+- **The Claude Code plugin** (skills + hook + `.insight/` conventions) is distributed
+  straight from this Git repository via the marketplace in
+  [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). Merging to `main`
+  makes the latest plugin available; there is no separate build/publish step for it.
+- **The `insight-blueprint-lineage` Python package** (the lineage + validation library under
+  `src/insight_blueprint/` — the import name stays `insight_blueprint`, used optionally via
+  `uv add insight-blueprint-lineage`) is published to **PyPI**, and that is what this document covers.
+
+Publishing to PyPI is **tag-driven and automated**: pushing a `v*` tag runs
+[`.github/workflows/publish.yml`](../.github/workflows/publish.yml), which builds, verifies,
+and uploads to PyPI via a trusted publisher (OIDC — no API token to manage).
 
 ## Prerequisites
 
-**Python 3.11 or later** is required (set via `requires-python` in pyproject.toml).
-Verify your Python version before proceeding:
+- **Python 3.11+** and **[uv](https://docs.astral.sh/uv/)**.
+- Push access to `main` and permission to push tags.
+- PyPI credentials are **not** needed locally — publishing uses the repo's `pypi`
+  environment (OIDC trusted publisher) inside CI.
+
+## Step 1: Version bump
+
+Update `version` in `pyproject.toml` following [SemVer](https://semver.org/):
+
+- **Patch** (0.1.0 → 0.1.1): bug fixes, docs
+- **Minor** (0.1.0 → 0.2.0): new features, backward-compatible
+- **Major** (0.1.0 → 1.0.0): breaking changes
+
+Move the `## [Unreleased]` notes in [CHANGELOG.md](../CHANGELOG.md) under the new version.
+Commit on a branch and merge to `main` before tagging (the tag must point at the commit
+whose `pyproject.toml` version matches it).
+
+## Step 2: Local pre-flight
+
+Run the same checks CI will run, so a bad tag never reaches PyPI:
 
 ```bash
-python3 --version  # Must be 3.11+
+uv run poe all                          # lint + typecheck + test
+uv build                                # build sdist + wheel into dist/
+uv run python scripts/verify_wheel.py   # assert insight_blueprint/py.typed is present (PEP 561)
+uvx --from twine twine check dist/*     # validate package metadata
+uv run python scripts/check_tag_version.py --tag vX.Y.Z   # tag == pyproject version
 ```
 
-Install the upload tool:
+## Step 3: Tag and push
 
 ```bash
-uv tool install twine
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
-Ensure you have a PyPI account and API token. Create a token at https://pypi.org/manage/account/token/ and save it in `~/.pypirc`:
+This triggers `publish.yml`, which re-runs `check_tag_version` → `uv build` →
+`verify_wheel` → `twine check`, then publishes to PyPI from the `pypi` environment.
 
-```ini
-[pypi]
-username = __token__
-password = pypi-YOUR_API_TOKEN_HERE
-```
-
-## Step 1: Version Bump
-
-Edit the version in `pyproject.toml`:
+## Step 4: Verify the release
 
 ```bash
-# Open pyproject.toml and update the version field
-# e.g., version = "0.1.0" -> version = "0.2.0"
-```
+# PyPI page
+open https://pypi.org/project/insight-blueprint-lineage/
 
-Follow [Semantic Versioning](https://semver.org/):
-- **Patch** (0.1.0 -> 0.1.1): Bug fixes, documentation updates
-- **Minor** (0.1.0 -> 0.2.0): New features, backward-compatible changes
-- **Major** (0.1.0 -> 1.0.0): Breaking changes
-
-## Step 2: Build Frontend
-
-Build the frontend assets that will be included in the wheel:
-
-```bash
-poe build-frontend
-```
-
-Verify the static files exist:
-
-```bash
-ls src/insight_blueprint/static/
-# Should show index.html, assets/, etc.
-```
-
-## Step 3: Build the Package
-
-Clean previous builds and create the wheel:
-
-```bash
-rm -rf dist/
-uv build --wheel
-```
-
-This creates a wheel (.whl) in `dist/`.
-
-> **Important**: Use `--wheel` to build the wheel directly. Do NOT use bare
-> `uv build` — it builds an sdist first then creates the wheel from that sdist.
-> Since `src/insight_blueprint/static/` is in `.gitignore` (build artifacts
-> should not be committed), hatchling's sdist excludes it, and the resulting
-> wheel will be missing frontend assets. Building the wheel directly honors the
-> `artifacts` setting in `[tool.hatch.build.targets.wheel]` and includes
-> static files correctly.
-
-## Step 4: Verify the Wheel
-
-### 4a: Check wheel contents
-
-Verify that all required files are included:
-
-```bash
-# Check frontend assets are included
-unzip -l dist/*.whl | grep static/
-# Should list index.html, JS, CSS files
-
-# Check LICENSE is included
-unzip -l dist/*.whl | grep LICENSE
-```
-
-> **Note**: Skills are no longer bundled in the wheel. They are distributed
-> via the Plugin's `skills/` directory at the repository root and discovered
-> automatically by Claude Code's Plugin system.
-
-### 4b: Check metadata
-
-```bash
-unzip -p dist/*.whl '*/METADATA' | head -30
-```
-
-Verify these fields are present:
-- `License: MIT`
-- `Classifier:` entries (Development Status, License, Python versions)
-- `Project-URL:` entries (Homepage, Repository, Bug Tracker)
-
-### 4c: Check Plugin skills structure
-
-```bash
-# Verify all skills in the repository root have version field
-for f in skills/*/SKILL.md; do
-    echo "=== $f ==="
-    head -5 "$f"
-done
-```
-
-## Step 5: Local Install Test
-
-Test the wheel in an isolated environment before uploading:
-
-```bash
-# Create a temporary test environment
-cd /tmp
-mkdir insight-blueprint-test && cd insight-blueprint-test
-python -m venv .venv
-source .venv/bin/activate
-
-# Install from the local wheel
-pip install /path/to/insight-blueprint/dist/insight_blueprint-*.whl
-
-# Test: Initialize a project and verify it starts
-insight-blueprint --project /tmp/insight-blueprint-test --headless &
-SERVER_PID=$!
-sleep 3
-
-# Verify WebUI is running
-curl -s http://127.0.0.1:3000 | head -5
-# Should return HTML
-
-# Clean up
-kill $SERVER_PID
-deactivate
-cd /tmp && rm -rf insight-blueprint-test
-```
-
-## Step 6: Upload to PyPI
-
-Once local testing passes, upload to PyPI:
-
-```bash
-twine upload dist/*
-```
-
-Twine will prompt for credentials if `~/.pypirc` is not configured.
-
-After upload, verify the package page at:
-https://pypi.org/project/insight-blueprint/
-
-### Verify Remote Install
-
-```bash
-# Test installation from PyPI
-uvx insight-blueprint --help
+# Fresh install of the library (there is no CLI; verify it imports)
+uv run --with insight-blueprint-lineage --no-project python -c "import insight_blueprint; print(insight_blueprint.__version__)"
 ```
 
 ## Troubleshooting
 
-### "File already exists" error on upload
+### "File already exists" on publish
 
-PyPI does not allow overwriting existing versions. Bump the version number and rebuild.
+PyPI does not allow overwriting a version. Bump `version`, re-tag with the new `vX.Y.Z`,
+and push again.
 
-### Missing files in wheel
+### Tag/version mismatch
 
-Check `pyproject.toml` build configuration:
-- `packages = ["src/insight_blueprint"]` includes Python files
-- `artifacts = ["src/insight_blueprint/static/**"]` includes frontend assets
-- Skills are distributed via the Plugin's `skills/` directory at the repository root (not in the wheel)
+`check_tag_version.py` fails the build if the `v*` tag does not equal `pyproject.toml`'s
+`version`. Fix one so they match, delete the bad tag (`git tag -d` / `git push --delete`),
+and re-tag.
 
-### Frontend assets not included
+### `verify_wheel` fails
 
-1. Run `poe build-frontend` before building. The static files must exist at build time.
-2. Use `uv build --wheel` (not bare `uv build`). The sdist path excludes `.gitignore`
-   entries, which includes `src/insight_blueprint/static/`.
+The wheel must contain `insight_blueprint/py.typed`. Ensure `py.typed` exists under
+`src/insight_blueprint/` and that `[tool.hatch.build.targets.wheel]` includes the package.

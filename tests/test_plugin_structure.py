@@ -194,9 +194,9 @@ class TestDataLineagePrerequisites:
         assert "Prerequisites Check" in content
 
     def test_data_lineage_mentions_uv_add(self) -> None:
-        """data-lineage/SKILL.md mentions 'uv add insight-blueprint'."""
+        """data-lineage/SKILL.md mentions 'uv add insight-blueprint-lineage'."""
         content = (REPO_ROOT / "skills" / "data-lineage" / "SKILL.md").read_text()
-        assert "uv add insight-blueprint" in content
+        assert "uv add insight-blueprint-lineage" in content
 
 
 # ===========================================================================
@@ -208,10 +208,13 @@ class TestReadme:
     """Unit-10: README covers plugin install and the optional lineage package."""
 
     def test_readme_has_plugin_install(self) -> None:
-        """README mentions claude plugin installation command."""
+        """README documents the real plugin-install flow (marketplace + install)."""
         content = (REPO_ROOT / "README.md").read_text()
         content_lower = content.lower()
-        assert "claude plugin install" in content_lower
+        # Claude Code has no `claude plugin install owner/repo`; installation is
+        # `/plugin marketplace add <owner/repo>` then `/plugin install <plugin>@<marketplace>`.
+        assert "/plugin marketplace add" in content_lower
+        assert "/plugin install" in content_lower
 
     def test_readme_has_optional_python_package(self) -> None:
         """README mentions the optional Python package (for lineage)."""
@@ -219,7 +222,8 @@ class TestReadme:
         content_lower = content.lower()
         assert "optional" in content_lower
         assert (
-            "python package" in content_lower or "uv add insight-blueprint" in content
+            "python package" in content_lower
+            or "uv add insight-blueprint-lineage" in content
         )
 
     def test_readme_has_no_mcp_server_framing(self) -> None:

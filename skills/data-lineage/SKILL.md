@@ -35,10 +35,10 @@ using `insight_blueprint.lineage`.
 1. Run: `python -c "from insight_blueprint.lineage import tracked_pipe; print('OK')"`
 2. If output is "OK": proceed to Step 1
 3. If ImportError or command fails:
-   - Ask the user: "data-lineage の tracked_pipe を使うには insight-blueprint Python パッケージが必要です。`uv add insight-blueprint` を実行しますか？（分析パイプラインの透明性追跡に推奨）"
-   - If user approves: run `uv add insight-blueprint`, then re-check import
+   - Ask the user: "data-lineage の tracked_pipe を使うには insight-blueprint-lineage Python パッケージが必要です（import 名は insight_blueprint）。`uv add insight-blueprint-lineage` を実行しますか？（分析パイプラインの透明性追跡に推奨）"
+   - If user approves: run `uv add insight-blueprint-lineage`, then re-check import
    - If user declines: inform user that lineage tracking/export is unavailable without the package
-   - If install fails: show error, suggest manual install with `pip install insight-blueprint`
+   - If install fails: show error, suggest manual install with `pip install insight-blueprint-lineage`
 
 > **Note**: All lineage features (`tracked_pipe`, `export_lineage_as_mermaid`) live in the
 > `insight_blueprint.lineage` Python package — no MCP server involved.

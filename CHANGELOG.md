@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Lightweight migration (Epics E1–E5): the platform is now a Claude Code skills plugin —
+skills + YAML + an embedded validation library, with no server, daemon, or SQLite.
+
+### Added
+
+- New skill `/knowledge-extract` — Claude-native extraction of source-scoped domain knowledge from a concluded analysis, persisted via `catalog_io add-knowledge` (E5b)
+- `catalog_io` / `design_io` server-free YAML helpers backing the skills; `catalog_io add-knowledge` write path (validate + upsert-by-key + atomic write) (E3, E3.5, E5b)
+- Pre-write hook (`.claude/hooks/validate-design.py`) enforcing design-document schema + state transitions via `src/insight_blueprint/validate.py` (E2)
+
+### Changed
+
+- `/premortem` is now **report-only** — no approval tokens, no run history, no `.insight/premortem/` writes; it prints a static risk report and exits non-zero on HARD_BLOCK/HIGH (E5a)
+- Catalog taxonomy is now **open strings**: source `type` and knowledge `category` accept any non-empty value (conventional values kept as `KNOWN_*` constants); `ColumnSchema`/`DataSource` allow extra fields (ADR-0004, E5c)
+- Docs overhauled for public plugin release: corrected install commands and repo naming (`insight-blueprint-skills`), added Quickstart and status/review guidance
+- PyPI distribution renamed to **`insight-blueprint-lineage`** to avoid colliding with the upstream `insight-blueprint` (MCP) package; the import name stays `insight_blueprint`. Install the optional lineage library with `uv add insight-blueprint-lineage`
+
+### Removed
+
+- MCP server, REST API, WebUI, and SQLite (E1–E4) — replaced by skills + YAML + `validate.py`
+- `batch-analysis` skill and its harness (token / run-history / manifest / crash-recovery), superseded by Claude Code auto mode (E3.5, E5a)
+- Pre-fork `.spec-workflow/specs/` design documents and the orphaned `_templates/` package (superseded by `docs/design/` + `docs/adr/`)
+
 ## [0.6.0] - 2026-06-16
 
 ### Added
@@ -30,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- New skill `/premortem` — pre-flight risk evaluation with approval token issuance (#117)
+- New skill `/premortem` — pre-flight risk evaluation with approval token issuance (#117) — _the approval token was removed in E5a; `/premortem` is now report-only (see [Unreleased])_
 - `spec-workflow` MCP server registered in `.mcp.json` (#118)
 
 ### Changed
@@ -136,12 +158,12 @@ Version bumps and maintenance releases. See git history for details:
 - YAML direct edit resilience (extra field preservation + corrupt file isolation)
 - SQLite FTS5 full-text search index
 
-[unreleased]: https://github.com/etoyama/insight-blueprint/compare/v0.6.0...HEAD
-[0.6.0]: https://github.com/etoyama/insight-blueprint/compare/v0.5.1...v0.6.0
-[0.5.1]: https://github.com/etoyama/insight-blueprint/compare/v0.5.0...v0.5.1
-[0.5.0]: https://github.com/etoyama/insight-blueprint/compare/v0.4.4...v0.5.0
-[0.4.1]: https://github.com/etoyama/insight-blueprint/compare/v0.4.0...v0.4.1
-[0.4.0]: https://github.com/etoyama/insight-blueprint/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/etoyama/insight-blueprint/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/etoyama/insight-blueprint/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/etoyama/insight-blueprint/releases/tag/v0.1.0
+[unreleased]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.5.1...v0.6.0
+[0.5.1]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.4.4...v0.5.0
+[0.4.1]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/etoyama/insight-blueprint-skills/releases/tag/v0.1.0

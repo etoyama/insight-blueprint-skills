@@ -95,9 +95,9 @@ _registry.py → Service Locator（cli.py で配線、server.py/web.py で参照
 ## Deployment & Distribution
 
 - **Target Platform**: ローカルマシン（macOS / Linux）
-- **Distribution**: PyPI パッケージ（`pip install insight-blueprint`）
-- **Installation**: `uv add insight-blueprint` or `pip install insight-blueprint`
-- **Entry point**: `insight-blueprint` CLI コマンド
+- **Distribution**: Claude Code plugin（marketplace 経由）+ optional な lineage ライブラリ `insight-blueprint-lineage`（PyPI）
+- **Installation**: `/plugin marketplace add etoyama/insight-blueprint-skills` → `/plugin install insight-blueprint@insight-blueprint-marketplace`; lineage は `uv add insight-blueprint-lineage`
+- **Entry point**: Claude Code の skills（`/analysis-*` 等）。専用 CLI は無い
 
 ## Technical Requirements & Constraints
 
