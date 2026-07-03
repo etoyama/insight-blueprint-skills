@@ -92,9 +92,9 @@ sequenceDiagram
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| Story 9.1 env + bin + hook 同梱 + SKILL 書換 | ✓ (INSIGHT_BASE_DIR / test_validate_hook パス / test_skill_structure) | ✓ (notebook contract test) | ✓（simulate: cd repo + INSIGHT_BASE_DIR + wrapper で別プロジェクトに読み書き）／実 `/plugin install` はユーザー |
+| Story 9.1 env + bin + hook 同梱 + SKILL 書換 | ✓ (`INSIGHT_BASE_DIR`: design_io + catalog_io / premortem config 解決 / hook fail-closed / `test_validate_hook` パス) | ✓ (`test_bin_wrappers.py`: wrapper が foreign cwd から `${CLAUDE_PROJECT_DIR}/.insight` に書き・PLUGIN_ROOT 無しで loud fail / notebook contract) | ✓（committed bin wrapper 統合テストが installed-form の seam を担保）／実 `/plugin install` はユーザー操作 |
 
-完了時に ✓。最終 E2E（CLAUDE_PLUGIN_ROOT/PROJECT_DIR/bin-on-PATH の実挙動）は実 install でのみ確定＝ユーザー操作。
+完了時に ✓。**Epic 09 team-review（PR #39）を受けて修正済み**: premortem CLI の config 解決を `INSIGHT_BASE_DIR`/`--base-dir` 対応（旧: 相対ハードコードで plugin root 側を誤参照）、hook を design 文書について fail-closed 化、bin wrapper 統合テスト新設。最終 E2E（bin-on-PATH の実挙動）は実 install でのみ最終確定＝ユーザー操作。当初マトリクスは `test_skill_structure`/notebook contract を AC3/AC4 の証跡と誤記していたが、実カバレッジ（`test_bin_wrappers.py`）に置換した。
 
 ## Story Timeline
 
@@ -102,3 +102,6 @@ sequenceDiagram
 - 2026-07-03 — Story 9.1 完了: env 対応、bin/ ラッパー3種、全 SKILL コマンド書換、notebook 実行形、hook 同梱
   （hooks/hooks.json + 移設）、docs/ADR、framing init 廃止。installed 形を simulate 検証。pytest 全緑。
   → マージ後 0.7.1 patch release。
+- 2026-07-04 — team-review（PR #39）修正: premortem CLI を `INSIGHT_BASE_DIR`/`--base-dir` 対応（blocker）、
+  hook を design 文書 fail-closed 化、`test_bin_wrappers.py` + catalog_io/premortem env テスト新設、
+  typecheck パスを `hooks/` に更新＋空 `.claude/hooks/` 削除、README 依存ストーリー精緻化。pytest 375 全緑。

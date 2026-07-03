@@ -47,6 +47,28 @@ def _create(insight: Path, **over: object) -> dict:
 _BAD_IDS = ["../evil", "a/b", "..", "x/../y", "", "with space"]
 
 
+class TestBaseDirEnv:
+    """DEFAULT_BASE_DIR honors INSIGHT_BASE_DIR (set by the bin/ wrappers, Epic 09)."""
+
+    def test_env_overrides_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import importlib
+
+        monkeypatch.setenv("INSIGHT_BASE_DIR", "/tmp/ib-env/.insight")
+        mod = importlib.reload(catalog_io)
+        try:
+            assert str(mod.DEFAULT_BASE_DIR) == "/tmp/ib-env/.insight"
+        finally:
+            monkeypatch.delenv("INSIGHT_BASE_DIR", raising=False)
+            importlib.reload(mod)
+
+    def test_default_is_dot_insight(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import importlib
+
+        monkeypatch.delenv("INSIGHT_BASE_DIR", raising=False)
+        mod = importlib.reload(catalog_io)
+        assert str(mod.DEFAULT_BASE_DIR) == ".insight"
+
+
 class TestIdValidation:
     """source_id is interpolated into paths — reject traversal on read/update too."""
 

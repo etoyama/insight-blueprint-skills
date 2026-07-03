@@ -292,7 +292,7 @@ which validates the move against `VALID_TRANSITIONS` in `validate.py`. Illegal m
 the `design_io` helper, not hand-written. `design_io` owns id generation, timestamps,
 `referenced_knowledge` merge, and validation (`validate.py`). A `*_hypothesis.yaml`
 written via the Write/Edit tool is additionally guarded by the pre-write hook
-(`.claude/hooks/validate-design.py`), which calls the same `validate.py` — so schema
+(`hooks/validate-design.py`), which calls the same `validate.py` — so schema
 and state-transition rules hold on either path.
 
 **Direct read is always OK** — use Read tool / glob / cat freely for analysis.

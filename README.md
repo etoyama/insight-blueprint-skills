@@ -62,17 +62,20 @@ claude --plugin-dir ./insight-blueprint-skills
 alias claude-ib='claude --plugin-dir /path/to/insight-blueprint-skills'
 ```
 
-### Optional: Python package (for lineage)
+### Optional: Python package (only for hand-written lineage)
 
-For data-lineage tracking with `tracked_pipe` in your notebooks/scripts, install the
-`insight-blueprint-lineage` package (the import name stays `insight_blueprint`):
+**You do not need to install anything for the skills to work.** The plugin is
+self-contained: its bundled uv environment provides `insight_blueprint` (models,
+validation, lineage) and `/analysis-notebook` runs marimo/pandas through that same
+environment (`--extra notebook`). See [ADR-0006](docs/adr/0006-plugin-execution-model.md).
+
+Install the `insight-blueprint-lineage` package **only** if you want to import
+`tracked_pipe` directly in your own notebooks/scripts (i.e. lineage tracking outside
+`/analysis-notebook`). The import name stays `insight_blueprint`:
 
 ```bash
 uv add insight-blueprint-lineage
 ```
-
-This is optional but recommended for analysis-pipeline transparency. The skills themselves
-work without it.
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
@@ -169,7 +172,7 @@ echo '{"entries": [
   {"key": "pop-null-pre-2019", "title": "population null before 2019",
    "content": "population is null before 2019; start time series at 2019.",
    "category": "caution", "importance": "high", "affects_columns": ["population"]}
-]}' | uv run python -m skills._shared.catalog_io add-knowledge --id <source_id>
+]}' | catalog_io add-knowledge --id <source_id>
 ```
 
 `category` is an open string (conventional values: `methodology` / `caution` / `definition` /
