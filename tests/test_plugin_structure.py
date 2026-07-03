@@ -194,9 +194,9 @@ class TestDataLineagePrerequisites:
         assert "Prerequisites Check" in content
 
     def test_data_lineage_mentions_uv_add(self) -> None:
-        """data-lineage/SKILL.md mentions 'uv add insight-blueprint'."""
+        """data-lineage/SKILL.md mentions 'uv add insight-blueprint-lineage'."""
         content = (REPO_ROOT / "skills" / "data-lineage" / "SKILL.md").read_text()
-        assert "uv add insight-blueprint" in content
+        assert "uv add insight-blueprint-lineage" in content
 
 
 # ===========================================================================
@@ -222,7 +222,8 @@ class TestReadme:
         content_lower = content.lower()
         assert "optional" in content_lower
         assert (
-            "python package" in content_lower or "uv add insight-blueprint" in content
+            "python package" in content_lower
+            or "uv add insight-blueprint-lineage" in content
         )
 
     def test_readme_has_no_mcp_server_framing(self) -> None:

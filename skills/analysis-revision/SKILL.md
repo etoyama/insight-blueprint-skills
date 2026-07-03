@@ -54,7 +54,8 @@ and helps address each comment through interactive dialogue.
 6. If no qualifying batch found (all batches have `status_after != "revision_requested"`):
    ```
    revision_requested に対応するレビューバッチが見つからない。
-   レビューが WebUI 経由で提出されているか確認しよう。
+   レビューは design_io append_review_batch で {id}_reviews.yaml に記録される。
+   レビューバッチが記録済みか確認しよう。
    ```
    Exit.
 
@@ -182,7 +183,7 @@ For each item in the tracking file where `status == "open"`:
 4. **Suggest next steps**:
    - "大きな方針変更が必要なら /analysis-design {design_id} で再設計"
    - "調査してから修正したい場合は /analysis-journal {design_id} で記録しながら進めよう"
-   - "in_review に戻した後、レビュアーは WebUI で再レビューできる"
+   - "in_review に戻した後、レビュアーは design_io append_review_batch で新しいレビューバッチを記録して再レビューできる"
 
 ## design_io Reference
 
@@ -218,10 +219,10 @@ in analysis-design SKILL.md).
 
 | From | To | When |
 |------|-----|------|
-| WebUI review (revision_requested) | -> /analysis-revision | Review submitted with revision_requested status |
+| review batch (design_io append_review_batch) | -> /analysis-revision | Review recorded with revision_requested status |
 | /analysis-revision | -> /analysis-design | Major redesign needed: "大きな方針変更が必要なら /analysis-design {id}" |
 | /analysis-revision | -> /analysis-journal | Need to investigate before fixing: "調査してから修正するなら /analysis-journal {id}" |
-| /analysis-revision | -> (WebUI review) | After transition to in_review, reviewer re-reviews in WebUI |
+| /analysis-revision | -> (reviewer) | After transition to in_review, the reviewer records a new review batch via design_io |
 
 ## Language Rules
 - Follow project CLAUDE.md language settings. Default to Japanese if no setting.

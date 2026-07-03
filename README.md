@@ -132,9 +132,10 @@ There is no web UI — everything is skill-driven over `.insight/` YAML:
 - **Status transitions** are performed by the skills, not by hand. `/analysis-reflection`
   proposes the terminal transition (e.g. `analyzing → supported`) and runs it via
   `design_io transition`; the pre-write hook enforces the allowed transitions.
-- **Review** runs through `/analysis-revision`: review batches are stored under
-  `.insight/designs/{id}_revision.yaml` (via `design_io append_review_batch` / `list-reviews`),
-  and the skill walks you through addressing each comment and re-submitting for review.
+- **Review** is recorded as review batches under `.insight/designs/{id}_reviews.yaml`
+  (written by `design_io append_review_batch`, read by `list-reviews`). `/analysis-revision`
+  then walks you through addressing each comment — tracking per-comment progress in
+  `.insight/designs/{id}_revision.yaml` — and re-submitting for review.
 
 ## Capturing knowledge (`/knowledge-extract`)
 
