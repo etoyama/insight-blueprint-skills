@@ -71,10 +71,15 @@ flowchart TD
 
 ### Skill invocation model
 
-全 skill は frontmatter で `disable-model-invocation: true`（明示 `/command` 起動）であり、
-分析ワークフローは **human-in-the-loop の対話型**。skill 間は自動連鎖せず、各ステップはユーザーが
-明示的に起動する。**「auto mode」は無人の自動連鎖を意味しない**（無人バッチ実行は batch-analysis の
-役割で、E3.5 で意図的に撤去された）。Claude Code が対話の中で各 skill・notebook 生成を支援する。
+**既定は明示・対話型**: 全 skill は frontmatter で `disable-model-invocation: true`（明示 `/command` 起動）
+であり、各ステップはユーザーが明示的に起動する。無人バッチ実行は batch-analysis の役割で E3.5 で意図的に撤去された。
+
+**selective autonomy（`/analysis-auto`）**: driver スキル `/analysis-auto` を起動したときに限り、Claude が
+既存 skill を順に駆動し、**本物の判断（KEEP ゲート）でだけ停止**する guided autopilot になる。invocation フラグは
+大域変更しない（自律性はこの run に限定）。KEEP ゲート = 仮説確定 / データソース登録 / premortem `HARD_BLOCK`・`HIGH` /
+notebook の非 allowlist・宣言 source 以外の外部通信 / 結論。notebook の auto 実行は premortem 通過 + allowlist +
+宣言 source 限定のときのみ。詳細は [ADR-0005](adr/0005-selective-autonomous-chaining.md)。**「auto mode」は無人ではなく
+guided autopilot**（対話型・オプトイン）である。
 
 ## 代表シーケンス
 
@@ -111,10 +116,11 @@ sequenceDiagram
 
 ### 分析ワークフロー全体（対話型・明示起動）
 
-end-to-end の代表フロー。**各 `/skill` はユーザーが明示的に起動する**（skill 間は自動連鎖しない）。
-**notebook の生成・実行は `/analysis-notebook` が design の `methodology` から 8-cell 契約に沿って行う**
-（詳細は `skills/analysis-notebook/references/notebook-contract.md`）。`/analysis-review`・`/premortem`・
-`/data-lineage` は任意ステップ。
+end-to-end の代表フロー。既定では**各 `/skill` はユーザーが明示的に起動する**が、`/analysis-auto`
+（guided autopilot）を使うと driver がこの同じ経路を駆動し KEEP ゲートでだけ停止する（上記 «Skill invocation model» /
+[ADR-0005](adr/0005-selective-autonomous-chaining.md)）。**notebook の生成・実行は `/analysis-notebook` が design の
+`methodology` から 8-cell 契約に沿って行う**（`skills/analysis-notebook/references/notebook-contract.md`）。
+`/analysis-review`・`/premortem`・`/data-lineage` は任意ステップ。
 
 ```mermaid
 sequenceDiagram
@@ -152,6 +158,63 @@ sequenceDiagram
     opt 任意: 知見の永続化
         U->>CC: /knowledge-extract（source-scoped 知見を catalog へ）
     end
+```
+
+### guided autopilot（`/analysis-auto`）の詳細シーケンス
+
+初学者が最初に使う想定の入口。driver `/analysis-auto` が各 skill を駆動し、**KEEP ゲート**（太字の
+`U に確認`）でだけ停止する。個々の skill・CLI・premortem・notebook 実行との詳細インタラクションを示す
+（[ADR-0005](adr/0005-selective-autonomous-chaining.md)）。
+
+```mermaid
+sequenceDiagram
+    actor U as 分析者
+    participant D as /analysis-auto (driver)
+    participant IO as design_io / catalog_io
+    participant H as pre-write hook + validate.py
+    participant PM as /premortem
+    participant NB as /analysis-notebook + marimo
+    participant FS as .insight/
+
+    U->>D: /analysis-auto {theme|design id}
+    D->>IO: get / list（現在地を判定）
+    IO-->>D: design（無 / in_review / analyzing / results）
+
+    Note over D,FS: framing（仮説が無ければ）
+    D->>IO: .insight/ 探索（catalog / 既存 design / 知識）
+    D->>U: 【KEEP】Data Map 提示 + Direction Dialogue（方向を一緒に決める）
+    U-->>D: 方向を合意 → Framing Brief
+    Note over D,FS: design（AUTO: Framing Brief から各フィールドを自動ドラフト）
+    D->>U: 【KEEP】設計全体を確認（仮説 + 手法 + metrics + explanatory の因果役割 + intent）
+    U-->>D: 確定（or 修正）
+    D->>IO: design_io create（*_hypothesis.yaml, status=in_review）
+    IO->>H: PreToolUse 検証
+    H-->>FS: 合格→書込（exit 0）
+
+    opt 任意: レビュー
+        D->>IO: design_io review-batch
+        D->>U: 【KEEP】可否（revision_requested なら /analysis-revision へ）
+    end
+
+    Note over D,PM: pre-flight ゲート（高コストデータアクセス前）
+    D->>IO: design_io get + catalog_io get-schema + package_allowlist.yaml
+    D->>PM: source_checks_map を渡して premortem 実行
+    alt HARD_BLOCK / HIGH（未登録/allowlist違反/location/高コスト）
+        PM-->>D: risk
+        D->>U: 【KEEP】停止しリスク提示（/catalog-register or コスト判断）
+    else LOW / MEDIUM
+        D->>IO: design_io transition（in_review→analyzing, AUTO）
+        D->>NB: 8-cell notebook 生成（.insight/notebooks/{id}.py）
+        alt 宣言 source + allowlist + ローカル計算
+            D->>NB: marimo export script → python（AUTO 実行）
+            NB->>FS: verdict.json / lineage/{id}.mmd
+            D->>FS: verdict→journal（observe/evidence/question, AUTO 記録）
+        else 非allowlist / 宣言 source 以外の外部通信 / 副作用
+            D->>U: 【KEEP】実行前に承認要求
+        end
+        D->>U: 【KEEP】/analysis-reflection で結論（conclude/refine/branch）+ terminal 遷移
+    end
+    D-->>U: 実行サマリ（自動進行した所 / 停止した所 / 最終状態）
 ```
 
 ## Epic マッピング

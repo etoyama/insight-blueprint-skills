@@ -18,6 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 ALL_SKILLS = [
     "analysis-design",
     "analysis-framing",
+    "analysis-auto",
     "analysis-notebook",
     "analysis-journal",
     "analysis-reflection",

@@ -91,6 +91,7 @@ plan did not anticipate, do **one** of the following before the PR can merge:
 | `/knowledge-extract` | Claude-native extraction of source-scoped domain knowledge (since E5b) |
 | `/data-lineage` | Track transformations, export lineage diagrams (Mermaid) |
 | `/premortem` | Report-only pre-flight cost/risk evaluation (self-standing since E5a) |
+| `/analysis-auto` | Guided autopilot: drives the pipeline, pausing at genuine gates (ADR-0005) |
 
 `batch-analysis` was removed in E3.5 (superseded by Claude Code auto mode).
 `premortem` is now report-only (token/run-history removed in E5a). `knowledge-extract`

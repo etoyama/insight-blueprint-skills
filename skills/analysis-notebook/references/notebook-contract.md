@@ -74,6 +74,12 @@ SQL as literals or parameters (never build executable statements by string-inter
 keep credentials in environment variables (do not inline a `connection` password into the notebook),
 and remember generated `.py` / `_flat.py` / `.html` artifacts may embed data — gitignore if sensitive.
 
+The generated notebook must stay within the **declared source(s) + `.insight/rules/package_allowlist.yaml`
+packages + local computation**. That allowlist is the dependency / external-communication boundary:
+anything outside it (a non-listed import, network egress beyond the declared source, other side-effects)
+is a decision gate — under `/analysis-auto` (guided autopilot) it pauses for the user rather than
+auto-running (see ADR-0005).
+
 ## Execution (non-interactive)
 
 marimo 0.21 has **no `export session`** (and `export ipynb` needs `nbformat`). Execute by converting
