@@ -111,12 +111,20 @@ Skills support both English and Japanese trigger phrases.
     ↓
 /analysis-design (create hypothesis)
     ↓ ↘ /analysis-review (review the design) → /analysis-revision (address comments)
+    ↓ ↘ /premortem (optional: cost/risk report before expensive data access)
+[ Claude Code generates & runs a marimo notebook from the design's methodology ]  ← ad-hoc, no skill
+    ↓ ↘ /data-lineage (optional: track transformations, export Mermaid)
 /analysis-journal (record reasoning during analysis)
     ↓
 /analysis-reflection (reflect → conclude or branch)
     ↓ ↗ back to /analysis-framing (new direction needed)
 /knowledge-extract (save reusable, source-scoped knowledge)
 ```
+
+Skills are **invoked explicitly** (`/command`) and the flow is **interactive** — Claude Code
+does not auto-chain skills, and the actual analysis (generating and running the marimo
+notebook from the design's `methodology`) is an ad-hoc Claude Code step, not a dedicated skill.
+"Auto mode" means Claude assists step by step, not an unattended pipeline.
 
 `/catalog-register` sits upstream (register a data source before you frame against it);
 `/knowledge-extract` sits downstream (harvest what a concluded analysis taught you about that source).

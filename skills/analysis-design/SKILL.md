@@ -6,6 +6,7 @@ description: |
   Use when the user wants to create, manage, or review analysis designs.
   Triggers: "create analysis design", "hypothesis document", "new hypothesis",
   "分析設計を作りたい", "仮説を立てたい", "新しい仮説", "仮説ドキュメント".
+disable-model-invocation: true
 argument-hint: "[theme_id]"
 ---
 

@@ -64,40 +64,91 @@ flowchart TD
 - **pre-write hook（`.claude/hooks/validate-design.py`）** — `.insight/designs/*_hypothesis.yaml` への
   Write/Edit/MultiEdit を `validate.py` で検証し、違反を `exit 2` でブロックする I/O 殻。
 - **Skill-managed YAML（`.insight/`）** — designs / journals / catalog / knowledge。skill が直接管理する。
-- **marimo + lineage（`src/insight_blueprint/lineage/`, `_templates/`）** — notebook 契約と加工の透明性・追跡。
+- **marimo + lineage（`src/insight_blueprint/lineage/`）** — 分析 notebook は同梱テンプレートでなく、
+  Claude Code が設計書の `methodology` から **ad-hoc に生成・実行**する（専用 skill は持たない）。
+  `lineage`（`tracked_pipe` / Mermaid export）は optional な `insight-blueprint-lineage` パッケージで、
+  notebook 内の加工を追跡・可視化する。
 
-## 代表シーケンス（分析ワークフロー）
+### Skill invocation model
 
-分析者とモジュールの時系列インタラクション。仮説設計 → 検証ガード → 分析 → 記録の代表フローを示す
-（個別 Epic の詳細シーケンスは各 Epic Design Doc 側）。
+全 skill は frontmatter で `disable-model-invocation: true`（明示 `/command` 起動）であり、
+分析ワークフローは **human-in-the-loop の対話型**。skill 間は自動連鎖せず、各ステップはユーザーが
+明示的に起動する。**「auto mode」は無人の自動連鎖を意味しない**（無人バッチ実行は batch-analysis の
+役割で、E3.5 で意図的に撤去された）。Claude Code が対話の中で各 skill・notebook 生成を支援する。
+
+## 代表シーケンス
+
+### 設計書の書込と検証ガード
+
+`*_hypothesis.yaml` を書くときの検証フロー。skill は `/command` で明示起動され、書込は
+pre-write hook が捕捉して検証する。
 
 ```mermaid
 sequenceDiagram
     actor U as 分析者
     participant CC as Claude Code
-    participant SK as Skill layer
+    participant SK as Skill (/analysis-design)
     participant H as pre-write hook
     participant V as validate.py
     participant FS as .insight/（YAML）
-    participant MO as marimo + lineage
 
-    U->>CC: 「仮説を設計したい」等の依頼
-    CC->>SK: skill 起動（例: /analysis-design）
+    U->>CC: /analysis-design（明示起動）
+    CC->>SK: skill 実行
+    SK->>U: 確認ゲート + 必須項目インタビュー
+    U-->>SK: 回答
     SK->>CC: hypothesis.yaml を Write/Edit
     Note over CC,H: *_hypothesis.yaml への書込は PreToolUse で捕捉
     CC->>H: PreToolUse(tool_input)
-    H->>FS: read_yaml(現ファイル)
-    FS-->>H: current_data | None
-    H->>V: validate_design_change(new_data, current_data)
-    V-->>H: list[str]（空=合格）
+    H->>V: validate_design_change(new, current)
     alt 違反
         H-->>CC: exit 2（書込ブロック）
         CC-->>U: 検証エラーを提示
     else 合格
-        H-->>FS: 書込実行（exit 0）
-        SK->>MO: 分析 notebook 実行・lineage 記録
-        SK->>FS: journal / reflection を更新
-        SK-->>U: 結果・次アクションを提示
+        H-->>FS: 書込実行（exit 0, status=in_review）
+        SK-->>U: 次アクションを提示
+    end
+```
+
+### 分析ワークフロー全体（対話型・明示起動）
+
+end-to-end の代表フロー。**各 `/skill` はユーザーが明示的に起動する**（skill 間は自動連鎖しない）。
+**notebook の生成・実行は skill ではなく Claude Code が methodology から ad-hoc に行う**ステップである
+（図中の破線 Note）。`/analysis-review`・`/premortem`・`/data-lineage` は任意ステップ。
+
+```mermaid
+sequenceDiagram
+    actor U as 分析者
+    participant CC as Claude Code
+    participant IO as design_io / catalog_io
+    participant MO as marimo + lineage
+    participant FS as .insight/（YAML）
+
+    Note over U,FS: 各ステップは /command で明示起動（対話型・human-in-the-loop）
+    U->>CC: /analysis-framing → /analysis-design
+    CC->>IO: create（hypothesis.yaml, status=in_review）
+    IO->>FS: atomic write
+
+    opt 任意: レビュー / 事前リスク評価
+        U->>CC: /analysis-review
+        CC->>IO: review-batch（コメント記録 + status 遷移）
+        U->>CC: /analysis-revision（revision_requested を消化）
+        U->>CC: /premortem（高コストアクセス前の risk report, report-only）
+    end
+
+    Note over U,MO: 分析実行: Claude Code が methodology から<br/>marimo notebook を ad-hoc 生成・実行（専用 skill なし）
+    U->>CC: 「notebook を作って分析して」
+    CC->>MO: notebook 生成・実行（optional: tracked_pipe で lineage 追跡）
+    MO-->>CC: 結果・図表
+
+    U->>CC: /analysis-journal（観察・証拠・決定を記録）
+    CC->>IO: journal 追記
+    opt 任意: lineage 図出力
+        U->>CC: /data-lineage（Mermaid export）
+    end
+    U->>CC: /analysis-reflection（結論 → status 遷移）
+    CC->>IO: transition（supported / rejected / inconclusive）
+    opt 任意: 知見の永続化
+        U->>CC: /knowledge-extract（source-scoped 知見を catalog へ）
     end
 ```
 
