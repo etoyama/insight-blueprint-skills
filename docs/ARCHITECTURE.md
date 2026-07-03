@@ -180,8 +180,11 @@ sequenceDiagram
     D->>IO: get / list（現在地を判定）
     IO-->>D: design（無 / in_review / analyzing / results）
 
-    Note over D,FS: framing→design（AUTO: framing brief から自動ドラフト）
-    D->>IO: catalog_io search / get（利用可能データ探索）
+    Note over D,FS: framing（仮説が無ければ）
+    D->>IO: .insight/ 探索（catalog / 既存 design / 知識）
+    D->>U: 【KEEP】Data Map 提示 + Direction Dialogue（方向を一緒に決める）
+    U-->>D: 方向を合意 → Framing Brief
+    Note over D,FS: design（AUTO: Framing Brief から自動ドラフト）
     D->>U: 【KEEP】ドラフトした仮説を確定？
     U-->>D: 確定（or 修正）
     D->>IO: design_io create（*_hypothesis.yaml, status=in_review）

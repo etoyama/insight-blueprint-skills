@@ -36,7 +36,7 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 
 | Step | KEEP — pause for the user | AUTO — proceed without asking |
 |------|---------------------------|-------------------------------|
-| framing | ambiguous theme → present directions | brief construction from context |
+| framing | **present the Data Map + candidate directions and settle the direction with the user** (Direction Dialogue) | agentic exploration of `.insight/`; Framing Brief construction once the direction is agreed |
 | design | **confirm the drafted hypothesis once** | auto-draft fields from the Framing Brief; Step-0 "proceed?" |
 | review (optional) | **the verdict** (revision_requested vs approve) | running the critique itself |
 | premortem | **result is `HARD_BLOCK`/`HIGH`** → stop, surface the risk | running premortem; `LOW`/`MEDIUM` |
@@ -64,19 +64,22 @@ If in doubt whether something is a genuine decision, **stop and ask** — bias t
 For each step, **follow that skill's SKILL.md** (do not duplicate its logic here) and apply the
 gate policy above:
 
-1. **framing/design** (if needed): run `/analysis-framing` then `/analysis-design`. Auto-draft the
-   design fields from the Framing Brief; **pause once** for the user to confirm the hypothesis before
-   `design_io create`.
-2. **review** (optional): if the user wants a review pass, run `/analysis-review`; **pause on the verdict**.
-3. **premortem**: always run `/premortem` before touching data. If `HARD_BLOCK`/`HIGH`, **stop** and
+1. **framing** (if no hypothesis yet): run `/analysis-framing` in full — explore `.insight/`, present the
+   **Data Map**, and **hold the Direction Dialogue with the user** (candidate directions, gaps, missing
+   data). Do not silently auto-pick the direction — this is where a beginner's intent gets elicited.
+   Settle the direction with the user, then produce the Framing Brief.
+2. **design**: run `/analysis-design`, auto-drafting fields from the agreed Framing Brief; **pause once**
+   for the user to confirm the hypothesis before `design_io create`.
+3. **review** (optional): if the user wants a review pass, run `/analysis-review`; **pause on the verdict**.
+4. **premortem**: always run `/premortem` before touching data. If `HARD_BLOCK`/`HIGH`, **stop** and
    surface the risk (unregistered source → offer /catalog-register; cost/allowlist/location → let the
    user decide). If `LOW`/`MEDIUM`, continue.
-4. **notebook**: run `/analysis-notebook`. Auto-run only when premortem cleared **and** the analysis is
+5. **notebook**: run `/analysis-notebook`. Auto-run only when premortem cleared **and** the analysis is
    confined to the declared source(s) + allowlisted packages (`.insight/rules/package_allowlist.yaml`) +
    local computation. If the methodology needs a non-allowlisted package, network egress beyond the
    declared source, or another side-effect, **stop** and get the user's go-ahead first.
-5. **journal**: the notebook step already records observe/evidence/question — no pause.
-6. **reflection**: run `/analysis-reflection`; **pause at the conclusion** (conclude/refine/branch) and
+6. **journal**: the notebook step already records observe/evidence/question — no pause.
+7. **reflection**: run `/analysis-reflection`; **pause at the conclusion** (conclude/refine/branch) and
    the terminal transition. This is where the run ends.
 
 ### Step 3: Summarize
