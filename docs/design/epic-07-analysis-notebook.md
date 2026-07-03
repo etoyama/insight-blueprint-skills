@@ -123,10 +123,12 @@ question、`{id}-E{nn}`）。生成物: `.insight/notebooks/{id}.py`（+ `_flat.
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| Story 7.1 skill + 契約 + 配線 | ✓ (test_skill_structure: 必須節 + 双方向整合) | — | ✓ (8-cell → export script → 実行 → verdict.json / lineage.mmd) |
+| Story 7.1 skill + 契約 + 配線 | ✓ (test_skill_structure: 必須節 + 双方向整合、test_plugin_structure: exist/frontmatter/version) | ✓ (tests/integration/test_analysis_notebook_contract.py) | ✓ (同上: 8-cell 参照 notebook → export script → 実行 → verdict.json / lineage.mmd) |
 | Story 7.2 docs + optional-extra | — | — | — |
 
-完了時に ✓。pytest 全緑が Epic PR レビューゲート。
+完了時に ✓。pytest 全緑が Epic PR レビューゲート。E2E は
+`tests/integration/test_analysis_notebook_contract.py`（`importorskip("marimo")` ガード、
+参照 notebook `tests/integration/fixtures/sample_notebook.py`）で裏付ける。
 
 ## Story Timeline
 

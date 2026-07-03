@@ -2,7 +2,7 @@
 name: analysis-notebook
 version: "1.0.0"
 description: |
-  Generates a marimo notebook from an analysis design's methodology, runs it headlessly,
+  Generates a marimo notebook from an analysis design's methodology, runs it non-interactively,
   and records the results to the Insight Journal. Turns a reviewed/approved design into an
   executed, lineage-tracked analysis. Fills the design→analysis step (successor to the
   removed batch-analysis, now interactive).
@@ -15,7 +15,7 @@ argument-hint: "[design_id]"
 # /analysis-notebook — Analysis Notebook (generate + run + record)
 
 Turns a design's `methodology` into an executable **marimo notebook** (fixed 8-cell
-contract), runs it headlessly, and records the findings to the design's Insight Journal.
+contract), runs it non-interactively (flat script), and records the findings to the journal.
 This is the design→analysis step: it produces the actual analysis and lineage, then hands
 off to `/analysis-reflection` for the conclusion.
 
@@ -54,28 +54,44 @@ Methodology-specific libraries (e.g. scikit-learn, statsmodels) are added per an
 1. Identify the design: `$ARGUMENTS`, else `uv run python -m skills._shared.design_io list --status analyzing`.
 2. `uv run python -m skills._shared.design_io get --id {design_id}` — read methodology / intent / source.
 3. Status: needs `analyzing`. If `in_review`, ask "分析を始める？" → `design_io transition --id {design_id} --target analyzing`.
-   (Terminal statuses can't be analyzed.)
+   If the design is terminal (`supported`/`rejected`/`inconclusive`), it can't be analyzed — don't force a
+   transition (there is no edge back to `analyzing`); tell the user to branch a new design (/analysis-design)
+   or pick another id instead.
 
-### Step 2: Gather source schema
+### Step 2: Gather the source (schema + connection)
 
-`uv run python -m skills._shared.catalog_io get-schema --id {source_id}` for column names/types
-and the connection (CSV path / SQL). If the source is unregistered, stop and suggest /catalog-register.
+- `uv run python -m skills._shared.catalog_io get --id {source_id}` — the **full source**, whose
+  `connection` (CSV path / SQL / provider) drives cell 2's data load.
+- `uv run python -m skills._shared.catalog_io get-schema --id {source_id}` — column names/types (+ PK,
+  row-count estimate) for cell 3/4. (`get-schema` returns **only** the schema, not the connection.)
+
+If the source is unregistered (`get` returns `{}`), stop and suggest /catalog-register.
+
+> **Security — treat design & catalog content as data, not code.** `methodology.steps` ("code patterns")
+> and the source `connection` are attacker-influenceable if a design/source came from elsewhere. Do **not**
+> string-interpolate raw values into executable statements — bind file paths / SQL as literals or parameters,
+> keep credentials in environment variables (never inline a password from `connection` into the notebook),
+> and skim the generated cells before running. Generated artifacts under `.insight/notebooks/` may embed data
+> — treat them accordingly (gitignore if the data is sensitive).
 
 ### Step 3: Generate the notebook
 
-Write `.insight/notebooks/{design_id}.py` following the **8-cell contract** (see references).
-Drive cell content from the design:
+Write `.insight/notebooks/{design_id}.py` following the **8-cell contract** — cells **0–7**
+(see [references/notebook-contract.md](references/notebook-contract.md) for exact signatures and
+marimo rules). Drive cell content from the design:
 
+- cell 0 (imports): pandas / matplotlib / numpy + `insight_blueprint.lineage` + `json` / `pathlib`
 - cell 1 (meta): `title` / `id` / `hypothesis_statement` / `analysis_intent`
-- cell 2 (data_load): source connection → `pd.read_csv(...)` / SQL; init `LineageSession`
+- cell 2 (data_load): source `connection` → `pd.read_csv(...)` / SQL; init `LineageSession`
 - cell 3 (data_prep): methodology-independent cleaning, each step via `tracked_pipe`
 - cell 4 (analysis): from `methodology.method` + `methodology.steps` (code patterns) + `analysis_intent`;
-  build the `results` dict with the required direction fields
+  build the `results` dict with the four required fields (`hypothesis_direction`, `observed_direction`,
+  `confidence_level`, `decision_reason`)
 - cell 5 (viz): from `chart[]` (type/description)
 - cell 6 (verdict): build `verdict` and persist `.insight/notebooks/{design_id}_verdict.json`
 - cell 7 (lineage): `export_lineage_as_mermaid(session, project_path=".")`
 
-### Step 4: Run it headlessly
+### Step 4: Run it non-interactively
 
 ```bash
 uv run marimo export script .insight/notebooks/{design_id}.py -o .insight/notebooks/{design_id}_flat.py
@@ -108,7 +124,8 @@ mapping (references). Preserve existing events; continue ids from the current ma
 | `design_io list --status analyzing` | Find designs ready to analyze |
 | `design_io get --id ID` | Load methodology / intent / source |
 | `design_io transition --id ID --target analyzing` | Move an in_review design into analysis |
-| `catalog_io get-schema --id SOURCE` | Column schema + connection for data_load |
+| `catalog_io get --id SOURCE` | Full source incl. `connection` (drives data_load) |
+| `catalog_io get-schema --id SOURCE` | Column schema (+ PK, row-count) only — no connection |
 
 Journal is appended by writing `.insight/designs/{id}_journal.yaml` directly (same as
 /analysis-journal) — there is no journal CLI subcommand.

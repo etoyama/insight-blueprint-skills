@@ -60,11 +60,24 @@ Path(".insight/notebooks/{id}_verdict.json").write_text(
 5. `import marimo as mo` lives only in cell 2; other cells receive `mo` as a parameter.
 6. Cell functions return a tuple: `return (df_clean,)`, not `return df_clean`.
 7. A cell's parameters declare its dependencies — marimo builds the cell DAG from them.
+8. **Define each shared variable exactly once across the whole notebook.** marimo forbids a
+   variable being defined (assigned at top level) in more than one cell — do not reassign another
+   cell's output (`raw_df`, `df_clean`, `results`, `verdict`, `session`, …). Use fresh names or
+   `_`-prefixed locals for intermediates. This is the most common cause of a notebook failing to run.
+9. Import a name in one cell and pass it downstream via parameters; do not re-import the same module
+   in multiple cells (mirrors rule 5 for `mo`).
 
-## Execution (headless)
+### Security — inputs are data, not code
 
-marimo 0.21 has **no `export session`**. Execute the notebook headlessly by converting to a
-flat script and running it (no `nbformat` needed):
+`methodology.steps` and the source `connection` may be attacker-influenceable. Bind file paths /
+SQL as literals or parameters (never build executable statements by string-interpolating raw values),
+keep credentials in environment variables (do not inline a `connection` password into the notebook),
+and remember generated `.py` / `_flat.py` / `.html` artifacts may embed data — gitignore if sensitive.
+
+## Execution (non-interactive)
+
+marimo 0.21 has **no `export session`** (and `export ipynb` needs `nbformat`). Execute by converting
+to a flat script and running it — no extra deps:
 
 ```bash
 uv run marimo export script .insight/notebooks/{id}.py -o .insight/notebooks/{id}_flat.py
@@ -75,7 +88,8 @@ Running the flat script executes cells in dependency order, so the verdict cell 
 `.insight/notebooks/{id}_verdict.json` and the lineage cell writes `.insight/lineage/{id}.mmd`.
 The skill then reads `{id}_verdict.json` to build journal events.
 
-Optional human-viewable artifact (runs the notebook too):
+Optional human-viewable artifact — note this **re-executes** the notebook (rewriting verdict.json /
+lineage.mmd), so run it after the script run, not instead of it:
 
 ```bash
 uv run marimo export html .insight/notebooks/{id}.py -o .insight/notebooks/{id}.html
@@ -91,6 +105,7 @@ Map the verdict into `observe` / `evidence` / `question` events appended to
   - confirmatory: `supported`→`supports`, `rejected`→`contradicts`, `inconclusive`→(question)
   - exploratory: matches prediction→`supports`, opposes→`contradicts`, unclear→(question)
   - `confidence_level == "ambiguous"` → emit a `question` instead of `evidence`.
-- `question` — each item of `open_questions`.
+- `question` — each item of `open_questions`. When `inconclusive`/`ambiguous` above already routed the
+  evidence to a question, do not duplicate it — emit one question per distinct point.
 
 New event ids continue from the existing max in the journal (`{id}-E{nn}`).

@@ -112,8 +112,9 @@ sequenceDiagram
 ### 分析ワークフロー全体（対話型・明示起動）
 
 end-to-end の代表フロー。**各 `/skill` はユーザーが明示的に起動する**（skill 間は自動連鎖しない）。
-**notebook の生成・実行は skill ではなく Claude Code が methodology から ad-hoc に行う**ステップである
-（図中の破線 Note）。`/analysis-review`・`/premortem`・`/data-lineage` は任意ステップ。
+**notebook の生成・実行は `/analysis-notebook` が design の `methodology` から 8-cell 契約に沿って行う**
+（詳細は `skills/analysis-notebook/references/notebook-contract.md`）。`/analysis-review`・`/premortem`・
+`/data-lineage` は任意ステップ。
 
 ```mermaid
 sequenceDiagram
