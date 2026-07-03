@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-07-04
+
+Patch release fixing the **installed-plugin execution model** (Epic 09). v0.7.0's skill
+commands assumed the dev-repo layout, so the published plugin did not actually run when
+installed into a separate project. This release makes the plugin self-contained.
+
+### Fixed
+
+- **The plugin now runs when installed into a user's own project** (Epic 09). Previously
+  skill commands assumed the repo cwd and an externally-installed `insight_blueprint`, so an
+  installed plugin failed with `ModuleNotFoundError: No module named 'skills'`. Commands now
+  go through `bin/` wrappers that execute in the plugin's own uv environment and target the
+  user project's `.insight/` via `INSIGHT_BASE_DIR`; the validation hook ships with the plugin
+  (`hooks/validate-design.py` + `hooks/hooks.json`) and enforces integrity in the user's
+  project too ([ADR-0006](docs/adr/0006-plugin-execution-model.md))
+- `/premortem` now reads `.insight/config.yaml` from the user's project (honors
+  `INSIGHT_BASE_DIR` / `--base-dir`) instead of silently falling back to default risk
+  thresholds
+- Pre-write hook now fails **closed** for design documents on an internal error (was
+  fail-open), so an unvalidated `*_hypothesis.yaml` write cannot slip through
+- Fixed a mermaid parse error in the Epic 09 design doc sequence diagram
+
+### Changed
+
+- Notebook execution borrows the plugin's uv environment
+  (`uv run --project ${CLAUDE_PLUGIN_ROOT} --extra notebook`) while keeping the user's cwd, so
+  generated artifacts land in the user project's `.insight/notebooks/` and `.insight/lineage/`
+- Docs: ARCHITECTURE gains a dev-vs-installed directory-layout section (path-resolution
+  mechanisms); README dependency story clarified (the plugin is self-contained;
+  `insight-blueprint-lineage` is needed only for hand-written `tracked_pipe` lineage);
+  `analysis-design` hook path and README knowledge example corrected
+
 ## [0.7.0] - 2026-07-03
 
 Lightweight migration (Epics E1–E8): the platform is now a Claude Code skills plugin —
