@@ -44,6 +44,28 @@ def _create(insight: Path, **over: object) -> dict:
     return catalog_io.create_source(**kwargs)
 
 
+_BAD_IDS = ["../evil", "a/b", "..", "x/../y", "", "with space"]
+
+
+class TestIdValidation:
+    """source_id is interpolated into paths — reject traversal on read/update too."""
+
+    @pytest.mark.parametrize("bad", _BAD_IDS)
+    def test_read_update_reject_bad_id(self, insight: Path, bad: str) -> None:
+        with pytest.raises(ValueError):
+            catalog_io.load_source(bad, base_dir=insight)
+        with pytest.raises(ValueError):
+            catalog_io.get_schema(bad, base_dir=insight)
+        with pytest.raises(ValueError):
+            catalog_io.load_knowledge(bad, base_dir=insight)
+        with pytest.raises(ValueError):
+            catalog_io.get_knowledge(bad, base_dir=insight)
+        with pytest.raises(ValueError):
+            catalog_io.update_source(bad, {}, base_dir=insight)
+        with pytest.raises(ValueError):
+            catalog_io.add_knowledge(bad, [], base_dir=insight)
+
+
 # ---------------------------------------------------------------------------
 # create / load / list
 # ---------------------------------------------------------------------------

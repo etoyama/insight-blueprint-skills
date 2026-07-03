@@ -37,6 +37,17 @@ DEFAULT_BASE_DIR = Path(".insight")
 
 THEME_ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9]*$")
 
+# Server-independent id check (mirrors catalog_io.SAFE_ID_PATTERN). A design_id is
+# interpolated into `{id}_*.yaml` paths, so reject anything that could escape the
+# designs directory (path separators, `..`, etc.).
+SAFE_ID_PATTERN = re.compile(r"[a-zA-Z0-9_-]+")
+
+
+def _validate_id(design_id: str) -> None:
+    if not SAFE_ID_PATTERN.fullmatch(design_id):
+        raise ValueError(f"Invalid design_id '{design_id}': must match [a-zA-Z0-9_-]+")
+
+
 # Sections a review comment may target. Kept here (not imported from the
 # to-be-removed core/reviews.py) so design_io is server-independent.
 ALLOWED_TARGET_SECTIONS: set[str] = {
@@ -81,6 +92,7 @@ def read_yaml(path: Path) -> dict:
 
 def load_design(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
     """Load ``{design_id}_hypothesis.yaml`` as a dict; {} if absent."""
+    _validate_id(design_id)
     return read_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml")
 
 
@@ -244,12 +256,14 @@ def transition_status(
 
 
 def load_journal(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
+    _validate_id(design_id)
     return read_yaml(_designs_dir(base_dir) / f"{design_id}_journal.yaml")
 
 
 def write_journal(
     design_id: str, data: dict, base_dir: Path = DEFAULT_BASE_DIR
 ) -> None:
+    _validate_id(design_id)
     atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_journal.yaml", data)
 
 
@@ -317,6 +331,7 @@ def list_review_batches(
     design_id: str, base_dir: Path = DEFAULT_BASE_DIR
 ) -> list[dict]:
     """List review batches (newest first) from ``{id}_reviews.yaml``."""
+    _validate_id(design_id)
     existing = read_yaml(_designs_dir(base_dir) / f"{design_id}_reviews.yaml")
     batches = existing.get("batches", [])
     return sorted(batches, key=lambda b: b.get("created_at", ""), reverse=True)
