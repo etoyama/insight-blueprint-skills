@@ -30,7 +30,7 @@ identify remaining gaps, or decide to branch.
 
 ### Step 1: Load Design + Journal
 
-1. `uv run python -m skills._shared.design_io get --id {design_id}` — load design (JSON)
+1. `design_io get --id {design_id}` — load design (JSON)
 2. Read `.insight/designs/{design_id}_journal.yaml` using Read tool — load journal
 3. If no journal exists: "ジャーナルがない。まず /analysis-journal {id} で推論過程を記録してから振り返ろう" → exit
 
@@ -110,7 +110,7 @@ If user chooses to conclude:
 
 2. Suggest status transition (via design_io transition):
    "結論が出た。ステータスを変更する？"
-   - supported: `uv run python -m skills._shared.design_io transition --id {design_id} --target supported`
+   - supported: `design_io transition --id {design_id} --target supported`
    - rejected: `... --target rejected`
    - inconclusive: `... --target inconclusive`
 
@@ -132,12 +132,12 @@ If user chooses to conclude:
 If user chooses to refine:
 
 1. Record `hypothesize` event with the refined hypothesis in journal
-2. Optionally refine the design: `echo '{"hypothesis_statement": "<refined>"}' | uv run python -m skills._shared.design_io update --id {design_id}`
+2. Optionally refine the design: `echo '{"hypothesis_statement": "<refined>"}' | design_io update --id {design_id}`
 3. Suggest: "/analysis-journal {id} で追加調査を続けよう"
 
 ## design_io Reference
 
-`python -m skills._shared.design_io <command>` (from project root):
+`design_io <command>` (available on PATH via the plugin):
 
 | Command | Used for |
 |---------|----------|

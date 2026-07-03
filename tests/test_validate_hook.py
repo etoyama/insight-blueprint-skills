@@ -19,7 +19,7 @@ import pytest
 from ruamel.yaml import YAML
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-HOOK_PATH = REPO_ROOT / ".claude" / "hooks" / "validate-design.py"
+HOOK_PATH = REPO_ROOT / "hooks" / "validate-design.py"
 
 
 def load_hook_module() -> ModuleType:

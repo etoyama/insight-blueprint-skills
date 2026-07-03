@@ -109,14 +109,17 @@ Skills directly manage YAML outside any server's schema scope:
 
 ## 8. Validation Guard
 
-Design-document integrity is enforced by `.claude/hooks/validate-design.py`, which
+Design-document integrity is enforced by `hooks/validate-design.py`, which
 calls `src/insight_blueprint/validate.py` on every write to a `*_hypothesis.yaml`:
 
 - **Schema** — `AnalysisDesign` Pydantic model (notably `DesignStatus`, non-empty `Methodology.method`)
 - **State transition** — `VALID_TRANSITIONS` guard (e.g. `in_review → supported`)
 
-Violations block the write (`exit 2`). The hook is the only enforcement point once
-the MCP server is gone, so it is tracked and shared, not a personal setting.
+Violations block the write (`exit 2`). The hook **ships with the plugin** via
+`hooks/hooks.json` (running through the plugin's own uv env), so it enforces integrity in a
+user's installed project too — not just this repo. (This repo's `.claude/settings.json`
+wires the same script for local development.) Skills that write via `design_io` also
+self-validate on the Python path, so both the tool-write and helper-write paths are guarded.
 
 ## 9. Code Review
 

@@ -51,7 +51,7 @@ If in doubt whether something is a genuine decision, **stop and ask** — bias t
 
 ### Step 1: Locate the current position
 
-- `uv run python -m skills._shared.design_io get --id {id}` (if an id was given) or
+- `design_io get --id {id}` (if an id was given) or
   `design_io list` to see existing designs. Decide the entry point:
   - no hypothesis yet → start at framing/design;
   - design exists in `in_review`/`analyzing` → continue from review/premortem/notebook;

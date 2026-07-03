@@ -24,9 +24,11 @@ import sys
 from io import StringIO
 from pathlib import Path
 
-# Make the insight_blueprint package importable even when the hook is run with a
-# bare ``python3`` (settings.json uses ``uv run`` where it is already installed).
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+# Make the insight_blueprint package importable when run with a bare ``python3``.
+# Normally it runs via ``uv run --project`` (plugin) / ``uv run`` (dev) where it is
+# already installed; this src fallback is belt-and-suspenders.
+# Script lives at <plugin_root>/hooks/validate-design.py → src is one level up.
+_REPO_ROOT = Path(__file__).resolve().parents[1]
 _SRC = _REPO_ROOT / "src"
 if _SRC.is_dir() and str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))

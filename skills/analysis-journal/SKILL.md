@@ -36,10 +36,10 @@ Based on Narrative Scaffolding (Huang+ IUI 2026) and Sensemaking Loop
 ### Step 1: Identify Target Design
 
 If `$ARGUMENTS` contains a design ID (e.g., "FP-H01"), use it directly.
-Otherwise, run `uv run python -m skills._shared.design_io list --status analyzing`
+Otherwise, run `design_io list --status analyzing`
 and ask the user to select.
 
-Validate with `uv run python -m skills._shared.design_io get --id {design_id}`
+Validate with `design_io get --id {design_id}`
 (empty `{}` output means not found).
 
 ### Step 2: Load or Initialize Journal
@@ -103,7 +103,7 @@ When user wants to branch to an alternative hypothesis:
      "parent_id": "<source_design_id>",
      "theme_id": "<source.theme_id>",
      "methodology": {"method": "<carry over or ask>"}
-   }' | uv run python -m skills._shared.design_io create
+   }' | design_io create
    ```
 3. Record `branch` event in source journal:
    ```yaml
@@ -204,7 +204,7 @@ open_questions = [q for q in questions if q.id not in resolved_ids]
 
 ## design_io Reference
 
-`python -m skills._shared.design_io <command>` (from project root):
+`design_io <command>` (available on PATH via the plugin):
 
 | Command | Used for |
 |---------|----------|

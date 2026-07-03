@@ -45,7 +45,7 @@ flowchart TD
     subgraph plugin["insight-blueprint-skills（plugin）"]
         skills["Skill layer（skills/）<br/>分析能力・拡張点"]
         validate["validate.py<br/>純関数検証（単一正本）"]
-        hook["pre-write hook<br/>.claude/hooks/validate-design.py"]
+        hook["pre-write hook<br/>hooks/validate-design.py（plugin 同梱）"]
         marimo["marimo + lineage<br/>notebook 契約・加工透明性"]
     end
     yaml["(.insight/) designs / journals / catalog / knowledge — YAML"]
@@ -61,8 +61,10 @@ flowchart TD
 - **Skill layer（`skills/`）** — すべての分析能力。拡張点。設計書・journal・catalog 等の YAML を直接 read/write する。
 - **Validation library（`src/insight_blueprint/validate.py`）** — I/O を持たない純関数。
   Pydantic スキーマ検証（`AnalysisDesign`）+ 状態遷移ガード（`VALID_TRANSITIONS`）。設計書整合性の単一正本。
-- **pre-write hook（`.claude/hooks/validate-design.py`）** — `.insight/designs/*_hypothesis.yaml` への
-  Write/Edit/MultiEdit を `validate.py` で検証し、違反を `exit 2` でブロックする I/O 殻。
+- **pre-write hook（`hooks/validate-design.py`, plugin 同梱 `hooks/hooks.json`）** —
+  `.insight/designs/*_hypothesis.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
+  にかけ、違反を `exit 2` でブロックする I/O 殻。利用者の install 先プロジェクトでも効く
+  （この repo の `.claude/settings.json` は dev 用に同スクリプトを配線）。
 - **Skill-managed YAML（`.insight/`）** — designs / journals / catalog / knowledge。skill が直接管理する。
 - **marimo + lineage（`src/insight_blueprint/lineage/`）** — 分析 notebook は同梱テンプレートでなく、
   **`/analysis-notebook` skill が設計書の `methodology` から 8-cell 契約に沿って生成・実行**する

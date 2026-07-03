@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+# Wrapper so the catalog skills can call catalog_io from an INSTALLED plugin.
+# See bin/design_io and docs/adr/0006-plugin-execution-model.md.
+set -e
+
+proj="${CLAUDE_PROJECT_DIR:-$PWD}"
+cd "${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT is not set (run via the installed plugin)}"
+
+export INSIGHT_BASE_DIR="$proj/.insight"
+if [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then
+  export UV_PROJECT_ENVIRONMENT="$CLAUDE_PLUGIN_DATA/uv-venv"
+fi
+
+mkdir -p "$INSIGHT_BASE_DIR/designs" \
+         "$INSIGHT_BASE_DIR/catalog/sources" \
+         "$INSIGHT_BASE_DIR/catalog/knowledge"
+
+exec uv run python -m skills._shared.catalog_io "$@"

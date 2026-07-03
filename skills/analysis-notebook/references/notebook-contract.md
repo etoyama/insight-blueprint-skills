@@ -86,8 +86,11 @@ marimo 0.21 has **no `export session`** (and `export ipynb` needs `nbformat`). E
 to a flat script and running it — no extra deps:
 
 ```bash
-uv run marimo export script .insight/notebooks/{id}.py -o .insight/notebooks/{id}_flat.py
-uv run python .insight/notebooks/{id}_flat.py
+# Run from the project directory; the plugin env supplies marimo + insight_blueprint.
+uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
+  marimo export script .insight/notebooks/{id}.py -o .insight/notebooks/{id}_flat.py
+uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
+  python .insight/notebooks/{id}_flat.py
 ```
 
 Running the flat script executes cells in dependency order, so the verdict cell writes
@@ -98,7 +101,8 @@ Optional human-viewable artifact — note this **re-executes** the notebook (rew
 lineage.mmd), so run it after the script run, not instead of it:
 
 ```bash
-uv run marimo export html .insight/notebooks/{id}.py -o .insight/notebooks/{id}.html
+uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
+  marimo export html .insight/notebooks/{id}.py -o .insight/notebooks/{id}.html
 ```
 
 ## verdict → journal events

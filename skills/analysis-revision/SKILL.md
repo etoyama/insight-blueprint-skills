@@ -33,10 +33,10 @@ and helps address each comment through interactive dialogue.
 ### Phase 1: Situation Assessment
 
 1. If `$ARGUMENTS` contains a design ID (e.g., "FP-H01"), use it directly.
-   Otherwise, run `uv run python -m skills._shared.design_io list --status revision_requested`
+   Otherwise, run `design_io list --status revision_requested`
    and ask the user to select.
 
-2. `uv run python -m skills._shared.design_io get --id {design_id}` -- load the design (JSON).
+2. `design_io get --id {design_id}` -- load the design (JSON).
 
 3. **Status check**: If `status != "revision_requested"`, display an error and exit:
    ```
@@ -44,7 +44,7 @@ and helps address each comment through interactive dialogue.
    レビューで修正依頼が出た後にこのスキルを使おう。
    ```
 
-4. `uv run python -m skills._shared.design_io list-reviews --id {design_id}` -- get all review batches (JSON, newest first).
+4. `design_io list-reviews --id {design_id}` -- get all review batches (JSON, newest first).
 
 5. **Batch selection** (important -- do NOT just pick the newest batch overall):
    - Filter the returned batches to only those where `status_after == "revision_requested"`
@@ -146,7 +146,7 @@ For each item in the tracking file where `status == "open"`:
 
 3. **If fix**:
    - Discuss the fix with the user
-   - Apply the change: `echo '{<changed fields>}' | uv run python -m skills._shared.design_io update --id {design_id}`
+   - Apply the change: `echo '{<changed fields>}' | design_io update --id {design_id}`
    - Update tracking item: `status: "addressed"`, `addressed_at: "{now_jst}"`
 
 4. **If skip (wontfix)**:
@@ -178,7 +178,7 @@ For each item in the tracking file where `status == "open"`:
    ```
    全コメントへの対応が完了した。in_review に戻してレビュアーに再確認を依頼する？
    ```
-   If yes: `uv run python -m skills._shared.design_io transition --id {design_id} --target in_review`
+   If yes: `design_io transition --id {design_id} --target in_review`
 
 4. **Suggest next steps**:
    - "大きな方針変更が必要なら /analysis-design {design_id} で再設計"
@@ -187,7 +187,7 @@ For each item in the tracking file where `status == "open"`:
 
 ## design_io Reference
 
-`python -m skills._shared.design_io <command>` (from project root):
+`design_io <command>` (available on PATH via the plugin):
 
 | Command | Used for |
 |---------|----------|

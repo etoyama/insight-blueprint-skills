@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -33,7 +34,7 @@ from insight_blueprint.models.catalog import (
 from insight_blueprint.models.common import now_jst
 from skills._shared._atomic import atomic_write_yaml
 
-DEFAULT_BASE_DIR = Path(".insight")
+DEFAULT_BASE_DIR = Path(os.environ.get("INSIGHT_BASE_DIR", ".insight"))
 
 # Server-independent id check (mirrors core/validation.SAFE_ID_PATTERN).
 SAFE_ID_PATTERN = re.compile(r"[a-zA-Z0-9_-]+")

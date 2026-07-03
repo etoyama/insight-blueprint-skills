@@ -16,15 +16,15 @@ Guides Claude through exploring a data source's structure and registering it
 in the insight-blueprint catalog by writing `.insight/catalog/` YAML directly via
 the `catalog_io` helper (no MCP server).
 
-**catalog_io CLI** (run from project root; JSON payload on stdin, JSON on stdout;
-`--base-dir` defaults to `.insight`):
+**catalog_io CLI** (provided on PATH by the plugin; JSON payload on stdin, JSON on stdout;
+targets your project's `.insight/`):
 
 ```bash
-echo '<source-json>' | uv run python -m skills._shared.catalog_io create
-echo '<changes-json>' | uv run python -m skills._shared.catalog_io update --id <source_id>
-uv run python -m skills._shared.catalog_io get --id <source_id>
-uv run python -m skills._shared.catalog_io get-schema --id <source_id>
-uv run python -m skills._shared.catalog_io search --query "<q>" [--type csv] [--tags a,b]
+echo '<source-json>' | catalog_io create
+echo '<changes-json>' | catalog_io update --id <source_id>
+catalog_io get --id <source_id>
+catalog_io get-schema --id <source_id>
+catalog_io search --query "<q>" [--type csv] [--tags a,b]
 ```
 
 > Note: the create payload uses `id` (not `source_id`) for the source identifier.
@@ -113,7 +113,7 @@ echo '{
     {"name": "age", "type": "integer", "description": "Respondent age", "range": {"min": 18, "max": 99}}
   ],
   "tags": ["survey", "local"]
-}' | uv run python -m skills._shared.catalog_io create
+}' | catalog_io create
 ```
 
 ---
@@ -160,7 +160,7 @@ echo '{
   "tags": ["government", "population", "demographics"],
   "primary_key": ["prefecture_code", "year"],
   "row_count_estimate": 2350
-}' | uv run python -m skills._shared.catalog_io create
+}' | catalog_io create
 ```
 
 ---
@@ -212,14 +212,14 @@ echo '{
   "tags": ["sales", "bigquery"],
   "primary_key": ["sale_date", "product_id"],
   "row_count_estimate": 500000
-}' | uv run python -m skills._shared.catalog_io create
+}' | catalog_io create
 ```
 
 ---
 
 ## catalog_io Reference
 
-`python -m skills._shared.catalog_io <command>` (from project root):
+`catalog_io <command>` (available on PATH via the plugin):
 
 | Command | Purpose | Input |
 |---------|---------|-------|

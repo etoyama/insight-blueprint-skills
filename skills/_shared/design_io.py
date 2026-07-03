@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 import uuid
@@ -33,7 +34,7 @@ from insight_blueprint.validate import (
 )
 from skills._shared._atomic import atomic_write_yaml
 
-DEFAULT_BASE_DIR = Path(".insight")
+DEFAULT_BASE_DIR = Path(os.environ.get("INSIGHT_BASE_DIR", ".insight"))
 
 THEME_ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9]*$")
 

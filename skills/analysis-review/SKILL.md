@@ -45,8 +45,8 @@ job of `/analysis-reflection`.
 ### Step 1: Load the design
 
 1. Identify the design: use `$ARGUMENTS` if given, else
-   `uv run python -m skills._shared.design_io list --status in_review` and let the user pick.
-2. `uv run python -m skills._shared.design_io get --id {design_id}` — load content + status.
+   `design_io list --status in_review` and let the user pick.
+2. `design_io get --id {design_id}` — load content + status.
 
 ### Step 2: Ensure the design is reviewable
 
@@ -110,7 +110,7 @@ echo '{
     {"comment": "General note not tied to a section."}
   ],
   "reviewer": "analyst"
-}' | uv run python -m skills._shared.design_io review-batch --id {design_id} --status revision_requested
+}' | design_io review-batch --id {design_id} --status revision_requested
 ```
 
 Use `--status analyzing` to approve instead. Show the returned batch to the user.
@@ -122,7 +122,7 @@ Use `--status analyzing` to approve instead. Show the returned batch to the user
 
 ## design_io Reference
 
-`python -m skills._shared.design_io <command>` (from project root):
+`design_io <command>` (available on PATH via the plugin):
 
 | Command | Used for |
 |---------|----------|

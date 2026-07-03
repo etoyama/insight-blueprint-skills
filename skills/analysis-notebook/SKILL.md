@@ -36,23 +36,27 @@ in **[references/notebook-contract.md](references/notebook-contract.md)** — re
 
 ## Prerequisites
 
-The notebook imports pandas / matplotlib / numpy + `insight_blueprint.lineage`, and is run
-with marimo. Check them and offer to install the `notebook` extra if missing:
+The notebook (pandas / matplotlib / numpy + `insight_blueprint.lineage`, run with marimo) uses
+the **plugin's own environment** via the `notebook` extra — the user does not install anything.
+All notebook commands run **from your project directory** (so `.insight/…` and the notebook's
+relative outputs land there) but use the plugin's env with `uv run --project "${CLAUDE_PLUGIN_ROOT}"
+--extra notebook …`. Sanity-check once:
 
 ```bash
-uv run python -c "import marimo, pandas, matplotlib, numpy, insight_blueprint.lineage" \
-  || uv add "insight-blueprint-lineage[notebook]"
+uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
+  python -c "import marimo, pandas, matplotlib, numpy, insight_blueprint.lineage"
 ```
 
-Methodology-specific libraries (e.g. scikit-learn, statsmodels) are added per analysis with
-`uv add <pkg>`. The source must be registered in the catalog (else -> /catalog-register).
+Methodology-specific libraries (scikit-learn, statsmodels, …) that aren't in the `notebook`
+extra go in `.insight/rules/package_allowlist.yaml` and are added to the plugin env as needed.
+The source must be registered in the catalog (else -> /catalog-register).
 
 ## Workflow
 
 ### Step 1: Load the design & check status
 
-1. Identify the design: `$ARGUMENTS`, else `uv run python -m skills._shared.design_io list --status analyzing`.
-2. `uv run python -m skills._shared.design_io get --id {design_id}` — read methodology / intent / source.
+1. Identify the design: `$ARGUMENTS`, else `design_io list --status analyzing`.
+2. `design_io get --id {design_id}` — read methodology / intent / source.
 3. Status: needs `analyzing`. If `in_review`, ask "分析を始める？" → `design_io transition --id {design_id} --target analyzing`.
    If the design is terminal (`supported`/`rejected`/`inconclusive`), it can't be analyzed — don't force a
    transition (there is no edge back to `analyzing`); tell the user to branch a new design (/analysis-design)
@@ -60,9 +64,9 @@ Methodology-specific libraries (e.g. scikit-learn, statsmodels) are added per an
 
 ### Step 2: Gather the source (schema + connection)
 
-- `uv run python -m skills._shared.catalog_io get --id {source_id}` — the **full source**, whose
+- `catalog_io get --id {source_id}` — the **full source**, whose
   `connection` (CSV path / SQL / provider) drives cell 2's data load.
-- `uv run python -m skills._shared.catalog_io get-schema --id {source_id}` — column names/types (+ PK,
+- `catalog_io get-schema --id {source_id}` — column names/types (+ PK,
   row-count estimate) for cell 3/4. (`get-schema` returns **only** the schema, not the connection.)
 
 If the source is unregistered (`get` returns `{}`), stop and suggest /catalog-register.
@@ -93,13 +97,17 @@ marimo rules). Drive cell content from the design:
 
 ### Step 4: Run it non-interactively
 
+Run from your project directory (relative paths resolve there); the plugin env supplies marimo:
+
 ```bash
-uv run marimo export script .insight/notebooks/{design_id}.py -o .insight/notebooks/{design_id}_flat.py
-uv run python .insight/notebooks/{design_id}_flat.py
+uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
+  marimo export script .insight/notebooks/{design_id}.py -o .insight/notebooks/{design_id}_flat.py
+uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
+  python .insight/notebooks/{design_id}_flat.py
 ```
 
 This executes the cells, writing `{design_id}_verdict.json` and `.insight/lineage/{design_id}.mmd`.
-(Optional viewable report: `uv run marimo export html .insight/notebooks/{design_id}.py -o .insight/notebooks/{design_id}.html`.)
+(Optional viewable report: `uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook marimo export html .insight/notebooks/{design_id}.py -o .insight/notebooks/{design_id}.html`.)
 
 ### Step 5: Fix-and-rerun on failure
 
