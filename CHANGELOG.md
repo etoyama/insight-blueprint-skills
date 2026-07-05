@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-07-06
+
+Patch release closing the two open Epic 09 follow-ups (#40 / #41). Both are hardening /
+documentation of the plugin **execution model** shipped in 0.7.1 — no change to the PyPI
+wheel's runtime (`src/insight_blueprint` is untouched); the surface is the `bin/` wrappers,
+`skills/_shared`, and docs. Source review: `.claude/docs/research/review-security-epic09.md`
+(M1/M3/L3) and `review-docs-epic09.md` (F5).
+
+### Security
+
+- **`INSIGHT_BASE_DIR` / `--base-dir` is now a validated trust boundary (M1, #40).** The base
+  flows into every read/write path, so it is no longer trusted verbatim. Two layers: the
+  `bin/` wrappers (`design_io` / `catalog_io` / `premortem`) assert `${CLAUDE_PROJECT_DIR}`
+  exists and that the base ends in `/.insight` **before** `mkdir` (folding in the L1 finding),
+  and `design_io` / `catalog_io` gain `_resolve_base_dir()` which rejects an absurd anchor
+  (filesystem root, the bare `$HOME`) after `Path.resolve()`. The `.insight` suffix is enforced
+  only in the wrapper, so `--base-dir` back-compat and tmp-dir tests are unaffected.
+- **Host-variable trust boundaries documented in [ADR-0006](docs/adr/0006-plugin-execution-model.md)
+  (M3 / L3, #40).** Claude Code hooks take a single command string (no `argv` form), so
+  `CLAUDE_PLUGIN_ROOT` is assumed a Claude-Code-controlled path free of shell metacharacters;
+  `UV_PROJECT_ENVIRONMENT` ← `CLAUDE_PLUGIN_DATA` is recorded as the same class of host-var trust.
+
+### Documentation
+
+- **`package_allowlist.yaml` format & package-supply procedure (F5, #41).** New "Package
+  allowlist — format & supplying packages" section in
+  `skills/analysis-notebook/references/notebook-contract.md`: the file is an `import-name →
+  pip-name` map (a boundary declaration, not an installer), and an allowlisted package outside
+  the `notebook` extra is supplied to a run ephemerally with `--with <pip-name>` (no mutation of
+  the read-only plugin env). `analysis-notebook/SKILL.md` and `docs/ARCHITECTURE.md` now link it.
+
 ## [0.7.2] - 2026-07-06
 
 Patch release enriching the **upstream dialogue** of `/analysis-auto`. The autopilot's

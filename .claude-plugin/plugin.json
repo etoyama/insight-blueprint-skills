@@ -1,6 +1,6 @@
 {
   "name": "insight-blueprint",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Hypothesis-driven EDA skills plugin with an embedded validation library",
   "author": { "name": "Eto Yama" },
   "repository": "https://github.com/etoyama/insight-blueprint-skills",
