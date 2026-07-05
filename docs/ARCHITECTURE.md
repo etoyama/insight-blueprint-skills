@@ -78,10 +78,13 @@ flowchart TD
 
 **selective autonomy（`/analysis-auto`）**: driver スキル `/analysis-auto` を起動したときに限り、Claude が
 既存 skill を順に駆動し、**本物の判断（KEEP ゲート）でだけ停止**する guided autopilot になる。invocation フラグは
-大域変更しない（自律性はこの run に限定）。KEEP ゲート = 仮説確定 / データソース登録 / premortem `HARD_BLOCK`・`HIGH` /
-notebook の非 allowlist・宣言 source 以外の外部通信 / 結論。notebook の auto 実行は premortem 通過 + allowlist +
-宣言 source 限定のときのみ。詳細は [ADR-0005](adr/0005-selective-autonomous-chaining.md)。**「auto mode」は無人ではなく
-guided autopilot**（対話型・オプトイン）である。
+大域変更しない（自律性はこの run に限定）。KEEP ゲート = design の4ビート（① 仮説 / ② 手法・指標・explanatory の
+因果役割・intent / ③ データ取得プラン（SQL クエリ or file+columns+filter, premortem の前） / ④ chart 仕様）/
+データソース登録 / premortem `HARD_BLOCK`・`HIGH` / notebook の非 allowlist・宣言 source 以外の外部通信 / 結論。
+notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定のときのみ。詳細は
+[ADR-0005](adr/0005-selective-autonomous-chaining.md)（selective autonomy）と
+[ADR-0007](adr/0007-upstream-judgment-gates.md)（上流の判断ゲートを design ビートに分割 + data-extraction 新設）。
+**「auto mode」は無人ではなく guided autopilot**（対話型・オプトイン）である。
 
 ## ディレクトリ構成（開発時 vs plugin 利用時）
 
@@ -270,9 +273,12 @@ sequenceDiagram
     D->>IO: .insight/ 探索（catalog / 既存 design / 知識）
     D->>U: 【KEEP】Data Map 提示 + Direction Dialogue（方向を一緒に決める）
     U-->>D: 方向を合意 → Framing Brief
-    Note over D,FS: design（AUTO: Framing Brief から各フィールドを自動ドラフト）
-    D->>U: 【KEEP】設計全体を確認（仮説 + 手法 + metrics + explanatory の因果役割 + intent）
-    U-->>D: 確定（or 修正）
+    Note over D,FS: design（AUTO: Framing Brief から各フィールドを自動ドラフト → KEEP: ①〜④を順に確認）
+    D->>U: 【KEEP①】仮説（statement + background）を確認
+    D->>U: 【KEEP②】手法 + metrics + explanatory の因果役割 + intent を確認
+    D->>U: 【KEEP③】データ取得プラン（SQL クエリ / file+columns+filter + 想定行数）を確認
+    D->>U: 【KEEP④】chart[] 仕様（intent/type/x/y）を確認
+    U-->>D: 各ビートで確定（or 修正）
     D->>IO: design_io create（*_hypothesis.yaml, status=in_review）
     IO->>H: PreToolUse 検証
     H-->>FS: 合格→書込（exit 0）

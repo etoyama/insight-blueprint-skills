@@ -86,7 +86,12 @@ marimo rules). Drive cell content from the design:
 
 - cell 0 (imports): pandas / matplotlib / numpy + `insight_blueprint.lineage` + `json` / `pathlib`
 - cell 1 (meta): `title` / `id` / `hypothesis_statement` / `analysis_intent`
-- cell 2 (data_load): source `connection` → `pd.read_csv(...)` / SQL; init `LineageSession`
+- cell 2 (data_load): source `connection` → `pd.read_csv(...)` / SQL; init `LineageSession`.
+  If the design carries a confirmed extraction query in `methodology.steps` (drafted in
+  `/analysis-design` Step 2.6, and — under `/analysis-auto` — already confirmed by the user at the
+  data-extraction gate), cell 2 must **use that query as-is**; do not silently substitute a different
+  table, column set, or filter. A genuinely required change means re-confirming with the user, not an
+  unannounced divergence.
 - cell 3 (data_prep): methodology-independent cleaning, each step via `tracked_pipe`
 - cell 4 (analysis): from `methodology.method` + `methodology.steps` (code patterns) + `analysis_intent`;
   build the `results` dict with the four required fields (`hypothesis_direction`, `observed_direction`,
