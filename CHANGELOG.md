@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-07-06
+
+Patch release enriching the **upstream dialogue** of `/analysis-auto`. The autopilot's
+single design gate collapsed at runtime into one direction pick, so methodology, figures,
+and — most importantly — the actual data pull (SQL) never got a confirmation seat. This
+release re-weights the gates toward the epistemic decision points
+([ADR-0007](docs/adr/0007-upstream-judgment-gates.md), amending
+[ADR-0005](docs/adr/0005-selective-autonomous-chaining.md)).
+
+### Added
+
+- **`data-extraction` gate** (design beat ③, before premortem) — `/analysis-auto` now
+  surfaces the actual data-acquisition plan for confirmation before `design_io create`: the
+  SQL query text drafted into `methodology.steps` for SQL sources, or the file + columns +
+  filter for CSV/others, plus expected grain and a rough row/scan estimate. premortem then
+  estimates cost against the **confirmed** query. A source with no SQL still gets this beat.
+
+### Changed
+
+- **`/analysis-auto` design confirmation is now four ordered beats** — hypothesis → methodology
+  (+ metrics + explanatory roles + intent) → data-extraction → charts — each presented as its
+  own AskUserQuestion so the user can adjust it, instead of a single "confirm the whole design".
+  Downstream steps (premortem / notebook / journal) stay AUTO; friction is added only upstream.
+- `/analysis-design` Step 2.6 and `/analysis-notebook` cell 2 note that, under the driver, the
+  auto-drafted extraction query is user-confirmed and must not silently diverge at execution.
+
 ## [0.7.1] - 2026-07-04
 
 Patch release fixing the **installed-plugin execution model** (Epic 09). v0.7.0's skill
