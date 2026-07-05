@@ -80,6 +80,47 @@ anything outside it (a non-listed import, network egress beyond the declared sou
 is a decision gate — under `/analysis-auto` (guided autopilot) it pauses for the user rather than
 auto-running (see ADR-0005).
 
+## Package allowlist — format & supplying packages
+
+`.insight/rules/package_allowlist.yaml` declares which packages a generated notebook may import. It is
+a **boundary declaration, not an installer** — writing a package here does not make it importable; it
+states that the package is *permitted*. Two separate steps: declare (below), then supply (below).
+
+### Format
+
+```yaml
+# .insight/rules/package_allowlist.yaml
+allowed_packages:
+  pandas: pandas          # import name : pip distribution name
+  sklearn: scikit-learn   # differ when the import name ≠ the PyPI name
+  statsmodels: statsmodels
+```
+
+`allowed_packages` is a map of **import name → pip distribution name**. The **import name** (left) is the
+boundary the notebook must respect — every top-level `import X` in the generated notebook must have `X`
+as a key here. The **pip name** (right) is what actually gets installed (they differ for e.g.
+`sklearn` / `scikit-learn`). Consumers: `/premortem` reads it for the `allowlist_ok` pre-flight check,
+and `/analysis-auto` treats an import outside it as a KEEP gate (pause) rather than auto-running.
+
+### Supplying an allowlisted package to the run
+
+The plugin env (`${CLAUDE_PLUGIN_ROOT}`) is a **read-only distributed artifact** — do not mutate it, and
+a plugin update would drop any in-place `uv add`. Baseline packages (pandas, matplotlib, numpy) ship in
+the `notebook` extra of the plugin's `pyproject.toml`. A methodology-specific package that is *in the
+allowlist but not in the extra* is supplied **ephemerally at run time** with `--with <pip-name>`, which
+layers it onto the run without touching the cached env:
+
+```bash
+# e.g. a notebook that imports sklearn (allowlisted as sklearn: scikit-learn)
+uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook --with scikit-learn \
+  marimo export script .insight/notebooks/{id}.py -o .insight/notebooks/{id}_flat.py
+uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook --with scikit-learn \
+  python .insight/notebooks/{id}_flat.py
+```
+
+Pass one `--with` per extra pip name (repeatable). Packages used by *every* analysis belong in the
+`notebook` extra of `pyproject.toml` instead (a repo change), not in per-run `--with`.
+
 ## Execution (non-interactive)
 
 marimo 0.21 has **no `export session`** (and `export ipynb` needs `nbformat`). Execute by converting

@@ -6,7 +6,15 @@ set -e
 proj="${CLAUDE_PROJECT_DIR:-$PWD}"
 cd "${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT is not set (run via the installed plugin)}"
 
+# Anchor the data base before it becomes a read root (defense in depth, ADR-0006 M1).
+# premortem is report-only (no mkdir), but the base still anchors what it reads.
+[ -d "$proj" ] || { echo "premortem: project dir '$proj' does not exist" >&2; exit 1; }
 export INSIGHT_BASE_DIR="$proj/.insight"
+case "$INSIGHT_BASE_DIR" in
+  */.insight) ;;
+  *) echo "premortem: refusing base '$INSIGHT_BASE_DIR' (must end in /.insight)" >&2; exit 1;;
+esac
+
 if [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then
   export UV_PROJECT_ENVIRONMENT="$CLAUDE_PLUGIN_DATA/uv-venv"
 fi

@@ -49,6 +49,32 @@ def _validate_id(design_id: str) -> None:
         raise ValueError(f"Invalid design_id '{design_id}': must match [a-zA-Z0-9_-]+")
 
 
+def _resolve_base_dir(base_dir: Path) -> Path:
+    """Normalize the I/O base and reject an absurd anchor (defense in depth).
+
+    ``INSIGHT_BASE_DIR`` / ``--base-dir`` flow verbatim into every read/write path, so an
+    attacker-influenceable value should not be trusted as-is. We only reject genuinely
+    absurd anchors (the filesystem root or the bare home dir) rather than enforcing a
+    ``.insight`` suffix — the bin wrapper owns that stricter check, and tests / --base-dir
+    back-compat legitimately use tmp dirs. Mirrors catalog_io._resolve_base_dir.
+    See docs/adr/0006-plugin-execution-model.md and review-security-epic09.md (M1).
+    """
+    resolved = base_dir.expanduser().resolve()
+    if resolved.parent == resolved:  # filesystem root, e.g. "/"
+        raise ValueError(
+            f"Invalid base_dir '{base_dir}': resolves to the filesystem root"
+        )
+    try:
+        home = Path.home().resolve()
+    except (RuntimeError, OSError):
+        home = None
+    if home is not None and resolved == home:
+        raise ValueError(
+            f"Invalid base_dir '{base_dir}': resolves to the home directory"
+        )
+    return resolved
+
+
 # Sections a review comment may target. Kept here (not imported from the
 # to-be-removed core/reviews.py) so design_io is server-independent.
 ALLOWED_TARGET_SECTIONS: set[str] = {
@@ -362,7 +388,7 @@ def _main(argv: list[str] | None = None) -> int:
     parser.add_argument("--target", default=None)
     parser.add_argument("--status", default=None)
     args = parser.parse_args(argv)
-    base = Path(args.base_dir)
+    base = _resolve_base_dir(Path(args.base_dir))
 
     payload: dict = {}
     if not sys.stdin.isatty():

@@ -133,7 +133,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 <あなたのプロジェクト>/.insight/          ← ${CLAUDE_PROJECT_DIR}/.insight
 ├── config.yaml                     # 任意: premortem 閾値など（無ければ既定値）
 ├── rules/
-│   └── package_allowlist.yaml      # 任意: notebook が使ってよいパッケージ許可リスト
+│   └── package_allowlist.yaml      # 任意: notebook が使ってよいパッケージ許可リスト（書式・供給手順は下記†）
 ├── designs/
 │   ├── {id}_hypothesis.yaml        # design_io create/update（pre-write hook が検証）
 │   ├── {id}_journal.yaml           # journal イベント
@@ -149,6 +149,11 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 └── lineage/
     └── {id}.mmd                    # lineage の Mermaid 図
 ```
+
+† `package_allowlist.yaml` の書式（`allowed_packages: import名→pip名`）と、読み取り専用 plugin env への
+供給手順（`--with <pip名>` による ephemeral 注入）は
+[`skills/analysis-notebook/references/notebook-contract.md`](../skills/analysis-notebook/references/notebook-contract.md)
+の「Package allowlist — format & supplying packages」節が正本。
 
 **marimo notebook はどこに出るか（混乱ポイントの明示回答）**: 利用者プロジェクトの
 `${CLAUDE_PROJECT_DIR}/.insight/notebooks/`（および `lineage/`）に出る。**plugin ディレクトリではない**。
