@@ -48,7 +48,10 @@ uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
 ```
 
 Methodology-specific libraries (scikit-learn, statsmodels, …) that aren't in the `notebook`
-extra go in `.insight/rules/package_allowlist.yaml` and are added to the plugin env as needed.
+extra are declared in `.insight/rules/package_allowlist.yaml` and supplied to a run ephemerally
+with `--with <pip-name>` (e.g. `… --extra notebook --with scikit-learn …`) — the allowlist declares
+the boundary, `--with` supplies the package without mutating the read-only plugin env. Format and
+procedure: `references/notebook-contract.md` ("Package allowlist — format & supplying packages").
 The source must be registered in the catalog (else -> /catalog-register).
 
 ## Workflow
