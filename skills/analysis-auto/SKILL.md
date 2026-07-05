@@ -37,13 +37,22 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | Step | KEEP — pause for the user | AUTO — proceed without asking |
 |------|---------------------------|-------------------------------|
 | framing | **present the Data Map + candidate directions and settle the direction with the user** (Direction Dialogue) | agentic exploration of `.insight/`; Framing Brief construction once the direction is agreed |
-| design | **review & confirm the full drafted design — hypothesis + methodology + metrics + explanatory roles (treatment/confounder/…) + intent — before create** | Step-0 "proceed?"; drafting the fields from the Framing Brief |
+| design ① hypothesis | **confirm the hypothesis statement + background** | drafting them from the Framing Brief |
+| design ② methodology | **confirm the method + metrics + explanatory roles (treatment/confounder/…) + intent** | auto-drafting these fields from the Framing Brief |
+| design ③ data-extraction | **confirm the data-acquisition plan** — the actual query text (`methodology.steps`) for SQL sources, or file + columns + filter for CSV/others, plus expected grain & rough row scale | auto-drafting the query / column selection from the catalog schema |
+| design ④ charts | **confirm the planned `chart[]` specs (intent / type / x / y)** | auto-drafting chart specs from the direction |
 | review (optional) | **the verdict** (revision_requested vs approve) | running the critique itself |
 | premortem | **result is `HARD_BLOCK`/`HIGH`** → stop, surface the risk | running premortem; `LOW`/`MEDIUM` |
 | notebook | **non-allowlisted package / external comms beyond the declared source / other side-effects** | generate + run when premortem cleared AND it's declared-source read + allowlisted + local compute |
 | journal | — | auto-record the notebook verdict (observe/evidence/question) |
 | reflection | **the conclusion (conclude/refine/branch) + terminal transition** | presenting the evidence summary |
 | catalog-register | **registering a data source** (external-data side-effect); unregistered source → stop | — |
+
+The four `design ①–④` beats are **ordered confirmation gates** run before `design_io create`
+(and therefore before premortem): each is presented as its own AskUserQuestion so the user can
+adjust it, rather than collapsing the whole design into a single "looks good?". Beat ③
+(data-extraction) is where the *actual data pull* — the SQL query or the CSV file+columns+filter —
+gets a seat, so premortem then estimates cost against the **confirmed** query.
 
 If in doubt whether something is a genuine decision, **stop and ask** — bias toward the KEEP column.
 
@@ -68,11 +77,22 @@ gate policy above:
    **Data Map**, and **hold the Direction Dialogue with the user** (candidate directions, gaps, missing
    data). Do not silently auto-pick the direction — this is where a beginner's intent gets elicited.
    Settle the direction with the user, then produce the Framing Brief.
-2. **design**: run `/analysis-design`, auto-drafting fields from the agreed Framing Brief. **Pause to
-   review the full drafted design with the user before `design_io create`** — not only the hypothesis,
-   but the methodology (method + code patterns), metrics, and especially the explanatory variables'
-   causal roles (treatment/confounder/covariate/…). These shape the analysis and are genuine choices,
-   so present the draft and let the user adjust — don't silently commit auto-picked methodology/roles.
+2. **design**: run `/analysis-design`, auto-drafting fields from the agreed Framing Brief. Then **walk
+   the four ordered confirmation beats — one AskUserQuestion each — before `design_io create`**, letting
+   the user adjust at every beat. Do not collapse them into a single "looks good?"; don't silently commit
+   auto-picked methodology / roles / query.
+   1. **hypothesis** — present the drafted `hypothesis_statement` + `hypothesis_background`; confirm.
+   2. **methodology** — present `methodology` (method + code patterns), `metrics`, and especially the
+      explanatory variables' causal roles (`treatment` / `confounder` / `covariate` / …) + `analysis_intent`;
+      confirm. These shape the analysis and are genuine choices.
+   3. **data-extraction** — present the actual **data-acquisition plan**: for a SQL source, the query text
+      drafted into `methodology.steps` (see `/analysis-design` Step 2.6); for a CSV/other source, the file
+      + the columns/filter that will be read — plus the expected grain and a rough row-count. Confirm the
+      pull *before* it is committed to the design, so premortem (item 4) estimates cost against the
+      confirmed query. A source with no SQL still gets this beat as a data-acquisition plan.
+   4. **charts** — present the planned `chart[]` specs (intent / type / x / y); confirm.
+
+   After all four beats are confirmed, `design_io create` the design.
 3. **review** (optional): if the user wants a review pass, run `/analysis-review`; **pause on the verdict**.
 4. **premortem**: always run `/premortem` before touching data. If `HARD_BLOCK`/`HIGH`, **stop** and
    surface the risk (unregistered source → offer /catalog-register; cost/allowlist/location → let the
