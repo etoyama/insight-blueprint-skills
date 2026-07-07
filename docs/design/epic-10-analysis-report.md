@@ -174,3 +174,6 @@ Claude-native な SKILL.md 指示のため、組み立ての E2E は実データ
   `figures[].file` の basename 制約（配布物のパストラバーサル防止）、生産者 notebook SKILL の cell5/6 要約更新、
   report プロースの構造テスト新設（`tests/skills/test_analysis_report_structure.py`）、graceful-degrade 文言整合、
   配布物 sensitive-data 注意 + キャプション plain-text 扱い、ARCHITECTURE sequence 図に report 段追加。pytest 393 passed。
+- 2026-07-08 — PR #48 レビュー対応: README（Quick Start / Skills 一覧 / Workflow 図 / autopilot 説明）に
+  `/analysis-report` を追記、ARCHITECTURE の **analysis-auto 詳細シーケンス図**に terminal 後の report
+  KEEP ゲートを追加（実装 step 8 と整合）。

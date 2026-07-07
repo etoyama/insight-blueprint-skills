@@ -29,6 +29,7 @@ automatically — there is nothing to `pip install`.
    /analysis-design         # turn it into a hypothesis design document
    /analysis-journal        # record reasoning as you investigate
    /analysis-reflection     # conclude (or branch) the hypothesis
+   /analysis-report         # write up a distributable APA-style report
    /knowledge-extract       # save reusable, source-scoped knowledge
    ```
 
@@ -99,6 +100,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 - `/analysis-notebook` — Generate a marimo notebook from the design's methodology, run it, and record results to the journal
 - `/analysis-journal` — Record reasoning steps during analysis (observations, evidence, decisions, questions)
 - `/analysis-reflection` — Structured reflection to draw conclusions or branch hypotheses
+- `/analysis-report` — Assemble a distributable APA-style Markdown report from a concluded analysis (read-only consumer)
 - `/analysis-revision` — Guided revision workflow for addressing review comments
 - `/catalog-register` — Step-by-step data source registration
 - `/knowledge-extract` — Extract reusable, source-scoped domain knowledge from a concluded analysis
@@ -123,6 +125,7 @@ Skills support both English and Japanese trigger phrases.
 /analysis-journal (record reasoning during analysis)
     ↓
 /analysis-reflection (reflect → conclude or branch)
+    ↓ ↘ /analysis-report (concluded → distributable APA-style report)
     ↓ ↗ back to /analysis-framing (new direction needed)
 /knowledge-extract (save reusable, source-scoped knowledge)
 ```
@@ -135,8 +138,9 @@ design's `methodology`, executes it, and records the results to the journal
 **Guided autopilot.** `/analysis-auto` drives the whole pipeline for you — auto-advancing the
 low-friction steps and **pausing only at genuine decisions**: confirming the hypothesis,
 registering a data source, a `HARD_BLOCK`/`HIGH` premortem, a notebook that would need
-out-of-allowlist packages or external communication beyond the declared source, and the
-conclusion. It is opt-in and still interactive — not an unattended pipeline. The individual
+out-of-allowlist packages or external communication beyond the declared source, the
+conclusion, and — after a terminal conclusion — offering the distributable report. It is
+opt-in and still interactive — not an unattended pipeline. The individual
 skills stay explicit everywhere else. See
 [ADR-0005](docs/adr/0005-selective-autonomous-chaining.md).
 

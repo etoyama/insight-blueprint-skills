@@ -317,6 +317,10 @@ sequenceDiagram
             D->>U: 【KEEP】実行前に承認要求
         end
         D->>U: 【KEEP】/analysis-reflection で結論（conclude/refine/branch）+ terminal 遷移
+        opt terminal 後（任意）
+            D->>U: 【KEEP】/analysis-report で配布用 APA レポートを生成するか確認
+            D->>FS: .insight/reports/{id}.md（承認時のみ書込）
+        end
     end
     D-->>U: 実行サマリ（自動進行した所 / 停止した所 / 最終状態）
 ```
