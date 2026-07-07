@@ -99,8 +99,12 @@ marimo rules). Drive cell content from the design:
 - cell 4 (analysis): from `methodology.method` + `methodology.steps` (code patterns) + `analysis_intent`;
   build the `results` dict with the four required fields (`hypothesis_direction`, `observed_direction`,
   `confidence_level`, `decision_reason`)
-- cell 5 (viz): from `chart[]` (type/description)
-- cell 6 (verdict): build `verdict` and persist `.insight/notebooks/{design_id}_verdict.json`
+- cell 5 (viz): from `chart[]` (type/description); **save each figure** to
+  `.insight/notebooks/{design_id}_fig{NN:02d}.png` and build `figure_manifest`
+  (`file`/`title`/`axes`/`how_to_read`) so `/analysis-report` can embed it — see the contract's
+  figure section
+- cell 6 (verdict): build `verdict` (include `metrics` from `results` and `figures=figure_manifest`)
+  and persist `.insight/notebooks/{design_id}_verdict.json`
 - cell 7 (lineage): `export_lineage_as_mermaid(session, project_path=".")`
 
 ### Step 4: Run it non-interactively

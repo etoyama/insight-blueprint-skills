@@ -252,6 +252,10 @@ sequenceDiagram
     end
     U->>CC: /analysis-reflection（結論 → status 遷移）
     CC->>IO: transition（supported / rejected / inconclusive）
+    opt 任意: 配布用レポート（terminal 後）
+        U->>CC: /analysis-report（design/journal/verdict/figures → APA Markdown）
+        CC->>FS: .insight/reports/{id}.md を Write（読み取り専用の消費者）
+    end
     opt 任意: 知見の永続化
         U->>CC: /knowledge-extract（source-scoped 知見を catalog へ）
     end

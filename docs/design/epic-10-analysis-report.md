@@ -169,4 +169,8 @@ Claude-native な SKILL.md 指示のため、組み立ての E2E は実データ
 - 2026-07-08 — Story 10.1/10.2/10.3 完了（TDD）: notebook 契約を figures[] + PNG に拡張
   （contract doc + fixture + integration test）、`/analysis-report` + `references/apa-template.md` 新設、
   reflection/auto の chaining 配線 + auto KEEP ゲート + CLAUDE §6 + ARCHITECTURE 更新。pytest 387 passed、
-  lint / typecheck 緑。
+  lint / typecheck 緑。実データ E2E（happy-path + graceful-degrade）確認。
+- 2026-07-08 — team-review 対応: verdict に `metrics` を永続化（consumer の Results 表が空になる不整合を修正）、
+  `figures[].file` の basename 制約（配布物のパストラバーサル防止）、生産者 notebook SKILL の cell5/6 要約更新、
+  report プロースの構造テスト新設（`tests/skills/test_analysis_report_structure.py`）、graceful-degrade 文言整合、
+  配布物 sensitive-data 注意 + キャプション plain-text 扱い、ARCHITECTURE sequence 図に report 段追加。pytest 393 passed。

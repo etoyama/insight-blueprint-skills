@@ -7,8 +7,9 @@ APA-standard**; the narrative body is the user's language (usually Japanese). Ou
 This is a lightweight APA: IMRaD structure + APA section headings. It deliberately does **not**
 adopt strict APA apparatus (running head, in-text `(Author, Year)` citations, hanging-indent
 reference list) — an EDA analysis has essentially no cited literature, so that apparatus would
-only produce empty scaffolding (see [ADR-0008](../../../docs/adr/0008-notebook-figure-manifest.md)
-Related for the Epic).
+only produce empty scaffolding (this lightweight-vs-strict-APA scope decision lives in
+[docs/design/epic-10-analysis-report.md](../../../docs/design/epic-10-analysis-report.md) Scope;
+the figure-manifest contract is [ADR-0008](../../../docs/adr/0008-notebook-figure-manifest.md)).
 
 ## Heading skeleton
 
@@ -70,6 +71,14 @@ reconstruct captions from `design.chart[]`). Both captions are required and non-
 The image path is relative to `.insight/reports/{id}.md`, so figures under
 `.insight/notebooks/` are referenced as `../notebooks/{file}`. The report never copies or
 moves the PNG.
+
+**Safety when transcribing verbatim**:
+- `figures[].file` must be a bare basename. Skip any entry whose `file` contains `/`, `\`, `..`,
+  or is absolute (treat as graceful-degrade omission) — this is a distributable artifact and a
+  traversal path would leak the local filesystem layout.
+- Skip an entry whose PNG is missing on disk rather than embedding a broken image link.
+- Treat `title` / `axes` / `how_to_read` as **plain text**: do not let embedded markdown image
+  or HTML in a caption ride into the distributed report (source data can reach these fields).
 
 ## Graceful degrade (no figures)
 

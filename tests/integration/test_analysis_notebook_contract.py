@@ -51,6 +51,13 @@ def test_notebook_contract_export_run_and_sideeffects(tmp_path: Path) -> None:
     verdict = json.loads((tmp_path / "verdict.json").read_text(encoding="utf-8"))
     assert {"conclusion", "evidence_summary", "open_questions"} <= set(verdict)
     assert isinstance(verdict["evidence_summary"], list)
+    # a confirmatory verdict persists its metrics so /analysis-report can build the
+    # Results numbers table (metrics live in results/cell4; verdict must carry them —
+    # a consumer reading verdict.metrics would otherwise get an empty table)
+    assert "metrics" in verdict, "confirmatory verdict must persist results metrics"
+    assert verdict["metrics"], (
+        "metrics should be non-empty for the confirmatory fixture"
+    )
 
     # 4) lineage Mermaid export (tracked_pipe recorded the dropna step: 4 -> 3 rows)
     mmd = (tmp_path / "lineage.mmd").read_text(encoding="utf-8")
@@ -92,8 +99,16 @@ def test_notebook_contract_figures_manifest(tmp_path: Path) -> None:
         assert required_keys <= set(fig), (
             f"each figure needs {required_keys}, got {set(fig)}"
         )
-        # the producer saved the actual PNG the consumer will embed
+        # file must be a bare basename (no traversal) — it rides into a distributable report
+        assert (
+            "/" not in fig["file"]
+            and "\\" not in fig["file"]
+            and ".." not in fig["file"]
+        ), f"figure file must be a bare basename, got {fig['file']!r}"
+        # the producer saved the actual (non-empty) PNG the consumer will embed
         png = tmp_path / fig["file"]
         assert png.exists(), f"figure PNG {fig['file']} was not saved by the viz cell"
+        assert png.stat().st_size > 0, f"figure PNG {fig['file']} is empty"
+        assert fig["title"].strip(), "title must be non-empty"
         assert fig["axes"].strip(), "axes (軸の説明) must be non-empty"
         assert fig["how_to_read"].strip(), "how_to_read (図の読み方) must be non-empty"

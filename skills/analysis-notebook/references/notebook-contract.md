@@ -45,6 +45,7 @@ verdict = {
     "conclusion": "<one line>",
     "evidence_summary": ["...", "..."],
     "open_questions": ["...", "..."],
+    "metrics": results.get("metrics", {}),  # confirmatory: persist so /analysis-report tabulates
     "figures": figure_manifest,  # from cell 5 (may be []); see figures below
 }
 Path(".insight/notebooks/{id}_verdict.json").write_text(
@@ -74,7 +75,9 @@ plt.gcf()
 ```
 
 - Name PNGs `{id}_fig{NN:02d}.png` (`_fig01`, `_fig02`, …). The consumer reads `figures[].file`,
-  so it never guesses names.
+  so it never guesses names. **`file` must be a bare basename** (never interpolate raw data; no `/`,
+  `\`, `..`, or absolute paths) — the consumer embeds it into a distributable report, so a traversal
+  value would leak paths. This mirrors `design_io`'s `SAFE_ID_PATTERN` posture for `{id}`.
 - `axes` and `how_to_read` are **mandatory and non-empty** — they guard against a distributed
   report's figure being misread.
 - No figures produced → `figure_manifest = []`. `/analysis-report` then omits the figure block

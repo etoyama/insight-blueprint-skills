@@ -83,6 +83,13 @@ def _(df_clean, mo):
         "observed_direction": f"A={_means.get('A')} B={_means.get('B')}",
         "confidence_level": "medium",
         "decision_reason": "group means differ",
+        "metrics": {
+            "mean_diff": {
+                "value": float(_means.get("B") - _means.get("A")),
+                "threshold": 0,
+                "pass": True,
+            }
+        },
     }
     mo.md("analysis done")
     return (results,)
@@ -119,6 +126,7 @@ def _(figure_manifest, json, mo, pathlib, results):
         "conclusion": f"observed {results['observed_direction']}",
         "evidence_summary": ["B mean > A mean"],
         "open_questions": ["small sample?"],
+        "metrics": results.get("metrics", {}),
         "figures": figure_manifest,
     }
     pathlib.Path("verdict.json").write_text(json.dumps(verdict, ensure_ascii=False))

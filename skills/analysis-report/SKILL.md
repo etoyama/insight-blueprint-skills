@@ -60,9 +60,15 @@ Read, do not write:
    (with `metadata.direction`) / `question` (open ones) / `conclude` events.
 3. `.insight/notebooks/{design_id}_verdict.json` (Read tool): `conclusion`,
    `evidence_summary`, `open_questions`, `metrics`, and `figures[]`.
-   - If the file or `figures` is absent (analysis predates the figure contract), treat it
-     as `figures = []` and **graceful degrade**: omit the figure block, add one line noting
-     figures were not produced (re-run /analysis-notebook to include them).
+   - **Graceful degrade** — treat all of these the same (omit the figure block, add one line
+     noting figures were not produced, re-run /analysis-notebook to include them): the file is
+     missing, `figures` is absent, or `figures == []` (analysis predates the figure contract, or
+     the notebook produced no plot).
+   - `metrics` may be absent for exploratory analyses — then omit the Results numbers table.
+   - **Safety**: `figures[].file` must be a bare basename under `.insight/notebooks/`. Skip
+     (graceful-degrade omit) any entry whose `file` contains `/`, `\`, `..`, or is absolute — the
+     report is distributable, so never embed a traversal path. Also skip an entry whose PNG is
+     missing on disk (per-figure), rather than emitting a broken image link.
 
 ### Step 3: Assemble the report
 
@@ -73,8 +79,10 @@ headings, narrative in the user's language:
 - **Introduction** — `hypothesis_statement` + `hypothesis_background`.
 - **Method** — `methodology` (method / package / reason / steps) + `metrics` + `explanatory`.
 - **Results** — `observe`/`evidence` narrative + a numbers table from `verdict.metrics`
-  + **Figures**: for each `figures[]` entry, embed the PNG and its **Axes（軸の説明）** and
-  **How to read（図の読み方）** caption verbatim from the manifest. Both are mandatory.
+  (omit the table if `metrics` is absent/empty) + **Figures**: for each valid `figures[]` entry,
+  embed the PNG and its **Axes（軸の説明）** and **How to read（図の読み方）** caption verbatim from
+  the manifest. Both are mandatory. Treat caption text as plain text — do not let embedded markdown
+  image/HTML in a caption ride into the distributable report.
 - **Discussion → Limitations / Future Directions** — `conclude` limits + open `question`s.
 - **References** — `referenced_knowledge` if any; omit the section entirely when empty.
 
@@ -84,6 +92,9 @@ headings, narrative in the user's language:
    (create `.insight/reports/` if missing). This is the only file this skill writes.
 2. Show the path and note: "配布用レポートを生成した。わずかな手直しで配布できる。
    `.docx`/PDF 化は別途変換を"。
+3. **Before distributing**, remind the user the report may embed sensitive data (methodology
+   steps, metrics, journal narrative). Like the generated notebook artifacts, review it and
+   gitignore/redact if it carries credentials or PII.
 
 ## design_io Reference
 
