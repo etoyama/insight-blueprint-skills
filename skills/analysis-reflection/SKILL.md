@@ -119,6 +119,7 @@ If user chooses to conclude:
    review process first.
 
 3. Show final summary and suggest:
+   - "周囲に説明・配布できる形にするなら /analysis-report（APAレポート化）"
    - "レビューコメントを付けるなら /analysis-review（記録後 /analysis-revision で対応）"
    - "この分析で分かったソースの再利用知識を残すなら /knowledge-extract"
    - "新しいデータソース自体を登録するなら /catalog-register"
@@ -153,6 +154,7 @@ If user chooses to refine:
 | /analysis-journal | → /analysis-reflection | Evidence gathered |
 | /analysis-notebook | → /analysis-reflection | Notebook 実行の結果が揃った: 結論づけへ |
 | /analysis-auto | → /analysis-reflection | autopilot が結果到達; 結論はユーザー判断 |
+| /analysis-reflection | → /analysis-report | Conclusion reached (terminal status): 配布用 APA レポートに畳む |
 | /analysis-reflection | → /analysis-journal | Need more evidence or branching |
 | /analysis-reflection | → /knowledge-extract | Conclusion produced reusable source knowledge |
 | /knowledge-extract | → /analysis-reflection | The learning is really a conclusion, not source knowledge |

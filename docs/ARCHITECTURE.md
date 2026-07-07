@@ -144,8 +144,11 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 ├── notebooks/
 │   ├── {id}.py                     # /analysis-notebook が生成する 8-cell marimo notebook
 │   ├── {id}_flat.py                # marimo export script（実行可能なフラット版）
-│   ├── {id}_verdict.json           # verdict 副作用（skill が読み戻して journal に反映）
+│   ├── {id}_verdict.json           # verdict 副作用（figures[] 含む; skill が読み戻す）
+│   ├── {id}_fig{NN}.png            # viz cell が保存する図（/analysis-report が埋め込む）
 │   └── {id}.html                   # 任意: 閲覧用レポート
+├── reports/
+│   └── {id}.md                     # /analysis-report が生成する APA 風配布レポート
 └── lineage/
     └── {id}.mmd                    # lineage の Mermaid 図
 ```

@@ -24,6 +24,7 @@ ALL_SKILLS = [
     "analysis-reflection",
     "analysis-review",
     "analysis-revision",
+    "analysis-report",
     "catalog-register",
     "knowledge-extract",
     "data-lineage",
