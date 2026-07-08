@@ -1,9 +1,7 @@
 """Structural validation tests for SKILL.md files.
 
-Validates that all 7 bundled skills (analysis-framing, analysis-design,
-analysis-journal, analysis-reflection, analysis-revision,
-catalog-register, data-lineage) have correct structure, chaining tables,
-and inter-skill consistency.
+Validates that every bundled skill in ``ALL_SKILLS`` has correct structure, chaining
+tables, and inter-skill consistency.
 
 Test groups:
   Unit-01: TestSkillStructure — required sections, format, versions
@@ -37,6 +35,7 @@ ALL_SKILLS: list[str] = [
     "analysis-revision",
     "analysis-notebook",
     "analysis-auto",
+    "analysis-report",
     "catalog-register",
     "knowledge-extract",
     "data-lineage",
@@ -188,10 +187,10 @@ def _extract_chaining_edges(skill_name: str) -> list[tuple[str, str]]:
 
 
 class TestSkillStructure:
-    """Validate structural correctness of all 7 SKILL.md files."""
+    """Validate structural correctness of every SKILL.md in ALL_SKILLS."""
 
     def test_all_skills_have_required_sections(self) -> None:
-        """All 6 skills must have frontmatter + 5 required sections."""
+        """Every bundled skill must have frontmatter + 5 required sections."""
         for skill_name in ALL_SKILLS:
             text = _read_skill(skill_name)
 
@@ -268,7 +267,7 @@ class TestSkillStructure:
 
 
 class TestForwardingGraph:
-    """Validate forwarding edges across the 6-skill graph."""
+    """Validate forwarding edges across the skill graph."""
 
     def test_reflection_to_framing_entry(self) -> None:
         """analysis-reflection Chaining must have -> analysis-framing entry."""
@@ -635,7 +634,7 @@ class TestSkillDeployment:
         assert path.exists(), f"analysis-framing SKILL.md not found at {path}"
 
     def test_all_skills_have_skill_md(self) -> None:
-        """All 7 bundled skills have a SKILL.md file at repo root skills/ dir."""
+        """Every bundled skill has a SKILL.md file at repo root skills/ dir."""
         for skill_name in ALL_SKILLS:
             path = SKILLS_DIR / skill_name / "SKILL.md"
             assert path.exists(), f"{skill_name}/SKILL.md not found at {path}"

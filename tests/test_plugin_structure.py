@@ -24,6 +24,7 @@ ALL_SKILLS = [
     "analysis-reflection",
     "analysis-review",
     "analysis-revision",
+    "analysis-report",
     "catalog-register",
     "knowledge-extract",
     "data-lineage",
@@ -85,7 +86,7 @@ class TestMcpJson:
 
 
 class TestSkillsDirectory:
-    """Unit-03: All 7 skills exist with correct SKILL.md structure."""
+    """Unit-03: All bundled skills exist with correct SKILL.md structure."""
 
     @pytest.mark.parametrize("skill_name", ALL_SKILLS)
     def test_all_skills_exist(self, skill_name: str) -> None:

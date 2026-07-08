@@ -86,6 +86,7 @@ plan did not anticipate, do **one** of the following before the PR can merge:
 | `/analysis-notebook` | Generate + run a marimo notebook from the design's methodology; record results to journal |
 | `/analysis-journal` | Record observations, evidence, decisions during analysis |
 | `/analysis-reflection` | Structured reflection to conclude or branch a hypothesis |
+| `/analysis-report` | Assemble a distributable APA-style Markdown report from a concluded analysis (read-only consumer) |
 | `/analysis-revision` | Guided revision workflow for review comments (consumer side) |
 | `/catalog-register` | Register a data source (flexibility extended in E5c) |
 | `/knowledge-extract` | Claude-native extraction of source-scoped domain knowledge (since E5b) |

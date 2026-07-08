@@ -13,8 +13,8 @@ machine-readable (the `verdict` cell persists a JSON side-effect that the skill 
 | 2 | data_load | `def _(pd, LineageSession):` | `(raw_df, session, mo)` | Load source into `raw_df`; `session = LineageSession(name="{id}-analysis", design_id="{id}")`. **Only this cell** does `import marimo as mo` |
 | 3 | data_prep | `def _(raw_df, session, tracked_pipe, mo):` | `(df_clean,)` | Methodology-**independent** cleaning (nulls, types, filters). Every transform via `tracked_pipe(...)` |
 | 4 | analysis | `def _(df_clean, pd, np, session, tracked_pipe, mo):` | `(results,)` | Methodology-**dependent** analysis (branch on `analysis_intent`). `results` MUST include `hypothesis_direction`, `observed_direction`, `confidence_level`, `decision_reason` |
-| 5 | viz | `def _(df_clean, results, plt):` | — | Plots; local vars use `_` prefix; final expression is `plt.gcf()` |
-| 6 | verdict | `def _(results, json, Path, mo):` | `(verdict,)` | Build `verdict` dict and **persist it** to `.insight/notebooks/{id}_verdict.json` (the skill reads this). Display via `mo.md()` |
+| 5 | viz | `def _(df_clean, results, plt):` | `(figure_manifest,)` | Plots; local vars use `_` prefix; **save each figure** to `.insight/notebooks/{id}_fig{NN:02d}.png` and build `figure_manifest` (see figures below); final expression is `plt.gcf()` |
+| 6 | verdict | `def _(results, figure_manifest, json, Path, mo):` | `(verdict,)` | Build `verdict` dict (include `figures=figure_manifest`) and **persist it** to `.insight/notebooks/{id}_verdict.json` (the skill reads this). Display via `mo.md()` |
 | 7 | lineage | `def _(session, export_lineage_as_mermaid, mo):` | — | `export_lineage_as_mermaid(session, project_path=".")` → `.insight/lineage/{id}.mmd`; display via `mo.mermaid()` |
 
 ## `results` shape (cell 4)
@@ -45,11 +45,44 @@ verdict = {
     "conclusion": "<one line>",
     "evidence_summary": ["...", "..."],
     "open_questions": ["...", "..."],
+    "metrics": results.get("metrics", {}),  # confirmatory: persist so /analysis-report tabulates
+    "figures": figure_manifest,  # from cell 5 (may be []); see figures below
 }
 Path(".insight/notebooks/{id}_verdict.json").write_text(
     json.dumps(verdict, ensure_ascii=False)
 )
 ```
+
+## `figure_manifest` shape (cell 5) — figures for /analysis-report (ADR-0008)
+
+The viz cell **saves each figure as a PNG** and records a manifest so `/analysis-report`
+(a read-only consumer) can embed figures with axis + how-to-read captions **without
+re-rendering**. The figure's truth (actual axes, how to read it) lives with the producer
+here, not reconstructed from `design.chart[]` (the *plan*, which may drift from the render).
+
+```python
+# cell 5, after plotting
+_fig.savefig(".insight/notebooks/{id}_fig01.png", bbox_inches="tight")
+figure_manifest = [
+    {
+        "file": "{id}_fig01.png",              # PNG basename, relative to .insight/notebooks/
+        "title": "<figure title>",
+        "axes": "x = <label (unit)>, y = <label (unit)>",   # 軸の説明 — required, non-empty
+        "how_to_read": "<what it shows; where to look; how to read the direction>",  # 図の読み方 — required, non-empty
+    },
+]
+plt.gcf()
+```
+
+- Name PNGs `{id}_fig{NN:02d}.png` (`_fig01`, `_fig02`, …). The consumer reads `figures[].file`,
+  so it never guesses names. **`file` must be a bare basename** (never interpolate raw data; no `/`,
+  `\`, `..`, or absolute paths) — the consumer embeds it into a distributable report, so a traversal
+  value would leak paths. This mirrors `design_io`'s `SAFE_ID_PATTERN` posture for `{id}`.
+- `axes` and `how_to_read` are **mandatory and non-empty** — they guard against a distributed
+  report's figure being misread.
+- No figures produced → `figure_manifest = []`. `/analysis-report` then omits the figure block
+  (graceful degrade). Notebooks generated before this contract simply lack `figures` in verdict;
+  the consumer treats that the same as `[]`.
 
 ## marimo rules
 

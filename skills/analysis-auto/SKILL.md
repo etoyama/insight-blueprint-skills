@@ -46,6 +46,7 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | notebook | **non-allowlisted package / external comms beyond the declared source / other side-effects** | generate + run when premortem cleared AND it's declared-source read + allowlisted + local compute |
 | journal | — | auto-record the notebook verdict (observe/evidence/question) |
 | reflection | **the conclusion (conclude/refine/branch) + terminal transition** | presenting the evidence summary |
+| report (optional) | **generating the distributable report** — offer `/analysis-report` after a terminal conclusion; the user hand-edits it, so confirm before writing | — |
 | catalog-register | **registering a data source** (external-data side-effect); unregistered source → stop | — |
 
 The four `design ①–④` beats are **ordered confirmation gates** run before `design_io create`
@@ -103,7 +104,10 @@ gate policy above:
    declared source, or another side-effect, **stop** and get the user's go-ahead first.
 6. **journal**: the notebook step already records observe/evidence/question — no pause.
 7. **reflection**: run `/analysis-reflection`; **pause at the conclusion** (conclude/refine/branch) and
-   the terminal transition. This is where the run ends.
+   the terminal transition.
+8. **report** (optional): once a terminal conclusion exists, **offer `/analysis-report`** to build the
+   distributable APA report — a KEEP gate (the user hand-edits it, so confirm before writing). This is
+   where the run ends.
 
 ### Step 3: Summarize
 
@@ -121,6 +125,7 @@ its own; `/analysis-auto` only sequences them and enforces the gate policy.
 |------|-----|------|
 | /analysis-auto | → /analysis-design | Autopilot needs a hypothesis first |
 | /analysis-auto | → /analysis-reflection | Autopilot reaches results; conclusion is the user's call |
+| /analysis-auto | → /analysis-report | After a terminal conclusion, offer the distributable report (KEEP gate) |
 
 ## Language Rules
 

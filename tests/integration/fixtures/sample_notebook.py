@@ -83,6 +83,13 @@ def _(df_clean, mo):
         "observed_direction": f"A={_means.get('A')} B={_means.get('B')}",
         "confidence_level": "medium",
         "decision_reason": "group means differ",
+        "metrics": {
+            "mean_diff": {
+                "value": float(_means.get("B") - _means.get("A")),
+                "threshold": 0,
+                "pass": True,
+            }
+        },
     }
     mo.md("analysis done")
     return (results,)
@@ -90,18 +97,37 @@ def _(df_clean, mo):
 
 @app.cell
 def _(df_clean, plt):
+    # viz cell (Epic 10 / ADR-0008): save the figure as a PNG and describe it in a
+    # figure_manifest so /analysis-report can embed it with axis + how-to-read captions
+    # without re-rendering. The producer owns the figure's truth.
     _fig, _ax = plt.subplots()
     df_clean.groupby("group")["value"].mean().plot.bar(ax=_ax)
+    _ax.set_xlabel("group")
+    _ax.set_ylabel("mean value")
+    _fig.savefig("SAMPLE_fig01.png", bbox_inches="tight")
+    figure_manifest = [
+        {
+            "file": "SAMPLE_fig01.png",
+            "title": "Mean value by group",
+            "axes": "x = group (category), y = mean value",
+            "how_to_read": (
+                "Each bar is a group's mean value; a taller bar means a higher mean. "
+                "Compare A vs B heights to read the direction."
+            ),
+        }
+    ]
     plt.gcf()
-    return
+    return (figure_manifest,)
 
 
 @app.cell
-def _(json, mo, pathlib, results):
+def _(figure_manifest, json, mo, pathlib, results):
     verdict = {
         "conclusion": f"observed {results['observed_direction']}",
         "evidence_summary": ["B mean > A mean"],
         "open_questions": ["small sample?"],
+        "metrics": results.get("metrics", {}),
+        "figures": figure_manifest,
     }
     pathlib.Path("verdict.json").write_text(json.dumps(verdict, ensure_ascii=False))
     mo.md("verdict written")
