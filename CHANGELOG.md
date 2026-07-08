@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-08
+
+Epic 10 (#47): a new `/analysis-report` skill that assembles a **distributable APA-style
+Markdown report** from a concluded analysis, so results can be explained to others — not just
+read in the notebook. Design: `docs/design/epic-10-analysis-report.md`; contract change:
+[ADR-0008](docs/adr/0008-notebook-figure-manifest.md). The PyPI wheel's runtime
+(`src/insight_blueprint`) is untouched — the surface is skills, the notebook contract, and docs.
+
+### Added
+
+- **`/analysis-report` — APA-style report assembly.** A read-only consumer that reads the design
+  (`design_io get`), Insight Journal, notebook verdict, and figure manifest, and writes
+  `.insight/reports/{id}.md` with English APA headings (Abstract / Introduction / Method /
+  Results / Discussion→Limitations/Future Directions / References); narrative stays in the user's
+  language. Requires a terminal status (`supported`/`rejected`/`inconclusive`). Each figure carries
+  mandatory **Axes（軸の説明）** and **How to read（図の読み方）** captions. Template:
+  `skills/analysis-report/references/apa-template.md`.
+
+### Changed
+
+- **notebook 8-cell contract extended for figures ([ADR-0008](docs/adr/0008-notebook-figure-manifest.md)).**
+  The viz cell now saves each figure to `.insight/notebooks/{id}_fig{NN:02d}.png`, and the verdict
+  cell records a `figures[]` manifest (`file`/`title`/`axes`/`how_to_read`) plus `metrics` in
+  `{id}_verdict.json` — so `/analysis-report` embeds figures with axis + how-to-read captions
+  without re-rendering, and the figure's truth lives with the producer. **Backward compatible**:
+  a verdict lacking `figures` is treated as `[]` (graceful degrade — the report omits figures and
+  notes it). `figures[].file` is constrained to a bare basename (no path traversal into a
+  distributable artifact).
+- **Pipeline wiring.** `/analysis-reflection` and `/analysis-auto` chain to `/analysis-report`;
+  `/analysis-auto` offers report generation as a KEEP gate after a terminal conclusion. README,
+  `CLAUDE.md`, and `docs/ARCHITECTURE.md` updated.
+
 ## [0.7.3] - 2026-07-06
 
 Patch release closing the two open Epic 09 follow-ups (#40 / #41). Both are hardening /
