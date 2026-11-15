@@ -261,6 +261,46 @@ class TestAdrs:
         )
 
 
+class TestExternalSendRules:
+    """Epic 12 US-4 AC 5: the invariant and the approval rule sit where the next author reads."""
+
+    INVARIANT = (
+        "plugin は常駐プロセス・MCP サーバ・SQLite を同梱しない。"
+        "ホストが持つコネクタは、無くても核が動く任意の機能に限って使ってよい。"
+    )
+
+    def test_architecture_states_the_invariant_with_its_condition(self) -> None:
+        invariants = words.section(
+            _read("docs/ARCHITECTURE.md"), "不変条件（invariants）"
+        )
+        assert self.INVARIANT in invariants
+        assert "adr/0015-" in invariants
+
+    def test_architecture_lists_the_external_send_gate(self) -> None:
+        text = _read("docs/ARCHITECTURE.md")
+        model = text[text.index("### Skill invocation model") :].split("\n## ", 1)[0]
+        assert "`.insight/` の中身を外部へ送る" in model
+        assert "adr/0016-" in model
+
+    def test_adr_0001_stays_frozen(self) -> None:
+        assert "コネクタ" not in _read(
+            "docs/adr/0001-drop-mcp-server-embed-validation.md"
+        )
+
+    def test_upload_is_a_term(self) -> None:
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        assert "`/report-upload`" in rows["アップロード"][words.CODE_NAME]
+        for avoided in ("公開", "共有"):
+            assert avoided in rows["アップロード"][words.AVOID]
+
+    def test_design_doc_links_both_adrs(self) -> None:
+        doc = _read("docs/design/epic-12-decision-ready-report.md")
+        assert "../adr/0015-" in doc and "../adr/0016-" in doc
+
+
 class TestYomiyasuWords:
     """WORKFLOW §8: .yomiyasu-words/ is exported from UBIQUITOUS_LANGUAGE, never edited by hand."""
 

@@ -25,6 +25,7 @@ ALL_SKILLS = [
     "analysis-review",
     "analysis-revision",
     "analysis-report",
+    "report-upload",
     "catalog-register",
     "knowledge-extract",
     "data-lineage",
