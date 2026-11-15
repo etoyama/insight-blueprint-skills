@@ -9,6 +9,7 @@ exist in the code.
 from __future__ import annotations
 
 import ast
+import importlib.util
 import re
 from pathlib import Path
 
@@ -246,3 +247,20 @@ class TestAdrs:
 
     def test_architecture_domain_model_cites_its_adr(self) -> None:
         assert "adr/0011-" in _section(_read("docs/ARCHITECTURE.md"), "Domain Model")
+
+
+class TestYomiyasuWords:
+    """WORKFLOW §8: .yomiyasu-words/ is exported from UBIQUITOUS_LANGUAGE, never edited by hand."""
+
+    def test_word_lists_match_the_ubiquitous_language(self) -> None:
+        spec = importlib.util.spec_from_file_location(
+            "export_yomiyasu_words", REPO_ROOT / "scripts/export_yomiyasu_words.py"
+        )
+        assert spec and spec.loader
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        expected = module.render(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        for name, content in expected.items():
+            assert _read(f".yomiyasu-words/{name}") == content, (
+                f"{name} is stale: run uv run python scripts/export_yomiyasu_words.py"
+            )

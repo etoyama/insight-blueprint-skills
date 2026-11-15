@@ -232,7 +232,7 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 ### Decision: canonical-term-analysis-design
 
 - What: `AnalysisDesign`（`{id}_hypothesis.yaml`）の正の語を「分析設計」（英語は analysis design）にする。
-  使わない言い換えは、設計書・design document・design doc・仮説ファイル・hypothesis（分析設計そのものを指すとき）。
+  使わない言い換えは、設計書・design document・hypothesis（分析設計そのものを指すとき）。
   この Epic では UBIQUITOUS_LANGUAGE の表と、この Epic が書き直す文書（CLAUDE.md・PRD・ARCHITECTURE）だけを直す。
   skills と凍結した文書の一括置換はしない。
 - Why: 同じ概念を、設計書（docs 46行）、analysis design（skills 18行）、hypothesis（skills 99行、ファイル名を含む）、
@@ -243,6 +243,18 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 - Alternatives considered: 「設計書」（docs の多数派だが DesignDoc と衝突する）。「仮説」（`hypothesis_statement` と衝突する）。
 - Consequences: skills には「design document」などが残る。表の「使わない言い換え」に載せ、触ったときに直す。
   ARCHITECTURE の参照の節にある ADR-0003 の題（「設計書 I/O」）は凍結した ADR の題なので変えない。
+
+### Decision: generate-yomiyasu-words
+
+- What: WORKFLOW §8 が求める `.yomiyasu-words/allow.txt`・`flag.txt` を、`scripts/export_yomiyasu_words.py` で
+  UBIQUITOUS_LANGUAGE から生成してコミットする。`allow.txt` は「用語」の列、`flag.txt` は「使わない言い換え」を
+  `言い換え<TAB>用語` の形で書く。条件つきの言い換え（「hypothesis（分析設計そのものを指すとき）」）は書き出さない。
+  生成物と表が一致することは `tests/docs/` が確かめる。
+- Why: WORKFLOW §8 は書き出しを求めるが、repo-template に手順もスクリプトもない。手で写すと表とずれる。
+- Criteria: 正本を UBIQUITOUS_LANGUAGE の1つに保つこと（WORKFLOW §2・§8）。
+- Affected modules: `scripts/export_yomiyasu_words.py`、`.yomiyasu-words/`、`tests/docs/test_canonical_docs.py`
+- Alternatives considered: 手で写す（ずれる）。コミットせず推敲のたびに生成する（チームで共有できない。yomiyasu はリポジトリに入れる前提）。
+- Consequences: UBIQUITOUS_LANGUAGE を変えたら、スクリプトを回して同じ PR に生成物を入れる。忘れるとテストが落ちる。
 
 ### Decision: split-story-c
 
@@ -269,7 +281,7 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
 | #57 CLAUDE.md の再編 | ✓（`tests/docs/test_canonical_docs.py`: `TestClaudeMd`・`TestContributing`） | —（文書だけで、組み合わせて動くものが無い） | —（同上） |
-| #58 正本文書の整備 | ✓（`TestRoadmap`・`TestDomainModelDiagram`・`TestUbiquitousLanguage`） | —（同上） | —（同上） |
+| #58 正本文書の整備 | ✓（`TestRoadmap`・`TestDomainModelDiagram`・`TestUbiquitousLanguage`・`TestYomiyasuWords`） | —（同上） | —（同上） |
 | #59 解釈の記録 | ✓（`TestAdrs`: 索引、新形式の節、リンク、CLAUDE.md と ARCHITECTURE からの参照） | —（同上） | —（同上） |
 | #60 旧フローの残骸の掃除 | ✓（`tests/test_plugin_structure.py::TestMcpJson`: `.mcp.json` と `.spec-workflow/` が無い） | —（同上） | —（plugin を入れ直して `.mcp.json` が配られないことは、リリース後に手で確かめる） |
 
@@ -280,3 +292,4 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 - 2026-11-15 — Story #58 完了: PRD と ARCHITECTURE に Epic 01〜11 を載せ、ARCHITECTURE にコンテキストマップと Domain Model の全体図（22クラス）を足した。UBIQUITOUS_LANGUAGE の初版（35語）を書いた。全体図を含む mermaid 8ブロックが mermaid 11.4.1 の parse と render を通ることを、内蔵ブラウザで確かめた（手動）。
 - 2026-11-15 — Story #59 完了: ADR-0010〜0012 を新形式で書き、索引に載せた。CLAUDE.md §4・§6 と ARCHITECTURE の Domain Model から参照を張った。D11 の根拠の PR の本数を数え直し、判断時の「25本中13本」に対して「27本中14本」だった（結論は変わらない）。
 - 2026-11-15 — Story #60 完了: `.spec-workflow/`（11本）と `.mcp.json` を削除し、`TestMcpJson` を「無い」の検査に書き換えた（Red を確認してから削除した）。CHANGELOG の Unreleased に書いた。epic-10 の AC 6個は、人間が確認したうえでチェックだけを直した（本文は変えていない）。
+- 2026-11-15 — #58 の追補: UBIQUITOUS_LANGUAGE の「使わない言い換え」を、実際に使われている語だけに絞った。YAML のフィールド名と使用0件の語を外し、既存の文書が使う terminal status と figures manifest を正の語にした。`.yomiyasu-words/` を生成するスクリプトと、同期を確かめるテストを足した。
