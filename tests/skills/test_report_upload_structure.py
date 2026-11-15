@@ -70,7 +70,10 @@ class TestReportIsTheOnlySource:
         assert ".insight/reports/{design_id}.md" in _step(1)
 
     def test_rejects_a_design_id_that_could_leave_the_reports_directory(self) -> None:
-        assert "[a-zA-Z0-9_-]+" in _step(1)
+        step = _step(1)
+        # Anchored, so "must match" cannot be read as "contains a matching part".
+        assert "fully match `^[a-zA-Z0-9_-]+$`" in step
+        assert "stay inside `.insight/reports/`" in step
 
     def test_missing_report_points_at_analysis_report_and_stops(self) -> None:
         step = _step(1)

@@ -41,7 +41,8 @@ never shares one. It must never install or configure a connector on the analyst'
 ### Step 1: Find the report and its figures
 
 1. Take `{design_id}` from the argument. Without one, list `.insight/reports/*.md` and ask which
-   report to upload. The id must match `[a-zA-Z0-9_-]+`; otherwise stop — it would point outside
+   report to upload. The whole id must fully match `^[a-zA-Z0-9_-]+$` — no `/`, `\`, `.`, or
+   space anywhere in it. Otherwise stop and send nothing: the path built from it must stay inside
    `.insight/reports/`.
 2. Read `.insight/reports/{design_id}.md` (Read tool). If it is missing, stop:
    "レポートがまだ無い。先に /analysis-report {design_id} で作ろう" → exit.
