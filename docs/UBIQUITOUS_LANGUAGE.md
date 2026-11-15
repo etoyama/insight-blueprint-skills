@@ -45,6 +45,9 @@
 | notebook | `/analysis-notebook` | 分析設計の手法から生成して実行する marimo notebook。8つの cell の契約に従う | ノートブック | [epic-07](design/epic-07-analysis-notebook.md) |
 | verdict | `{id}_verdict.json` | notebook が出す検証結果の要約。skill が読み戻して journal に書く | — | [epic-07](design/epic-07-analysis-notebook.md) |
 | figures manifest | `figures` | verdict の中の図の一覧。図ごとにファイル・題・軸の説明・読み方を持つ | 図のマニフェスト | [ADR-0008](adr/0008-notebook-figure-manifest.md) |
+| 効果量 | `effect_size` | verdict の指標が任意で持つ、標準化した効果の大きさ。種類の名前と値を持つ | エフェクトサイズ | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
+| 信頼区間 | `confidence_interval` | verdict の指標が任意で持つ、指標の値の区間。水準・下限・上限を持つ | — | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
+| 標本サイズ | `sample_size` | verdict の指標が任意で持つ、その指標の計算に使った観測の数 | サンプルサイズ、サンプル数 | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | レポート | `/analysis-report`、`.insight/reports/` | 結論の出た分析を配布用にまとめた APA 風の Markdown。分析設計を変えない | — | [epic-10](design/epic-10-analysis-report.md) |
 | lineage | `/data-lineage`、`tracked_pipe` | notebook の中のデータ加工の履歴と、その Mermaid 図 | 系譜 | fork 前 |
 | データソース | `DataSource` | catalog に登録した分析の入力データ。種類は open string | データ源 | fork 前 |

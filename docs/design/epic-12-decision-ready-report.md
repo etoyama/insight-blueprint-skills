@@ -27,11 +27,11 @@ Epic issue（[#62](https://github.com/etoyama/insight-blueprint-skills/issues/62
 
 レポートの読者として、効果の大きさと確かさを知るために、Results に効果量・信頼区間・標本サイズが載ってほしい。
 
-- [ ] AC 1: notebook の契約が verdict の指標ごとに任意の項目として効果量・信頼区間・標本サイズを定義する。
-- [ ] AC 2: 契約テストの sample notebook がこの3項目を出し、テストが verdict に載ることを確かめる。
-- [ ] AC 3: レポートの Results の数値表が3項目の列を持つ。どの指標にも値がない列は省く。
-- [ ] AC 4: 3項目を持たない verdict（契約を広げる前の分析）でも、レポートが今と同じ形で出る。
-- [ ] AC 5: notebook の公開契約の変更を ADR に書く。
+- [x] AC 1: notebook の契約が verdict の指標ごとに任意の項目として効果量・信頼区間・標本サイズを定義する。
+- [x] AC 2: 契約テストの sample notebook がこの3項目を出し、テストが verdict に載ることを確かめる。
+- [x] AC 3: レポートの Results の数値表が3項目の列を持つ。どの指標にも値がない列は省く。
+- [x] AC 4: 3項目を持たない verdict（契約を広げる前の分析）でも、レポートが今と同じ形で出る。
+- [x] AC 5: notebook の公開契約の変更を ADR に書く。
 
 ### US-2: 決定の文脈
 
@@ -177,7 +177,7 @@ Python のクラスを持たないファイルの契約は、図に描かず表�
 
 | ファイル | 変更 | 形の正本 |
 |---|---|---|
-| `{id}_verdict.json` の `metrics` | 指標ごとに任意の効果量・信頼区間・標本サイズを足す。項目名は US-1 で決める | [notebook-contract.md](../../skills/analysis-notebook/references/notebook-contract.md) |
+| `{id}_verdict.json` の `metrics` | 指標ごとに任意の効果量（`effect_size`）・信頼区間（`confidence_interval`）・標本サイズ（`sample_size`）を足す（[ADR-0013](../adr/0013-verdict-metric-optional-items.md)） | [notebook-contract.md](../../skills/analysis-notebook/references/notebook-contract.md) |
 | `.insight/reports/{id}.md` | 節を足す（決定の文脈、データの記述、Implications、Recommendation、Appendix） | [apa-template.md](../../skills/analysis-report/references/apa-template.md) |
 
 ## Module Responsibilities
@@ -354,9 +354,11 @@ sequenceDiagram
 
 ### Cross-epic decisions (links to ADR)
 
-Story の実装で ADR を書いたら、ここにリンクを足す。予定は次の3本。
+- [ADR-0013: verdict の指標に、任意の効果量・信頼区間・標本サイズを持たせる](../adr/0013-verdict-metric-optional-items.md):
+  指標ごとに `effect_size`（種類と値）・`confidence_interval`（水準・下限・上限）・`sample_size` を任意で持たせる（US-1）。
 
-- notebook の契約への効果量・信頼区間・標本サイズの追加（US-1）
+Story の実装で ADR を書いたら、ここにリンクを足す。残る予定は次の2本。
+
 - 分析設計への決定の文脈の追加（US-2）
 - 外部へ送る前の承認の決まりと、不変条件「No MCP server」の読み方（US-4）
 
@@ -364,7 +366,7 @@ Story の実装で ADR を書いたら、ここにリンクを足す。予定は
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| US-1 判断に足る数値 | ☐ | ☐ | ☐ |
+| US-1 判断に足る数値 | ✓（`tests/skills/test_analysis_report_structure.py`: `TestNumbersTable`） | ✓（`tests/integration/test_analysis_notebook_contract.py`: `test_verdict_metric_carries_effect_size_confidence_interval_and_sample_size`・`test_verdict_metric_keeps_the_existing_keys`） | —（skill がレポートを組み立てる所は自動テストが無い。この Story では手動確認もしていない。レポート全体を通す確認は US-3 で行う） |
 | US-2 決定の文脈 | ☐ | ☐ | ☐ |
 | US-3 判断の材料がそろったレポート | ☐ | ☐ | ☐ |
 | US-4 Claude Docs へのアップロード | ☐ | ☐ | ☐ |
@@ -378,3 +380,5 @@ Story の実装で ADR を書いたら、ここにリンクを足す。予定は
 - 2026-11-15 — Epic 起票（#62）、DesignDoc 初版。
 - 2026-11-15 — 人間が DesignDoc 初版を承認。Story を起票（#63〜#66）。
 - 2026-11-15 — 人間が skill の名前を `/report-upload` に決めた。US-4 の Story を起票（#67）。
+- 2026-11-15 — 人間が verdict の指標の項目の形を決めた（自己記述の入れ子。ADR-0013）。
+- 2026-11-15 — Story #63 completed: notebook の契約に効果量・信頼区間・標本サイズを足し、レポートの数値表に列を足した。
