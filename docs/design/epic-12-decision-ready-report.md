@@ -47,12 +47,12 @@ Epic issue（[#62](https://github.com/etoyama/insight-blueprint-skills/issues/62
 
 レポートの読者として、レポートだけで判断するために、データの素性と推奨が載ってほしい。
 
-- [ ] AC 1: Introduction に決定の文脈が載る。分析設計に無ければ省く。
-- [ ] AC 2: Method に、データソースの名前・種類・説明（catalog）と、加工での行数の変化（lineage）が載る。
-- [ ] AC 3: Discussion に Implications と Recommendation が載る。Recommendation は `next_action` と決定の文脈から書き、
+- [x] AC 1: Introduction に決定の文脈が載る。分析設計に無ければ省く。
+- [x] AC 2: Method に、データソースの名前・種類・説明（catalog）と、加工での行数の変化（lineage）が載る。
+- [x] AC 3: Discussion に Implications と Recommendation が載る。Recommendation は `next_action` と決定の文脈から書き、
   どちらも無ければ節ごと省く。
-- [ ] AC 4: Appendix に lineage の図と notebook のパスが載る。
-- [ ] AC 5: `/analysis-report` は読み取り専用のままで、数値を自分で計算しない。構造テストがこれを確かめる。
+- [x] AC 4: Appendix に lineage の図と notebook のパスが載る。
+- [x] AC 5: `/analysis-report` は読み取り専用のままで、数値を自分で計算しない。構造テストがこれを確かめる。
 
 ### US-4: Claude Docs へのアップロード
 
@@ -354,6 +354,47 @@ sequenceDiagram
 - Consequences: 送り先は名前から読めない。description の1文目と承認の文で、送り先が Claude Docs であることと、
   Doc が自分だけに見える状態で作られることを示す。`analysis-<名詞>` の形からは外れ、`catalog-register` と同じ「対象-動詞」の形になる。
 
+### Decision: report-data-source-candidates
+
+- What: レポートに載せるデータソースの候補を、分析設計の `source_ids` と、
+  `metrics` と `explanatory` の `data_source` の値から集める。`catalog_io get` で登録を確かめ、登録されたものだけを載せる。
+  載せるのは名前・種類・説明の3つで、`connection` は載せない。
+- Why: US-3 AC 2 は catalog から載せると定めるが、分析設計のどの項目から id を引くかは定めていない。
+  `/analysis-design` は `source_ids` を書かないので、`source_ids` だけを読むとデータソースの表がほぼ常に空になる。
+- Criteria: 今の skill が作る分析設計でデータソースが載ること（Want、US-3 AC 2）。
+  分析設計のスキーマと上流の skill を変えないこと（Want、この Story の範囲）。
+  登録のないものを載せないこと（Must、AC 2「catalog」）。決め手は1つ目。
+  2026-11-15 に人間がこの案を選んだ。
+- Affected modules: `/analysis-report`
+- Alternatives considered: `source_ids` だけを読む案。指示は短いが、今の分析設計では表が出ない。
+  `/analysis-design` に `source_ids` を書かせる案。出典が1つになるが、上流の skill を変えるので、この Story の範囲を超える。
+- Consequences: `data_source` は自由な文字列なので、id の形（`[a-zA-Z0-9_-]+`）でない値は catalog に聞かずに捨てる。
+  catalog に同じ id のデータソースがたまたまあると、分析に使っていないものが載りうる。分析者の手直しで除く。
+  `design_io create` で作った分析設計で確かめた所、`source_ids` は空で、`metrics` の `data_source` の値から登録済みのデータソースが引けた。
+
+### Decision: report-row-counts-from-lineage-diagram
+
+- What: 行数の変化は `.insight/lineage/{id}.mmd` から書き写す。Appendix の図は同じファイルを `mermaid` のコードブロックにそのまま入れる。
+- Why: lineage で `.insight/` に残るのはこのファイルだけである。レポートは notebook を再実行しない（US-3 AC 5）。
+- Criteria: レポートが数値を計算しないこと（Must、US-3 AC 5）。notebook の契約を変えないこと（Want、この Story の範囲）。
+- Affected modules: `/analysis-report`
+- Alternatives considered: verdict に行数の変化を持たせる案。構造化されて読みやすいが、notebook の公開契約を変える。
+- Consequences: 表はファイルにある行数と差分だけを持ち、残った割合などは載せない。
+  ファイルが `graph LR` で始まらないか、コードブロックの区切りを含むときは、図を省く。
+  図の文字列がコードブロックの外に出て、レポートの体裁が崩れるのを防ぐためである。
+
+### Decision: recommendation-follows-the-design-branch
+
+- What: Recommendation の行動は、`next_action` のうち終端の状態に合う枝（`supported` は `if_supported`、`rejected` は `if_rejected`）から書く。
+  `inconclusive` では枝を選ばず、証拠からは決定を導けないと書いて Limitations を指す。
+  決定の文脈だけがあるときは、結論が決定のどちら向きかまでを書く。分析設計にない行動は作らない。
+- Why: US-3 AC 3 は「`next_action` と決定の文脈から書く」と定める。枝が状態に合わないときの扱いは定めていない。
+- Criteria: レポートが分析設計にない推奨を作らないこと（Must、`/analysis-report` は読み取り専用の消費者）。
+  空の節が生まれないこと（Want、Epic 10 Scope）。
+- Affected modules: `/analysis-report`
+- Alternatives considered: `inconclusive` のとき Recommendation を省く案。決定の文脈があるのに、読者は「まだ決められない」と読み取れない。
+- Consequences: `next_action` だけがあって状態に合う枝が無いときは、節ごと省く。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0013: verdict の指標に、任意の効果量・信頼区間・標本サイズを持たせる](../adr/0013-verdict-metric-optional-items.md):
@@ -372,7 +413,7 @@ Story の実装で ADR を書いたら、ここにリンクを足す。残る予
 |---|---|---|---|
 | US-1 判断に足る数値 | ✓（`tests/skills/test_analysis_report_structure.py`: `TestNumbersTable`） | ✓（`tests/integration/test_analysis_notebook_contract.py`: `test_verdict_metric_carries_effect_size_confidence_interval_and_sample_size`・`test_verdict_metric_keeps_the_existing_keys`） | —（skill がレポートを組み立てる所は自動テストが無い。この Story では手動確認もしていない。レポート全体を通す確認は US-3 で行う） |
 | US-2 決定の文脈 | ✓（`tests/test_design_models.py`: `test_decision_context_*`・`test_analysis_design_decision_context_defaults_to_none`、`tests/test_validate.py`、`tests/skills/test_decision_context_structure.py`、`tests/docs/test_canonical_docs.py`: `TestDomainModelDiagram`） | ✓（`tests/test_design_io.py`: `test_decision_context_is_written`・`test_half_filled_decision_context_writes_nothing`・`test_design_written_before_decision_context_still_updates`・`test_comment_may_target_the_decision_context`） | —（skill が決定の文脈を聞く所と review で読む所は自動テストが無い。この Story では手動確認もしていない） |
-| US-3 判断の材料がそろったレポート | ☐ | ☐ | ☐ |
+| US-3 判断の材料がそろったレポート | ✓（`tests/skills/test_analysis_report_structure.py`: `TestDecisionContextInIntroduction`・`TestDataDescriptionInMethod`・`TestImplicationsAndRecommendation`・`TestAppendix`・`TestReadOnlyConsumer`） | —（レポートは検証ライブラリも `design_io` も変えない。レポートが読む `catalog_io get` と lineage の書き出しは、既存のテストが確かめている） | —（skill がレポートを組み立てる所は自動テストが無い。手動確認は Story Timeline の 2026-11-15） |
 | US-4 Claude Docs へのアップロード | ☐ | ☐ | ☐ |
 | US-5 配線と文書の更新 | ☐ | ☐ | ☐ |
 
@@ -388,3 +429,7 @@ Story の実装で ADR を書いたら、ここにリンクを足す。残る予
 - 2026-11-15 — Story #63 completed: notebook の契約に効果量・信頼区間・標本サイズを足し、レポートの数値表に列を足した。
 - 2026-11-15 — 人間が決定の文脈の形を決めた（入れ子の型。ADR-0014）。
 - 2026-11-15 — Story #64 completed: 分析設計に決定の文脈を足し、`/analysis-design` が聞き、`/analysis-review` が読むようにした。
+- 2026-11-15 — 手動確認（US-3）: `design_io`・`catalog_io`・lineage の書き出しで作った `.insight/` から、Claude がテンプレートどおりにレポートを手で組み立てた。
+  決定の文脈、データソースの表、行数の変化の表、数値表の3列、Implications、Recommendation、Appendix が出て、`connection` の値は載らなかった。
+  `/analysis-report` を新しいセッションで起動した確認はしていない。
+- 2026-11-15 — Story #65 completed: レポートに決定の文脈・データの記述・Implications・Recommendation・Appendix を足した。
