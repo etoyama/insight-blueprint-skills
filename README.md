@@ -30,6 +30,7 @@ automatically — there is nothing to `pip install`.
    /analysis-journal        # record reasoning as you investigate
    /analysis-reflection     # conclude (or branch) the hypothesis
    /analysis-report         # write up a distributable APA-style report
+   /report-upload           # optional: upload the report to Claude Docs (asks before sending)
    /knowledge-extract       # save reusable, source-scoped knowledge
    ```
 
@@ -101,6 +102,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 - `/analysis-journal` — Record reasoning steps during analysis (observations, evidence, decisions, questions)
 - `/analysis-reflection` — Structured reflection to draw conclusions or branch hypotheses
 - `/analysis-report` — Assemble a distributable APA-style Markdown report from a concluded analysis (read-only consumer)
+- `/report-upload` — Upload a finished report to Claude Docs as a new Doc, after you approve the files to send (needs the host's Claude Docs connector; without it nothing is sent)
 - `/analysis-revision` — Guided revision workflow for addressing review comments
 - `/catalog-register` — Step-by-step data source registration
 - `/knowledge-extract` — Extract reusable, source-scoped domain knowledge from a concluded analysis
@@ -126,6 +128,7 @@ Skills support both English and Japanese trigger phrases.
     ↓
 /analysis-reflection (reflect → conclude or branch)
     ↓ ↘ /analysis-report (concluded → distributable APA-style report)
+          ↘ /report-upload (optional: upload the report to Claude Docs; asks before sending)
     ↓ ↗ back to /analysis-framing (new direction needed)
 /knowledge-extract (save reusable, source-scoped knowledge)
 ```
@@ -139,7 +142,9 @@ design's `methodology`, executes it, and records the results to the journal
 low-friction steps and **pausing only at genuine decisions**: confirming the hypothesis,
 registering a data source, a `HARD_BLOCK`/`HIGH` premortem, a notebook that would need
 out-of-allowlist packages or external communication beyond the declared source, the
-conclusion, and — after a terminal conclusion — offering the distributable report. It is
+conclusion, and — after a terminal conclusion — offering the distributable report. Once the
+report is written it starts `/report-upload`, which lists the files it would send to Claude Docs
+and waits for your approval; nothing leaves your machine without it. It is
 opt-in and still interactive — not an unattended pipeline. The individual
 skills stay explicit everywhere else. See
 [ADR-0005](docs/adr/0005-selective-autonomous-chaining.md).
