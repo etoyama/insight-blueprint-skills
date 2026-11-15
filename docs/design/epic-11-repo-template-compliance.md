@@ -1,0 +1,232 @@
+# Epic 11: repo-template の開発フローへの準拠
+
+## Background
+
+本書がこの Epic の要求と背景の正本（[FLOW-0001](../adr/flow/0001-designdoc-owns-requirements.md)）。
+Epic issue（[#56](https://github.com/etoyama/insight-blueprint-skills/issues/56)）には要約と本書へのリンクだけを置く。
+
+- 解く課題: このリポジトリで開発する人間と AI アシスタントは、同じ情報を複数の文書で読む。
+  CLAUDE.md（154行）が Skills 表・`.insight/` のファイル一覧・検証の仕組みの実体を持ち、
+  同じものが README と ARCHITECTURE にもある。どれが正本か分からず、片方だけ直されて食い違う。
+  CLAUDE.md §11 は存在しない rules 3本を指し、§9 は今の環境に無いレビュー道具を名指ししている。
+  PRD のロードマップは E5c を「進行中」としたまま Epic 06〜10 を載せていない。
+  用語の正本（`docs/UBIQUITOUS_LANGUAGE.md`）は雛形のままで、同じ概念を「設計書」「analysis design」
+  「hypothesis」「design document」と呼び分けている。
+- PRD の要件: 機能要件ではなく、要件と構成の正本（PRD・ARCHITECTURE・UBIQUITOUS_LANGUAGE）を
+  [docs/WORKFLOW.md](../WORKFLOW.md) §2 の正本ルールに合わせる。
+- 既存手段が不十分な理由: 段階1（[ADR-0009](../adr/0009-adopt-repo-template-flow.md)、PR #55）は
+  repo-template のファイルを機械的に移しただけで、判断を含む書き換えを意図的に残した。
+  WORKFLOW には「skill の TDD をどう読むか」「Domain Model の全体図をどこに置くか」
+  「Epic 以外の PR をいつ認めるか」の答えが無く、このリポジトリで決める必要がある。
+  旧フローの残骸（`.spec-workflow/` と `.mcp.json` の spec-workflow MCP 設定）は
+  plugin 利用者にも配られている。
+
+## User Stories
+
+### US-1: CLAUDE.md の再編
+
+AI アシスタントとして、作業の前に正本を迷わず開くために、CLAUDE.md が要約と正本へのポインタだけを持ってほしい。
+
+- [ ] AC 1: CLAUDE.md が repo-template の節構成（Documents・Development Workflow・ADR ハードルール・
+  Coding Principles・Rules and Templates・Language）を持つ。Skills 表・`.insight/` のファイル一覧・
+  Validation Guard の説明の実体を持たず、正本へのリンクで代える。
+- [ ] AC 2: CLAUDE.md の相対リンクがすべて実在するファイルを指す。
+- [ ] AC 3: Code Review の節が今の環境にあるレビュー道具と、それが無いときの代替と、
+  レビュー出力の置き場所を書く。
+- [ ] AC 4: CONTRIBUTING.md が Setup・Common Commands・Testing・Security Checklist の4節だけを持ち、
+  ほかの規約は WORKFLOW・CLAUDE.md・coding-principles へのリンクで代える。
+
+### US-2: 正本文書の整備
+
+このリポジトリのメンテナとして、全体像と用語を1か所で確かめるために、PRD・ARCHITECTURE・
+UBIQUITOUS_LANGUAGE が今の状態を正しく持ってほしい。
+
+- [ ] AC 1: PRD のロードマップが Epic 01〜11 をすべて載せ、E5c を「完了」にする。
+- [ ] AC 2: ARCHITECTURE がコンテキストマップの節を持ち、Epic マッピングが Epic 06〜11 を載せる。
+- [ ] AC 3: ARCHITECTURE が Domain Model の全体図（mermaid `classDiagram`）を持つ。
+  `src/insight_blueprint/models/` と `skills/_shared/models.py` のクラスが図に載る。
+- [ ] AC 4: UBIQUITOUS_LANGUAGE の初版が、ドメインの語だけを載せる。「コード上の名前」はコードに実在し、
+  削除済み機能の語（WebUI・REST API・MCP server など）を載せない。
+- [ ] AC 5: 揺れている語（「設計書」など）の正の語を人間が決め、表の「使わない言い換え」に反映する。
+
+### US-3: 解釈の記録
+
+次の Epic を始める人間と AI として、repo-template に答えの無い3つの問いで迷わないために、
+このリポジトリでの解釈が ADR に残っていてほしい。
+
+- [ ] AC 1: skill の TDD の読み方（D6）を ADR に書く。
+- [ ] AC 2: Domain Model の全体図の置き場所と、Python のクラスを持たない YAML / JSON の契約の扱い（D7）を ADR に書く。
+- [ ] AC 3: Epic 以外の PR を認める条件（D11）を ADR に書き、CLAUDE.md §4 からポインタを1行張る。
+- [ ] AC 4: `docs/adr/` のすべての ADR が `docs/adr/README.md` の索引に載る。
+
+### US-4: 旧フローの残骸の掃除
+
+plugin 利用者として、使わない MCP サーバを勝手に設定されないために、旧フローの設定を配布物から消してほしい。
+
+- [ ] AC 1: `.spec-workflow/` と `.mcp.json` がリポジトリに無い。テストが「`.mcp.json` が無い」を確かめる。
+- [ ] AC 2: CHANGELOG の Unreleased に、利用者向けの変更として `.mcp.json` の削除を書く。
+- [ ] AC 3: `docs/design/epic-10-analysis-report.md` の未チェックの AC 6個を、人間が確かめたうえでチェックする。
+
+## Stories
+
+| Story issue | User Story | 扱う AC |
+|---|---|---|
+| [#57](https://github.com/etoyama/insight-blueprint-skills/issues/57) | [US-1](#us-1-claudemd-の再編) | AC 1〜4 |
+| [#58](https://github.com/etoyama/insight-blueprint-skills/issues/58) | [US-2](#us-2-正本文書の整備) | AC 1〜5 |
+| [#59](https://github.com/etoyama/insight-blueprint-skills/issues/59) | [US-3](#us-3-解釈の記録) | AC 1〜4 |
+| [#60](https://github.com/etoyama/insight-blueprint-skills/issues/60) | [US-4](#us-4-旧フローの残骸の掃除) | AC 1〜3 |
+
+## Ubiquitous Language
+
+この Epic で [docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) の初版を書く。
+
+- 追加: 初版の全語（US-2 で確定する）
+
+## Scope
+
+- Epic 範囲内: [docs/WORKFLOW.md](../WORKFLOW.md) §2 の正本ルールに沿った文書の再配置（CLAUDE.md・CONTRIBUTING.md・
+  PRD・ARCHITECTURE・UBIQUITOUS_LANGUAGE）、解釈の ADR 3本、旧フローの設定の削除、
+  正本の構造を確かめる自動テスト。
+- Epic 範囲外:
+  - skill・Python コード・データモデルの振る舞いの変更。
+  - 既存の DesignDoc 13本と ADR-0001〜0008 の書き直し（[ADR-0009](../adr/0009-adopt-repo-template-flow.md) で凍結）。
+    例外は人間が確かめた epic-10 の AC のチェックだけ。
+  - repo-template の新しいコミットの取り込み（`921b1bc` に固定）。
+  - `.claude/docs/research/` の10本（凍結して残す）。
+
+## Architecture
+
+この Epic が変えるのは文書の参照関係である。CLAUDE.md は実体を持たず、正本へのリンクだけを持つ。
+破線は「リンクする」を表す。
+
+```mermaid
+flowchart TD
+    CL["CLAUDE.md<br/>要約とポインタ"]
+    CO["CONTRIBUTING.md<br/>Setup / Commands / Testing / Security"]
+    RD["README.md<br/>Skills 表の正本"]
+    WF["docs/WORKFLOW.md<br/>フローの正本"]
+    PRD["docs/PRD.md<br/>ロードマップ"]
+    AR["docs/ARCHITECTURE.md<br/>コンテキストマップ / Domain Model 全体図 /<br/>.insight/ / Validation Guard"]
+    UL["docs/UBIQUITOUS_LANGUAGE.md<br/>用語"]
+    ADR["docs/adr/0010〜0012<br/>TDD 解釈 / 全体図 / 単発 PR"]
+    T["tests/docs/<br/>正本の構造テスト"]
+    CL -.-> WF
+    CL -.-> PRD
+    CL -.-> AR
+    CL -.-> UL
+    CL -.-> RD
+    CL -.-> ADR
+    CO -.-> WF
+    AR -.-> RD
+    T -->|検査| CL
+    T -->|検査| AR
+    T -->|検査| UL
+    T -->|検査| ADR
+```
+
+## Domain Model
+
+変更なし。この Epic はデータモデルを変えない。
+全体図は [docs/ARCHITECTURE.md の「Domain Model」](../ARCHITECTURE.md#domain-model) にある（US-2 で描く）。
+
+## Sequence Diagram
+
+AI アシスタントが新しい Epic の文書を書くとき、正本をたどる順序。
+開発者が PR を出すと、正本の構造テストがリンク切れと語の食い違いを検出する。
+
+```mermaid
+sequenceDiagram
+    actor Dev as 開発者
+    participant AI as AI アシスタント
+    participant CL as CLAUDE.md
+    participant WF as docs/WORKFLOW.md
+    participant UL as docs/UBIQUITOUS_LANGUAGE.md
+    participant AR as docs/ARCHITECTURE.md
+    participant T as tests/docs（pytest）
+
+    Dev->>AI: Epic の DesignDoc を書いて
+    AI->>CL: 読む
+    CL-->>AI: 正本へのポインタ
+    AI->>WF: ライフサイクルとテンプレートを読む
+    AI->>UL: 用語を読む
+    AI->>AR: Domain Model の全体図を読む
+    AI-->>Dev: DesignDoc 初版
+    Dev->>T: uv run poe all
+    alt リンク切れ・コードに無い語・索引漏れ
+        T-->>Dev: fail（どのファイルの何か）
+    else 整合
+        T-->>Dev: pass
+    end
+```
+
+## Module Responsibilities
+
+## Decisions
+
+D4・D5・D8・D9 は Epic を始める前に人間が決めた（2026-11-15）。番号は準拠作業の論点番号。
+D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) にある。
+
+### Decision: ubiquitous-language-first-edition（D4）
+
+- What: UBIQUITOUS_LANGUAGE の初版は、ドメインの概念だけを載せる。候補の出所は
+  `src/insight_blueprint/models/` と `skills/_shared/models.py` のクラスと enum 値、skill 名、
+  `.insight/` のファイルの種類、既存 DesignDoc の Glossary のうちドメインの語（review batch、verdict、
+  terminal status、finding、KEEP / AUTO ゲートなど）。削除済み機能の語と実装の名前（`validate.py`、
+  `design_io` など）は載せない。コンテキストは1つで始める。
+- Why: 同じ概念の呼び方の揺れを、表の上で決着させる。
+- Criteria: 揺れを表で決着できること、表の語がコードに実在すること（決め手）。出典は人間の決定。
+- Affected modules: `docs/UBIQUITOUS_LANGUAGE.md`
+- Alternatives considered: Glossary の全語を移す（揺れと削除済みの語が残る）。空で置く（US-2 を満たさない）。
+- Consequences: 正の語の選定は US-2 で人間に別に出す。
+
+### Decision: claude-md-content-destinations（D5）
+
+- What: CLAUDE.md §7（Skill-Managed Data）と §8（Validation Guard）は ARCHITECTURE の
+  「コンポーネントと責務」へのポインタにする。Skills 表の正本は README の `## Skills` とし、
+  CLAUDE.md と ARCHITECTURE は README へリンクする。§9 Code Review は CLAUDE.md に残し
+  （WORKFLOW は repo-template と同じに保つ）、存在しない `orchestra:team-review` を今ある道具に差し替える。
+- Why: [WORKFLOW](../WORKFLOW.md) §2 の「同じ情報を2か所に正本として書かない」に合わせる。
+- Criteria: 正本が1つであること。WORKFLOW を repo-template から変えないこと。出典は人間の決定。
+- Affected modules: `CLAUDE.md`、`docs/ARCHITECTURE.md`、`README.md`
+- Alternatives considered: Skills 表の正本を ARCHITECTURE に置く（利用者が最初に読む README から遠い）。
+  レビュー手順を WORKFLOW に足す（repo-template からの差分が増える）。
+- Consequences: レビュー道具の選定とレビュー出力の置き場所は US-1 で人間が決める。
+
+### Decision: story-issues（D8）
+
+- What: すべての Story を `.github/ISSUE_TEMPLATE/story.yml` で issue に起票し（label `type:story`）、
+  本書の Stories 表に載せる。この Epic が最初の例になる。
+- Why: Stories 表と Story ブランチ名（`<story-num>`）が issue 番号を前提にしている。
+- Criteria: WORKFLOW §3・§5 との一致。出典は人間の決定。
+- Affected modules: なし（運用）
+- Alternatives considered: DesignDoc の中だけで Story を管理する（過去の Story issue は0件だった）。
+- Consequences: Story ごとに issue が1件増える。
+
+### Decision: legacy-flow-cleanup（D9）
+
+- What: `.spec-workflow/`（11本）と `.mcp.json` を US-4 で削除し、`tests/test_plugin_structure.py` の
+  `.mcp.json` の存在の検査を「無い」の検査に書き換えて、不変条件「No MCP server」を確かめるテストにする。
+  CONTRIBUTING.md は固有の4節に削る。`.claude/docs/research/` の10本は残す（凍結。ADR-0006 と CHANGELOG がパスで参照する）。
+- Why: marketplace の source が `./` なので、`.mcp.json`（`npx -y @pimzino/spec-workflow-mcp@latest`）は
+  インストール済みの 0.8.0 の plugin キャッシュに入っている。利用者が使わない MCP サーバを配っている。
+- Criteria: 配布物に旧フローの設定が残らないこと。過去の参照を壊さないこと。出典は人間の決定。
+- Affected modules: `.mcp.json`、`.spec-workflow/`、`tests/test_plugin_structure.py`、`CONTRIBUTING.md`、`CHANGELOG.md`
+- Alternatives considered: `.mcp.json` を残して spec-workflow だけ消す（空の設定ファイルが残り、意味がない）。
+- Consequences: 利用者向けの変更なので CHANGELOG に書く。Claude Code が利用者の環境でこのサーバを
+  実際に起動していたかは確かめていない。
+
+### Decision: split-story-c
+
+- What: 引き継ぎの Story 案 C（解釈の記録と掃除）を、US-3（ADR）と US-4（削除）に分ける。
+- Why: C のままだと AC が7個になり、WORKFLOW §3 の上限5個を超える。ADR の追加とファイルの削除は、
+  読むときの観点も違う。
+- Criteria: AC が5個以下であること（WORKFLOW §3）。
+- Affected modules: なし（Story の切り方）
+- Alternatives considered: AC をまとめて5個に詰める（1つの AC が複数の確認を含み、チェックの意味が曖昧になる）。
+- Consequences: Story issue が4件になる。
+
+## Test Design Matrix
+
+## Story Timeline
+
+- 2026-11-15 — Epic #56 を起票し、DesignDoc 初版を書いた。Story #57〜#60 を起票した。
