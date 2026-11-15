@@ -395,6 +395,27 @@ sequenceDiagram
 - Alternatives considered: `inconclusive` のとき Recommendation を省く案。決定の文脈があるのに、読者は「まだ決められない」と読み取れない。
 - Consequences: `next_action` だけがあって状態に合う枝が無いときは、節ごと省く。
 
+### Decision: upload-note-first
+
+- What: `/report-upload` は、図のリンクをすべて注記に置き換えた本文で Doc を作る。そのあと図を1枚ずつ上げ、上がった図の注記だけを図に置き換える。
+- Why: US-4 AC 4 は、図を上げられないときに図を省いて注記を入れると定める。上げる順と、途中で止まったときの Doc の状態は定めていない。
+  図を上げる手段はホストの別のツールで、呼び出しごとにホストが承認を求めることがある（spike-constraints の 3）。断られるとその場で止まる。
+- Criteria: どこで止まっても、Doc に切れた図のリンクとローカルのパスが残らないこと（Must、US-4 AC 4）。指示が短いこと（Want）。
+- Affected modules: `/report-upload`
+- Alternatives considered: 図を先に上げてから本文を作る案。失敗した図にだけ注記を入れればよいが、途中で止まると Doc が無いか、本文が欠ける。
+- Consequences: 図が1枚も上がらなくても、注記つきの Doc が残る。図の数だけ Doc を書き換える。
+
+### Decision: report-upload-joins-the-chaining-check-in-story-66
+
+- What: `/report-upload` を `tests/skills/test_skill_structure.py` の `ALL_SKILLS` に、この Story では足さない。
+  必須の節と Chaining の表は `tests/skills/test_report_upload_structure.py` が確かめる。
+- Why: `ALL_SKILLS` に足すと、chaining の双方向の検査が `/analysis-report` と `/analysis-auto` の表にも同じ行を求める。
+  その2つの表を直すのは US-5（Story #66）である。
+- Criteria: Story の範囲を越えないこと（Must、Story #67 の指示）。
+- Affected modules: `tests/skills/test_skill_structure.py`
+- Alternatives considered: この Story で2つの表も直す案。US-5 AC 1 を先取りし、Story #66 と同じファイルを触る。
+- Consequences: Story #66 が `ALL_SKILLS` に足すまで、双方向の検査は `/report-upload` を見ない。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0013: verdict の指標に、任意の効果量・信頼区間・標本サイズを持たせる](../adr/0013-verdict-metric-optional-items.md):
@@ -416,7 +437,7 @@ sequenceDiagram
 | US-1 判断に足る数値 | ✓（`tests/skills/test_analysis_report_structure.py`: `TestNumbersTable`） | ✓（`tests/integration/test_analysis_notebook_contract.py`: `test_verdict_metric_carries_effect_size_confidence_interval_and_sample_size`・`test_verdict_metric_keeps_the_existing_keys`） | —（skill がレポートを組み立てる所は自動テストが無い。この Story では手動確認もしていない。レポート全体を通す確認は US-3 で行う） |
 | US-2 決定の文脈 | ✓（`tests/test_design_models.py`: `test_decision_context_*`・`test_analysis_design_decision_context_defaults_to_none`、`tests/test_validate.py`、`tests/skills/test_decision_context_structure.py`、`tests/docs/test_canonical_docs.py`: `TestDomainModelDiagram`） | ✓（`tests/test_design_io.py`: `test_decision_context_is_written`・`test_half_filled_decision_context_writes_nothing`・`test_design_written_before_decision_context_still_updates`・`test_comment_may_target_the_decision_context`） | —（skill が決定の文脈を聞く所と review で読む所は自動テストが無い。この Story では手動確認もしていない） |
 | US-3 判断の材料がそろったレポート | ✓（`tests/skills/test_analysis_report_structure.py`: `TestDecisionContextInIntroduction`・`TestDataDescriptionInMethod`・`TestImplicationsAndRecommendation`・`TestAppendix`・`TestReadOnlyConsumer`） | —（レポートは検証ライブラリも `design_io` も変えない。レポートが読む `catalog_io get` と lineage の書き出しは、既存のテストが確かめている） | —（skill がレポートを組み立てる所は自動テストが無い。手動確認は Story Timeline の 2026-11-15） |
-| US-4 Claude Docs へのアップロード | ☐ | ☐ | ☐ |
+| US-4 Claude Docs へのアップロード | ✓（`tests/skills/test_report_upload_structure.py`、`tests/docs/test_canonical_docs.py`: `TestExternalSendRules`、`tests/test_plugin_structure.py`: `TestSkillsDirectory`） | —（skill は検証ライブラリも `design_io` も変えない。Claude Docs のコネクタはホストが持ち、テストからは呼べない） | —（skill がアップロードする所は自動テストが無い。手動確認は Story Timeline の 2026-11-16） |
 | US-5 配線と文書の更新 | ☐ | ☐ | ☐ |
 
 完了時に ✓ を付ける。自動テストがない層には「—（理由）」を書く（[ADR-0010](../adr/0010-skill-tdd-structure-tests.md)）。
@@ -435,3 +456,4 @@ sequenceDiagram
   決定の文脈、データソースの表、行数の変化の表、数値表の3列、Implications、Recommendation、Appendix が出て、`connection` の値は載らなかった。
   `/analysis-report` を新しいセッションで起動した確認はしていない。
 - 2026-11-15 — Story #65 completed: レポートに決定の文脈・データの記述・Implications・Recommendation・Appendix を足した。
+- 2026-11-15 — 人間が ADR 2本の中身を決めた（不変条件の文と、外部へ送る前の承認の決まり。issue #67 のコメント。ADR-0015・ADR-0016）。
