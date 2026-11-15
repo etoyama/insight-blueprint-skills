@@ -161,6 +161,15 @@ sequenceDiagram
 
 ## Module Responsibilities
 
+| モジュール / 関数 | 責務（する） | 境界（しない → 委譲先） |
+|---|---|---|
+| `CLAUDE.md` | AI への行動指示と、各正本へのポインタ | 規則・構成・用語の実体を持たない → WORKFLOW・ARCHITECTURE・UBIQUITOUS_LANGUAGE・README |
+| `docs/ARCHITECTURE.md` | 不変条件、構成、コンテキストマップ、Domain Model の全体図、ファイルの契約の所在 | Epic の一覧と DesignDoc へのリンクを持たない → PRD のロードマップ。契約の形を写さない → 各 SKILL.md・`notebook-contract.md` |
+| `docs/UBIQUITOUS_LANGUAGE.md` | 用語・コード上の名前・定義・使わない言い換え | yomiyasu の語の一覧を手で持たない → `scripts/export_yomiyasu_words.py` が生成 |
+| `scripts/export_yomiyasu_words.py::render` | Terms 表から `allow.txt`・`flag.txt` の中身を作る純関数 | ファイルを書かない → `main` |
+| `tests/docs/test_canonical_docs.py` | リンク切れ、CLAUDE.md への実体の逆流、図とコードの食い違い、語の実在、ADR の索引、生成物の同期を検出する | 表の読み取りを自分で持たない → `scripts/export_yomiyasu_words.py` の `section`・`terms_rows` |
+| `tests/test_plugin_structure.py::TestMcpJson` | 配布物に MCP サーバの設定が無いことを確かめる | `.spec-workflow/` は見ない → `TestNoLegacyFlowFiles` |
+
 ## Decisions
 
 D4・D5・D8・D9 は Epic を始める前に人間が決めた（2026-11-15）。番号は準拠作業の論点番号。
@@ -228,6 +237,7 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 - Alternatives considered: `/code-review` だけ（品質と AC の観点が抜ける）。
   出力を `docs/reviews/epic-NN/` にコミットする（古いレビューを正本と取り違える）。
 - Consequences: pstack を外すと主の道具が消え、代替に落ちる。AC 照合は道具ではなく作者の手順になる。
+- Epic に留める理由: 効果は以後の Epic に及ぶが、手順の正本は CLAUDE.md §9 で、決めたのは存在しない道具の差し替えだけである。設計の制約や契約は変えない。道具を替えるときは CLAUDE.md を直し、同じ PR でこの Decision を参照する。
 
 ### Decision: canonical-term-analysis-design
 
@@ -243,6 +253,7 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 - Alternatives considered: 「設計書」（docs の多数派だが DesignDoc と衝突する）。「仮説」（`hypothesis_statement` と衝突する）。
 - Consequences: skills には「design document」などが残る。表の「使わない言い換え」に載せ、触ったときに直す。
   ARCHITECTURE の参照の節にある ADR-0003 の題（「設計書 I/O」）は凍結した ADR の題なので変えない。
+- Epic に留める理由: UBIQUITOUS_LANGUAGE の初版で語を足すだけで、表に既にあった語の改名ではない（WORKFLOW §7 は「新語の追加だけなら PR 説明への明記でよい」とする）。今後この語を変えるときは ADR を書く。
 
 ### Decision: generate-yomiyasu-words
 
@@ -255,6 +266,7 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 - Affected modules: `scripts/export_yomiyasu_words.py`、`.yomiyasu-words/`、`tests/docs/test_canonical_docs.py`
 - Alternatives considered: 手で写す（ずれる）。コミットせず推敲のたびに生成する（チームで共有できない。yomiyasu はリポジトリに入れる前提）。
 - Consequences: UBIQUITOUS_LANGUAGE を変えたら、スクリプトを回して同じ PR に生成物を入れる。忘れるとテストが落ちる。
+- Epic に留める理由: WORKFLOW §8 が決めた書き出しの実装で、新しい規則は足していない。義務はテストが知らせるので、文書の規則として覚えておく必要がない。
 
 ### Decision: split-story-c
 
@@ -280,10 +292,10 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| #57 CLAUDE.md の再編 | ✓（`tests/docs/test_canonical_docs.py`: `TestClaudeMd`・`TestContributing`） | —（文書だけで、組み合わせて動くものが無い） | —（同上） |
+| #57 CLAUDE.md の再編 | ✓（`tests/docs/test_canonical_docs.py`: `TestClaudeMd`・`TestContributing`・`test_relative_links_resolve`） | —（文書だけで、組み合わせて動くものが無い） | —（同上） |
 | #58 正本文書の整備 | ✓（`TestRoadmap`・`TestDomainModelDiagram`・`TestUbiquitousLanguage`・`TestYomiyasuWords`） | —（同上） | —（同上） |
 | #59 解釈の記録 | ✓（`TestAdrs`: 索引、新形式の節、リンク、CLAUDE.md と ARCHITECTURE からの参照） | —（同上） | —（同上） |
-| #60 旧フローの残骸の掃除 | ✓（`tests/test_plugin_structure.py::TestMcpJson`: `.mcp.json` と `.spec-workflow/` が無い） | —（同上） | —（plugin を入れ直して `.mcp.json` が配られないことは、リリース後に手で確かめる） |
+| #60 旧フローの残骸の掃除 | ✓（`tests/test_plugin_structure.py`: `TestMcpJson`・`TestNoLegacyFlowFiles`） | —（同上） | —（plugin を入れ直して `.mcp.json` が配られないことは、リリース後に手で確かめる） |
 
 ## Story Timeline
 
@@ -294,3 +306,5 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 - 2026-11-15 — Story #60 完了: `.spec-workflow/`（11本）と `.mcp.json` を削除し、`TestMcpJson` を「無い」の検査に書き換えた（Red を確認してから削除した）。CHANGELOG の Unreleased に書いた。epic-10 の AC 6個は、人間が確認したうえでチェックだけを直した（本文は変えていない）。
 - 2026-11-15 — #58 の追補: UBIQUITOUS_LANGUAGE の「使わない言い換え」を、実際に使われている語だけに絞った。YAML のフィールド名と使用0件の語を外し、既存の文書が使う terminal status と figures manifest を正の語にした。`.yomiyasu-words/` を生成するスクリプトと、同期を確かめるテストを足した。
 - 2026-11-15 — Epic PR の前の推敲（WORKFLOW §8）: 今回書いた日本語の文書10本に yomiyasu 3.1.0 の check run と verify をかけた（全件でハッシュが一致し、meaning_risk=0）。直したのは、間を作るだけの読点11か所。既存の文の em dash と太字は変えていない。
+- 2026-11-15 — `pstack:thermos` のコード品質レビューに対応した。Terms 表の読み取りをスクリプトに1本化し、全体図の enum の値もコードと照合するようにした。Epic の一覧は PRD だけに置き、ARCHITECTURE の Epic マッピングから DesignDoc の列を外した。リンク切れのテストを1本にまとめ、見出しを数えるときにコードフェンスを除くようにした。CLAUDE.md の節番号への参照（ARCHITECTURE の冒頭と ADR-0012）は節の名前に直した。CLAUDE.md §4・§8 が WORKFLOW の要約を持つ点は、repo-template の CLAUDE.md と同じに保つため残した。
+- 2026-11-15 — `pstack:thermos` のバグ観点のレビューに対応した。ARCHITECTURE の遷移の例が事実と逆だった（`in_review → supported` は許される）ので、`analyzing → supported` を拒む例に直した。図の破線の読み方を、dict に入れた参照も含む形に直した。Module Responsibilities を埋め、`flag.txt` から Claude Code 本体の機能名と重なる「auto mode」を外した。CONTRIBUTING から消えた「コメントと docstring は英語」を CLAUDE.md §8 に戻した。

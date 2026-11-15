@@ -54,7 +54,7 @@
 | finding | `finding` | その分析だけで言える発見。ドメイン知識にせず reflection に残す | — | [epic-05b](design/epic-05b-knowledge-extraction.md) |
 | premortem | `/premortem` | 高いデータアクセスの前に、費用とリスクを見積もって報告すること。止めはしない | 事前評価 | [epic-05a](design/epic-05a-premortem-standalone.md) |
 | リスクレベル | `RiskLevel` | premortem の判定。`HARD_BLOCK`・`HIGH`・`MEDIUM`・`LOW`・`SKIP` | — | [epic-05a](design/epic-05a-premortem-standalone.md) |
-| guided autopilot | `/analysis-auto` | driver が既存の skill を順に動かし、KEEP ゲートでだけ止まる実行 | auto mode | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |
+| guided autopilot | `/analysis-auto` | driver が既存の skill を順に動かし、KEEP ゲートでだけ止まる実行 | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |
 | KEEP ゲート | `KEEP` | guided autopilot が止まって分析者の判断を待つ所 | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |
 | AUTO | `AUTO` | guided autopilot が分析者に聞かずに進める所 | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |
 

@@ -87,7 +87,7 @@ clone ごとに `scripts/install-plugins.sh` で入れる）。
 
 ## 8. Language
 
-- ユーザーへの応答は日本語。コード・YAML のフィールド名・ツール名は英語のまま。
+- ユーザーへの応答は日本語。コード（コメントと docstring を含む）・YAML のフィールド名・ツール名は英語のまま。
 - 文書は日本語の単一言語で書く（上流テンプレートの日英併記は採らない）。
 - 文書・コード・テスト・図は [docs/UBIQUITOUS_LANGUAGE.md](docs/UBIQUITOUS_LANGUAGE.md)
   の語だけを使う。書く前に読み、表にない概念は同じ PR で足す（[docs/WORKFLOW.md §7](docs/WORKFLOW.md)）。

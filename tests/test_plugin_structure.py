@@ -74,6 +74,10 @@ class TestMcpJson:
         """The repo root is the plugin payload, so a .mcp.json here would reach every user."""
         assert not (REPO_ROOT / ".mcp.json").exists()
 
+
+class TestNoLegacyFlowFiles:
+    """Unit-02: the pre-fork development flow leaves nothing in the plugin payload."""
+
     def test_spec_workflow_is_absent(self) -> None:
         """The pre-fork spec-workflow docs were replaced by docs/design/ and docs/adr/."""
         assert not (REPO_ROOT / ".spec-workflow").exists()

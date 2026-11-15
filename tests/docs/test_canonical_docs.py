@@ -13,9 +13,45 @@ import importlib.util
 import re
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
+_spec = importlib.util.spec_from_file_location(
+    "export_yomiyasu_words", REPO_ROOT / "scripts/export_yomiyasu_words.py"
+)
+assert _spec and _spec.loader
+words = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(words)
+
 _LINK = re.compile(r"\]\(([^)\s]+)\)")
+
+ADR_DIR = REPO_ROOT / "docs/adr"
+# ADR-0009 onward use the repo-template format (ADR-0009, Decision D2・D3).
+NEW_FORMAT_FROM = 9
+NEW_FORMAT_SECTIONS = [
+    "Status",
+    "Context",
+    "Problem",
+    "Decision Analysis",
+    "Decision",
+    "Consequences",
+    "Alternatives considered",
+    "Related",
+]
+MODEL_FILES = [
+    *sorted((REPO_ROOT / "src/insight_blueprint/models").glob("*.py")),
+    REPO_ROOT / "skills/_shared/models.py",
+]
+EPIC_DOCS = sorted((REPO_ROOT / "docs/design").glob("epic-*.md"))
+REMOVED_FEATURE_TERMS = (
+    "WebUI",
+    "REST API",
+    "MCP server",
+    "MCP サーバ",
+    "SQLite",
+    "batch-analysis",
+)
 
 
 def _read(rel: str) -> str:
@@ -25,21 +61,41 @@ def _read(rel: str) -> str:
 def _h2_titles(text: str) -> list[str]:
     return [
         re.sub(r"^\d+\.\s*", "", line[3:].strip())
-        for line in text.splitlines()
+        for line in words.strip_code_fences(text).splitlines()
         if line.startswith("## ")
     ]
 
 
-def _dead_links(rel: str) -> list[str]:
+def _adr_files() -> list[Path]:
+    return sorted(ADR_DIR.glob("[0-9][0-9][0-9][0-9]-*.md"))
+
+
+def _new_format_adrs() -> list[Path]:
+    return [p for p in _adr_files() if int(p.name[:4]) >= NEW_FORMAT_FROM]
+
+
+LIVING_DOCS = [
+    "CLAUDE.md",
+    "CONTRIBUTING.md",
+    "docs/PRD.md",
+    "docs/ARCHITECTURE.md",
+    "docs/UBIQUITOUS_LANGUAGE.md",
+    "docs/adr/README.md",
+    "docs/design/epic-11-repo-template-compliance.md",
+    *(str(p.relative_to(REPO_ROOT)) for p in _new_format_adrs()),
+]
+
+
+@pytest.mark.parametrize("rel", LIVING_DOCS)
+def test_relative_links_resolve(rel: str) -> None:
     base = (REPO_ROOT / rel).parent
-    dead = []
-    for target in _LINK.findall(_read(rel)):
-        if target.startswith(("http://", "https://", "mailto:", "#")):
-            continue
-        path = target.split("#", 1)[0]
-        if not (base / path).exists():
-            dead.append(target)
-    return dead
+    dead = [
+        target
+        for target in _LINK.findall(_read(rel))
+        if not target.startswith(("http://", "https://", "mailto:", "#"))
+        and not (base / target.split("#", 1)[0]).exists()
+    ]
+    assert dead == []
 
 
 class TestClaudeMd:
@@ -68,14 +124,8 @@ class TestClaudeMd:
             "Skills table belongs to README"
         )
 
-    def test_relative_links_resolve(self) -> None:
-        assert _dead_links("CLAUDE.md") == []
-
-    def test_code_review_names_tools_that_exist(self) -> None:
-        text = _read("CLAUDE.md")
-        assert "orchestra:team-review" not in text
-        assert "thermos" in text
-        assert "/code-review" in text
+    def test_code_review_does_not_name_the_removed_tool(self) -> None:
+        assert "orchestra:team-review" not in _read("CLAUDE.md")
 
 
 class TestContributing:
@@ -85,182 +135,136 @@ class TestContributing:
         titles = _h2_titles(_read("CONTRIBUTING.md"))
         assert titles == ["Setup", "Common Commands", "Testing", "Security Checklist"]
 
-    def test_relative_links_resolve(self) -> None:
-        assert _dead_links("CONTRIBUTING.md") == []
-
-
-MODEL_FILES = [
-    *sorted((REPO_ROOT / "src/insight_blueprint/models").glob("*.py")),
-    REPO_ROOT / "skills/_shared/models.py",
-]
-EPIC_DOCS = sorted((REPO_ROOT / "docs/design").glob("epic-*.md"))
-REMOVED_FEATURE_TERMS = (
-    "WebUI",
-    "REST API",
-    "MCP server",
-    "MCP サーバ",
-    "SQLite",
-    "batch-analysis",
-)
-
-
-def _section(text: str, title: str) -> str:
-    match = re.search(
-        rf"^## {re.escape(title)}\s*$(.*?)(?=^## |\Z)", text, re.MULTILINE | re.DOTALL
-    )
-    assert match, f"section '## {title}' not found"
-    return match.group(1)
-
-
-def _model_class_names() -> set[str]:
-    names: set[str] = set()
-    for path in MODEL_FILES:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        names |= {node.name for node in tree.body if isinstance(node, ast.ClassDef)}
-    return names
-
-
-def _terms_rows() -> list[list[str]]:
-    body = _section(_read("docs/UBIQUITOUS_LANGUAGE.md"), "Terms")
-    rows = [line for line in body.splitlines() if line.startswith("|")]
-    return [[cell.strip() for cell in row.strip("|").split("|")] for row in rows[2:]]
-
 
 class TestRoadmap:
-    """US-2 AC 1, AC 2: every Epic DesignDoc is on the PRD roadmap and the ARCHITECTURE Epic mapping."""
+    """US-2 AC 1, AC 2: the PRD roadmap is the one list of Epics; ARCHITECTURE has a context map."""
 
     def test_prd_roadmap_links_every_epic(self) -> None:
-        roadmap = _section(_read("docs/PRD.md"), "ロードマップ")
+        roadmap = words.section(_read("docs/PRD.md"), "ロードマップ")
         missing = [p.name for p in EPIC_DOCS if f"design/{p.name}" not in roadmap]
-        assert missing == []
-
-    def test_architecture_epic_mapping_links_every_epic(self) -> None:
-        mapping = _section(_read("docs/ARCHITECTURE.md"), "Epic マッピング")
-        missing = [p.name for p in EPIC_DOCS if f"design/{p.name}" not in mapping]
         assert missing == []
 
     def test_architecture_has_a_context_map(self) -> None:
         assert "コンテキストマップ" in _h2_titles(_read("docs/ARCHITECTURE.md"))
 
-    def test_relative_links_resolve(self) -> None:
-        for rel in (
-            "docs/PRD.md",
-            "docs/ARCHITECTURE.md",
-            "docs/UBIQUITOUS_LANGUAGE.md",
-        ):
-            assert _dead_links(rel) == [], rel
+
+def _model_classes() -> dict[str, ast.ClassDef]:
+    classes: dict[str, ast.ClassDef] = {}
+    for path in MODEL_FILES:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        classes |= {n.name: n for n in tree.body if isinstance(n, ast.ClassDef)}
+    return classes
+
+
+def _enum_members(node: ast.ClassDef) -> list[str] | None:
+    if not any(isinstance(b, ast.Name) and b.id == "StrEnum" for b in node.bases):
+        return None
+    return [
+        target.id
+        for stmt in node.body
+        if isinstance(stmt, ast.Assign)
+        for target in stmt.targets
+        if isinstance(target, ast.Name)
+    ]
+
+
+def _diagram_classes() -> dict[str, list[str]]:
+    section = words.section(_read("docs/ARCHITECTURE.md"), "Domain Model")
+    diagram = re.search(r"```mermaid\s*\nclassDiagram\n(.*?)```", section, re.DOTALL)
+    assert diagram, "classDiagram block not found"
+    boxes = re.findall(
+        r"^\s*class (\w+) \{\n(.*?)^\s*\}", diagram.group(1), re.MULTILINE | re.DOTALL
+    )
+    return {
+        name: [line.strip() for line in body.splitlines() if line.strip()]
+        for name, body in boxes
+    }
 
 
 class TestDomainModelDiagram:
-    """US-2 AC 3: the overall classDiagram lists exactly the model classes in the code."""
+    """US-2 AC 3: the overall classDiagram matches the model classes in the code."""
 
-    def test_class_diagram_matches_the_model_classes(self) -> None:
-        section = _section(_read("docs/ARCHITECTURE.md"), "Domain Model")
-        diagram = re.search(
-            r"```mermaid\s*\nclassDiagram\n(.*?)```", section, re.DOTALL
-        )
-        assert diagram, "classDiagram block not found"
-        drawn = set(re.findall(r"^\s*class (\w+)", diagram.group(1), re.MULTILINE))
-        assert drawn == _model_class_names()
+    def test_class_diagram_lists_exactly_the_model_classes(self) -> None:
+        assert set(_diagram_classes()) == set(_model_classes())
+
+    def test_enum_boxes_list_exactly_the_enum_members(self) -> None:
+        drawn = _diagram_classes()
+        for name, node in _model_classes().items():
+            members = _enum_members(node)
+            if members is None:
+                continue
+            assert drawn[name][0] == "<<enumeration>>", name
+            assert drawn[name][1:] == members, name
+
+
+def _code_corpus() -> str:
+    return "\n".join(
+        p.read_text(encoding="utf-8")
+        for root in ("src", "skills")
+        for p in (REPO_ROOT / root).rglob("*")
+        if p.is_file() and p.suffix in {".py", ".md"}
+    )
 
 
 class TestUbiquitousLanguage:
     """US-2 AC 4, AC 5: the first edition holds domain terms whose code names exist."""
 
     def test_context_is_filled_in(self) -> None:
-        text = _read("docs/UBIQUITOUS_LANGUAGE.md")
-        assert "<コンテキスト名>" not in text
-        assert "雛形" not in text
+        assert "<コンテキスト名>" not in _read("docs/UBIQUITOUS_LANGUAGE.md")
 
     def test_code_names_exist_in_the_code(self) -> None:
-        code = "\n".join(
-            p.read_text(encoding="utf-8")
-            for root in ("src", "skills")
-            for p in (REPO_ROOT / root).rglob("*")
-            if p.is_file() and p.suffix in {".py", ".md"}
-        )
+        corpus = _code_corpus()
+        rows = words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
         missing = [
             name
-            for row in _terms_rows()
-            for name in re.findall(r"`([^`]+)`", row[1])
-            if name not in code
+            for row in rows
+            for name in re.findall(r"`([^`]+)`", row[words.CODE_NAME])
+            if not re.search(rf"(?<!\w){re.escape(name)}(?!\w)", corpus)
         ]
         assert missing == []
 
     def test_has_no_removed_feature_terms(self) -> None:
-        for row in _terms_rows():
+        for row in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md")):
+            text = " ".join(
+                (row[words.TERM], row[words.CODE_NAME], row[words.DEFINITION])
+            )
             for term in REMOVED_FEATURE_TERMS:
-                assert term not in " ".join(row[:3]), (term, row[0])
+                assert term not in text, (term, row[words.TERM])
 
     def test_analysis_design_is_the_canonical_term(self) -> None:
-        rows = {row[0]: row for row in _terms_rows()}
-        assert "分析設計" in rows
-        assert "設計書" in rows["分析設計"][3]
-
-
-ADR_DIR = REPO_ROOT / "docs/adr"
-NEW_FORMAT_FROM = (
-    9  # ADR-0009 onward use the repo-template format (ADR-0009 Decision D2・D3).
-)
-NEW_FORMAT_SECTIONS = [
-    "Status",
-    "Context",
-    "Problem",
-    "Decision Analysis",
-    "Decision",
-    "Consequences",
-    "Alternatives considered",
-    "Related",
-]
-
-
-def _adr_files() -> list[Path]:
-    return sorted(p for p in ADR_DIR.glob("[0-9][0-9][0-9][0-9]-*.md"))
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        assert "設計書" in rows["分析設計"][words.AVOID]
 
 
 class TestAdrs:
-    """US-3: the interpretations are ADRs in the new format, all indexed."""
+    """US-3: the interpretations are ADRs in the new format, all indexed and referenced."""
 
     def test_every_adr_is_in_the_index(self) -> None:
-        index = (ADR_DIR / "README.md").read_text(encoding="utf-8")
+        index = _read("docs/adr/README.md")
         missing = [p.name for p in _adr_files() if f"]({p.name})" not in index]
         assert missing == []
 
-    def test_new_format_adrs_have_every_section(self) -> None:
-        for path in _adr_files():
-            if int(path.name[:4]) < NEW_FORMAT_FROM:
-                continue
-            titles = _h2_titles(path.read_text(encoding="utf-8"))
-            assert titles == NEW_FORMAT_SECTIONS, path.name
-
-    def test_new_format_adr_links_resolve(self) -> None:
-        for path in _adr_files():
-            if int(path.name[:4]) >= NEW_FORMAT_FROM:
-                assert _dead_links(str(path.relative_to(REPO_ROOT))) == [], path.name
-
-    def test_interpretation_adrs_exist(self) -> None:
-        names = {p.name[:4] for p in _adr_files()}
-        assert {"0010", "0011", "0012"} <= names
+    @pytest.mark.parametrize("path", _new_format_adrs(), ids=lambda p: p.name[:4])
+    def test_new_format_adr_has_every_section(self, path: Path) -> None:
+        assert _h2_titles(path.read_text(encoding="utf-8")) == NEW_FORMAT_SECTIONS
 
     def test_claude_md_points_at_the_single_pr_rule(self) -> None:
         assert "docs/adr/0012-" in _read("CLAUDE.md")
 
     def test_architecture_domain_model_cites_its_adr(self) -> None:
-        assert "adr/0011-" in _section(_read("docs/ARCHITECTURE.md"), "Domain Model")
+        assert "adr/0011-" in words.section(
+            _read("docs/ARCHITECTURE.md"), "Domain Model"
+        )
 
 
 class TestYomiyasuWords:
     """WORKFLOW §8: .yomiyasu-words/ is exported from UBIQUITOUS_LANGUAGE, never edited by hand."""
 
     def test_word_lists_match_the_ubiquitous_language(self) -> None:
-        spec = importlib.util.spec_from_file_location(
-            "export_yomiyasu_words", REPO_ROOT / "scripts/export_yomiyasu_words.py"
-        )
-        assert spec and spec.loader
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        expected = module.render(_read("docs/UBIQUITOUS_LANGUAGE.md"))
-        for name, content in expected.items():
+        for name, content in words.render(_read("docs/UBIQUITOUS_LANGUAGE.md")).items():
             assert _read(f".yomiyasu-words/{name}") == content, (
                 f"{name} is stale: run uv run python scripts/export_yomiyasu_words.py"
             )

@@ -10,4 +10,3 @@ design document	分析設計
 データ源	データソース
 カタログ	catalog
 事前評価	premortem
-auto mode	guided autopilot

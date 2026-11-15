@@ -1,6 +1,6 @@
 # ARCHITECTURE: insight-blueprint-skills
 
-本書は軽量版（target state）アーキテクチャの**正本**。CLAUDE.md §2 は要約とポインタのみを置く。
+本書は軽量版（target state）アーキテクチャの**正本**。CLAUDE.md は要約とポインタのみを置く。
 プロダクト要件は [PRD.md](PRD.md)、個別決定は [docs/adr/](adr/) を参照。
 
 **移行状況**: MCPサーバ / WebUI / SQLite は E1–E4 で除去済み
@@ -66,7 +66,7 @@ flowchart TD
 - **Skill layer（`skills/`）** — すべての分析能力。拡張点。skill の一覧は [README の Skills](../README.md#skills) が正本。分析設計・journal・catalog 等の YAML を直接 read/write する。
 - **Validation library（`src/insight_blueprint/validate.py`）** — I/O を持たない純関数。
   Pydantic スキーマ検証（`AnalysisDesign`。`DesignStatus` と、空でない `Methodology.method` など）+
-  状態遷移ガード（`VALID_TRANSITIONS`。例: `in_review → supported` を拒む）。分析設計の整合性の単一正本。
+  状態遷移ガード（`VALID_TRANSITIONS`。例: `analyzing` から進めるのは `in_review` だけで、`analyzing → supported` は拒む。terminal status からはどこへも遷移しない）。分析設計の整合性の単一正本。
   `design_io` 経由で書く skill も、書く前に Python 側で同じ検証を通す。tool の書き込み（hook）と
   helper の書き込み（`design_io`）の両方が守られる。
 - **pre-write hook（`hooks/validate-design.py`, plugin 同梱 `hooks/hooks.json`）** —
@@ -518,7 +518,7 @@ classDiagram
 図の読み方: 箱は1つのクラスで、上段がクラス名と種類（`<<Aggregate Root>>` など）、下段が主なフィールドか enum の値を表す。
 フィールドは主なものだけを載せ、全部はコードを見る。
 実線の黒いひし形（`*--`）は「親が子を持つ」で、両端の数字は個数を表す。
-実線の矢印（`-->`）は「その enum の値を持つ」、破線の矢印（`..>`）は「ID で参照する」で、ラベルが参照に使うフィールドを表す。
+実線の矢印（`-->`）は「その enum の値を持つ」を表す。破線の矢印（`..>`）は型で結ばれていない参照で、ラベルが参照に使うフィールドを表す（ID のほか、`schema_info` のように dict に入れた形もある）。
 `RiskDecision`・`SourceChecks`・`PremortemConfig` は `/premortem` の入出力で、ファイルには保存しない。
 
 | 型 | 種類 | 不変条件 |
@@ -542,22 +542,25 @@ classDiagram
 
 ## Epic マッピング
 
-| Epic | DesignDoc | 主に触るコンポーネント |
-|---|---|---|
-| E1 | [epic-01](design/epic-01-remove-webui.md) | WebUI/REST（撤去）— full の縮小 |
-| E2 | [epic-02](design/epic-02-validate-lib.md) | Validation library + pre-write hook（新設） |
-| E3 | [epic-03](design/epic-03-skills-yaml-io.md) | Skill layer ↔ Skill-managed YAML（分析設計のライフサイクルの直接 I/O 化、design_io） |
-| E3.5 | [epic-3.5](design/epic-3.5-remaining-yaml-io.md) | catalog / premortem / lineage の MCP→YAML 変換 + batch-analysis 撤去（E4 前提） |
-| E4 | [epic-04](design/epic-04-remove-mcp-server.md) | MCP server（撤去） |
-| E5a | [epic-05a](design/epic-05a-premortem-standalone.md) | premortem（report-only 自立化） |
-| E5b | [epic-05b](design/epic-05b-knowledge-extraction.md) | catalog_io（knowledge write/upsert）+ /knowledge-extract（Claude-native 抽出） |
-| E5c | [epic-05c](design/epic-05c-catalog-flexibility.md) | models.catalog（open string taxonomy + extra=allow）+ 2 skill 汎用化 |
-| Epic 06 | [epic-06](design/epic-06-analysis-review.md) | Skill layer（`/analysis-review`）+ `design_io review-batch` |
-| Epic 07 | [epic-07](design/epic-07-analysis-notebook.md) | Skill layer（`/analysis-notebook`）+ marimo + lineage（8-cell 契約） |
-| Epic 08 | [epic-08](design/epic-08-analysis-auto.md) | Skill layer（`/analysis-auto` driver）と既存 skill の chaining |
-| Epic 09 | [epic-09](design/epic-09-installable-plugin.md) | plugin 配布（`bin/` ラッパー、`hooks/hooks.json`、パス解決） |
-| Epic 10 | [epic-10](design/epic-10-analysis-report.md) | Skill layer（`/analysis-report`）+ notebook 契約の `figures[]` |
-| Epic 11 | [epic-11](design/epic-11-repo-template-compliance.md) | 文書の正本（CLAUDE.md・PRD・本書・UBIQUITOUS_LANGUAGE）と ADR |
+Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.md#ロードマップ) にある。ここには各 Epic が触るコンポーネントだけを書く。
+
+| Epic | 主に触るコンポーネント |
+|---|---|
+| E1 | WebUI/REST（撤去）— full の縮小 |
+| E2 | Validation library + pre-write hook（新設） |
+| E3 | Skill layer ↔ Skill-managed YAML（分析設計のライフサイクルの直接 I/O 化、design_io） |
+| E3.5 | catalog / premortem / lineage の MCP→YAML 変換 + batch-analysis 撤去（E4 前提） |
+| E4 | MCP server（撤去） |
+| E5a | premortem（report-only 自立化） |
+| E5b | catalog_io（knowledge write/upsert）+ /knowledge-extract（Claude-native 抽出） |
+| E5c | models.catalog（open string taxonomy + extra=allow）+ 2 skill 汎用化 |
+| Epic 06 | Skill layer（`/analysis-review`）+ `design_io review-batch` |
+| Epic 07 | Skill layer（`/analysis-notebook`）+ marimo + lineage（8-cell 契約） |
+| Epic 08 | Skill layer（`/analysis-auto` driver）と既存 skill の chaining |
+| Epic 09 | plugin 配布（`bin/` ラッパー、`hooks/hooks.json`、パス解決） |
+| Epic 10 | Skill layer（`/analysis-report`）+ notebook 契約の `figures[]` |
+| Epic 11 | 文書の正本（CLAUDE.md・PRD・本書・UBIQUITOUS_LANGUAGE）と ADR |
+
 
 ## 参照
 

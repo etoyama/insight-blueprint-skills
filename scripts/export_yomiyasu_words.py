@@ -14,28 +14,49 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HEADER = "# Generated from docs/UBIQUITOUS_LANGUAGE.md by scripts/export_yomiyasu_words.py. Do not edit.\n"
 
+TERM = "用語"
+CODE_NAME = "コード上の名前"
+DEFINITION = "定義"
+AVOID = "使わない言い換え"
 
-def _terms_rows(markdown: str) -> list[list[str]]:
+
+def strip_code_fences(markdown: str) -> str:
+    """Drop fenced blocks so a quoted template's headings and tables are not read as the document's."""
+    return re.sub(r"^```.*?^```[^\n]*$", "", markdown, flags=re.MULTILINE | re.DOTALL)
+
+
+def section(markdown: str, title: str) -> str:
     match = re.search(
-        r"^## Terms\s*$(.*?)(?=^## |\Z)", markdown, re.MULTILINE | re.DOTALL
+        rf"^## {re.escape(title)}\s*$(.*?)(?=^## |\Z)",
+        markdown,
+        re.MULTILINE | re.DOTALL,
     )
     if not match:
-        raise ValueError("'## Terms' section not found")
-    rows = [line for line in match.group(1).splitlines() if line.startswith("|")]
-    return [[cell.strip() for cell in row.strip("|").split("|")] for row in rows[2:]]
+        raise ValueError(f"'## {title}' section not found")
+    return match.group(1)
+
+
+def terms_rows(markdown: str) -> list[dict[str, str]]:
+    lines = [
+        line for line in section(markdown, "Terms").splitlines() if line.startswith("|")
+    ]
+    header, *body = [
+        [cell.strip() for cell in line.strip("|").split("|")] for line in lines
+    ]
+    return [dict(zip(header, cells, strict=True)) for cells in body[1:]]
 
 
 def render(markdown: str) -> dict[str, str]:
     allow: list[str] = []
     flag: list[str] = []
-    for term, _code, _definition, avoid, _origin in _terms_rows(markdown):
-        allow.append(term)
-        for variant in re.split(r"、", avoid):
+    for row in terms_rows(markdown):
+        allow.append(row[TERM])
+        for variant in row[AVOID].split("、"):
             # A variant qualified with a condition (「…（…とき）」) is only wrong in some
             # contexts, so flagging every occurrence would be noise.
             if variant in ("", "—") or "（" in variant:
                 continue
-            flag.append(f"{variant}\t{term}")
+            flag.append(f"{variant}\t{row[TERM]}")
     return {
         "allow.txt": HEADER + "\n".join(allow) + "\n",
         "flag.txt": HEADER + "\n".join(flag) + "\n",
