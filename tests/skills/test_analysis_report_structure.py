@@ -12,6 +12,20 @@ from __future__ import annotations
 from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parents[2] / "skills" / "analysis-report"
+NOTEBOOK_CONTRACT = (
+    Path(__file__).resolve().parents[2]
+    / "skills"
+    / "analysis-notebook"
+    / "references"
+    / "notebook-contract.md"
+)
+
+# The optional per-metric items of ADR-0013, and the Results table column each one fills.
+OPTIONAL_METRIC_COLUMNS = {
+    "effect_size": "Effect size",
+    "confidence_interval": "CI",
+    "sample_size": "N",
+}
 
 
 def _skill() -> str:
@@ -53,6 +67,56 @@ class TestApaTemplate:
         assert "Graceful degrade" in t
         # the degrade trigger the SKILL.md Step 2 relies on
         assert "figures == []" in t
+
+
+def _section(markdown: str, heading: str) -> str:
+    """The body under ``heading`` up to the next heading of the same level."""
+    level = heading.split(" ", 1)[0]
+    rest = markdown[markdown.index(heading) + len(heading) :]
+    end = rest.find(f"\n{level} ")
+    return rest if end == -1 else rest[:end]
+
+
+class TestNumbersTable:
+    """US-1 (Epic 12): the Results numbers table shows effect size, CI and sample size."""
+
+    def test_notebook_contract_defines_the_three_optional_items(self) -> None:
+        contract = NOTEBOOK_CONTRACT.read_text(encoding="utf-8")
+        section = _section(contract, "## Optional metric items")
+        for key in OPTIONAL_METRIC_COLUMNS:
+            assert f"`{key}`" in section, f"notebook contract must define `{key}`"
+        for sub_key in ("kind", "level", "lower", "upper"):
+            assert f'"{sub_key}"' in section, f"contract must define '{sub_key}'"
+        assert "optional" in section.lower()
+        assert "ADR-0013" in section
+
+    def test_template_maps_each_item_to_a_column(self) -> None:
+        section = _section(_template(), "## Results numbers table")
+        for key, column in OPTIONAL_METRIC_COLUMNS.items():
+            assert f"`{key}`" in section, f"numbers table must read `{key}`"
+            assert f"| {column} |" in section, f"table must have a '{column}' column"
+
+    def test_template_omits_a_column_no_metric_fills(self) -> None:
+        section = _section(_template(), "## Results numbers table")
+        assert "omit the column" in section.lower()
+
+    def test_template_keeps_the_table_for_a_verdict_without_the_items(self) -> None:
+        section = _section(_template(), "## Results numbers table")
+        assert "| Metric | Value | Threshold | p | Pass |" in section, (
+            "a verdict that predates ADR-0013 must get the table it gets today"
+        )
+        assert "Graceful degrade" in section
+
+    def test_template_forbids_computing_a_missing_item(self) -> None:
+        section = _section(_template(), "## Results numbers table")
+        assert "never compute" in section.lower()
+
+    def test_skill_reads_the_items_and_omits_empty_columns(self) -> None:
+        t = _skill()
+        for key in OPTIONAL_METRIC_COLUMNS:
+            assert f"`{key}`" in t, f"SKILL.md must read `{key}` from verdict.metrics"
+        assert "omit the column" in t.lower()
+        assert "never compute" in t.lower()
 
 
 class TestReportSkill:

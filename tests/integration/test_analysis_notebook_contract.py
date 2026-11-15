@@ -23,58 +23,13 @@ pytest.importorskip("matplotlib")
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_notebook.py"
 
 
-def test_notebook_contract_export_run_and_sideeffects(tmp_path: Path) -> None:
-    nb = tmp_path / "SAMPLE.py"
-    shutil.copy(FIXTURE, nb)
-    flat = tmp_path / "SAMPLE_flat.py"
-
-    # 1) marimo export script (no nbformat needed) — the skill's execution mechanism
-    export = subprocess.run(
-        [sys.executable, "-m", "marimo", "export", "script", str(nb), "-o", str(flat)],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-    )
-    assert export.returncode == 0, export.stderr
-    assert flat.exists()
-
-    # 2) run the flat script; cell side-effects land in cwd
-    run = subprocess.run(
-        [sys.executable, str(flat)],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-    )
-    assert run.returncode == 0, run.stderr
-
-    # 3) verdict JSON side-effect (what the skill reads to build journal events)
-    verdict = json.loads((tmp_path / "verdict.json").read_text(encoding="utf-8"))
-    assert {"conclusion", "evidence_summary", "open_questions"} <= set(verdict)
-    assert isinstance(verdict["evidence_summary"], list)
-    # a confirmatory verdict persists its metrics so /analysis-report can build the
-    # Results numbers table (metrics live in results/cell4; verdict must carry them —
-    # a consumer reading verdict.metrics would otherwise get an empty table)
-    assert "metrics" in verdict, "confirmatory verdict must persist results metrics"
-    assert verdict["metrics"], (
-        "metrics should be non-empty for the confirmatory fixture"
-    )
-
-    # 4) lineage Mermaid export (tracked_pipe recorded the dropna step: 4 -> 3 rows)
-    mmd = (tmp_path / "lineage.mmd").read_text(encoding="utf-8")
-    assert mmd.startswith("graph LR")
-    assert "4 rows" in mmd and "3 rows" in mmd
-
-
-def test_notebook_contract_figures_manifest(tmp_path: Path) -> None:
-    """Epic 10 / ADR-0008: the viz cell saves PNG(s) and the verdict cell records a
-    ``figures[]`` manifest so /analysis-report (a read-only consumer) can lay figures out
-    with axis + how-to-read captions without re-rendering. The figure's truth lives with
-    the producer (notebook), not with design.chart[].
+def _run_fixture(tmp_path: Path) -> dict:
+    """Export the reference notebook to a flat script (no nbformat needed), run it in
+    ``tmp_path`` — the skill's execution mechanism — and return the verdict side-effect.
     """
     nb = tmp_path / "SAMPLE.py"
     shutil.copy(FIXTURE, nb)
     flat = tmp_path / "SAMPLE_flat.py"
-
     export = subprocess.run(
         [sys.executable, "-m", "marimo", "export", "script", str(nb), "-o", str(flat)],
         cwd=tmp_path,
@@ -86,8 +41,35 @@ def test_notebook_contract_figures_manifest(tmp_path: Path) -> None:
         [sys.executable, str(flat)], cwd=tmp_path, capture_output=True, text=True
     )
     assert run.returncode == 0, run.stderr
+    return json.loads((tmp_path / "verdict.json").read_text(encoding="utf-8"))
 
-    verdict = json.loads((tmp_path / "verdict.json").read_text(encoding="utf-8"))
+
+def test_notebook_contract_export_run_and_sideeffects(tmp_path: Path) -> None:
+    # verdict JSON side-effect (what the skill reads to build journal events)
+    verdict = _run_fixture(tmp_path)
+    assert {"conclusion", "evidence_summary", "open_questions"} <= set(verdict)
+    assert isinstance(verdict["evidence_summary"], list)
+    # a confirmatory verdict persists its metrics so /analysis-report can build the
+    # Results numbers table (metrics live in results/cell4; verdict must carry them —
+    # a consumer reading verdict.metrics would otherwise get an empty table)
+    assert "metrics" in verdict, "confirmatory verdict must persist results metrics"
+    assert verdict["metrics"], (
+        "metrics should be non-empty for the confirmatory fixture"
+    )
+
+    # lineage Mermaid export (tracked_pipe recorded the dropna step: 4 -> 3 rows)
+    mmd = (tmp_path / "lineage.mmd").read_text(encoding="utf-8")
+    assert mmd.startswith("graph LR")
+    assert "4 rows" in mmd and "3 rows" in mmd
+
+
+def test_notebook_contract_figures_manifest(tmp_path: Path) -> None:
+    """Epic 10 / ADR-0008: the viz cell saves PNG(s) and the verdict cell records a
+    ``figures[]`` manifest so /analysis-report (a read-only consumer) can lay figures out
+    with axis + how-to-read captions without re-rendering. The figure's truth lives with
+    the producer (notebook), not with design.chart[].
+    """
+    verdict = _run_fixture(tmp_path)
 
     # figures[] manifest is part of the verdict side-effect (verdict enrich, not a new file)
     assert "figures" in verdict, "verdict must carry a 'figures' manifest (ADR-0008)"
@@ -112,3 +94,33 @@ def test_notebook_contract_figures_manifest(tmp_path: Path) -> None:
         assert fig["title"].strip(), "title must be non-empty"
         assert fig["axes"].strip(), "axes (軸の説明) must be non-empty"
         assert fig["how_to_read"].strip(), "how_to_read (図の読み方) must be non-empty"
+
+
+def test_verdict_metric_carries_effect_size_confidence_interval_and_sample_size(
+    tmp_path: Path,
+) -> None:
+    """Epic 12 / ADR-0013: a metric may carry three optional, self-describing items so
+    /analysis-report can show how large and how certain an effect is without computing
+    anything itself.
+    """
+    metric = _run_fixture(tmp_path)["metrics"]["mean_diff"]
+
+    effect_size = metric["effect_size"]
+    assert set(effect_size) == {"kind", "value"}
+    assert effect_size["kind"].strip(), "an effect size is unreadable without its kind"
+    assert isinstance(effect_size["value"], float)
+
+    interval = metric["confidence_interval"]
+    assert set(interval) == {"level", "lower", "upper"}
+    assert 0 < interval["level"] < 1, "level is a proportion (0.95), not a percentage"
+    # the interval is the interval of the metric's own value
+    assert interval["lower"] <= metric["value"] <= interval["upper"]
+
+    assert isinstance(metric["sample_size"], int)
+    assert metric["sample_size"] == 3, "observations the metric used (after data_prep)"
+
+
+def test_verdict_metric_keeps_the_existing_keys(tmp_path: Path) -> None:
+    """The three items are additions: the pre-ADR-0013 keys stay as they were."""
+    metric = _run_fixture(tmp_path)["metrics"]["mean_diff"]
+    assert {"value", "threshold", "pass"} <= set(metric)

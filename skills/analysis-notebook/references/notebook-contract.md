@@ -26,7 +26,15 @@ results = {
     "observed_direction": "<observed vs threshold summary>",
     "confidence_level": "high|medium|low|ambiguous",
     "decision_reason": "<which ACs passed/failed>",
-    "metrics": {"ATT": {"value": 1676.9, "threshold": 0, "p_value": 0.0001, "pass": True}},
+    "metrics": {
+        "ATT": {
+            "value": 1676.9, "threshold": 0, "p_value": 0.0001, "pass": True,
+            # optional — see "Optional metric items" below
+            "effect_size": {"kind": "cohens_d", "value": 0.42},
+            "confidence_interval": {"level": 0.95, "lower": 1200.3, "upper": 2153.5},
+            "sample_size": 1200,
+        }
+    },
 }
 # exploratory
 results = {
@@ -52,6 +60,27 @@ Path(".insight/notebooks/{id}_verdict.json").write_text(
     json.dumps(verdict, ensure_ascii=False)
 )
 ```
+
+## Optional metric items (cell 4) — effect size, confidence interval, sample size (ADR-0013)
+
+Each entry of `results["metrics"]` may carry three **optional** items, so a reader of the report
+can tell how large and how certain an effect is, not only whether it passed. The notebook (the
+producer) computes them; `/analysis-report` (a read-only consumer) only lays them out and never
+computes a missing one ([ADR-0013](../../../docs/adr/0013-verdict-metric-optional-items.md)).
+
+| Key | Shape | Meaning |
+|---|---|---|
+| `effect_size` | `{"kind": str, "value": float}` | Standardized size of the effect. `kind` names the measure (`cohens_d`, `r`, `odds_ratio`, …) — an open string, because the measure depends on the method |
+| `confidence_interval` | `{"level": float, "lower": float, "upper": float}` | Interval of **this metric's `value`** (not of the effect size). `level` is a proportion (`0.95`), `lower <= value <= upper` |
+| `sample_size` | `int` | Number of observations the metric was computed from (after data_prep) |
+
+- **Each item is independent and optional.** Some methods define no effect size or no interval —
+  then leave that key out. Never write `null`, `0`, or a placeholder for an item you cannot compute.
+- **An item is all-or-nothing.** `effect_size` without `kind`, or `confidence_interval` without
+  `level`, cannot be read correctly, so the consumer treats a partial item as absent.
+- Compute them in cell 4 from the same data as `value`. Do not copy a number from elsewhere.
+- A verdict written before this contract simply lacks the keys; the report then comes out in its
+  earlier form (graceful degrade).
 
 ## `figure_manifest` shape (cell 5) — figures for /analysis-report (ADR-0008)
 

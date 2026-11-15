@@ -6,6 +6,9 @@ design document	分析設計
 分析ログ	journal
 ノートブック	notebook
 図のマニフェスト	figures manifest
+エフェクトサイズ	効果量
+サンプルサイズ	標本サイズ
+サンプル数	標本サイズ
 系譜	lineage
 データ源	データソース
 カタログ	catalog

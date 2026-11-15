@@ -23,6 +23,9 @@ framing
 notebook
 verdict
 figures manifest
+効果量
+信頼区間
+標本サイズ
 レポート
 lineage
 データソース

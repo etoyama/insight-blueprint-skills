@@ -76,8 +76,18 @@ def _(mo, raw_df, session, tracked_pipe):
 
 
 @app.cell
-def _(df_clean, mo):
+def _(df_clean, mo, np):
     _means = df_clean.groupby("group")["value"].mean()
+    # Optional metric items (Epic 12 / ADR-0013): the producer computes how large and how
+    # certain the effect is, so /analysis-report only lays the numbers out.
+    _a = df_clean.loc[df_clean["group"] == "A", "value"]
+    _b = df_clean.loc[df_clean["group"] == "B", "value"]
+    _diff = float(_b.mean() - _a.mean())
+    _n = len(_a) + len(_b)
+    _squared_deviations = ((_a - _a.mean()) ** 2).sum() + ((_b - _b.mean()) ** 2).sum()
+    _pooled_sd = float(np.sqrt(_squared_deviations / (_n - 2)))
+    # Normal approximation keeps the fixture free of scipy (not in the notebook extra).
+    _half_width = 1.96 * _pooled_sd * float(np.sqrt(1 / len(_a) + 1 / len(_b)))
     results = {
         "hypothesis_direction": "A<B",
         "observed_direction": f"A={_means.get('A')} B={_means.get('B')}",
@@ -85,9 +95,16 @@ def _(df_clean, mo):
         "decision_reason": "group means differ",
         "metrics": {
             "mean_diff": {
-                "value": float(_means.get("B") - _means.get("A")),
+                "value": _diff,
                 "threshold": 0,
                 "pass": True,
+                "effect_size": {"kind": "cohens_d", "value": _diff / _pooled_sd},
+                "confidence_interval": {
+                    "level": 0.95,
+                    "lower": _diff - _half_width,
+                    "upper": _diff + _half_width,
+                },
+                "sample_size": _n,
             }
         },
     }
