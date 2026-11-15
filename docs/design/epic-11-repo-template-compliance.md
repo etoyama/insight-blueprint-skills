@@ -63,9 +63,9 @@ UBIQUITOUS_LANGUAGE が今の状態を正しく持ってほしい。
 
 plugin 利用者として、使わない MCP サーバを勝手に設定されないために、旧フローの設定を配布物から消してほしい。
 
-- [ ] AC 1: `.spec-workflow/` と `.mcp.json` がリポジトリに無い。テストが「`.mcp.json` が無い」を確かめる。
-- [ ] AC 2: CHANGELOG の Unreleased に、利用者向けの変更として `.mcp.json` の削除を書く。
-- [ ] AC 3: `docs/design/epic-10-analysis-report.md` の未チェックの AC 6個を、人間が確かめたうえでチェックする。
+- [x] AC 1: `.spec-workflow/` と `.mcp.json` がリポジトリに無い。テストが「`.mcp.json` が無い」を確かめる。
+- [x] AC 2: CHANGELOG の Unreleased に、利用者向けの変更として `.mcp.json` の削除を書く。
+- [x] AC 3: `docs/design/epic-10-analysis-report.md` の未チェックの AC 6個を、人間が確かめたうえでチェックする。
 
 ## Stories
 
@@ -271,7 +271,7 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 | #57 CLAUDE.md の再編 | ✓（`tests/docs/test_canonical_docs.py`: `TestClaudeMd`・`TestContributing`） | —（文書だけで、組み合わせて動くものが無い） | —（同上） |
 | #58 正本文書の整備 | ✓（`TestRoadmap`・`TestDomainModelDiagram`・`TestUbiquitousLanguage`） | —（同上） | —（同上） |
 | #59 解釈の記録 | ✓（`TestAdrs`: 索引、新形式の節、リンク、CLAUDE.md と ARCHITECTURE からの参照） | —（同上） | —（同上） |
-| #60 旧フローの残骸の掃除 | ☐ | —（同上） | —（同上） |
+| #60 旧フローの残骸の掃除 | ✓（`tests/test_plugin_structure.py::TestMcpJson`: `.mcp.json` と `.spec-workflow/` が無い） | —（同上） | —（plugin を入れ直して `.mcp.json` が配られないことは、リリース後に手で確かめる） |
 
 ## Story Timeline
 
@@ -279,3 +279,4 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 - 2026-11-15 — Story #57 完了: CLAUDE.md を要約とポインタにし（154行 → 107行）、CONTRIBUTING.md を4節に削った。CLAUDE.md から外した検証と `_revision.yaml` の記述を ARCHITECTURE に移した。
 - 2026-11-15 — Story #58 完了: PRD と ARCHITECTURE に Epic 01〜11 を載せ、ARCHITECTURE にコンテキストマップと Domain Model の全体図（22クラス）を足した。UBIQUITOUS_LANGUAGE の初版（35語）を書いた。全体図を含む mermaid 8ブロックが mermaid 11.4.1 の parse と render を通ることを、内蔵ブラウザで確かめた（手動）。
 - 2026-11-15 — Story #59 完了: ADR-0010〜0012 を新形式で書き、索引に載せた。CLAUDE.md §4・§6 と ARCHITECTURE の Domain Model から参照を張った。D11 の根拠の PR の本数を数え直し、判断時の「25本中13本」に対して「27本中14本」だった（結論は変わらない）。
+- 2026-11-15 — Story #60 完了: `.spec-workflow/`（11本）と `.mcp.json` を削除し、`TestMcpJson` を「無い」の検査に書き換えた（Red を確認してから削除した）。CHANGELOG の Unreleased に書いた。epic-10 の AC 6個は、人間が確認したうえでチェックだけを直した（本文は変えていない）。

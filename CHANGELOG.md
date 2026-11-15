@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Epic 11 (#56): the development docs follow the repo-template flow (ADR-0009). Design:
+`docs/design/epic-11-repo-template-compliance.md`. The PyPI wheel's runtime (`src/insight_blueprint`)
+and the skills are untouched.
+
+### Removed
+
+- **`.mcp.json` (user-facing).** The plugin payload is the repository root, so installed plugins
+  (up to 0.8.0) carried a `.mcp.json` that registered the dev-only `spec-workflow` MCP server
+  (`npx -y @pimzino/spec-workflow-mcp@latest`). The file is gone; the plugin now ships no MCP
+  server configuration, matching the "No MCP server" invariant. If you added `spec-workflow` to
+  your own setup on purpose, configure it in your project instead.
+- `.spec-workflow/` (pre-fork steering docs and templates, superseded by `docs/design/` + `docs/adr/`).
+
+### Changed
+
+- `CLAUDE.md` holds only a summary and pointers; `CONTRIBUTING.md` keeps Setup / Common Commands /
+  Testing / Security Checklist. `docs/UBIQUITOUS_LANGUAGE.md` gets its first edition, and
+  `docs/ARCHITECTURE.md` gets a context map and a Domain Model class diagram.
+- New ADRs: [ADR-0010](docs/adr/0010-skill-tdd-structure-tests.md) (skill TDD reading),
+  [ADR-0011](docs/adr/0011-domain-model-overview-in-architecture.md) (Domain Model overview),
+  [ADR-0012](docs/adr/0012-single-pr-scope.md) (scope of non-Epic PRs).
+
 ## [0.8.0] - 2026-07-08
 
 Epic 10 (#47): a new `/analysis-report` skill that assembles a **distributable APA-style
