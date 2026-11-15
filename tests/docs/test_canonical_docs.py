@@ -82,6 +82,7 @@ LIVING_DOCS = [
     "docs/UBIQUITOUS_LANGUAGE.md",
     "docs/adr/README.md",
     "docs/design/epic-11-repo-template-compliance.md",
+    "docs/design/epic-12-decision-ready-report.md",
     *(str(p.relative_to(REPO_ROOT)) for p in _new_format_adrs()),
 ]
 
