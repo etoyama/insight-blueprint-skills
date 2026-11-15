@@ -14,3 +14,8 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0006](0006-plugin-execution-model.md) | plugin execution model（bin ラッパー + env で自己完結） | Accepted |
 | [0007](0007-upstream-judgment-gates.md) | 上流の認識論的判断ゲート（analysis-auto の design ビート化 + data-extraction ゲート） | Accepted |
 | [0008](0008-notebook-figure-manifest.md) | notebook 図マニフェスト（verdict.figures[]）で生産者が図の真実を持つ | Accepted |
+| [0009](0009-adopt-repo-template-flow.md) | repo-template の開発フローを採用する | Accepted |
+
+- ADR-0001〜0008 は旧形式のまま残す。ADR-0009 からは新形式（Problem と Decision Analysis の節を持つ）で書く。
+- 開発フローの決定の出典は [flow/](flow/README.md) にある。repo-template の ADR のコピーで、`FLOW-000N` と表記する。
+  このリポジトリで行った決定は、フローに関するものも含めてこの索引に載せる。

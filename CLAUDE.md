@@ -42,6 +42,8 @@ uv (packaging) / ruff (lint+format) / ty (type check) / pytest (tests) / marimo
 
 ## 4. Development Workflow
 
+フローの定義の正本は [docs/WORKFLOW.md](docs/WORKFLOW.md)。本書と食い違う場合は WORKFLOW を正とする。
+
 GitHub issue-driven, **two tiers**:
 
 - **Epic** (`type:epic`): a coherent step toward the lightweight target; accompanied

@@ -5,28 +5,58 @@
 
 ---
 
+初版で埋める節: Background / User Stories / Stories / Ubiquitous Language / Scope /
+Architecture / Domain Model / Sequence Diagram。それ以外の節は Story の実装に合わせて詳細化する。
+初版を出す前に、「この DesignDoc だけを読んだ人が、誰のどんな課題を解くのか説明できるか」を確かめる。
+
+---
+
 # Epic NN: <Title>
 
-## Acceptance Criteria
+## Background
 
-Epic Issue body から転記する。
+本書がこの Epic の要求と背景の正本（[FLOW-0001](../../docs/adr/flow/0001-designdoc-owns-requirements.md)）。
+Epic issue には1〜2行の要約と本書へのリンクだけを置く。
+
+- 解く課題: <誰の、どんな課題か>
+- PRD の要件: <[docs/PRD.md](../../docs/PRD.md) のどの要件を前進させるか>
+- 既存手段が不十分な理由: <…>
+
+## User Stories
+
+AC の正本はここ。AC は各ユーザーストーリーの下に書く。
+
+### US-1: <短い名前>
+
+<〈役割〉として、〈目的〉のために、〈機能〉がほしい。>
 
 - [ ] AC 1
 - [ ] AC 2
 
-## Glossary
+## Stories
 
-| Term | Meaning |
-|---|---|
-| <略語 or ドメイン用語> | <説明; 本文で略語を単独参照しない> |
+Story issue とユーザーストーリーの対応。Story issue は対応する `US-N` の見出しにリンクする。
+1つの Story が扱う AC は5個以下。
+
+| Story issue | User Story | 扱う AC |
+|---|---|---|
+| #NN | US-1 | AC 1, AC 2 |
+
+## Ubiquitous Language
+
+この Epic で追加・変更した語。定義の正本は
+[docs/UBIQUITOUS_LANGUAGE.md](../../docs/UBIQUITOUS_LANGUAGE.md) で、ここには語の名前だけを置く。
+
+- 追加: <用語>
+- 変更: <用語>（ADR-NNNN）
 
 ## Scope
 
 この Epic が [docs/PRD.md](../../docs/PRD.md) のどの要件と
 [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) のどのコンポーネントを前進させるかを示す。
 
-- **Epic 範囲内**: <…>
-- **Epic 範囲外**: <…（どの Epic に委ねるか）>
+- Epic 範囲内: <…>
+- Epic 範囲外: <…（どの Epic に委ねるか）>
 
 ## Architecture
 
@@ -37,6 +67,51 @@ mermaid の `flowchart` / `graph` で構成図を描く（ASCII 図は不可。G
 flowchart TD
     A[Component A] --> B[Component B]
 ```
+
+## Domain Model
+
+mermaid の `classDiagram` で、集約・エンティティ・値オブジェクトとその関係を描く。
+クラス名は [docs/UBIQUITOUS_LANGUAGE.md](../../docs/UBIQUITOUS_LANGUAGE.md) の「コード上の名前」を使う。
+初版で必須。Story の実装中に追加・修正してよいが、PR 説明に変更を書いて人間の承認を得る。
+
+```mermaid
+classDiagram
+    class Order {
+        <<Aggregate Root>>
+        +confirm()
+    }
+    class OrderLine {
+        <<Entity>>
+    }
+    class Money {
+        <<Value Object>>
+    }
+    Order "1" *-- "1..*" OrderLine
+    OrderLine --> Money
+```
+
+| 型 | 種類 | 不変条件 |
+|---|---|---|
+| `<Order>` | 集約ルート | <例: 確定後は明細を変更できない> |
+
+### State Diagram（任意）
+
+状態を持つ集約があるときだけ、mermaid の `stateDiagram-v2` で状態と遷移の条件を描く。
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft
+    Draft --> Confirmed: confirm
+    Confirmed --> [*]
+```
+
+### Domain Events（任意）
+
+ドメインイベントを使うときだけ書く。
+
+| イベント | 発行する集約 | 受け取る側 |
+|---|---|---|
+| `<OrderConfirmed>` | `<Order>` | <…> |
 
 ## Module Responsibilities
 
@@ -53,6 +128,7 @@ flowchart TD
 mermaid の `sequenceDiagram` で、ユーザ／クラス／外部境界（ファイルシステム・ネットワーク・
 外部API）のインタラクションを可視化する。誰がどの順で何を呼び、どう応答するかを表す。
 図で表せない補足（境界の説明など）は図の下に短く添える。
+参加者名とメッセージ名は [docs/UBIQUITOUS_LANGUAGE.md](../../docs/UBIQUITOUS_LANGUAGE.md) の語を使う。
 
 ```mermaid
 sequenceDiagram
@@ -65,12 +141,6 @@ sequenceDiagram
     S-->>U: response
 ```
 
-## Data Model
-
-| Field | Type | Purpose | Example |
-|---|---|---|---|
-| ... | ... | ... | ... |
-
 ## Decisions
 
 このセクションは **Epic-scoped** な決定のみ置く（効果がこの Epic を超えないもの）。
@@ -80,15 +150,16 @@ AC再解釈）は `docs/adr/` の ADR に置く。
 
 ### Decision: <kebab-case-slug>
 
-- **What**: <決定>
-- **Why**: <動機>
-- **Affected modules**: <一覧>
-- **Alternatives considered**: <一覧と簡潔な理由>
-- **Consequences**: <正負の含意>
+- What: <決定>
+- Why: <動機。どの課題を解くか>
+- Criteria: <比べた基準と、その出典（課題・AC・人間の発言）。決め手になった基準>
+- Affected modules: <一覧>
+- Alternatives considered: <一覧と簡潔な理由>
+- Consequences: <正負の含意>
 
 ### Cross-epic decisions (links to ADR)
 
-- [ADR-NNNN: <title>](../adr/NNNN-<slug>.md) — 一行サマリ
+- [ADR-NNNN: <title>](../adr/NNNN-<slug>.md): 一行サマリ
 
 ## Test Design Matrix
 
