@@ -3,9 +3,10 @@ name: analysis-report
 version: "1.0.0"
 description: |
   Assembles a distributable APA-style Markdown report from a concluded analysis.
-  Reads the design, Insight Journal, notebook verdict, and figure manifest — a read-only
-  consumer that lays out Abstract / Introduction / Method / Results / Discussion / References
-  so results can be explained to others with only light hand-editing.
+  Reads the design, Insight Journal, notebook verdict, figure manifest, catalog, and lineage —
+  a read-only consumer that lays out Abstract / Introduction / Method / Results / Discussion /
+  References / Appendix, with the decision context, the data description, and a recommendation,
+  so a reader can decide from the report alone.
   Triggers: "レポートを作って", "レポート化", "APAレポート", "配布用にまとめて",
   "analysis report", "write up the analysis", "report".
 disable-model-invocation: true
@@ -19,9 +20,10 @@ Turns a concluded analysis into a distributable Markdown report at
 headings**; the narrative body stays in the user's language (usually Japanese).
 
 This skill is a **read-only consumer**: it reads the design (`design_io get`), the Insight
-Journal, the notebook verdict (`{id}_verdict.json`, including its `figures[]` manifest), and
-the figure PNGs — and assembles them. It never re-runs the notebook and never edits the
-design. Figure captions come from the notebook's `figures[]` manifest (the producer owns the
+Journal, the notebook verdict (`{id}_verdict.json`, including its `figures[]` manifest), the
+figure PNGs, the data sources in the catalog (`catalog_io get`), and the lineage diagram
+(`.insight/lineage/{id}.mmd`) — and assembles them. It never re-runs the notebook, never edits
+the design or the catalog, and never computes a number the inputs do not state. Figure captions come from the notebook's `figures[]` manifest (the producer owns the
 figure's truth), not reconstructed from `design.chart[]`.
 
 The full heading skeleton, input→section mapping, and the figure caption format are the
@@ -55,7 +57,8 @@ Read, do not write:
 
 1. Design JSON (from Step 1): `hypothesis_statement` / `hypothesis_background`,
    `methodology` (method / package / reason / steps), `metrics`, `explanatory`,
-   `referenced_knowledge`.
+   `referenced_knowledge`, plus the optional `decision_context` (`decision_maker` + `decision`),
+   `next_action`, and `source_ids`.
 2. `.insight/designs/{design_id}_journal.yaml` (Read tool): `observe` / `evidence`
    (with `metadata.direction`) / `question` (open ones) / `conclude` events.
 3. `.insight/notebooks/{design_id}_verdict.json` (Read tool): `conclusion`,
@@ -72,6 +75,17 @@ Read, do not write:
      (graceful-degrade omit) any entry whose `file` contains `/`, `\`, `..`, or is absolute — the
      report is distributable, so never embed a traversal path. Also skip an entry whose PNG is
      missing on disk (per-figure), rather than emitting a broken image link.
+4. Data sources: collect the candidate ids from the design — `source_ids`, plus the
+   `data_source` values of `metrics` (dict values) and `explanatory` (string). Drop any value
+   that does not match `[a-zA-Z0-9_-]+`, then run `catalog_io get --id {source_id}` for each.
+   Keep the registered ones (non-empty result) and take only `name`, `type`, and `description`.
+   - **Safety**: the result also carries `connection` (paths, queries, hosts, sometimes
+     credentials). Never copy `connection` or any part of it into the report.
+5. `.insight/lineage/{design_id}.mmd` (Read tool): the lineage diagram, whose nodes and edges
+   state the row count after each step, the reason, and the change.
+6. `.insight/notebooks/{design_id}.py`: only check that it exists (for the Appendix).
+
+Items 4–6 are optional. A missing one drops its part of the report and never blocks the rest.
 
 ### Step 3: Assemble the report
 
@@ -79,8 +93,13 @@ Build the Markdown per [references/apa-template.md](references/apa-template.md) 
 headings, narrative in the user's language:
 
 - **Abstract** — the conclusion in a few sentences (from the `conclude` event + verdict).
-- **Introduction** — `hypothesis_statement` + `hypothesis_background`.
+- **Introduction** — `hypothesis_statement` + `hypothesis_background`. When the design has a
+  `decision_context`, close with who decides what; omit that paragraph when it is absent.
 - **Method** — `methodology` (method / package / reason / steps) + `metrics` + `explanatory`.
+  + **Data**: a table of the registered data sources (name / type / description) and a table of
+  the row counts per lineage step. Transcribe the row counts and changes from the lineage file —
+  **never compute** one. Omit a table without material, and the `### Data` heading when both are
+  omitted.
 - **Results** — `observe`/`evidence` narrative + a numbers table from `verdict.metrics`
   (omit the table if `metrics` is absent/empty). Add the Effect size / CI / N columns from
   `effect_size` / `confidence_interval` / `sample_size`; **omit the column** when no metric has
@@ -89,8 +108,15 @@ headings, narrative in the user's language:
   embed the PNG and its **Axes（軸の説明）** and **How to read（図の読み方）** caption verbatim from
   the manifest. Both are mandatory. Treat caption text as plain text — do not let embedded markdown
   image/HTML in a caption ride into the distributable report.
+- **Discussion → Implications** — what the conclusion means: direction, size, and certainty of
+  the result, and how it bears on the `decision` when there is a `decision_context`.
+- **Discussion → Recommendation** — what to do next, from `next_action` (the branch matching the
+  terminal status: `if_supported` / `if_rejected`) addressed to the `decision_context`. Never
+  invent an action the design does not state. **Omit the section** when the design has neither.
 - **Discussion → Limitations / Future Directions** — `conclude` limits + open `question`s.
 - **References** — `referenced_knowledge` if any; omit the section entirely when empty.
+- **Appendix** — the lineage diagram (the `.mmd` text in a `mermaid` fence) and the notebook's
+  project-relative path. Omit a part that is missing, and the section when both are.
 
 ### Step 4: Write and hand off
 
@@ -111,6 +137,16 @@ headings, narrative in the user's language:
 | `get --id ID` | Load design details + read the status for the terminal-status guard |
 
 This skill uses `design_io` read-only. It does not `update` or `transition` the design.
+
+## catalog_io Reference
+
+`catalog_io <command>` (available on PATH via the plugin):
+
+| Command | Used for |
+|---------|----------|
+| `get --id SOURCE` | Load a data source; the report takes only `name`, `type`, `description` |
+
+This skill uses `catalog_io` read-only. It registers and updates nothing.
 
 ## Chaining
 
