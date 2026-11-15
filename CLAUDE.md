@@ -47,7 +47,8 @@ GitHub issue 駆動の2階層。定義の正本は [docs/WORKFLOW.md](docs/WORKF
 - ブランチはトランクベース + Epic stacking（[ADR-0002](docs/adr/0002-trunk-based-epic-stacking.md)）。
   Epic は `epic/<issue番号>-<slug>`、Story は既定で Epic ブランチに直接コミット。
   リリースはタグ駆動（`v*`）で、`main` へのマージはリリースではない。
-- Test Design Matrix 全✓ が Epic PR のレビューゲート。
+- Test Design Matrix 全✓ が Epic PR のレビューゲート。✓ と「—（理由）」の読み方は [ADR-0010](docs/adr/0010-skill-tdd-structure-tests.md)。
+- Epic 以外の単発の PR は、定めた振る舞いを変えない変更だけ（[ADR-0012](docs/adr/0012-single-pr-scope.md)）。
 - Epic 10 までの DesignDoc と ADR-0001〜0008 は旧形式のまま凍結する
   （[ADR-0009](docs/adr/0009-adopt-repo-template-flow.md)）。閉じた Epic の DesignDoc には追記しない。
 - **AI アシスタントは Epic PR を `main` にマージしない**。人間がレビューしてマージする。
@@ -74,6 +75,7 @@ clone ごとに `scripts/install-plugins.sh` で入れる）。
 - YAGNI: 今必要でない機能・抽象を先回りで作らない。共通化は Rule of Three。
 - TDD（t-wada 流）: Red → Green → Refactor を小さく回す。テストリストを作り、
   仮実装 → 三角測量 → 明白な実装の順で一般化する。テストコードが正（仕様）。
+  SKILL.md と文書は、構造テストを先に書いて Red にしてから本文を書く（[ADR-0010](docs/adr/0010-skill-tdd-structure-tests.md)）。
 - ruff が lint と format の基準で、CI は違反を拒む。公開 API には型ヒントを付ける。
   コメントには「何を」ではなく「なぜ」を書く。
 

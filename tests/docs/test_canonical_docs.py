@@ -195,3 +195,54 @@ class TestUbiquitousLanguage:
         rows = {row[0]: row for row in _terms_rows()}
         assert "分析設計" in rows
         assert "設計書" in rows["分析設計"][3]
+
+
+ADR_DIR = REPO_ROOT / "docs/adr"
+NEW_FORMAT_FROM = (
+    9  # ADR-0009 onward use the repo-template format (ADR-0009 Decision D2・D3).
+)
+NEW_FORMAT_SECTIONS = [
+    "Status",
+    "Context",
+    "Problem",
+    "Decision Analysis",
+    "Decision",
+    "Consequences",
+    "Alternatives considered",
+    "Related",
+]
+
+
+def _adr_files() -> list[Path]:
+    return sorted(p for p in ADR_DIR.glob("[0-9][0-9][0-9][0-9]-*.md"))
+
+
+class TestAdrs:
+    """US-3: the interpretations are ADRs in the new format, all indexed."""
+
+    def test_every_adr_is_in_the_index(self) -> None:
+        index = (ADR_DIR / "README.md").read_text(encoding="utf-8")
+        missing = [p.name for p in _adr_files() if f"]({p.name})" not in index]
+        assert missing == []
+
+    def test_new_format_adrs_have_every_section(self) -> None:
+        for path in _adr_files():
+            if int(path.name[:4]) < NEW_FORMAT_FROM:
+                continue
+            titles = _h2_titles(path.read_text(encoding="utf-8"))
+            assert titles == NEW_FORMAT_SECTIONS, path.name
+
+    def test_new_format_adr_links_resolve(self) -> None:
+        for path in _adr_files():
+            if int(path.name[:4]) >= NEW_FORMAT_FROM:
+                assert _dead_links(str(path.relative_to(REPO_ROOT))) == [], path.name
+
+    def test_interpretation_adrs_exist(self) -> None:
+        names = {p.name[:4] for p in _adr_files()}
+        assert {"0010", "0011", "0012"} <= names
+
+    def test_claude_md_points_at_the_single_pr_rule(self) -> None:
+        assert "docs/adr/0012-" in _read("CLAUDE.md")
+
+    def test_architecture_domain_model_cites_its_adr(self) -> None:
+        assert "adr/0011-" in _section(_read("docs/ARCHITECTURE.md"), "Domain Model")

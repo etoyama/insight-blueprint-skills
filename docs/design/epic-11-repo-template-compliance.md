@@ -54,10 +54,10 @@ UBIQUITOUS_LANGUAGE が今の状態を正しく持ってほしい。
 次の Epic を始める人間と AI として、repo-template に答えの無い3つの問いで迷わないために、
 このリポジトリでの解釈が ADR に残っていてほしい。
 
-- [ ] AC 1: skill の TDD の読み方（D6）を ADR に書く。
-- [ ] AC 2: Domain Model の全体図の置き場所と、Python のクラスを持たない YAML / JSON の契約の扱い（D7）を ADR に書く。
-- [ ] AC 3: Epic 以外の PR を認める条件（D11）を ADR に書き、CLAUDE.md §4 からポインタを1行張る。
-- [ ] AC 4: `docs/adr/` のすべての ADR が `docs/adr/README.md` の索引に載る。
+- [x] AC 1: skill の TDD の読み方（D6）を ADR に書く。
+- [x] AC 2: Domain Model の全体図の置き場所と、Python のクラスを持たない YAML / JSON の契約の扱い（D7）を ADR に書く。
+- [x] AC 3: Epic 以外の PR を認める条件（D11）を ADR に書き、CLAUDE.md §4 からポインタを1行張る。
+- [x] AC 4: `docs/adr/` のすべての ADR が `docs/adr/README.md` の索引に載る。
 
 ### US-4: 旧フローの残骸の掃除
 
@@ -254,6 +254,12 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 - Alternatives considered: AC をまとめて5個に詰める（1つの AC が複数の確認を含み、チェックの意味が曖昧になる）。
 - Consequences: Story issue が4件になる。
 
+### Cross-epic decisions (links to ADR)
+
+- [ADR-0010: skill の TDD は構造テストを先に書くことと読む](../adr/0010-skill-tdd-structure-tests.md): ✓ は自動テストがある層だけ。無い層は「—（理由）」（D6）
+- [ADR-0011: Domain Model の全体図を ARCHITECTURE に置く](../adr/0011-domain-model-overview-in-architecture.md): DesignDoc は差分だけ。クラスを持たない契約は表でリンク（D7）
+- [ADR-0012: Epic 以外の PR は、定めた振る舞いを変えない変更に限る](../adr/0012-single-pr-scope.md): 振る舞いを足す・変える変更は Epic（D11）
+
 ## Test Design Matrix
 
 [ADR-0010](../adr/0010-skill-tdd-structure-tests.md) の読み方に従う。✓ は Red → Green を経た自動テストがある層だけに付け、
@@ -264,7 +270,7 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 |---|---|---|---|
 | #57 CLAUDE.md の再編 | ✓（`tests/docs/test_canonical_docs.py`: `TestClaudeMd`・`TestContributing`） | —（文書だけで、組み合わせて動くものが無い） | —（同上） |
 | #58 正本文書の整備 | ✓（`TestRoadmap`・`TestDomainModelDiagram`・`TestUbiquitousLanguage`） | —（同上） | —（同上） |
-| #59 解釈の記録 | ☐ | —（同上） | —（同上） |
+| #59 解釈の記録 | ✓（`TestAdrs`: 索引、新形式の節、リンク、CLAUDE.md と ARCHITECTURE からの参照） | —（同上） | —（同上） |
 | #60 旧フローの残骸の掃除 | ☐ | —（同上） | —（同上） |
 
 ## Story Timeline
@@ -272,3 +278,4 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 - 2026-11-15 — Epic #56 を起票し、DesignDoc 初版を書いた。Story #57〜#60 を起票した。
 - 2026-11-15 — Story #57 完了: CLAUDE.md を要約とポインタにし（154行 → 107行）、CONTRIBUTING.md を4節に削った。CLAUDE.md から外した検証と `_revision.yaml` の記述を ARCHITECTURE に移した。
 - 2026-11-15 — Story #58 完了: PRD と ARCHITECTURE に Epic 01〜11 を載せ、ARCHITECTURE にコンテキストマップと Domain Model の全体図（22クラス）を足した。UBIQUITOUS_LANGUAGE の初版（35語）を書いた。全体図を含む mermaid 8ブロックが mermaid 11.4.1 の parse と render を通ることを、内蔵ブラウザで確かめた（手動）。
+- 2026-11-15 — Story #59 完了: ADR-0010〜0012 を新形式で書き、索引に載せた。CLAUDE.md §4・§6 と ARCHITECTURE の Domain Model から参照を張った。D11 の根拠の PR の本数を数え直し、判断時の「25本中13本」に対して「27本中14本」だった（結論は変わらない）。

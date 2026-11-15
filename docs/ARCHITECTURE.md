@@ -336,7 +336,7 @@ sequenceDiagram
 
 ## Domain Model
 
-`src/insight_blueprint/models/` と `skills/_shared/models.py` のクラスの全体図。
+`src/insight_blueprint/models/` と `skills/_shared/models.py` のクラスの全体図（[ADR-0011](adr/0011-domain-model-overview-in-architecture.md)）。
 Epic の DesignDoc の `## Domain Model` 節はこの図からの差分だけを描く。モデルを変えた PR では、この図も同じ PR で更新する。
 図とコードのクラスが一致することは `tests/docs/test_canonical_docs.py` が確かめる。
 
