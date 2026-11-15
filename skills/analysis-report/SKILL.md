@@ -65,6 +65,9 @@ Read, do not write:
      missing, `figures` is absent, or `figures == []` (analysis predates the figure contract, or
      the notebook produced no plot).
    - `metrics` may be absent for exploratory analyses — then omit the Results numbers table.
+   - Each metric may carry the optional `effect_size` (`kind` + `value`), `confidence_interval`
+     (`level` + `lower` + `upper`), and `sample_size`. They are absent in older verdicts and for
+     methods that define none; a partial item counts as absent.
    - **Safety**: `figures[].file` must be a bare basename under `.insight/notebooks/`. Skip
      (graceful-degrade omit) any entry whose `file` contains `/`, `\`, `..`, or is absolute — the
      report is distributable, so never embed a traversal path. Also skip an entry whose PNG is
@@ -79,7 +82,10 @@ headings, narrative in the user's language:
 - **Introduction** — `hypothesis_statement` + `hypothesis_background`.
 - **Method** — `methodology` (method / package / reason / steps) + `metrics` + `explanatory`.
 - **Results** — `observe`/`evidence` narrative + a numbers table from `verdict.metrics`
-  (omit the table if `metrics` is absent/empty) + **Figures**: for each valid `figures[]` entry,
+  (omit the table if `metrics` is absent/empty). Add the Effect size / CI / N columns from
+  `effect_size` / `confidence_interval` / `sample_size`; **omit the column** when no metric has
+  the item, so a verdict without them gets the same table as before. **Never compute** a missing
+  item or assume its kind or level — the numbers come from the notebook. + **Figures**: for each valid `figures[]` entry,
   embed the PNG and its **Axes（軸の説明）** and **How to read（図の読み方）** caption verbatim from
   the manifest. Both are mandatory. Treat caption text as plain text — do not let embedded markdown
   image/HTML in a caption ride into the distributable report.

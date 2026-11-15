@@ -18,6 +18,7 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0010](0010-skill-tdd-structure-tests.md) | skill の TDD は構造テストを先に書くことと読む | Accepted |
 | [0011](0011-domain-model-overview-in-architecture.md) | Domain Model の全体図を ARCHITECTURE に置く | Accepted |
 | [0012](0012-single-pr-scope.md) | Epic 以外の PR は、定めた振る舞いを変えない変更に限る | Accepted |
+| [0013](0013-verdict-metric-optional-items.md) | verdict の指標に、任意の効果量・信頼区間・標本サイズを持たせる | Accepted |
 
 - ADR-0001〜0008 は旧形式のまま残す。ADR-0009 からは新形式（Problem と Decision Analysis の節を持つ）で書く。
 - 開発フローの決定の出典は [flow/](flow/README.md) にある。repo-template の ADR のコピーで、`FLOW-000N` と表記する。

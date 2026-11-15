@@ -98,7 +98,9 @@ marimo rules). Drive cell content from the design:
 - cell 3 (data_prep): methodology-independent cleaning, each step via `tracked_pipe`
 - cell 4 (analysis): from `methodology.method` + `methodology.steps` (code patterns) + `analysis_intent`;
   build the `results` dict with the four required fields (`hypothesis_direction`, `observed_direction`,
-  `confidence_level`, `decision_reason`)
+  `confidence_level`, `decision_reason`). For each metric, add the optional `effect_size`,
+  `confidence_interval`, and `sample_size` when the method defines them — see the contract's
+  "Optional metric items" (leave a key out rather than writing a placeholder)
 - cell 5 (viz): from `chart[]` (type/description); **save each figure** to
   `.insight/notebooks/{design_id}_fig{NN:02d}.png` and build `figure_manifest`
   (`file`/`title`/`axes`/`how_to_read`) so `/analysis-report` can embed it — see the contract's

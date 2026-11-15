@@ -26,7 +26,7 @@ the figure-manifest contract is [ADR-0008](../../../docs/adr/0008-notebook-figur
 {methodology.method（package / reason / steps）+ metrics + explanatory 変数と役割}
 
 ## Results
-{journal の observe/evidence の叙述 + verdict.metrics の数値表 + 図（下記フォーマット）}
+{journal の observe/evidence の叙述 + verdict.metrics の数値表（下記フォーマット）+ 図（下記フォーマット）}
 
 ## Discussion
 
@@ -48,10 +48,52 @@ the figure-manifest contract is [ADR-0008](../../../docs/adr/0008-notebook-figur
 | Introduction | `hypothesis_statement`, `hypothesis_background` | `design_io get` |
 | Method | `methodology`, `metrics`, `explanatory` | `design_io get` |
 | Results (narrative) | `observe`, `evidence` (with `metadata.direction`) | journal |
-| Results (table) | `verdict.metrics` | verdict.json |
+| Results (table) | `verdict.metrics` (incl. optional `effect_size`, `confidence_interval`, `sample_size`) | verdict.json |
 | Results (figures) | `verdict.figures[]` + the PNG files | verdict.json + `.insight/notebooks/` |
 | Limitations / Future Directions | `conclude` limits, open `question`s | journal |
 | References | `referenced_knowledge` | `design_io get` |
+
+## Results numbers table
+
+One row per entry of `verdict.metrics`. The first five columns are the base table:
+
+```markdown
+| Metric | Value | Threshold | p | Pass |
+|---|---|---|---|---|
+| ATT | 1676.9 | 0 | 0.0001 | ✓ |
+```
+
+A metric may also carry three optional items
+([ADR-0013](../../../docs/adr/0013-verdict-metric-optional-items.md)). Each fills one column,
+placed after `Value`:
+
+| Item in `verdict.metrics.{name}` | Column | Cell |
+|---|---|---|
+| `effect_size` | Effect size | `{value} ({kind})`, e.g. `0.42 (cohens_d)` |
+| `confidence_interval` | CI | `{level as %} [{lower}, {upper}]`, e.g. `95% [1200.3, 2153.5]` |
+| `sample_size` | N | the integer |
+
+```markdown
+| Metric | Value | Effect size | CI | N | Threshold | p | Pass |
+|---|---|---|---|---|---|---|---|
+| ATT | 1676.9 | 0.42 (cohens_d) | 95% [1200.3, 2153.5] | 1200 | 0 | 0.0001 | ✓ |
+| retention | 0.31 | — | 95% [0.22, 0.40] | 1200 | 0.25 | 0.01 | ✓ |
+```
+
+- **Omit the column** when no metric has the item. Decide per column: a verdict whose metrics
+  carry only `sample_size` gets the base table plus `N`.
+- When some metrics have the item and others do not, keep the column and write `—` in the cells
+  without a value.
+- Treat a partial item as absent: `effect_size` needs both `kind` and `value`;
+  `confidence_interval` needs `level`, `lower`, and `upper`. A number without its kind or level
+  would be misread.
+- **Never compute** a missing item, and never assume a kind or a level (do not write "95%" unless
+  `level` says so). The numbers come from the notebook; re-run /analysis-notebook to add them.
+- Transcribe the numbers as the verdict gives them; rounding for display is fine, changing them is not.
+
+**Graceful degrade**: a verdict with none of the three items (an analysis that predates ADR-0013,
+or a method that defines none of them) gets exactly the base table. No note is added — the
+items are optional, so their absence is not a defect.
 
 ## Figure presentation format (mandatory captions)
 
