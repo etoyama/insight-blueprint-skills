@@ -232,12 +232,12 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 ### Decision: canonical-term-analysis-design
 
 - What: `AnalysisDesign`（`{id}_hypothesis.yaml`）の正の語を「分析設計」（英語は analysis design）にする。
-  使わない言い換えは、設計書・design document・hypothesis（分析設計そのものを指すとき）。
+  使わない言い換えは設計書・design document・hypothesis（分析設計そのものを指すとき）。
   この Epic では UBIQUITOUS_LANGUAGE の表と、この Epic が書き直す文書（CLAUDE.md・PRD・ARCHITECTURE）だけを直す。
   skills と凍結した文書の一括置換はしない。
 - Why: 同じ概念を、設計書（docs 46行）、analysis design（skills 18行）、hypothesis（skills 99行、ファイル名を含む）、
   design document と呼び分けている（`git grep -ci` で数えた）。
-- Criteria: 1つの概念に正の語が1つであること（FLOW-0002、Must）。決め手は、開発フローの DesignDoc とも
+- Criteria: 1つの概念に正の語が1つであること（FLOW-0002、Must）。決め手は開発フローの DesignDoc とも
   仮説の文（`hypothesis_statement`）とも取り違えないこと。重みは Claude の推測で、人間が案 A を選んで追認した（2026-11-15）。
 - Affected modules: `docs/UBIQUITOUS_LANGUAGE.md`、`docs/PRD.md`、`docs/ARCHITECTURE.md`
 - Alternatives considered: 「設計書」（docs の多数派だが DesignDoc と衝突する）。「仮説」（`hypothesis_statement` と衝突する）。
@@ -293,3 +293,4 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 - 2026-11-15 — Story #59 完了: ADR-0010〜0012 を新形式で書き、索引に載せた。CLAUDE.md §4・§6 と ARCHITECTURE の Domain Model から参照を張った。D11 の根拠の PR の本数を数え直し、判断時の「25本中13本」に対して「27本中14本」だった（結論は変わらない）。
 - 2026-11-15 — Story #60 完了: `.spec-workflow/`（11本）と `.mcp.json` を削除し、`TestMcpJson` を「無い」の検査に書き換えた（Red を確認してから削除した）。CHANGELOG の Unreleased に書いた。epic-10 の AC 6個は、人間が確認したうえでチェックだけを直した（本文は変えていない）。
 - 2026-11-15 — #58 の追補: UBIQUITOUS_LANGUAGE の「使わない言い換え」を、実際に使われている語だけに絞った。YAML のフィールド名と使用0件の語を外し、既存の文書が使う terminal status と figures manifest を正の語にした。`.yomiyasu-words/` を生成するスクリプトと、同期を確かめるテストを足した。
+- 2026-11-15 — Epic PR の前の推敲（WORKFLOW §8）: 今回書いた日本語の文書10本に yomiyasu 3.1.0 の check run と verify をかけた（全件でハッシュが一致し、meaning_risk=0）。直したのは、間を作るだけの読点11か所。既存の文の em dash と太字は変えていない。

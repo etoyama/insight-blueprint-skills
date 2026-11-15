@@ -75,7 +75,7 @@ clone ごとに `scripts/install-plugins.sh` で入れる）。
 - YAGNI: 今必要でない機能・抽象を先回りで作らない。共通化は Rule of Three。
 - TDD（t-wada 流）: Red → Green → Refactor を小さく回す。テストリストを作り、
   仮実装 → 三角測量 → 明白な実装の順で一般化する。テストコードが正（仕様）。
-  SKILL.md と文書は、構造テストを先に書いて Red にしてから本文を書く（[ADR-0010](docs/adr/0010-skill-tdd-structure-tests.md)）。
+  SKILL.md と文書は構造テストを先に書いて Red にしてから本文を書く（[ADR-0010](docs/adr/0010-skill-tdd-structure-tests.md)）。
 - ruff が lint と format の基準で、CI は違反を拒む。公開 API には型ヒントを付ける。
   コメントには「何を」ではなく「なぜ」を書く。
 

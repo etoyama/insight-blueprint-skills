@@ -47,7 +47,7 @@ uv run pytest --cov=src --cov-report=term-missing # カバレッジつき
 ```
 
 - Python（`validate.py`・`design_io`・models など）は TDD で書く。
-- SKILL.md と文書は、構造テストを先に書いて Red にし、本文を書いて Green にする。
+- SKILL.md と文書は構造テストを先に書いて Red にし、本文を書いて Green にする。
   skill の構造テストは `tests/skills/`、正本の文書の構造テストは `tests/docs/` にある。
 - `validate.py` は I/O を持たない純関数に保ち、I/O なしでテストできるようにする。
 - テスト名は「何がどうなるべきか」を文で書く。

@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-[WORKFLOW](../WORKFLOW.md) は、開発の単位を Epic と Story の2階層で定める。
+[WORKFLOW](../WORKFLOW.md) は開発の単位を Epic と Story の2階層で定める。
 Epic を伴わない PR（リリース、依存の更新、単発の fix や chore）をいつ認めるかは書いていない。
 このリポジトリでは単発の PR が多く、[ADR-0009](0009-adopt-repo-template-flow.md) の chore PR（#55）もその1本だった。
 
@@ -31,7 +31,7 @@ Epic を伴わない PR（リリース、依存の更新、単発の fix や cho
 
 ## Decision Analysis
 
-選択肢は、人間との判断（D11）で比べた内容を、この ADR を書くときに表へまとめ直したものである。
+選択肢は人間との判断（D11）で比べた内容を、この ADR を書くときに表へまとめ直したものである。
 
 | # | 基準 | 区分 | 分類 | 重み（決めた人） | 出典 |
 |---|---|---|---|---|---|

@@ -16,7 +16,7 @@
      「使わない言い換え」は yomiyasu の flag.txt と検査スクリプトの元になる。
      初出は、その語を導入した Epic の DesignDoc か ADR。 -->
 
-「初出」の「fork 前」は、[insight-blueprint](https://github.com/etoyama/insight-blueprint) から引き継いだ語を表す。
+「初出」の「fork 前」は [insight-blueprint](https://github.com/etoyama/insight-blueprint) から引き継いだ語を表す。
 「コード上の名前」は `tests/docs/test_canonical_docs.py` が `src/` と `skills/` に実在することを確かめる。
 
 | 用語 | コード上の名前 | 定義 | 使わない言い換え | 初出 |

@@ -108,7 +108,7 @@ repo-template の DesignDoc テンプレートは `## Domain Model` 節を初版
 
 - WORKFLOW §2 の正本の表にない節を ARCHITECTURE に足す。repo-template に返すまで、ここだけの形になる。
 - テストが照合するのはクラス名だけで、フィールドと関係のずれは捕まえない。
-- PR テンプレートの項目の読み方は、テンプレートの文面には書かれていない。
+- PR テンプレートの項目の読み方はテンプレートの文面には書かれていない。
 
 ## Alternatives considered
 

@@ -46,7 +46,7 @@
 ## ロードマップ
 
 E1〜E5 は [ADR-0001 §Related](adr/0001-drop-mcp-server-embed-validation.md) の解体計画に対応する。
-Epic 06 からは、軽量版の上に分析の能力を足していく。
+Epic 06 からは軽量版の上に分析の能力を足していく。
 
 | Epic | DesignDoc | 内容 | 状態 |
 |---|---|---|---|
