@@ -20,7 +20,7 @@ Claude Docs への書き込みは、ホスト（Claude Code）が持つコネク
 - [ADR-0001](0001-drop-mcp-server-embed-validation.md) が廃止したのは、plugin が自分で立てる MCP サーバである。
   分析設計の検証をサーバの中から埋め込みのライブラリへ移した（ADR-0001 の Decision を読んだ）。
   ホストが持つコネクタには触れていない。
-- [epic-11](../design/epic-11-repo-template-compliance.md) の US-4 は、配布物から `.mcp.json` を消した。
+- [epic-11](../design/epic-11-repo-template-compliance.md) の US-4 は配布物から `.mcp.json` を消した。
   `tests/test_plugin_structure.py` の `TestMcpJson` が、`.mcp.json` が無いことを確かめている（同じファイルを読んだ）。
 - スパイク（Epic 12 の Decision `spike-constraints`）で、コネクタの無い環境ではモデルが「無い」と判定して止まれることを確かめた。
 - `/analysis-report` は Markdown のレポートを `.insight/reports/` に書く。Claude Docs が無くてもレポートは出る
@@ -30,7 +30,7 @@ Claude Docs への書き込みは、ホスト（Claude Code）が持つコネク
 ## Problem
 
 - 課題1: 次に外部のコネクタを使いたい人が、使ってよいかを不変条件から読めない。
-  字面は禁じ、実態は `/report-upload` が使っている。食い違った不変条件は、やがて守られなくなる。
+  字面は禁じ、実態は `/report-upload` が使っている。食い違った不変条件はやがて守られなくなる。
 - 課題2: 歯止めなしにコネクタを使うと、コネクタの無い環境で核（分析設計・notebook・journal / reflection・premortem）が動かなくなる。
   PRD の「Claude Code plugin として配布・利用できる」が崩れる。
 
