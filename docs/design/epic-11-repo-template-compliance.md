@@ -129,6 +129,17 @@ flowchart TD
 変更なし。この Epic はデータモデルを変えない。
 全体図は [docs/ARCHITECTURE.md の「Domain Model」](../ARCHITECTURE.md#domain-model) にある（US-2 で描く）。
 
+## Module Responsibilities
+
+| モジュール / 関数 | 責務（する） | 境界（しない → 委譲先） |
+|---|---|---|
+| `CLAUDE.md` | AI への行動指示と、各正本へのポインタ | 規則・構成・用語の実体を持たない → WORKFLOW・ARCHITECTURE・UBIQUITOUS_LANGUAGE・README |
+| `docs/ARCHITECTURE.md` | 不変条件、構成、コンテキストマップ、Domain Model の全体図、ファイルの契約の所在 | Epic の一覧と DesignDoc へのリンクを持たない → PRD のロードマップ。契約の形を写さない → 各 SKILL.md・`notebook-contract.md` |
+| `docs/UBIQUITOUS_LANGUAGE.md` | 用語・コード上の名前・定義・使わない言い換え | yomiyasu の語の一覧を手で持たない → `scripts/export_yomiyasu_words.py` が生成 |
+| `scripts/export_yomiyasu_words.py::render` | Terms 表から `allow.txt`・`flag.txt` の中身を作る純関数 | ファイルを書かない → `main` |
+| `tests/docs/test_canonical_docs.py` | リンク切れ、CLAUDE.md への実体の逆流、図とコードの食い違い、語の実在、ADR の索引、生成物の同期を検出する | 表の読み取りを自分で持たない → `scripts/export_yomiyasu_words.py` の `section`・`terms_rows` |
+| `tests/test_plugin_structure.py::TestMcpJson` | 配布物に MCP サーバの設定が無いことを確かめる | `.spec-workflow/` は見ない → `TestNoLegacyFlowFiles` |
+
 ## Sequence Diagram
 
 AI アシスタントが新しい Epic の文書を書くとき、正本をたどる順序。
@@ -158,17 +169,6 @@ sequenceDiagram
         T-->>Dev: pass
     end
 ```
-
-## Module Responsibilities
-
-| モジュール / 関数 | 責務（する） | 境界（しない → 委譲先） |
-|---|---|---|
-| `CLAUDE.md` | AI への行動指示と、各正本へのポインタ | 規則・構成・用語の実体を持たない → WORKFLOW・ARCHITECTURE・UBIQUITOUS_LANGUAGE・README |
-| `docs/ARCHITECTURE.md` | 不変条件、構成、コンテキストマップ、Domain Model の全体図、ファイルの契約の所在 | Epic の一覧と DesignDoc へのリンクを持たない → PRD のロードマップ。契約の形を写さない → 各 SKILL.md・`notebook-contract.md` |
-| `docs/UBIQUITOUS_LANGUAGE.md` | 用語・コード上の名前・定義・使わない言い換え | yomiyasu の語の一覧を手で持たない → `scripts/export_yomiyasu_words.py` が生成 |
-| `scripts/export_yomiyasu_words.py::render` | Terms 表から `allow.txt`・`flag.txt` の中身を作る純関数 | ファイルを書かない → `main` |
-| `tests/docs/test_canonical_docs.py` | リンク切れ、CLAUDE.md への実体の逆流、図とコードの食い違い、語の実在、ADR の索引、生成物の同期を検出する | 表の読み取りを自分で持たない → `scripts/export_yomiyasu_words.py` の `section`・`terms_rows` |
-| `tests/test_plugin_structure.py::TestMcpJson` | 配布物に MCP サーバの設定が無いことを確かめる | `.spec-workflow/` は見ない → `TestNoLegacyFlowFiles` |
 
 ## Decisions
 
