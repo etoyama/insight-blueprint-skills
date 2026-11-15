@@ -1,4 +1,4 @@
-# Epic 12: 意思決定に使えるレポートと Claude Docs への公開
+# Epic 12: 意思決定に使えるレポートと Claude Docs へのアップロード
 
 ## Background
 
@@ -54,9 +54,9 @@ Epic issue（[#62](https://github.com/etoyama/insight-blueprint-skills/issues/62
 - [ ] AC 4: Appendix に lineage の図と notebook のパスが載る。
 - [ ] AC 5: `/analysis-report` は読み取り専用のままで、数値を自分で計算しない。構造テストがこれを確かめる。
 
-### US-4: Claude Docs への公開
+### US-4: Claude Docs へのアップロード
 
-分析者として、読者がコメントできる形でレポートを渡すために、レポートを Claude Docs に公開できてほしい。
+分析者として、読者がコメントできる形でレポートを渡すために、レポートを Claude Docs にアップロードできてほしい。
 
 - [ ] AC 1: 新しい skill が `.insight/reports/{id}.md` を読んで新しい Doc を作り、URL を示す。
   既存の Doc は上書きしない。レポートが無ければ `/analysis-report` を案内して終わる。
@@ -67,23 +67,21 @@ Epic issue（[#62](https://github.com/etoyama/insight-blueprint-skills/issues/62
 
 ### US-5: 配線と文書の更新
 
-分析者として、結論からレポート、公開までを迷わずたどるために、skill の連鎖と文書がそろっていてほしい。
+分析者として、結論からレポート、アップロードまでを迷わずたどるために、skill の連鎖と文書がそろっていてほしい。
 
 - [ ] AC 1: `/analysis-report` と新しい skill の Chaining 表が、互いを指す。
-- [ ] AC 2: `/analysis-auto` がレポートを作った後に公開の skill を起動する。分析者が公開で聞かれるのは、送るファイルの承認の1回だけである。
-- [ ] AC 3: README の Skills 表と、PRD の機能要件に、レポートと公開の項目が載る。
-- [ ] AC 4: この Epic で足した語が UBIQUITOUS_LANGUAGE に載り、ARCHITECTURE の代表シーケンスが公開を含む。
+- [ ] AC 2: `/analysis-auto` がレポートを作った後に `/report-upload` を起動する。分析者がアップロードで聞かれるのは、送るファイルの承認の1回だけである。
+- [ ] AC 3: README の Skills 表と、PRD の機能要件に、レポートとアップロードの項目が載る。
+- [ ] AC 4: この Epic で足した語が UBIQUITOUS_LANGUAGE に載り、ARCHITECTURE の代表シーケンスがアップロードを含む。
 
 ## Stories
-
-US-4 の Story は、公開の skill の名前を人間が決めてから起票する。
 
 | Story issue | User Story | 扱う AC |
 |---|---|---|
 | [#63](https://github.com/etoyama/insight-blueprint-skills/issues/63) | [US-1](#us-1-判断に足る数値) | AC 1〜5 |
 | [#64](https://github.com/etoyama/insight-blueprint-skills/issues/64) | [US-2](#us-2-決定の文脈) | AC 1〜5 |
 | [#65](https://github.com/etoyama/insight-blueprint-skills/issues/65) | [US-3](#us-3-判断の材料がそろったレポート) | AC 1〜5 |
-| 未起票 | [US-4](#us-4-claude-docs-への公開) | AC 1〜5 |
+| [#67](https://github.com/etoyama/insight-blueprint-skills/issues/67) | [US-4](#us-4-claude-docs-へのアップロード) | AC 1〜5 |
 | [#66](https://github.com/etoyama/insight-blueprint-skills/issues/66) | [US-5](#us-5-配線と文書の更新) | AC 1〜4 |
 
 実装の順は US-1 → US-2 → US-3 → US-4 → US-5。US-3 は US-1 と US-2 が出す材料を読む。
@@ -94,8 +92,8 @@ US-4 は US-3 を待たずに進められる。
 定義の正本は [docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md)。
 表の「コード上の名前」はコードに実在する必要があるので、語は名前が決まる Story の中で表に足す。
 
-- 追加: 決定の文脈（US-2）、効果量・信頼区間・標本サイズ（US-1）、公開（US-4）
-- 変更: なし。「レポート」は APA 風の Markdown を指すままで、公開した Doc はその写しとして扱う。
+- 追加: 決定の文脈（US-2）、効果量・信頼区間・標本サイズ（US-1）、アップロード（US-4）
+- 変更: なし。「レポート」は APA 風の Markdown を指すままで、アップロードで作った Doc はその写しとして扱う。
 
 ## Scope
 
@@ -107,19 +105,19 @@ notebook の契約、分析設計のモデルを前進させる。
   - verdict の指標への効果量・信頼区間・標本サイズの追加。
   - 分析設計への決定の文脈の追加。
   - レポートのテンプレートの拡張（Introduction・Method・Results・Discussion・Appendix）。
-  - Markdown のレポートを Claude Docs に公開する新しい skill。
+  - Markdown のレポートを Claude Docs にアップロードする新しい skill（`/report-upload`）。
   - chaining、`/analysis-auto`、README、PRD、UBIQUITOUS_LANGUAGE、ARCHITECTURE の更新。
 - Epic 範囲外:
   - 厳密な APA の体裁（running head、本文中の引用、参考文献リスト）。Epic 10 の判断を引き継ぐ。
   - データの期間。catalog にも verdict にも材料がない。必要になったら別の Epic で扱う。
   - Docs から Markdown への書き戻し。Docs 上の手直しは Markdown に反映しない。
-  - 公開した Doc の更新と、design id と Doc の URL の対応の保存。
+  - アップロードで作った Doc の更新と、design id と Doc の URL の対応の保存。
   - 終端でない状態の分析のレポート。Epic 10 の terminal status の前提を引き継ぐ。
   - docx / PDF の生成。Claude Docs の書き出しに任せる。
 
 ## Architecture
 
-左が材料、中央が今ある組み立て、右がこの Epic で足す公開。実線は読み書き、破線は生産者が成果物を作る関係を表す。
+左が材料、中央が今ある組み立て、右がこの Epic で足すアップロード。実線は読み書き、破線は生産者が成果物を作る関係を表す。
 Markdown から右へ進むのは、分析者が承認したときだけである。
 
 ```mermaid
@@ -140,7 +138,7 @@ flowchart TD
     C --> R
     L --> R
     R --> MD[".insight/reports/{id}.md<br/>レポート（正本）"]
-    MD --> P["公開の skill（US-4）"]
+    MD --> P["/report-upload（US-4）"]
     V -->|図の PNG| P
     P -->|KEEP ゲート: 送るファイルを列挙して承認を待つ| G{"承認?"}
     G -->|はい| DOCS["Claude Docs<br/>コメント・共有・Word / PDF 書き出し"]
@@ -190,13 +188,13 @@ Python のクラスを持たないファイルの契約は、図に描かず表�
 |---|---|---|
 | `/analysis-notebook`（拡張） | 効果量・信頼区間・標本サイズを計算して verdict に書く | レポートを組み立てない → `/analysis-report` |
 | `/analysis-design`（拡張） | 決定の文脈を聞いて分析設計に書く | 形の検証をしない → 検証ライブラリ |
-| `/analysis-report`（拡張） | 分析設計・journal・verdict・図・catalog・lineage を読み、Markdown のレポートを書く | 数値を計算しない → `/analysis-notebook`。外部に送らない → 公開の skill |
-| 公開の skill（新設） | レポートと図を読み、承認の後に Claude Docs へ送り、URL を示す | レポートを組み立てない → `/analysis-report`。Markdown を書き換えない。Doc を更新しない（範囲外） |
-| `/analysis-auto`（拡張） | 分析者の入口。レポートを作った後に公開の skill を起動し、結果を実行サマリに書く | 公開の承認を自分で取らない → 公開の skill の KEEP ゲート。公開を自分で行わない → 公開の skill |
+| `/analysis-report`（拡張） | 分析設計・journal・verdict・図・catalog・lineage を読み、Markdown のレポートを書く | 数値を計算しない → `/analysis-notebook`。外部に送らない → `/report-upload` |
+| `/report-upload`（新設） | レポートと図を読み、承認の後に Claude Docs へ送り、URL を示す | レポートを組み立てない → `/analysis-report`。Markdown を書き換えない。Doc を更新しない（範囲外） |
+| `/analysis-auto`（拡張） | 分析者の入口。レポートを作った後に `/report-upload` を起動し、結果を実行サマリに書く | アップロードの承認を自分で取らない → `/report-upload` の KEEP ゲート。アップロードを自分で行わない → `/report-upload` |
 
 ## Sequence Diagram
 
-### guided autopilot（`/analysis-auto`）から公開まで
+### guided autopilot（`/analysis-auto`）からアップロードまで
 
 分析者の入口は `/analysis-auto` である。driver が既存の skill を順に動かし、KEEP ゲートでだけ止まる。
 この Epic が変える所を Note で示す。変えない所（framing、review、premortem の分岐）は省いた。
@@ -209,7 +207,7 @@ sequenceDiagram
     participant IO as design_io
     participant NB as /analysis-notebook
     participant R as /analysis-report
-    participant P as 公開の skill
+    participant P as /report-upload
     participant FS as .insight/
     participant DC as Claude Docs
 
@@ -235,8 +233,8 @@ sequenceDiagram
     R->>FS: 分析設計・journal・verdict・catalog・lineage を読む
     R->>FS: reports/{id}.md を書く
 
-    Note over D,DC: 公開（US-4・US-5: この Epic で足す）
-    D->>P: 公開する
+    Note over D,DC: アップロード（US-4・US-5: この Epic で足す）
+    D->>P: アップロードする
     alt Claude Docs のコネクタが無い
         P-->>D: 送れない旨を返す
     else 送れる
@@ -251,26 +249,26 @@ sequenceDiagram
     D-->>A: 実行サマリ（レポートのパス、Doc の URL、止まった所）
 ```
 
-- 公開で分析者に聞くのは1回だけである。driver は「公開するか」を別に聞かず、公開の skill が送るファイルを列挙して承認を待つ。
-- レポートを作らなかったときは、driver は公開の skill を起動しない。
+- アップロードで分析者に聞くのは1回だけである。driver は「アップロードするか」を別に聞かず、`/report-upload` が送るファイルを列挙して承認を待つ。
+- レポートを作らなかったときは、driver は `/report-upload` を起動しない。
 - コネクタが無い環境では、driver は KEEP ゲートを出さずに実行サマリへ進み、送れなかった旨をサマリに書く。
 
 ### skill を単独で起動したとき
 
-結論の出た分析を、分析者が `/analysis-report` と公開の skill を自分で起動して公開するまで。
+結論の出た分析を、分析者が `/analysis-report` と `/report-upload` を自分で起動してアップロードするまで。
 
 ```mermaid
 sequenceDiagram
     actor A as 分析者
     participant R as /analysis-report
-    participant P as 公開の skill
+    participant P as /report-upload
     participant FS as .insight/
     participant DC as Claude Docs
     A->>R: レポートを作る（design id）
     R->>FS: 分析設計・journal・verdict・catalog・lineage を読む
     R->>FS: reports/{id}.md を書く
     R-->>A: レポートのパス
-    A->>P: 公開する（design id）
+    A->>P: アップロードする（design id）
     P->>FS: reports/{id}.md と図の PNG を読む
     alt レポートが無い
         P-->>A: /analysis-report を案内して終わる
@@ -298,13 +296,13 @@ sequenceDiagram
 
 ### Decision: publish-as-separate-skill
 
-- What: Claude Docs への公開は `/analysis-report` に足さず、別の skill にする。Markdown のレポートを正本として残す。
+- What: Claude Docs へのアップロードは `/analysis-report` に足さず、別の skill にする。Markdown のレポートを正本として残す。
 - Why: 課題4を解く。あわせて、外部への依存を1つの skill に閉じ込める。
 - Criteria: コネクタが無い環境でもレポートが出ること（Must、PRD「plugin として配布・利用できる」）。
   外部への送信は承認の後だけであること（Must、[ADR-0005](../adr/0005-selective-autonomous-chaining.md)）。
   CI で検証できる範囲（Want）と、実装と保守の量（Want）。決め手は CI で検証できる範囲。
   2026-11-15 に人間が決めた。
-- Affected modules: 公開の skill（新設）、`/analysis-auto`
+- Affected modules: `/report-upload`（新設）、`/analysis-auto`
 - Alternatives considered: `/analysis-report` に出力先の選択を足す案。skill は増えないが、
   読み取り専用の消費者に外部への書き込みが混ざる。Claude Docs を正本にする案。コネクタが無い環境でレポートが出なくなる。
 - Consequences: skill と chaining の配線が1つずつ増える。Markdown を経由するので、Docs ならではの表現は使いにくい。
@@ -331,16 +329,28 @@ sequenceDiagram
   1. Docs から Markdown へは戻せない。書き戻すと図がテキストの代替表示に置き換わる。
   2. ツール名の接頭辞が環境ごとに違う。SKILL.md にツール名を書けず、構造テストでも検証できない。
   3. 図を上げる手段は Docs のコネクタと別のツールである。依存が2つになる。
-- Why: US-4 の前提（SKILL.md の指示だけで公開できるか、コネクタが無い環境で止まれるか）が未確認だった。
+- Why: US-4 の前提（SKILL.md の指示だけでアップロードできるか、コネクタが無い環境で止まれるか）が未確認だった。
 - Criteria: 経路が通ること。コネクタが無い環境で、モデルが無いと判定できること。
-- Affected modules: 公開の skill
+- Affected modules: `/report-upload`
 - Alternatives considered: スパイクを省いて US-4 を実装する案。経路が通らなければ Epic の後半が無駄になる。
 - Consequences: 実際の SKILL.md を新しいセッションで起動した再現、CLI での図のアップロード、
   アップロードごとの承認の有無は、まだ確かめていない。US-4 の Story で確かめる。
 
-### 未決: 公開の skill の名前
+### Decision: skill-name-report-upload
 
-候補は `/analysis-publish`。名前は公開契約で戻しにくいので、US-4 の Story を起票する前に人間が決める。
+- What: Claude Docs へ送る skill の名前を `/report-upload` にする。この動作の用語は「アップロード」とする。
+- Why: 名前はディレクトリ名・chaining の表・README に入り、後から変えにくい。
+- Criteria: 「公開」「共有」を含意しないこと（Must、人間の発言「誤解が必ず発生する」）。
+  `/analysis-report` と打ち間違えず、役割も取り違えないこと（Want、人間の発言）。
+  名前から外へ出ることが読めること（Want、[ADR-0005](../adr/0005-selective-autonomous-chaining.md)）。
+  既存の命名と用語にそろうこと（Want）。決め手は、外へ出ることが読めること。2026-11-15 に人間が決めた。
+- Affected modules: `/report-upload`、`/analysis-auto`、README、UBIQUITOUS_LANGUAGE
+- Alternatives considered: `/analysis-publish` と `/analysis-share`。Doc は作った本人だけが見える状態で始まるので、
+  「誰かに見える・届く」と読める名前は実際と食い違う。`/report-to-docs`。docs が文書一般にも読める。
+  `/report-export`。Claude Docs の Word / PDF への書き出しと同じ語になる。
+  `/write-report`。`/analysis-report` も「レポートを書く」skill なので、役割を取り違える。
+- Consequences: 送り先は名前から読めない。description の1文目と承認の文で、送り先が Claude Docs であることと、
+  Doc が自分だけに見える状態で作られることを示す。`analysis-<名詞>` の形からは外れ、`catalog-register` と同じ「対象-動詞」の形になる。
 
 ### Cross-epic decisions (links to ADR)
 
@@ -357,7 +367,7 @@ Story の実装で ADR を書いたら、ここにリンクを足す。予定は
 | US-1 判断に足る数値 | ☐ | ☐ | ☐ |
 | US-2 決定の文脈 | ☐ | ☐ | ☐ |
 | US-3 判断の材料がそろったレポート | ☐ | ☐ | ☐ |
-| US-4 Claude Docs への公開 | ☐ | ☐ | ☐ |
+| US-4 Claude Docs へのアップロード | ☐ | ☐ | ☐ |
 | US-5 配線と文書の更新 | ☐ | ☐ | ☐ |
 
 完了時に ✓ を付ける。自動テストがない層には「—（理由）」を書く（[ADR-0010](../adr/0010-skill-tdd-structure-tests.md)）。
@@ -366,4 +376,5 @@ Story の実装で ADR を書いたら、ここにリンクを足す。予定は
 
 - 2026-11-15 — スパイク: Markdown と PNG を Claude Docs に載せる経路を手で通した。結果は Decisions の spike-constraints。
 - 2026-11-15 — Epic 起票（#62）、DesignDoc 初版。
-- 2026-11-15 — 人間が DesignDoc 初版を承認。Story を起票（#63〜#66）。US-4 は名前が決まるまで未起票。
+- 2026-11-15 — 人間が DesignDoc 初版を承認。Story を起票（#63〜#66）。
+- 2026-11-15 — 人間が skill の名前を `/report-upload` に決めた。US-4 の Story を起票（#67）。
