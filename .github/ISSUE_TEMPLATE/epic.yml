@@ -1,0 +1,25 @@
+name: Epic
+description: DesignDoc を伴う開発単位。動作確認可能な Story 群に分割される
+title: "[Epic] "
+labels: ["type:epic"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        背景・ユーザーストーリー・AC の正本は DesignDoc に置く（docs/adr/flow/0001-designdoc-owns-requirements.md）。
+        起票後、`.claude/rules/design-doc-template.md` を `docs/design/epic-NN-<topic>.md` に
+        コピーして DesignDoc 初版を作る。この issue には要約とリンクだけを書く。
+        フローの定義: `docs/WORKFLOW.md`
+  - type: textarea
+    id: summary
+    attributes:
+      label: 要約
+      description: この Epic で何を実現するかを1〜2行で書く。背景や AC は DesignDoc に書く
+    validations:
+      required: true
+  - type: input
+    id: design-doc
+    attributes:
+      label: DesignDoc
+      description: DesignDoc 初版を作ったら、そのパスかリンクを書く
+      placeholder: "docs/design/epic-01-<topic>.md"

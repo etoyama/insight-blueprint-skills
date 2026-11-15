@@ -1,0 +1,37 @@
+name: Story
+description: 動作確認可能な最小単位（0.5–3日、AC は5個以下）
+title: "[Story] "
+labels: ["type:story"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        AC の正本は親 Epic の DesignDoc の `## User Stories` にある。この issue には AC を書き写さない。
+        扱う AC が5個を超える場合や、0.5–3日に収まらない場合は Story を分割する。
+  - type: input
+    id: parent-epic
+    attributes:
+      label: 親 Epic
+      placeholder: "#12"
+    validations:
+      required: true
+  - type: input
+    id: user-story
+    attributes:
+      label: 対応するユーザーストーリー
+      description: DesignDoc の `US-N` の見出しへのリンク
+      placeholder: "docs/design/epic-01-<topic>.md#us-1-<短い名前>"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: やること
+      description: "完了時に何がどう動くようになるか。扱う AC の番号（例: US-1 の AC 1, AC 2）"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: 補足
+      description: 実装ヒント・参照すべき DesignDoc の節など（任意）
