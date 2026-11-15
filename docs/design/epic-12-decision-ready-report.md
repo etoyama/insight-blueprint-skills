@@ -76,15 +76,15 @@ Epic issue（[#62](https://github.com/etoyama/insight-blueprint-skills/issues/62
 
 ## Stories
 
-Story issue は、本書の初版を人間が承認した後に起票する。
+US-4 の Story は、公開の skill の名前を人間が決めてから起票する。
 
 | Story issue | User Story | 扱う AC |
 |---|---|---|
-| 未起票 | [US-1](#us-1-判断に足る数値) | AC 1〜5 |
-| 未起票 | [US-2](#us-2-決定の文脈) | AC 1〜5 |
-| 未起票 | [US-3](#us-3-判断の材料がそろったレポート) | AC 1〜5 |
+| [#63](https://github.com/etoyama/insight-blueprint-skills/issues/63) | [US-1](#us-1-判断に足る数値) | AC 1〜5 |
+| [#64](https://github.com/etoyama/insight-blueprint-skills/issues/64) | [US-2](#us-2-決定の文脈) | AC 1〜5 |
+| [#65](https://github.com/etoyama/insight-blueprint-skills/issues/65) | [US-3](#us-3-判断の材料がそろったレポート) | AC 1〜5 |
 | 未起票 | [US-4](#us-4-claude-docs-への公開) | AC 1〜5 |
-| 未起票 | [US-5](#us-5-配線と文書の更新) | AC 1〜4 |
+| [#66](https://github.com/etoyama/insight-blueprint-skills/issues/66) | [US-5](#us-5-配線と文書の更新) | AC 1〜4 |
 
 実装の順は US-1 → US-2 → US-3 → US-4 → US-5。US-3 は US-1 と US-2 が出す材料を読む。
 US-4 は US-3 を待たずに進められる。
@@ -366,3 +366,4 @@ Story の実装で ADR を書いたら、ここにリンクを足す。予定は
 
 - 2026-11-15 — スパイク: Markdown と PNG を Claude Docs に載せる経路を手で通した。結果は Decisions の spike-constraints。
 - 2026-11-15 — Epic 起票（#62）、DesignDoc 初版。
+- 2026-11-15 — 人間が DesignDoc 初版を承認。Story を起票（#63〜#66）。US-4 は名前が決まるまで未起票。
