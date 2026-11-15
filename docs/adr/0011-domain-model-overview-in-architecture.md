@@ -95,7 +95,7 @@ repo-template の DesignDoc テンプレートは `## Domain Model` 節を初版
 - Epic の DesignDoc の `## Domain Model` 節は差分だけを描く。変更がなければ「変更なし」と書き、全体図へリンクする。
 - モデルを変えた PR では、同じ PR で全体図も更新する。PR テンプレートの「Domain Model 図を変えた場合」の項目は、
   全体図の更新も含むと読む。テンプレートは repo-template のコピーなので書き換えない。
-- 図とコードのクラスが一致することは `tests/docs/test_canonical_docs.py` が確かめる。
+- 図とコードのクラスと enum の値が一致することは `tests/docs/test_canonical_docs.py` が確かめる。
 
 ## Consequences
 
@@ -107,7 +107,7 @@ repo-template の DesignDoc テンプレートは `## Domain Model` 節を初版
 ### Negative
 
 - WORKFLOW §2 の正本の表にない節を ARCHITECTURE に足す。repo-template に返すまで、ここだけの形になる。
-- テストが照合するのはクラス名だけで、フィールドと関係のずれは捕まえない。
+- テストが照合するのはクラス名と enum の値だけで、フィールドと関係のずれは捕まえない。
 - PR テンプレートの項目の読み方はテンプレートの文面には書かれていない。
 
 ## Alternatives considered
