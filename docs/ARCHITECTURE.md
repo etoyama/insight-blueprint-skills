@@ -60,7 +60,10 @@ flowchart TD
 
 - **Skill layer（`skills/`）** — すべての分析能力。拡張点。設計書・journal・catalog 等の YAML を直接 read/write する。
 - **Validation library（`src/insight_blueprint/validate.py`）** — I/O を持たない純関数。
-  Pydantic スキーマ検証（`AnalysisDesign`）+ 状態遷移ガード（`VALID_TRANSITIONS`）。設計書整合性の単一正本。
+  Pydantic スキーマ検証（`AnalysisDesign`。`DesignStatus` と、空でない `Methodology.method` など）+
+  状態遷移ガード（`VALID_TRANSITIONS`。例: `in_review → supported` を拒む）。分析設計の整合性の単一正本。
+  `design_io` 経由で書く skill も、書く前に Python 側で同じ検証を通す。tool の書き込み（hook）と
+  helper の書き込み（`design_io`）の両方が守られる。
 - **pre-write hook（`hooks/validate-design.py`, plugin 同梱 `hooks/hooks.json`）** —
   `.insight/designs/*_hypothesis.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
   にかけ、違反を `exit 2` でブロックする I/O 殻。利用者の install 先プロジェクトでも効く
@@ -137,7 +140,8 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 ├── designs/
 │   ├── {id}_hypothesis.yaml        # design_io create/update（pre-write hook が検証）
 │   ├── {id}_journal.yaml           # journal イベント
-│   └── {id}_reviews.yaml           # review バッチ
+│   ├── {id}_reviews.yaml           # review バッチ
+│   └── {id}_revision.yaml          # /analysis-revision の修正追跡
 ├── catalog/
 │   ├── sources/{id}.yaml           # /catalog-register
 │   └── knowledge/{id}.yaml         # /knowledge-extract

@@ -1,154 +1,107 @@
 # CLAUDE.md
 
-Guidelines for AI coding assistants (Claude Code, etc.) and human contributors
-working on this repository.
+AI コーディングアシスタント（Claude Code 等）と人間のコントリビュータ向けガイドライン。
+本ファイルは**要約とポインタのみ**を置く。実体は §2 の各正本にある。
 
 ## 1. Project Overview
 
-**insight-blueprint-skills** is a hypothesis-driven EDA platform delivered as a
-Claude Code **skill plugin**. It is a lightweight fork of
-[insight-blueprint](https://github.com/etoyama/insight-blueprint) that drops the
-MCP server, WebUI, and SQLite in favor of **skills + YAML + an embedded validation
-library**. See [ADR-0001](docs/adr/0001-drop-mcp-server-embed-validation.md) for the
-rationale.
+**insight-blueprint-skills** は、仮説駆動 EDA を Claude Code の skill plugin として届ける。
+[insight-blueprint](https://github.com/etoyama/insight-blueprint) から MCP サーバ・WebUI・SQLite を外し、
+skills と YAML と埋め込みの検証ライブラリで組み直した軽量版である
+（[ADR-0001](docs/adr/0001-drop-mcp-server-embed-validation.md)）。
 
-**Preserved core (non-negotiable):**
+- 守る核（marimo notebook 契約、分析設計、journal / reflection、premortem）: [docs/PRD.md](docs/PRD.md)
+- 不変条件（No daemon / No MCP server / No SQLite）と、検証 hook・`.insight/` の構成:
+  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- skill の一覧: [README.md の Skills](README.md#skills)
 
-- marimo notebook templates & cell contract — data-processing transparency, lineage
-- analysis design documents + the skills that generate them
-- journal / reflection — interpreting results and drawing conclusions
-- premortem — cost-incident prevention before expensive data access
+## 2. Documents（正本の所在）
 
-**Migration status.** The MCP server / WebUI / SQLite have been removed (E1–E4 complete;
-see ADR-0001 → Related). The architecture below is now the actual state, not just a target.
-E5 completes the roadmap: premortem self-standing (E5a, done) / knowledge extraction
-(E5b, done) / catalog flexibility (E5c, done — open-string taxonomy, see ADR-0004).
-
-## 2. Architecture
-
-Invariants: **No daemon. No MCP server. No SQLite.** Validation lives in a library
-(`validate.py`), not a process — the same trade SQLite makes by embedding instead of
-running a server. Components: skill layer (`skills/`), validation library
-(`validate.py`), pre-write hook, skill-managed YAML (`.insight/`), marimo + lineage.
-
-The full architecture (component map, current→target migration diagram, Epic mapping)
-is canonical in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**; product requirements
-live in **[docs/PRD.md](docs/PRD.md)**.
+| 知りたいこと | 正本 |
+|---|---|
+| なぜ・何を（要件、ロードマップ） | [docs/PRD.md](docs/PRD.md) |
+| 全体構成・不変条件・Domain Model の全体図 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| 用語（ユビキタス言語） | [docs/UBIQUITOUS_LANGUAGE.md](docs/UBIQUITOUS_LANGUAGE.md) |
+| 開発フローの定義 | [docs/WORKFLOW.md](docs/WORKFLOW.md) |
+| Epic ごとの詳細設計 | `docs/design/epic-NN-*.md` |
+| 個別の設計判断 | [docs/adr/](docs/adr/README.md) |
+| skill の一覧と使い方 | [README.md](README.md) |
+| 環境構築・コマンド・テスト | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| リリース手順 | [docs/RELEASE.md](docs/RELEASE.md) |
 
 ## 3. Tech Stack
 
-uv (packaging) / ruff (lint+format) / ty (type check) / pytest (tests) / marimo
-(notebooks). Details in [.claude/rules/dev-environment.md](.claude/rules/dev-environment.md).
+uv（パッケージ管理）/ ruff（lint と format）/ ty（型検査）/ pytest（テスト）/ marimo（notebook）。
+新しい worktree では先に `uv sync --all-extras`、確認は `uv run poe all`（lint + typecheck + test）。
+詳細は [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 4. Development Workflow
 
-フローの定義の正本は [docs/WORKFLOW.md](docs/WORKFLOW.md)。本書と食い違う場合は WORKFLOW を正とする。
+GitHub issue 駆動の2階層。定義の正本は [docs/WORKFLOW.md](docs/WORKFLOW.md)。本書と食い違う場合は WORKFLOW を正とする。
 
-GitHub issue-driven, **two tiers**:
+- **Epic**（`type:epic`）: DesignDoc（`docs/design/epic-NN-<topic>.md`）を必ず伴う開発単位。
+  背景・ユーザーストーリー・AC の正本は DesignDoc。issue には要約とリンクだけを書く。
+- **Story**（`type:story`）: 動作確認可能な最小単位。0.5–3日、扱う Acceptance Criteria は5個以下。
+- 流れ: Epic 起票 → DesignDoc 初版（Background・User Stories・構成図・**ドメインモデル図**・
+  **シーケンス図**）→ Story 分割 → 実装のたびに DesignDoc を詳細化（Decisions / Story Timeline / Test Design Matrix）。
+- ブランチはトランクベース + Epic stacking（[ADR-0002](docs/adr/0002-trunk-based-epic-stacking.md)）。
+  Epic は `epic/<issue番号>-<slug>`、Story は既定で Epic ブランチに直接コミット。
+  リリースはタグ駆動（`v*`）で、`main` へのマージはリリースではない。
+- Test Design Matrix 全✓ が Epic PR のレビューゲート。
+- Epic 10 までの DesignDoc と ADR-0001〜0008 は旧形式のまま凍結する
+  （[ADR-0009](docs/adr/0009-adopt-repo-template-flow.md)）。閉じた Epic の DesignDoc には追記しない。
+- **AI アシスタントは Epic PR を `main` にマージしない**。人間がレビューしてマージする。
 
-- **Epic** (`type:epic`): a coherent step toward the lightweight target; accompanied
-  by `docs/design/epic-NN-<topic>.md` ([template](.claude/rules/design-doc-template.md)).
-- **Story** (`type:story`): 0.5–3 day unit, ≤5 acceptance criteria.
+## 5. ADR ハードルール
 
-Branching model is **trunk-based with stacked Epics** (`main` is the trunk; no `dev`
-integration branch — see [ADR-0002](docs/adr/0002-trunk-based-epic-stacking.md)):
+実装中に計画外の設計判断が出たら、PR マージ前に必ず次のいずれかを行う
+（詳細: [docs/WORKFLOW.md §6](docs/WORKFLOW.md)）。
 
-- Epic: `epic/<num>-<slug>` cut from `main`. Epic PRs target `main`.
-- Story: by default, commit Stories directly onto the Epic branch. Only when a Story
-  warrants independent review, cut `(feat|fix|chore|refactor)/<story-num>-<slug>` from
-  the Epic branch and PR it into the Epic branch (a stacked PR).
-- Releases are tag-driven (`publish.yml` on `v*`), so merging an Epic to `main` does
-  not publish.
+1. ADR を作る（既定。`docs/adr/NNNN-<slug>.md`）。
+2. Epic の DesignDoc `## Decisions` に書く（効果がその Epic を超えない場合のみ）。
+3. PR 説明に明記して人間に確認する（1 も 2 も過剰な小さい判断のみ）。
 
-**AI assistants must not merge Epic PRs into `main`.** The user reviews and merges
-manually.
+黙って判断して先へ進むことを禁止する。
 
-## 5. Architecture Decision Records (ADR) — hard rule
+人間に判断を仰ぐときと ADR を書くときは、`decision-analysis` スキルの形式で提示する
+（[FLOW-0004](docs/adr/flow/0004-decision-analysis-plugin.md)。プラグインは `.claude/settings.json` で宣言し、
+clone ごとに `scripts/install-plugins.sh` で入れる）。
 
-Cross-epic design decisions, long-term constraints, and any change to the target
-architecture above are recorded as ADRs under `docs/adr/NNNN-<slug>.md`
-([template](.claude/rules/adr-template.md)). Epic-scoped decisions that will not be
-cited later stay in the Epic's Design Doc `## Decisions` section.
+## 6. Coding Principles（ハードルール）
 
-When implementing a Story, if investigation surfaces a design choice the approved
-plan did not anticipate, do **one** of the following before the PR can merge:
+正本: [.claude/rules/coding-principles.md](.claude/rules/coding-principles.md)
 
-1. Create an ADR (default for non-trivial architectural / library / public-contract choices).
-2. Add a `## Decision` block to the Epic's Design Doc (genuinely Epic-scoped only).
-3. Flag in the PR description and ask the user (only when 1 and 2 are over-engineering).
+- YAGNI: 今必要でない機能・抽象を先回りで作らない。共通化は Rule of Three。
+- TDD（t-wada 流）: Red → Green → Refactor を小さく回す。テストリストを作り、
+  仮実装 → 三角測量 → 明白な実装の順で一般化する。テストコードが正（仕様）。
+- ruff が lint と format の基準で、CI は違反を拒む。公開 API には型ヒントを付ける。
+  コメントには「何を」ではなく「なぜ」を書く。
 
-## 6. Skills
+## 7. Rules and Templates
 
-| Skill | Purpose |
-|-------|---------|
-| `/rq-problematization` | Challenge prior-research assumptions, generate impactful RQs |
-| `/analysis-framing` | Explore data & existing analyses to frame a direction |
-| `/analysis-design` | Guided hypothesis design-document creation |
-| `/analysis-review` | Produce a design review batch (producer side of the review loop) |
-| `/analysis-notebook` | Generate + run a marimo notebook from the design's methodology; record results to journal |
-| `/analysis-journal` | Record observations, evidence, decisions during analysis |
-| `/analysis-reflection` | Structured reflection to conclude or branch a hypothesis |
-| `/analysis-report` | Assemble a distributable APA-style Markdown report from a concluded analysis (read-only consumer) |
-| `/analysis-revision` | Guided revision workflow for review comments (consumer side) |
-| `/catalog-register` | Register a data source (flexibility extended in E5c) |
-| `/knowledge-extract` | Claude-native extraction of source-scoped domain knowledge (since E5b) |
-| `/data-lineage` | Track transformations, export lineage diagrams (Mermaid) |
-| `/premortem` | Report-only pre-flight cost/risk evaluation (self-standing since E5a) |
-| `/analysis-auto` | Guided autopilot: drives the pipeline, pausing at genuine gates (ADR-0005) |
+- [.claude/rules/coding-principles.md](.claude/rules/coding-principles.md)
+- [.claude/rules/adr-template.md](.claude/rules/adr-template.md)
+- [.claude/rules/design-doc-template.md](.claude/rules/design-doc-template.md)
 
-`batch-analysis` was removed in E3.5 (superseded by Claude Code auto mode).
-`premortem` is now report-only (token/run-history removed in E5a). `knowledge-extract`
-is Claude-native (regex extraction not restored; findings stay in reflection — E5b).
-Remaining E5 work: catalog flexibility (E5c). See ADR-0001.
+## 8. Language
 
-## 7. Skill-Managed Data (`.insight/`)
-
-Skills directly manage YAML outside any server's schema scope:
-
-- `.insight/designs/*_hypothesis.yaml` — analysis design documents (validated via hook)
-- `.insight/designs/*_journal.yaml` — Insight Journal
-- `.insight/designs/*_revision.yaml` — revision tracking
-- `.insight/catalog/` — data sources and extracted knowledge
-
-## 8. Validation Guard
-
-Design-document integrity is enforced by `hooks/validate-design.py`, which
-calls `src/insight_blueprint/validate.py` on every write to a `*_hypothesis.yaml`:
-
-- **Schema** — `AnalysisDesign` Pydantic model (notably `DesignStatus`, non-empty `Methodology.method`)
-- **State transition** — `VALID_TRANSITIONS` guard (e.g. `in_review → supported`)
-
-Violations block the write (`exit 2`). The hook **ships with the plugin** via
-`hooks/hooks.json` (running through the plugin's own uv env), so it enforces integrity in a
-user's installed project too — not just this repo. (This repo's `.claude/settings.json`
-wires the same script for local development.) Skills that write via `design_io` also
-self-validate on the Python path, so both the tool-write and helper-write paths are guarded.
+- ユーザーへの応答は日本語。コード・YAML のフィールド名・ツール名は英語のまま。
+- 文書は日本語の単一言語で書く（上流テンプレートの日英併記は採らない）。
+- 文書・コード・テスト・図は [docs/UBIQUITOUS_LANGUAGE.md](docs/UBIQUITOUS_LANGUAGE.md)
+  の語だけを使う。書く前に読み、表にない概念は同じ PR で足す（[docs/WORKFLOW.md §7](docs/WORKFLOW.md)）。
+- 日本語の文書は `yomiyasu:yomiyasu` スキルで推敲する。対象・タイミング・文書の種類は
+  [docs/WORKFLOW.md §8](docs/WORKFLOW.md) に従う。
+- 節名は英語のまま。日常的に使われる語や専門用語も英語でよく、推敲でも訳さない。
 
 ## 9. Code Review
 
-`orchestra:team-review` (5 reviewers: security / quality / test coverage /
-requirements / …) runs after implementation. Use `--spec` only if a spec exists;
-otherwise review against the Epic Design Doc and ACs.
+Epic PR を開く前に、次の手順でレビューする。
 
-## 10. Code Style & Testing
+1. `pstack:thermos` を回す（バグ・セキュリティとコード品質の2観点）。
+   pstack が入っていない環境では、代わりに Claude Code 同梱の `/code-review` を回す。
+2. テストカバレッジと AC は、Epic PR の作者が DesignDoc の User Stories と Test Design Matrix に照らして確かめ、
+   結果を PR 説明に書く。
+3. レビューの出力は PR のコメントに残し、ファイルとしてコミットしない。直す指摘は Story のコミットで直し、
+   残す判断は ADR・DesignDoc の Decisions・issue のどれかに移す。
 
-- ruff is the lint/format authority; CI rejects on violation.
-- Public APIs carry type hints. Comments explain *why*, not *what*.
-- pytest is the runner. TDD where reasonable (parsers, validation, pure functions).
-- `validate.py` is pure-function and must stay unit-testable without I/O.
-
-## 11. Rules and Templates
-
-- [.claude/rules/adr-template.md](.claude/rules/adr-template.md)
-- [.claude/rules/design-doc-template.md](.claude/rules/design-doc-template.md)
-- [.claude/rules/dev-environment.md](.claude/rules/dev-environment.md)
-- [.claude/rules/coding-principles.md](.claude/rules/coding-principles.md)
-- [.claude/rules/testing.md](.claude/rules/testing.md)
-- [.claude/rules/skill-format.md](.claude/rules/skill-format.md)
-
-## 12. Language Rules
-
-- Respond to users in **Japanese**.
-- Code, YAML field names, and tool names stay in **English**.
-- Documentation is **Japanese, single-language** (the bilingual ja/en policy from the
-  upstream template is intentionally not adopted).
+`.claude/docs/research/` は Epic 09 までのレビュー出力で、凍結している（追記しない）。

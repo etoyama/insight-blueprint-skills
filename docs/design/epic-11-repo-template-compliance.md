@@ -27,13 +27,13 @@ Epic issue（[#56](https://github.com/etoyama/insight-blueprint-skills/issues/56
 
 AI アシスタントとして、作業の前に正本を迷わず開くために、CLAUDE.md が要約と正本へのポインタだけを持ってほしい。
 
-- [ ] AC 1: CLAUDE.md が repo-template の節構成（Documents・Development Workflow・ADR ハードルール・
+- [x] AC 1: CLAUDE.md が repo-template の節構成（Documents・Development Workflow・ADR ハードルール・
   Coding Principles・Rules and Templates・Language）を持つ。Skills 表・`.insight/` のファイル一覧・
   Validation Guard の説明の実体を持たず、正本へのリンクで代える。
-- [ ] AC 2: CLAUDE.md の相対リンクがすべて実在するファイルを指す。
-- [ ] AC 3: Code Review の節が今の環境にあるレビュー道具と、それが無いときの代替と、
+- [x] AC 2: CLAUDE.md の相対リンクがすべて実在するファイルを指す。
+- [x] AC 3: Code Review の節が今の環境にあるレビュー道具と、それが無いときの代替と、
   レビュー出力の置き場所を書く。
-- [ ] AC 4: CONTRIBUTING.md が Setup・Common Commands・Testing・Security Checklist の4節だけを持ち、
+- [x] AC 4: CONTRIBUTING.md が Setup・Common Commands・Testing・Security Checklist の4節だけを持ち、
   ほかの規約は WORKFLOW・CLAUDE.md・coding-principles へのリンクで代える。
 
 ### US-2: 正本文書の整備
@@ -215,6 +215,20 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 - Consequences: 利用者向けの変更なので CHANGELOG に書く。Claude Code が利用者の環境でこのサーバを
   実際に起動していたかは確かめていない。
 
+### Decision: code-review-tooling
+
+- What: CLAUDE.md §9 のレビュー手順を、`pstack:thermos`（バグ・セキュリティとコード品質）を主にし、
+  pstack が無い環境では `/code-review` を使う形にする。テストカバレッジと AC は Epic PR の作者が
+  DesignDoc に照らして確かめ、PR 説明に書く。レビューの出力は PR コメントに残し、ファイルにしない。
+- Why: `orchestra:team-review` はこの環境に無い。`.claude/docs/research/` は D9 で凍結したので、
+  新しいレビュー出力の置き場が要る。
+- Criteria: 名指しする道具が実在すること（Must）。旧 team-review の観点を覆うこと、
+  正本ルール（WORKFLOW §2）に反しないことが決め手。重みは Claude の推測で、人間が案 A を選んで追認した（2026-11-15）。
+- Affected modules: `CLAUDE.md`
+- Alternatives considered: `/code-review` だけ（品質と AC の観点が抜ける）。
+  出力を `docs/reviews/epic-NN/` にコミットする（古いレビューを正本と取り違える）。
+- Consequences: pstack を外すと主の道具が消え、代替に落ちる。AC 照合は道具ではなく作者の手順になる。
+
 ### Decision: split-story-c
 
 - What: 引き継ぎの Story 案 C（解釈の記録と掃除）を、US-3（ADR）と US-4（削除）に分ける。
@@ -227,6 +241,18 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 
 ## Test Design Matrix
 
+[ADR-0010](../adr/0010-skill-tdd-structure-tests.md) の読み方に従う。✓ は Red → Green を経た自動テストがある層だけに付け、
+自動テストが無い層は「—（理由）」と書く。ゲートは「— 以外がすべて ✓」。
+文書の構造テスト（`tests/docs/`、`tests/test_plugin_structure.py`）はファイルを読むだけの検査なので Unit に置く。
+
+| Story \ Layer | Unit | Integration | E2E |
+|---|---|---|---|
+| #57 CLAUDE.md の再編 | ✓（`tests/docs/test_canonical_docs.py`: `TestClaudeMd`・`TestContributing`） | —（文書だけで、組み合わせて動くものが無い） | —（同上） |
+| #58 正本文書の整備 | ☐ | —（同上） | —（同上） |
+| #59 解釈の記録 | ☐ | —（同上） | —（同上） |
+| #60 旧フローの残骸の掃除 | ☐ | —（同上） | —（同上） |
+
 ## Story Timeline
 
 - 2026-11-15 — Epic #56 を起票し、DesignDoc 初版を書いた。Story #57〜#60 を起票した。
+- 2026-11-15 — Story #57 完了: CLAUDE.md を要約とポインタにし（154行 → 107行）、CONTRIBUTING.md を4節に削った。CLAUDE.md から外した検証と `_revision.yaml` の記述を ARCHITECTURE に移した。
