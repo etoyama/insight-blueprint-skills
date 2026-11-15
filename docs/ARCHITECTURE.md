@@ -10,7 +10,9 @@ Claude-native + source-scoped）/ catalog 柔軟化（E5c, open string taxonomy,
 
 ## 不変条件（invariants）
 
-- **No daemon / No MCP server / No SQLite**。常駐プロセスを持たない。
+- **No daemon / No MCP server / No SQLite**。plugin は常駐プロセス・MCP サーバ・SQLite を同梱しない。ホストが持つコネクタは、無くても核が動く任意の機能に限って使ってよい。
+  核は PRD の「守る核」とその検証を指す。コネクタを使う skill は、無い環境では何もせずに案内して終わる
+  （[ADR-0015](adr/0015-host-connectors-for-optional-features.md)）。
 - 検証はプロセスではなく**ライブラリ**として埋め込む（SQLite と同じ転換）。
 - 分析設計の整合性の**正本は `validate.py` の1箇所**。hook と skill の双方が再利用する。
 - リリースは **tag 駆動**（`publish.yml` は `v*` タグで発火）。main マージ＝publish ではない。
@@ -93,6 +95,10 @@ notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定�
 [ADR-0005](adr/0005-selective-autonomous-chaining.md)（selective autonomy）と
 [ADR-0007](adr/0007-upstream-judgment-gates.md)（上流の判断ゲートを design ビートに分割 + data-extraction 新設）。
 **「auto mode」は無人ではなく guided autopilot**（対話型・オプトイン）である。
+
+**外部へ送る前の KEEP ゲート**: skill が `.insight/` の中身を外部へ送るときは、送るファイルを列挙して KEEP ゲートで承認を待つ。
+`/analysis-auto` の中でも自動にしない。承認は1回の実行に限り、覚えない
+（[ADR-0016](adr/0016-approval-before-external-send.md)）。今これに当たる skill は `/report-upload` だけである。
 
 ## ディレクトリ構成（開発時 vs plugin 利用時）
 

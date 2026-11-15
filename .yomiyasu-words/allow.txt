@@ -28,6 +28,7 @@ figures manifest
 信頼区間
 標本サイズ
 レポート
+アップロード
 lineage
 データソース
 列のスキーマ

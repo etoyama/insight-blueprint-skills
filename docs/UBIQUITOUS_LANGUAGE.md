@@ -50,6 +50,7 @@
 | 信頼区間 | `confidence_interval` | verdict の指標が任意で持つ、指標の値の区間。水準・下限・上限を持つ | — | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | 標本サイズ | `sample_size` | verdict の指標が任意で持つ、その指標の計算に使った観測の数 | サンプルサイズ、サンプル数 | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | レポート | `/analysis-report`、`.insight/reports/` | 結論の出た分析を配布用にまとめた APA 風の Markdown。分析設計を変えない | — | [epic-10](design/epic-10-analysis-report.md) |
+| アップロード | `/report-upload` | レポートと図を Claude Docs へ送り、新しい Doc を作ること。Doc はレポートの写しで、作った本人だけに見える状態で始まる | 公開（アップロードそのものを指すとき）、共有（アップロードそのものを指すとき） | [epic-12](design/epic-12-decision-ready-report.md) |
 | lineage | `/data-lineage`、`tracked_pipe` | notebook の中のデータ加工の履歴と、その Mermaid 図 | 系譜 | fork 前 |
 | データソース | `DataSource` | catalog に登録した分析の入力データ。種類は open string | データ源 | fork 前 |
 | 列のスキーマ | `ColumnSchema` | データソースの1列の名前・型・説明 | — | fork 前 |

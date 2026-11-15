@@ -58,12 +58,12 @@ Epic issue（[#62](https://github.com/etoyama/insight-blueprint-skills/issues/62
 
 分析者として、読者がコメントできる形でレポートを渡すために、レポートを Claude Docs にアップロードできてほしい。
 
-- [ ] AC 1: 新しい skill が `.insight/reports/{id}.md` を読んで新しい Doc を作り、URL を示す。
+- [x] AC 1: 新しい skill が `.insight/reports/{id}.md` を読んで新しい Doc を作り、URL を示す。
   既存の Doc は上書きしない。レポートが無ければ `/analysis-report` を案内して終わる。
-- [ ] AC 2: 送る前に、送るファイル（レポートと図）を列挙し、分析者の承認を待つ。承認が無ければ何も送らない。
-- [ ] AC 3: Claude Docs のコネクタが無い環境では、何も送らず、その旨を案内して終わる。Markdown のレポートは残る。
-- [ ] AC 4: 図を Doc に載せる。図を上げる手段が無いか失敗したときは、図を省いて注記を1行入れる。
-- [ ] AC 5: 外部へ送る前の承認の決まりと、不変条件「No MCP server」の読み方を ADR に書く。
+- [x] AC 2: 送る前に、送るファイル（レポートと図）を列挙し、分析者の承認を待つ。承認が無ければ何も送らない。
+- [x] AC 3: Claude Docs のコネクタが無い環境では、何も送らず、その旨を案内して終わる。Markdown のレポートは残る。
+- [x] AC 4: 図を Doc に載せる。図を上げる手段が無いか失敗したときは、図を省いて注記を1行入れる。
+- [x] AC 5: 外部へ送る前の承認の決まりと、不変条件「No MCP server」の読み方を ADR に書く。
 
 ### US-5: 配線と文書の更新
 
@@ -395,6 +395,27 @@ sequenceDiagram
 - Alternatives considered: `inconclusive` のとき Recommendation を省く案。決定の文脈があるのに、読者は「まだ決められない」と読み取れない。
 - Consequences: `next_action` だけがあって状態に合う枝が無いときは、節ごと省く。
 
+### Decision: upload-note-first
+
+- What: `/report-upload` は、図のリンクをすべて注記に置き換えた本文で Doc を作る。そのあと図を1枚ずつ上げ、上がった図の注記だけを図に置き換える。
+- Why: US-4 AC 4 は、図を上げられないときに図を省いて注記を入れると定める。上げる順と、途中で止まったときの Doc の状態は定めていない。
+  図を上げる手段はホストの別のツールで、呼び出しごとにホストが承認を求めることがある（spike-constraints の 3）。断られるとその場で止まる。
+- Criteria: どこで止まっても、Doc に切れた図のリンクとローカルのパスが残らないこと（Must、US-4 AC 4）。指示が短いこと（Want）。
+- Affected modules: `/report-upload`
+- Alternatives considered: 図を先に上げてから本文を作る案。失敗した図にだけ注記を入れればよいが、途中で止まると Doc が無いか、本文が欠ける。
+- Consequences: 図が1枚も上がらなくても、注記つきの Doc が残る。図の数だけ Doc を書き換える。
+
+### Decision: report-upload-joins-the-chaining-check-in-story-66
+
+- What: `/report-upload` を `tests/skills/test_skill_structure.py` の `ALL_SKILLS` に、この Story では足さない。
+  必須の節と Chaining の表は `tests/skills/test_report_upload_structure.py` が確かめる。
+- Why: `ALL_SKILLS` に足すと、chaining の双方向の検査が `/analysis-report` と `/analysis-auto` の表にも同じ行を求める。
+  その2つの表を直すのは US-5（Story #66）である。
+- Criteria: Story の範囲を越えないこと（Must、Story #67 の指示）。
+- Affected modules: `tests/skills/test_skill_structure.py`
+- Alternatives considered: この Story で2つの表も直す案。US-5 AC 1 を先取りし、Story #66 と同じファイルを触る。
+- Consequences: Story #66 が `ALL_SKILLS` に足すまで、双方向の検査は `/report-upload` を見ない。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0013: verdict の指標に、任意の効果量・信頼区間・標本サイズを持たせる](../adr/0013-verdict-metric-optional-items.md):
@@ -403,9 +424,11 @@ sequenceDiagram
 - [ADR-0014: 分析設計に、任意の決定の文脈を入れ子の型で持たせる](../adr/0014-analysis-design-decision-context.md):
   `AnalysisDesign.decision_context` に `DecisionContext`（`decision_maker` と `decision`）を任意で持たせる（US-2）。
 
-Story の実装で ADR を書いたら、ここにリンクを足す。残る予定は次の1本。
+- [ADR-0015: 不変条件を「同梱しない」と書き、ホストのコネクタは任意の機能に限って使う](../adr/0015-host-connectors-for-optional-features.md):
+  plugin は MCP サーバを同梱も設定もしない。ホストのコネクタは、無くても核が動く任意の機能に限って使う（US-4）。
 
-- 外部へ送る前の承認の決まりと、不変条件「No MCP server」の読み方（US-4）
+- [ADR-0016: skill が `.insight/` の中身を外部へ送るときは、KEEP ゲートで承認を待つ](../adr/0016-approval-before-external-send.md):
+  送るファイルを列挙して承認を待つ。`/analysis-auto` の中でも自動にせず、承認を覚えない（US-4）。
 
 ## Test Design Matrix
 
@@ -414,7 +437,7 @@ Story の実装で ADR を書いたら、ここにリンクを足す。残る予
 | US-1 判断に足る数値 | ✓（`tests/skills/test_analysis_report_structure.py`: `TestNumbersTable`） | ✓（`tests/integration/test_analysis_notebook_contract.py`: `test_verdict_metric_carries_effect_size_confidence_interval_and_sample_size`・`test_verdict_metric_keeps_the_existing_keys`） | —（skill がレポートを組み立てる所は自動テストが無い。この Story では手動確認もしていない。レポート全体を通す確認は US-3 で行う） |
 | US-2 決定の文脈 | ✓（`tests/test_design_models.py`: `test_decision_context_*`・`test_analysis_design_decision_context_defaults_to_none`、`tests/test_validate.py`、`tests/skills/test_decision_context_structure.py`、`tests/docs/test_canonical_docs.py`: `TestDomainModelDiagram`） | ✓（`tests/test_design_io.py`: `test_decision_context_is_written`・`test_half_filled_decision_context_writes_nothing`・`test_design_written_before_decision_context_still_updates`・`test_comment_may_target_the_decision_context`） | —（skill が決定の文脈を聞く所と review で読む所は自動テストが無い。この Story では手動確認もしていない） |
 | US-3 判断の材料がそろったレポート | ✓（`tests/skills/test_analysis_report_structure.py`: `TestDecisionContextInIntroduction`・`TestDataDescriptionInMethod`・`TestImplicationsAndRecommendation`・`TestAppendix`・`TestReadOnlyConsumer`） | —（レポートは検証ライブラリも `design_io` も変えない。レポートが読む `catalog_io get` と lineage の書き出しは、既存のテストが確かめている） | —（skill がレポートを組み立てる所は自動テストが無い。手動確認は Story Timeline の 2026-11-15） |
-| US-4 Claude Docs へのアップロード | ☐ | ☐ | ☐ |
+| US-4 Claude Docs へのアップロード | ✓（`tests/skills/test_report_upload_structure.py`、`tests/docs/test_canonical_docs.py`: `TestExternalSendRules`、`tests/test_plugin_structure.py`: `TestSkillsDirectory`） | —（skill は検証ライブラリも `design_io` も変えない。Claude Docs のコネクタはホストが持ち、テストからは呼べない） | —（skill がアップロードする所は自動テストが無い。手動確認は Story Timeline の 2026-11-16） |
 | US-5 配線と文書の更新 | ☐ | ☐ | ☐ |
 
 完了時に ✓ を付ける。自動テストがない層には「—（理由）」を書く（[ADR-0010](../adr/0010-skill-tdd-structure-tests.md)）。
@@ -433,3 +456,15 @@ Story の実装で ADR を書いたら、ここにリンクを足す。残る予
   決定の文脈、データソースの表、行数の変化の表、数値表の3列、Implications、Recommendation、Appendix が出て、`connection` の値は載らなかった。
   `/analysis-report` を新しいセッションで起動した確認はしていない。
 - 2026-11-15 — Story #65 completed: レポートに決定の文脈・データの記述・Implications・Recommendation・Appendix を足した。
+- 2026-11-15 — 人間が ADR 2本の中身を決めた（不変条件の文と、外部へ送る前の承認の決まり。issue #67 のコメント。ADR-0015・ADR-0016）。
+- 2026-11-16 — 手動確認（US-4）: 合成データのレポート1つと図1枚（PNG）を、人間の承認の後に Claude Docs へ送った。
+  SKILL.md を書いたセッションの Claude が Step 1〜5 をなぞった。`/report-upload` を新しいセッションで起動した確認はしていない。
+  - できたこと: SKILL.md の手順で新しい Doc ができ、URL が返った。呼び出しの形は SKILL.md に書かず、コネクタの案内から得た。
+    図のリンクを注記に置き換えた本文で Doc を作り（この時点の Doc には注記があり、図もローカルのパスも無い）、
+    PNG を上げて注記を図に置き換えた。図のアップロードは通り、3回の呼び出し（ファイルを上げる、Doc に記録する、注記を置き換える）で済んだ。
+    置き換えの後の Doc を読み戻し、注記が消えて図の要素が入っていることを確かめた。
+  - できなかったこと: アップロードのたびにホストの承認が出るかは分からない。4回の呼び出しはどれも断られずに通ったが、
+    承認の画面が人間に出たかどうかは Claude からは見えない。図のアップロードが失敗したときの経路は再現していない
+    （確かめたのは、図を上げる前の Doc が注記つきであることまで）。コネクタが無い環境で止まる経路は、この環境にコネクタがあるので確かめていない。
+    Doc の画面で図が描画されているかは目で見ていない。
+- 2026-11-16 — Story #67 completed: `/report-upload` を足し、不変条件の文と外部へ送る前の承認の決まりを ADR-0015・ADR-0016 に書いた。
