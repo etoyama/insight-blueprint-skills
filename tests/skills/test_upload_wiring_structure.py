@@ -21,6 +21,11 @@ def _auto() -> str:
     return _read_skill("analysis-auto")
 
 
+def _unwrap(prose: str) -> str:
+    """Join wrapped lines, so an assertion reads the sentence and not where it breaks."""
+    return re.sub(r"\s+", " ", prose)
+
+
 def _gate_row(step: str) -> list[str]:
     """The cells of the Gate policy row whose first cell is ``step``."""
     policy = split_sections(_auto())["Gate policy"]
@@ -39,7 +44,7 @@ def _drive_item(name: str) -> str:
         re.MULTILINE | re.DOTALL,
     )
     assert match, f"Step 2 has no '{name}' item"
-    return match.group(0)
+    return _unwrap(match.group(0))
 
 
 def _h3(skill: str, heading: str) -> str:
@@ -47,7 +52,7 @@ def _h3(skill: str, heading: str) -> str:
     rest = text[text.index(heading) :]
     rest = rest[rest.index("\n") :]
     following = re.search(r"^#{1,3} ", rest, re.MULTILINE)
-    return rest[: following.start()] if following else rest
+    return _unwrap(rest[: following.start()] if following else rest)
 
 
 class TestChainingPointsBothWays:
@@ -75,7 +80,7 @@ class TestAutopilotStartsTheUpload:
 
     def test_the_upload_follows_the_report(self) -> None:
         text = _auto()
-        assert text.index(_drive_item("report")) < text.index(_drive_item("upload"))
+        assert text.index("8. **report**") < text.index("9. **upload**")
         assert "/report-upload" in _drive_item("upload")
 
     def test_the_driver_does_not_ask_whether_to_upload(self) -> None:
