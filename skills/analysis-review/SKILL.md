@@ -64,11 +64,14 @@ Review across dimensions and draft one comment per issue. Each comment targets a
 (`target_section`) drawn from the allowed set:
 
 `hypothesis_statement`, `hypothesis_background`, `metrics`, `explanatory`, `chart`,
-`next_action`, `referenced_knowledge`, `methodology`, `analysis_intent`.
+`next_action`, `referenced_knowledge`, `methodology`, `analysis_intent`, `decision_context`.
 
 Suggested lenses:
 
 - **hypothesis** — is it falsifiable, specific, and non-circular?
+- **decision_context** — when the design has one, does it fit the hypothesis? Would `supported` and
+  `rejected` lead the `decision_maker` to different choices on the `decision`, and does `next_action`
+  agree with it? The field is optional: a design without one is not an issue to raise.
 - **methodology** — is the method appropriate; are assumptions stated?
 - **explanatory** — are variable roles (treatment/confounder/covariate/…) correct; missing confounders?
 - **metrics** — do they actually measure the hypothesis; primary vs guardrail?
