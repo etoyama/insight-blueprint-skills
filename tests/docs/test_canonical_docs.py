@@ -301,6 +301,86 @@ class TestExternalSendRules:
         assert "../adr/0015-" in doc and "../adr/0016-" in doc
 
 
+def _first_cells(table_section: str) -> list[str]:
+    rows = [
+        line.strip("|").split("|")[0].strip()
+        for line in table_section.splitlines()
+        if line.startswith("|")
+    ]
+    return rows[2:]
+
+
+def _h3_section(markdown: str, heading: str) -> str:
+    rest = markdown[markdown.index(heading) :]
+    following = re.search(r"^#{1,3} ", rest[len(heading) :], re.MULTILINE)
+    return rest[: len(heading) + following.start()] if following else rest
+
+
+class TestReportAndUploadDocs:
+    """Epic 12 US-5 AC 3, AC 4: the documents carry the report and the upload."""
+
+    def test_readme_lists_every_bundled_skill(self) -> None:
+        listed = words.section(_read("README.md"), "Skills")
+        bundled = sorted(
+            p.parent.name for p in (REPO_ROOT / "skills").glob("*/SKILL.md")
+        )
+        assert [name for name in bundled if f"`/{name}`" not in listed] == []
+
+    def test_readme_workflow_shows_the_upload(self) -> None:
+        assert "/report-upload" in words.section(
+            _read("README.md"), "Analysis Workflow"
+        )
+
+    def test_prd_functional_requirements_carry_the_report_and_the_upload(self) -> None:
+        requirements = _h3_section(_read("docs/PRD.md"), "### 機能要件")
+        assert "レポート" in requirements
+        assert "アップロード" in requirements
+
+    def test_ubiquitous_language_has_the_terms_of_epic_12(self) -> None:
+        terms = {
+            r[words.TERM]
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        added = {"決定の文脈", "効果量", "信頼区間", "標本サイズ", "アップロード"}
+        assert added - terms == set()
+
+    def test_keep_gate_covers_the_external_send(self) -> None:
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        assert "外部へ送る" in rows["KEEP ゲート"][words.DEFINITION]
+        assert "adr/0016-" in rows["KEEP ゲート"]["初出"]
+
+    @pytest.mark.parametrize(
+        "heading",
+        ["### 分析ワークフロー全体", "### guided autopilot（`/analysis-auto`）"],
+    )
+    def test_architecture_sequences_include_the_upload(self, heading: str) -> None:
+        sequence = _h3_section(_read("docs/ARCHITECTURE.md"), heading)
+        assert "/report-upload" in sequence
+        assert "Claude Docs" in sequence
+
+    def test_autopilot_sequence_asks_about_the_upload_once_from_the_skill(self) -> None:
+        sequence = _h3_section(
+            _read("docs/ARCHITECTURE.md"), "### guided autopilot（`/analysis-auto`）"
+        )
+        asks = [
+            line.strip()
+            for line in sequence.splitlines()
+            if "【KEEP】" in line and ("送る" in line or "アップロード" in line)
+        ]
+        assert len(asks) == 1, asks
+        assert asks[0].startswith("P->>U:"), "the gate belongs to /report-upload"
+
+    def test_architecture_epic_mapping_covers_every_roadmap_epic(self) -> None:
+        roadmap = _first_cells(words.section(_read("docs/PRD.md"), "ロードマップ"))
+        mapped = _first_cells(
+            words.section(_read("docs/ARCHITECTURE.md"), "Epic マッピング")
+        )
+        assert [epic for epic in roadmap if epic not in mapped] == []
+
+
 class TestYomiyasuWords:
     """WORKFLOW §8: .yomiyasu-words/ is exported from UBIQUITOUS_LANGUAGE, never edited by hand."""
 
