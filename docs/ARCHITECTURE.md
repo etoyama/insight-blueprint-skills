@@ -65,7 +65,7 @@ flowchart TD
 
 - **Skill layer（`skills/`）** — すべての分析能力。拡張点。skill の一覧は [README の Skills](../README.md#skills) が正本。分析設計・journal・catalog 等の YAML を直接 read/write する。
 - **Validation library（`src/insight_blueprint/validate.py`）** — I/O を持たない純関数。
-  Pydantic スキーマ検証（`AnalysisDesign`。`DesignStatus` と、空でない `Methodology.method` など）+
+  Pydantic スキーマ検証（`AnalysisDesign`。`DesignStatus`、空でない `Methodology.method`、両方そろった `DecisionContext` など）+
   状態遷移ガード（`VALID_TRANSITIONS`。例: `analyzing` から進めるのは `in_review` だけで、`analyzing → supported` は拒む。terminal status からはどこへも遷移しない）。分析設計の整合性の単一正本。
   `design_io` 経由で書く skill も、書く前に Python 側で同じ検証を通す。tool の書き込み（hook）と
   helper の書き込み（`design_io`）の両方が守られる。
@@ -295,7 +295,7 @@ sequenceDiagram
     D->>U: 【KEEP】Data Map 提示 + Direction Dialogue（方向を一緒に決める）
     U-->>D: 方向を合意 → Framing Brief
     Note over D,FS: design（AUTO: Framing Brief から各フィールドを自動ドラフト → KEEP: ①〜④を順に確認）
-    D->>U: 【KEEP①】仮説（statement + background）を確認
+    D->>U: 【KEEP①】仮説（statement + background）と決定の文脈（任意）を確認
     D->>U: 【KEEP②】手法 + metrics + explanatory の因果役割 + intent を確認
     D->>U: 【KEEP③】データ取得プラン（SQL クエリ / file+columns+filter + 想定行数）を確認
     D->>U: 【KEEP④】chart[] 仕様（intent/type/x/y）を確認
@@ -358,6 +358,11 @@ classDiagram
         method
         package
         reason
+    }
+    class DecisionContext {
+        <<Value Object>>
+        decision_maker
+        decision
     }
     class Metric {
         <<Value Object>>
@@ -492,6 +497,7 @@ classDiagram
     }
 
     AnalysisDesign "1" *-- "0..1" Methodology
+    AnalysisDesign "1" *-- "0..1" DecisionContext
     AnalysisDesign "1" *-- "*" Metric
     AnalysisDesign "1" *-- "*" ExplanatoryVariable
     AnalysisDesign "1" *-- "*" ChartSpec
@@ -523,7 +529,7 @@ classDiagram
 
 | 型 | 種類 | 不変条件 |
 |---|---|---|
-| `AnalysisDesign` | 集約ルート | `status` は `VALID_TRANSITIONS` の遷移でだけ変わる。`methodology` があれば `method` は空でない |
+| `AnalysisDesign` | 集約ルート | `status` は `VALID_TRANSITIONS` の遷移でだけ変わる。`methodology` があれば `method` は空でない。`decision_context` があれば `decision_maker` と `decision` はどちらも空でない（[ADR-0014](adr/0014-analysis-design-decision-context.md)） |
 | `ReviewBatch` | 集約ルート | `comments` は1件以上。1つのバッチは `status_after` への遷移を1回だけ起こす |
 | `DataSource` | 集約ルート | `type` は空でない open string（[ADR-0004](adr/0004-open-string-catalog-taxonomy.md)） |
 | `DomainKnowledge` | 集約ルート | 1つの `source_id` に属する。`category` は空でない open string |

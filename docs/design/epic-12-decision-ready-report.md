@@ -37,11 +37,11 @@ Epic issue（[#62](https://github.com/etoyama/insight-blueprint-skills/issues/62
 
 分析者として、結論を読者の判断につなげるために、分析設計に「誰が何を決めるための分析か」を書けてほしい。
 
-- [ ] AC 1: 分析設計が任意の項目として決定の文脈を持ち、検証ライブラリがその形を確かめる。
-- [ ] AC 2: `/analysis-design` が仮説のビートで決定の文脈を聞く。分析者は書かずに進められる。
-- [ ] AC 3: `/analysis-review` が決定の文脈を読み、仮説と噛み合っているかを見る。
-- [ ] AC 4: 決定の文脈を持たない既存の分析設計が、今のまま検証を通る。
-- [ ] AC 5: 分析設計のスキーマの変更を ADR に書き、ARCHITECTURE の Domain Model の全体図を同じ PR で更新する。
+- [x] AC 1: 分析設計が任意の項目として決定の文脈を持ち、検証ライブラリがその形を確かめる。
+- [x] AC 2: `/analysis-design` が仮説のビートで決定の文脈を聞く。分析者は書かずに進められる。
+- [x] AC 3: `/analysis-review` が決定の文脈を読み、仮説と噛み合っているかを見る。
+- [x] AC 4: 決定の文脈を持たない既存の分析設計が、今のまま検証を通る。
+- [x] AC 5: 分析設計のスキーマの変更を ADR に書き、ARCHITECTURE の Domain Model の全体図を同じ PR で更新する。
 
 ### US-3: 判断の材料がそろったレポート
 
@@ -153,7 +153,7 @@ flowchart TD
 ## Domain Model
 
 全体図（[docs/ARCHITECTURE.md の「Domain Model」](../ARCHITECTURE.md#domain-model)）からの差分だけを描く。
-クラス名と項目名は仮で、US-2 の Story で確定して ADR に書く。
+クラス名と項目名は Story #64 で確定した（[ADR-0014](../adr/0014-analysis-design-decision-context.md)）。
 
 ```mermaid
 classDiagram
@@ -166,7 +166,7 @@ classDiagram
         +decision_maker: str
         +decision: str
     }
-    AnalysisDesign "1" o-- "0..1" DecisionContext
+    AnalysisDesign "1" *-- "0..1" DecisionContext
 ```
 
 | 型 | 種類 | 不変条件 |
@@ -187,7 +187,9 @@ Python のクラスを持たないファイルの契約は、図に描かず表�
 | モジュール / 関数 | 責務（する） | 境界（しない → 委譲先） |
 |---|---|---|
 | `/analysis-notebook`（拡張） | 効果量・信頼区間・標本サイズを計算して verdict に書く | レポートを組み立てない → `/analysis-report` |
-| `/analysis-design`（拡張） | 決定の文脈を聞いて分析設計に書く | 形の検証をしない → 検証ライブラリ |
+| `/analysis-design`（拡張） | 仮説を決めた直後に決定の文脈を聞き、分析設計に書く。分析者が答えなければ項目ごと省く | 形の検証をしない → 検証ライブラリ |
+| `/analysis-review`（拡張） | 決定の文脈があれば読み、仮説と噛み合うかを見て review コメントにする | 決定の文脈が無いことを指摘しない（任意の項目）。分析設計を直さない → `/analysis-revision` |
+| 検証ライブラリ（`DecisionContext`） | 決定の文脈があるとき、誰がと何を決めるかの両方が空でないことを確かめる | 中身の妥当さ（役職か個人名か、仮説と噛み合うか）は見ない → `/analysis-design` の聞き方と `/analysis-review` |
 | `/analysis-report`（拡張） | 分析設計・journal・verdict・図・catalog・lineage を読み、Markdown のレポートを書く | 数値を計算しない → `/analysis-notebook`。外部に送らない → `/report-upload` |
 | `/report-upload`（新設） | レポートと図を読み、承認の後に Claude Docs へ送り、URL を示す | レポートを組み立てない → `/analysis-report`。Markdown を書き換えない。Doc を更新しない（範囲外） |
 | `/analysis-auto`（拡張） | 分析者の入口。レポートを作った後に `/report-upload` を起動し、結果を実行サマリに書く | アップロードの承認を自分で取らない → `/report-upload` の KEEP ゲート。アップロードを自分で行わない → `/report-upload` |
@@ -357,9 +359,11 @@ sequenceDiagram
 - [ADR-0013: verdict の指標に、任意の効果量・信頼区間・標本サイズを持たせる](../adr/0013-verdict-metric-optional-items.md):
   指標ごとに `effect_size`（種類と値）・`confidence_interval`（水準・下限・上限）・`sample_size` を任意で持たせる（US-1）。
 
-Story の実装で ADR を書いたら、ここにリンクを足す。残る予定は次の2本。
+- [ADR-0014: 分析設計に、任意の決定の文脈を入れ子の型で持たせる](../adr/0014-analysis-design-decision-context.md):
+  `AnalysisDesign.decision_context` に `DecisionContext`（`decision_maker` と `decision`）を任意で持たせる（US-2）。
 
-- 分析設計への決定の文脈の追加（US-2）
+Story の実装で ADR を書いたら、ここにリンクを足す。残る予定は次の1本。
+
 - 外部へ送る前の承認の決まりと、不変条件「No MCP server」の読み方（US-4）
 
 ## Test Design Matrix
@@ -367,7 +371,7 @@ Story の実装で ADR を書いたら、ここにリンクを足す。残る予
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
 | US-1 判断に足る数値 | ✓（`tests/skills/test_analysis_report_structure.py`: `TestNumbersTable`） | ✓（`tests/integration/test_analysis_notebook_contract.py`: `test_verdict_metric_carries_effect_size_confidence_interval_and_sample_size`・`test_verdict_metric_keeps_the_existing_keys`） | —（skill がレポートを組み立てる所は自動テストが無い。この Story では手動確認もしていない。レポート全体を通す確認は US-3 で行う） |
-| US-2 決定の文脈 | ☐ | ☐ | ☐ |
+| US-2 決定の文脈 | ✓（`tests/test_design_models.py`: `test_decision_context_*`・`test_analysis_design_decision_context_defaults_to_none`、`tests/test_validate.py`、`tests/skills/test_decision_context_structure.py`、`tests/docs/test_canonical_docs.py`: `TestDomainModelDiagram`） | ✓（`tests/test_design_io.py`: `test_decision_context_is_written`・`test_half_filled_decision_context_writes_nothing`・`test_design_written_before_decision_context_still_updates`・`test_comment_may_target_the_decision_context`） | —（skill が決定の文脈を聞く所と review で読む所は自動テストが無い。この Story では手動確認もしていない） |
 | US-3 判断の材料がそろったレポート | ☐ | ☐ | ☐ |
 | US-4 Claude Docs へのアップロード | ☐ | ☐ | ☐ |
 | US-5 配線と文書の更新 | ☐ | ☐ | ☐ |
@@ -382,3 +386,5 @@ Story の実装で ADR を書いたら、ここにリンクを足す。残る予
 - 2026-11-15 — 人間が skill の名前を `/report-upload` に決めた。US-4 の Story を起票（#67）。
 - 2026-11-15 — 人間が verdict の指標の項目の形を決めた（自己記述の入れ子。ADR-0013）。
 - 2026-11-15 — Story #63 completed: notebook の契約に効果量・信頼区間・標本サイズを足し、レポートの数値表に列を足した。
+- 2026-11-15 — 人間が決定の文脈の形を決めた（入れ子の型。ADR-0014）。
+- 2026-11-15 — Story #64 completed: 分析設計に決定の文脈を足し、`/analysis-design` が聞き、`/analysis-review` が読むようにした。

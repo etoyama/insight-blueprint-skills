@@ -37,7 +37,7 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | Step | KEEP — pause for the user | AUTO — proceed without asking |
 |------|---------------------------|-------------------------------|
 | framing | **present the Data Map + candidate directions and settle the direction with the user** (Direction Dialogue) | agentic exploration of `.insight/`; Framing Brief construction once the direction is agreed |
-| design ① hypothesis | **confirm the hypothesis statement + background** | drafting them from the Framing Brief |
+| design ① hypothesis | **confirm the hypothesis statement + background, and the decision context (who decides what; skippable)** | drafting them from the Framing Brief |
 | design ② methodology | **confirm the method + metrics + explanatory roles (treatment/confounder/…) + intent** | auto-drafting these fields from the Framing Brief |
 | design ③ data-extraction | **confirm the data-acquisition plan** — the actual query text (`methodology.steps`) for SQL sources, or file + columns + filter for CSV/others, plus expected grain & rough row scale | auto-drafting the query / column selection from the catalog schema |
 | design ④ charts | **confirm the planned `chart[]` specs (intent / type / x / y)** | auto-drafting chart specs from the direction |
@@ -82,7 +82,8 @@ gate policy above:
    the four ordered confirmation beats — one AskUserQuestion each — before `design_io create`**, letting
    the user adjust at every beat. Do not collapse them into a single "looks good?"; don't silently commit
    auto-picked methodology / roles / query.
-   1. **hypothesis** — present the drafted `hypothesis_statement` + `hypothesis_background`; confirm.
+   1. **hypothesis** — present the drafted `hypothesis_statement` + `hypothesis_background`, and ask for
+      `decision_context` (who decides what — `/analysis-design` Step 2; the user may skip it); confirm.
    2. **methodology** — present `methodology` (method + code patterns), `metrics`, and especially the
       explanatory variables' causal roles (`treatment` / `confounder` / `covariate` / …) + `analysis_intent`;
       confirm. These shape the analysis and are genuine choices.

@@ -28,6 +28,7 @@
 | terminal status | `supported`、`rejected`、`inconclusive` | 結論を出した分析設計の状態。これ以上遷移しない | 終端状態 | fork 前 |
 | 分析の意図 | `AnalysisIntent` | 探索（`exploratory`）・検証（`confirmatory`）・両方（`mixed`）の区別 | — | fork 前 |
 | 手法 | `Methodology` | 検証に使う統計手法とパッケージと選んだ理由。手法名は空にできない | — | fork 前 |
+| 決定の文脈 | `DecisionContext`、`decision_context` | 分析設計が任意で持つ、誰が（`decision_maker`）何を決めるための分析か（`decision`）の組。あるときは両方が空でない | 意思決定コンテキスト | [ADR-0014](adr/0014-analysis-design-decision-context.md) |
 | 指標 | `Metric` | 仮説を判定するために測る量 | — | fork 前 |
 | 指標の優先度 | `MetricTier` | 主（`primary`）・副（`secondary`）・ガードレール（`guardrail`） | — | fork 前 |
 | 説明変数 | `ExplanatoryVariable` | 結果を説明するために使う変数 | — | fork 前 |
