@@ -58,12 +58,12 @@ Epic issue（[#62](https://github.com/etoyama/insight-blueprint-skills/issues/62
 
 分析者として、読者がコメントできる形でレポートを渡すために、レポートを Claude Docs にアップロードできてほしい。
 
-- [ ] AC 1: 新しい skill が `.insight/reports/{id}.md` を読んで新しい Doc を作り、URL を示す。
+- [x] AC 1: 新しい skill が `.insight/reports/{id}.md` を読んで新しい Doc を作り、URL を示す。
   既存の Doc は上書きしない。レポートが無ければ `/analysis-report` を案内して終わる。
-- [ ] AC 2: 送る前に、送るファイル（レポートと図）を列挙し、分析者の承認を待つ。承認が無ければ何も送らない。
-- [ ] AC 3: Claude Docs のコネクタが無い環境では、何も送らず、その旨を案内して終わる。Markdown のレポートは残る。
-- [ ] AC 4: 図を Doc に載せる。図を上げる手段が無いか失敗したときは、図を省いて注記を1行入れる。
-- [ ] AC 5: 外部へ送る前の承認の決まりと、不変条件「No MCP server」の読み方を ADR に書く。
+- [x] AC 2: 送る前に、送るファイル（レポートと図）を列挙し、分析者の承認を待つ。承認が無ければ何も送らない。
+- [x] AC 3: Claude Docs のコネクタが無い環境では、何も送らず、その旨を案内して終わる。Markdown のレポートは残る。
+- [x] AC 4: 図を Doc に載せる。図を上げる手段が無いか失敗したときは、図を省いて注記を1行入れる。
+- [x] AC 5: 外部へ送る前の承認の決まりと、不変条件「No MCP server」の読み方を ADR に書く。
 
 ### US-5: 配線と文書の更新
 
@@ -403,9 +403,11 @@ sequenceDiagram
 - [ADR-0014: 分析設計に、任意の決定の文脈を入れ子の型で持たせる](../adr/0014-analysis-design-decision-context.md):
   `AnalysisDesign.decision_context` に `DecisionContext`（`decision_maker` と `decision`）を任意で持たせる（US-2）。
 
-Story の実装で ADR を書いたら、ここにリンクを足す。残る予定は次の1本。
+- [ADR-0015: 不変条件を「同梱しない」と書き、ホストのコネクタは任意の機能に限って使う](../adr/0015-host-connectors-for-optional-features.md):
+  plugin は MCP サーバを同梱も設定もしない。ホストのコネクタは、無くても核が動く任意の機能に限って使う（US-4）。
 
-- 外部へ送る前の承認の決まりと、不変条件「No MCP server」の読み方（US-4）
+- [ADR-0016: skill が `.insight/` の中身を外部へ送るときは、KEEP ゲートで承認を待つ](../adr/0016-approval-before-external-send.md):
+  送るファイルを列挙して承認を待つ。`/analysis-auto` の中でも自動にせず、承認を覚えない（US-4）。
 
 ## Test Design Matrix
 
