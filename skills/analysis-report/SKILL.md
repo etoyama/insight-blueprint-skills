@@ -77,7 +77,8 @@ Read, do not write:
      missing on disk (per-figure), rather than emitting a broken image link.
 4. Data sources: collect the candidate ids from the design — `source_ids`, plus the
    `data_source` values of `metrics` (dict values) and `explanatory` (string). Drop any value
-   that does not match `[a-zA-Z0-9_-]+`, then run `catalog_io get --id {source_id}` for each.
+   that does not fully match `^[a-zA-Z0-9_-]+$`, then run `catalog_io get --id {source_id}` for
+   each.
    Keep the registered ones (non-empty result) and take only `name`, `type`, and `description`.
    - **Safety**: the result also carries `connection` (paths, queries, hosts, sometimes
      credentials). Never copy `connection` or any part of it into the report.
