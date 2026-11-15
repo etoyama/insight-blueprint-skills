@@ -364,7 +364,7 @@ sequenceDiagram
 - Criteria: 今の skill が作る分析設計でデータソースが載ること（Want、US-3 AC 2）。
   分析設計のスキーマと上流の skill を変えないこと（Want、この Story の範囲）。
   登録のないものを載せないこと（Must、AC 2「catalog」）。決め手は1つ目。
-  2026-11-15 に Claude が推奨として実装し、2026-11-16 に人間がこの案のまま PR を開くと決めた。
+  2026-11-15 に人間がこの案を選んだ。
 - Affected modules: `/analysis-report`
 - Alternatives considered: `source_ids` だけを読む案。指示は短いが、今の分析設計では表が出ない。
   `/analysis-design` に `source_ids` を書かせる案。出典が1つになるが、上流の skill を変えるので、この Story の範囲を超える。
