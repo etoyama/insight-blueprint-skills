@@ -1,0 +1,37 @@
+# Generated from docs/UBIQUITOUS_LANGUAGE.md by scripts/export_yomiyasu_words.py. Do not edit.
+分析設計
+仮説
+仮説の背景
+状態
+terminal status
+分析の意図
+手法
+指標
+指標の優先度
+説明変数
+因果の役割
+図の仕様
+派生
+review
+review batch
+review コメント
+revision
+journal
+journal の出来事
+reflection
+framing
+notebook
+verdict
+figures manifest
+レポート
+lineage
+データソース
+列のスキーマ
+catalog
+ドメイン知識
+finding
+premortem
+リスクレベル
+guided autopilot
+KEEP ゲート
+AUTO

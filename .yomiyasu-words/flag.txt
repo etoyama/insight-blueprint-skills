@@ -1,0 +1,12 @@
+# Generated from docs/UBIQUITOUS_LANGUAGE.md by scripts/export_yomiyasu_words.py. Do not edit.
+設計書	分析設計
+design document	分析設計
+ステータス	状態
+終端状態	terminal status
+分析ログ	journal
+ノートブック	notebook
+図のマニフェスト	figures manifest
+系譜	lineage
+データ源	データソース
+カタログ	catalog
+事前評価	premortem

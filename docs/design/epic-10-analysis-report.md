@@ -8,18 +8,18 @@ verdict / figures を1本の Markdown レポート（`.insight/reports/{id}.md`�
 
 ## Acceptance Criteria
 
-- [ ] AC1: `skills/analysis-report/SKILL.md` + `references/apa-template.md` 新設。terminal status の
+- [x] AC1: `skills/analysis-report/SKILL.md` + `references/apa-template.md` 新設。terminal status の
   design を入力に、design/journal/verdict/figures を集約し `.insight/reports/{id}.md` を生成。英語 APA
   見出し（Abstract / Introduction / Method / Results / Discussion→Limitations/Future Directions / References）
-- [ ] AC2: 各 Figure に「軸の説明（Axes）」と「図の読み方（How to read）」を必須キャプションとして付与
-- [ ] AC3: notebook 契約(8-cell)拡張。viz cell(5) が `.insight/notebooks/{id}_fig{NN:02d}.png` を保存し、
+- [x] AC2: 各 Figure に「軸の説明（Axes）」と「図の読み方（How to read）」を必須キャプションとして付与
+- [x] AC3: notebook 契約(8-cell)拡張。viz cell(5) が `.insight/notebooks/{id}_fig{NN:02d}.png` を保存し、
   verdict cell(6) が `verdict.json` に `figures[]{file,title,axes,how_to_read}` を記録。`notebook-contract.md`
   と `tests/integration/fixtures/sample_notebook.py` 更新
-- [ ] AC4: design_io(get) / journal / verdict.json を再利用。report は**読み取り専用**（design 無変更）。
+- [x] AC4: design_io(get) / journal / verdict.json を再利用。report は**読み取り専用**（design 無変更）。
   コア（design_io/validate/models）は無変更
-- [ ] AC5: chaining 対称配線（reflection→report）+ CLAUDE.md §6 Skills 表 + `analysis-auto` パイプライン
+- [x] AC5: chaining 対称配線（reflection→report）+ CLAUDE.md §6 Skills 表 + `analysis-auto` パイプライン
   末尾統合（report 生成は KEEP ゲート）
-- [ ] AC6: ADR-0008（notebook 公開契約への figures[] 追加）+ pytest 全緑 + report 生成の E2E 目視確認
+- [x] AC6: ADR-0008（notebook 公開契約への figures[] 追加）+ pytest 全緑 + report 生成の E2E 目視確認
 
 ## Glossary
 

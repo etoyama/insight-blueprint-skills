@@ -1,7 +1,7 @@
 """Plugin structure validation tests.
 
 Verifies that the Claude Code Plugin format is correctly configured:
-plugin.json, .mcp.json, skills directory, legacy removal, and README.
+plugin.json, absence of .mcp.json, skills directory, legacy removal, and README.
 
 Test IDs Unit-01 through Unit-10 map to test-design.md specification.
 """
@@ -63,21 +63,24 @@ class TestPluginJson:
 
 
 # ===========================================================================
-# Unit-02: .mcp.json validation
+# Unit-02: no MCP server configuration
 # ===========================================================================
 
 
 class TestMcpJson:
-    """Unit-02: .mcp.json no longer registers the (removed) insight-blueprint server."""
+    """Unit-02: the plugin ships no MCP server configuration (invariant: No MCP server)."""
 
-    def test_mcp_json_exists(self) -> None:
-        """.mcp.json exists at repo root."""
-        assert (REPO_ROOT / ".mcp.json").is_file()
+    def test_mcp_json_is_absent(self) -> None:
+        """The repo root is the plugin payload, so a .mcp.json here would reach every user."""
+        assert not (REPO_ROOT / ".mcp.json").exists()
 
-    def test_no_insight_blueprint_server(self) -> None:
-        """The MCP server was removed in Epic 4; it must not be registered."""
-        data = json.loads((REPO_ROOT / ".mcp.json").read_text())
-        assert "insight-blueprint" not in data.get("mcpServers", {})
+
+class TestNoLegacyFlowFiles:
+    """Unit-02: the pre-fork development flow leaves nothing in the plugin payload."""
+
+    def test_spec_workflow_is_absent(self) -> None:
+        """The pre-fork spec-workflow docs were replaced by docs/design/ and docs/adr/."""
+        assert not (REPO_ROOT / ".spec-workflow").exists()
 
 
 # ===========================================================================

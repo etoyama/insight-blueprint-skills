@@ -1,6 +1,6 @@
 # ARCHITECTURE: insight-blueprint-skills
 
-本書は軽量版（target state）アーキテクチャの**正本**。CLAUDE.md §2 は要約とポインタのみを置く。
+本書は軽量版（target state）アーキテクチャの**正本**。CLAUDE.md は要約とポインタのみを置く。
 プロダクト要件は [PRD.md](PRD.md)、個別決定は [docs/adr/](adr/) を参照。
 
 **移行状況**: MCPサーバ / WebUI / SQLite は E1–E4 で除去済み
@@ -12,7 +12,7 @@ Claude-native + source-scoped）/ catalog 柔軟化（E5c, open string taxonomy,
 
 - **No daemon / No MCP server / No SQLite**。常駐プロセスを持たない。
 - 検証はプロセスではなく**ライブラリ**として埋め込む（SQLite と同じ転換）。
-- 設計書整合性の**正本は `validate.py` の1箇所**。hook と skill の双方が再利用する。
+- 分析設計の整合性の**正本は `validate.py` の1箇所**。hook と skill の双方が再利用する。
 - リリースは **tag 駆動**（`publish.yml` は `v*` タグで発火）。main マージ＝publish ではない。
 
 ## 構成（E1–E4 完了後）
@@ -36,6 +36,11 @@ flowchart LR
     REMOVED -.->|削除| LIGHT
 ```
 
+## コンテキストマップ
+
+コンテキスト: 仮説駆動の分析（[docs/UBIQUITOUS_LANGUAGE.md](UBIQUITOUS_LANGUAGE.md)）。
+境界づけられたコンテキストは1つで、まだ分けていない。分ける基準は UBIQUITOUS_LANGUAGE の「コンテキストを分けるとき」に従う。
+
 ## コンポーネントと責務
 
 ```mermaid
@@ -58,16 +63,19 @@ flowchart TD
     skills --> marimo
 ```
 
-- **Skill layer（`skills/`）** — すべての分析能力。拡張点。設計書・journal・catalog 等の YAML を直接 read/write する。
+- **Skill layer（`skills/`）** — すべての分析能力。拡張点。skill の一覧は [README の Skills](../README.md#skills) が正本。分析設計・journal・catalog 等の YAML を直接 read/write する。
 - **Validation library（`src/insight_blueprint/validate.py`）** — I/O を持たない純関数。
-  Pydantic スキーマ検証（`AnalysisDesign`）+ 状態遷移ガード（`VALID_TRANSITIONS`）。設計書整合性の単一正本。
+  Pydantic スキーマ検証（`AnalysisDesign`。`DesignStatus` と、空でない `Methodology.method` など）+
+  状態遷移ガード（`VALID_TRANSITIONS`。例: `analyzing` から進めるのは `in_review` だけで、`analyzing → supported` は拒む。terminal status からはどこへも遷移しない）。分析設計の整合性の単一正本。
+  `design_io` 経由で書く skill も、書く前に Python 側で同じ検証を通す。tool の書き込み（hook）と
+  helper の書き込み（`design_io`）の両方が守られる。
 - **pre-write hook（`hooks/validate-design.py`, plugin 同梱 `hooks/hooks.json`）** —
   `.insight/designs/*_hypothesis.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
   にかけ、違反を `exit 2` でブロックする I/O 殻。利用者の install 先プロジェクトでも効く
   （この repo の `.claude/settings.json` は dev 用に同スクリプトを配線）。
 - **Skill-managed YAML（`.insight/`）** — designs / journals / catalog / knowledge。skill が直接管理する。
 - **marimo + lineage（`src/insight_blueprint/lineage/`）** — 分析 notebook は同梱テンプレートでなく、
-  **`/analysis-notebook` skill が設計書の `methodology` から 8-cell 契約に沿って生成・実行**する
+  **`/analysis-notebook` skill が分析設計の `methodology` から 8-cell 契約に沿って生成・実行**する
   （`skills/analysis-notebook/references/notebook-contract.md`）。`lineage`（`tracked_pipe` / Mermaid export）は
   optional な `insight-blueprint-lineage[notebook]` パッケージで、notebook 内の加工を追跡・可視化する。
 
@@ -137,7 +145,8 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 ├── designs/
 │   ├── {id}_hypothesis.yaml        # design_io create/update（pre-write hook が検証）
 │   ├── {id}_journal.yaml           # journal イベント
-│   └── {id}_reviews.yaml           # review バッチ
+│   ├── {id}_reviews.yaml           # review バッチ
+│   └── {id}_revision.yaml          # /analysis-revision の修正追跡
 ├── catalog/
 │   ├── sources/{id}.yaml           # /catalog-register
 │   └── knowledge/{id}.yaml         # /knowledge-extract
@@ -180,7 +189,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 
 ## 代表シーケンス
 
-### 設計書の書込と検証ガード
+### 分析設計の書込と検証ガード
 
 `*_hypothesis.yaml` を書くときの検証フロー。skill は `/command` で明示起動され、書込は
 pre-write hook が捕捉して検証する。
@@ -325,18 +334,233 @@ sequenceDiagram
     D-->>U: 実行サマリ（自動進行した所 / 停止した所 / 最終状態）
 ```
 
+## Domain Model
+
+`src/insight_blueprint/models/` と `skills/_shared/models.py` のクラスの全体図（[ADR-0011](adr/0011-domain-model-overview-in-architecture.md)）。
+Epic の DesignDoc の `## Domain Model` 節はこの図からの差分だけを描く。モデルを変えた PR では、この図も同じ PR で更新する。
+図とコードのクラスと enum の値が一致することは `tests/docs/test_canonical_docs.py` が確かめる。
+
+```mermaid
+classDiagram
+    class AnalysisDesign {
+        <<Aggregate Root>>
+        id
+        title
+        hypothesis_statement
+        hypothesis_background
+        status
+        analysis_intent
+        parent_id
+        source_ids
+    }
+    class Methodology {
+        <<Value Object>>
+        method
+        package
+        reason
+    }
+    class Metric {
+        <<Value Object>>
+        target
+        tier
+    }
+    class ExplanatoryVariable {
+        <<Value Object>>
+        name
+        role
+    }
+    class ChartSpec {
+        <<Value Object>>
+        intent
+        type
+        x
+        y
+    }
+    class DesignStatus {
+        <<enumeration>>
+        in_review
+        revision_requested
+        analyzing
+        supported
+        rejected
+        inconclusive
+    }
+    class AnalysisIntent {
+        <<enumeration>>
+        exploratory
+        confirmatory
+        mixed
+    }
+    class MetricTier {
+        <<enumeration>>
+        primary
+        secondary
+        guardrail
+    }
+    class VariableRole {
+        <<enumeration>>
+        treatment
+        confounder
+        covariate
+        instrumental
+        mediator
+    }
+    class ChartIntent {
+        <<enumeration>>
+        distribution
+        correlation
+        trend
+        comparison
+    }
+    class ReviewBatch {
+        <<Aggregate Root>>
+        id
+        design_id
+        status_after
+        reviewer
+    }
+    class BatchComment {
+        <<Value Object>>
+        comment
+        target_section
+        target_content
+    }
+    class ReviewComment {
+        <<Entity>>
+        id
+        design_id
+        comment
+        status_after
+    }
+    class DataSource {
+        <<Aggregate Root>>
+        id
+        name
+        type
+        connection
+        schema_info
+    }
+    class ColumnSchema {
+        <<Value Object>>
+        name
+        type
+        nullable
+    }
+    class DomainKnowledge {
+        <<Aggregate Root>>
+        source_id
+    }
+    class DomainKnowledgeEntry {
+        <<Entity>>
+        key
+        title
+        category
+        importance
+        affects_columns
+    }
+    class KnowledgeImportance {
+        <<enumeration>>
+        high
+        medium
+        low
+    }
+    class SourceChecks {
+        <<Value Object>>
+        source_registered
+        location_ok
+        allowlist_ok
+        estimated_rows
+    }
+    class PremortemConfig {
+        <<Value Object>>
+        static_rows_high
+        static_rows_medium
+    }
+    class RiskDecision {
+        <<Value Object>>
+        level
+        reasons
+        flags
+    }
+    class RiskLevel {
+        <<enumeration>>
+        HARD_BLOCK
+        HIGH
+        MEDIUM
+        LOW
+        SKIP
+    }
+
+    AnalysisDesign "1" *-- "0..1" Methodology
+    AnalysisDesign "1" *-- "*" Metric
+    AnalysisDesign "1" *-- "*" ExplanatoryVariable
+    AnalysisDesign "1" *-- "*" ChartSpec
+    AnalysisDesign --> DesignStatus
+    AnalysisDesign --> AnalysisIntent
+    AnalysisDesign ..> AnalysisDesign : parent_id
+    AnalysisDesign ..> DataSource : source_ids
+    Metric --> MetricTier
+    ExplanatoryVariable --> VariableRole
+    ChartSpec --> ChartIntent
+    ReviewBatch "1" *-- "1..*" BatchComment
+    ReviewBatch ..> AnalysisDesign : design_id
+    ReviewBatch --> DesignStatus : status_after
+    ReviewComment ..> AnalysisDesign : design_id
+    ReviewComment --> DesignStatus : status_after
+    DataSource ..> ColumnSchema : schema_info.columns
+    DomainKnowledge "1" *-- "*" DomainKnowledgeEntry
+    DomainKnowledge ..> DataSource : source_id
+    DomainKnowledgeEntry --> KnowledgeImportance
+    SourceChecks ..> DataSource : 事前確認の対象
+    RiskDecision --> RiskLevel
+```
+
+図の読み方: 箱は1つのクラスで、上段がクラス名と種類（`<<Aggregate Root>>` など）、下段が主なフィールドか enum の値を表す。
+フィールドは主なものだけを載せ、全部はコードを見る。
+実線の黒いひし形（`*--`）は「親が子を持つ」で、両端の数字は個数を表す。
+実線の矢印（`-->`）は「その enum の値を持つ」を表す。破線の矢印（`..>`）は型で結ばれていない参照で、ラベルが参照に使うフィールドを表す（ID のほか、`schema_info` のように dict に入れた形もある）。
+`RiskDecision`・`SourceChecks`・`PremortemConfig` は `/premortem` の入出力で、ファイルには保存しない。
+
+| 型 | 種類 | 不変条件 |
+|---|---|---|
+| `AnalysisDesign` | 集約ルート | `status` は `VALID_TRANSITIONS` の遷移でだけ変わる。`methodology` があれば `method` は空でない |
+| `ReviewBatch` | 集約ルート | `comments` は1件以上。1つのバッチは `status_after` への遷移を1回だけ起こす |
+| `DataSource` | 集約ルート | `type` は空でない open string（[ADR-0004](adr/0004-open-string-catalog-taxonomy.md)） |
+| `DomainKnowledge` | 集約ルート | 1つの `source_id` に属する。`category` は空でない open string |
+
+### Python のクラスを持たないファイルの契約
+
+次のファイルは `.insight/` に保存されるが、Python のクラスを持たない。形の正本はリンク先にある。
+
+| ファイル | 中身 | 形の正本 |
+|---|---|---|
+| `designs/{id}_journal.yaml` | journal（観察・証拠・決定・問い） | [skills/analysis-journal/SKILL.md](../skills/analysis-journal/SKILL.md) |
+| `designs/{id}_revision.yaml` | review コメントへの対応の追跡 | [skills/analysis-revision/SKILL.md](../skills/analysis-revision/SKILL.md) |
+| `notebooks/{id}_verdict.json` | notebook の verdict と figures manifest（`figures[]`） | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md)、[ADR-0008](adr/0008-notebook-figure-manifest.md) |
+| `rules/package_allowlist.yaml` | notebook が使ってよいパッケージ | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md) |
+| `config.yaml` | premortem の閾値（読み込むと `PremortemConfig` になる） | [skills/_shared/config_loader.py](../skills/_shared/config_loader.py) |
+
 ## Epic マッピング
+
+Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.md#ロードマップ) にある。ここには各 Epic が触るコンポーネントだけを書く。
 
 | Epic | 主に触るコンポーネント |
 |---|---|
 | E1 | WebUI/REST（撤去）— full の縮小 |
 | E2 | Validation library + pre-write hook（新設） |
-| E3 | Skill layer ↔ Skill-managed YAML（設計書ライフサイクルの直接 I/O 化、design_io） |
+| E3 | Skill layer ↔ Skill-managed YAML（分析設計のライフサイクルの直接 I/O 化、design_io） |
 | E3.5 | catalog / premortem / lineage の MCP→YAML 変換 + batch-analysis 撤去（E4 前提） |
 | E4 | MCP server（撤去） |
 | E5a | premortem（report-only 自立化） |
 | E5b | catalog_io（knowledge write/upsert）+ /knowledge-extract（Claude-native 抽出） |
 | E5c | models.catalog（open string taxonomy + extra=allow）+ 2 skill 汎用化 |
+| Epic 06 | Skill layer（`/analysis-review`）+ `design_io review-batch` |
+| Epic 07 | Skill layer（`/analysis-notebook`）+ marimo + lineage（8-cell 契約） |
+| Epic 08 | Skill layer（`/analysis-auto` driver）と既存 skill の chaining |
+| Epic 09 | plugin 配布（`bin/` ラッパー、`hooks/hooks.json`、パス解決） |
+| Epic 10 | Skill layer（`/analysis-report`）+ notebook 契約の `figures[]` |
+| Epic 11 | 文書の正本（CLAUDE.md・PRD・本書・UBIQUITOUS_LANGUAGE）と ADR |
+
 
 ## 参照
 
