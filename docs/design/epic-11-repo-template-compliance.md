@@ -41,13 +41,13 @@ AI アシスタントとして、作業の前に正本を迷わず開くため�
 このリポジトリのメンテナとして、全体像と用語を1か所で確かめるために、PRD・ARCHITECTURE・
 UBIQUITOUS_LANGUAGE が今の状態を正しく持ってほしい。
 
-- [ ] AC 1: PRD のロードマップが Epic 01〜11 をすべて載せ、E5c を「完了」にする。
-- [ ] AC 2: ARCHITECTURE がコンテキストマップの節を持ち、Epic マッピングが Epic 06〜11 を載せる。
-- [ ] AC 3: ARCHITECTURE が Domain Model の全体図（mermaid `classDiagram`）を持つ。
+- [x] AC 1: PRD のロードマップが Epic 01〜11 をすべて載せ、E5c を「完了」にする。
+- [x] AC 2: ARCHITECTURE がコンテキストマップの節を持ち、Epic マッピングが Epic 06〜11 を載せる。
+- [x] AC 3: ARCHITECTURE が Domain Model の全体図（mermaid `classDiagram`）を持つ。
   `src/insight_blueprint/models/` と `skills/_shared/models.py` のクラスが図に載る。
-- [ ] AC 4: UBIQUITOUS_LANGUAGE の初版が、ドメインの語だけを載せる。「コード上の名前」はコードに実在し、
+- [x] AC 4: UBIQUITOUS_LANGUAGE の初版が、ドメインの語だけを載せる。「コード上の名前」はコードに実在し、
   削除済み機能の語（WebUI・REST API・MCP server など）を載せない。
-- [ ] AC 5: 揺れている語（「設計書」など）の正の語を人間が決め、表の「使わない言い換え」に反映する。
+- [x] AC 5: 揺れている語（「設計書」など）の正の語を人間が決め、表の「使わない言い換え」に反映する。
 
 ### US-3: 解釈の記録
 
@@ -229,6 +229,21 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
   出力を `docs/reviews/epic-NN/` にコミットする（古いレビューを正本と取り違える）。
 - Consequences: pstack を外すと主の道具が消え、代替に落ちる。AC 照合は道具ではなく作者の手順になる。
 
+### Decision: canonical-term-analysis-design
+
+- What: `AnalysisDesign`（`{id}_hypothesis.yaml`）の正の語を「分析設計」（英語は analysis design）にする。
+  使わない言い換えは、設計書・design document・design doc・仮説ファイル・hypothesis（分析設計そのものを指すとき）。
+  この Epic では UBIQUITOUS_LANGUAGE の表と、この Epic が書き直す文書（CLAUDE.md・PRD・ARCHITECTURE）だけを直す。
+  skills と凍結した文書の一括置換はしない。
+- Why: 同じ概念を、設計書（docs 46行）、analysis design（skills 18行）、hypothesis（skills 99行、ファイル名を含む）、
+  design document と呼び分けている（`git grep -ci` で数えた）。
+- Criteria: 1つの概念に正の語が1つであること（FLOW-0002、Must）。決め手は、開発フローの DesignDoc とも
+  仮説の文（`hypothesis_statement`）とも取り違えないこと。重みは Claude の推測で、人間が案 A を選んで追認した（2026-11-15）。
+- Affected modules: `docs/UBIQUITOUS_LANGUAGE.md`、`docs/PRD.md`、`docs/ARCHITECTURE.md`
+- Alternatives considered: 「設計書」（docs の多数派だが DesignDoc と衝突する）。「仮説」（`hypothesis_statement` と衝突する）。
+- Consequences: skills には「design document」などが残る。表の「使わない言い換え」に載せ、触ったときに直す。
+  ARCHITECTURE の参照の節にある ADR-0003 の題（「設計書 I/O」）は凍結した ADR の題なので変えない。
+
 ### Decision: split-story-c
 
 - What: 引き継ぎの Story 案 C（解釈の記録と掃除）を、US-3（ADR）と US-4（削除）に分ける。
@@ -248,7 +263,7 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
 | #57 CLAUDE.md の再編 | ✓（`tests/docs/test_canonical_docs.py`: `TestClaudeMd`・`TestContributing`） | —（文書だけで、組み合わせて動くものが無い） | —（同上） |
-| #58 正本文書の整備 | ☐ | —（同上） | —（同上） |
+| #58 正本文書の整備 | ✓（`TestRoadmap`・`TestDomainModelDiagram`・`TestUbiquitousLanguage`） | —（同上） | —（同上） |
 | #59 解釈の記録 | ☐ | —（同上） | —（同上） |
 | #60 旧フローの残骸の掃除 | ☐ | —（同上） | —（同上） |
 
@@ -256,3 +271,4 @@ D1・D2・D3・D10 は [ADR-0009](../adr/0009-adopt-repo-template-flow.md) に�
 
 - 2026-11-15 — Epic #56 を起票し、DesignDoc 初版を書いた。Story #57〜#60 を起票した。
 - 2026-11-15 — Story #57 完了: CLAUDE.md を要約とポインタにし（154行 → 107行）、CONTRIBUTING.md を4節に削った。CLAUDE.md から外した検証と `_revision.yaml` の記述を ARCHITECTURE に移した。
+- 2026-11-15 — Story #58 完了: PRD と ARCHITECTURE に Epic 01〜11 を載せ、ARCHITECTURE にコンテキストマップと Domain Model の全体図（22クラス）を足した。UBIQUITOUS_LANGUAGE の初版（35語）を書いた。全体図を含む mermaid 8ブロックが mermaid 11.4.1 の parse と render を通ることを、内蔵ブラウザで確かめた（手動）。
