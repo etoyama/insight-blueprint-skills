@@ -38,7 +38,7 @@ canonical contract in [references/apa-template.md](references/apa-template.md).
 - The analysis has not concluded yet (→ /analysis-reflection to conclude first)
 - Still gathering evidence (→ /analysis-journal)
 - You want to change the design or methodology (→ /analysis-design)
-- You need a `.docx` / `.pdf` — this skill emits Markdown; convert it downstream yourself
+- You need a `.docx` / `.pdf` — this skill emits Markdown; upload it with /report-upload and export from Claude Docs
 
 ## Workflow
 
@@ -77,7 +77,8 @@ Read, do not write:
      missing on disk (per-figure), rather than emitting a broken image link.
 4. Data sources: collect the candidate ids from the design — `source_ids`, plus the
    `data_source` values of `metrics` (dict values) and `explanatory` (string). Drop any value
-   that does not match `[a-zA-Z0-9_-]+`, then run `catalog_io get --id {source_id}` for each.
+   that does not fully match `^[a-zA-Z0-9_-]+$`, then run `catalog_io get --id {source_id}` for
+   each.
    Keep the registered ones (non-empty result) and take only `name`, `type`, and `description`.
    - **Safety**: the result also carries `connection` (paths, queries, hosts, sometimes
      credentials). Never copy `connection` or any part of it into the report.
@@ -123,7 +124,10 @@ headings, narrative in the user's language:
 1. Write the assembled Markdown to `.insight/reports/{design_id}.md`
    (create `.insight/reports/` if missing). This is the only file this skill writes.
 2. Show the path and note: "配布用レポートを生成した。わずかな手直しで配布できる。
-   `.docx`/PDF 化は別途変換を"。
+   読者にコメントしてもらうときや Word / PDF にするときは、/report-upload {design_id} で
+   Claude Docs にアップロードできる"。
+   Name `/report-upload` as the next step only. Do not ask whether to upload, and never start it
+   from here: the analyst starts it, or `/analysis-auto` does, and its own approval gate asks.
 3. **Before distributing**, remind the user the report may embed sensitive data (methodology
    steps, metrics, journal narrative). Like the generated notebook artifacts, review it and
    gitignore/redact if it carries credentials or PII.
@@ -154,6 +158,7 @@ This skill uses `catalog_io` read-only. It registers and updates nothing.
 |------|-----|------|
 | /analysis-reflection | → /analysis-report | Conclusion reached (terminal status); build a distributable report |
 | /analysis-auto | → /analysis-report | autopilot reached the conclusion; offer the report at the end (KEEP gate) |
+| /analysis-report | → /report-upload | The report is written and readers should comment on it or export it |
 
 ## Language Rules
 - Follow project CLAUDE.md language settings. Default to Japanese if no setting.

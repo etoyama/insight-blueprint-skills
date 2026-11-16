@@ -36,6 +36,7 @@ ALL_SKILLS: list[str] = [
     "analysis-notebook",
     "analysis-auto",
     "analysis-report",
+    "report-upload",
     "catalog-register",
     "knowledge-extract",
     "data-lineage",

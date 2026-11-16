@@ -209,6 +209,13 @@ class TestDataDescriptionInMethod:
         assert ".insight/lineage/{design_id}.mmd" in gather
         assert "`connection`" in gather
 
+    def test_source_id_must_match_as_a_whole(self) -> None:
+        # Anchored, so "match" cannot be read as "contains a matching part" — the
+        # same wording /report-upload uses for the design id.
+        anchored = "fully match `^[a-zA-Z0-9_-]+$`"
+        assert anchored in _section(_skill(), "### Step 2: ")
+        assert anchored in _section(_template(), "## Data description (Method)")
+
 
 class TestImplicationsAndRecommendation:
     """US-3 AC 3 (Epic 12): the Discussion says what the result means and what to do."""

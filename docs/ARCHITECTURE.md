@@ -90,7 +90,8 @@ flowchart TD
 既存 skill を順に駆動し、**本物の判断（KEEP ゲート）でだけ停止**する guided autopilot になる。invocation フラグは
 大域変更しない（自律性はこの run に限定）。KEEP ゲート = design の4ビート（① 仮説 / ② 手法・指標・explanatory の
 因果役割・intent / ③ データ取得プラン（SQL クエリ or file+columns+filter, premortem の前） / ④ chart 仕様）/
-データソース登録 / premortem `HARD_BLOCK`・`HIGH` / notebook の非 allowlist・宣言 source 以外の外部通信 / 結論。
+データソース登録 / premortem `HARD_BLOCK`・`HIGH` / notebook の非 allowlist・宣言 source 以外の外部通信 / 結論 /
+レポートの生成 / アップロードで送るファイルの承認（`/report-upload` が聞く）。
 notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定のときのみ。詳細は
 [ADR-0005](adr/0005-selective-autonomous-chaining.md)（selective autonomy）と
 [ADR-0007](adr/0007-upstream-judgment-gates.md)（上流の判断ゲートを design ビートに分割 + data-extraction 新設）。
@@ -232,7 +233,8 @@ end-to-end の代表フロー。既定では**各 `/skill` はユーザーが明
 （guided autopilot）を使うと driver がこの同じ経路を駆動し KEEP ゲートでだけ停止する（上記 «Skill invocation model» /
 [ADR-0005](adr/0005-selective-autonomous-chaining.md)）。**notebook の生成・実行は `/analysis-notebook` が design の
 `methodology` から 8-cell 契約に沿って行う**（`skills/analysis-notebook/references/notebook-contract.md`）。
-`/analysis-review`・`/premortem`・`/data-lineage` は任意ステップ。
+`/analysis-review`・`/premortem`・`/data-lineage`・`/analysis-report`・`/report-upload` は任意ステップ。
+Claude Docs はホストが持つコネクタで、plugin の外にある（[ADR-0015](adr/0015-host-connectors-for-optional-features.md)）。
 
 ```mermaid
 sequenceDiagram
@@ -241,6 +243,7 @@ sequenceDiagram
     participant IO as design_io / catalog_io
     participant MO as marimo + lineage
     participant FS as .insight/（YAML）
+    participant DC as Claude Docs
 
     Note over U,FS: 各ステップは /command で明示起動（対話型・human-in-the-loop）
     U->>CC: /analysis-framing → /analysis-design
@@ -268,8 +271,15 @@ sequenceDiagram
     U->>CC: /analysis-reflection（結論 → status 遷移）
     CC->>IO: transition（supported / rejected / inconclusive）
     opt 任意: 配布用レポート（terminal 後）
-        U->>CC: /analysis-report（design/journal/verdict/figures → APA Markdown）
+        U->>CC: /analysis-report（design/journal/verdict/figures/catalog/lineage → APA Markdown）
         CC->>FS: .insight/reports/{id}.md を Write（読み取り専用の消費者）
+        opt 任意: アップロード（Claude Docs のコネクタがあるとき）
+            U->>CC: /report-upload
+            CC->>U: 【KEEP】送るファイル（レポートと図）を列挙して承認を待つ
+            U-->>CC: 承認
+            CC->>DC: 新しい Doc を作り、本文と図を送る
+            DC-->>CC: Doc の URL
+        end
     end
     opt 任意: 知見の永続化
         U->>CC: /knowledge-extract（source-scoped 知見を catalog へ）
@@ -290,7 +300,9 @@ sequenceDiagram
     participant H as pre-write hook + validate.py
     participant PM as /premortem
     participant NB as /analysis-notebook + marimo
+    participant P as /report-upload
     participant FS as .insight/
+    participant DC as Claude Docs
 
     U->>D: /analysis-auto {theme|design id}
     D->>IO: get / list（現在地を判定）
@@ -335,10 +347,28 @@ sequenceDiagram
         opt terminal 後（任意）
             D->>U: 【KEEP】/analysis-report で配布用 APA レポートを生成するか確認
             D->>FS: .insight/reports/{id}.md（承認時のみ書込）
+            opt レポートを書いたとき
+                D->>P: /report-upload を起動（AUTO。driver は自分では聞かない）
+                alt Claude Docs のコネクタが無い
+                    P-->>D: 何も送らず「コネクタが無い」を返す
+                else 送れる
+                    P->>U: 【KEEP】送るファイル（レポートと図）を列挙して承認を待つ
+                    alt 承認する
+                        P->>DC: 新しい Doc を作り、本文と図を送る
+                        DC-->>P: Doc の URL
+                        P-->>D: Doc の URL
+                    else 承認しない
+                        P-->>D: 何も送らず「承認されなかった」を返す
+                    end
+                end
+            end
         end
     end
-    D-->>U: 実行サマリ（自動進行した所 / 停止した所 / 最終状態）
+    D-->>U: 実行サマリ（自動進行した所 / 停止した所 / 最終状態 / レポートのパスとアップロードの結果）
 ```
+
+アップロードで分析者に聞くのは、`/report-upload` の KEEP ゲートの1回だけである。driver は「アップロードするか」を別に聞かない
+（[ADR-0016](adr/0016-approval-before-external-send.md)）。
 
 ## Domain Model
 
@@ -572,6 +602,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 09 | plugin 配布（`bin/` ラッパー、`hooks/hooks.json`、パス解決） |
 | Epic 10 | Skill layer（`/analysis-report`）+ notebook 契約の `figures[]` |
 | Epic 11 | 文書の正本（CLAUDE.md・PRD・本書・UBIQUITOUS_LANGUAGE）と ADR |
+| Epic 12 | Skill layer（`/analysis-report` の拡張、`/report-upload` の新設、`/analysis-auto` の配線）+ notebook 契約の verdict の指標 + 分析設計の `DecisionContext` |
 
 
 ## 参照

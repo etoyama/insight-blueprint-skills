@@ -101,7 +101,7 @@ they can judge how far the result generalizes. It has two parts, each from its o
 
 **Data sources (catalog).** Collect the candidate source ids from the design: `source_ids`, plus
 the `data_source` values of `metrics` (the values of the dict) and `explanatory` (the string).
-Only a value matching `[a-zA-Z0-9_-]+` can be a source id; drop the rest without calling the
+A source id must fully match `^[a-zA-Z0-9_-]+$`; drop any other value without calling the
 catalog. Run `catalog_io get --id {source_id}` for each candidate and keep the ones that are
 registered (a non-empty result). One row per source, without duplicates:
 

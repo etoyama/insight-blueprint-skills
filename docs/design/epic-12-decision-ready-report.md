@@ -16,7 +16,7 @@ Epic issue（[#62](https://github.com/etoyama/insight-blueprint-skills/issues/62
   - 課題4: 読者が読む場所がない。出力はローカルの Markdown で、図は相対パスで参照する。
     ファイル1つを渡すと図が切れる。コメントも Word / PDF への変換も手作業になる。
 - PRD の要件: [docs/PRD.md](../PRD.md) のコアバリュー「journal / reflection — 結果の解釈と結論づけ」を、
-  結論を読者に渡して判断に使わせる所まで延ばす。PRD の機能要件にはレポートの項目がまだない。US-5 で足す。
+  結論を読者に渡して判断に使わせる所まで延ばす。PRD の機能要件にレポートとアップロードの項目を US-5 で足した。
 - 既存手段が不十分な理由: Epic 10 は「分析者がわずかな手直しで配布できる下書き」を目標にし、
   読者が判断に使えるかどうかは範囲外だった。docx / PDF への変換も範囲外で、読者に渡す手段は利用者に任されている。
   Claude Docs は共有・コメント・Word / PDF への書き出しを持つので、渡す手段をここに任せられる。
@@ -69,10 +69,10 @@ Epic issue（[#62](https://github.com/etoyama/insight-blueprint-skills/issues/62
 
 分析者として、結論からレポート、アップロードまでを迷わずたどるために、skill の連鎖と文書がそろっていてほしい。
 
-- [ ] AC 1: `/analysis-report` と新しい skill の Chaining 表が、互いを指す。
-- [ ] AC 2: `/analysis-auto` がレポートを作った後に `/report-upload` を起動する。分析者がアップロードで聞かれるのは、送るファイルの承認の1回だけである。
-- [ ] AC 3: README の Skills 表と、PRD の機能要件に、レポートとアップロードの項目が載る。
-- [ ] AC 4: この Epic で足した語が UBIQUITOUS_LANGUAGE に載り、ARCHITECTURE の代表シーケンスがアップロードを含む。
+- [x] AC 1: `/analysis-report` と新しい skill の Chaining 表が、互いを指す。
+- [x] AC 2: `/analysis-auto` がレポートを作った後に `/report-upload` を起動する。分析者がアップロードで聞かれるのは、送るファイルの承認の1回だけである。
+- [x] AC 3: README の Skills 表と、PRD の機能要件に、レポートとアップロードの項目が載る。
+- [x] AC 4: この Epic で足した語が UBIQUITOUS_LANGUAGE に載り、ARCHITECTURE の代表シーケンスがアップロードを含む。
 
 ## Stories
 
@@ -93,7 +93,8 @@ US-4 は US-3 を待たずに進められる。
 表の「コード上の名前」はコードに実在する必要があるので、語は名前が決まる Story の中で表に足す。
 
 - 追加: 決定の文脈（US-2）、効果量・信頼区間・標本サイズ（US-1）、アップロード（US-4）
-- 変更: なし。「レポート」は APA 風の Markdown を指すままで、アップロードで作った Doc はその写しとして扱う。
+- 変更: KEEP ゲート（[ADR-0016](../adr/0016-approval-before-external-send.md)）。guided autopilot の外でも、外部へ送る skill が承認を待つ所を指す（US-5）。
+  「レポート」は APA 風の Markdown を指すままで、アップロードで作った Doc はその写しとして扱う。
 
 ## Scope
 
@@ -438,7 +439,7 @@ sequenceDiagram
 | US-2 決定の文脈 | ✓（`tests/test_design_models.py`: `test_decision_context_*`・`test_analysis_design_decision_context_defaults_to_none`、`tests/test_validate.py`、`tests/skills/test_decision_context_structure.py`、`tests/docs/test_canonical_docs.py`: `TestDomainModelDiagram`） | ✓（`tests/test_design_io.py`: `test_decision_context_is_written`・`test_half_filled_decision_context_writes_nothing`・`test_design_written_before_decision_context_still_updates`・`test_comment_may_target_the_decision_context`） | —（skill が決定の文脈を聞く所と review で読む所は自動テストが無い。この Story では手動確認もしていない） |
 | US-3 判断の材料がそろったレポート | ✓（`tests/skills/test_analysis_report_structure.py`: `TestDecisionContextInIntroduction`・`TestDataDescriptionInMethod`・`TestImplicationsAndRecommendation`・`TestAppendix`・`TestReadOnlyConsumer`） | —（レポートは検証ライブラリも `design_io` も変えない。レポートが読む `catalog_io get` と lineage の書き出しは、既存のテストが確かめている） | —（skill がレポートを組み立てる所は自動テストが無い。手動確認は Story Timeline の 2026-11-15） |
 | US-4 Claude Docs へのアップロード | ✓（`tests/skills/test_report_upload_structure.py`、`tests/docs/test_canonical_docs.py`: `TestExternalSendRules`、`tests/test_plugin_structure.py`: `TestSkillsDirectory`） | —（skill は検証ライブラリも `design_io` も変えない。Claude Docs のコネクタはホストが持ち、テストからは呼べない） | —（skill がアップロードする所は自動テストが無い。手動確認は Story Timeline の 2026-11-16） |
-| US-5 配線と文書の更新 | ☐ | ☐ | ☐ |
+| US-5 配線と文書の更新 | ✓（`tests/skills/test_upload_wiring_structure.py`、`tests/skills/test_skill_structure.py`: `TestForwardingGraph`（`ALL_SKILLS` に `/report-upload` を足した）、`tests/skills/test_analysis_report_structure.py`: `test_source_id_must_match_as_a_whole`、`tests/docs/test_canonical_docs.py`: `TestReportAndUploadDocs`） | —（配線は SKILL.md の文だけで、検証ライブラリも `design_io` も変えない） | —（driver が `/report-upload` を起動する所は自動テストが無い。手動確認は Story Timeline の 2026-11-17） |
 
 完了時に ✓ を付ける。自動テストがない層には「—（理由）」を書く（[ADR-0010](../adr/0010-skill-tdd-structure-tests.md)）。
 
@@ -468,3 +469,22 @@ sequenceDiagram
     （確かめたのは、図を上げる前の Doc が注記つきであることまで）。コネクタが無い環境で止まる経路は、この環境にコネクタがあるので確かめていない。
     Doc の画面で図が描画されているかは目で見ていない。
 - 2026-11-16 — Story #67 completed: `/report-upload` を足し、不変条件の文と外部へ送る前の承認の決まりを ADR-0015・ADR-0016 に書いた。
+- 2026-11-17 — 手動確認（US-5）: 合成データの `.insight/` で、`/analysis-auto` の Step 2 の終わり（レポートとアップロード）と Step 3 を SKILL.md の文どおりになぞった。
+  plugin はこのセッションに入っていないので、`/analysis-auto` も `/report-upload` も起動はしていない。Claude が SKILL.md を読んで手順を追った。
+  driver の配線の文はこのセッションの Claude が書いた。`/report-upload` の SKILL.md は書いていない。
+  - できたこと（SKILL.md を書いていない Claude が `/report-upload` の手順だけで Doc にできるか）: Step 1〜5 で新しい Doc ができ、URL が返った。
+    コネクタの有無は、ツールの名前ではなく働き（Doc を作って編集する）で見分けられた。呼び出しの形はコネクタの案内から得た。
+    図のリンクを注記に置き換えた本文で Doc を作り、PNG を上げて注記を図に置き換えた（3回の呼び出し）。
+    Doc を読み戻し、注記が消えて図の要素が入り、ローカルのパスがどこにも無いことを確かめた。
+  - できたこと（アップロードの問いが1回だけ出るか）: 人間への問いは2回で、レポートを作るかの問いが1回、送るファイルの承認が1回だった。
+    レポートを書いたあと、driver はアップロードするかを聞かずに `/report-upload` の手順へ進み、Step 3 の KEEP ゲートの文だけを人間に出した。
+    人間が「送ってよい」と答えてから、初めてコネクタを呼んだ。
+  - 気づいたこと: コネクタの案内は、見出しだけの Doc を先に作って節ごとに埋める書き方と、題の下の署名の行を求める。
+    SKILL.md は本文をレポートのままにすると定めるので、署名の行は足さず、本文を1回の呼び出しで入れた。Doc は断られずにできた。
+    コネクタの案内は長い（約54KB）。
+  - できなかったこと: 新しいセッションで `/analysis-auto` を起動する確認はしていない（plugin が入っていない）。
+    driver の側は、配線の文を書いた本人がなぞったので、初見の Claude が同じように読むかは分からない。
+    ホストの承認の画面が人間に出たかは Claude からは見えない（Doc を作る呼び出しと図を載せる3回の呼び出しは、どれも断られなかった）。
+    承認されなかったとき、コネクタが無いとき、図のアップロードが失敗したときの経路は再現していない。
+    Doc の画面で図が描画されているかを、Claude は目で見ていない。
+- 2026-11-17 — Story #66 completed: `/analysis-auto` がレポートのあとに `/report-upload` を起動するようにし、README・PRD・用語・ARCHITECTURE にレポートとアップロードを載せた。
