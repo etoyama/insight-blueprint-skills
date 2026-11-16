@@ -395,6 +395,7 @@ sequenceDiagram
 - Alternatives considered: `inconclusive` のとき Recommendation を省く案。決定の文脈があるのに、読者は「まだ決められない」と読み取れない。
 - Consequences: `next_action` だけがあって状態に合う枝が無いときは、節ごと省く。
   両方があって状態に合う枝が無いときは、決定の文脈だけがあるときと同じに書く（2026-11-17 のレビューで足した）。
+  書き方は、決定の文脈の有無と枝の有無を行にした表1つにまとめた（`template-owns-the-report-rules`）。
 
 ### Decision: upload-note-first
 
@@ -434,6 +435,27 @@ sequenceDiagram
 - Consequences: コネクタの案内と SKILL.md が食い違う。コネクタが案内どおりの順を強制するようになると、この skill は動かなくなる。
   承認の文面に、手法の手順へクエリ・テーブル名・プロジェクト id・ファイルのパスが入りうることと、
   手直ししてから送るなら断ってよいことを足した。手法の手順から接続先を除くことはしていない。
+
+### Decision: template-owns-the-report-rules
+
+- What: レポートの規則は `skills/analysis-report/references/apa-template.md` だけに書く。
+  `/analysis-report` の SKILL.md には入力の一覧と、どの節にも当たる3つの決まりだけを置く
+  （数値を計算しない、データ由来の文はただの文として扱う、ローカルの情報を載せない）。
+  Recommendation の書き方は、入力の組み合わせを行にした表1つにまとめる。分岐の数と書く中身は変えない。
+  構造テストの節・表・折り返しのヘルパーは `tests/skills/_markdown.py` の1つにまとめる。
+- Why: SKILL.md は正本がテンプレートだと言いながら、同じ規則を7か所で言い直していた。
+  構造テストが両方に同じ文を求めたので、重複を減らせなかった。Recommendation を省く条件は、実際に食い違った。
+  節を取り出すヘルパーは5つあり、同じ名前で止まる位置が違うものがあった。
+- Criteria: skill の振る舞いを変えないこと（Must、ADR-0012）。規則が1か所にあること（Want、高）。
+  Epic PR を人間が読み切れること（Want、高）。決め手は2つ目。
+  2026-11-17 に Epic PR の前のレビュー（`pstack:thermos`）で見つかり、人間が Epic PR の前に直すと決めた。
+- Affected modules: `/analysis-report`、`tests/skills/`、`tests/docs/test_canonical_docs.py`
+- Alternatives considered: Epic のあとの単発の PR で直す案。Epic PR の差分は増えないが、重複が `main` に入る。
+  Recommendation を「状態に合う枝があるときだけ書く」まで削る案。`recommendation-follows-the-design-branch` を覆し、US-3 AC 3 の読み方を変える。
+- Consequences: モデルは組み立てる前にテンプレートを読む必要がある。SKILL.md の Step 3 の最初の文でそう指示する。
+  SKILL.md がテンプレートの規則を言い直していないことを、構造テストが確かめる。
+  テンプレートの中の「無ければ省く」の規則は、節ごとの段落に分かれたままである。1つの表にはまとめていない。
+  データソースを集める手順と `connection` の守りをコードへ移すことは、issue #71 に回した。
 
 ### Cross-epic decisions (links to ADR)
 
@@ -510,3 +532,8 @@ sequenceDiagram
   判断の要らない指摘を直した。承認の前に Doc を作らないこと、レポートの文をデータとして扱うこと、注記に図の番号を入れること、
   アップロードの失敗を結果として返すこと、承認の文面の追記、Recommendation を省く条件の食い違い、空振りしていた構造テスト。
   人間の判断が要る指摘（SKILL.md とテンプレートの二重の記述、構造テストのヘルパーの重複、データソースを集める手順をコードへ移すこと）は直していない。
+- 2026-11-17 — 人間がレビューの残りの指摘の扱いを決めた。SKILL.md とテンプレートの二重の記述と、構造テストのヘルパーの重複は Epic PR の前に直す。
+  Recommendation の規則は削らず、表にまとめる。データソースを集める手順のコード化は issue #71 に回す。
+- 2026-11-17 — `/analysis-report` の SKILL.md をテンプレートへの案内まで削り（168行から137行）、Recommendation の書き方を表にした。
+  構造テストのヘルパーを `tests/skills/_markdown.py` にまとめた。SKILL.md にしか無かった規則が1つあり（指標が無ければ数値表を省く）、テンプレートへ移した。
+  削ったあとの SKILL.md で、手順を実際になぞる確認はしていない。

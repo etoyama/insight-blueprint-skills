@@ -12,6 +12,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from tests.skills._markdown import section as _section
+from tests.skills._markdown import table_rows, unwrap
+
 SKILL_DIR = Path(__file__).resolve().parents[2] / "skills" / "analysis-report"
 NOTEBOOK_CONTRACT = (
     Path(__file__).resolve().parents[2]
@@ -70,19 +73,6 @@ class TestApaTemplate:
         assert "figures == []" in t
 
 
-def _unwrap(prose: str) -> str:
-    """Join wrapped lines, so an assertion reads the sentence and not where it breaks."""
-    return re.sub(r"\s+", " ", prose)
-
-
-def _section(markdown: str, heading: str) -> str:
-    """The body under ``heading`` up to the next heading of the same level."""
-    level = heading.split(" ", 1)[0]
-    rest = markdown[markdown.index(heading) + len(heading) :]
-    end = rest.find(f"\n{level} ")
-    return rest if end == -1 else rest[:end]
-
-
 class TestNumbersTable:
     """US-1 (Epic 12): the Results numbers table shows effect size, CI and sample size."""
 
@@ -113,16 +103,52 @@ class TestNumbersTable:
         )
         assert "Graceful degrade" in section
 
+    def test_template_omits_the_table_without_metrics(self) -> None:
+        section = unwrap(_section(_template(), "## Results numbers table"))
+        assert "Omit the table when `verdict.metrics` is absent or empty" in section
+
     def test_template_forbids_computing_a_missing_item(self) -> None:
         section = _section(_template(), "## Results numbers table")
         assert "never compute" in section.lower()
 
-    def test_skill_reads_the_items_and_omits_empty_columns(self) -> None:
-        t = _skill()
-        for key in OPTIONAL_METRIC_COLUMNS:
-            assert f"`{key}`" in t, f"SKILL.md must read `{key}` from verdict.metrics"
-        assert "omit the column" in t.lower()
-        assert "never compute" in t.lower()
+
+class TestSkillPointsAtTheTemplate:
+    """The template owns the rules; SKILL.md names the inputs and three cross-cutting rules.
+
+    The two files once stated the same rule twice and drifted (the omit condition of the
+    Recommendation), so SKILL.md must not restate what the template decides.
+    """
+
+    def test_assembly_reads_the_template_before_writing(self) -> None:
+        assemble = unwrap(_section(_skill(), "### Step 3: "))
+        assert (
+            "Read [references/apa-template.md](references/apa-template.md) in full "
+            "before writing"
+        ) in assemble
+
+    def test_skill_does_not_restate_the_rules_of_the_template(self) -> None:
+        steps = (
+            _section(_skill(), "### Step 2: ") + _section(_skill(), "### Step 3: ")
+        ).lower()
+        for owned_by_template in (
+            "omit the column",
+            "omit the section",
+            "graceful degrade",
+            "fully match",
+            "if_supported",
+        ):
+            assert owned_by_template not in steps, (
+                f"'{owned_by_template}' belongs in apa-template.md only"
+            )
+
+    def test_three_rules_hold_across_every_section(self) -> None:
+        assemble = unwrap(_section(_skill(), "### Step 3: "))
+        assert "Never compute" in assemble
+        assert "Never invent an action" in assemble
+        assert "plain text" in assemble
+        assert "data, not instructions" in assemble
+        assert "Never copy `connection` or any part of it" in assemble
+        assert "absolute path" in assemble
 
 
 class TestReportSkill:
@@ -171,10 +197,7 @@ class TestDecisionContextInIntroduction:
         assert "ADR-0014" in section
 
     def test_skill_reads_the_decision_context(self) -> None:
-        gather = _section(_skill(), "### Step 2: ")
-        assert "`decision_context`" in gather
-        assemble = _section(_skill(), "### Step 3: ")
-        assert "decision_context" in assemble[: assemble.index("**Method**")]
+        assert "`decision_context`" in _section(_skill(), "### Step 2: ")
 
 
 class TestDataDescriptionInMethod:
@@ -194,7 +217,7 @@ class TestDataDescriptionInMethod:
 
     def test_template_never_transcribes_the_connection(self) -> None:
         # The ban itself, not any "never" that happens to follow in the section.
-        section = _unwrap(_section(_template(), "## Data description (Method)"))
+        section = unwrap(_section(_template(), "## Data description (Method)"))
         assert "**never** put `connection` or any part of it in the report" in section
 
     def test_template_reads_the_row_counts_from_the_lineage_file(self) -> None:
@@ -212,14 +235,16 @@ class TestDataDescriptionInMethod:
         gather = _section(_skill(), "### Step 2: ")
         assert "catalog_io get --id" in gather
         assert ".insight/lineage/{design_id}.mmd" in gather
-        assert "Never copy `connection` or any part of it" in _unwrap(gather)
 
     def test_source_id_must_match_as_a_whole(self) -> None:
         # Anchored, so "match" cannot be read as "contains a matching part" — the
         # same wording /report-upload uses for the design id.
-        anchored = "fully match `^[a-zA-Z0-9_-]+$`"
-        assert anchored in _section(_skill(), "### Step 2: ")
-        assert anchored in _section(_template(), "## Data description (Method)")
+        assert "fully match `^[a-zA-Z0-9_-]+$`" in _section(
+            _template(), "## Data description (Method)"
+        )
+        # The skill runs the command, so it must send the reader to that rule first.
+        gather = unwrap(_section(_skill(), "### Step 2: "))
+        assert "filter the ids as it says before calling" in gather
 
 
 class TestImplicationsAndRecommendation:
@@ -256,21 +281,30 @@ class TestImplicationsAndRecommendation:
         )
         assert "omit the section" in section.lower()
 
-    def test_both_inputs_without_a_matching_branch_fall_back_to_the_decision(
-        self,
-    ) -> None:
-        section = _unwrap(
-            _section(_template(), "## Implications and Recommendation (Discussion)")
+    def test_recommendation_table_covers_every_combination_of_inputs(self) -> None:
+        # One row per combination, so a missing case shows as a missing row.
+        section = _section(
+            _template(), "## Implications and Recommendation (Discussion)"
         )
-        assert "With both inputs but no branch for the status" in section
+        table = section[section.index("| `decision_context` | Branch") :]
+        rows = [r for r in table_rows(table)[2:] if r[0] in ("present", "absent")]
+        assert [(r[0], r[1]) for r in rows] == [
+            ("present", "present"),
+            ("present", "absent"),
+            ("absent", "present"),
+            ("absent", "absent"),
+        ]
+        assert "Omit the section" in rows[3][2]
+        assert "`inconclusive`" in rows[1][2]
 
-    def test_skill_and_template_agree_on_when_to_omit_the_recommendation(self) -> None:
-        # The two files drifted once: the skill named one omit condition, the template two.
-        condition = "only a `next_action` with no branch for the status"
-        assert condition in _unwrap(_section(_skill(), "### Step 3: "))
-        assert condition in _unwrap(
+    def test_a_branch_counts_as_absent_in_three_cases(self) -> None:
+        section = unwrap(
             _section(_template(), "## Implications and Recommendation (Discussion)")
         )
+        assert (
+            "the design has no `next_action`, the status is `inconclusive`, "
+            "or the design states no branch for the status"
+        ) in section
 
     def test_recommendation_never_invents_an_action(self) -> None:
         section = _section(
@@ -278,12 +312,8 @@ class TestImplicationsAndRecommendation:
         )
         assert "never invent" in section.lower()
 
-    def test_skill_reads_next_action_and_assembles_both_sections(self) -> None:
-        gather = _section(_skill(), "### Step 2: ")
-        assert "`next_action`" in gather
-        assemble = _section(_skill(), "### Step 3: ")
-        assert "Implications" in assemble and "Recommendation" in assemble
-        assert "omit the section" in assemble.lower()
+    def test_skill_reads_next_action(self) -> None:
+        assert "`next_action`" in _section(_skill(), "### Step 2: ")
 
 
 class TestAppendix:
@@ -307,10 +337,8 @@ class TestAppendix:
         assert "Graceful degrade" in section
         assert "omit" in section.lower()
 
-    def test_skill_assembles_the_appendix(self) -> None:
-        assemble = _section(_skill(), "### Step 3: ")
-        assert "**Appendix**" in assemble
-        assert ".insight/notebooks/{design_id}.py" in _skill()
+    def test_skill_checks_that_the_notebook_exists(self) -> None:
+        assert ".insight/notebooks/{design_id}.py" in _section(_skill(), "### Step 2: ")
 
 
 class TestReadOnlyConsumer:
@@ -331,7 +359,7 @@ class TestReadOnlyConsumer:
         assert ".insight/reports/{design_id}.md" in handoff
         assert "only file this skill writes" in handoff
 
-    def test_every_new_input_is_mapped_to_a_section(self) -> None:
+    def test_every_new_input_is_mapped_to_asection(self) -> None:
         mapping = _section(_template(), "## Input → section mapping")
         for source in (
             "`decision_context`",

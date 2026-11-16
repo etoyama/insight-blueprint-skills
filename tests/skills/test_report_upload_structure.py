@@ -8,33 +8,23 @@ missing (ADR-0015), and a figure that cannot be uploaded degrades to a note.
 
 from __future__ import annotations
 
-import re
-from pathlib import Path
-
+from tests.skills._markdown import section, unwrap
 from tests.skills.test_skill_structure import (
     REQUIRED_SECTIONS,
+    _read_skill,
     parse_chaining_table,
     parse_frontmatter,
     split_sections,
 )
 
-SKILL = Path(__file__).resolve().parents[2] / "skills" / "report-upload" / "SKILL.md"
-
 
 def _skill() -> str:
-    return SKILL.read_text(encoding="utf-8")
+    return _read_skill("report-upload")
 
 
 def _step(number: int) -> str:
-    """The body of ``### Step {number}`` up to the next heading, with wrapped lines joined.
-
-    Joined so an assertion reads the sentence and not where the line happens to break.
-    """
-    text = _skill()
-    rest = text[text.index(f"### Step {number}:") :]
-    rest = rest[rest.index("\n") :]
-    following = re.search(r"^#{1,3} ", rest, re.MULTILINE)
-    return re.sub(r"\s+", " ", rest[: following.start()] if following else rest)
+    """The body of ``### Step {number}``, with wrapped lines joined."""
+    return unwrap(section(_skill(), f"### Step {number}:"))
 
 
 class TestFrontmatter:

@@ -72,8 +72,8 @@ the figure-manifest contract is [ADR-0008](../../../docs/adr/0008-notebook-figur
 | Appendix (lineage diagram) | the Mermaid text | `.insight/lineage/{id}.mmd` |
 | Appendix (notebook) | the path, if the file exists | `.insight/notebooks/{id}.py` |
 
-Every input beyond the design, the journal, and the verdict is optional. A missing one drops its
-part of the report and never blocks the rest.
+Only the design and the journal are required. Every other input is optional: a missing one
+drops its part of the report and never blocks the rest.
 
 ## Decision context (Introduction)
 
@@ -173,19 +173,20 @@ tell anyone what to do.
 |---|---|
 | `supported` | `if_supported` |
 | `rejected` | `if_rejected` (its `reason` and `pivot`) |
-| `inconclusive` | none — say the evidence does not settle the `decision` and point to Limitations |
+| `inconclusive` | none |
 
-- With both inputs: address the `decision_maker`, name the `decision`, and recommend the action of
-  the matching branch.
-- With only `next_action`: recommend the action of the matching branch, with no addressee.
-- With only `decision_context`: say which way the conclusion points on the `decision`, and stop
-  there.
-- With both inputs but no branch for the status (`inconclusive`, or the design states no branch
-  for it): write it as with only `decision_context`.
-- **Never invent** an action. The design owns the branches; when no branch matches the status,
-  recommend none.
-- **Omit the section** (heading included) when the design has neither `next_action` nor
-  `decision_context`, or when it has only a `next_action` with no branch for the status.
+The branch is absent when the design has no `next_action`, the status is `inconclusive`, or the
+design states no branch for the status. What to write follows from which of the two is there:
+
+| `decision_context` | Branch of `next_action` for the status | Write |
+|---|---|---|
+| present | present | Address the `decision_maker`, name the `decision`, and recommend the action of the branch. |
+| present | absent | Say which way the conclusion points on the `decision`, and stop there. When the status is `inconclusive`, say the evidence does not settle the `decision` and point to Limitations. |
+| absent | present | Recommend the action of the branch, with no addressee. |
+| absent | absent | **Omit the section** (heading included). |
+
+**Never invent** an action. The design owns the branches; without a branch for the status,
+recommend none.
 
 ## Appendix contents
 
@@ -219,7 +220,8 @@ Omit the whole `## Appendix` when both are omitted. No note is added.
 
 ## Results numbers table
 
-One row per entry of `verdict.metrics`. The first five columns are the base table:
+One row per entry of `verdict.metrics`. Omit the table when `verdict.metrics` is absent or empty
+(an exploratory analysis has none). The first five columns are the base table:
 
 ```markdown
 | Metric | Value | Threshold | p | Pass |

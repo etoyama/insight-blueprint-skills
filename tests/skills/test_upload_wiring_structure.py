@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 
+from tests.skills._markdown import section, table_row, unwrap
 from tests.skills.test_skill_structure import (
     _extract_chaining_edges,
     _read_skill,
@@ -21,19 +22,9 @@ def _auto() -> str:
     return _read_skill("analysis-auto")
 
 
-def _unwrap(prose: str) -> str:
-    """Join wrapped lines, so an assertion reads the sentence and not where it breaks."""
-    return re.sub(r"\s+", " ", prose)
-
-
 def _gate_row(step: str) -> list[str]:
     """The cells of the Gate policy row whose first cell is ``step``."""
-    policy = split_sections(_auto())["Gate policy"]
-    for line in policy.splitlines():
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if cells[0] == step:
-            return cells
-    raise AssertionError(f"Gate policy has no '{step}' row")
+    return table_row(split_sections(_auto())["Gate policy"], step)
 
 
 def _drive_item(name: str) -> str:
@@ -44,15 +35,11 @@ def _drive_item(name: str) -> str:
         re.MULTILINE | re.DOTALL,
     )
     assert match, f"Step 2 has no '{name}' item"
-    return _unwrap(match.group(0))
+    return unwrap(match.group(0))
 
 
 def _h3(skill: str, heading: str) -> str:
-    text = _read_skill(skill)
-    rest = text[text.index(heading) :]
-    rest = rest[rest.index("\n") :]
-    following = re.search(r"^#{1,3} ", rest, re.MULTILINE)
-    return _unwrap(rest[: following.start()] if following else rest)
+    return unwrap(section(_read_skill(skill), heading))
 
 
 class TestChainingPointsBothWays:

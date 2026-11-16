@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.skills._markdown import section
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _spec = importlib.util.spec_from_file_location(
@@ -310,12 +312,6 @@ def _first_cells(table_section: str) -> list[str]:
     return rows[2:]
 
 
-def _h3_section(markdown: str, heading: str) -> str:
-    rest = markdown[markdown.index(heading) :]
-    following = re.search(r"^#{1,3} ", rest[len(heading) :], re.MULTILINE)
-    return rest[: len(heading) + following.start()] if following else rest
-
-
 class TestReportAndUploadDocs:
     """Epic 12 US-5 AC 3, AC 4: the documents carry the report and the upload."""
 
@@ -332,7 +328,7 @@ class TestReportAndUploadDocs:
         )
 
     def test_prd_functional_requirements_carry_the_report_and_the_upload(self) -> None:
-        requirements = _h3_section(_read("docs/PRD.md"), "### 機能要件")
+        requirements = section(_read("docs/PRD.md"), "### 機能要件")
         assert "レポート" in requirements
         assert "アップロード" in requirements
 
@@ -357,12 +353,12 @@ class TestReportAndUploadDocs:
         ["### 分析ワークフロー全体", "### guided autopilot（`/analysis-auto`）"],
     )
     def test_architecture_sequences_include_the_upload(self, heading: str) -> None:
-        sequence = _h3_section(_read("docs/ARCHITECTURE.md"), heading)
+        sequence = section(_read("docs/ARCHITECTURE.md"), heading)
         assert "/report-upload" in sequence
         assert "Claude Docs" in sequence
 
     def test_autopilot_sequence_asks_about_the_upload_once_from_the_skill(self) -> None:
-        sequence = _h3_section(
+        sequence = section(
             _read("docs/ARCHITECTURE.md"), "### guided autopilot（`/analysis-auto`）"
         )
         asks = [
