@@ -124,7 +124,7 @@ gate policy above:
 
 Report what ran automatically, where it paused and why, and the final state (status, journal, lineage).
 When a report was written, add the report's path and the upload outcome: the Doc URL, "承認されなかった",
-or "コネクタが無い".
+"コネクタが無い", or "アップロードに失敗した" with the reason.
 
 ## Delegated skills
 

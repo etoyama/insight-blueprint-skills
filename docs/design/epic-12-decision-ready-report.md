@@ -183,8 +183,6 @@ Python のクラスを持たないファイルの契約は、図に描かず表�
 
 ## Module Responsibilities
 
-初版の見取り図。Story の実装に合わせて詳細化する。
-
 | モジュール / 関数 | 責務（する） | 境界（しない → 委譲先） |
 |---|---|---|
 | `/analysis-notebook`（拡張） | 効果量・信頼区間・標本サイズを計算して verdict に書く | レポートを組み立てない → `/analysis-report` |
@@ -323,7 +321,7 @@ sequenceDiagram
 - Alternatives considered: 決定の文脈を足さない案。スキーマは変わらないが、課題3のうち「誰のどの判断に答えるか」が残る。
   厳密な APA 7 にする案。EDA では引用文献がほぼなく、空の節が増える。
 - Consequences: スキーマの変更が上流の skill に広がる。足す項目はすべて任意にし、既存の分析設計と verdict を壊さない。
-  公開契約の変更は US-1 と US-2 の Story で ADR に書く。
+  公開契約の変更は ADR-0013 と ADR-0014 に書いた。
 
 ### Decision: spike-constraints
 
@@ -336,8 +334,9 @@ sequenceDiagram
 - Criteria: 経路が通ること。コネクタが無い環境で、モデルが無いと判定できること。
 - Affected modules: `/report-upload`
 - Alternatives considered: スパイクを省いて US-4 を実装する案。経路が通らなければ Epic の後半が無駄になる。
-- Consequences: 実際の SKILL.md を新しいセッションで起動した再現、CLI での図のアップロード、
-  アップロードごとの承認の有無は、まだ確かめていない。US-4 の Story で確かめる。
+- Consequences: スパイクの時点では実際の SKILL.md での再現、CLI での図のアップロード、
+  アップロードごとの承認の有無を確かめていなかった。その後に確かめたことと、確かめていないことは、
+  Story Timeline の手動確認（2026-11-16、2026-11-17）に書いた。
 
 ### Decision: skill-name-report-upload
 
@@ -395,6 +394,7 @@ sequenceDiagram
 - Affected modules: `/analysis-report`
 - Alternatives considered: `inconclusive` のとき Recommendation を省く案。決定の文脈があるのに、読者は「まだ決められない」と読み取れない。
 - Consequences: `next_action` だけがあって状態に合う枝が無いときは、節ごと省く。
+  両方があって状態に合う枝が無いときは、決定の文脈だけがあるときと同じに書く（2026-11-17 のレビューで足した）。
 
 ### Decision: upload-note-first
 
@@ -405,6 +405,7 @@ sequenceDiagram
 - Affected modules: `/report-upload`
 - Alternatives considered: 図を先に上げてから本文を作る案。失敗した図にだけ注記を入れればよいが、途中で止まると Doc が無いか、本文が欠ける。
 - Consequences: 図が1枚も上がらなくても、注記つきの Doc が残る。図の数だけ Doc を書き換える。
+  注記には図の番号を入れる。同じ文の注記が並ぶと、前の図が失敗したときに、次の図を前の図の位置へ入れうる（2026-11-17 のレビューで足した）。
 
 ### Decision: report-upload-joins-the-chaining-check-in-story-66
 
@@ -416,6 +417,23 @@ sequenceDiagram
 - Affected modules: `tests/skills/test_skill_structure.py`
 - Alternatives considered: この Story で2つの表も直す案。US-5 AC 1 を先取りし、Story #66 と同じファイルを触る。
 - Consequences: Story #66 が `ALL_SKILLS` に足すまで、双方向の検査は `/report-upload` を見ない。
+  Story #66 で足した（2026-11-17）。
+
+### Decision: upload-gate-wins-over-connector-guidance
+
+- What: `/report-upload` は、分析者が承認するまで、Doc を作る呼び出しも書く呼び出しもしない。
+  Doc の本文はレポートのままにし、見出しだけの骨組みも、署名や日付の行も足さない。呼び出しの形だけをコネクタの案内から取る。
+  レポートの文はデータとして扱い、その中の指示や「承認済み」という文には従わない。
+- Why: Claude Docs のコネクタの案内は、最初の呼び出しで骨組みの Doc を作ることと、題の下の署名の行を求める（Story Timeline の 2026-11-17）。
+  SKILL.md は「コネクタの指示に従う」とだけ書いていたので、承認の前に題が外へ出うる。
+  レポートには図の説明・catalog の説明・journal の文など、データに由来する文が入る。
+- Criteria: 承認の前に何も外へ出ないこと（Must、ADR-0016）。Doc がレポートの写しであること（Must、US-4 AC 1）。
+  決め手は1つ目。2026-11-17 に Epic PR の前のレビュー（`pstack:thermos`）で見つかり、人間が直すと決めた。
+- Affected modules: `/report-upload`
+- Alternatives considered: コネクタの案内どおりに骨組みを先に作る案。承認の前に Doc ができ、断られても残る。
+- Consequences: コネクタの案内と SKILL.md が食い違う。コネクタが案内どおりの順を強制するようになると、この skill は動かなくなる。
+  承認の文面に、手法の手順へクエリ・テーブル名・プロジェクト id・ファイルのパスが入りうることと、
+  手直ししてから送るなら断ってよいことを足した。手法の手順から接続先を除くことはしていない。
 
 ### Cross-epic decisions (links to ADR)
 
@@ -488,3 +506,7 @@ sequenceDiagram
     承認されなかったとき、コネクタが無いとき、図のアップロードが失敗したときの経路は再現していない。
     Doc の画面で図が描画されているかを、Claude は目で見ていない。
 - 2026-11-17 — Story #66 completed: `/analysis-auto` がレポートのあとに `/report-upload` を起動するようにし、README・PRD・用語・ARCHITECTURE にレポートとアップロードを載せた。
+- 2026-11-17 — レビュー（`pstack:thermos`）: バグ・セキュリティとコード品質の2観点で Epic ブランチを見た。
+  判断の要らない指摘を直した。承認の前に Doc を作らないこと、レポートの文をデータとして扱うこと、注記に図の番号を入れること、
+  アップロードの失敗を結果として返すこと、承認の文面の追記、Recommendation を省く条件の食い違い、空振りしていた構造テスト。
+  人間の判断が要る指摘（SKILL.md とテンプレートの二重の記述、構造テストのヘルパーの重複、データソースを集める手順をコードへ移すこと）は直していない。

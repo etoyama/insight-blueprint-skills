@@ -36,7 +36,8 @@
 
 ### 非機能要件
 
-- 常駐プロセスを持たない（No daemon / No MCP server / No SQLite）
+- 常駐プロセス・MCP サーバ・SQLite を同梱しない（No daemon / No MCP server / No SQLite）。
+  ホストが持つコネクタは、無くても核が動く任意の機能に限って使う（[ADR-0015](adr/0015-host-connectors-for-optional-features.md)）
 - 検証ロジックは I/O を持たない純関数ライブラリに集約し、単一正本とする
 - Claude Code plugin として配布・利用できる
 - リリースは tag 駆動（`v*`）。トランク（main）へのマージは publish を起こさない

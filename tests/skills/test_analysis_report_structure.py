@@ -70,6 +70,11 @@ class TestApaTemplate:
         assert "figures == []" in t
 
 
+def _unwrap(prose: str) -> str:
+    """Join wrapped lines, so an assertion reads the sentence and not where it breaks."""
+    return re.sub(r"\s+", " ", prose)
+
+
 def _section(markdown: str, heading: str) -> str:
     """The body under ``heading`` up to the next heading of the same level."""
     level = heading.split(" ", 1)[0]
@@ -188,9 +193,9 @@ class TestDataDescriptionInMethod:
             assert field in section, f"data source table must read {field}"
 
     def test_template_never_transcribes_the_connection(self) -> None:
-        section = _section(_template(), "## Data description (Method)")
-        assert "`connection`" in section
-        assert "never" in section[section.index("`connection`") - 200 :].lower()
+        # The ban itself, not any "never" that happens to follow in the section.
+        section = _unwrap(_section(_template(), "## Data description (Method)"))
+        assert "**never** put `connection` or any part of it in the report" in section
 
     def test_template_reads_the_row_counts_from_the_lineage_file(self) -> None:
         section = _section(_template(), "## Data description (Method)")
@@ -207,7 +212,7 @@ class TestDataDescriptionInMethod:
         gather = _section(_skill(), "### Step 2: ")
         assert "catalog_io get --id" in gather
         assert ".insight/lineage/{design_id}.mmd" in gather
-        assert "`connection`" in gather
+        assert "Never copy `connection` or any part of it" in _unwrap(gather)
 
     def test_source_id_must_match_as_a_whole(self) -> None:
         # Anchored, so "match" cannot be read as "contains a matching part" — the
@@ -250,6 +255,22 @@ class TestImplicationsAndRecommendation:
             _template(), "## Implications and Recommendation (Discussion)"
         )
         assert "omit the section" in section.lower()
+
+    def test_both_inputs_without_a_matching_branch_fall_back_to_the_decision(
+        self,
+    ) -> None:
+        section = _unwrap(
+            _section(_template(), "## Implications and Recommendation (Discussion)")
+        )
+        assert "With both inputs but no branch for the status" in section
+
+    def test_skill_and_template_agree_on_when_to_omit_the_recommendation(self) -> None:
+        # The two files drifted once: the skill named one omit condition, the template two.
+        condition = "only a `next_action` with no branch for the status"
+        assert condition in _unwrap(_section(_skill(), "### Step 3: "))
+        assert condition in _unwrap(
+            _section(_template(), "## Implications and Recommendation (Discussion)")
+        )
 
     def test_recommendation_never_invents_an_action(self) -> None:
         section = _section(

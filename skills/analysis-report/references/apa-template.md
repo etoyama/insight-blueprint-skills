@@ -180,6 +180,8 @@ tell anyone what to do.
 - With only `next_action`: recommend the action of the matching branch, with no addressee.
 - With only `decision_context`: say which way the conclusion points on the `decision`, and stop
   there.
+- With both inputs but no branch for the status (`inconclusive`, or the design states no branch
+  for it): write it as with only `decision_context`.
 - **Never invent** an action. The design owns the branches; when no branch matches the status,
   recommend none.
 - **Omit the section** (heading included) when the design has neither `next_action` nor

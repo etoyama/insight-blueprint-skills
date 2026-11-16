@@ -113,7 +113,8 @@ headings, narrative in the user's language:
   the result, and how it bears on the `decision` when there is a `decision_context`.
 - **Discussion → Recommendation** — what to do next, from `next_action` (the branch matching the
   terminal status: `if_supported` / `if_rejected`) addressed to the `decision_context`. Never
-  invent an action the design does not state. **Omit the section** when the design has neither.
+  invent an action the design does not state. **Omit the section** when the design has neither,
+  or has only a `next_action` with no branch for the status.
 - **Discussion → Limitations / Future Directions** — `conclude` limits + open `question`s.
 - **References** — `referenced_knowledge` if any; omit the section entirely when empty.
 - **Appendix** — the lineage diagram (the `.mmd` text in a `mermaid` fence) and the notebook's

@@ -108,6 +108,9 @@ class TestAutopilotStartsTheUpload:
         assert "report's path" in summary
         assert "Doc URL" in summary
 
+    def test_the_summary_can_say_the_upload_failed(self) -> None:
+        assert "アップロードに失敗した" in _h3("analysis-auto", "### Step 3:")
+
     def test_delegated_skills_name_the_report_and_the_upload(self) -> None:
         delegated = split_sections(_auto())["Delegated skills"]
         assert "`/analysis-report`" in delegated
