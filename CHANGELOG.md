@@ -7,9 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Epic 12 (#62): `/analysis-report` now writes a report a reader can **decide from**, and a new
+`/report-upload` skill copies it to Claude Docs. Design: `docs/design/epic-12-decision-ready-report.md`.
+Unlike Epic 10 and 11, this touches the PyPI wheel: `insight_blueprint.models.design` gains
+`DecisionContext`. Every addition is optional, so existing designs, notebooks, and verdicts keep working.
+
 Epic 11 (#56): the development docs follow the repo-template flow (ADR-0009). Design:
 `docs/design/epic-11-repo-template-compliance.md`. The PyPI wheel's runtime (`src/insight_blueprint`)
 and the skills are untouched.
+
+### Added
+
+- **`/report-upload` — upload a report to Claude Docs.** Reads `.insight/reports/{id}.md` and its
+  figures and creates a **new** Doc, visible only to you until you share it. It never updates,
+  overwrites, or shares a Doc. It uses the host's Claude Docs connector; the plugin still ships no
+  MCP server ([ADR-0015](docs/adr/0015-host-connectors-for-optional-features.md)). Without the
+  connector nothing is sent and the Markdown report stays as it is. A figure that cannot be
+  uploaded is left out with a one-line note.
+- **Approval before anything leaves the machine ([ADR-0016](docs/adr/0016-approval-before-external-send.md)).**
+  `/report-upload` lists the files it would send and waits for your answer. Nothing is created or
+  sent before a clear yes. The approval covers that one run and is never remembered, also inside
+  `/analysis-auto`.
+- **`decision_context` in the design document ([ADR-0014](docs/adr/0014-analysis-design-decision-context.md)).**
+  An optional `{decision_maker, decision}` pair: who decides what from this analysis. When present,
+  both fields must be non-empty. `/analysis-design` asks for it once after the hypothesis (you can
+  skip it), `design_io create` / `update` accept it, and `/analysis-review` checks that it fits the
+  hypothesis. Designs without it validate as before.
+- **Optional metric items in the notebook contract ([ADR-0013](docs/adr/0013-verdict-metric-optional-items.md)).**
+  Each entry of `verdict.metrics` may carry `effect_size` (`{kind, value}`), `confidence_interval`
+  (`{level, lower, upper}`), and `sample_size`. The notebook computes them; a method that does not
+  define one omits the key. A verdict without them is read as before.
+
+### Changed
+
+- **`/analysis-report` carries what a decision needs.** Introduction shows the decision context.
+  Method describes the data sources (name, type, and description from the catalog; never the
+  `connection` values) and the row counts through the pipeline (from the lineage diagram). The
+  Results table gains Effect size / CI / N columns, each shown only when some metric has a value.
+  Discussion gains Implications and Recommendation, and a new Appendix holds the lineage diagram
+  and the notebook path. The skill stays read-only and computes no numbers; sections whose inputs
+  are missing are omitted, so a report from an older analysis looks as it did.
+- **`/analysis-auto` starts `/report-upload` after it builds a report.** The driver does not ask
+  whether to upload; the approval of `/report-upload` is the only question.
+- Development docs (Epic 11): `CLAUDE.md` holds only a summary and pointers; `CONTRIBUTING.md` keeps Setup / Common Commands /
+  Testing / Security Checklist. `docs/UBIQUITOUS_LANGUAGE.md` gets its first edition, and
+  `docs/ARCHITECTURE.md` gets a context map and a Domain Model class diagram.
+- New development ADRs (Epic 11): [ADR-0010](docs/adr/0010-skill-tdd-structure-tests.md) (skill TDD reading),
+  [ADR-0011](docs/adr/0011-domain-model-overview-in-architecture.md) (Domain Model overview),
+  [ADR-0012](docs/adr/0012-single-pr-scope.md) (scope of non-Epic PRs).
 
 ### Removed
 
@@ -19,15 +64,6 @@ and the skills are untouched.
   server configuration, matching the "No MCP server" invariant. If you added `spec-workflow` to
   your own setup on purpose, configure it in your project instead.
 - `.spec-workflow/` (pre-fork steering docs and templates, superseded by `docs/design/` + `docs/adr/`).
-
-### Changed
-
-- `CLAUDE.md` holds only a summary and pointers; `CONTRIBUTING.md` keeps Setup / Common Commands /
-  Testing / Security Checklist. `docs/UBIQUITOUS_LANGUAGE.md` gets its first edition, and
-  `docs/ARCHITECTURE.md` gets a context map and a Domain Model class diagram.
-- New ADRs: [ADR-0010](docs/adr/0010-skill-tdd-structure-tests.md) (skill TDD reading),
-  [ADR-0011](docs/adr/0011-domain-model-overview-in-architecture.md) (Domain Model overview),
-  [ADR-0012](docs/adr/0012-single-pr-scope.md) (scope of non-Epic PRs).
 
 ## [0.8.0] - 2026-07-08
 
