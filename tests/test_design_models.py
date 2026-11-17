@@ -11,6 +11,7 @@ from insight_blueprint.models.design import (
     AnalysisDesign,
     ChartIntent,
     ChartSpec,
+    DecisionContext,
     ExplanatoryVariable,
     Methodology,
     Metric,
@@ -272,6 +273,56 @@ def test_methodology_defaults() -> None:
     m = Methodology(method="OLS")
     assert m.package == ""
     assert m.reason == ""
+
+
+# ---------------------------------------------------------------------------
+# DecisionContext tests (Epic 12 US-2, ADR-0014)
+# ---------------------------------------------------------------------------
+
+
+def test_analysis_design_decision_context_defaults_to_none() -> None:
+    """US-2 AC 4: a design without a decision context is still valid."""
+    design = AnalysisDesign(**_minimal_design_data())
+    assert design.decision_context is None
+
+
+def test_decision_context_is_built_from_a_dict() -> None:
+    """US-2 AC 1: the design carries who decides and what they decide."""
+    design = AnalysisDesign(
+        **_minimal_design_data(
+            decision_context={
+                "decision_maker": "マーケティング部長",
+                "decision": "来期のクーポン施策を続けるか",
+            }
+        )
+    )
+    assert design.decision_context == DecisionContext(
+        decision_maker="マーケティング部長",
+        decision="来期のクーポン施策を続けるか",
+    )
+
+
+@pytest.mark.parametrize(
+    "half",
+    [
+        {"decision_maker": "マーケティング部長"},
+        {"decision": "来期のクーポン施策を続けるか"},
+        {"decision_maker": "", "decision": "来期のクーポン施策を続けるか"},
+        {"decision_maker": "マーケティング部長", "decision": ""},
+        {},
+    ],
+    ids=[
+        "decision missing",
+        "decision_maker missing",
+        "decision_maker empty",
+        "decision empty",
+        "both missing",
+    ],
+)
+def test_decision_context_with_only_one_side_is_rejected(half: dict) -> None:
+    """US-2 AC 1: a decision context is either absent or has both sides filled."""
+    with pytest.raises(ValidationError):
+        AnalysisDesign(**_minimal_design_data(decision_context=half))
 
 
 # ---------------------------------------------------------------------------

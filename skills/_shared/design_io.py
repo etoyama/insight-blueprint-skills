@@ -87,6 +87,7 @@ ALLOWED_TARGET_SECTIONS: set[str] = {
     "referenced_knowledge",
     "methodology",
     "analysis_intent",
+    "decision_context",
 }
 
 _REVIEWABLE = {DesignStatus.in_review, DesignStatus.revision_requested}
@@ -172,6 +173,7 @@ def create_design(
     source_ids: list[str] | None = None,
     next_action: dict | None = None,
     referenced_knowledge: dict[str, list[str]] | None = None,
+    decision_context: dict | None = None,
     base_dir: Path = DEFAULT_BASE_DIR,
 ) -> dict:
     """Create a design document. Validates via validate.py before writing.
@@ -194,6 +196,7 @@ def create_design(
         "source_ids": source_ids or [],
         "next_action": next_action,
         "referenced_knowledge": referenced_knowledge or {},
+        "decision_context": decision_context,
     }
     if methodology is not None:
         candidate["methodology"] = methodology

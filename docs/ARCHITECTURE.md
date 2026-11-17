@@ -10,7 +10,9 @@ Claude-native + source-scoped）/ catalog 柔軟化（E5c, open string taxonomy,
 
 ## 不変条件（invariants）
 
-- **No daemon / No MCP server / No SQLite**。常駐プロセスを持たない。
+- **No daemon / No MCP server / No SQLite**。plugin は常駐プロセス・MCP サーバ・SQLite を同梱しない。ホストが持つコネクタは、無くても核が動く任意の機能に限って使ってよい。
+  核は PRD の「守る核」とその検証を指す。コネクタを使う skill は、無い環境では何もせずに案内して終わる
+  （[ADR-0015](adr/0015-host-connectors-for-optional-features.md)）。
 - 検証はプロセスではなく**ライブラリ**として埋め込む（SQLite と同じ転換）。
 - 分析設計の整合性の**正本は `validate.py` の1箇所**。hook と skill の双方が再利用する。
 - リリースは **tag 駆動**（`publish.yml` は `v*` タグで発火）。main マージ＝publish ではない。
@@ -65,7 +67,7 @@ flowchart TD
 
 - **Skill layer（`skills/`）** — すべての分析能力。拡張点。skill の一覧は [README の Skills](../README.md#skills) が正本。分析設計・journal・catalog 等の YAML を直接 read/write する。
 - **Validation library（`src/insight_blueprint/validate.py`）** — I/O を持たない純関数。
-  Pydantic スキーマ検証（`AnalysisDesign`。`DesignStatus` と、空でない `Methodology.method` など）+
+  Pydantic スキーマ検証（`AnalysisDesign`。`DesignStatus`、空でない `Methodology.method`、両方そろった `DecisionContext` など）+
   状態遷移ガード（`VALID_TRANSITIONS`。例: `analyzing` から進めるのは `in_review` だけで、`analyzing → supported` は拒む。terminal status からはどこへも遷移しない）。分析設計の整合性の単一正本。
   `design_io` 経由で書く skill も、書く前に Python 側で同じ検証を通す。tool の書き込み（hook）と
   helper の書き込み（`design_io`）の両方が守られる。
@@ -88,11 +90,16 @@ flowchart TD
 既存 skill を順に駆動し、**本物の判断（KEEP ゲート）でだけ停止**する guided autopilot になる。invocation フラグは
 大域変更しない（自律性はこの run に限定）。KEEP ゲート = design の4ビート（① 仮説 / ② 手法・指標・explanatory の
 因果役割・intent / ③ データ取得プラン（SQL クエリ or file+columns+filter, premortem の前） / ④ chart 仕様）/
-データソース登録 / premortem `HARD_BLOCK`・`HIGH` / notebook の非 allowlist・宣言 source 以外の外部通信 / 結論。
+データソース登録 / premortem `HARD_BLOCK`・`HIGH` / notebook の非 allowlist・宣言 source 以外の外部通信 / 結論 /
+レポートの生成 / アップロードで送るファイルの承認（`/report-upload` が聞く）。
 notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定のときのみ。詳細は
 [ADR-0005](adr/0005-selective-autonomous-chaining.md)（selective autonomy）と
 [ADR-0007](adr/0007-upstream-judgment-gates.md)（上流の判断ゲートを design ビートに分割 + data-extraction 新設）。
 **「auto mode」は無人ではなく guided autopilot**（対話型・オプトイン）である。
+
+**外部へ送る前の KEEP ゲート**: skill が `.insight/` の中身を外部へ送るときは、送るファイルを列挙して KEEP ゲートで承認を待つ。
+`/analysis-auto` の中でも自動にしない。承認は1回の実行に限り、覚えない
+（[ADR-0016](adr/0016-approval-before-external-send.md)）。今これに当たる skill は `/report-upload` だけである。
 
 ## ディレクトリ構成（開発時 vs plugin 利用時）
 
@@ -226,7 +233,8 @@ end-to-end の代表フロー。既定では**各 `/skill` はユーザーが明
 （guided autopilot）を使うと driver がこの同じ経路を駆動し KEEP ゲートでだけ停止する（上記 «Skill invocation model» /
 [ADR-0005](adr/0005-selective-autonomous-chaining.md)）。**notebook の生成・実行は `/analysis-notebook` が design の
 `methodology` から 8-cell 契約に沿って行う**（`skills/analysis-notebook/references/notebook-contract.md`）。
-`/analysis-review`・`/premortem`・`/data-lineage` は任意ステップ。
+`/analysis-review`・`/premortem`・`/data-lineage`・`/analysis-report`・`/report-upload` は任意ステップ。
+Claude Docs はホストが持つコネクタで、plugin の外にある（[ADR-0015](adr/0015-host-connectors-for-optional-features.md)）。
 
 ```mermaid
 sequenceDiagram
@@ -235,6 +243,7 @@ sequenceDiagram
     participant IO as design_io / catalog_io
     participant MO as marimo + lineage
     participant FS as .insight/（YAML）
+    participant DC as Claude Docs
 
     Note over U,FS: 各ステップは /command で明示起動（対話型・human-in-the-loop）
     U->>CC: /analysis-framing → /analysis-design
@@ -262,8 +271,15 @@ sequenceDiagram
     U->>CC: /analysis-reflection（結論 → status 遷移）
     CC->>IO: transition（supported / rejected / inconclusive）
     opt 任意: 配布用レポート（terminal 後）
-        U->>CC: /analysis-report（design/journal/verdict/figures → APA Markdown）
+        U->>CC: /analysis-report（design/journal/verdict/figures/catalog/lineage → APA Markdown）
         CC->>FS: .insight/reports/{id}.md を Write（読み取り専用の消費者）
+        opt 任意: アップロード（Claude Docs のコネクタがあるとき）
+            U->>CC: /report-upload
+            CC->>U: 【KEEP】送るファイル（レポートと図）を列挙して承認を待つ
+            U-->>CC: 承認
+            CC->>DC: 新しい Doc を作り、本文と図を送る
+            DC-->>CC: Doc の URL
+        end
     end
     opt 任意: 知見の永続化
         U->>CC: /knowledge-extract（source-scoped 知見を catalog へ）
@@ -284,7 +300,9 @@ sequenceDiagram
     participant H as pre-write hook + validate.py
     participant PM as /premortem
     participant NB as /analysis-notebook + marimo
+    participant P as /report-upload
     participant FS as .insight/
+    participant DC as Claude Docs
 
     U->>D: /analysis-auto {theme|design id}
     D->>IO: get / list（現在地を判定）
@@ -295,7 +313,7 @@ sequenceDiagram
     D->>U: 【KEEP】Data Map 提示 + Direction Dialogue（方向を一緒に決める）
     U-->>D: 方向を合意 → Framing Brief
     Note over D,FS: design（AUTO: Framing Brief から各フィールドを自動ドラフト → KEEP: ①〜④を順に確認）
-    D->>U: 【KEEP①】仮説（statement + background）を確認
+    D->>U: 【KEEP①】仮説（statement + background）と決定の文脈（任意）を確認
     D->>U: 【KEEP②】手法 + metrics + explanatory の因果役割 + intent を確認
     D->>U: 【KEEP③】データ取得プラン（SQL クエリ / file+columns+filter + 想定行数）を確認
     D->>U: 【KEEP④】chart[] 仕様（intent/type/x/y）を確認
@@ -329,10 +347,28 @@ sequenceDiagram
         opt terminal 後（任意）
             D->>U: 【KEEP】/analysis-report で配布用 APA レポートを生成するか確認
             D->>FS: .insight/reports/{id}.md（承認時のみ書込）
+            opt レポートを書いたとき
+                D->>P: /report-upload を起動（AUTO。driver は自分では聞かない）
+                alt Claude Docs のコネクタが無い
+                    P-->>D: 何も送らず「コネクタが無い」を返す
+                else 送れる
+                    P->>U: 【KEEP】送るファイル（レポートと図）を列挙して承認を待つ
+                    alt 承認する
+                        P->>DC: 新しい Doc を作り、本文と図を送る
+                        DC-->>P: Doc の URL
+                        P-->>D: Doc の URL
+                    else 承認しない
+                        P-->>D: 何も送らず「承認されなかった」を返す
+                    end
+                end
+            end
         end
     end
-    D-->>U: 実行サマリ（自動進行した所 / 停止した所 / 最終状態）
+    D-->>U: 実行サマリ（自動進行した所 / 停止した所 / 最終状態 / レポートのパスとアップロードの結果）
 ```
+
+アップロードで分析者に聞くのは、`/report-upload` の KEEP ゲートの1回だけである。driver は「アップロードするか」を別に聞かない
+（[ADR-0016](adr/0016-approval-before-external-send.md)）。
 
 ## Domain Model
 
@@ -358,6 +394,11 @@ classDiagram
         method
         package
         reason
+    }
+    class DecisionContext {
+        <<Value Object>>
+        decision_maker
+        decision
     }
     class Metric {
         <<Value Object>>
@@ -492,6 +533,7 @@ classDiagram
     }
 
     AnalysisDesign "1" *-- "0..1" Methodology
+    AnalysisDesign "1" *-- "0..1" DecisionContext
     AnalysisDesign "1" *-- "*" Metric
     AnalysisDesign "1" *-- "*" ExplanatoryVariable
     AnalysisDesign "1" *-- "*" ChartSpec
@@ -523,7 +565,7 @@ classDiagram
 
 | 型 | 種類 | 不変条件 |
 |---|---|---|
-| `AnalysisDesign` | 集約ルート | `status` は `VALID_TRANSITIONS` の遷移でだけ変わる。`methodology` があれば `method` は空でない |
+| `AnalysisDesign` | 集約ルート | `status` は `VALID_TRANSITIONS` の遷移でだけ変わる。`methodology` があれば `method` は空でない。`decision_context` があれば `decision_maker` と `decision` はどちらも空でない（[ADR-0014](adr/0014-analysis-design-decision-context.md)） |
 | `ReviewBatch` | 集約ルート | `comments` は1件以上。1つのバッチは `status_after` への遷移を1回だけ起こす |
 | `DataSource` | 集約ルート | `type` は空でない open string（[ADR-0004](adr/0004-open-string-catalog-taxonomy.md)） |
 | `DomainKnowledge` | 集約ルート | 1つの `source_id` に属する。`category` は空でない open string |
@@ -536,7 +578,7 @@ classDiagram
 |---|---|---|
 | `designs/{id}_journal.yaml` | journal（観察・証拠・決定・問い） | [skills/analysis-journal/SKILL.md](../skills/analysis-journal/SKILL.md) |
 | `designs/{id}_revision.yaml` | review コメントへの対応の追跡 | [skills/analysis-revision/SKILL.md](../skills/analysis-revision/SKILL.md) |
-| `notebooks/{id}_verdict.json` | notebook の verdict と figures manifest（`figures[]`） | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md)、[ADR-0008](adr/0008-notebook-figure-manifest.md) |
+| `notebooks/{id}_verdict.json` | notebook の verdict と figures manifest（`figures[]`）。指標は任意で効果量・信頼区間・標本サイズを持つ | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md)、[ADR-0008](adr/0008-notebook-figure-manifest.md)、[ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | `rules/package_allowlist.yaml` | notebook が使ってよいパッケージ | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md) |
 | `config.yaml` | premortem の閾値（読み込むと `PremortemConfig` になる） | [skills/_shared/config_loader.py](../skills/_shared/config_loader.py) |
 
@@ -560,6 +602,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 09 | plugin 配布（`bin/` ラッパー、`hooks/hooks.json`、パス解決） |
 | Epic 10 | Skill layer（`/analysis-report`）+ notebook 契約の `figures[]` |
 | Epic 11 | 文書の正本（CLAUDE.md・PRD・本書・UBIQUITOUS_LANGUAGE）と ADR |
+| Epic 12 | Skill layer（`/analysis-report` の拡張、`/report-upload` の新設、`/analysis-auto` の配線）+ notebook 契約の verdict の指標 + 分析設計の `DecisionContext` |
 
 
 ## 参照

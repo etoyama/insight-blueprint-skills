@@ -29,10 +29,15 @@
 - 分析設計・journal・reflection・revision を skill 経由の対話で作成・更新できる
 - データ加工をリネージとして記録し Mermaid 図で出力できる
 - データソースを catalog として登録・検索できる
+- 結論の出た分析を、読者がそれだけで判断できるレポートにまとめられる
+  （決定の文脈、データの素性、効果の大きさと確かさ、推奨を載せる）
+- レポートを Claude Docs にアップロードし、読者がコメントできる形で渡せる。
+  送るのは分析者が承認した後だけで、ホストに Claude Docs のコネクタが無くてもレポートは残る
 
 ### 非機能要件
 
-- 常駐プロセスを持たない（No daemon / No MCP server / No SQLite）
+- 常駐プロセス・MCP サーバ・SQLite を同梱しない（No daemon / No MCP server / No SQLite）。
+  ホストが持つコネクタは、無くても核が動く任意の機能に限って使う（[ADR-0015](adr/0015-host-connectors-for-optional-features.md)）
 - 検証ロジックは I/O を持たない純関数ライブラリに集約し、単一正本とする
 - Claude Code plugin として配布・利用できる
 - リリースは tag 駆動（`v*`）。トランク（main）へのマージは publish を起こさない
@@ -63,7 +68,8 @@ Epic 06 からは軽量版の上に分析の能力を足していく。
 | Epic 08 | [epic-08](design/epic-08-analysis-auto.md) | `/analysis-auto`（guided autopilot） | 完了 |
 | Epic 09 | [epic-09](design/epic-09-installable-plugin.md) | plugin をインストール先で動かす（execution model） | 完了 |
 | Epic 10 | [epic-10](design/epic-10-analysis-report.md) | `/analysis-report`（APA 風レポート） | 完了 |
-| Epic 11 | [epic-11](design/epic-11-repo-template-compliance.md) | repo-template の開発フローへの準拠 | 進行中 |
+| Epic 11 | [epic-11](design/epic-11-repo-template-compliance.md) | repo-template の開発フローへの準拠 | 完了 |
+| Epic 12 | [epic-12](design/epic-12-decision-ready-report.md) | 意思決定に使えるレポートと Claude Docs へのアップロード | 進行中 |
 
 各 Epic の DesignDoc は `## Scope` 節で、本書のどの要件と
 ARCHITECTURE のどのコンポーネントを前進させるかを示す。

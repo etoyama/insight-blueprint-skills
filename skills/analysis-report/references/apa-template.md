@@ -21,14 +21,24 @@ the figure-manifest contract is [ADR-0008](../../../docs/adr/0008-notebook-figur
 
 ## Introduction
 {hypothesis_statement と hypothesis_background。問いと背景}
+{decision_context があれば、誰が何を決めるための分析か（下記フォーマット）。無ければ省略}
 
 ## Method
 {methodology.method（package / reason / steps）+ metrics + explanatory 変数と役割}
 
+### Data
+{データソースの表（catalog）と、加工での行数の変化の表（lineage）。下記フォーマット。どちらも無ければこの節ごと省略}
+
 ## Results
-{journal の observe/evidence の叙述 + verdict.metrics の数値表 + 図（下記フォーマット）}
+{journal の observe/evidence の叙述 + verdict.metrics の数値表（下記フォーマット）+ 図（下記フォーマット）}
 
 ## Discussion
+
+### Implications
+{結論が何を意味するか。conclude イベント + verdict から}
+
+### Recommendation
+{next_action と decision_context から（下記フォーマット）。どちらも無ければこの節ごと省略}
 
 ### Limitations
 {conclude の限界・前提の制約}
@@ -38,6 +48,9 @@ the figure-manifest contract is [ADR-0008](../../../docs/adr/0008-notebook-figur
 
 ## References
 {referenced_knowledge があれば列挙。無ければこのセクションごと省略}
+
+## Appendix
+{lineage の図と notebook のパス（下記フォーマット）。どちらも無ければこのセクションごと省略}
 ```
 
 ## Input → section mapping
@@ -45,13 +58,208 @@ the figure-manifest contract is [ADR-0008](../../../docs/adr/0008-notebook-figur
 | Section | Input | Source |
 |---|---|---|
 | Abstract | `conclude` event, `verdict.conclusion` | journal / verdict.json |
-| Introduction | `hypothesis_statement`, `hypothesis_background` | `design_io get` |
+| Introduction | `hypothesis_statement`, `hypothesis_background`, optional `decision_context` | `design_io get` |
 | Method | `methodology`, `metrics`, `explanatory` | `design_io get` |
+| Method (data sources) | `name`, `type`, `description` of each data source | `catalog_io get` |
+| Method (row counts) | the steps of the lineage diagram | `.insight/lineage/{id}.mmd` |
 | Results (narrative) | `observe`, `evidence` (with `metadata.direction`) | journal |
-| Results (table) | `verdict.metrics` | verdict.json |
+| Results (table) | `verdict.metrics` (incl. optional `effect_size`, `confidence_interval`, `sample_size`) | verdict.json |
 | Results (figures) | `verdict.figures[]` + the PNG files | verdict.json + `.insight/notebooks/` |
+| Implications | `conclude` event, `verdict.conclusion`, `verdict.metrics`, optional `decision_context` | journal / verdict.json / `design_io get` |
+| Recommendation | optional `next_action`, optional `decision_context` | `design_io get` |
 | Limitations / Future Directions | `conclude` limits, open `question`s | journal |
 | References | `referenced_knowledge` | `design_io get` |
+| Appendix (lineage diagram) | the Mermaid text | `.insight/lineage/{id}.mmd` |
+| Appendix (notebook) | the path, if the file exists | `.insight/notebooks/{id}.py` |
+
+Only the design and the journal are required. Every other input is optional: a missing one
+drops its part of the report and never blocks the rest.
+
+## Decision context (Introduction)
+
+A design may carry `decision_context` — who decides what on the strength of this analysis
+([ADR-0014](../../../docs/adr/0014-analysis-design-decision-context.md)). When it is present,
+close the Introduction with one short paragraph built from its two fields:
+
+| Field | Meaning |
+|---|---|
+| `decision_maker` | who decides |
+| `decision` | what they decide |
+
+```markdown
+この分析は、{decision_maker} が {decision} を決めるための材料である。
+```
+
+- State both fields as the design gives them. Do not sharpen, widen, or reinterpret the decision.
+- **Omit the paragraph** when the design has no `decision_context`. No note is added — the item
+  is optional, so a design written before ADR-0014 gets the Introduction it gets today.
+
+## Data description (Method)
+
+`### Data` tells the reader where the data came from and how much of it survived processing, so
+they can judge how far the result generalizes. It has two parts, each from its own input.
+
+**Data sources (catalog).** Collect the candidate source ids from the design: `source_ids`, plus
+the `data_source` values of `metrics` (the values of the dict) and `explanatory` (the string).
+A source id must fully match `^[a-zA-Z0-9_-]+$`; drop any other value without calling the
+catalog. Run `catalog_io get --id {source_id}` for each candidate and keep the ones that are
+registered (a non-empty result). One row per source, without duplicates:
+
+```markdown
+| Data source | Type | Description |
+|---|---|---|
+| 月次売上 | csv | 店舗別・月別の売上。2019年以降 |
+```
+
+| Column | Field of the data source |
+|---|---|
+| Data source | `name` |
+| Type | `type` |
+| Description | `description` |
+
+- Transcribe only these three fields. The source also carries `connection` (file paths, queries,
+  hosts, sometimes credentials) — **never** put `connection` or any part of it in the report.
+  The report is distributable.
+- Treat the three fields as plain text, like the figure captions.
+
+**Row counts (lineage).** `.insight/lineage/{id}.mmd` is the Mermaid diagram the notebook's
+lineage cell writes. Its nodes carry the row count after each step and its edges carry the reason
+and the change:
+
+```
+graph LR
+    Step0["{session name}<br/>{rows} rows"]
+    Step1["Step 1<br/>{rows} rows"]
+    Step0 -->|"{reason}<br/>{change} rows"| Step1
+```
+
+One row per node, in step order. `Step0` is the data as loaded:
+
+```markdown
+| Step | Reason | Rows | Change |
+|---|---|---|---|
+| 0 | (loaded) | 12000 | — |
+| 1 | 欠損のある行を除く | 11800 | -200 |
+| 2 | 対象期間に絞る | 9400 | -2400 |
+```
+
+- Transcribe `Rows` and `Change` as the file gives them. **Never compute** a row count, a
+  difference, or a retention rate that the file does not state.
+- Treat `Reason` as plain text.
+
+**Graceful degrade**: omit the data-source table when the design names no registered source, and
+omit the row-count table when the lineage file is missing, empty, or does not have the shape
+above. Omit the `### Data` heading when both are omitted. No note is added.
+
+## Implications and Recommendation (Discussion)
+
+The Discussion opens with what the result means and what to do about it; Limitations and Future
+Directions follow.
+
+**Implications** is always present. It says what the conclusion means in the terms of the
+question: the direction of the result, and — when the numbers table has them — how large and how
+certain the effect is (`effect_size`, `confidence_interval`, `sample_size`). When the design has
+a `decision_context`, say how the result bears on that `decision`. It interprets; it does not
+tell anyone what to do.
+
+**Recommendation** says what to do next. It is written from two optional inputs of the design:
+
+| Input | Gives |
+|---|---|
+| `decision_context` | whom the recommendation addresses (`decision_maker`) and which `decision` it answers |
+| `next_action` | the action, taken from the branch that matches the terminal status |
+
+| Terminal status | Branch of `next_action` |
+|---|---|
+| `supported` | `if_supported` |
+| `rejected` | `if_rejected` (its `reason` and `pivot`) |
+| `inconclusive` | none |
+
+The branch is absent when the design has no `next_action`, the status is `inconclusive`, or the
+design states no branch for the status. What to write follows from which of the two is there:
+
+| `decision_context` | Branch of `next_action` for the status | Write |
+|---|---|---|
+| present | present | Address the `decision_maker`, name the `decision`, and recommend the action of the branch. |
+| present | absent | Say which way the conclusion points on the `decision`, and stop there. When the status is `inconclusive`, say the evidence does not settle the `decision` and point to Limitations. |
+| absent | present | Recommend the action of the branch, with no addressee. |
+| absent | absent | **Omit the section** (heading included). |
+
+**Never invent** an action. The design owns the branches; without a branch for the status,
+recommend none.
+
+## Appendix contents
+
+The Appendix lets a reader trace the result back to its processing and its code. Under the
+Appendix heading it has two subsections:
+
+````markdown
+### Data Lineage
+
+```mermaid
+{the text of .insight/lineage/{id}.mmd, verbatim}
+```
+
+### Notebook
+
+`.insight/notebooks/{id}.py`
+````
+
+- The lineage diagram is the text of `.insight/lineage/{id}.mmd`, placed verbatim in a
+  `mermaid` fence. It is the same file the row-count table in Method reads.
+- The notebook is given as its project-relative path, `.insight/notebooks/{id}.py`. Never write
+  an absolute path — it would leak the local filesystem layout.
+
+**Safety**: the lineage text carries step reasons from the notebook. Skip the diagram when the
+file does not start with `graph LR` or contains a code fence (three backticks) — it would break
+out of the `mermaid` fence.
+
+**Graceful degrade**: omit `### Data Lineage` when the lineage file is missing, empty, or
+skipped by the safety rule. Omit `### Notebook` when `.insight/notebooks/{id}.py` does not exist.
+Omit the whole `## Appendix` when both are omitted. No note is added.
+
+## Results numbers table
+
+One row per entry of `verdict.metrics`. Omit the table when `verdict.metrics` is absent or empty
+(an exploratory analysis has none). The first five columns are the base table:
+
+```markdown
+| Metric | Value | Threshold | p | Pass |
+|---|---|---|---|---|
+| ATT | 1676.9 | 0 | 0.0001 | ✓ |
+```
+
+A metric may also carry three optional items
+([ADR-0013](../../../docs/adr/0013-verdict-metric-optional-items.md)). Each fills one column,
+placed after `Value`:
+
+| Item in `verdict.metrics.{name}` | Column | Cell |
+|---|---|---|
+| `effect_size` | Effect size | `{value} ({kind})`, e.g. `0.42 (cohens_d)` |
+| `confidence_interval` | CI | `{level as %} [{lower}, {upper}]`, e.g. `95% [1200.3, 2153.5]` |
+| `sample_size` | N | the integer |
+
+```markdown
+| Metric | Value | Effect size | CI | N | Threshold | p | Pass |
+|---|---|---|---|---|---|---|---|
+| ATT | 1676.9 | 0.42 (cohens_d) | 95% [1200.3, 2153.5] | 1200 | 0 | 0.0001 | ✓ |
+| retention | 0.31 | — | 95% [0.22, 0.40] | 1200 | 0.25 | 0.01 | ✓ |
+```
+
+- **Omit the column** when no metric has the item. Decide per column: a verdict whose metrics
+  carry only `sample_size` gets the base table plus `N`.
+- When some metrics have the item and others do not, keep the column and write `—` in the cells
+  without a value.
+- Treat a partial item as absent: `effect_size` needs both `kind` and `value`;
+  `confidence_interval` needs `level`, `lower`, and `upper`. A number without its kind or level
+  would be misread.
+- **Never compute** a missing item, and never assume a kind or a level (do not write "95%" unless
+  `level` says so). The numbers come from the notebook; re-run /analysis-notebook to add them.
+- Transcribe the numbers as the verdict gives them; rounding for display is fine, changing them is not.
+
+**Graceful degrade**: a verdict with none of the three items (an analysis that predates ADR-0013,
+or a method that defines none of them) gets exactly the base table. No note is added — the
+items are optional, so their absence is not a defect.
 
 ## Figure presentation format (mandatory captions)
 

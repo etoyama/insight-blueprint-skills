@@ -93,6 +93,30 @@ class TestValidateSchema:
         assert design.methodology is not None
         assert design.methodology.method == "OLS"
 
+    def test_design_without_decision_context_is_accepted(self) -> None:
+        """Epic 12 US-2 AC 4: designs written before the field existed still pass."""
+        assert validate_schema(make_design()).decision_context is None
+
+    def test_valid_decision_context_accepted(self) -> None:
+        design = validate_schema(
+            make_design(
+                decision_context={
+                    "decision_maker": "事業責任者",
+                    "decision": "値上げを実施するか",
+                }
+            )
+        )
+        assert design.decision_context is not None
+        assert design.decision_context.decision_maker == "事業責任者"
+        assert design.decision_context.decision == "値上げを実施するか"
+
+    def test_decision_context_missing_one_side_rejected(self) -> None:
+        """Epic 12 US-2 AC 1: who decides and what they decide come as a pair."""
+        with pytest.raises(ValidationError):
+            validate_schema(
+                make_design(decision_context={"decision_maker": "事業責任者"})
+            )
+
     def test_invalid_status_rejected(self) -> None:
         with pytest.raises(ValidationError):
             validate_schema(make_design(status="not_a_status"))
@@ -135,6 +159,13 @@ class TestValidateDesignChange:
         errors = validate_design_change(make_design(methodology={"method": ""}), None)
         assert errors  # non-empty
         assert any("method" in e for e in errors)
+
+    def test_half_filled_decision_context_names_the_missing_side(self) -> None:
+        """The hook message must point at the field the analyst has to fill."""
+        errors = validate_design_change(
+            make_design(decision_context={"decision": "値上げを実施するか"}), None
+        )
+        assert any("decision_context.decision_maker" in e for e in errors)
 
     def test_existing_valid_transition_returns_no_errors(self) -> None:
         current = make_design(status="in_review")

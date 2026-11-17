@@ -3,9 +3,10 @@ name: analysis-auto
 version: "1.0.0"
 description: |
   Guided autopilot for the hypothesis→analysis pipeline. Drives the existing skills
-  (framing → design → review → premortem → notebook → journal → reflection) in sequence,
-  progressing automatically through low-friction steps and pausing only at genuine decision
-  points (hypothesis, source registration, cost/risk, code with external effects, conclusion).
+  (framing → design → review → premortem → notebook → journal → reflection → report → upload)
+  in sequence, progressing automatically through low-friction steps and pausing only at genuine
+  decision points (hypothesis, source registration, cost/risk, code with external effects,
+  conclusion, sending the report to Claude Docs).
   Triggers: "オートで進めて", "自動で分析を回して", "autopilot", "guided auto",
   "最後まで進めて", "analysis auto".
 disable-model-invocation: true
@@ -37,7 +38,7 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | Step | KEEP — pause for the user | AUTO — proceed without asking |
 |------|---------------------------|-------------------------------|
 | framing | **present the Data Map + candidate directions and settle the direction with the user** (Direction Dialogue) | agentic exploration of `.insight/`; Framing Brief construction once the direction is agreed |
-| design ① hypothesis | **confirm the hypothesis statement + background** | drafting them from the Framing Brief |
+| design ① hypothesis | **confirm the hypothesis statement + background, and the decision context (who decides what; skippable)** | drafting them from the Framing Brief |
 | design ② methodology | **confirm the method + metrics + explanatory roles (treatment/confounder/…) + intent** | auto-drafting these fields from the Framing Brief |
 | design ③ data-extraction | **confirm the data-acquisition plan** — the actual query text (`methodology.steps`) for SQL sources, or file + columns + filter for CSV/others, plus expected grain & rough row scale | auto-drafting the query / column selection from the catalog schema |
 | design ④ charts | **confirm the planned `chart[]` specs (intent / type / x / y)** | auto-drafting chart specs from the direction |
@@ -47,6 +48,7 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | journal | — | auto-record the notebook verdict (observe/evidence/question) |
 | reflection | **the conclusion (conclude/refine/branch) + terminal transition** | presenting the evidence summary |
 | report (optional) | **generating the distributable report** — offer `/analysis-report` after a terminal conclusion; the user hand-edits it, so confirm before writing | — |
+| upload | **the files to send to Claude Docs** — asked by `/report-upload` itself, at its approval gate; the driver adds no question of its own | starting `/report-upload` once the report is written |
 | catalog-register | **registering a data source** (external-data side-effect); unregistered source → stop | — |
 
 The four `design ①–④` beats are **ordered confirmation gates** run before `design_io create`
@@ -67,7 +69,8 @@ If in doubt whether something is a genuine decision, **stop and ask** — bias t
   - design exists in `in_review`/`analyzing` → continue from review/premortem/notebook;
   - design has journal/results → continue from reflection.
 - Tell the user the plan ("これから design→premortem→notebook→journal→reflection を自動で進める。
-  仮説確定・コスト判定・結論では止まる").
+  仮説確定・コスト判定・結論では止まる。結論のあとはレポートを作るか聞き、作ったら Claude Docs への
+  アップロードに進む。送る前に、送るファイルを見せて承認を待つ").
 
 ### Step 2: Drive each step (delegate to the skill, apply the gate policy)
 
@@ -82,7 +85,8 @@ gate policy above:
    the four ordered confirmation beats — one AskUserQuestion each — before `design_io create`**, letting
    the user adjust at every beat. Do not collapse them into a single "looks good?"; don't silently commit
    auto-picked methodology / roles / query.
-   1. **hypothesis** — present the drafted `hypothesis_statement` + `hypothesis_background`; confirm.
+   1. **hypothesis** — present the drafted `hypothesis_statement` + `hypothesis_background`, and ask for
+      `decision_context` (who decides what — `/analysis-design` Step 2; the user may skip it); confirm.
    2. **methodology** — present `methodology` (method + code patterns), `metrics`, and especially the
       explanatory variables' causal roles (`treatment` / `confounder` / `covariate` / …) + `analysis_intent`;
       confirm. These shape the analysis and are genuine choices.
@@ -106,18 +110,28 @@ gate policy above:
 7. **reflection**: run `/analysis-reflection`; **pause at the conclusion** (conclude/refine/branch) and
    the terminal transition.
 8. **report** (optional): once a terminal conclusion exists, **offer `/analysis-report`** to build the
-   distributable APA report — a KEEP gate (the user hand-edits it, so confirm before writing). This is
-   where the run ends.
+   distributable APA report — a KEEP gate (the user hand-edits it, so confirm before writing).
+9. **upload**: when item 8 wrote the report, run `/report-upload {design_id}` right after it.
+   **Do not ask whether to upload**, before or after starting the skill. The skill lists the files it
+   would send and waits at its own KEEP gate; that is the only question the analyst gets about the
+   upload. Never answer it for them, and never treat the "yes" to the report as a "yes" to the upload
+   ([ADR-0016](../../docs/adr/0016-approval-before-external-send.md)). Without the Claude Docs
+   connector the skill sends nothing and asks nothing; go on to the summary. Skip this item
+   when no report was written. Keep the skill's one-line outcome for the summary. This is where the
+   run ends.
 
 ### Step 3: Summarize
 
 Report what ran automatically, where it paused and why, and the final state (status, journal, lineage).
+When a report was written, add the report's path and the upload outcome: the Doc URL, "承認されなかった",
+"コネクタが無い", or "アップロードに失敗した" with the reason.
 
 ## Delegated skills
 
 `/analysis-framing`, `/analysis-design`, `/analysis-review`, `/premortem`, `/analysis-notebook`,
-`/analysis-journal`, `/analysis-reflection`, `/catalog-register` — each remains explicit-invocable on
-its own; `/analysis-auto` only sequences them and enforces the gate policy.
+`/analysis-journal`, `/analysis-reflection`, `/analysis-report`, `/report-upload`, `/catalog-register` —
+each remains explicit-invocable on its own; `/analysis-auto` only sequences them and enforces the gate
+policy.
 
 ## Chaining
 
@@ -126,6 +140,7 @@ its own; `/analysis-auto` only sequences them and enforces the gate policy.
 | /analysis-auto | → /analysis-design | Autopilot needs a hypothesis first |
 | /analysis-auto | → /analysis-reflection | Autopilot reaches results; conclusion is the user's call |
 | /analysis-auto | → /analysis-report | After a terminal conclusion, offer the distributable report (KEEP gate) |
+| /analysis-auto | → /report-upload | The report is written; start the upload, whose own approval gate is the only question |
 
 ## Language Rules
 

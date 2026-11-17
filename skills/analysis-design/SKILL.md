@@ -94,6 +94,7 @@ Interview the user for required fields:
 | `title` | Yes | Short descriptive title | "Foreign population vs crime rate" |
 | `hypothesis_statement` | Yes | Testable statement | "No positive correlation exists between..." |
 | `hypothesis_background` | Yes | Context and motivation (free-form, multi-line) | Background reasoning |
+| `decision_context` | No | Who decides what on the strength of this analysis: `decision_maker` + `decision`, both or neither | `{decision_maker: "マーケティング部長", decision: "来期もクーポン施策を続けるか"}` |
 | `theme_id` | No | Uppercase identifier — defaults to "DEFAULT" | "FP", "TX", "ECON" |
 | `parent_id` | No | Parent design ID if this is derived | "FP-H01" |
 | `analysis_intent` | No | "exploratory", "confirmatory" (default), or "mixed" | "exploratory" |
@@ -104,6 +105,22 @@ Interview the user for required fields:
 | `next_action` | No | Branch definition after hypothesis test | `{if_supported: "...", if_rejected: {reason: "...", pivot: "..."}}` |
 
 If the user passed `$ARGUMENTS`, use it as `theme_id` (validate format first).
+
+#### Decision context (asked with the hypothesis)
+
+Right after `hypothesis_statement` and `hypothesis_background` are settled, ask one question:
+"この分析は、誰が何を決めるためのものですか？（無ければスキップできます）"
+
+- `decision_maker` — who decides. Write a role or a team ("マーケティング部長", "プロダクトチーム"),
+  not a personal name: the report is handed to readers, and a role stays true after people move.
+- `decision` — what they decide, phrased as the choice the result feeds
+  ("来期もクーポン施策を続けるか").
+
+The two come as a pair. The analyst may skip the question; then omit `decision_context` from the
+payload. Never write only one side, an empty string, or a placeholder such as "未定": validation
+rejects a half-filled context, and a placeholder would later read as a real decision in the report.
+If the answer covers only one side, ask once for the other; if it still is not given, omit the field.
+It can be added later with `design_io update` (Step 3b).
 
 ### Step 2.5: Pre-creation Check
 
@@ -153,6 +170,7 @@ echo '{
   "hypothesis_statement": "<statement>",
   "hypothesis_background": "<background>",
   "methodology": {"method": "OLS", "package": "statsmodels", "reason": "..."},
+  "decision_context": {"decision_maker": "<who decides>", "decision": "<what they decide>"},
   "theme_id": "FP",
   "parent_id": null,
   "metrics": [],
@@ -166,6 +184,8 @@ Expected stdout (the written design as JSON):
 ```json
 {"id": "FP-H01", "title": "...", "status": "in_review", ...}
 ```
+
+Leave `decision_context` out of the payload when the analyst skipped it (Step 2).
 
 If validation fails (e.g. empty `methodology.method`), the command exits non-zero
 with the error on stderr and **nothing is written** — fix the payload and retry.
@@ -184,7 +204,7 @@ echo '{"next_action": {"if_supported": "パネルFEへ進む", "if_rejected": {"
 - Show the returned `id` (e.g., "FP-H01") to the user
 - Confirm the YAML file location: `.insight/designs/FP-H01_hypothesis.yaml`
 - Suggest next steps:
-  - Refine the hypothesis: add `chart` / `next_action` via `design_io update`
+  - Refine the hypothesis: add `chart` / `next_action` / `decision_context` via `design_io update`
   - **Start recording reasoning: `/analysis-journal FP-H01`**
   - **Review and conclude: `/analysis-reflection FP-H01`**
 
@@ -197,7 +217,7 @@ echo '{"next_action": {"if_supported": "パネルFEへ進む", "if_rejected": {"
 |---------|---------|-------|
 | `list [--status S]` | List existing designs | — |
 | `get --id ID` | Retrieve a design | — |
-| `create` | Create new design (auto id, validated) | stdin: `{title, hypothesis_statement, hypothesis_background, methodology, theme_id?, parent_id?, metrics?, explanatory?, chart?, next_action?, analysis_intent?}` |
+| `create` | Create new design (auto id, validated) | stdin: `{title, hypothesis_statement, hypothesis_background, methodology, theme_id?, parent_id?, metrics?, explanatory?, chart?, next_action?, analysis_intent?, decision_context?}` |
 | `update --id ID` | Partial update (merge, refresh updated_at) | stdin: `{<fields to change>}` |
 | `transition --id ID --target S` | Change status (validated) | — |
 
@@ -214,6 +234,8 @@ same `validate.py` the pre-write hook uses. Invalid writes raise and write nothi
 | `methodology.method` | str | free text (required, non-empty) | — |
 | `methodology.package` | str | free text (optional) | `""` |
 | `methodology.reason` | str | free text (optional) | `""` |
+| `decision_context.decision_maker` | str | free text (required and non-empty when `decision_context` is present) | — |
+| `decision_context.decision` | str | free text (required and non-empty when `decision_context` is present) | — |
 | `methodology.steps` | list[dict] | Each dict has `description` (str). Include concrete code patterns for notebook-generation fidelity. | `[]` |
 
 **Backward compatibility**: `role`, `tier`, `intent` fields are optional in input. If omitted, defaults are applied automatically.
@@ -232,6 +254,7 @@ same `validate.py` the pre-write hook uses. Invalid writes raise and write nothi
 | `Invalid theme_id 'fp': must match [A-Z][A-Z0-9]*` | Invalid theme_id format | Ask user for a valid uppercase theme_id |
 | `Design 'FP-H99' not found` | Non-existent design_id | Confirm ID via `design_io list` |
 | pydantic `ValidationError` (e.g. empty `methodology.method`) | Schema violation | Fix the payload; nothing was written |
+| pydantic `ValidationError` on `decision_context.decision_maker` / `decision_context.decision` | Only one side of the decision context was given | Ask for the missing side, or drop `decision_context`; nothing was written |
 
 ## Chaining
 

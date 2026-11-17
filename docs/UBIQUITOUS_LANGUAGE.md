@@ -28,6 +28,7 @@
 | terminal status | `supported`、`rejected`、`inconclusive` | 結論を出した分析設計の状態。これ以上遷移しない | 終端状態 | fork 前 |
 | 分析の意図 | `AnalysisIntent` | 探索（`exploratory`）・検証（`confirmatory`）・両方（`mixed`）の区別 | — | fork 前 |
 | 手法 | `Methodology` | 検証に使う統計手法とパッケージと選んだ理由。手法名は空にできない | — | fork 前 |
+| 決定の文脈 | `DecisionContext`、`decision_context` | 分析設計が任意で持つ、誰が（`decision_maker`）何を決めるための分析か（`decision`）の組。あるときは両方が空でない | 意思決定コンテキスト | [ADR-0014](adr/0014-analysis-design-decision-context.md) |
 | 指標 | `Metric` | 仮説を判定するために測る量 | — | fork 前 |
 | 指標の優先度 | `MetricTier` | 主（`primary`）・副（`secondary`）・ガードレール（`guardrail`） | — | fork 前 |
 | 説明変数 | `ExplanatoryVariable` | 結果を説明するために使う変数 | — | fork 前 |
@@ -45,7 +46,11 @@
 | notebook | `/analysis-notebook` | 分析設計の手法から生成して実行する marimo notebook。8つの cell の契約に従う | ノートブック | [epic-07](design/epic-07-analysis-notebook.md) |
 | verdict | `{id}_verdict.json` | notebook が出す検証結果の要約。skill が読み戻して journal に書く | — | [epic-07](design/epic-07-analysis-notebook.md) |
 | figures manifest | `figures` | verdict の中の図の一覧。図ごとにファイル・題・軸の説明・読み方を持つ | 図のマニフェスト | [ADR-0008](adr/0008-notebook-figure-manifest.md) |
+| 効果量 | `effect_size` | verdict の指標が任意で持つ、標準化した効果の大きさ。種類の名前と値を持つ | エフェクトサイズ | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
+| 信頼区間 | `confidence_interval` | verdict の指標が任意で持つ、指標の値の区間。水準・下限・上限を持つ | — | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
+| 標本サイズ | `sample_size` | verdict の指標が任意で持つ、その指標の計算に使った観測の数 | サンプルサイズ、サンプル数 | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | レポート | `/analysis-report`、`.insight/reports/` | 結論の出た分析を配布用にまとめた APA 風の Markdown。分析設計を変えない | — | [epic-10](design/epic-10-analysis-report.md) |
+| アップロード | `/report-upload` | レポートと図を Claude Docs へ送り、新しい Doc を作ること。Doc はレポートの写しで、作った本人だけに見える状態で始まる | 公開（アップロードそのものを指すとき）、共有（アップロードそのものを指すとき） | [epic-12](design/epic-12-decision-ready-report.md) |
 | lineage | `/data-lineage`、`tracked_pipe` | notebook の中のデータ加工の履歴と、その Mermaid 図 | 系譜 | fork 前 |
 | データソース | `DataSource` | catalog に登録した分析の入力データ。種類は open string | データ源 | fork 前 |
 | 列のスキーマ | `ColumnSchema` | データソースの1列の名前・型・説明 | — | fork 前 |
@@ -55,7 +60,7 @@
 | premortem | `/premortem` | 高いデータアクセスの前に、費用とリスクを見積もって報告すること。止めはしない | 事前評価 | [epic-05a](design/epic-05a-premortem-standalone.md) |
 | リスクレベル | `RiskLevel` | premortem の判定。`HARD_BLOCK`・`HIGH`・`MEDIUM`・`LOW`・`SKIP` | — | [epic-05a](design/epic-05a-premortem-standalone.md) |
 | guided autopilot | `/analysis-auto` | driver が既存の skill を順に動かし、KEEP ゲートでだけ止まる実行 | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |
-| KEEP ゲート | `KEEP` | guided autopilot が止まって分析者の判断を待つ所 | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |
+| KEEP ゲート | `KEEP` | skill が止まって分析者の判断を待つ所。guided autopilot はここでだけ止まる。`.insight/` の中身を外部へ送る skill は、単独で起動されたときもここで承認を待つ | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md)、[ADR-0016](adr/0016-approval-before-external-send.md) |
 | AUTO | `AUTO` | guided autopilot が分析者に聞かずに進める所 | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |
 
 ## コンテキストを分けるとき

@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.skills._markdown import section
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _spec = importlib.util.spec_from_file_location(
@@ -82,6 +84,7 @@ LIVING_DOCS = [
     "docs/UBIQUITOUS_LANGUAGE.md",
     "docs/adr/README.md",
     "docs/design/epic-11-repo-template-compliance.md",
+    "docs/design/epic-12-decision-ready-report.md",
     *(str(p.relative_to(REPO_ROOT)) for p in _new_format_adrs()),
 ]
 
@@ -258,6 +261,120 @@ class TestAdrs:
         assert "adr/0011-" in words.section(
             _read("docs/ARCHITECTURE.md"), "Domain Model"
         )
+
+
+class TestExternalSendRules:
+    """Epic 12 US-4 AC 5: the invariant and the approval rule sit where the next author reads."""
+
+    INVARIANT = (
+        "plugin は常駐プロセス・MCP サーバ・SQLite を同梱しない。"
+        "ホストが持つコネクタは、無くても核が動く任意の機能に限って使ってよい。"
+    )
+
+    def test_architecture_states_the_invariant_with_its_condition(self) -> None:
+        invariants = words.section(
+            _read("docs/ARCHITECTURE.md"), "不変条件（invariants）"
+        )
+        assert self.INVARIANT in invariants
+        assert "adr/0015-" in invariants
+
+    def test_architecture_lists_the_external_send_gate(self) -> None:
+        text = _read("docs/ARCHITECTURE.md")
+        model = text[text.index("### Skill invocation model") :].split("\n## ", 1)[0]
+        assert "`.insight/` の中身を外部へ送る" in model
+        assert "adr/0016-" in model
+
+    def test_adr_0001_stays_frozen(self) -> None:
+        assert "コネクタ" not in _read(
+            "docs/adr/0001-drop-mcp-server-embed-validation.md"
+        )
+
+    def test_upload_is_a_term(self) -> None:
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        assert "`/report-upload`" in rows["アップロード"][words.CODE_NAME]
+        for avoided in ("公開", "共有"):
+            assert avoided in rows["アップロード"][words.AVOID]
+
+    def test_design_doc_links_both_adrs(self) -> None:
+        doc = _read("docs/design/epic-12-decision-ready-report.md")
+        assert "../adr/0015-" in doc and "../adr/0016-" in doc
+
+
+def _first_cells(table_section: str) -> list[str]:
+    rows = [
+        line.strip("|").split("|")[0].strip()
+        for line in table_section.splitlines()
+        if line.startswith("|")
+    ]
+    return rows[2:]
+
+
+class TestReportAndUploadDocs:
+    """Epic 12 US-5 AC 3, AC 4: the documents carry the report and the upload."""
+
+    def test_readme_lists_every_bundled_skill(self) -> None:
+        listed = words.section(_read("README.md"), "Skills")
+        bundled = sorted(
+            p.parent.name for p in (REPO_ROOT / "skills").glob("*/SKILL.md")
+        )
+        assert [name for name in bundled if f"`/{name}`" not in listed] == []
+
+    def test_readme_workflow_shows_the_upload(self) -> None:
+        assert "/report-upload" in words.section(
+            _read("README.md"), "Analysis Workflow"
+        )
+
+    def test_prd_functional_requirements_carry_the_report_and_the_upload(self) -> None:
+        requirements = section(_read("docs/PRD.md"), "### 機能要件")
+        assert "レポート" in requirements
+        assert "アップロード" in requirements
+
+    def test_ubiquitous_language_has_the_terms_of_epic_12(self) -> None:
+        terms = {
+            r[words.TERM]
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        added = {"決定の文脈", "効果量", "信頼区間", "標本サイズ", "アップロード"}
+        assert added - terms == set()
+
+    def test_keep_gate_covers_the_external_send(self) -> None:
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        assert "外部へ送る" in rows["KEEP ゲート"][words.DEFINITION]
+        assert "adr/0016-" in rows["KEEP ゲート"]["初出"]
+
+    @pytest.mark.parametrize(
+        "heading",
+        ["### 分析ワークフロー全体", "### guided autopilot（`/analysis-auto`）"],
+    )
+    def test_architecture_sequences_include_the_upload(self, heading: str) -> None:
+        sequence = section(_read("docs/ARCHITECTURE.md"), heading)
+        assert "/report-upload" in sequence
+        assert "Claude Docs" in sequence
+
+    def test_autopilot_sequence_asks_about_the_upload_once_from_the_skill(self) -> None:
+        sequence = section(
+            _read("docs/ARCHITECTURE.md"), "### guided autopilot（`/analysis-auto`）"
+        )
+        asks = [
+            line.strip()
+            for line in sequence.splitlines()
+            if "【KEEP】" in line and ("送る" in line or "アップロード" in line)
+        ]
+        assert len(asks) == 1, asks
+        assert asks[0].startswith("P->>U:"), "the gate belongs to /report-upload"
+
+    def test_architecture_epic_mapping_covers_every_roadmap_epic(self) -> None:
+        roadmap = _first_cells(words.section(_read("docs/PRD.md"), "ロードマップ"))
+        mapped = _first_cells(
+            words.section(_read("docs/ARCHITECTURE.md"), "Epic マッピング")
+        )
+        assert [epic for epic in roadmap if epic not in mapped] == []
 
 
 class TestYomiyasuWords:

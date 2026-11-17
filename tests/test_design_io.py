@@ -153,6 +153,23 @@ class TestCreateDesign:
         # id was FP-H01 but write must not have happened
         assert not (insight / "designs" / "FP-H01_hypothesis.yaml").exists()
 
+    def test_decision_context_is_written(self, insight: Path) -> None:
+        """Epic 12 US-2 AC 1: the decision context reaches the YAML file."""
+        context = {"decision_maker": "事業責任者", "decision": "値上げを実施するか"}
+        d = _create(insight, decision_context=context)
+        assert d["decision_context"] == context
+        loaded = design_io.load_design(d["id"], base_dir=insight)
+        assert loaded["decision_context"] == context
+
+    def test_decision_context_is_optional(self, insight: Path) -> None:
+        """Epic 12 US-2 AC 2: the analyst may go on without writing one."""
+        assert _create(insight)["decision_context"] is None
+
+    def test_half_filled_decision_context_writes_nothing(self, insight: Path) -> None:
+        with pytest.raises(ValidationError):
+            _create(insight, decision_context={"decision_maker": "事業責任者"})
+        assert not (insight / "designs" / "FP-H01_hypothesis.yaml").exists()
+
 
 # ---------------------------------------------------------------------------
 # load / list
@@ -215,6 +232,28 @@ class TestUpdateDesign:
             )
         reloaded = design_io.load_design(d["id"], base_dir=insight)
         assert reloaded["methodology"]["method"] == "OLS"
+
+    def test_design_written_before_decision_context_still_updates(
+        self, insight: Path
+    ) -> None:
+        """Epic 12 US-2 AC 4: a file that lacks the key passes validation as is."""
+        d = _create(insight)
+        path = insight / "designs" / f"{d['id']}_hypothesis.yaml"
+        legacy = design_io.read_yaml(path)
+        del legacy["decision_context"]
+        design_io.atomic_write_yaml(path, legacy)
+
+        updated = design_io.update_design(d["id"], {"title": "New"}, base_dir=insight)
+        assert updated["title"] == "New"
+        assert updated["decision_context"] is None
+
+    def test_decision_context_can_be_added_later(self, insight: Path) -> None:
+        d = _create(insight)
+        context = {"decision_maker": "事業責任者", "decision": "値上げを実施するか"}
+        updated = design_io.update_design(
+            d["id"], {"decision_context": context}, base_dir=insight
+        )
+        assert updated["decision_context"] == context
 
 
 # ---------------------------------------------------------------------------
@@ -279,6 +318,29 @@ class TestReviewBatch:
                 ],
                 base_dir=insight,
             )
+
+    def test_comment_may_target_the_decision_context(self, insight: Path) -> None:
+        """Epic 12 US-2 AC 3: a review can point at the decision context."""
+        d = _create(
+            insight,
+            decision_context={
+                "decision_maker": "事業責任者",
+                "decision": "値上げを実施するか",
+            },
+        )
+        batch = design_io.append_review_batch(
+            d["id"],
+            status_after="revision_requested",
+            comments=[
+                {
+                    "comment": "仮説が支持されても、この決定は変わらない",
+                    "target_section": "decision_context",
+                    "target_content": "値上げを実施するか",
+                }
+            ],
+            base_dir=insight,
+        )
+        assert batch["comments"][0]["target_section"] == "decision_context"
 
     def test_empty_comments_rejected(self, insight: Path) -> None:
         d = _create(insight)

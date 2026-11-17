@@ -122,6 +122,19 @@ class Methodology(BaseModel):
     reason: str = ""
 
 
+class DecisionContext(BaseModel):
+    """Who decides what on the strength of this analysis (ADR-0014).
+
+    Both sides are required so a design never carries a decision without its
+    decision maker, or the other way round.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    decision_maker: str = Field(min_length=1)
+    decision: str = Field(min_length=1)
+
+
 class AnalysisDesign(BaseModel):
     """Analysis design document for hypothesis-driven EDA."""
 
@@ -142,6 +155,7 @@ class AnalysisDesign(BaseModel):
     next_action: dict | None = None
     referenced_knowledge: dict[str, list[str]] = Field(default_factory=dict)
     methodology: Methodology | None = None
+    decision_context: DecisionContext | None = None
     created_at: datetime = Field(default_factory=now_jst)
     updated_at: datetime = Field(default_factory=now_jst)
 
