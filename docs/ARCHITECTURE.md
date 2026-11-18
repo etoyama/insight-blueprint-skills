@@ -185,7 +185,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 
 | 経路 | cwd | パス解決 | 出力先 |
 |---|---|---|---|
-| `design_io` / `catalog_io` / `premortem`（bin ラッパー） | `cd ${CLAUDE_PLUGIN_ROOT}` に**移動する** | 絶対パス env `INSIGHT_BASE_DIR=${CLAUDE_PROJECT_DIR}/.insight` で解決 | 利用者 `.insight/` |
+| `design_io` / `catalog_io` / `premortem`（bin ラッパー） | plugin のルートに**移動する**（`${CLAUDE_PLUGIN_ROOT}`。無ければラッパー自身の場所から求める） | 絶対パス env `INSIGHT_BASE_DIR=${CLAUDE_PROJECT_DIR}/.insight` で解決（`CLAUDE_PROJECT_DIR` が無ければ cwd） | 利用者 `.insight/` |
 | `/analysis-notebook`（marimo 実行） | **利用者プロジェクトのまま**（移動しない） | 相対パス `.insight/notebooks/…`（cwd 基準） | 利用者 `.insight/` |
 
 ポイントは notebook 経路の `uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook …`:
@@ -193,6 +193,10 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 指定で、**cwd は移動しない**。だから notebook 内の相対 `.insight/…` は利用者プロジェクトに解決される。
 一方 bin ラッパーは `cd` で plugin へ移動する代わりに、絶対 `INSIGHT_BASE_DIR` でデータ先を指す。
 どちらも「コードは plugin・データは利用者プロジェクト」を別の手段で満たしている。
+
+ホストは skill の本文に書いた `${CLAUDE_PLUGIN_ROOT}` を置き換えるが、Bash ツールの環境にはこの変数が来ない。
+そのため bin ラッパーは、変数が無ければ自身の場所から plugin のルートを求める
+（[ADR-0017](adr/0017-plugin-variables-not-in-bash-env.md)）。
 
 ## 代表シーケンス
 

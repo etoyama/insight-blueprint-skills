@@ -3,7 +3,7 @@
 The wrappers are the whole point of Epic 09: a skill command runs in the user's
 project cwd, but `skills._shared` lives in the plugin. The wrapper must
 
-  1. run the module from the plugin's own uv env (cd ${CLAUDE_PLUGIN_ROOT}),
+  1. run the module from the plugin's own uv env (cd to the plugin root),
   2. write to the *user project* via INSIGHT_BASE_DIR=${CLAUDE_PROJECT_DIR}/.insight,
   3. work from an arbitrary foreign cwd (the exact ModuleNotFoundError bug fixed).
 
@@ -16,6 +16,8 @@ import json
 import os
 import subprocess
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DESIGN_IO = REPO_ROOT / "bin" / "design_io"
@@ -63,19 +65,30 @@ def test_wrapper_writes_to_project_dir_from_foreign_cwd(tmp_path: Path) -> None:
     assert not (foreign_cwd / ".insight").exists()
 
 
-def test_wrapper_fails_loud_without_plugin_root(tmp_path: Path) -> None:
-    """Missing CLAUDE_PLUGIN_ROOT must error, not silently run in the wrong env."""
+@pytest.mark.parametrize(
+    ("wrapper", "args"),
+    [("design_io", ["list"]), ("catalog_io", ["list"]), ("premortem", ["--help"])],
+)
+def test_wrapper_runs_from_its_own_plugin_without_plugin_root(
+    tmp_path: Path, wrapper: str, args: list[str]
+) -> None:
+    """Without CLAUDE_PLUGIN_ROOT the wrapper finds the plugin from its own path.
+
+    Claude Code puts bin/ on the Bash tool's PATH but does not export
+    CLAUDE_PLUGIN_ROOT or CLAUDE_PROJECT_DIR there, so this is how a skill
+    actually calls the wrapper.
+    """
     env = _base_env()
     env.pop("CLAUDE_PLUGIN_ROOT", None)
-    env["CLAUDE_PROJECT_DIR"] = str(tmp_path)
+    env.pop("CLAUDE_PROJECT_DIR", None)
+    env["PATH"] = f"{REPO_ROOT / 'bin'}{os.pathsep}{env['PATH']}"
 
     result = subprocess.run(
-        [str(DESIGN_IO), "list"],
+        [wrapper, *args],
         input="",
         capture_output=True,
         text=True,
         cwd=str(tmp_path),
         env=env,
     )
-    assert result.returncode != 0
-    assert "CLAUDE_PLUGIN_ROOT" in result.stderr
+    assert result.returncode == 0, result.stderr
