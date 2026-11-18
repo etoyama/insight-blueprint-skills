@@ -67,8 +67,9 @@ The source must be registered in the catalog (else -> /catalog-register).
 
 ### Step 2: Gather the source (schema + connection)
 
-- `catalog_io get --id {source_id}` — the **full source**, whose
-  `connection` (CSV path / SQL / provider) drives cell 2's data load.
+- `catalog_io get --id {source_id} --with-connection` — the **full source**, whose
+  `connection` (CSV path / SQL / provider) drives cell 2's data load. Without the flag `get`
+  leaves `connection` out; this skill is the only one that asks for it.
 - `catalog_io get-schema --id {source_id}` — column names/types (+ PK,
   row-count estimate) for cell 3/4. (`get-schema` returns **only** the schema, not the connection.)
 
@@ -146,7 +147,7 @@ mapping (references). Preserve existing events; continue ids from the current ma
 | `design_io list --status analyzing` | Find designs ready to analyze |
 | `design_io get --id ID` | Load methodology / intent / source |
 | `design_io transition --id ID --target analyzing` | Move an in_review design into analysis |
-| `catalog_io get --id SOURCE` | Full source incl. `connection` (drives data_load) |
+| `catalog_io get --id SOURCE --with-connection` | Full source incl. `connection` (drives data_load) |
 | `catalog_io get-schema --id SOURCE` | Column schema (+ PK, row-count) only — no connection |
 
 Journal is appended by writing `.insight/designs/{id}_journal.yaml` directly (same as

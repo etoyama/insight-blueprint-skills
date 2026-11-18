@@ -352,6 +352,13 @@ def search(
 # ---------------------------------------------------------------------------
 
 
+def _without_connection(source: dict) -> dict:
+    # A connection holds paths, queries, hosts and sometimes credentials, and whatever
+    # the CLI prints lands in a model's context and can ride into a distributed report
+    # (ADR-0018). The stored YAML and load_source() keep it.
+    return {key: value for key, value in source.items() if key != "connection"}
+
+
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="catalog_io")
     parser.add_argument(
@@ -373,6 +380,11 @@ def _main(argv: list[str] | None = None) -> int:
     parser.add_argument("--type", default=None)
     parser.add_argument("--tags", default=None)
     parser.add_argument("--category", default=None)
+    parser.add_argument(
+        "--with-connection",
+        action="store_true",
+        help="get / list: include each source's connection (left out by default)",
+    )
     args = parser.parse_args(argv)
     base = _resolve_base_dir(Path(args.base_dir))
 
@@ -390,8 +402,12 @@ def _main(argv: list[str] | None = None) -> int:
         result = update_source(args.id, payload, base_dir=base)
     elif args.command == "get":
         result = load_source(args.id, base_dir=base)
+        if not args.with_connection:
+            result = _without_connection(result)
     elif args.command == "list":
         result = list_sources(base_dir=base)
+        if not args.with_connection:
+            result = [_without_connection(source) for source in result]
     elif args.command == "get-schema":
         result = get_schema(args.id, base_dir=base)
     elif args.command == "get-knowledge":
