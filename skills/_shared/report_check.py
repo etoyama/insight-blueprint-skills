@@ -40,7 +40,17 @@ _CLOSE_TAG = re.compile(rf"</{_TAG_NAME}\s*>")
 _COMMENT = re.compile(r"<!--.*?-->|<!--.*")
 _DECLARATION = re.compile(r"<(?:!\[CDATA\[|![A-Za-z]|\?)[^>]*>?")
 _AUTOLINK = re.compile(r"<[A-Za-z][A-Za-z0-9+.-]{1,31}:[^\s<>]*>")
-_INLINE_HTML = (_COMMENT, _DECLARATION, _CLOSE_TAG, _AUTOLINK, _OPEN_TAG)
+# CommonMark lets an inline tag continue on the next line, so a tag still open at
+# the end of a line counts even though its ">" is not on it.
+_OPEN_TAG_TO_LINE_END = re.compile(rf"<{_TAG_NAME}(?:\s[^<>]*)?$")
+_INLINE_HTML = (
+    _COMMENT,
+    _DECLARATION,
+    _CLOSE_TAG,
+    _AUTOLINK,
+    _OPEN_TAG,
+    _OPEN_TAG_TO_LINE_END,
+)
 
 # A line that starts an HTML block even when the tag never closes on the line.
 _HTML_BLOCK_START = re.compile(rf" {{0,3}}<(/?){_TAG_NAME}(?:\s|/?>|$)")

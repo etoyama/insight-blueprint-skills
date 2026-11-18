@@ -9,11 +9,12 @@ proj="${CLAUDE_PROJECT_DIR:-$PWD}"
 # there, so fall back to this script's own plugin (bin/ sits directly under the root).
 cd "${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}"
 
-[ -d "$proj" ] || { echo "report_check: project dir '$proj' does not exist" >&2; exit 1; }
+# Exit 2, not 1: for this command 1 means "violations found".
+[ -d "$proj" ] || { echo "report_check: project dir '$proj' does not exist" >&2; exit 2; }
 export INSIGHT_BASE_DIR="$proj/.insight"
 case "$INSIGHT_BASE_DIR" in
   */.insight) ;;
-  *) echo "report_check: refusing base '$INSIGHT_BASE_DIR' (must end in /.insight)" >&2; exit 1;;
+  *) echo "report_check: refusing base '$INSIGHT_BASE_DIR' (must end in /.insight)" >&2; exit 2;;
 esac
 
 if [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then

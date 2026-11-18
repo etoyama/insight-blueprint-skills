@@ -372,3 +372,13 @@ def test_main_creates_nothing_when_the_base_dir_is_empty(tmp_path: Path) -> None
 
     assert report_check._main(["--id", "X", "--base-dir", str(base)]) == 2
     assert not base.exists()
+
+
+def test_tag_left_open_at_the_end_of_a_line_is_a_violation() -> None:
+    # CommonMark lets an inline tag continue on the next line.
+    markdown = "説明 <img\nsrc=x onerror=alert(1)>\n"
+    assert [(v.line, v.kind) for v in find_violations(markdown)] == [(1, "html")]
+
+
+def test_less_than_before_a_word_that_ends_the_line_without_a_tag_shape() -> None:
+    assert find_violations("n <5\n次の行\n") == []
