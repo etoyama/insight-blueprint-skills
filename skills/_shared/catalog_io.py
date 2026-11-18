@@ -352,6 +352,18 @@ def search(
 # ---------------------------------------------------------------------------
 
 
+def _without_connection(source: dict) -> dict:
+    # A connection holds paths, queries, hosts and sometimes credentials, and whatever
+    # the CLI prints lands in a model's context and can ride into a distributed report
+    # (ADR-0018). The stored YAML and load_source() keep it.
+    return {key: value for key, value in source.items() if key != "connection"}
+
+
+# Every command whose result is a whole source. update belongs here too: a partial
+# change echoes the stored connection, which the caller never supplied.
+_PRINTS_SOURCES = frozenset({"create", "update", "get", "list"})
+
+
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="catalog_io")
     parser.add_argument(
@@ -373,6 +385,11 @@ def _main(argv: list[str] | None = None) -> int:
     parser.add_argument("--type", default=None)
     parser.add_argument("--tags", default=None)
     parser.add_argument("--category", default=None)
+    parser.add_argument(
+        "--with-connection",
+        action="store_true",
+        help="include each printed source's connection (left out by default)",
+    )
     args = parser.parse_args(argv)
     base = _resolve_base_dir(Path(args.base_dir))
 
@@ -407,6 +424,13 @@ def _main(argv: list[str] | None = None) -> int:
         )
     else:  # pragma: no cover - argparse restricts choices
         raise SystemExit(2)
+
+    if args.command in _PRINTS_SOURCES and not args.with_connection:
+        result = (
+            [_without_connection(source) for source in result]
+            if isinstance(result, list)
+            else _without_connection(result)
+        )
 
     json.dump(result, sys.stdout, ensure_ascii=False, default=str)
     return 0

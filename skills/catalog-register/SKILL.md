@@ -225,11 +225,13 @@ echo '{
 |---------|---------|-------|
 | `create` | Register a new source (writes sources/ + empty knowledge/) | stdin: `{id, name, type, description, connection, columns?, tags?, primary_key?, row_count_estimate?}` |
 | `update --id ID` | Partial update | stdin: `{<fields>}` |
-| `get --id ID` | Full source YAML | — |
+| `get --id ID` | Source without `connection` (add `--with-connection` to include it) | — |
 | `get-schema --id ID` | Column schema | — |
 | `search --query Q [--type T] [--tags a,b]` | Compact hits across sources + knowledge | — |
 | `get-knowledge --id ID [--category C]` | Knowledge entries for a source | — |
 | `add-knowledge --id ID` | Append/upsert knowledge (authoring: → /knowledge-extract) | stdin: `{entries:[...]}` |
+
+`create` and `update` also print the source without `connection`; the stored source keeps it.
 
 Validation runs inside `catalog_io` (DataSource model) before writing; invalid input
 exits non-zero with nothing written.

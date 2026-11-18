@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`catalog_io` no longer prints a source's `connection` (`get`, `list`, `create`, `update`)
+  ([ADR-0018](docs/adr/0018-catalog-io-omits-connection-by-default.md)).** A connection holds file
+  paths, queries, hosts, and sometimes credentials, and `/analysis-report` reads `catalog_io get`
+  to build a report that can leave the machine. Pass `--with-connection` to get it back;
+  `/analysis-notebook` does, because it loads the data. The stored YAML is unchanged.
+
 ## [0.9.0] - 2026-11-19
 
 Epic 12 (#62): `/analysis-report` now writes a report a reader can **decide from**, and a new

@@ -23,6 +23,7 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0015](0015-host-connectors-for-optional-features.md) | 不変条件を「同梱しない」と書き、ホストのコネクタは任意の機能に限って使う | Accepted |
 | [0016](0016-approval-before-external-send.md) | skill が `.insight/` の中身を外部へ送るときは、KEEP ゲートで承認を待つ | Accepted |
 | [0017](0017-plugin-variables-not-in-bash-env.md) | plugin の変数は skill の本文で使い、bin ラッパーは自分の場所から plugin のルートを求める | Accepted |
+| [0018](0018-catalog-io-omits-connection-by-default.md) | `catalog_io` は、頼まれない限りデータソースの `connection` を返さない | Accepted |
 
 - ADR-0001〜0008 は旧形式のまま残す。ADR-0009 からは新形式（Problem と Decision Analysis の節を持つ）で書く。
 - 開発フローの決定の出典は [flow/](flow/README.md) にある。repo-template の ADR のコピーで、`FLOW-000N` と表記する。

@@ -446,3 +446,108 @@ class TestCli:
         # persisted to the source-scoped knowledge file
         reloaded = catalog_io.get_knowledge("jp-pop", base_dir=insight)
         assert [e["key"] for e in reloaded["entries"]] == ["seasonal"]
+
+
+def _run_cli(
+    insight: Path, *args: str, stdin: str = ""
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "skills._shared.catalog_io",
+            *args,
+            "--base-dir",
+            str(insight),
+        ],
+        input=stdin,
+        capture_output=True,
+        text=True,
+        cwd=str(Path(__file__).resolve().parents[1]),
+    )
+
+
+class TestCliKeepsTheConnectionBack:
+    """ADR-0018: reading a source prints no `connection` unless the caller asks for it."""
+
+    SECRET = "/Users/someone/secret/pop.csv"
+
+    def _register(self, insight: Path) -> None:
+        _create(insight, connection={"file_path": self.SECRET, "password": "hunter2"})
+
+    def test_get_prints_the_source_without_its_connection(self, insight: Path) -> None:
+        self._register(insight)
+        res = _run_cli(insight, "get", "--id", "jp-pop")
+        assert res.returncode == 0, res.stderr
+        source = json.loads(res.stdout)
+        assert "connection" not in source
+        assert self.SECRET not in res.stdout and "hunter2" not in res.stdout
+        assert (source["name"], source["type"]) == ("人口統計", "csv")
+        assert source["description"] == "市区町村別の人口データ"
+
+    def test_get_prints_the_connection_when_asked(self, insight: Path) -> None:
+        self._register(insight)
+        res = _run_cli(insight, "get", "--id", "jp-pop", "--with-connection")
+        assert res.returncode == 0, res.stderr
+        assert json.loads(res.stdout)["connection"]["file_path"] == self.SECRET
+
+    def test_get_still_prints_an_empty_object_for_an_unregistered_id(
+        self, insight: Path
+    ) -> None:
+        res = _run_cli(insight, "get", "--id", "nope")
+        assert res.returncode == 0, res.stderr
+        assert json.loads(res.stdout) == {}
+
+    def test_list_prints_every_source_without_its_connection(
+        self, insight: Path
+    ) -> None:
+        self._register(insight)
+        res = _run_cli(insight, "list")
+        assert res.returncode == 0, res.stderr
+        assert [s["id"] for s in json.loads(res.stdout)] == ["jp-pop"]
+        assert "connection" not in res.stdout
+        assert self.SECRET not in res.stdout
+
+    def test_list_prints_the_connections_when_asked(self, insight: Path) -> None:
+        self._register(insight)
+        res = _run_cli(insight, "list", "--with-connection")
+        assert res.returncode == 0, res.stderr
+        assert json.loads(res.stdout)[0]["connection"]["file_path"] == self.SECRET
+
+    def test_update_prints_the_source_without_its_stored_connection(
+        self, insight: Path
+    ) -> None:
+        self._register(insight)
+        res = _run_cli(
+            insight, "update", "--id", "jp-pop", stdin='{"description": "新しい説明"}'
+        )
+        assert res.returncode == 0, res.stderr
+        assert json.loads(res.stdout)["description"] == "新しい説明"
+        assert "connection" not in res.stdout
+        assert self.SECRET not in res.stdout
+        stored = catalog_io.load_source("jp-pop", base_dir=insight)
+        assert stored["connection"]["file_path"] == self.SECRET
+
+    def test_create_prints_the_source_without_its_connection(
+        self, insight: Path
+    ) -> None:
+        payload = {
+            "id": "cli-src",
+            "name": "CLI源",
+            "type": "csv",
+            "description": "テスト用のソース",
+            "connection": {"file_path": self.SECRET},
+        }
+        res = _run_cli(insight, "create", stdin=json.dumps(payload))
+        assert res.returncode == 0, res.stderr
+        assert json.loads(res.stdout)["id"] == "cli-src"
+        assert "connection" not in res.stdout
+        assert self.SECRET not in res.stdout
+
+    def test_update_prints_the_connection_when_asked(self, insight: Path) -> None:
+        self._register(insight)
+        res = _run_cli(
+            insight, "update", "--id", "jp-pop", "--with-connection", stdin="{}"
+        )
+        assert res.returncode == 0, res.stderr
+        assert json.loads(res.stdout)["connection"]["file_path"] == self.SECRET
