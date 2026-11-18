@@ -65,6 +65,14 @@ and the skills are untouched.
   your own setup on purpose, configure it in your project instead.
 - `.spec-workflow/` (pre-fork steering docs and templates, superseded by `docs/design/` + `docs/adr/`).
 
+### Fixed
+
+- **`design_io`, `catalog_io`, and `premortem` failed in an installed plugin (since 0.7.1).**
+  Claude Code puts the plugin's `bin/` on the Bash tool's PATH but does not export
+  `CLAUDE_PLUGIN_ROOT` there, so the wrappers stopped with `CLAUDE_PLUGIN_ROOT is not set`.
+  They now fall back to their own location to find the plugin root
+  ([ADR-0017](docs/adr/0017-plugin-variables-not-in-bash-env.md)).
+
 ## [0.8.0] - 2026-07-08
 
 Epic 10 (#47): a new `/analysis-report` skill that assembles a **distributable APA-style
