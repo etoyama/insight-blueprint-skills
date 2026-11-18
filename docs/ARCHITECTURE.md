@@ -194,6 +194,10 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 一方 bin ラッパーは `cd` で plugin へ移動する代わりに、絶対 `INSIGHT_BASE_DIR` でデータ先を指す。
 どちらも「コードは plugin・データは利用者プロジェクト」を別の手段で満たしている。
 
+ホストは skill の本文に書いた `${CLAUDE_PLUGIN_ROOT}` を置き換えるが、Bash ツールの環境にはこの変数が来ない。
+そのため bin ラッパーは、変数が無ければ自身の場所から plugin のルートを求める
+（[ADR-0017](adr/0017-plugin-variables-not-in-bash-env.md)）。
+
 ## 代表シーケンス
 
 ### 分析設計の書込と検証ガード
