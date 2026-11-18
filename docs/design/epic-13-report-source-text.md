@@ -73,6 +73,7 @@ AC の正本はここ。
 
 - 追加: データ由来の文
 - 追加: レポートの検査
+- 追加: 違反
 
 ## Scope
 
@@ -212,7 +213,7 @@ sequenceDiagram
 
 ### Decision: checker-ignores-links
 
-- What: `report_check` は画像と HTML だけを見る。リンク（`[文](URL)`）と素の URL は違反にしない。
+- What: `report_check` は画像と HTML だけを見る。Markdown のリンクと素の URL は違反にしない。
 - Why: 写す手順が `[` をエスケープするので、写した文のリンクは効かない。分析者があとから足すリンクは正当でありうる。
   画像は開いただけで取りに行くが、リンクは読者が押すまで何も起きない。
 - Criteria: 正しいレポートを違反にしないこと（US-2 AC 2）。決め手はこれ。

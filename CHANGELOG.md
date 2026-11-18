@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Epic 13 (#75): text that came from the analysis inputs is written into the report as characters,
+never as markup. Design: `docs/design/epic-13-report-source-text.md`.
+
+### Added
+
+- **`report_check --id {design_id}`** checks a written report for markup that is still active: an
+  image that is not a figure, raw HTML, a tag other than `<br/>` in a Mermaid block. It exits 1
+  and prints the violations as JSON. `/analysis-report` runs it right after writing the report
+  ([ADR-0019](docs/adr/0019-report-source-text-escaped-and-checked.md)).
+
 ### Changed
+
+- **`/analysis-report` escapes source text instead of leaving the choice to the model
+  ([ADR-0019](docs/adr/0019-report-source-text-escaped-and-checked.md)).** Figure captions,
+  data-source fields, lineage reasons, metric names, the decision context, and the title keep
+  every word, become one line, and get a backslash before `\` `` ` `` `*` `_` `[` `]` `<` `|`.
+  A sentence in them that reads as an instruction stays as text, and the skill tells the analyst
+  where it is. A lineage diagram whose labels carry a tag other than `<br/>` is left out of the
+  Appendix.
 
 - **`catalog_io` no longer prints a source's `connection` (`get`, `list`, `create`, `update`)
   ([ADR-0018](docs/adr/0018-catalog-io-omits-connection-by-default.md)).** A connection holds file
