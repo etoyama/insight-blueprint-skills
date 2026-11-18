@@ -1,4 +1,4 @@
-# ADR-0018: `catalog_io` の `get` と `list` は、頼まれない限り `connection` を返さない
+# ADR-0018: `catalog_io` は、頼まれない限りデータソースの `connection` を返さない
 
 ## Status
 
@@ -8,6 +8,7 @@ Accepted
 
 データソースは `connection` を持つ。中身はファイルのパス、クエリ、ホスト、project id で、認証情報が入ることもある。
 `catalog_io get` と `catalog_io list` は保存した YAML をそのまま JSON にして出していた。
+`create` と `update` も書いたデータソースを丸ごと返していた。
 
 Epic 12 で `/analysis-report` が catalog を読むようになり、`/report-upload` でレポートを Claude Docs へ送れるようになった。
 レポートに載ったものが外へ出る経路ができた。`connection` を載せない決まりは、
@@ -40,7 +41,7 @@ CLI の既定は変わるが、各 skill の定めた振る舞いは変わらな
 
 扱わない範囲: レポートに載せるデータソース id を分析設計のどこから集めるか（#71 に残す）。
 集める手順を `catalog_io` のコマンドに移すこと（出典が決まってから）。
-skill が `.insight/catalog/sources/` の YAML を直接読む経路。`create` と `update` が返す JSON。
+skill が `.insight/catalog/sources/` の YAML を直接読む経路。
 
 ## Decision Analysis
 
@@ -51,7 +52,7 @@ skill が `.insight/catalog/sources/` の YAML を直接読む経路。`create` 
 | W1 | `connection` が要らない呼び出し元の出力に、呼び出し元が何もしなくても `connection` が入らない | Want | 解決 | 高（人間。#71 のコメント） | 課題1 |
 | W2 | 書き換える呼び出し元の数と、外の利用者が壊れる範囲 | Want | 費用 | 中（Claude の推測） | YAGNI |
 
-| Must | A. `get` と `list` が既定で除き、`--with-connection` で返す | B. `get` は今のまま、`connection` を除く別のコマンドを足す | C. `load_source` が `connection` を除く | 何もしない |
+| Must | A. データソースを返すコマンドが既定で除き、`--with-connection` で返す | B. `get` は今のまま、`connection` を除く別のコマンドを足す | C. `load_source` が `connection` を除く | 何もしない |
 |---|---|---|---|---|
 | M1 | 満たす | 満たす | 満たさない（返す手段が無くなる） | 満たす |
 | M2 | 満たす（出力のときだけ除く） | 満たす | 満たさない（`update_source` が `connection` の無い辞書を書き戻す） | 満たす |
@@ -75,7 +76,9 @@ skill が `.insight/catalog/sources/` の YAML を直接読む経路。`create` 
 
 A を採る。決め手は W1。
 
-- `catalog_io get` と `catalog_io list` は `connection` を除いて返す。`--with-connection` を付けたときだけ返す。
+- データソースを丸ごと返すコマンド（`get`・`list`・`create`・`update`）は `connection` を除いて返す。`--with-connection` を付けたときだけ返す。
+- `update` を含める理由は、一部だけを変える呼び出しでも、保存してあった `connection` が返るためである。
+  PR #83 のコミットへの自動のセキュリティレビュー（2026-11-19）が指摘した。`create` は同じ決まりにそろえた。
 - 除くのは CLI が出力するときだけである。保存した YAML と `load_source`・`list_sources` は変えない。
 - `--with-connection` を付けて `get` を呼ぶ skill は `/analysis-notebook` だけにする。
 - `/analysis-report` の SKILL.md とテンプレートにある「`connection` を載せない」という文は残す。
@@ -93,7 +96,6 @@ A を採る。決め手は W1。
 - 公開の CLI の既定が変わる。外から `connection` を読んでいた呼び出しは `--with-connection` が要る。
 - skill が `.insight/catalog/sources/{id}.yaml` を直接読むと、`connection` が見える。
   Epic 12 の実機確認では、`catalog_io` が動かないときに skill が YAML を読んで代えた例がある。この決定はその経路を塞がない。
-- `create` と `update` は書いたデータソースを `connection` ごと返す。呼び出し元が渡した値なので変えていない。
 - `/analysis-notebook` は `connection` を受け取り続ける。notebook に認証情報を書かない決まりは、今までどおり文で守る。
 
 ## Alternatives considered

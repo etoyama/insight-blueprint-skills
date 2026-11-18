@@ -359,6 +359,11 @@ def _without_connection(source: dict) -> dict:
     return {key: value for key, value in source.items() if key != "connection"}
 
 
+# Every command whose result is a whole source. update belongs here too: a partial
+# change echoes the stored connection, which the caller never supplied.
+_PRINTS_SOURCES = frozenset({"create", "update", "get", "list"})
+
+
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="catalog_io")
     parser.add_argument(
@@ -383,7 +388,7 @@ def _main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--with-connection",
         action="store_true",
-        help="get / list: include each source's connection (left out by default)",
+        help="include each printed source's connection (left out by default)",
     )
     args = parser.parse_args(argv)
     base = _resolve_base_dir(Path(args.base_dir))
@@ -402,12 +407,8 @@ def _main(argv: list[str] | None = None) -> int:
         result = update_source(args.id, payload, base_dir=base)
     elif args.command == "get":
         result = load_source(args.id, base_dir=base)
-        if not args.with_connection:
-            result = _without_connection(result)
     elif args.command == "list":
         result = list_sources(base_dir=base)
-        if not args.with_connection:
-            result = [_without_connection(source) for source in result]
     elif args.command == "get-schema":
         result = get_schema(args.id, base_dir=base)
     elif args.command == "get-knowledge":
@@ -423,6 +424,13 @@ def _main(argv: list[str] | None = None) -> int:
         )
     else:  # pragma: no cover - argparse restricts choices
         raise SystemExit(2)
+
+    if args.command in _PRINTS_SOURCES and not args.with_connection:
+        result = (
+            [_without_connection(source) for source in result]
+            if isinstance(result, list)
+            else _without_connection(result)
+        )
 
     json.dump(result, sys.stdout, ensure_ascii=False, default=str)
     return 0

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **`catalog_io get` and `catalog_io list` no longer print a source's `connection`
+- **`catalog_io` no longer prints a source's `connection` (`get`, `list`, `create`, `update`)
   ([ADR-0018](docs/adr/0018-catalog-io-omits-connection-by-default.md)).** A connection holds file
   paths, queries, hosts, and sometimes credentials, and `/analysis-report` reads `catalog_io get`
   to build a report that can leave the machine. Pass `--with-connection` to get it back;
