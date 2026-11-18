@@ -410,3 +410,13 @@ class TestReleaseProcedure:
         step = section(_read("docs/RELEASE.md"), "## Step 1")
         assert "pyproject.toml" in step
         assert ".claude-plugin/plugin.json" in step
+
+    def test_preflight_covers_the_publish_action(self) -> None:
+        """A local twine check does not run the twine bundled in the publish action."""
+        step = section(_read("docs/RELEASE.md"), "## Step 2")
+        assert "gh-action-pypi-publish" in step
+        assert "Dependabot" in step
+
+    def test_troubleshooting_covers_a_rejected_metadata_version(self) -> None:
+        trouble = section(_read("docs/RELEASE.md"), "## Troubleshooting")
+        assert "not a valid metadata version" in trouble

@@ -51,6 +51,18 @@ uvx --from twine twine check dist/*     # validate package metadata
 uv run python scripts/check_tag_version.py --tag vX.Y.Z   # tag == pyproject version
 ```
 
+These checks do not cover the upload itself. `pypa/gh-action-pypi-publish` validates the
+files with the twine **bundled in the action**, which can be older than the twine `uvx` runs
+here, so a local `twine check` can pass while the publish job rejects the same wheel
+(this happened with v0.9.0). Before tagging:
+
+```bash
+gh pr list --author app/dependabot --search "gh-action-pypi-publish in:title"   # open updates of the publish action
+```
+
+Merge any open Dependabot update of `gh-action-pypi-publish` first. The workflow runs from
+the tagged commit, so an update merged after the tag does not apply to it.
+
 ## Step 3: Tag and push
 
 ```bash
@@ -83,6 +95,13 @@ and push again.
 `check_tag_version.py` fails the build if the `v*` tag does not equal `pyproject.toml`'s
 `version`. Fix one so they match, delete the bad tag (`git tag -d` / `git push --delete`),
 and re-tag.
+
+### "not a valid metadata version" on publish
+
+The build backend wrote a newer core metadata version than the twine bundled in
+`gh-action-pypi-publish` accepts. Nothing was uploaded, so the version can be reused:
+merge the update of the action into `main`, delete the tag (`git tag -d vX.Y.Z` /
+`git push --delete origin vX.Y.Z`), then tag the new `main` commit and push again.
 
 ### `verify_wheel` fails
 
