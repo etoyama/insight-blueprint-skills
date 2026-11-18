@@ -385,3 +385,15 @@ class TestYomiyasuWords:
             assert _read(f".yomiyasu-words/{name}") == content, (
                 f"{name} is stale: run uv run python scripts/export_yomiyasu_words.py"
             )
+
+
+class TestPluginVariables:
+    """The host fills in plugin variables in skill text, not in the Bash tool's environment."""
+
+    def test_architecture_path_resolution_cites_the_adr(self) -> None:
+        paths = section(_read("docs/ARCHITECTURE.md"), "### パス解決機構")
+        assert "Bash ツールの環境" in paths
+        assert "adr/0017-" in paths
+
+    def test_adr_0006_stays_frozen(self) -> None:
+        assert "0017" not in _read("docs/adr/0006-plugin-execution-model.md")
