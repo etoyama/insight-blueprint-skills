@@ -68,7 +68,7 @@ skill が `.insight/catalog/sources/` の YAML を直接読む経路。
 | 案 | 起きうる悪い結果 | 抑え方 |
 |---|---|---|
 | A | 外から `catalog_io get` で `connection` を読んでいた利用者が、値を得られなくなる | CHANGELOG の Changed に書き、`--with-connection` を案内する |
-| A | `--with-connection` を、要らない skill が書く | 構造テストが、`/analysis-notebook` 以外の skill がこのオプションで `get` を呼ばないことと、`/analysis-report` がオプションの名前を出さないことを見る |
+| A | `--with-connection` を、要らない skill が書く | 構造テストが、このオプションの名前を書く skill が `/analysis-notebook` と `/catalog-register` だけであることを見る。`/catalog-register` は `catalog_io` の表で説明するだけで、付けて呼ばない |
 | B | 後から足す skill が `get` を書き、`connection` がまた LLM の文脈に入る | なし |
 | 何もしない | レポートに `connection` が載って外へ出る | 文と構造テストだけ |
 
@@ -96,6 +96,8 @@ A を採る。決め手は W1。
 - 公開の CLI の既定が変わる。外から `connection` を読んでいた呼び出しは `--with-connection` が要る。
 - skill が `.insight/catalog/sources/{id}.yaml` を直接読むと、`connection` が見える。
   Epic 12 の実機確認では、`catalog_io` が動かないときに skill が YAML を読んで代えた例がある。この決定はその経路を塞がない。
+- 保存した YAML の `connection` が辞書でないと、`update` の検証エラーに保存してあった値が出る。
+  YAML を手で書き換えたときにだけ起き、出る先は stderr である。この決定は塞がない（`pstack:thermos` のレビュー、2026-11-19）。
 - `/analysis-notebook` は `connection` を受け取り続ける。notebook に認証情報を書かない決まりは、今までどおり文で守る。
 
 ## Alternatives considered

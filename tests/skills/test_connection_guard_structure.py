@@ -35,18 +35,20 @@ class TestOnlyTheNotebookAsksForTheConnection:
         )
         assert table_row(reference, f"`catalog_io get --id SOURCE {_FLAG}`")
 
-    def test_no_other_skill_runs_get_with_the_flag(self) -> None:
-        askers = {
+    def test_only_the_notebook_and_the_catalog_reference_name_the_flag(self) -> None:
+        # Any spelling of the flag counts, so a new skill cannot slip past with
+        # another placeholder or with `list`. /catalog-register only documents it.
+        mentions = {
             path.relative_to(_SKILLS).parts[0]
             for path in _prose_files()
-            if f"catalog_io get --id {{source_id}} {_FLAG}" in unwrap(path.read_text())
+            if _FLAG in path.read_text()
         }
-        assert askers == {"analysis-notebook"}
+        assert mentions == {"analysis-notebook", "catalog-register"}
 
-    def test_the_report_never_mentions_the_flag(self) -> None:
-        for path in _prose_files():
-            if path.relative_to(_SKILLS).parts[0] == "analysis-report":
-                assert _FLAG not in path.read_text(), f"{path} must not name {_FLAG}"
+    def test_catalog_register_never_runs_a_command_with_the_flag(self) -> None:
+        text = _read_skill("catalog-register")
+        reference = section(text, "## catalog_io Reference")
+        assert _FLAG not in text.replace(reference, "")
 
 
 class TestCatalogRegisterDescribesTheDefault:
@@ -55,3 +57,11 @@ class TestCatalogRegisterDescribesTheDefault:
         purpose = table_row(reference, "`get --id ID`")[1]
         assert "without `connection`" in purpose
         assert _FLAG in purpose
+
+    def test_the_reference_says_create_and_update_print_no_connection(self) -> None:
+        reference = unwrap(
+            section(_read_skill("catalog-register"), "## catalog_io Reference")
+        )
+        assert "`create` and `update` also print the source without `connection`" in (
+            reference
+        )

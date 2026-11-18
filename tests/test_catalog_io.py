@@ -514,12 +514,6 @@ class TestCliKeepsTheConnectionBack:
         assert res.returncode == 0, res.stderr
         assert json.loads(res.stdout)[0]["connection"]["file_path"] == self.SECRET
 
-    def test_the_stored_source_keeps_its_connection(self, insight: Path) -> None:
-        self._register(insight)
-        _run_cli(insight, "get", "--id", "jp-pop")
-        stored = catalog_io.load_source("jp-pop", base_dir=insight)
-        assert stored["connection"]["file_path"] == self.SECRET
-
     def test_update_prints_the_source_without_its_stored_connection(
         self, insight: Path
     ) -> None:

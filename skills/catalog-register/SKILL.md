@@ -231,6 +231,8 @@ echo '{
 | `get-knowledge --id ID [--category C]` | Knowledge entries for a source | — |
 | `add-knowledge --id ID` | Append/upsert knowledge (authoring: → /knowledge-extract) | stdin: `{entries:[...]}` |
 
+`create` and `update` also print the source without `connection`; the stored source keeps it.
+
 Validation runs inside `catalog_io` (DataSource model) before writing; invalid input
 exits non-zero with nothing written.
 
