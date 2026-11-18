@@ -4,7 +4,9 @@
 set -e
 
 proj="${CLAUDE_PROJECT_DIR:-$PWD}"
-cd "${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT is not set (run via the installed plugin)}"
+# Claude Code puts bin/ on the Bash tool's PATH but does not export CLAUDE_PLUGIN_ROOT
+# there, so fall back to this script's own plugin (bin/ sits directly under the root).
+cd "${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}"
 
 # Anchor the data base before it becomes a read root (defense in depth, ADR-0006 M1).
 # premortem is report-only (no mkdir), but the base still anchors what it reads.

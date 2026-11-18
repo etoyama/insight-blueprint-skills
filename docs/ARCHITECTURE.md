@@ -185,7 +185,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 
 | 経路 | cwd | パス解決 | 出力先 |
 |---|---|---|---|
-| `design_io` / `catalog_io` / `premortem`（bin ラッパー） | `cd ${CLAUDE_PLUGIN_ROOT}` に**移動する** | 絶対パス env `INSIGHT_BASE_DIR=${CLAUDE_PROJECT_DIR}/.insight` で解決 | 利用者 `.insight/` |
+| `design_io` / `catalog_io` / `premortem`（bin ラッパー） | plugin のルートに**移動する**（`${CLAUDE_PLUGIN_ROOT}`。無ければラッパー自身の場所から求める） | 絶対パス env `INSIGHT_BASE_DIR=${CLAUDE_PROJECT_DIR}/.insight` で解決（`CLAUDE_PROJECT_DIR` が無ければ cwd） | 利用者 `.insight/` |
 | `/analysis-notebook`（marimo 実行） | **利用者プロジェクトのまま**（移動しない） | 相対パス `.insight/notebooks/…`（cwd 基準） | 利用者 `.insight/` |
 
 ポイントは notebook 経路の `uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook …`:
