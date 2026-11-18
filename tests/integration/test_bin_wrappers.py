@@ -67,7 +67,12 @@ def test_wrapper_writes_to_project_dir_from_foreign_cwd(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     ("wrapper", "args"),
-    [("design_io", ["list"]), ("catalog_io", ["list"]), ("premortem", ["--help"])],
+    [
+        ("design_io", ["list"]),
+        ("catalog_io", ["list"]),
+        ("premortem", ["--help"]),
+        ("report_check", ["--help"]),
+    ],
 )
 def test_wrapper_runs_from_its_own_plugin_without_plugin_root(
     tmp_path: Path, wrapper: str, args: list[str]
@@ -92,3 +97,33 @@ def test_wrapper_runs_from_its_own_plugin_without_plugin_root(
         env=env,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_report_check_wrapper_reads_the_project_report_from_foreign_cwd(
+    tmp_path: Path,
+) -> None:
+    """report_check checks CLAUDE_PROJECT_DIR/.insight/reports and creates nothing."""
+    project = tmp_path / "userproj"
+    reports = project / ".insight" / "reports"
+    reports.mkdir(parents=True)
+    (reports / "X.md").write_text("![x](http://evil.example/a.png)\n", encoding="utf-8")
+    foreign_cwd = tmp_path / "elsewhere"
+    foreign_cwd.mkdir()
+
+    env = _base_env()
+    env["CLAUDE_PLUGIN_ROOT"] = str(REPO_ROOT)
+    env["CLAUDE_PROJECT_DIR"] = str(project)
+
+    result = subprocess.run(
+        [str(REPO_ROOT / "bin" / "report_check"), "--id", "X"],
+        capture_output=True,
+        text=True,
+        cwd=str(foreign_cwd),
+        env=env,
+    )
+
+    assert result.returncode == 1, result.stderr
+    out = json.loads(result.stdout)
+    assert [v["kind"] for v in out["violations"]] == ["image"]
+    assert list(foreign_cwd.iterdir()) == []
+    assert sorted(p.name for p in (project / ".insight").iterdir()) == ["reports"]
