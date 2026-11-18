@@ -397,3 +397,16 @@ class TestPluginVariables:
 
     def test_adr_0006_stays_frozen(self) -> None:
         assert "0017" not in _read("docs/adr/0006-plugin-execution-model.md")
+
+
+class TestReleaseProcedure:
+    """Existing plugin installs update only when plugin.json's version changes."""
+
+    def test_intro_ties_plugin_updates_to_the_manifest_version(self) -> None:
+        intro = _read("docs/RELEASE.md").split("\n## ", 1)[0]
+        assert ".claude-plugin/plugin.json" in intro
+
+    def test_version_bump_names_both_files(self) -> None:
+        step = section(_read("docs/RELEASE.md"), "## Step 1")
+        assert "pyproject.toml" in step
+        assert ".claude-plugin/plugin.json" in step

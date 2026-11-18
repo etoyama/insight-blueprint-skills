@@ -4,8 +4,11 @@ This repository ships **two things**, released differently:
 
 - **The Claude Code plugin** (skills + hook + `.insight/` conventions) is distributed
   straight from this Git repository via the marketplace in
-  [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). Merging to `main`
-  makes the latest plugin available; there is no separate build/publish step for it.
+  [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). There is no
+  separate build/publish step for it. A new install gets `main` as it is, but Claude Code caches
+  an installed plugin under its version, so **existing installs pick up new content only when
+  `version` in [`.claude-plugin/plugin.json`](../.claude-plugin/plugin.json) changes**. A merge
+  to `main` without a version bump reaches new users only.
 - **The `insight-blueprint-lineage` Python package** (the lineage + validation library under
   `src/insight_blueprint/` — the import name stays `insight_blueprint`, used optionally via
   `uv add insight-blueprint-lineage`) is published to **PyPI**, and that is what this document covers.
@@ -23,13 +26,16 @@ and uploads to PyPI via a trusted publisher (OIDC — no API token to manage).
 
 ## Step 1: Version bump
 
-Update `version` in `pyproject.toml` following [SemVer](https://semver.org/):
+Update `version` in **both** `pyproject.toml` and `.claude-plugin/plugin.json`, following
+[SemVer](https://semver.org/). `tests/test_plugin_structure.py` fails when the two differ.
+Bumping `plugin.json` is what makes existing plugin installs update (see above):
 
 - **Patch** (0.1.0 → 0.1.1): bug fixes, docs
 - **Minor** (0.1.0 → 0.2.0): new features, backward-compatible
 - **Major** (0.1.0 → 1.0.0): breaking changes
 
-Move the `## [Unreleased]` notes in [CHANGELOG.md](../CHANGELOG.md) under the new version.
+Move the `## [Unreleased]` notes in [CHANGELOG.md](../CHANGELOG.md) under the new version,
+and update the comparison links at the bottom of the file.
 Commit on a branch and merge to `main` before tagging (the tag must point at the commit
 whose `pyproject.toml` version matches it).
 
