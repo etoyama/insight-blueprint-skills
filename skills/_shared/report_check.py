@@ -34,40 +34,33 @@ MAX_TEXT_LENGTH = 120
 _FENCE_OPEN = re.compile(r" {0,3}(`{3,}|~{3,})(.*)")
 _FENCE_CLOSE = re.compile(r" {0,3}(`{3,}|~{3,})[ \t]*")
 
-_TAG_NAME = r"[A-Za-z][A-Za-z0-9-]*"
-_OPEN_TAG = re.compile(rf"<{_TAG_NAME}[^<>]*>")
-_CLOSE_TAG = re.compile(rf"</{_TAG_NAME}\s*>")
-_COMMENT = re.compile(r"<!--.*?-->|<!--.*")
-_DECLARATION = re.compile(r"<(?:!\[CDATA\[|![A-Za-z]|\?)[^>]*>?")
-_AUTOLINK = re.compile(r"<[A-Za-z][A-Za-z0-9+.-]{1,31}:[^\s<>]*>")
-# CommonMark lets an inline tag continue on the next line, so a tag still open at
-# the end of a line counts even though its ">" is not on it.
-_OPEN_TAG_TO_LINE_END = re.compile(rf"<{_TAG_NAME}(?:\s[^<>]*)?$")
-_INLINE_HTML = (
-    _COMMENT,
-    _DECLARATION,
-    _CLOSE_TAG,
-    _AUTOLINK,
-    _OPEN_TAG,
-    _OPEN_TAG_TO_LINE_END,
-)
-
-# A line that starts an HTML block even when the tag never closes on the line.
-_HTML_BLOCK_START = re.compile(rf" {{0,3}}<(/?){_TAG_NAME}(?:\s|/?>|$)")
-
-_MERMAID_TAG = re.compile(rf"</?({_TAG_NAME})[^<>]*>")
+# Where a tag, comment, declaration, or autolink can start. The check fails closed:
+# it does not parse the rest of the tag, because a grammar that misses one shape
+# (a ">" inside an attribute value, a tag that continues on the next line) lets
+# that shape through.
+_TAG_START = re.compile(r"<(?:/?[A-Za-z]|[!?])")
 _MERMAID_BR = re.compile(r"<br\s*/?>", re.IGNORECASE)
+
+# The only statements the lineage export writes (insight_blueprint.lineage.exporter).
+# Anything else in a mermaid fence — click, a directive, a subgraph — is not ours.
+_MERMAID_STATEMENT = re.compile(
+    r"""\s*(?:graph\ LR
+        | Step\d+\["[^"]*"\]
+        | Step\d+\ -->\|"[^"]*"\|\ Step\d+
+        )?\s*""",
+    re.VERBOSE,
+)
 
 # An image is allowed only as a figure: a notebook output beside the report.
 _FIGURE = re.compile(
-    r"!\[(?:[^\[\]\\]|\\.)*\]\(\.\./notebooks/(?P<file>[^/\\\s()]+)\.png\)"
+    r"!\[(?:[^\[\]\\]|\\.)*\]\(\.\./notebooks/(?P<file>[A-Za-z0-9_.-]+)\.png\)"
 )
 
 
 @dataclass(frozen=True)
 class Violation:
     line: int
-    kind: str  # "image" | "html" | "mermaid-html"
+    kind: str  # "image" | "html" | "mermaid-html" | "mermaid-statement"
     text: str
 
 
@@ -134,11 +127,18 @@ def _closes_fence(line: str, fence_char: str, fence_len: int) -> bool:
 
 
 def _scan_mermaid(line: str) -> list[_Hit]:
+    if _MERMAID_STATEMENT.fullmatch(line) is None:
+        return [_Hit(0, "mermaid-statement", line.strip())]
     return [
-        _Hit(m.start(), "mermaid-html", m.group())
-        for m in _MERMAID_TAG.finditer(line)
-        if not _MERMAID_BR.fullmatch(m.group())
+        _Hit(m.start(), "mermaid-html", _tag_text(line, m.start()))
+        for m in _TAG_START.finditer(line)
+        if _MERMAID_BR.match(line, m.start()) is None
     ]
+
+
+def _tag_text(line: str, start: int) -> str:
+    end = line.find(">", start)
+    return line[start:] if end == -1 else line[start : end + 1]
 
 
 def _scan_prose(line: str) -> list[_Hit]:
@@ -154,22 +154,13 @@ def _scan_prose(line: str) -> list[_Hit]:
             i = _skip_code_span(line, i)
         elif line.startswith("![", i):
             i = _scan_image(line, i, hits)
-        elif char == "<":
-            html = _match_inline_html(line, i)
-            if html is None:
-                i += 1
-            else:
-                hits.append(_Hit(i, "html", html))
-                i += len(html)
+        elif _TAG_START.match(line, i):
+            html = _tag_text(line, i)
+            hits.append(_Hit(i, "html", html))
+            i += len(html)
         else:
             i += 1
-
-    block = _HTML_BLOCK_START.match(line)
-    if block is not None:
-        start = line.index("<")
-        if all(h.pos != start for h in hits):
-            hits.append(_Hit(start, "html", line[start:]))
-    return sorted(hits, key=lambda h: h.pos)
+    return hits
 
 
 def _skip_code_span(line: str, start: int) -> int:
@@ -191,14 +182,6 @@ def _run_length(line: str, start: int) -> int:
     while end < len(line) and line[end] == line[start]:
         end += 1
     return end - start
-
-
-def _match_inline_html(line: str, start: int) -> str | None:
-    for pattern in _INLINE_HTML:
-        match = pattern.match(line, start)
-        if match is not None:
-            return match.group()
-    return None
 
 
 def _scan_image(line: str, start: int, hits: list[_Hit]) -> int:

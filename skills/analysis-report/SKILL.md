@@ -94,7 +94,8 @@ Three rules hold across every section:
 1. Write the assembled Markdown to `.insight/reports/{design_id}.md`
    (create `.insight/reports/` if missing). This is the only file this skill writes.
 2. Run `report_check --id {design_id}`. It lists the markup that is still active in the written
-   report: an image that is not a figure, raw HTML. For each violation, fix that spot the way the
+   report: an image that is not a figure, raw HTML, a Mermaid line the lineage export never
+   writes. For each violation, fix that spot the way the
    template's "Source text" section says, write the report again, and re-run until it reports
    none. Never hand off a report that still has a violation. If the command cannot run, say so
    in the hand-off and do not claim the report was checked.

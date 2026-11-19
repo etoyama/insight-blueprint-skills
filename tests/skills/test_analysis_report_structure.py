@@ -510,3 +510,9 @@ class TestReportCheck:
 
     def test_reference_lists_the_command(self) -> None:
         assert "`--id ID`" in _section(_skill(), "## report_check Reference")
+
+
+def test_appendix_embeds_only_the_shapes_the_lineage_export_writes() -> None:
+    # Epic 13, ADR-0019: a click or a directive in a hand-edited file never rides in.
+    appendix = unwrap(_section(_template(), "## Appendix contents"))
+    assert "any line that is not one of the three shapes" in appendix

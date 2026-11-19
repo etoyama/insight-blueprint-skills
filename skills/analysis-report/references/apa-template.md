@@ -268,8 +268,10 @@ Appendix heading it has two subsections:
 
 **Safety**: the lineage text carries step reasons from the notebook. Skip the diagram when the
 file does not start with `graph LR`, contains a code fence (three backticks) — it would break
-out of the `mermaid` fence — or carries any tag other than `<br/>`, which the diagram's renderer
-could take as HTML. The row-count table in Method still shows the reasons, escaped.
+out of the `mermaid` fence — has any line that is not one of the three shapes shown under "Row
+counts" (`graph LR`, a node, an edge), or carries any tag other than `<br/>`, which the
+diagram's renderer could take as HTML. The row-count table in Method still shows the reasons,
+escaped.
 
 **Graceful degrade**: omit `### Data Lineage` when the lineage file is missing, empty, or
 skipped by the safety rule. Omit `### Notebook` when `.insight/notebooks/{id}.py` does not exist.

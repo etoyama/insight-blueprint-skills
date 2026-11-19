@@ -181,24 +181,25 @@ def test_fence_may_be_indented_by_up_to_three_spaces() -> None:
 
 @pytest.mark.parametrize("br", ["<br>", "<br/>", "<br />", "<BR/>"])
 def test_br_inside_a_mermaid_fence_is_not_a_violation(br: str) -> None:
-    assert find_violations(f"```mermaid\nA[a{br}b] --> B\n```") == []
+    assert find_violations(f'```mermaid\n    Step0["a{br}b"]\n```') == []
 
 
 def test_other_tag_inside_a_mermaid_fence_is_a_mermaid_html_violation() -> None:
-    [v] = find_violations("```mermaid\nA[<img src=x>] --> B\n```")
+    [v] = find_violations('```mermaid\n    Step0["<img src=x>"]\n```')
     assert (v.line, v.kind, v.text) == (2, "mermaid-html", "<img src=x>")
 
 
 def test_closing_tag_inside_a_mermaid_fence_is_a_violation() -> None:
-    assert _kinds("```Mermaid\nA[x</b>] --> B\n```") == ["mermaid-html"]
+    assert _kinds('```Mermaid\n    Step0["x</b>"]\n```') == ["mermaid-html"]
 
 
-def test_mermaid_arrows_are_not_tags() -> None:
-    assert find_violations("```mermaid\nA <--> B\nA -->|x<0.5| B\n```") == []
+def test_less_than_before_a_digit_in_a_mermaid_label_is_not_a_tag() -> None:
+    markdown = '```mermaid\n    Step0 -->|"x<0.5 を除く<br/>-1 rows"| Step1\n```'
+    assert find_violations(markdown) == []
 
 
 def test_mermaid_fence_content_is_not_treated_as_prose() -> None:
-    assert _kinds("```mermaid\nA[`<br/>`]\n```") == []
+    assert _kinds('```mermaid\n    Step0["`<br/>` \\<"]\n```') == []
 
 
 # --- positions and text -----------------------------------------------------
@@ -248,8 +249,10 @@ Source: `.insight/notebooks/FP-H01.py`
 Figure 1. caption with \\<script\\> and \\[link\\]\\(http://e\\) escaped.
 
 ```mermaid
-flowchart LR
-    A[source<br/>table] --> B[result<br />view]
+graph LR
+    Step0["sales<br/>12000 rows"]
+    Step1["Step 1<br />11800 rows"]
+    Step0 -->|"欠損を除く<br/>-200 rows"| Step1
 ```
 
 ```python
@@ -382,3 +385,76 @@ def test_tag_left_open_at_the_end_of_a_line_is_a_violation() -> None:
 
 def test_less_than_before_a_word_that_ends_the_line_without_a_tag_shape() -> None:
     assert find_violations("n <5\n次の行\n") == []
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        '<a title="x>y" onclick="alert(1)">詳細',
+        "説明 <img src=x",
+        "説明 <img",
+        "a<b",
+        "</div",
+        "<!doctype",
+        "<?php",
+    ],
+)
+def test_any_unescaped_tag_start_is_a_violation(line: str) -> None:
+    # Fail closed: a tag grammar that misses one shape lets that shape through.
+    assert [v.kind for v in find_violations(line)] == ["html"]
+
+
+def test_html_violation_text_runs_to_the_first_closing_bracket() -> None:
+    (violation,) = find_violations("前 <b class=x>太字 後")
+    assert violation.text == "<b class=x>"
+
+
+def test_tag_start_inside_a_mermaid_fence_is_a_violation_even_when_left_open() -> None:
+    markdown = '```mermaid\ngraph LR\n    Step0["a <img src=x"]\n```\n'
+    assert [(v.line, v.kind) for v in find_violations(markdown)] == [
+        (3, "mermaid-html")
+    ]
+
+
+@pytest.mark.parametrize(
+    "file",
+    ["%2e%2e%2fsecret.png", "a%20b.png", "図.png", "a..b.png"],
+)
+def test_figure_file_outside_the_plain_charset_is_a_violation(file: str) -> None:
+    markdown = f"![Figure 1](../notebooks/{file})"
+    assert [v.kind for v in find_violations(markdown)] == ["image"]
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        'click Step0 href "http://evil.example"',
+        '%%{init: {"securityLevel": "loose"}}%%',
+        "    Step0 --> Step1",
+        "subgraph x",
+    ],
+)
+def test_mermaid_statement_the_lineage_export_never_writes_is_a_violation(
+    statement: str,
+) -> None:
+    markdown = f'```mermaid\ngraph LR\n    Step0["a<br/>1 rows"]\n{statement}\n```\n'
+    assert [(v.line, v.kind) for v in find_violations(markdown)] == [
+        (4, "mermaid-statement")
+    ]
+
+
+def test_the_three_shapes_of_the_lineage_export_are_not_violations() -> None:
+    markdown = (
+        "```mermaid\n"
+        "graph LR\n"
+        '    Step0["sales<br/>12000 rows"]\n'
+        '    Step1["Step 1<br/>11800 rows"]\n'
+        '    Step0 -->|"欠損を除く &#124; 2025年<br/>-200 rows"| Step1\n'
+        "\n"
+        "```\n"
+    )
+    assert find_violations(markdown) == []
+
+
+def test_closing_tag_start_in_the_middle_of_a_line_is_a_violation() -> None:
+    assert [v.kind for v in find_violations("説明 </div")] == ["html"]
