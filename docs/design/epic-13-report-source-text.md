@@ -219,6 +219,21 @@ sequenceDiagram
   分析者が手で足した mermaid の図は、形が違えば違反になる。検査は書いた直後にだけ流れるので、手直しの後には当たらない。
   素の URL と実体参照は写す手順でも検査でも扱わない（ADR-0019 の Negative）。
 
+### Decision: share-the-id-pattern
+
+- What: id の正規表現 `SAFE_ID_PATTERN` を `skills/_shared/ids.py` の1つにし、`design_io`・`catalog_io`・`report_check` が使う。
+  各モジュールの `_validate_id` とエラーの文は変えない。bin ラッパーの前置きの写しは直さず、issue #88 に回す。
+- Why: この Epic の `report_check` が3つ目の写しを足し、Rule of Three に当たった。前の2つのコメントは互いを指し、片方はもう無い場所を指していた。
+  `pstack:thermos` のレビュー（2026-11-20）が指摘した。
+- Criteria: 振る舞いを変えないこと（Must、ADR-0012）。Rule of Three を守ること（Want、高、人間。coding-principles）。
+  Epic PR が #75 の話に絞られること（Want、中、Claude の推測）。ラッパーを共有にしたとき入れた先で壊す危険（Want、中、Claude の推測）。
+  決め手は Rule of Three。2026-11-20 に人間が選んだ。
+- Affected modules: `skills/_shared/ids.py`（新規）、`design_io.py`、`catalog_io.py`、`report_check.py`
+- Alternatives considered: どちらもこの Epic で直す案（ラッパーを共有にする危険を今負う）。どちらもこの Epic の外にする案
+  （Epic が足した3つ目の写しがしばらく `main` に残る）。
+- Consequences: `ids.py` は何も import しないので、読むだけのコマンドも pydantic を読み込まずに使える。
+  ラッパーの前置きは4つのままで、直すときは4か所を直す（issue #88）。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0019: レポートに写すデータ由来の文は、削らずエスケープし、できたレポートをコードで検査する](../adr/0019-report-source-text-escaped-and-checked.md):
@@ -263,3 +278,4 @@ sequenceDiagram
   合成データのレポート2本（sonnet と haiku が書いたもの）は、直したあとの検査でも違反0件だった。
   人間の判断が要る指摘（`SAFE_ID_PATTERN` の3つ目の写し、bin ラッパーの前置きの4つ目の写し）は直していない。
 - 2026-11-20 — Domain Model の節を ADR-0011 に合わせた。初版はクラスの無いファイルの契約を図に描いていた。モデルのクラスは変えていないので「変更なし」とし、契約は表にした。
+- 2026-11-20 — 人間が残りの指摘の扱いを決めた。検査の2回目の直しは決めた案の範囲とする。`SAFE_ID_PATTERN` はこの Epic でまとめ、ラッパーは issue #88 に回す（Decision `share-the-id-pattern`）。

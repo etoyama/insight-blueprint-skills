@@ -28,11 +28,9 @@ from collections.abc import Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-DEFAULT_BASE_DIR = Path(os.environ.get("INSIGHT_BASE_DIR", ".insight"))
+from skills._shared.ids import SAFE_ID_PATTERN
 
-# Same pattern as design_io / catalog_io. Copied (third copy) because importing
-# design_io would pull in the pydantic models for a read-only check.
-SAFE_ID_PATTERN = re.compile(r"[a-zA-Z0-9_-]+")
+DEFAULT_BASE_DIR = Path(os.environ.get("INSIGHT_BASE_DIR", ".insight"))
 
 MAX_TEXT_LENGTH = 120
 

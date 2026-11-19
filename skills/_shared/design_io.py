@@ -33,15 +33,11 @@ from insight_blueprint.validate import (
     validate_transition,
 )
 from skills._shared._atomic import atomic_write_yaml
+from skills._shared.ids import SAFE_ID_PATTERN
 
 DEFAULT_BASE_DIR = Path(os.environ.get("INSIGHT_BASE_DIR", ".insight"))
 
 THEME_ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9]*$")
-
-# Server-independent id check (mirrors catalog_io.SAFE_ID_PATTERN). A design_id is
-# interpolated into `{id}_*.yaml` paths, so reject anything that could escape the
-# designs directory (path separators, `..`, etc.).
-SAFE_ID_PATTERN = re.compile(r"[a-zA-Z0-9_-]+")
 
 
 def _validate_id(design_id: str) -> None:
