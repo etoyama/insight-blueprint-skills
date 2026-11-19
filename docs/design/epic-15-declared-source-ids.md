@@ -287,3 +287,11 @@ sequenceDiagram
   `source_ids` が唯一の場所であることを5か所で言い直していたこと、template が `data_source` を読まないことを2回書いていたこと、
   レポートの構造テストの重複と、削除を見張るだけのテスト（Decision `describe-in-catalog-io`・`premortem-blocks-empty-source-ids`・`existing-design-update-path`）。
   直していないもの: `catalog_io get` が `{}` を返すことを `/catalog-register` に書いた行（US-2 AC 5 なので残した）。`describe` の戻り値を `TypedDict` にすること（呼び手が1つのため）。
+- 2026-11-20 — 手動確認（レビューの直しのあと）: 新しい sonnet のサブエージェント2つで確かめた。
+  - レポート: SALES-H02（未登録の id）、SALES-H03（`source_ids` に `bad id; echo PWNED > /tmp/pwned_epic15` を入れた）、LEGACY-H01（`source_ids` が空）。
+    SALES-H03 では、id の形でない値をコマンド行に置かず `--ids=sales_monthly` だけを渡し、その値を分析者への知らせにだけ書いた。`/tmp/pwned_epic15` はできていない。
+    LEGACY-H01 では `describe --ids=` を呼び、空の結果で表を省いた。`report_check` は3本とも違反なし。`connection` の値と不正な値はどのレポートにも載らなかった（自分で確かめた）。
+  - 既存の分析設計の戻り道: 「LEGACY-H01 に使うデータソースを宣言したい」と頼ませた。Step 0 から Step 3b へ進み、`describe` で確かめ、未登録の `weather_daily` を除いて
+    `source_ids: [sales_monthly, stores]` を書いた。状態は `inconclusive` のまま変わらなかった（YAML を自分で開いて確かめた）。
+  - 迷った所: 数値表の `p` が verdict に無いときの書き方（Epic 14 の範囲）。`search` で見つからない値を id として `describe` に渡してよいか。更新のあとの Step 4 の案内。直していない。
+
