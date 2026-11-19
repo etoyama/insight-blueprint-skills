@@ -59,9 +59,9 @@ AC の正本はここ。
 
 | Story issue | User Story | 扱う AC |
 |---|---|---|
-| （起票前） | US-1 | AC 1〜4 |
-| （起票前） | US-2 | AC 1〜5 |
-| （起票前） | US-3 | AC 1〜3 |
+| [#97](https://github.com/etoyama/insight-blueprint-skills/issues/97) | US-1 | AC 1〜4 |
+| [#98](https://github.com/etoyama/insight-blueprint-skills/issues/98) | US-2 | AC 1〜5 |
+| [#99](https://github.com/etoyama/insight-blueprint-skills/issues/99) | US-3 | AC 1〜3 |
 
 ## Ubiquitous Language
 
@@ -213,3 +213,4 @@ sequenceDiagram
 
 - 2026-11-20 — 人間が出典を決めた。分析設計が使うデータソースは `source_ids` に宣言し、`data_source` は id として読まない。
   `source_ids` が空の既存の分析設計からは拾わない（案 A1）。
+- 2026-11-20 — DesignDoc 初版。issue #71 を Epic にし、Story を起票した（#97・#98・#99）。
