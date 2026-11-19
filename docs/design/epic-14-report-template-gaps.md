@@ -208,7 +208,7 @@ sequenceDiagram
 
 ### Decision: no-space-around-fields
 
-- What: 定型の文は、差し込む値の前後に空白を置かない。Epic 12 から載っている Introduction の決定の文脈の文
+- What: 定型の文は差し込む値の前後に空白を置かない。Epic 12 から載っている Introduction の決定の文脈の文
   （「この分析は、{decision_maker}が{decision}を決めるための材料である。」）も同じ形に直す。
 - Why: 手動確認（2026-11-20）で、テンプレートの空白を sonnet は残し、haiku は落とした。同じ分析から2つの形ができた。
 - Criteria: 実行ごとの形の揺れが減ること（Want、高、人間）。日本語の文として読めること（Want、中、Claude の推測）。決め手は1つ目。
