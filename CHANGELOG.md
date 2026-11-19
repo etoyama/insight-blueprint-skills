@@ -13,7 +13,8 @@ never as markup. Design: `docs/design/epic-13-report-source-text.md`.
 ### Added
 
 - **`report_check --id {design_id}`** checks a written report for markup that is still active: an
-  image that is not a figure, raw HTML, a tag other than `<br/>` in a Mermaid block. It exits 1
+  image that is not a figure, any tag start (`<` followed by a letter, `/`, `!`, or `?`), and, in a
+  Mermaid block, a tag other than `<br/>` or a line the lineage export never writes. It exits 1
   and prints the violations as JSON. `/analysis-report` runs it right after writing the report
   ([ADR-0019](docs/adr/0019-report-source-text-escaped-and-checked.md)).
 
@@ -24,8 +25,8 @@ never as markup. Design: `docs/design/epic-13-report-source-text.md`.
   data-source fields, lineage reasons, metric names, the decision context, and the title keep
   every word, become one line, and get a backslash before `\` `` ` `` `*` `_` `[` `]` `<` `|`.
   A sentence in them that reads as an instruction stays as text, and the skill tells the analyst
-  where it is. A lineage diagram whose labels carry a tag other than `<br/>` is left out of the
-  Appendix.
+  where it is. A lineage diagram is left out of the Appendix when a label carries a tag other than
+  `<br/>` or a line is not one the lineage export writes.
 
 - **`catalog_io` no longer prints a source's `connection` (`get`, `list`, `create`, `update`)
   ([ADR-0018](docs/adr/0018-catalog-io-omits-connection-by-default.md)).** A connection holds file
