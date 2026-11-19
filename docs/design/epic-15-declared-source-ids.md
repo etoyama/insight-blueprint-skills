@@ -41,10 +41,10 @@ AC の正本はここ。
 - [ ] AC 1: `catalog_io describe --ids a,b` は、登録済みのデータソースの `id`・`name`・`type`・`description` を、渡した順で重複なく返す。
   未登録の id と id の形でない値は `missing` に分けて返す。`connection` は返さない。unit test で確かめる。
 - [ ] AC 2: `/analysis-report` は `source_ids` だけを読み、`catalog_io describe` に渡す。`data_source` は読まない。
-- [ ] AC 3: `source_ids` が空なら、データソースの表を省き、`design_io update` で足せることを分析者に伝える。
+- [ ] AC 3: `source_ids` が空なら、データソースの表を省き、`/analysis-design` で足せることを分析者に伝える。
   `missing` があれば表に載せず、どの id が未登録かを分析者に伝える。
 - [ ] AC 4: Method の指標と説明変数の表には、データソースの列を置かない。テンプレートにその理由（`data_source` は id でないメモ）を書く。
-- [ ] AC 5: `/analysis-report` の「catalog_io Reference」に、未登録の id で `catalog_io get` が `{}`・終了コード 0 を返すことを書く。
+- [ ] AC 5: `/catalog-register` の「catalog_io Reference」に、未登録の id で `catalog_io get` が `{}`・終了コード 0 を返すことを書く。
 
 ### US-3: 下流の skill が、同じ場所からデータソースを読む
 

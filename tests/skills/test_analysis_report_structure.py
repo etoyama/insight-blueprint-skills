@@ -214,7 +214,7 @@ class TestDataDescriptionInMethod:
 
     def test_template_lists_name_type_and_description_from_the_catalog(self) -> None:
         section = _section(_template(), "## Data description (Method)")
-        assert "catalog_io get" in section
+        assert "catalog_io describe" in section
         assert "| Data source | Type | Description |" in section
         for field in ("`name`", "`type`", "`description`"):
             assert field in section, f"data source table must read {field}"
@@ -237,18 +237,8 @@ class TestDataDescriptionInMethod:
 
     def test_skill_reads_the_catalog_and_the_lineage(self) -> None:
         gather = _section(_skill(), "### Step 2: ")
-        assert "catalog_io get --id" in gather
+        assert "catalog_io describe --ids" in gather
         assert ".insight/lineage/{design_id}.mmd" in gather
-
-    def test_source_id_must_match_as_a_whole(self) -> None:
-        # Anchored, so "match" cannot be read as "contains a matching part" — the
-        # same wording /report-upload uses for the design id.
-        assert "fully match `^[a-zA-Z0-9_-]+$`" in _section(
-            _template(), "## Data description (Method)"
-        )
-        # The skill runs the command, so it must send the reader to that rule first.
-        gather = unwrap(_section(_skill(), "### Step 2: "))
-        assert "filter the ids as it says before calling" in gather
 
 
 class TestImplicationsAndRecommendation:
@@ -373,12 +363,12 @@ class TestReadOnlyConsumer:
     def test_only_reading_commands_are_invoked(self) -> None:
         for text in (_skill(), _template()):
             assert _commands(text, "design_io") <= {"get"}
-            assert _commands(text, "catalog_io") <= {"get"}
+            assert _commands(text, "catalog_io") <= {"describe"}
 
     def test_references_list_only_the_reading_commands(self) -> None:
         t = _skill()
         assert "`get --id ID`" in _section(t, "## design_io Reference")
-        assert "`get --id SOURCE`" in _section(t, "## catalog_io Reference")
+        assert "`describe --ids ID,ID`" in _section(t, "## catalog_io Reference")
 
     def test_the_report_is_the_only_file_written(self) -> None:
         handoff = _section(_skill(), "### Step 4: ")
@@ -390,7 +380,7 @@ class TestReadOnlyConsumer:
         for source in (
             "`decision_context`",
             "`next_action`",
-            "catalog_io get",
+            "catalog_io describe",
             ".insight/lineage/{id}.mmd",
             ".insight/notebooks/{id}.py",
         ):

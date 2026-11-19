@@ -8,6 +8,8 @@ parts: /analysis-design writes ``source_ids`` after checking the catalog, and ke
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills.test_skill_structure import _read_skill
 
@@ -50,3 +52,65 @@ class TestAnalysisDesignDeclaresTheSources:
     def test_framing_brief_data_drafts_source_ids(self) -> None:
         brief = section(_read_skill("analysis-design"), "### Step 1.5: ")
         assert "`source_ids`" in table_row(brief, "利用可能データ")[1]
+
+
+def _report_skill() -> str:
+    return _read_skill("analysis-report")
+
+
+def _template() -> str:
+    return (
+        Path(__file__).resolve().parents[2]
+        / "skills/analysis-report/references/apa-template.md"
+    ).read_text(encoding="utf-8")
+
+
+class TestReportShowsOnlyTheDeclaredSources:
+    """US-2: the report reads ``source_ids`` alone and asks ``catalog_io describe``."""
+
+    def test_skill_passes_source_ids_to_describe(self) -> None:
+        gather = unwrap(section(_report_skill(), "### Step 2: "))
+        assert "catalog_io describe --ids {source_ids}" in gather
+        assert "`data_source`" not in gather
+
+    def test_template_reads_source_ids_and_not_data_source(self) -> None:
+        data = unwrap(section(_template(), "## Data description (Method)"))
+        assert "`source_ids`" in data
+        assert "is not read" in data and "`data_source`" in data
+        # The candidate collection moved into catalog_io describe.
+        assert "candidate" not in data
+        assert "^[a-zA-Z0-9_-]+$" not in data
+
+    def test_template_tells_the_analyst_about_empty_source_ids(self) -> None:
+        data = unwrap(section(_template(), "## Data description (Method)"))
+        assert "When `source_ids` is empty" in data
+        assert "/analysis-design" in data
+
+    def test_template_leaves_missing_ids_out_and_names_them(self) -> None:
+        data = unwrap(section(_template(), "## Data description (Method)"))
+        assert "`missing`" in data
+        assert "never in the table" in data
+
+    def test_hand_off_names_empty_or_missing_sources(self) -> None:
+        handoff = unwrap(section(_report_skill(), "### Step 4: "))
+        assert "`source_ids`" in handoff and "`missing`" in handoff
+
+    def test_method_tables_say_why_there_is_no_data_source_column(self) -> None:
+        tables = unwrap(section(_template(), "## Method tables (Method)"))
+        assert "`data_source`" in tables
+        assert "a note, not a source id" in tables
+
+
+class TestUnregisteredIdIsDocumented:
+    """US-2 AC 5: ``catalog_io get`` prints ``{}`` with exit code 0 for an unknown id."""
+
+    def test_catalog_register_reference_says_what_get_returns(self) -> None:
+        reference = unwrap(
+            section(_read_skill("catalog-register"), "## catalog_io Reference")
+        )
+        assert "prints `{}` and exits 0" in reference
+
+    def test_catalog_register_reference_lists_describe(self) -> None:
+        reference = section(_read_skill("catalog-register"), "## catalog_io Reference")
+        purpose = table_row(reference, "`describe --ids ID,ID`")[1]
+        assert "`missing`" in purpose
