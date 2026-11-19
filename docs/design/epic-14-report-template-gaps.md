@@ -247,3 +247,16 @@ sequenceDiagram
 - 2026-11-20 — 人間が進め方と中身を決めた。issue #76 を Epic にし、項目6と Method のデータソースの書き方は #71 に回す（判断12）。
   語り直す文は Abstract と Recommendation の書き出しだけを定型にする。Method の表は全項目、Future Directions は未解決の問いだけ。
 - 2026-11-20 — DesignDoc 初版。issue #76 を Epic にし、Story を起票した（#90・#91・#92）。
+- 2026-11-20 — Story #90・#91・#92 completed: テンプレートに出典・書式・省く条件・書き出しの1文を足した。構造テストを先に Red にした。
+- 2026-11-20 — 手動確認（US-1・US-2・US-3）: 合成データの `.insight/` に、結論の出た分析を3つ作った。
+  supported（決定の文脈と `next_action` あり、両方の向きの証拠と向きの無い証拠、`resolves` はリスト、未解決の問い1件、限界を述べた `reflect`、図、lineage）、
+  rejected（決定の文脈だけ、説明変数なし、verdict.json なし、`resolves` は id 1つ）、inconclusive（決定の文脈も `next_action` もなし、指標なし、`figures == []`）。
+  この作業を知らないサブエージェント2つ（sonnet と haiku）に、SKILL.md のパスと `.insight/` だけを渡し、3本ずつ書かせた。plugin として起動した確認ではなく、コマンドは `bin/` のパスで呼ばせた。
+  - 1回目: 見出し・表・定型の文は2本でほぼ揃った。割れたのは、定型の文の差し込みの前後の空白（sonnet は残し、haiku は落とした）と、
+    限界の文を Abstract にも書くか（sonnet は両方に書いた）。`inconclusive` の Limitations と、向きの無い証拠の順番は、2本とも「書いていない」と報告した。
+    haiku は骨組みの題の行の注記を、題を2回書く指示と読みかけた。テンプレートを直した（Decision `no-space-around-fields`、`limits-only-in-limitations`）。
+  - 2回目（直したあと、新しいサブエージェント2つ）: 3本とも、見出し・表・太字の行・箇条書き・引用の行が2本で1行ずつ同じだった。
+    Abstract・Introduction の決定の文脈・Recommendation の書き出しの文も同じだった。`report_check` は6本とも違反なし。`connection` の値と絶対パスはどのレポートにも載らなかった。
+  - 残った揺れ: 語り直す文の言い回し（Introduction、Method の叙述、Implications、Recommendation の2文目以降）。Abstract に効果量を足すかもモデルで違った。
+    どれも Decision `fix-the-lead-sentences` でモデルに任せた所である。sonnet は Implications に「区間は0を含まない」と書いた。数を計算しない決まりとの境目にあり、直していない。
+  - 確かめていないこと: fable と opus での結果。plugin として入れた先での起動。Claude Docs での見え方（アップロードしていない）。
