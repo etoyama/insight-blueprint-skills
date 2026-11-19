@@ -25,13 +25,13 @@ the figure-manifest contract is [ADR-0008](../../../docs/adr/0008-notebook-figur
 {decision_context があれば、誰が何を決めるための分析か（下記フォーマット）。無ければ省略}
 
 ## Method
-{methodology.method（package / reason / steps）+ metrics + explanatory 変数と役割}
+{methodology.method（package / reason / steps）の叙述 + 指標の表 + 説明変数の表（下記フォーマット）}
 
 ### Data
 {データソースの表（catalog）と、加工での行数の変化の表（lineage）。下記フォーマット。どちらも無ければこの節ごと省略}
 
 ## Results
-{journal の observe/evidence の叙述 + verdict.metrics の数値表（下記フォーマット）+ 図（下記フォーマット）}
+{journal の observe の叙述 + 向きで分けた evidence（下記フォーマット）+ verdict.metrics の数値表（下記フォーマット）+ 図（下記フォーマット）}
 
 ## Discussion
 
@@ -106,6 +106,7 @@ carried: Markdown, HTML, or a sentence addressed to whoever reads it. The report
 | the name of a metric (a key of `verdict.metrics`), `effect_size.kind` | cells of the numbers table |
 | `decision_maker`, `decision` | the decision-context paragraph |
 | the design's `title` | the `# {title}` heading |
+| the items of `metrics` and `explanatory` | cells of the Method tables |
 
 Transcribe each of them with the same three steps, in this order:
 
@@ -163,6 +164,41 @@ close the Introduction with one short paragraph built from its two fields:
 - **Omit the paragraph** when the design has no `decision_context`. No note is added — the item
   is optional, so a design written before ADR-0014 gets the Introduction it gets today.
 
+## Method tables (Method)
+
+After the methodology, Method lays out what the analysis measures and what it explains it with,
+in two tables from the design. One row per entry, in the order the design gives them:
+
+```markdown
+| Metric | Tier | Aggregation | Grouping | Filter | Comparison |
+|---|---|---|---|---|---|
+| 月次売上 | primary | mean | 店舗の種類, 地域 | 2019年以降 | 施策前後 |
+
+| Variable | Role | Description | Time points |
+|---|---|---|---|
+| 値引き率 | treatment | 店舗ごとの平均値引き率 | 施策前・施策後 |
+```
+
+| Column | Item of the design |
+|---|---|
+| Metric | `metrics[].target` |
+| Tier | `metrics[].tier` |
+| Aggregation | `metrics[].aggregation` |
+| Grouping | `metrics[].grouping`, its items joined with `, ` |
+| Filter | `metrics[].filter` |
+| Comparison | `metrics[].comparison` |
+| Variable | `explanatory[].name` |
+| Role | `explanatory[].role` |
+| Description | `explanatory[].description` |
+| Time points | `explanatory[].time_points` |
+
+- Omit a column that no row fills. When some rows have a value and others do not, keep the
+  column and write `—` in the cells without a value.
+- Omit the table when the list is empty. No note is added.
+- Every cell is [Source text](#source-text-transcribe-never-render).
+- The data source of a metric or a variable has no column here. `### Data` below names the data
+  sources.
+
 ## Data description (Method)
 
 `### Data` tells the reader where the data came from and how much of it survived processing, so
@@ -214,6 +250,8 @@ One row per node, in step order. `Step0` is the data as loaded:
 
 - Transcribe `Rows` and `Change` as the file gives them. **Never compute** a row count, a
   difference, or a retention rate that the file does not state.
+- `Rows` and `Change` are numbers: `Change` is the signed number alone, without `rows`
+  (`-200 rows` becomes `-200`).
 - `Reason` is [Source text](#source-text-transcribe-never-render). It is the edge label up to its last `<br/>`; what follows is
   the change.
 
@@ -291,6 +329,27 @@ escaped.
 skipped by the safety rule. Omit `### Notebook` when `.insight/notebooks/{id}.py` does not exist.
 Omit the whole `## Appendix` when both are omitted. No note is added.
 
+## Results narrative
+
+Results opens with what the analysis observed and what it found, from the journal's `observe` and
+`evidence` events. Retell them in order: first the `observe` events as a short narrative, then the
+`evidence` events in two groups by `metadata.direction`, one bullet per event:
+
+```markdown
+**仮説を支持する証拠**
+
+- {an evidence event with direction supports}
+
+**仮説に反する証拠**
+
+- {an evidence event with direction contradicts}
+```
+
+- Never write the value of `direction` (no `direction: supports`). The group says it.
+- Omit a group that has no event. Keep every `evidence` event, also the ones against the
+  conclusion: the reader judges the conclusion by them.
+- An `evidence` event without a `direction` is retold with the `observe` events.
+
 ## Results numbers table
 
 One row per entry of `verdict.metrics`. Omit the table when `verdict.metrics` is absent or empty
@@ -329,6 +388,8 @@ placed after `Value`:
 - **Never compute** a missing item, and never assume a kind or a level (do not write "95%" unless
   `level` says so). The numbers come from the notebook; re-run /analysis-notebook to add them.
 - Transcribe the numbers as the verdict gives them; rounding for display is fine, changing them is not.
+- Writing `level` as a percent (`0.95` as `95%`, `0.9` as `90%`) is a display form, not a computation.
+- `Pass` is a mark. `pass` is `true`: `✓`; `false`: `✗`; absent: `—`.
 - The metric name and `effect_size.kind` are [Source text](#source-text-transcribe-never-render).
 
 **Graceful degrade**: a verdict with none of the three items (an analysis that predates ADR-0013,

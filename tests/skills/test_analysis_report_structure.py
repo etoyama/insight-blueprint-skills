@@ -392,6 +392,7 @@ TRANSCRIBED_INPUTS = (
     "`decision_maker`",
     "`decision`",
     "`title`",
+    "items of `metrics` and `explanatory`",
 )
 
 # Sections that place a transcribed input, so each must send the reader to the one rule.
@@ -400,6 +401,7 @@ SECTIONS_WITH_TRANSCRIBED_INPUTS = (
     "## Data description (Method)",
     "## Results numbers table",
     "## Figure presentation format",
+    "## Method tables (Method)",
 )
 
 
@@ -617,3 +619,48 @@ class TestSourceOfEachPart:
         assert len(lines) == 2, "one line per cause"
         missing_verdict = next(ln for ln in lines if "verdict.json" in ln)
         assert "notebook が図を生成していない" not in missing_verdict
+
+
+METHOD_TABLES = "## Method tables (Method)"
+RESULTS_NARRATIVE = "## Results narrative"
+
+
+class TestFormatOfTablesAndNumbers:
+    """US-2 (Epic 14): tables and numbers have one format."""
+
+    def test_method_tables_show_every_item_but_the_data_source(self) -> None:
+        section = _section(_template(), METHOD_TABLES)
+        assert "| Metric | Tier | Aggregation | Grouping | Filter | Comparison |" in section
+        assert "| Variable | Role | Description | Time points |" in section
+        assert "| Data source |" not in section
+
+    def test_method_tables_omit_what_has_no_value(self) -> None:
+        section = unwrap(_section(_template(), METHOD_TABLES))
+        assert "Omit a column that no row fills" in section
+        assert "write `—` in the cells without a value" in section
+        assert "Omit the table when the list is empty" in section
+        assert "No note is added" in section
+
+    def test_method_table_cells_are_source_text(self) -> None:
+        assert METHOD_TABLES in SECTIONS_WITH_TRANSCRIBED_INPUTS
+        assert "items of `metrics` and `explanatory`" in unwrap(_source_text())
+
+    def test_a_ci_level_as_a_percent_is_a_display_form(self) -> None:
+        section = unwrap(_section(_template(), "## Results numbers table"))
+        assert "is a display form, not a computation" in section
+
+    def test_pass_has_one_mark_per_value(self) -> None:
+        section = unwrap(_section(_template(), "## Results numbers table"))
+        assert "`pass` is `true`: `✓`; `false`: `✗`; absent: `—`" in section
+
+    def test_change_is_the_signed_number_without_rows(self) -> None:
+        section = unwrap(_section(_template(), "## Data description (Method)"))
+        assert "`Change` is the signed number alone, without `rows`" in section
+
+    def test_evidence_is_grouped_by_direction(self) -> None:
+        section = unwrap(_section(_template(), RESULTS_NARRATIVE))
+        assert "**仮説を支持する証拠**" in section
+        assert "**仮説に反する証拠**" in section
+        assert "Never write the value of `direction`" in section
+        assert "Omit a group that has no event" in section
+        assert "An `evidence` event without a `direction`" in section
