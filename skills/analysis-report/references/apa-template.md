@@ -15,7 +15,6 @@ the figure-manifest contract is [ADR-0008](../../../docs/adr/0008-notebook-figur
 
 ```
 # {title}
-{分析設計の title}
 
 ## Abstract
 {terminal status の1文（下記）で始め、conclude イベント + verdict.conclusion から数文}
@@ -157,8 +156,12 @@ result the same way:
 | `inconclusive` | 仮説を支持するとも棄却するとも結論できなかった。 |
 
 Follow it with what the conclusion says, in a few sentences from the `conclude` event and
-`verdict.conclusion`. When the narrative is not Japanese, write a sentence of the same meaning in
-that language instead.
+`verdict.conclusion`. A limit goes in Limitations only: when a `conclude` event states a result and
+a limit, the Abstract retells the result and leaves the limit out. When the narrative is not
+Japanese, write a sentence of the same meaning in that language instead.
+
+A fixed sentence here or in another section is written exactly as shown, with each `{field}`
+replaced by its value. No space goes around a field: the sentence reads as one Japanese sentence.
 
 ## Decision context (Introduction)
 
@@ -172,7 +175,7 @@ close the Introduction with one short paragraph built from its two fields:
 | `decision` | what they decide |
 
 ```markdown
-この分析は、{decision_maker} が {decision} を決めるための材料である。
+この分析は、{decision_maker}が{decision}を決めるための材料である。
 ```
 
 - State both fields as the design gives them. Do not sharpen, widen, or reinterpret the decision.
@@ -313,9 +316,9 @@ The section opens with one fixed sentence for its row, then says the rest:
 
 | Case | First sentence |
 |---|---|
-| both present | `{decision_maker} には、{decision} について次を推奨する。` |
-| `decision_context` only, status `supported` or `rejected` | `{decision} について、この分析の設計は取る行動を定めていない。` |
-| `decision_context` only, status `inconclusive` | `この分析の証拠では、{decision} は決まらない。` |
+| both present | `{decision_maker}には、{decision}について次を推奨する。` |
+| `decision_context` only, status `supported` or `rejected` | `{decision}について、この分析の設計は取る行動を定めていない。` |
+| `decision_context` only, status `inconclusive` | `この分析の証拠では、{decision}は決まらない。` |
 | branch of `next_action` only | `次を推奨する。` |
 
 `decision_maker` and `decision` are [Source text](#source-text-transcribe-never-render). When the
@@ -331,11 +334,10 @@ recommend none.
 - the parts of `conclude` and `reflect` events that state a limit of the analysis or an assumption
   the conclusion rests on;
 - the `evidence` events whose direction runs against the conclusion: `contradicts` when the status
-  is `supported`, `supports` when it is `rejected`. Name them in one sentence; Results already
-  lists them.
+  is `supported`, `supports` when it is `rejected`, and none when it is `inconclusive`. Name them
+  in one sentence; Results already lists them.
 
-Never repeat a sentence the Abstract already states. Take only the limit from a `conclude` event
-whose conclusion the Abstract retells.
+Never repeat a sentence the Abstract already states.
 
 **Future Directions** lists the open questions ([Journal events](#journal-events)), one bullet per
 question.
@@ -396,7 +398,8 @@ Results opens with what the analysis observed and what it found, from the journa
 - Never write the value of `direction` (no `direction: supports`). The group says it.
 - Omit a group that has no event. Keep every `evidence` event, also the ones against the
   conclusion: the reader judges the conclusion by them.
-- An `evidence` event without a `direction` is retold with the `observe` events.
+- An `evidence` event without a `direction` is retold after the `observe` events, in journal
+  order, in the same narrative.
 
 ## Results numbers table
 

@@ -32,37 +32,37 @@ AC の正本はここ。
 
 意思決定者として、どのレポートでも同じ節に同じ種類の内容を読めるように、各部分がどの入力から来るかが決まっていてほしい。
 
-- [ ] AC 1: テンプレートは未解決の問いの見分け方として、journal の SKILL.md の「Open Questions」を指す。
+- [x] AC 1: テンプレートは未解決の問いの見分け方として、journal の SKILL.md の「Open Questions」を指す。
   `conclude` の `metadata.resolves` は、id 1つでも id のリストでもよいと書く。
-- [ ] AC 2: レポートは verdict の `evidence_summary` と `open_questions` を読まない。SKILL.md の Step 2 から外し、
+- [x] AC 2: レポートは verdict の `evidence_summary` と `open_questions` を読まない。SKILL.md の Step 2 から外し、
   テンプレートには、この2つが journal の `evidence` と `question` としてレポートに届くと書く。
-- [ ] AC 3: テンプレートの対応表に、`# {title}` の出典として分析設計の `title` の行がある。
-- [ ] AC 4: Future Directions の出典は未解決の問いだけである。骨組みと対応表から「次工程」を消す。
-- [ ] AC 5: 図が無いときの定型文は原因ごとに分かれる。verdict.json が無いときに「notebook が図を生成していない」と書かない。
+- [x] AC 3: テンプレートの対応表に、`# {title}` の出典として分析設計の `title` の行がある。
+- [x] AC 4: Future Directions の出典は未解決の問いだけである。骨組みと対応表から「次工程」を消す。
+- [x] AC 5: 図が無いときの定型文は原因ごとに分かれる。verdict.json が無いときに「notebook が図を生成していない」と書かない。
 
 ### US-2: 表と数の書式が1つに決まっている
 
 意思決定者として、レポートどうしを並べて比べられるように、表と数の書式が実行ごとに変わらないでほしい。
 
-- [ ] AC 1: Method に指標の表（`target`・`tier`・`aggregation`・`grouping`・`filter`・`comparison`）と
+- [x] AC 1: Method に指標の表（`target`・`tier`・`aggregation`・`grouping`・`filter`・`comparison`）と
   説明変数の表（`name`・`role`・`description`・`time_points`）がある。どの行にも値が無い列は省き、一部の行だけに無い値は `—` と書く。
   リストが空なら表を省き、注記を足さない。セルはテンプレートの「Source text」の手順で写す。データソースの列は置かない（issue #71）。
-- [ ] AC 2: 信頼区間の `level` を百分率で書くのは表示の形で、計算ではないと書く。
-- [ ] AC 3: 数値表の `Pass` は、`pass` が `true` なら `✓`、`false` なら `✗`、無ければ `—` と書く。
-- [ ] AC 4: 行数の表の `Change` は符号つきの数だけを書き、`rows` を書かない。
-- [ ] AC 5: Results は `evidence` を「仮説を支持する証拠」と「仮説に反する証拠」の2つの組に分けて並べ、`direction` の値をそのまま書かない。
+- [x] AC 2: 信頼区間の `level` を百分率で書くのは表示の形で、計算ではないと書く。
+- [x] AC 3: 数値表の `Pass` は、`pass` が `true` なら `✓`、`false` なら `✗`、無ければ `—` と書く。
+- [x] AC 4: 行数の表の `Change` は符号つきの数だけを書き、`rows` を書かない。
+- [x] AC 5: Results は `evidence` を「仮説を支持する証拠」と「仮説に反する証拠」の2つの組に分けて並べ、`direction` の値をそのまま書かない。
   組の名前は太字の行にする（見出しにすると、あとに続く数値表と図がその下に入る）。片方が無ければ、その組を省く。
 
 ### US-3: 結論を言う文と Discussion の書き方が揺れない
 
 意思決定者として、どのレポートでも最初の数文で結論と推奨を同じように読み取れるように、語り直す文の書き出しと Discussion の書き方が決まっていてほしい。
 
-- [ ] AC 1: Abstract は terminal status ごとに決まった1文で始まる（3通り）。
-- [ ] AC 2: Recommendation は書き方の表の行ごとに決まった最初の1文を持つ。
-- [ ] AC 3: Limitations は `conclude` と `reflect` の文のうち限界と前提を述べた部分と、結論に反する証拠から書く。
+- [x] AC 1: Abstract は terminal status ごとに決まった1文で始まる（3通り）。
+- [x] AC 2: Recommendation は書き方の表の行ごとに決まった最初の1文を持つ。
+- [x] AC 3: Limitations は `conclude` と `reflect` の文のうち限界と前提を述べた部分と、結論に反する証拠から書く。
   Abstract に置いた文を Limitations で繰り返さない。
-- [ ] AC 4: Limitations と Future Directions は、中身が無ければ見出しごと省き、注記を足さない。
-- [ ] AC 5: 語り直す文から記法を落としたことを、分析者に言わない。テンプレートにそう書く。
+- [x] AC 4: Limitations と Future Directions は、中身が無ければ見出しごと省き、注記を足さない。
+- [x] AC 5: 語り直す文から記法を落としたことを、分析者に言わない。テンプレートにそう書く。
 
 ## Stories
 
@@ -206,6 +206,28 @@ sequenceDiagram
 - Alternatives considered: journal の `branch` イベント（派生した仮説とその理由）も載せる案。必要になってから足せる（YAGNI）。
 - Consequences: 派生した分析設計はレポートに載らない。
 
+### Decision: no-space-around-fields
+
+- What: 定型の文は、差し込む値の前後に空白を置かない。Epic 12 から載っている Introduction の決定の文脈の文
+  （「この分析は、{decision_maker}が{decision}を決めるための材料である。」）も同じ形に直す。
+- Why: 手動確認（2026-11-20）で、テンプレートの空白を sonnet は残し、haiku は落とした。同じ分析から2つの形ができた。
+- Criteria: 実行ごとの形の揺れが減ること（Want、高、人間）。日本語の文として読めること（Want、中、Claude の推測）。決め手は1つ目。
+  人間が選んだ範囲（Decision `fix-the-lead-sentences`）の中を詰める直しと判断した。Epic PR の説明でも人間に確かめる。
+- Affected modules: `apa-template.md`、`tests/test_report_check.py` の `CLEAN_REPORT`
+- Alternatives considered: 空白を残し、「テンプレートの字のまま書く」とだけ足す案。差し込んだ値の区切りは見やすいが、日本語の文として不自然で、モデルが落としたくなる形が残る。
+- Consequences: 差し込む値が英字で終わるときも空白は入らない。
+
+### Decision: limits-only-in-limitations
+
+- What: `conclude` の文が結果と限界を両方述べるとき、Abstract は結果だけを語り直し、限界は Limitations だけに書く。
+  `inconclusive` のときは、結論に反する証拠は無いものとする。向きの無い `evidence` は、`observe` のあとに journal の順で語り直す。
+- Why: 手動確認（2026-11-20）で、sonnet が限界の文を Abstract と Limitations の両方に書いた。
+  `inconclusive` の Limitations と、向きの無い証拠の順番では、2つのモデルが「書いていないので自分で決めた」と報告した。
+- Criteria: AC（US-3 AC 3、US-2 AC 5）を一意に読めること（Must）。
+- Affected modules: `apa-template.md`
+- Alternatives considered: なし（AC の読み方を1つにするだけ）。
+- Consequences: なし。
+
 ### Cross-epic decisions (links to ADR)
 
 なし（今の時点）。
@@ -214,9 +236,9 @@ sequenceDiagram
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| US-1 出典 | ☐ | ☐ | ☐ |
-| US-2 書式 | ☐ | ☐ | ☐ |
-| US-3 書き出しと Discussion | ☐ | ☐ | ☐ |
+| US-1 出典 | ✓（`tests/skills/test_analysis_report_structure.py`: `TestSourceOfEachPart`） | —（組み立てるのはモデルで、Python の境界が無い。手動確認を Story Timeline に残す） | —（headless 実行の E2E は ADR-0010 で必須にしていない） |
+| US-2 書式 | ✓（同: `TestFormatOfTablesAndNumbers`、`TestSourceText` の写す入力の一覧。`tests/test_report_check.py` の `CLEAN_REPORT` を新しい形に合わせた） | —（同上） | —（同上） |
+| US-3 書き出しと Discussion | ✓（同: `TestLeadSentencesAndDiscussion`） | —（同上） | —（同上） |
 
 完了時に ✓ を付ける。自動テストがない層には「—（理由）」を書く（[ADR-0010](../adr/0010-skill-tdd-structure-tests.md)）。
 

@@ -697,12 +697,12 @@ class TestLeadSentencesAndDiscussion:
     def test_recommendation_opens_with_one_sentence_per_case(self) -> None:
         section = _section(_template(), RECOMMENDATION)
         leads = {
-            "both present": "{decision_maker} には、{decision} について次を推奨する。",
+            "both present": "{decision_maker}には、{decision}について次を推奨する。",
             "`decision_context` only, status `supported` or `rejected`": (
-                "{decision} について、この分析の設計は取る行動を定めていない。"
+                "{decision}について、この分析の設計は取る行動を定めていない。"
             ),
             "`decision_context` only, status `inconclusive`": (
-                "この分析の証拠では、{decision} は決まらない。"
+                "この分析の証拠では、{decision}は決まらない。"
             ),
             "branch of `next_action` only": "次を推奨する。",
         }
@@ -728,3 +728,33 @@ class TestLeadSentencesAndDiscussion:
     def test_dropped_markup_is_not_reported_to_the_analyst(self) -> None:
         section = unwrap(_source_text())
         assert "Say nothing to the analyst about markup you left out" in section
+
+
+class TestGapsFoundByFreshReaders:
+    """Epic 14 manual check: two fresh readers wrote the same report differently here."""
+
+    def test_fixed_sentences_put_no_space_around_a_field(self) -> None:
+        template = _template()
+        assert (
+            "この分析は、{decision_maker}が{decision}を決めるための材料である。"
+            in template
+        )
+        leads = _section(template, RECOMMENDATION)
+        assert "`{decision_maker}には、{decision}について次を推奨する。`" in leads
+        assert "`{decision}について、この分析の設計は取る行動を定めていない。`" in leads
+        assert "No space goes around a field" in unwrap(_section(template, ABSTRACT))
+
+    def test_a_limit_goes_in_limitations_only(self) -> None:
+        abstract = unwrap(_section(_template(), ABSTRACT))
+        assert "A limit goes in Limitations only" in abstract
+
+    def test_no_evidence_runs_against_an_inconclusive_conclusion(self) -> None:
+        section = unwrap(_section(_template(), DISCUSSION_TAIL))
+        assert "none when it is `inconclusive`" in section
+
+    def test_evidence_without_a_direction_follows_the_observe_events(self) -> None:
+        section = unwrap(_section(_template(), RESULTS_NARRATIVE))
+        assert (
+            "An `evidence` event without a `direction` is retold after the `observe` "
+            "events, in journal order"
+        ) in section
