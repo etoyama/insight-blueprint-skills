@@ -33,7 +33,7 @@ AC の正本はここ。
 意思決定者として、どのレポートでも同じ節に同じ種類の内容を読めるように、各部分がどの入力から来るかが決まっていてほしい。
 
 - [x] AC 1: テンプレートは未解決の問いの見分け方として、journal の SKILL.md の「Open Questions」を指す。
-  `conclude` の `metadata.resolves` は、id 1つでも id のリストでもよいと書く。
+  `conclude` の `metadata.resolves` は id 1つでも id のリストでもよいと、journal の SKILL.md に書く（Decision `resolves-shape-in-the-journal-skill`）。
 - [x] AC 2: レポートは verdict の `evidence_summary` と `open_questions` を読まない。SKILL.md の Step 2 から外し、
   テンプレートには、この2つが journal の `evidence` と `question` としてレポートに届くと書く。
 - [x] AC 3: テンプレートの対応表に、`# {title}` の出典として分析設計の `title` の行がある。
@@ -58,7 +58,7 @@ AC の正本はここ。
 意思決定者として、どのレポートでも最初の数文で結論と推奨を同じように読み取れるように、語り直す文の書き出しと Discussion の書き方が決まっていてほしい。
 
 - [x] AC 1: Abstract は terminal status ごとに決まった1文で始まる（3通り）。
-- [x] AC 2: Recommendation は書き方の表の行ごとに決まった最初の1文を持つ。
+- [x] AC 2: Recommendation は書き方の表の行ごとに決まった最初の1文を持つ。定型の文は差し込む値で始めない。
 - [x] AC 3: Limitations は `conclude` と `reflect` の文のうち限界と前提を述べた部分と、結論に反する証拠から書く。
   Abstract に置いた文を Limitations で繰り返さない。
 - [x] AC 4: Limitations と Future Directions は、中身が無ければ見出しごと省き、注記を足さない。
@@ -83,6 +83,7 @@ AC の正本はここ。
 - Epic 範囲内:
   - `apa-template.md` に、出典・書式・省く条件・書き出しの1文の決まりを足す。
   - `/analysis-report` の SKILL.md の Step 2 から、読まない入力を外す。
+  - `/analysis-journal` の SKILL.md に、`metadata.resolves` が id 1つでもリストでもよいことを書く。
   - `report_check` のテスト（`tests/test_report_check.py` の `CLEAN_REPORT`）を、テンプレートの新しい形に合わせる。
 - Epic 範囲外:
   - 未登録の id で `catalog_io get` が何を返すか（issue #76 の項目6）と、Method のデータソースの書き方（項目5のうちデータソースの部分）。
@@ -228,6 +229,41 @@ sequenceDiagram
 - Alternatives considered: なし（AC の読み方を1つにするだけ）。
 - Consequences: なし。
 
+### Decision: resolves-shape-in-the-journal-skill
+
+- What: `metadata.resolves` が id 1つでも id のリストでもよいという決まりを、journal の SKILL.md の「Open Questions」に書く。
+  テンプレートはそこを指すだけにする。journal の SKILL.md の疑似コードも、リストを読める形に直す。
+- Why: 初めはテンプレートに書いたが、指す先の journal の SKILL.md は id 1つ（`{resolves?: event_id}`）と書いていた。
+  `/analysis-reflection` はリストで書くので、journal の疑似コードはリストで失敗する。`pstack:thermos` のレビュー（2026-11-20）が、2つの観点から重ねて指摘した。
+- Criteria: 同じ決まりを2か所に正本として書かないこと（Must、WORKFLOW §2）。決まりは journal の出来事の形を持つ側に置くこと。
+- Affected modules: `skills/analysis-journal/SKILL.md`、`apa-template.md`
+- Alternatives considered: テンプレートに書いたままにする案（journal の SKILL.md と食い違ったまま残る）。
+- Consequences: US-1 AC 1 の置き場所を変えた。journal の振る舞いは変えず、`/analysis-reflection` がもう書いている形を書き足しただけである。Epic PR の説明で人間に確かめる。
+
+### Decision: one-recommendation-table
+
+- What: Recommendation の書き方の表と書き出しの1文の表を、1つの表にまとめる（列は `decision_context`・branch・status・書き出しの1文・続けて書くこと）。
+  書き出しの1文は差し込む値で始めない形に直す（「この分析は、{decision_maker}に、…」「この分析の設計は、{decision}について…」）。
+  `decision_context` だけがあり status が `inconclusive` のときは、`### Limitations` があるときだけそこを指す。
+- Why: 2つの表は同じ場合分けを別の書き方のキーで書いていた。`pstack:thermos` のレビュー（2026-11-20）が、次の2つを指摘した。
+  1つは、Limitations を省く規則（US-3 AC 4）と「Limitations を参照」が食い違うこと。もう1つは、差し込む値で段落が始まると、行頭の `#` や `>` が見出しや引用として効くこと。
+- Criteria: 定型の文が事実と食い違わないこと（Must、課題5）。データ由来の文が記法として効かないこと（Must、ADR-0019）。
+- Affected modules: `apa-template.md`、`tests/test_report_check.py` の `CLEAN_REPORT`
+- Alternatives considered: `decision_context` だけで `inconclusive` のときは Limitations を省かない案（中身の無い節が残る）。
+  行頭の記法を ADR-0019 の Negative に書き足すだけの案（効く記法が残る）。
+- Consequences: 人間が選んだ書き出しの文（2026-11-20）の語順が変わった。意味は変えていない。Epic PR の説明で人間に確かめる。
+
+### Decision: fixed-sentences-section
+
+- What: 定型の文の共通の決まり（書いてあるとおりに書く、差し込みの前後に空白を置かない、差し込む値で始めない、日本語でないときは同じ意味の文にする）を、テンプレートの「Fixed sentences」の節に1回だけ書く。
+  各節はそこを指す。テンプレートの詳細の節はレポートの順に並べ直した。
+- Why: 言語の決まりを2つの節に同じ文で書き、Introduction の節には書き漏らしていた。Results の決まりが Discussion と Appendix の後ろにあり、上から書くモデルは Limitations の決まりを読む時点で Results の決まりをまだ読んでいなかった。
+  `pstack:thermos` のレビュー（2026-11-20）が指摘した。
+- Criteria: 同じ決まりを2か所に書かないこと（Must、WORKFLOW §2）。
+- Affected modules: `apa-template.md`、`tests/skills/test_analysis_report_structure.py`
+- Alternatives considered: なし。
+- Consequences: 並べ替えでは節の中の文を変えていない。
+
 ### Cross-epic decisions (links to ADR)
 
 なし（今の時点）。
@@ -260,3 +296,9 @@ sequenceDiagram
   - 残った揺れ: 語り直す文の言い回し（Introduction、Method の叙述、Implications、Recommendation の2文目以降）。Abstract に効果量を足すかもモデルで違った。
     どれも Decision `fix-the-lead-sentences` でモデルに任せた所である。sonnet は Implications に「区間は0を含まない」と書いた。数を計算しない決まりとの境目にあり、直していない。
   - 確かめていないこと: fable と opus での結果。plugin として入れた先での起動。Claude Docs での見え方（アップロードしていない）。
+- 2026-11-20 — レビュー（`pstack:thermos`）: バグ・セキュリティとコード品質の2観点で Epic ブランチを見た。High は無かった。
+  直したもの: Recommendation が省かれた Limitations を指しうること、差し込む値で始まる定型の文、`resolves` の決まりの二重化と journal の疑似コード、
+  定型の文の決まりの重複、テンプレートの節の順、Recommendation の2つの表、Abstract の対応表に status が無いこと、1つの dict の `metrics`、
+  journal に写る verdict の項目の言い方（Decision `resolves-shape-in-the-journal-skill`・`one-recommendation-table`・`fixed-sentences-section`）。
+  構造テストは節ごとのクラスに組み直し、同じことを2回見るテストと、テストファイルの定数だけを見る assert を消した。
+  直していないもの: 骨組み・対応表・詳細の節の3か所に入力を書く形（Epic 10 からの形で、変えると既存のテストまで広く書き換わる）。

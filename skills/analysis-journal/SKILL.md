@@ -159,7 +159,7 @@ Next: /analysis-reflection {design_id} で振り返りと結論導出
 > **methodology への昇格**: decide イベントで記録した method/package は、analysis-design の methodology フィールドに昇格できる。`design_io update --id {design_id}` に `{"methodology": {method, package, reason}}` を渡す。
 
 | `reflect` | Meta-level thinking about the analysis | — |
-| `conclude` | Conclusion drawn from evidence | `{resolves?: event_id}` |
+| `conclude` | Conclusion drawn from evidence | `{resolves?: event_id \| [event_id]}` |
 | `branch` | Fork to alternative hypothesis | `{new_design_id: str, reason?: str}` |
 
 ## Phase Inference (Derived, Not Stored)
@@ -194,11 +194,16 @@ roots = [d for d in designs if d["parent_id"] is None]
 ## Open Questions (Inquiry Board)
 
 A `question` event is considered **open** if no `conclude` event references it via
-`metadata.resolves`. To list open questions:
+`metadata.resolves`. `metadata.resolves` holds one event id or a list of event ids
+(/analysis-reflection writes a list). To list open questions:
 
 ```
 questions = [e for e in events if e.type == "question"]
-resolved_ids = {e.metadata.resolves for e in events if e.type == "conclude" and e.metadata.get("resolves")}
+resolved_ids = set()
+for e in events:
+    if e.type == "conclude" and e.metadata.get("resolves"):
+        r = e.metadata["resolves"]
+        resolved_ids |= set(r) if isinstance(r, list) else {r}
 open_questions = [q for q in questions if q.id not in resolved_ids]
 ```
 

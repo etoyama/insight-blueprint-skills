@@ -58,7 +58,7 @@ the figure-manifest contract is [ADR-0008](../../../docs/adr/0008-notebook-figur
 | Section | Input | Source |
 |---|---|---|
 | Title | the design's `title` | `design_io get` |
-| Abstract | `conclude` event, `verdict.conclusion` | journal / verdict.json |
+| Abstract | the terminal `status`, `conclude` event, `verdict.conclusion` | `design_io get` / journal / verdict.json |
 | Introduction | `hypothesis_statement`, `hypothesis_background`, optional `decision_context` | `design_io get` |
 | Method | `methodology`, `metrics`, `explanatory` | `design_io get` |
 | Method (data sources) | `name`, `type`, `description` of each data source | `catalog_io get` |
@@ -80,13 +80,13 @@ drops its part of the report and never blocks the rest.
 ## Journal events
 
 The journal is the only input for the narrative of Results and for the Discussion's limits and
-open questions. `verdict.evidence_summary` and `verdict.open_questions` reach the report as the
-journal's `evidence` and `question` events: /analysis-notebook writes each item into the journal
-when it runs. Do not read them from verdict.json as well, or the same sentence appears twice.
+open questions. /analysis-notebook writes the items of `verdict.evidence_summary` and
+`verdict.open_questions` into the journal as `evidence` or `question` events, so read them from
+the journal only, or the same point appears twice.
 
-A `question` event is **open** when no `conclude` event lists its id in `metadata.resolves`, as
+A `question` event is **open** as
 [Open Questions](../../analysis-journal/SKILL.md#open-questions-inquiry-board) in the journal
-skill defines it. `metadata.resolves` holds one event id or a list of event ids: read both.
+skill defines it.
 
 ## Source text (transcribe, never render)
 
@@ -144,10 +144,23 @@ report as the text it is (step 1), and note where it sits: which input, and whic
 source, or step. Step 4 of SKILL.md tells the analyst about those places. Add no note to the
 report itself.
 
+## Fixed sentences
+
+Some sections open with a sentence the template fixes: the Abstract, the decision-context
+paragraph of the Introduction, and the Recommendation. Each is written exactly as shown in its
+table or block, with each `{field}` replaced by its value.
+
+- A field's value is [Source text](#source-text-transcribe-never-render): transcribe it.
+- No space goes around a field: the sentence reads as one Japanese sentence.
+- A fixed sentence never starts with a field. A value at the start of a paragraph could open a
+  heading, a quote, or a list.
+- When the narrative is not Japanese, write a sentence of the same meaning in that language
+  instead.
+
 ## Abstract (lead sentence)
 
 The Abstract opens with one fixed sentence for the terminal status, so every report states its
-result the same way:
+result the same way ([Fixed sentences](#fixed-sentences)):
 
 | Terminal status | First sentence |
 |---|---|
@@ -157,11 +170,8 @@ result the same way:
 
 Follow it with what the conclusion says, in a few sentences from the `conclude` event and
 `verdict.conclusion`. A limit goes in Limitations only: when a `conclude` event states a result and
-a limit, the Abstract retells the result and leaves the limit out. When the narrative is not
-Japanese, write a sentence of the same meaning in that language instead.
-
-A fixed sentence here or in another section is written exactly as shown, with each `{field}`
-replaced by its value. No space goes around a field: the sentence reads as one Japanese sentence.
+a limit, the Abstract retells the result and leaves the limit out, and Limitations never repeats
+a sentence the Abstract states.
 
 ## Decision context (Introduction)
 
@@ -178,6 +188,7 @@ close the Introduction with one short paragraph built from its two fields:
 この分析は、{decision_maker}が{decision}を決めるための材料である。
 ```
 
+- The paragraph is one of the [Fixed sentences](#fixed-sentences).
 - State both fields as the design gives them. Do not sharpen, widen, or reinterpret the decision.
   Both are [Source text](#source-text-transcribe-never-render).
 - **Omit the paragraph** when the design has no `decision_context`. No note is added — the item
@@ -214,6 +225,8 @@ in two tables from the design. One row per entry, in the order the design gives 
 - Omit a column that no row fills. When some rows have a value and others do not, keep the
   column and write `—` in the cells without a value.
 - Omit the table when the list is empty. No note is added.
+- When `metrics` is one dict rather than a list (a design from before the list form), read it as a
+  list of one.
 - Every cell is [Source text](#source-text-transcribe-never-render).
 - The data source of a metric or a variable has no column here. `### Data` below names the data
   sources.
@@ -277,107 +290,6 @@ One row per node, in step order. `Step0` is the data as loaded:
 **Graceful degrade**: omit the data-source table when the design names no registered source, and
 omit the row-count table when the lineage file is missing, empty, or does not have the shape
 above. Omit the `### Data` heading when both are omitted. No note is added.
-
-## Implications and Recommendation (Discussion)
-
-The Discussion opens with what the result means and what to do about it; Limitations and Future
-Directions follow.
-
-**Implications** is always present. It says what the conclusion means in the terms of the
-question: the direction of the result, and — when the numbers table has them — how large and how
-certain the effect is (`effect_size`, `confidence_interval`, `sample_size`). When the design has
-a `decision_context`, say how the result bears on that `decision`. It interprets; it does not
-tell anyone what to do.
-
-**Recommendation** says what to do next. It is written from two optional inputs of the design:
-
-| Input | Gives |
-|---|---|
-| `decision_context` | whom the recommendation addresses (`decision_maker`) and which `decision` it answers |
-| `next_action` | the action, taken from the branch that matches the terminal status |
-
-| Terminal status | Branch of `next_action` |
-|---|---|
-| `supported` | `if_supported` |
-| `rejected` | `if_rejected` (its `reason` and `pivot`) |
-| `inconclusive` | none |
-
-The branch is absent when the design has no `next_action`, the status is `inconclusive`, or the
-design states no branch for the status. What to write follows from which of the two is there:
-
-| `decision_context` | Branch of `next_action` for the status | Write |
-|---|---|---|
-| present | present | Address the `decision_maker`, name the `decision`, and recommend the action of the branch. |
-| present | absent | Say which way the conclusion points on the `decision`, and stop there. When the status is `inconclusive`, say the evidence does not settle the `decision` and point to Limitations. |
-| absent | present | Recommend the action of the branch, with no addressee. |
-| absent | absent | **Omit the section** (heading included). |
-
-The section opens with one fixed sentence for its row, then says the rest:
-
-| Case | First sentence |
-|---|---|
-| both present | `{decision_maker}には、{decision}について次を推奨する。` |
-| `decision_context` only, status `supported` or `rejected` | `{decision}について、この分析の設計は取る行動を定めていない。` |
-| `decision_context` only, status `inconclusive` | `この分析の証拠では、{decision}は決まらない。` |
-| branch of `next_action` only | `次を推奨する。` |
-
-`decision_maker` and `decision` are [Source text](#source-text-transcribe-never-render). When the
-narrative is not Japanese, write a sentence of the same meaning in that language instead.
-
-**Never invent** an action. The design owns the branches; without a branch for the status,
-recommend none.
-
-## Limitations and Future Directions (Discussion)
-
-**Limitations** says what the conclusion does not cover. Build it from two parts of the journal:
-
-- the parts of `conclude` and `reflect` events that state a limit of the analysis or an assumption
-  the conclusion rests on;
-- the `evidence` events whose direction runs against the conclusion: `contradicts` when the status
-  is `supported`, `supports` when it is `rejected`, and none when it is `inconclusive`. Name them
-  in one sentence; Results already lists them.
-
-Never repeat a sentence the Abstract already states.
-
-**Future Directions** lists the open questions ([Journal events](#journal-events)), one bullet per
-question.
-
-Omit `### Limitations` when it has nothing. Omit `### Future Directions` when no question is
-open. Never write that a section is empty (no 「未解決の問いは記録されていない」): no note is
-added.
-
-## Appendix contents
-
-The Appendix lets a reader trace the result back to its processing and its code. Under the
-Appendix heading it has two subsections:
-
-````markdown
-### Data Lineage
-
-```mermaid
-{the text of .insight/lineage/{id}.mmd, verbatim}
-```
-
-### Notebook
-
-`.insight/notebooks/{id}.py`
-````
-
-- The lineage diagram is the text of `.insight/lineage/{id}.mmd`, placed verbatim in a
-  `mermaid` fence. It is the same file the row-count table in Method reads.
-- The notebook is given as its project-relative path, `.insight/notebooks/{id}.py`. Never write
-  an absolute path — it would leak the local filesystem layout.
-
-**Safety**: the lineage text carries step reasons from the notebook. Skip the diagram when the
-file does not start with `graph LR`, contains a code fence (three backticks) — it would break
-out of the `mermaid` fence — has any line that is not one of the three shapes shown under "Row
-counts" (`graph LR`, a node, an edge), or carries any tag other than `<br/>`, which the
-diagram's renderer could take as HTML. The row-count table in Method still shows the reasons,
-escaped.
-
-**Graceful degrade**: omit `### Data Lineage` when the lineage file is missing, empty, or
-skipped by the safety rule. Omit `### Notebook` when `.insight/notebooks/{id}.py` does not exist.
-Omit the whole `## Appendix` when both are omitted. No note is added.
 
 ## Results narrative
 
@@ -496,6 +408,98 @@ contract, or the notebook produced no plot):
 ```
 
 The report still assembles from text + tables — a missing optional artifact never blocks it.
+
+## Implications and Recommendation (Discussion)
+
+The Discussion opens with what the result means and what to do about it; Limitations and Future
+Directions follow.
+
+**Implications** is always present. It says what the conclusion means in the terms of the
+question: the direction of the result, and — when the numbers table has them — how large and how
+certain the effect is (`effect_size`, `confidence_interval`, `sample_size`). When the design has
+a `decision_context`, say how the result bears on that `decision`. It interprets; it does not
+tell anyone what to do.
+
+**Recommendation** says what to do next. It is written from two optional inputs of the design:
+
+| Input | Gives |
+|---|---|
+| `decision_context` | whom the recommendation addresses (`decision_maker`) and which `decision` it answers |
+| `next_action` | the action, taken from the branch that matches the terminal status |
+
+| Terminal status | Branch of `next_action` |
+|---|---|
+| `supported` | `if_supported` |
+| `rejected` | `if_rejected` (its `reason` and `pivot`) |
+| `inconclusive` | none |
+
+The branch is absent when the design has no `next_action`, the status is `inconclusive`, or the
+design states no branch for the status. What to write follows from which of the two is there. The
+section opens with the first sentence of its row ([Fixed sentences](#fixed-sentences)), then
+says the rest:
+
+| `decision_context` | Branch of `next_action` for the status | Status | First sentence | Then |
+|---|---|---|---|---|
+| present | present | any | この分析は、{decision_maker}に、{decision}について次を推奨する。 | Recommend the action of the branch. |
+| present | absent | `supported` or `rejected` | この分析の設計は、{decision}について取る行動を定めていない。 | Say which way the conclusion points on the `decision`, and stop there. |
+| present | absent | `inconclusive` | この分析の証拠では、{decision}は決まらない。 | Stop there. When the report has `### Limitations`, point to it. |
+| absent | present | any | 次を推奨する。 | Recommend the action of the branch, with no addressee. |
+| absent | absent | any | — | **Omit the section** (heading included). |
+
+`decision_maker` and `decision` are [Source text](#source-text-transcribe-never-render).
+
+**Never invent** an action. The design owns the branches; without a branch for the status,
+recommend none.
+
+## Limitations and Future Directions (Discussion)
+
+**Limitations** says what the conclusion does not cover. Build it from two parts of the journal:
+
+- the parts of `conclude` and `reflect` events that state a limit of the analysis or an assumption
+  the conclusion rests on;
+- the `evidence` events whose direction runs against the conclusion: `contradicts` when the status
+  is `supported`, `supports` when it is `rejected`, and none when it is `inconclusive`. Name them
+  in one sentence; Results already lists them.
+
+**Future Directions** lists the open questions ([Journal events](#journal-events)), one bullet per
+question.
+
+Omit `### Limitations` when it has nothing. Omit `### Future Directions` when no question is
+open. Never write that a section is empty (no 「未解決の問いは記録されていない」): no note is
+added.
+
+## Appendix contents
+
+The Appendix lets a reader trace the result back to its processing and its code. Under the
+Appendix heading it has two subsections:
+
+````markdown
+### Data Lineage
+
+```mermaid
+{the text of .insight/lineage/{id}.mmd, verbatim}
+```
+
+### Notebook
+
+`.insight/notebooks/{id}.py`
+````
+
+- The lineage diagram is the text of `.insight/lineage/{id}.mmd`, placed verbatim in a
+  `mermaid` fence. It is the same file the row-count table in Method reads.
+- The notebook is given as its project-relative path, `.insight/notebooks/{id}.py`. Never write
+  an absolute path — it would leak the local filesystem layout.
+
+**Safety**: the lineage text carries step reasons from the notebook. Skip the diagram when the
+file does not start with `graph LR`, contains a code fence (three backticks) — it would break
+out of the `mermaid` fence — has any line that is not one of the three shapes shown under "Row
+counts" (`graph LR`, a node, an edge), or carries any tag other than `<br/>`, which the
+diagram's renderer could take as HTML. The row-count table in Method still shows the reasons,
+escaped.
+
+**Graceful degrade**: omit `### Data Lineage` when the lineage file is missing, empty, or
+skipped by the safety rule. Omit `### Notebook` when `.insight/notebooks/{id}.py` does not exist.
+Omit the whole `## Appendix` when both are omitted. No note is added.
 
 ## Violations of report_check
 
