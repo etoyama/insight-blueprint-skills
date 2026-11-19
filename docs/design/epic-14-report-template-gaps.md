@@ -68,9 +68,9 @@ AC の正本はここ。
 
 | Story issue | User Story | 扱う AC |
 |---|---|---|
-| （起票後に記入） | US-1 | AC 1〜5 |
-| （起票後に記入） | US-2 | AC 1〜5 |
-| （起票後に記入） | US-3 | AC 1〜5 |
+| [#90](https://github.com/etoyama/insight-blueprint-skills/issues/90) | US-1 | AC 1〜5 |
+| [#91](https://github.com/etoyama/insight-blueprint-skills/issues/91) | US-2 | AC 1〜5 |
+| [#92](https://github.com/etoyama/insight-blueprint-skills/issues/92) | US-3 | AC 1〜5 |
 
 ## Ubiquitous Language
 
@@ -224,4 +224,4 @@ sequenceDiagram
 
 - 2026-11-20 — 人間が進め方と中身を決めた。issue #76 を Epic にし、項目6と Method のデータソースの書き方は #71 に回す（判断12）。
   語り直す文は Abstract と Recommendation の書き出しだけを定型にする。Method の表は全項目、Future Directions は未解決の問いだけ。
-- 2026-11-20 — DesignDoc 初版。
+- 2026-11-20 — DesignDoc 初版。issue #76 を Epic にし、Story を起票した（#90・#91・#92）。

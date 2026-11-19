@@ -60,9 +60,9 @@ Read, do not write. What each input feeds, and what happens when it is missing, 
    `methodology` (method / package / reason / steps), `metrics`, `explanatory`,
    `referenced_knowledge`, plus the optional `decision_context`, `next_action`, and `source_ids`.
 2. `.insight/designs/{design_id}_journal.yaml` (Read tool): `observe` / `evidence`
-   (with `metadata.direction`) / `question` (open ones) / `conclude` events.
-3. `.insight/notebooks/{design_id}_verdict.json` (Read tool): `conclusion`,
-   `evidence_summary`, `open_questions`, `metrics`, and `figures[]`.
+   (with `metadata.direction`) / `question` / `reflect` / `conclude` events.
+3. `.insight/notebooks/{design_id}_verdict.json` (Read tool): `conclusion`, `metrics`, and
+   `figures[]`.
 4. Data sources: `catalog_io get --id {source_id}` for each candidate id. The template's
    "Data description" says where the candidates come from; filter the ids as it says before
    calling.

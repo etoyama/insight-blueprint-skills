@@ -15,6 +15,7 @@ the figure-manifest contract is [ADR-0008](../../../docs/adr/0008-notebook-figur
 
 ```
 # {title}
+{分析設計の title}
 
 ## Abstract
 {結論を数語〜数文で。conclude イベント + verdict.conclusion から}
@@ -44,7 +45,7 @@ the figure-manifest contract is [ADR-0008](../../../docs/adr/0008-notebook-figur
 {conclude の限界・前提の制約}
 
 ### Future Directions
-{journal の open question + 次工程}
+{journal の未解決の問い}
 
 ## References
 {referenced_knowledge があれば列挙。無ければこのセクションごと省略}
@@ -57,6 +58,7 @@ the figure-manifest contract is [ADR-0008](../../../docs/adr/0008-notebook-figur
 
 | Section | Input | Source |
 |---|---|---|
+| Title | the design's `title` | `design_io get` |
 | Abstract | `conclude` event, `verdict.conclusion` | journal / verdict.json |
 | Introduction | `hypothesis_statement`, `hypothesis_background`, optional `decision_context` | `design_io get` |
 | Method | `methodology`, `metrics`, `explanatory` | `design_io get` |
@@ -67,13 +69,25 @@ the figure-manifest contract is [ADR-0008](../../../docs/adr/0008-notebook-figur
 | Results (figures) | `verdict.figures[]` + the PNG files | verdict.json + `.insight/notebooks/` |
 | Implications | `conclude` event, `verdict.conclusion`, `verdict.metrics`, optional `decision_context` | journal / verdict.json / `design_io get` |
 | Recommendation | optional `next_action`, optional `decision_context` | `design_io get` |
-| Limitations / Future Directions | `conclude` limits, open `question`s | journal |
+| Limitations | `conclude` limits, open `question`s | journal |
+| Future Directions | open `question`s | journal |
 | References | `referenced_knowledge` | `design_io get` |
 | Appendix (lineage diagram) | the Mermaid text | `.insight/lineage/{id}.mmd` |
 | Appendix (notebook) | the path, if the file exists | `.insight/notebooks/{id}.py` |
 
 Only the design and the journal are required. Every other input is optional: a missing one
 drops its part of the report and never blocks the rest.
+
+## Journal events
+
+The journal is the only input for the narrative of Results and for the Discussion's limits and
+open questions. `verdict.evidence_summary` and `verdict.open_questions` reach the report as the
+journal's `evidence` and `question` events: /analysis-notebook writes each item into the journal
+when it runs. Do not read them from verdict.json as well, or the same sentence appears twice.
+
+A `question` event is **open** when no `conclude` event lists its id in `metadata.resolves`, as
+[Open Questions](../../analysis-journal/SKILL.md#open-questions-inquiry-board) in the journal
+skill defines it. `metadata.resolves` holds one event id or a list of event ids: read both.
 
 ## Source text (transcribe, never render)
 
@@ -117,8 +131,8 @@ written: user\_id \| 店舗\*別\*の売上
 ```
 
 **Retold inputs** give the content of sentences you write yourself: the journal events,
-`verdict.conclusion`, `verdict.evidence_summary`, `verdict.open_questions`, the hypothesis, the
-methodology, `next_action`, and `referenced_knowledge`. Carry no markup over from them — no
+`verdict.conclusion`, the hypothesis, the methodology, `next_action`, and
+`referenced_knowledge`. Carry no markup over from them — no
 image, link, HTML, or code fence that the input contained. When you quote a phrase from one,
 transcribe the phrase with the three steps.
 
@@ -352,13 +366,21 @@ moves the PNG.
 
 ## Graceful degrade (no figures)
 
-If `verdict.json` is missing, has no `figures` key, or `figures == []` (analysis predates the
-figure contract, or the notebook produced no plot), omit the figure blocks entirely and add a
-single line under Results:
+If `verdict.json` is missing, has no `figures` key, or `figures == []`, omit the figure blocks
+entirely and add one line under Results. The line names the cause.
+
+When `.insight/notebooks/{id}_verdict.json` is missing (the notebook has not run, or its result
+was not saved):
 
 ```markdown
-> 図はこのレポートには含まれていない（notebook が図を生成していない）。図を載せるには
-> /analysis-notebook で再実行する。
+> 図はこのレポートには含まれていない（notebook の結果 verdict.json が無い）。図を載せるには /analysis-notebook で実行する。
+```
+
+When verdict.json has no `figures` key or `figures == []` (the analysis predates the figure
+contract, or the notebook produced no plot):
+
+```markdown
+> 図はこのレポートには含まれていない（notebook が図を生成していない）。図を載せるには /analysis-notebook で再実行する。
 ```
 
 The report still assembles from text + tables — a missing optional artifact never blocks it.

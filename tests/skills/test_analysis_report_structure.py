@@ -14,7 +14,7 @@ from pathlib import Path
 
 from skills._shared.report_check import find_violations
 from tests.skills._markdown import section as _section
-from tests.skills._markdown import table_rows, unwrap
+from tests.skills._markdown import table_row, table_rows, unwrap
 
 SKILL_DIR = Path(__file__).resolve().parents[2] / "skills" / "analysis-report"
 NOTEBOOK_CONTRACT = (
@@ -574,3 +574,46 @@ class TestReportCheck:
             "contains `..` or any character other than ASCII letters, digits, `_`, "
             "`.`, and `-`"
         ) in figure
+
+
+JOURNAL_EVENTS = "## Journal events"
+DISCUSSION_TAIL = "## Limitations and Future Directions (Discussion)"
+
+
+class TestSourceOfEachPart:
+    """US-1 (Epic 14): each part of the report comes from one named input."""
+
+    def test_open_questions_follow_the_journal_definition(self) -> None:
+        section = unwrap(_section(_template(), JOURNAL_EVENTS))
+        assert (
+            "[Open Questions](../../analysis-journal/SKILL.md#open-questions-inquiry-board)"
+        ) in section
+        assert "`metadata.resolves`" in section
+        assert "one event id or a list of event ids" in section
+
+    def test_verdict_summary_lists_are_not_read(self) -> None:
+        gather = _section(_skill(), "### Step 2: ")
+        for key in ("evidence_summary", "open_questions"):
+            assert key not in gather, f"Step 2 must not read `{key}`"
+        section = unwrap(_section(_template(), JOURNAL_EVENTS))
+        assert (
+            "`verdict.evidence_summary` and `verdict.open_questions` reach the report "
+            "as the journal's `evidence` and `question` events"
+        ) in section
+
+    def test_the_title_has_a_row_in_the_mapping(self) -> None:
+        mapping = _section(_template(), "## Input → section mapping")
+        assert table_row(mapping, "Title")[1] == "the design's `title`"
+
+    def test_future_directions_come_from_open_questions_only(self) -> None:
+        skeleton = _skeleton()
+        assert "次工程" not in skeleton
+        mapping = _section(_template(), "## Input → section mapping")
+        assert table_row(mapping, "Future Directions")[1] == "open `question`s"
+
+    def test_the_no_figure_line_names_its_cause(self) -> None:
+        degrade = _section(_template(), "## Graceful degrade (no figures)")
+        lines = [ln for ln in degrade.splitlines() if ln.startswith("> 図は")]
+        assert len(lines) == 2, "one line per cause"
+        missing_verdict = next(ln for ln in lines if "verdict.json" in ln)
+        assert "notebook が図を生成していない" not in missing_verdict
