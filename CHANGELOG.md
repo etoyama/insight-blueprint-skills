@@ -14,7 +14,8 @@ never as markup. Design: `docs/design/epic-13-report-source-text.md`.
 
 - **`report_check --id {design_id}`** checks a written report for markup that is still active: an
   image that is not a figure, any tag start (`<` followed by a letter, `/`, `!`, or `?`), and, in a
-  Mermaid block, a tag other than `<br/>` or a line the lineage export never writes. It exits 1
+  Mermaid block, a tag other than `<br/>` or a line the lineage export never writes. It fails
+  closed: code spans and fences other than Mermaid are checked like any text. It exits 1
   and prints the violations as JSON. `/analysis-report` runs it right after writing the report
   ([ADR-0019](docs/adr/0019-report-source-text-escaped-and-checked.md)).
 

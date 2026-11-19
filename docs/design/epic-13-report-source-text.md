@@ -45,11 +45,11 @@ AC の正本はここ。
 
 分析者として、記法が効いたままのレポートを配らないために、できたレポートを機械で検査してほしい。
 
-- [x] AC 1: `report_check --id {design_id}` は、コードフェンスとコードスパンの外にある、図でない画像とタグの始まり（`<` の直後が英字・`/`・`!`・`?`）を違反として挙げ、
+- [x] AC 1: `report_check --id {design_id}` は、図でない画像とタグの始まり（`<` の直後が英字・`/`・`!`・`?`）を、コードスパンとコードフェンスの中にあっても違反として挙げ、
   終了コード 1 で終わる。違反は行番号・種類・その箇所の文字を持つ。
 - [x] AC 2: 決まりどおりのレポート（`../notebooks/{file}.png` を指す図、エスケープ済みの文、mermaid の中の `<br/>`）は、
   違反なし・終了コード 0 になる。
-- [x] AC 3: mermaid のフェンスの中にある `<br/>` 以外のタグの始まりと、lineage の書き出しが出す3つの形（`graph LR`・ノード・辺）でない行を、違反として挙げる。
+- [x] AC 3: 左端から始まる mermaid のフェンスの中にある `<br/>` 以外のタグの始まりと、lineage の書き出しが出す3つの形（`graph LR`・ノード・辺）でない行を、違反として挙げる。
 - [x] AC 4: 分析設計の id が `^[a-zA-Z0-9_-]+$` に全体で一致しないとき、またはレポートが無いときは、検査せずエラーで終わる（終了コード 2）。
 - [x] AC 5: `/analysis-report` はレポートを書いた直後に検査を流し、違反が無くなるまで直してから案内する。
   `bin/report_check` は plugin を入れた先でも動く。
@@ -229,7 +229,10 @@ sequenceDiagram
   mermaid の `click` を見落とした。コミットへの自動のセキュリティレビュー（2026-11-19）が指摘した。
 - Criteria: 検査を通ったレポートに、効く HTML と図でない画像が無いこと（Must、US-2 AC 1）。写す手順が増えないこと（Want、高、人間）。
   差分の量と、正しい文を違反にする数（Want、中、Claude の推測）。決め手は2つ目。2026-11-20 に人間が選んだ。
-- Affected modules: `skills/_shared/report_check.py`、`apa-template.md` の Appendix
+- 追記（2026-11-20）: `pstack:thermos` のレビューがコードスパンとフェンスを安全とみなす所からのすり抜けを4系統確かめた。
+  安全とみなす所を、エスケープと左端の mermaid のフェンスだけにした（ADR-0019 の Decision）。写す手順は変えていないので、人間が選んだ案の範囲に収まると判断した。
+  この判断は Epic PR の説明でも人間に確かめる。
+- Affected modules: `skills/_shared/report_check.py`、`apa-template.md` の Appendix と図の安全の規則
 - Alternatives considered: 素の URL を止める規則（`://` の前にバックスラッシュ）も写す手順に足す案。手順が4つになり、モデルごとの揺れが増える。
   指摘をすべて issue に回す案。検査の見落としが `main` に入る。
 - Consequences: 語り直す文の `a<b` のような比較は違反になり、`\<` と書くことになる。
@@ -273,3 +276,8 @@ sequenceDiagram
     journal の記法を落としたことを分析者に言うかは書いていない。どれも issue #76 の範囲である。
   - 確かめていないこと: Claude Docs での見え方（アップロードしていない）。fable と opus での結果。plugin として入れた先での `report_check`（ラッパーの統合テストだけ）。
 - 2026-11-20 — Story #85 completed: `report_check` を fail closed にし、図のファイル名と mermaid の行を絞った。
+- 2026-11-20 — レビュー（`pstack:thermos`）: バグ・セキュリティとコード品質の2観点で Epic ブランチを見た。
+  SKILL.md が違反の直し方として指す手順が、図と mermaid の違反に効かなかった。違反の種類ごとの直し方をテンプレートに置いた。
+  検査のすり抜けを4系統直した（Decision `checker-fails-closed` の追記）。CommonMark のレンダラ（markdown-it-py）との差分テストを手で流した（自動テストにはしていない）。
+  合成データのレポート2本（sonnet と haiku が書いたもの）は、直したあとの検査でも違反0件だった。
+  人間の判断が要る指摘（`SAFE_ID_PATTERN` の3つ目の写し、bin ラッパーの前置きの4つ目の写し）は直していない。
