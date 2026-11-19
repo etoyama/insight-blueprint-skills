@@ -100,9 +100,11 @@ gate policy above:
    After all four beats are confirmed, `design_io create` the design.
 3. **review** (optional): if the user wants a review pass, run `/analysis-review`; **pause on the verdict**.
 4. **premortem**: always run `/premortem` before touching data. If `HARD_BLOCK`/`HIGH`, **stop** and
-   surface the risk (unregistered source → offer /catalog-register; cost/allowlist/location → let the
+   surface the risk (unregistered source → offer /catalog-register; no declared source → offer
+   /analysis-design to fill `source_ids`; cost/allowlist/location → let the
    user decide). If `LOW`/`MEDIUM`, continue.
-5. **notebook**: run `/analysis-notebook`. Auto-run only when premortem cleared **and** the analysis is
+5. **notebook**: run `/analysis-notebook`. The declared source(s) are the ids in the design's
+   `source_ids` (ADR-0020). Auto-run only when premortem cleared **and** the analysis is
    confined to the declared source(s) + allowlisted packages (`.insight/rules/package_allowlist.yaml`) +
    local computation. If the methodology needs a non-allowlisted package, network egress beyond the
    declared source, or another side-effect, **stop** and get the user's go-ahead first.

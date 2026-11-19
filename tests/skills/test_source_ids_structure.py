@@ -114,3 +114,35 @@ class TestUnregisteredIdIsDocumented:
         reference = section(_read_skill("catalog-register"), "## catalog_io Reference")
         purpose = table_row(reference, "`describe --ids ID,ID`")[1]
         assert "`missing`" in purpose
+
+
+class TestDownstreamSkillsReadSourceIds:
+    """US-3: notebook, premortem and the autopilot read the sources from ``source_ids``."""
+
+    def test_notebook_loads_each_id_in_source_ids(self) -> None:
+        gather = unwrap(section(_read_skill("analysis-notebook"), "### Step 2: "))
+        assert "For each id in the design's `source_ids`" in gather
+
+    def test_notebook_stops_when_no_source_is_declared(self) -> None:
+        gather = unwrap(section(_read_skill("analysis-notebook"), "### Step 2: "))
+        assert "If `source_ids` is empty, stop" in gather
+        assert "/analysis-design" in gather
+
+    def test_premortem_builds_the_checks_from_source_ids(self) -> None:
+        workflow = unwrap(section(_read_skill("premortem"), "## Workflow"))
+        assert "for each id in its `source_ids`" in workflow
+
+    def test_autopilot_defines_the_declared_sources(self) -> None:
+        text = unwrap(_read_skill("analysis-auto"))
+        assert "declared source(s) are the ids in the design's `source_ids`" in text
+        assert "no declared source → offer /analysis-design" in text
+
+    def test_no_skill_reads_data_source_as_an_id(self) -> None:
+        for name in ("analysis-notebook", "premortem", "analysis-auto"):
+            assert "data_source" not in _read_skill(name), name
+
+    def test_premortem_blocks_a_design_that_declares_no_source(self) -> None:
+        # cli.py treats a design missing from source_checks_map as registered, so the
+        # prose must write the false itself, or the notebook is the first to stop.
+        workflow = unwrap(section(_read_skill("premortem"), "## Workflow"))
+        assert "An empty `source_ids` is `source_registered: false`" in workflow
