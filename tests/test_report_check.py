@@ -349,11 +349,25 @@ def test_violation_text_is_cut_to_120_characters() -> None:
 CLEAN_REPORT = f"""\
 # 値引き施策と売上 \\<u>速報\\</u> \\[要確認\\]
 
+## Abstract
+
+仮説は支持された。値引きは売上を押し上げた。
+
 ## Introduction
 
-この分析は、販売企画部長 \\| 代理: \\*営業\\* 課長 が 値引きを全店舗に広げるか \\<b>否か\\</b> を決めるための材料である。
+この分析は、販売企画部長 \\| 代理: \\*営業\\* 課長が値引きを全店舗に広げるか \\<b>否か\\</b>を決めるための材料である。
 
 ## Method
+
+差の差分法で推定した。
+
+| Metric | Tier | Aggregation | Grouping | Filter | Comparison |
+|---|---|---|---|---|---|
+| 月次\\_売上 \\<b> | primary | mean | 店舗の種類, 地域 | — | 施策前後 |
+
+| Variable | Role | Description |
+|---|---|---|
+| 値引き率 | treatment | 店舗ごとの \\*平均\\* 値引き率 \\| 月次 |
 
 ### Data
 
@@ -369,6 +383,16 @@ CLEAN_REPORT = f"""\
 
 ## Results
 
+施策の前後で客数が増えた。
+
+**仮説を支持する証拠**
+
+- 施策後に売上が伸びた。
+
+**仮説に反する証拠**
+
+- 一部の店舗では伸びなかった。
+
 | Metric | Value | Effect size | CI | N | Threshold | p | Pass |
 |---|---|---|---|---|---|---|---|
 | ATT\\_\\[primary\\] | 1676.9 | 0.42 (cohens\\_d \\<i>) | 95% [1200.3, 2153.5] | 1200 | 0 | 0.0001 | ✓ |
@@ -380,14 +404,17 @@ CLEAN_REPORT = f"""\
 
 {FIGURE}
 
-> 図はこのレポートには含まれていない（notebook が図を生成していない）。図を載せるには
-> /analysis-notebook で再実行する。
+> 図はこのレポートには含まれていない（notebook が図を生成していない）。図を載せるには /analysis-notebook で再実行する。
 
 ## Discussion
 
 ### Recommendation
 
-販売企画部長へ。結論は広げる方向を指している（p < 0.05、Limitations を参照）。
+この分析の設計は、値引きを全店舗に広げるか \\<b>否か\\</b>について取る行動を定めていない。結論は広げる方向を指している（p < 0.05、Limitations を参照）。
+
+### Limitations
+
+一部の店舗では売上が伸びなかった。
 
 ## Appendix
 

@@ -19,6 +19,7 @@ review コメント
 revision
 journal
 journal の出来事
+未解決の問い
 reflection
 framing
 notebook

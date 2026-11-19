@@ -14,7 +14,7 @@ from pathlib import Path
 
 from skills._shared.report_check import find_violations
 from tests.skills._markdown import section as _section
-from tests.skills._markdown import table_rows, unwrap
+from tests.skills._markdown import table_row, table_rows, unwrap
 
 SKILL_DIR = Path(__file__).resolve().parents[2] / "skills" / "analysis-report"
 NOTEBOOK_CONTRACT = (
@@ -137,6 +137,9 @@ class TestSkillPointsAtTheTemplate:
             "graceful degrade",
             "fully match",
             "if_supported",
+            "仮説は支持された",
+            "no space goes around",
+            "仮説を支持する証拠",
         ):
             assert owned_by_template not in steps, (
                 f"'{owned_by_template}' belongs in apa-template.md only"
@@ -289,14 +292,36 @@ class TestImplicationsAndRecommendation:
         )
         table = section[section.index("| `decision_context` | Branch") :]
         rows = [r for r in table_rows(table)[2:] if r[0] in ("present", "absent")]
-        assert [(r[0], r[1]) for r in rows] == [
-            ("present", "present"),
-            ("present", "absent"),
-            ("absent", "present"),
-            ("absent", "absent"),
+        assert [(r[0], r[1], r[2]) for r in rows] == [
+            ("present", "present", "any"),
+            ("present", "absent", "`supported` or `rejected`"),
+            ("present", "absent", "`inconclusive`"),
+            ("absent", "present", "any"),
+            ("absent", "absent", "any"),
         ]
-        assert "Omit the section" in rows[3][2]
-        assert "`inconclusive`" in rows[1][2]
+        assert "Omit the section" in rows[4][4]
+
+    def test_recommendation_opens_with_one_sentence_per_row(self) -> None:
+        section = _section(
+            _template(), "## Implications and Recommendation (Discussion)"
+        )
+        table = section[section.index("| `decision_context` | Branch") :]
+        leads = [r[3] for r in table_rows(table)[2:]]
+        assert leads == [
+            "この分析は、{decision_maker}に、{decision}について次を推奨する。",
+            "この分析の設計は、{decision}について取る行動を定めていない。",
+            "この分析の証拠では、{decision}は決まらない。",
+            "次を推奨する。",
+            "—",
+        ]
+
+    def test_recommendation_points_only_at_a_limitations_that_is_there(self) -> None:
+        section = _section(
+            _template(), "## Implications and Recommendation (Discussion)"
+        )
+        table = section[section.index("| `decision_context` | Branch") :]
+        inconclusive = table_rows(table)[4]
+        assert "When the report has `### Limitations`, point to it" in inconclusive[4]
 
     def test_a_branch_counts_as_absent_in_three_cases(self) -> None:
         section = unwrap(
@@ -392,6 +417,7 @@ TRANSCRIBED_INPUTS = (
     "`decision_maker`",
     "`decision`",
     "`title`",
+    "items of `metrics` and `explanatory`",
 )
 
 # Sections that place a transcribed input, so each must send the reader to the one rule.
@@ -400,6 +426,8 @@ SECTIONS_WITH_TRANSCRIBED_INPUTS = (
     "## Data description (Method)",
     "## Results numbers table",
     "## Figure presentation format",
+    "## Method tables (Method)",
+    "## Implications and Recommendation (Discussion)",
 )
 
 
@@ -574,3 +602,231 @@ class TestReportCheck:
             "contains `..` or any character other than ASCII letters, digits, `_`, "
             "`.`, and `-`"
         ) in figure
+
+
+JOURNAL_EVENTS = "## Journal events"
+FIXED_SENTENCES = "## Fixed sentences"
+METHOD_TABLES = "## Method tables (Method)"
+RESULTS_NARRATIVE = "## Results narrative"
+ABSTRACT = "## Abstract (lead sentence)"
+DISCUSSION_TAIL = "## Limitations and Future Directions (Discussion)"
+
+# Sections that hold a fixed sentence, so each must send the reader to the one rule.
+SECTIONS_WITH_FIXED_SENTENCES = (
+    ABSTRACT,
+    "## Decision context (Introduction)",
+    "## Implications and Recommendation (Discussion)",
+)
+
+# The fixed first sentence of the Abstract for each terminal status.
+ABSTRACT_LEADS = {
+    "supported": "仮説は支持された。",
+    "rejected": "仮説は棄却された。",
+    "inconclusive": "仮説を支持するとも棄却するとも結論できなかった。",
+}
+
+# Detail sections in the order the report reads, so a model writing top-down meets each rule
+# before the section that relies on it.
+DETAIL_SECTIONS_IN_REPORT_ORDER = (
+    ABSTRACT,
+    "## Decision context (Introduction)",
+    METHOD_TABLES,
+    "## Data description (Method)",
+    RESULTS_NARRATIVE,
+    "## Results numbers table",
+    "## Figure presentation format",
+    "## Graceful degrade (no figures)",
+    "## Implications and Recommendation (Discussion)",
+    DISCUSSION_TAIL,
+    "## Appendix contents",
+)
+
+
+class TestTemplateOrder:
+    """The detail sections follow the order of the report."""
+
+    def test_detail_sections_come_in_report_order(self) -> None:
+        template = _template()
+        positions = [template.index(f"\n{h}") for h in DETAIL_SECTIONS_IN_REPORT_ORDER]
+        assert positions == sorted(positions)
+
+
+class TestInputMapping:
+    """Each part of the report names the input it comes from."""
+
+    def test_the_title_has_a_row(self) -> None:
+        mapping = _section(_template(), "## Input → section mapping")
+        assert table_row(mapping, "Title")[1] == "the design's `title`"
+
+    def test_the_abstract_reads_the_terminal_status(self) -> None:
+        mapping = _section(_template(), "## Input → section mapping")
+        assert "the terminal `status`" in table_row(mapping, "Abstract")[1]
+
+    def test_future_directions_come_from_open_questions_only(self) -> None:
+        assert "次工程" not in _skeleton()
+        mapping = _section(_template(), "## Input → section mapping")
+        assert table_row(mapping, "Future Directions")[1] == "open `question`s"
+
+
+class TestJournalEvents:
+    """The journal feeds the narrative; the journal skill defines an open question."""
+
+    def test_open_questions_follow_the_journal_definition(self) -> None:
+        section = _section(_template(), JOURNAL_EVENTS)
+        assert (
+            "[Open Questions](../../analysis-journal/SKILL.md#open-questions-inquiry-board)"
+        ) in section
+        assert "list of event ids" not in section, "the journal skill owns the shape"
+
+    def test_verdict_summary_lists_are_not_read(self) -> None:
+        gather = _section(_skill(), "### Step 2: ")
+        for key in ("evidence_summary", "open_questions"):
+            assert key not in gather, f"Step 2 must not read `{key}`"
+        assert "`verdict.evidence_summary`" in _section(_template(), JOURNAL_EVENTS)
+
+
+class TestJournalSkillResolves:
+    """The journal skill owns the shape of `metadata.resolves`; /analysis-reflection writes a list."""
+
+    JOURNAL = SKILL_DIR.parent / "analysis-journal" / "SKILL.md"
+
+    def test_resolves_holds_one_id_or_a_list(self) -> None:
+        board = unwrap(
+            _section(self.JOURNAL.read_text(encoding="utf-8"), "## Open Questions")
+        )
+        assert "one event id or a list of event ids" in board
+
+    def test_the_sketch_reads_a_list(self) -> None:
+        board = _section(self.JOURNAL.read_text(encoding="utf-8"), "## Open Questions")
+        assert "{e.metadata.resolves for e" not in board, "a list is unhashable"
+
+
+class TestFixedSentences:
+    """A fixed sentence is written the same way in every report."""
+
+    def test_the_rule_is_stated_once(self) -> None:
+        section = unwrap(_section(_template(), FIXED_SENTENCES))
+        assert "written exactly as shown" in section
+        assert "No space goes around a field" in section
+        assert "When the narrative is not Japanese" in section
+        assert _template().count("When the narrative is not Japanese") == 1
+
+    def test_sections_with_a_fixed_sentence_point_at_the_rule(self) -> None:
+        for heading in SECTIONS_WITH_FIXED_SENTENCES:
+            section = _section(_template(), heading)
+            assert "[Fixed sentences](#fixed-sentences)" in section, heading
+
+    def test_a_fixed_sentence_never_opens_with_a_field(self) -> None:
+        # A transcribed value at the start of a paragraph could open a heading or a quote.
+        section = unwrap(_section(_template(), FIXED_SENTENCES))
+        assert "never starts with a field" in section
+
+    def test_abstract_opens_with_one_sentence_per_status(self) -> None:
+        section = _section(_template(), ABSTRACT)
+        for status, lead in ABSTRACT_LEADS.items():
+            assert table_row(section, f"`{status}`")[1] == lead
+
+    def test_the_decision_context_sentence_has_no_space_around_a_field(self) -> None:
+        section = _section(_template(), "## Decision context (Introduction)")
+        assert (
+            "この分析は、{decision_maker}が{decision}を決めるための材料である。"
+            in section
+        )
+
+
+class TestMethodTables:
+    """Method lays out the metrics and the explanatory variables in fixed tables."""
+
+    def test_tables_show_every_item_but_the_data_source(self) -> None:
+        section = _section(_template(), METHOD_TABLES)
+        assert (
+            "| Metric | Tier | Aggregation | Grouping | Filter | Comparison |"
+            in section
+        )
+        assert "| Variable | Role | Description | Time points |" in section
+        assert "| Data source |" not in section
+
+    def test_tables_omit_what_has_no_value(self) -> None:
+        section = unwrap(_section(_template(), METHOD_TABLES))
+        assert "Omit a column that no row fills" in section
+        assert "write `—` in the cells without a value" in section
+        assert "Omit the table when the list is empty" in section
+
+    def test_a_single_dict_of_metrics_is_a_list_of_one(self) -> None:
+        section = unwrap(_section(_template(), METHOD_TABLES))
+        assert "read it as a list of one" in section
+
+
+class TestResultsNarrative:
+    """Results groups the evidence by its direction."""
+
+    def test_evidence_is_grouped_by_direction(self) -> None:
+        section = unwrap(_section(_template(), RESULTS_NARRATIVE))
+        assert "**仮説を支持する証拠**" in section
+        assert "**仮説に反する証拠**" in section
+        assert "Never write the value of `direction`" in section
+        assert "Omit a group that has no event" in section
+        assert (
+            "An `evidence` event without a `direction` is retold after the `observe` "
+            "events, in journal order"
+        ) in section
+
+
+class TestNumberFormats:
+    """Numbers and marks have one written form."""
+
+    def test_a_ci_level_as_a_percent_is_a_display_form(self) -> None:
+        section = unwrap(_section(_template(), "## Results numbers table"))
+        assert "is a display form, not a computation" in section
+
+    def test_pass_has_one_mark_per_value(self) -> None:
+        section = unwrap(_section(_template(), "## Results numbers table"))
+        assert "`pass` is `true`: `✓`; `false`: `✗`; absent: `—`" in section
+
+    def test_change_is_the_signed_number_without_rows(self) -> None:
+        section = unwrap(_section(_template(), "## Data description (Method)"))
+        assert "`Change` is the signed number alone, without `rows`" in section
+
+    def test_the_no_figure_line_names_its_cause(self) -> None:
+        degrade = _section(_template(), "## Graceful degrade (no figures)")
+        lines = [ln for ln in degrade.splitlines() if ln.startswith("> 図は")]
+        assert len(lines) == 2, "one line per cause"
+        missing_verdict = next(ln for ln in lines if "verdict.json" in ln)
+        assert "notebook が図を生成していない" not in missing_verdict
+
+
+class TestLimitationsAndFutureDirections:
+    """The Discussion's tail comes from the journal and is left out when empty."""
+
+    def test_limitations_come_from_limits_and_evidence_against_the_conclusion(
+        self,
+    ) -> None:
+        section = unwrap(_section(_template(), DISCUSSION_TAIL))
+        assert "`conclude` and `reflect` events" in section
+        assert (
+            "`contradicts` when the status is `supported`, `supports` when it is "
+            "`rejected`, and none when it is `inconclusive`"
+        ) in section
+
+    def test_a_limit_is_written_in_limitations_only(self) -> None:
+        abstract = unwrap(_section(_template(), ABSTRACT))
+        assert "A limit goes in Limitations only" in abstract
+        assert "Never repeat" not in _section(_template(), DISCUSSION_TAIL)
+
+    def test_limitations_is_one_paragraph(self) -> None:
+        section = unwrap(_section(_template(), DISCUSSION_TAIL))
+        assert "Write Limitations as one paragraph" in section
+
+    def test_a_conclusion_that_the_data_cannot_settle_is_not_a_limit(self) -> None:
+        section = unwrap(_section(_template(), DISCUSSION_TAIL))
+        assert "is the result, not a limit" in section
+
+    def test_an_empty_section_is_omitted_without_a_note(self) -> None:
+        section = unwrap(_section(_template(), DISCUSSION_TAIL))
+        assert "Omit `### Limitations` when it has nothing" in section
+        assert "Omit `### Future Directions` when no question is open" in section
+        assert "Never write that a section is empty" in section
+
+    def test_dropped_markup_is_not_reported_to_the_analyst(self) -> None:
+        section = unwrap(_source_text())
+        assert "Say nothing to the analyst about markup you left out" in section
