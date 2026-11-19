@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Epic 14 (#76): a report written from the same analysis has the same shape whichever model writes
+it. The parts of the `/analysis-report` template that were left to the model are now rules.
+Design: `docs/design/epic-14-report-template-gaps.md`.
+
+### Changed
+
+- **`/analysis-report` names the source of every section.** Open questions follow the journal's
+  definition, and the title comes from the design's `title`. The report no longer reads the
+  verdict's `evidence_summary` or `open_questions`, which reach it through the journal. Future
+  Directions is written from the open questions only. The line written when there is no figure
+  depends on why there is none.
+- **Fixed formats for tables and numbers.** Method has a table of metrics and one of explanatory
+  variables, and a column with no value in any row is left out. `Pass` is written as `✓`, `✗`, or
+  `—`. Results splits the evidence into what supports the hypothesis and what contradicts it.
+- **Fixed lead sentences.** The Abstract opens with one sentence per terminal status, and
+  Recommendation opens with one sentence per row of its table.
+- **Discussion.** Limitations is one paragraph built from the limits, the assumptions, and the
+  evidence against the conclusion. An empty Limitations or Future Directions is left out, with no
+  note in its place.
+- **`/analysis-journal`** accepts one id or a list of ids in `metadata.resolves`.
+
 ## [0.10.0] - 2026-11-20
 
 Epic 13 (#75): text that came from the analysis inputs is written into the report as characters,
