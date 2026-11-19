@@ -1,25 +1,32 @@
 """Unit tests for skills/_shared/report_check.py (Epic 13, Story 85).
 
-report_check reads a finished report and lists the constructs that would be
-active markup: images that are not a figure, raw HTML, and tags inside a
-mermaid fence. It never rewrites the report.
+report_check reads a finished report and lists what would still be active markup:
+an image that is not a figure, a tag start, and, in a mermaid fence, a tag other
+than <br/> or a line the lineage export never writes. It never rewrites the report.
 """
 
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
+from insight_blueprint.lineage.exporter import export_lineage_as_mermaid
+from insight_blueprint.lineage.tracker import LineageSession, StepRecord
 from skills._shared import report_check
-from skills._shared.report_check import Violation, find_violations
+from skills._shared.report_check import find_violations
 
 FIGURE = "![Figure 1](../notebooks/FP-H01_fig01.png)"
 
 
 def _kinds(markdown: str) -> list[str]:
     return [v.kind for v in find_violations(markdown)]
+
+
+def _lines_and_kinds(markdown: str) -> list[tuple[int, str]]:
+    return [(v.line, v.kind) for v in find_violations(markdown)]
 
 
 # --- images -----------------------------------------------------------------
@@ -38,15 +45,20 @@ def test_figure_pointing_into_notebooks_is_not_a_violation() -> None:
         "![x](../notebooks/sub/a.png)",
         "![x](../notebooks/../a.png)",
         "![x](../notebooks/a.jpg)",
-        "![x](../notebooks/a b.png)",
         "![x][ref]",
         "![x](../notebooks/a.png",
     ],
 )
 def test_image_that_is_not_a_figure_is_a_violation(construct: str) -> None:
-    violations = find_violations(f"see {construct}")
-    assert [v.kind for v in violations] == ["image"]
-    assert violations[0].line == 1
+    assert _lines_and_kinds(f"see {construct}") == [(1, "image")]
+
+
+@pytest.mark.parametrize(
+    "file",
+    ["%2e%2e%2fsecret.png", "a%20b.png", "a b.png", "図.png", "a..b.png"],
+)
+def test_figure_file_outside_the_plain_charset_is_a_violation(file: str) -> None:
+    assert _kinds(f"![Figure 1](../notebooks/{file})") == ["image"]
 
 
 def test_image_violation_text_is_the_whole_construct() -> None:
@@ -63,7 +75,11 @@ def test_escaped_brackets_in_a_figure_alt_are_allowed() -> None:
     assert find_violations(r"![a \[b\]](../notebooks/f.png)") == []
 
 
-# --- raw html ---------------------------------------------------------------
+def test_tag_in_a_figure_alt_is_a_violation() -> None:
+    assert _kinds("![<b>](../notebooks/f.png)") == ["html"]
+
+
+# --- tag starts -------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -80,29 +96,34 @@ def test_escaped_brackets_in_a_figure_alt_are_allowed() -> None:
         "<![CDATA[x]]>",
         "<http://example.com>",
         "<mailto:a@b.example>",
+        '<a title="x>y" onclick="alert(1)">',
+        "<img",
+        "</div",
+        "a<b",
     ],
 )
-def test_raw_html_in_prose_is_a_violation(markup: str) -> None:
-    violations = find_violations(f"text {markup} text")
-    assert [v.kind for v in violations] == ["html"]
-    assert violations[0].text.startswith(markup[:3])
+def test_any_unescaped_tag_start_is_a_violation(markup: str) -> None:
+    # Fail closed: a tag grammar that misses one shape lets that shape through.
+    assert _kinds(f"text {markup} text") == ["html"]
 
 
-def test_unclosed_html_block_start_is_a_violation() -> None:
-    [v] = find_violations("<script src=http://evil.example/x.js")
-    assert (v.kind, v.line) == ("html", 1)
-    assert v.text == "<script src=http://evil.example/x.js"
+def test_html_violation_text_runs_to_the_first_closing_bracket() -> None:
+    [v] = find_violations("前 <b class=x>太字 後")
+    assert v.text == "<b class=x>"
 
 
-def test_html_block_start_allows_up_to_three_spaces_of_indent() -> None:
-    assert _kinds("   <div") == ["html"]
+def test_tag_left_open_at_the_end_of_a_line_is_a_violation() -> None:
+    # CommonMark lets an inline tag continue on the next line.
+    [v] = find_violations("説明 <img\nsrc=x onerror=alert(1)>\n")
+    assert (v.line, v.kind, v.text) == (1, "html", "<img")
 
 
-def test_complete_tag_at_line_start_is_reported_once() -> None:
-    assert _kinds("<div>hello") == ["html"]
+@pytest.mark.parametrize("indent", ["", " ", "   ", "    "])
+def test_tag_start_is_a_violation_at_any_indent(indent: str) -> None:
+    assert _kinds(f"{indent}<script src=http://evil.example/x.js") == ["html"]
 
 
-# --- things that merely look like markup ------------------------------------
+# --- text that only looks like markup ---------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -110,16 +131,16 @@ def test_complete_tag_at_line_start_is_reported_once() -> None:
     [
         "x < y and y > z",
         "p<0.05",
+        "n <5",
         "a <- b",
         r"\<img src=x>",
         r"\\\<img src=x>",
-        "`<div>`",
-        "``a ` <div> ``",
         "[text](http://example.com)",
         "see http://example.com/a.png",
         r"!\[x\](http://e/a.png)",
         r"\![x](http://e/a.png)",
         r"a \| b",
+        "`.insight/notebooks/FP-H01.py`",
     ],
 )
 def test_text_that_is_not_active_markup_is_not_a_violation(line: str) -> None:
@@ -130,62 +151,63 @@ def test_even_backslashes_do_not_escape_the_next_character() -> None:
     assert _kinds(r"\\<img src=x>") == ["html"]
 
 
-def test_escaped_backtick_does_not_open_a_code_span() -> None:
-    assert _kinds(r"\`<div>`") == ["html"]
+# --- code spans and other fences are not safe places ------------------------
+# A renderer ends them where a line scanner would not, so they are checked as text.
 
 
-def test_unclosed_backtick_run_is_literal_text() -> None:
-    assert _kinds("`<div>") == ["html"]
+def test_tag_inside_a_code_span_is_a_violation() -> None:
+    assert _kinds("`<div>`") == ["html"]
 
 
-def test_code_span_closes_only_on_a_run_of_the_same_length() -> None:
-    assert find_violations("``a ` <div> b``") == []
+def test_code_span_across_a_table_cell_border_hides_nothing() -> None:
+    # GFM splits cells on "|" before it reads code spans.
+    table = "| a | b |\n|---|---|\n| `x | <img src=x onerror=alert(1)> | y` |\n"
+    assert _lines_and_kinds(table) == [(3, "html")]
 
 
-# --- fences -----------------------------------------------------------------
+@pytest.mark.parametrize(
+    "line",
+    [
+        "[a](`) <img src=x onerror=alert(1)> `",
+        "[a](<`>) <img src=x onerror=alert(1)> `",
+        '[a](/u "`") <img src=x onerror=alert(1)> `',
+        "[a](`) ![x](http://evil.example/t.png) `",
+    ],
+)
+def test_backtick_inside_a_link_destination_hides_nothing(line: str) -> None:
+    # CommonMark reads the destination first, so the backtick opens no code span.
+    assert len(find_violations(line)) >= 1
 
 
-def test_html_inside_a_non_mermaid_fence_is_not_a_violation() -> None:
-    assert find_violations("```python\n<div>\n![x](http://e/a.png)\n```") == []
+def test_fence_other_than_mermaid_hides_nothing() -> None:
+    assert _lines_and_kinds(
+        "```python\n<div>\n```\n~~~\n![x](http://e/a.png)\n~~~"
+    ) == [
+        (2, "html"),
+        (5, "image"),
+    ]
 
 
-def test_tilde_fence_hides_its_contents() -> None:
-    assert find_violations("~~~\n<div>\n~~~") == []
+def test_fence_inside_a_list_item_hides_nothing() -> None:
+    # The list item, and the fence with it, ends at the next line with less indent.
+    markdown = "- a\n  ```\n<img src=x onerror=alert(1)>\n```\n"
+    assert _lines_and_kinds(markdown) == [(3, "html")]
 
 
-def test_fence_closes_only_on_a_fence_at_least_as_long() -> None:
-    md = "````\n```\n<div>\n````\n<b>"
-    assert [(v.line, v.kind) for v in find_violations(md)] == [(5, "html")]
+# --- mermaid fences ---------------------------------------------------------
 
 
-def test_closing_fence_with_an_info_string_does_not_close() -> None:
-    md = "```\n``` text\n<div>\n```"
-    assert find_violations(md) == []
-
-
-def test_unclosed_fence_hides_the_rest_of_the_document() -> None:
-    assert find_violations("```\n<div>") == []
-
-
-def test_prose_after_a_closed_fence_is_checked_again() -> None:
-    md = "```\n<div>\n```\n<b>x"
-    assert [v.line for v in find_violations(md)] == [4]
-
-
-def test_fence_may_be_indented_by_up_to_three_spaces() -> None:
-    assert find_violations("   ```\n<div>\n   ```") == []
-
-
-# --- mermaid ----------------------------------------------------------------
+def _mermaid(*lines: str) -> str:
+    return "```mermaid\n" + "\n".join(lines) + "\n```\n"
 
 
 @pytest.mark.parametrize("br", ["<br>", "<br/>", "<br />", "<BR/>"])
 def test_br_inside_a_mermaid_fence_is_not_a_violation(br: str) -> None:
-    assert find_violations(f'```mermaid\n    Step0["a{br}b"]\n```') == []
+    assert find_violations(_mermaid(f'    Step0["a{br}b"]')) == []
 
 
 def test_other_tag_inside_a_mermaid_fence_is_a_mermaid_html_violation() -> None:
-    [v] = find_violations('```mermaid\n    Step0["<img src=x>"]\n```')
+    [v] = find_violations(_mermaid('    Step0["<img src=x>"]'))
     assert (v.line, v.kind, v.text) == (2, "mermaid-html", "<img src=x>")
 
 
@@ -193,25 +215,124 @@ def test_closing_tag_inside_a_mermaid_fence_is_a_violation() -> None:
     assert _kinds('```Mermaid\n    Step0["x</b>"]\n```') == ["mermaid-html"]
 
 
+def test_tag_left_open_inside_a_mermaid_fence_is_a_violation() -> None:
+    assert _lines_and_kinds(_mermaid('    Step0["a <img src=x"]')) == [
+        (2, "mermaid-html")
+    ]
+
+
+def test_backslash_escapes_nothing_inside_a_mermaid_fence() -> None:
+    # Mermaid reads no Markdown escape, so "\<img>" is still a tag in a label.
+    assert _kinds(_mermaid('    Step0["\\<img src=x>"]')) == ["mermaid-html"]
+
+
 def test_less_than_before_a_digit_in_a_mermaid_label_is_not_a_tag() -> None:
-    markdown = '```mermaid\n    Step0 -->|"x<0.5 を除く<br/>-1 rows"| Step1\n```'
+    edge = '    Step0 -->|"x<0.5 を除く<br/>-1 rows"| Step1'
+    assert find_violations(_mermaid(edge)) == []
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        'click Step0 href "http://evil.example"',
+        '%%{init: {"securityLevel": "loose"}}%%',
+        "    Step0 --> Step1",
+        "subgraph x",
+        'Step0["a<br/>b"]',
+        '  Step0["a<br/>b"]',
+    ],
+)
+def test_mermaid_line_the_lineage_export_never_writes_is_a_violation(
+    statement: str,
+) -> None:
+    markdown = _mermaid("graph LR", '    Step0["a<br/>1 rows"]', statement)
+    assert _lines_and_kinds(markdown) == [(4, "mermaid-statement")]
+
+
+def test_the_shapes_of_the_lineage_export_and_blank_lines_are_not_violations() -> None:
+    markdown = _mermaid(
+        "graph LR",
+        '    Step0["sales<br/>12000 rows"]',
+        '    Step1["Step 1<br/>11800 rows"]',
+        '    Step0 -->|"欠損を除く &#124; 2025年<br/>-200 rows"| Step1',
+        "",
+    )
     assert find_violations(markdown) == []
 
 
-def test_mermaid_fence_content_is_not_treated_as_prose() -> None:
-    assert _kinds('```mermaid\n    Step0["`<br/>` \\<"]\n```') == []
+def test_a_diagram_the_lineage_export_writes_is_not_a_violation() -> None:
+    # The allowed shapes are the export's output; this ties the two together, so a
+    # change to the export that the check does not know fails here.
+    session = LineageSession(name='月次 "売上" | 2025\n速報')
+    for rows_before, rows_after, reason in (
+        (12000, 11800, 'p<0.5 の行を除く\n"外れ値" | 店舗'),
+        (11800, 11900, "補完した行を足す"),
+    ):
+        session.record(
+            StepRecord(
+                step_number=session.next_step_number(),
+                reason=reason,
+                rows_before=rows_before,
+                rows_after=rows_after,
+                rows_delta=rows_after - rows_before,
+                timestamp=datetime.now(UTC),
+                function_name="fn",
+            )
+        )
+    diagram = export_lineage_as_mermaid(session)
+
+    assert find_violations(f"```mermaid\n{diagram}```\n") == []
 
 
-# --- positions and text -----------------------------------------------------
+def test_mermaid_fence_counts_only_at_the_left_margin() -> None:
+    # Indented, it may sit inside a list item, so it is checked as text.
+    markdown = '  ```mermaid\n    Step0["a<br/>b"]\n  ```\n'
+    assert _kinds(markdown) == ["html"]
+
+
+def test_mermaid_fence_closes_only_at_the_left_margin() -> None:
+    markdown = "```mermaid\ngraph LR\n  ```\n<b>\n"
+    assert _lines_and_kinds(markdown) == [
+        (3, "mermaid-statement"),
+        (4, "mermaid-statement"),
+    ]
+
+
+def test_mermaid_fence_closes_only_on_a_fence_at_least_as_long() -> None:
+    markdown = "````mermaid\ngraph LR\n```\n````\n<b>"
+    assert _lines_and_kinds(markdown) == [(3, "mermaid-statement"), (5, "html")]
+
+
+def test_closing_fence_with_an_info_string_does_not_close() -> None:
+    markdown = "```mermaid\ngraph LR\n``` text\n```\n"
+    assert _lines_and_kinds(markdown) == [(3, "mermaid-statement")]
+
+
+def test_unclosed_mermaid_fence_keeps_its_rules_to_the_end() -> None:
+    assert _lines_and_kinds("```mermaid\ngraph LR\n<b>") == [(3, "mermaid-statement")]
+
+
+def test_text_after_a_closed_mermaid_fence_is_checked_again() -> None:
+    assert _lines_and_kinds(_mermaid("graph LR") + "<b>x") == [(4, "html")]
+
+
+# --- lines, positions, and text ---------------------------------------------
 
 
 def test_line_numbers_are_one_based_and_count_every_line() -> None:
-    md = "# Title\n\n```\ncode\n```\n\nok <b>x"
-    assert [v.line for v in find_violations(md)] == [7]
+    assert [
+        v.line for v in find_violations("# Title\n\n" + FIGURE + "\n\nok <b>x")
+    ] == [5]
 
 
 def test_crlf_line_endings_keep_line_numbers() -> None:
     assert [v.line for v in find_violations("a\r\nb\r\n<b>")] == [3]
+
+
+def test_a_lone_carriage_return_ends_a_line() -> None:
+    # CommonMark ends a line at "\r", so the fence closes before "<img".
+    markdown = "```mermaid\ngraph LR\n```\r<img src=x>\n"
+    assert _lines_and_kinds(markdown) == [(4, "html")]
 
 
 def test_violations_on_one_line_come_in_reading_order() -> None:
@@ -223,47 +344,69 @@ def test_violation_text_is_cut_to_120_characters() -> None:
     assert len(v.text) == 120
 
 
-def test_violation_is_a_frozen_value() -> None:
-    v = Violation(line=1, kind="html", text="<b>")
-    with pytest.raises(AttributeError):
-        v.line = 2  # type: ignore[misc]
-
-
-# --- a realistic clean report -----------------------------------------------
+# --- a report laid out as the template says ---------------------------------
 
 CLEAN_REPORT = f"""\
-# FP-H01: 家賃と人口の関係
+# 値引き施策と売上 \\<u>速報\\</u> \\[要確認\\]
+
+## Introduction
+
+この分析は、販売企画部長 \\| 代理: \\*営業\\* 課長 が 値引きを全店舗に広げるか \\<b>否か\\</b> を決めるための材料である。
 
 ## Method
 
-Source: `.insight/notebooks/FP-H01.py`
+### Data
 
-| 指標 | 値 |
-|---|---|
-| a \\| b | p < 0.05 |
+| Data source | Type | Description |
+|---|---|---|
+| 月次売上 !\\[logo\\](https://evil.example/logo.png) | csv | 列は store\\_id \\| month。\\<script>alert(1)\\</script> |
+
+| Step | Reason | Rows | Change |
+|---|---|---|---|
+| 0 | (loaded) | 12000 | — |
+| 1 | 欠損のある行を除く \\<img src=x> \\*必ず\\* | 11800 | -200 |
+| 2 | 対象期間に絞る &#124; 2025年 | 9400 | -2400 |
 
 ## Results
 
+| Metric | Value | Effect size | CI | N | Threshold | p | Pass |
+|---|---|---|---|---|---|---|---|
+| ATT\\_\\[primary\\] | 1676.9 | 0.42 (cohens\\_d \\<i>) | 95% [1200.3, 2153.5] | 1200 | 0 | 0.0001 | ✓ |
+
+**Figure 1.** 施策前後の売上推移 \\`rm -rf\\`
+
+- **Axes（軸の説明）**: 横軸=年月, 縦軸=売上(円) \\| 単位\\_千円
+- **How to read（図の読み方）**: 線が上にあるほど売上が高い。!\\[x\\](http://evil.example/a.png) \\<a href="http://evil.example">詳細\\</a>
+
 {FIGURE}
 
-Figure 1. caption with \\<script\\> and \\[link\\]\\(http://e\\) escaped.
+> 図はこのレポートには含まれていない（notebook が図を生成していない）。図を載せるには
+> /analysis-notebook で再実行する。
+
+## Discussion
+
+### Recommendation
+
+販売企画部長へ。結論は広げる方向を指している（p < 0.05、Limitations を参照）。
+
+## Appendix
+
+### Data Lineage
 
 ```mermaid
 graph LR
     Step0["sales<br/>12000 rows"]
-    Step1["Step 1<br />11800 rows"]
-    Step0 -->|"欠損を除く<br/>-200 rows"| Step1
+    Step1["Step 1<br/>11800 rows"]
+    Step0 -->|"欠損のある行を除く<br/>-200 rows"| Step1
 ```
 
-```python
-print("<div>")
-```
+### Notebook
 
-See [docs](http://example.com) and http://example.com/a.png.
+`.insight/notebooks/SY-H01.py`
 """
 
 
-def test_a_report_that_follows_the_rules_has_no_violation() -> None:
+def test_a_report_laid_out_as_the_template_says_has_no_violation() -> None:
     assert find_violations(CLEAN_REPORT) == []
 
 
@@ -375,115 +518,3 @@ def test_main_creates_nothing_when_the_base_dir_is_empty(tmp_path: Path) -> None
 
     assert report_check._main(["--id", "X", "--base-dir", str(base)]) == 2
     assert not base.exists()
-
-
-def test_tag_left_open_at_the_end_of_a_line_is_a_violation() -> None:
-    # CommonMark lets an inline tag continue on the next line.
-    markdown = "説明 <img\nsrc=x onerror=alert(1)>\n"
-    assert [(v.line, v.kind) for v in find_violations(markdown)] == [(1, "html")]
-
-
-def test_less_than_before_a_word_that_ends_the_line_without_a_tag_shape() -> None:
-    assert find_violations("n <5\n次の行\n") == []
-
-
-@pytest.mark.parametrize(
-    "line",
-    [
-        '<a title="x>y" onclick="alert(1)">詳細',
-        "説明 <img src=x",
-        "説明 <img",
-        "a<b",
-        "</div",
-        "<!doctype",
-        "<?php",
-    ],
-)
-def test_any_unescaped_tag_start_is_a_violation(line: str) -> None:
-    # Fail closed: a tag grammar that misses one shape lets that shape through.
-    assert [v.kind for v in find_violations(line)] == ["html"]
-
-
-def test_html_violation_text_runs_to_the_first_closing_bracket() -> None:
-    (violation,) = find_violations("前 <b class=x>太字 後")
-    assert violation.text == "<b class=x>"
-
-
-def test_tag_start_inside_a_mermaid_fence_is_a_violation_even_when_left_open() -> None:
-    markdown = '```mermaid\ngraph LR\n    Step0["a <img src=x"]\n```\n'
-    assert [(v.line, v.kind) for v in find_violations(markdown)] == [
-        (3, "mermaid-html")
-    ]
-
-
-@pytest.mark.parametrize(
-    "file",
-    ["%2e%2e%2fsecret.png", "a%20b.png", "図.png", "a..b.png"],
-)
-def test_figure_file_outside_the_plain_charset_is_a_violation(file: str) -> None:
-    markdown = f"![Figure 1](../notebooks/{file})"
-    assert [v.kind for v in find_violations(markdown)] == ["image"]
-
-
-@pytest.mark.parametrize(
-    "statement",
-    [
-        'click Step0 href "http://evil.example"',
-        '%%{init: {"securityLevel": "loose"}}%%',
-        "    Step0 --> Step1",
-        "subgraph x",
-    ],
-)
-def test_mermaid_statement_the_lineage_export_never_writes_is_a_violation(
-    statement: str,
-) -> None:
-    markdown = f'```mermaid\ngraph LR\n    Step0["a<br/>1 rows"]\n{statement}\n```\n'
-    assert [(v.line, v.kind) for v in find_violations(markdown)] == [
-        (4, "mermaid-statement")
-    ]
-
-
-def test_the_three_shapes_of_the_lineage_export_are_not_violations() -> None:
-    markdown = (
-        "```mermaid\n"
-        "graph LR\n"
-        '    Step0["sales<br/>12000 rows"]\n'
-        '    Step1["Step 1<br/>11800 rows"]\n'
-        '    Step0 -->|"欠損を除く &#124; 2025年<br/>-200 rows"| Step1\n'
-        "\n"
-        "```\n"
-    )
-    assert find_violations(markdown) == []
-
-
-def test_closing_tag_start_in_the_middle_of_a_line_is_a_violation() -> None:
-    assert [v.kind for v in find_violations("説明 </div")] == ["html"]
-
-
-def test_a_diagram_the_lineage_export_writes_is_not_a_violation() -> None:
-    # The allowed Mermaid shapes are the export's output; this ties the two together,
-    # so a change to the export that the check does not know fails here.
-    from datetime import UTC, datetime
-
-    from insight_blueprint.lineage.exporter import export_lineage_as_mermaid
-    from insight_blueprint.lineage.tracker import LineageSession, StepRecord
-
-    session = LineageSession(name='月次 "売上" | 2025\n速報')
-    for rows_before, rows_after, reason in (
-        (12000, 11800, 'p<0.5 の行を除く\n"外れ値" | 店舗'),
-        (11800, 11900, "補完した行を足す"),
-    ):
-        session.record(
-            StepRecord(
-                step_number=session.next_step_number(),
-                reason=reason,
-                rows_before=rows_before,
-                rows_after=rows_after,
-                rows_delta=rows_after - rows_before,
-                timestamp=datetime.now(UTC),
-                function_name="fn",
-            )
-        )
-    diagram = export_lineage_as_mermaid(session)
-
-    assert find_violations(f"```mermaid\n{diagram}```\n") == []

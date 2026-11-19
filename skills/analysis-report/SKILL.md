@@ -138,7 +138,7 @@ This skill uses `catalog_io` read-only. It registers and updates nothing.
 
 | Option | Used for |
 |--------|----------|
-| `--id ID` | Check `.insight/reports/{ID}.md` for active markup; exit 0 = none, 1 = violations (JSON on stdout), 2 = could not check (bad id, unreadable report, setup error) |
+| `--id ID` | Check `.insight/reports/{ID}.md` for active markup; exit 0 = none; 1 with JSON on stdout = violations; anything else = could not check (bad id, unreadable report, setup error) |
 
 `report_check` only reads the report. It never rewrites it.
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from skills._shared.report_check import find_violations
 from tests.skills._markdown import section as _section
 from tests.skills._markdown import table_rows, unwrap
 
@@ -406,6 +407,12 @@ def _source_text() -> str:
     return _section(_template(), SOURCE_TEXT)
 
 
+def _transcribe(text: str) -> str:
+    """The three steps of the Source text section, as code (steps 1 and 2, then 3)."""
+    one_line = re.sub(r"[\r\n\t]+", " ", text)
+    return re.sub(r"([\\`*_\[\]<|])", r"\\\1", one_line)
+
+
 class TestSourceText:
     """US-1 (Epic 13): one way to write text that came from the inputs."""
 
@@ -436,6 +443,17 @@ class TestSourceText:
         assert (
             "do not strip a tag, wrap the text in a code span, or add a note" in section
         )
+
+    def test_example_follows_the_three_steps_and_passes_the_check(self) -> None:
+        # Ties the rule, its example, and report_check together: an example that
+        # drifts from the steps, or a step the check rejects, fails here.
+        block = _source_text().split("```")[3]
+        pairs = re.findall(r"input: +(.*)\nwritten: +(.*)", block)
+        assert len(pairs) == 2
+        for given, written in pairs:
+            assert _transcribe(given) == written
+            assert find_violations(written) == []
+        assert find_violations(pairs[0][0]) != []
 
     def test_example_shows_markup_escaped_and_words_kept(self) -> None:
         section = _source_text()
@@ -544,9 +562,15 @@ class TestReportCheck:
         assert "raw HTML" not in handoff
 
     def test_reference_names_every_outcome_of_the_check(self) -> None:
+        # Only 1 with JSON means violations: a crash before the check also exits 1.
         reference = unwrap(_section(_skill(), "## report_check Reference"))
         assert "exit 0 = none" in reference
-        assert "1 = violations (JSON on stdout)" in reference
-        assert "2 = could not check (bad id, unreadable report, setup error)" in (
-            reference
-        )
+        assert "1 with JSON on stdout = violations" in reference
+        assert "anything else = could not check" in reference
+
+    def test_template_skips_a_figure_file_the_check_rejects(self) -> None:
+        figure = unwrap(_section(_template(), "## Figure presentation format"))
+        assert (
+            "contains `..` or any character other than ASCII letters, digits, `_`, "
+            "`.`, and `-`"
+        ) in figure

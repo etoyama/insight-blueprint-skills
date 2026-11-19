@@ -343,9 +343,11 @@ The image path is relative to `.insight/reports/{id}.md`, so figures under
 moves the PNG.
 
 **Safety of the image link**:
-- `figures[].file` must be a bare basename. Skip any entry whose `file` contains `/`, `\`, `..`,
-  or is absolute (treat as graceful-degrade omission) — this is a distributable artifact and a
-  traversal path would leak the local filesystem layout.
+- `figures[].file` must be a bare basename. Skip any entry whose `file` contains `..` or any
+  character other than ASCII letters, digits, `_`, `.`, and `-` — so no `/`, `\`, `%`, space,
+  or absolute path (treat as graceful-degrade omission). This is a distributable artifact: a
+  traversal path would leak the local filesystem layout, and `report_check` accepts no other
+  figure name.
 - Skip an entry whose PNG is missing on disk rather than embedding a broken image link.
 
 ## Graceful degrade (no figures)
