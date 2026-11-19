@@ -59,8 +59,8 @@ AC の正本はここ。
 
 - [x] AC 1: Abstract は terminal status ごとに決まった1文で始まる（3通り）。
 - [x] AC 2: Recommendation は書き方の表の行ごとに決まった最初の1文を持つ。定型の文は差し込む値で始めない。
-- [x] AC 3: Limitations は `conclude` と `reflect` の文のうち限界と前提を述べた部分と、結論に反する証拠から書く。
-  Abstract に置いた文を Limitations で繰り返さない。
+- [x] AC 3: Limitations は `conclude` と `reflect` の文のうち限界と前提を述べた部分と、結論に反する証拠から、1つの段落で書く。
+  Abstract に置いた文を Limitations で繰り返さない。「このデータでは決められない」という結論は、限界でなく結果として扱う。
 - [x] AC 4: Limitations と Future Directions は、中身が無ければ見出しごと省き、注記を足さない。
 - [x] AC 5: 語り直す文から記法を落としたことを、分析者に言わない。テンプレートにそう書く。
 
@@ -222,7 +222,9 @@ sequenceDiagram
 
 - What: `conclude` の文が結果と限界を両方述べるとき、Abstract は結果だけを語り直し、限界は Limitations だけに書く。
   `inconclusive` のときは、結論に反する証拠は無いものとする。向きの無い `evidence` は、`observe` のあとに journal の順で語り直す。
+  Limitations は1つの段落で書き、「このデータでは決められない」という結論は限界でなく結果として Abstract だけに置く（2026-11-20 に追記）。
 - Why: 手動確認（2026-11-20）で、sonnet が限界の文を Abstract と Limitations の両方に書いた。
+  レビューのあとの確認では、haiku が Limitations を箇条書きにし、`inconclusive` の結論を限界として書き直した。
   `inconclusive` の Limitations と、向きの無い証拠の順番では、2つのモデルが「書いていないので自分で決めた」と報告した。
 - Criteria: AC（US-3 AC 3、US-2 AC 5）を一意に読めること（Must）。
 - Affected modules: `apa-template.md`
@@ -302,3 +304,8 @@ sequenceDiagram
   journal に写る verdict の項目の言い方（Decision `resolves-shape-in-the-journal-skill`・`one-recommendation-table`・`fixed-sentences-section`）。
   構造テストは節ごとのクラスに組み直し、同じことを2回見るテストと、テストファイルの定数だけを見る assert を消した。
   直していないもの: 骨組み・対応表・詳細の節の3か所に入力を書く形（Epic 10 からの形で、変えると既存のテストまで広く書き換わる）。
+- 2026-11-20 — 手動確認（レビューの直しのあと）: 新しい haiku のサブエージェントに、同じ `.insight/` で3本を書かせた（2回）。
+  1回目は、Limitations を箇条書きにし、`inconclusive` の結論を限界として Limitations に書いた。テンプレートに決まりを足した（Decision `limits-only-in-limitations` の追記）。
+  2回目は、見出し・表・太字の行・箇条書き・引用の行が、2回目の確認の sonnet のレポートと1行ずつ同じだった。違うのは SALES-H01 の効果量の種類の `_` のエスケープだけである。
+  haiku は2回続けてこれを落とした。テンプレートの決まりは明確で、`report_check` は `_` を見ないので気づけない。直していない。
+  `report_check` は6本とも違反なし。`connection` の値と絶対パスはどのレポートにも載らなかった。

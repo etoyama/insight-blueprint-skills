@@ -813,6 +813,14 @@ class TestLimitationsAndFutureDirections:
         assert "A limit goes in Limitations only" in abstract
         assert "Never repeat" not in _section(_template(), DISCUSSION_TAIL)
 
+    def test_limitations_is_one_paragraph(self) -> None:
+        section = unwrap(_section(_template(), DISCUSSION_TAIL))
+        assert "Write Limitations as one paragraph" in section
+
+    def test_a_conclusion_that_the_data_cannot_settle_is_not_a_limit(self) -> None:
+        section = unwrap(_section(_template(), DISCUSSION_TAIL))
+        assert "is the result, not a limit" in section
+
     def test_an_empty_section_is_omitted_without_a_note(self) -> None:
         section = unwrap(_section(_template(), DISCUSSION_TAIL))
         assert "Omit `### Limitations` when it has nothing" in section

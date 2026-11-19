@@ -461,6 +461,10 @@ recommend none.
   is `supported`, `supports` when it is `rejected`, and none when it is `inconclusive`. Name them
   in one sentence; Results already lists them.
 
+Write Limitations as one paragraph. A `conclude` event that says the data cannot settle the
+question (the status is `inconclusive`) is the result, not a limit: the Abstract states it, and
+Limitations takes only the limits the events name besides it.
+
 **Future Directions** lists the open questions ([Journal events](#journal-events)), one bullet per
 question.
 
