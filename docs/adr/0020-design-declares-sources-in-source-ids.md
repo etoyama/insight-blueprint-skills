@@ -9,7 +9,7 @@ Accepted
 分析設計には、データソースの id を置ける場所が2つある。`AnalysisDesign.source_ids` と、指標と説明変数の `data_source` である。
 `source_ids` を書く skill は無い。`data_source` は型の無い値で、指標では辞書、説明変数では文字列であり、id でない文字列も入る。
 `/analysis-report`・`/analysis-notebook`・`/premortem`・`/analysis-auto` の4つは分析設計が宣言したデータソースを前提にしているが、どの項目から読むかを書いた skill は無かった。
-Epic 12 の Story #65 は、`/analysis-report` に両方を読ませて回避した（[epic-12](../design/epic-12-decision-ready-report.md) の Decision `report-data-source-candidates`）。
+Epic 12 の Story #65 は `/analysis-report` に両方を読ませて回避した（[epic-12](../design/epic-12-decision-ready-report.md) の Decision `report-data-source-candidates`）。
 issue #71 がこれを扱い、2026-11-20 に人間が Epic にすると決めた（判断13、[epic-15](../design/epic-15-declared-source-ids.md)）。
 
 比較の前提にした事実は次のとおり。
@@ -72,7 +72,7 @@ issue #71 がこれを扱い、2026-11-20 に人間が Epic にすると決め�
 `source_ids` が空の既存の分析設計の扱いは、次の2つを比べた。
 
 - A1. 読まない。データソースの表は省き、`design_io update` で足せることを分析者に伝える。
-- A2. `source_ids` が空のときだけ、コマンドが旧形式として `data_source` から拾う。読む場所は2つ残る。
+- A2. `source_ids` が空のときだけ、コマンドが旧形式として `data_source` の値も候補に入れる。読む場所は2つ残る。
 
 A2 は W1 を自分で崩す。A1 は既存の分析設計のレポートから表が消えるが、分析者に知らせ、1回の `design_io update` で戻せる。
 
@@ -101,7 +101,7 @@ A を採り、既存の分析設計は A1 で扱う。決め手は W1 と W4。2
 
 ### Negative
 
-- v0.10.0 までに作った分析設計は `source_ids` が空で、レポートからデータソースの表が消え、notebook は止まる。分析者が `design_io update` で足す。
+- v0.10.0 までに作った分析設計は `source_ids` が空で、レポートからデータソースの表が消え、premortem は `HARD_BLOCK` を返し、notebook は止まる。分析者が `/analysis-design`（`design_io update`）で足す。
 - `source_ids` と `data_source` の食い違いは型で防げず、`/analysis-design` の聞き方に頼る。
 - `source_ids` の各要素が id の形かどうかは model が確かめない。`/analysis-design` は確かめた id だけを書くが、手で書いた値は `catalog_io describe` が `missing` として返すまで分からない。
 

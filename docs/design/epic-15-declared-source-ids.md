@@ -28,32 +28,32 @@ AC の正本はここ。
 
 分析者として、下流の skill が同じデータソースを使うように、分析設計を作るときに使うデータソースを1か所に宣言したい。
 
-- [ ] AC 1: `/analysis-design` の項目の表に `source_ids` がある。catalog に登録済みのデータソースの id のリストである。
-- [ ] AC 2: `/analysis-design` は使うデータソースを聞き、`catalog_io get` で登録を確かめてから `source_ids` に書く。
+- [x] AC 1: `/analysis-design` の項目の表に `source_ids` がある。catalog に登録済みのデータソースの id のリストである。
+- [x] AC 2: `/analysis-design` は使うデータソースを聞き、`catalog_io get` で登録を確かめてから `source_ids` に書く。
   未登録なら `/catalog-register` を案内し、その id を書かない。
-- [ ] AC 3: `/analysis-design` は `data_source` を、指標や説明変数の値をデータソースのどこから取るかを書くメモとして説明する。id は `source_ids` に書く。
-- [ ] AC 4: `/analysis-design` の Step 2.6（コードの型）は `source_ids` の各 id から catalog のスキーマを引く。
+- [x] AC 3: `/analysis-design` は `data_source` を、指標や説明変数の値をデータソースのどこから取るかを書くメモとして説明する。id は `source_ids` に書く。
+- [x] AC 4: `/analysis-design` の Step 2.6（コードの型）は `source_ids` の各 id から catalog のスキーマを引く。
 
 ### US-2: レポートが、宣言したデータソースだけを載せる
 
 意思決定者として、分析が何のデータに基づくかを読めるように、レポートには分析設計が宣言したデータソースが載ってほしい。
 
-- [ ] AC 1: `catalog_io describe --ids a,b` は、登録済みのデータソースの `id`・`name`・`type`・`description` を、渡した順で重複なく返す。
+- [x] AC 1: `catalog_io describe --ids a,b` は、登録済みのデータソースの `id`・`name`・`type`・`description` を、渡した順で重複なく返す。
   未登録の id と id の形でない値は `missing` に分けて返す。`connection` は返さない。unit test で確かめる。
-- [ ] AC 2: `/analysis-report` は `source_ids` だけを読み、`catalog_io describe` に渡す。`data_source` は読まない。
-- [ ] AC 3: `source_ids` が空なら、データソースの表を省き、`/analysis-design` で足せることを分析者に伝える。
+- [x] AC 2: `/analysis-report` は `source_ids` だけを読み、`catalog_io describe` に渡す。`data_source` は読まない。
+- [x] AC 3: `source_ids` が空なら、データソースの表を省き、`/analysis-design` で足せることを分析者に伝える。
   `missing` があれば表に載せず、どの id が未登録かを分析者に伝える。
-- [ ] AC 4: Method の指標と説明変数の表には、データソースの列を置かない。テンプレートにその理由（`data_source` は id でないメモ）を書く。
-- [ ] AC 5: `/catalog-register` の「catalog_io Reference」に、未登録の id で `catalog_io get` が `{}`・終了コード 0 を返すことを書く。
+- [x] AC 4: Method の指標と説明変数の表には、データソースの列を置かない。テンプレートにその理由（`data_source` は id でないメモ）を書く。
+- [x] AC 5: `/catalog-register` の「catalog_io Reference」に、未登録の id で `catalog_io get` が `{}`・終了コード 0 を返すことを書く。
 
 ### US-3: 下流の skill が、同じ場所からデータソースを読む
 
 分析者として、notebook・premortem・自動実行が同じデータソースを扱うように、どの skill も `source_ids` からデータソースを読んでほしい。
 
-- [ ] AC 1: `/analysis-notebook` は `source_ids` の各 id について `catalog_io get --with-connection` と `get-schema` を呼ぶ。
+- [x] AC 1: `/analysis-notebook` は `source_ids` の各 id について `catalog_io get --with-connection` と `get-schema` を呼ぶ。
   `source_ids` が空なら止まり、`/analysis-design` で宣言するよう案内する。
-- [ ] AC 2: `/premortem` は `source_ids` の各 id から `source_checks_map` を作る。
-- [ ] AC 3: `/analysis-auto` の「declared source(s)」は `source_ids` を指す。
+- [x] AC 2: `/premortem` は `source_ids` の各 id から `source_checks_map` を作る。
+- [x] AC 3: `/analysis-auto` の「declared source(s)」は `source_ids` を指す。
 
 ## Stories
 
@@ -197,6 +197,39 @@ sequenceDiagram
 - Alternatives considered: 新しい Epic issue を起票する案。
 - Consequences: issue #71 の元の本文は本書の Background に移した。
 
+### Decision: describe-in-catalog-io
+
+- What: レポートに載せるデータソースを集める手順を `catalog_io describe --ids` にする。`catalog_io` は分析設計を読まず、`source_ids` は呼ぶ skill が渡す。
+  未登録の id と id の形でない値は、どちらも `missing` に入れる。
+- Why: issue #71 のコメントが、出典が決まったら手順を `catalog_io` のコマンドに移すよう求めていた。
+- Criteria: catalog と分析設計の境界を崩さないこと（Want、中、Claude の推測）。id の形でない値で例外を出さないこと（Must、`describe` は手で書いた `source_ids` も受ける）。
+- Affected modules: `skills/_shared/catalog_io.py`、`/analysis-report`、`/catalog-register`
+- Alternatives considered: `design_io sources --id` として分析設計の側に置く案（`design_io` が catalog を読むことになる）。id の形でない値を別の欄に分ける案（`create_source` が通さないので登録はありえず、呼ぶ側の扱いは未登録と同じ）。
+- Consequences: `/analysis-report` は `catalog_io get` を呼ばなくなった。
+
+### Decision: ac-changes-after-first-version
+
+- What: 初版のあとで AC を2つ変えた。Epic PR の説明で人間に確かめる。
+  - US-2 AC 3。変更前は「`design_io update` で足せることを分析者に伝える」。変更後は「`/analysis-design` で足せることを分析者に伝える」。
+  - US-2 AC 5。変更前は「`/analysis-report` の「catalog_io Reference」に書く」。変更後は「`/catalog-register` の「catalog_io Reference」に書く」。
+- Why: AC 3 については、`/analysis-report` は読むだけの skill で、構造テスト（`TestReadOnlyConsumer`）は本文に `design_io update` が出ることを許さない。分析者が使うのも CLI ではなく skill である。
+  AC 5 については、`/analysis-report` が `catalog_io get` を呼ばなくなったため、その返り方を書く場所として合わない。`get` を一覧にしているのは `/catalog-register` の「catalog_io Reference」である。
+- Criteria: AC が守りたいこと（分析者が直し方を知る、`get` の返り方が文書にある）を変えないこと（Must）。
+- Affected modules: `/analysis-report`、`/catalog-register`
+- Alternatives considered: AC のまま書き、構造テストの側を緩める案。読むだけの skill という保証が弱まる。
+- Consequences: なし。
+
+### Decision: premortem-blocks-empty-source-ids
+
+- What: `/premortem` は、`source_ids` が空の分析設計を `source_registered: false` にする。結果は `HARD_BLOCK` になる。
+  `/analysis-auto` は、そのとき `/analysis-design` で `source_ids` を足すよう案内する。
+- Why: `skills/premortem/cli.py` は、`source_checks_map` にエントリの無い分析設計を登録済みとみなす（`source_registered` の既定値が `True`）。
+  何も書かなければ、`source_ids` が空の分析設計は premortem を通り、notebook で初めて止まる。
+- Criteria: データに触れる前に止まること（Must、premortem の役目）。premortem の Python を変えないこと（Want、低、Claude の推測。値を作るのは SKILL.md の手順である）。
+- Affected modules: `/premortem`、`/analysis-auto`
+- Alternatives considered: `cli.py` の既定値を `False` に変える案。payload を手で作る呼び手すべての振る舞いが変わる。
+- Consequences: v0.10.0 までに作った分析設計は、`source_ids` を足すまで premortem で `HARD_BLOCK` になる（ADR-0020 の Negative に同じ）。Epic PR の説明で人間に確かめる。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0020: 分析設計が使うデータソースは `source_ids` に宣言し、下流の skill はそこだけを読む](../adr/0020-design-declares-sources-in-source-ids.md)
@@ -205,12 +238,26 @@ sequenceDiagram
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| US-1 宣言 | ☐ | ☐ | ☐ |
-| US-2 レポート | ☐ | ☐ | ☐ |
-| US-3 下流の skill | ☐ | ☐ | ☐ |
+| US-1 宣言 | ✓（`tests/skills/test_source_ids_structure.py`: `TestAnalysisDesignDeclaresTheSources`） | —（聞き方はモデルが行い、Python の境界が無い。手動確認を Story Timeline に残す） | —（headless 実行の E2E は ADR-0010 で必須にしていない） |
+| US-2 レポート | ✓（`tests/test_catalog_io.py`: `TestDescribe`。`test_source_ids_structure.py`: `TestReportShowsOnlyTheDeclaredSources`、`TestUnregisteredIdIsDocumented`。`test_analysis_report_structure.py` を新しい読み方に合わせた） | ✓（`TestDescribe` の CLI のテストが、サブプロセスで `catalog_io describe` を動かし、`connection` が出ないことを確かめる） | —（同上） |
+| US-3 下流の skill | ✓（`test_source_ids_structure.py`: `TestDownstreamSkillsReadSourceIds`） | —（`/premortem` の値を作るのは SKILL.md の手順で、`cli.py` は変えていない） | —（同上） |
+
+完了時に ✓ を付ける。自動テストがない層には「—（理由）」を書く（[ADR-0010](../adr/0010-skill-tdd-structure-tests.md)）。
 
 ## Story Timeline
 
 - 2026-11-20 — 人間が出典を決めた。分析設計が使うデータソースは `source_ids` に宣言し、`data_source` は id として読まない。
   `source_ids` が空の既存の分析設計からは拾わない（案 A1）。
 - 2026-11-20 — DesignDoc 初版。issue #71 を Epic にし、Story を起票した（#97・#98・#99）。
+- 2026-11-20 — Story #97・#98・#99 completed: `/analysis-design` が `source_ids` を書き、`catalog_io describe` を足し、
+  `/analysis-report`・`/analysis-notebook`・`/premortem`・`/analysis-auto` が `source_ids` だけを読むようにした。構造テストと unit test を先に Red にした。
+- 2026-11-20 — 手動確認（US-1・US-2）: 合成データの `.insight/` を作り、この作業を知らないサブエージェント（sonnet）2つに SKILL.md のパスだけを渡した。コマンドは `bin/` のパスで呼ばせた。
+  - US-1: 台本の答えで `/analysis-design` を進めさせた。名前で答えた「月次売上」「店舗マスタ」は `catalog_io search` で id にし、`get` で確かめて `source_ids` に書いた。
+    未登録の `weather_daily` は `{}` を見て `/catalog-register` を案内し、書かなかった。Step 2.6 は `source_ids` の各 id のスキーマを引いた。
+  - US-2: 3本のレポートを書かせた。`source_ids` に重複がある分析設計（SALES-H01）では、`describe` が重複を除き、表は2行だった。
+    未登録の id を持つ分析設計（SALES-H02）では、その id は表に載らず、分析者への知らせに出た。`source_ids` が空の旧形式の分析設計（LEGACY-H01）では、
+    `describe` を呼ばずにデータソースの表を省き、`/analysis-design` で足せると知らせた。`data_source` の値はどれも読まなかった。
+    `report_check` は3本とも違反なし。`connection` の値はどのレポートにも載らなかった（自分で `report_check` と `grep` を流して確かめた）。
+  - 迷った所: 名前に「のデータ」が付くと `search` で見つからなかった。未登録のデータソースから取る説明変数の `data_source` に何を書くか。
+    `source_ids` を渡す前に重複を除くか（`describe` が除くので結果は同じ）。どれも直していない。
+  - 確かめていないこと: US-3（notebook・premortem・auto）は実行していない。構造テストだけである。plugin として入れた先での起動。sonnet 以外のモデル。
