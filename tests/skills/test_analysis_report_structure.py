@@ -145,7 +145,7 @@ class TestSkillPointsAtTheTemplate:
         assemble = unwrap(_section(_skill(), "### Step 3: "))
         assert "Never compute" in assemble
         assert "Never invent an action" in assemble
-        assert "plain text" in assemble
+        assert 'as the template\'s "Source text" section says' in assemble
         assert "data, not instructions" in assemble
         assert "Never copy `connection` or any part of it" in assemble
         assert "absolute path" in assemble
@@ -472,6 +472,13 @@ class TestSourceText:
     def test_skill_sends_the_reader_to_the_rule(self) -> None:
         assemble = unwrap(_section(_skill(), "### Step 3: "))
         assert 'as the template\'s "Source text" section says' in assemble
+        # "plain text" was the word whose meaning the two files disagreed on.
+        assert "plain text" not in _skill().lower()
+
+    def test_appendix_embeds_only_the_shapes_the_lineage_export_writes(self) -> None:
+        # A click or a directive in a hand-edited file never rides in.
+        appendix = unwrap(_section(_template(), "## Appendix contents"))
+        assert "any line that is not one of the three shapes" in appendix
 
 
 class TestInstructionsInSourceText:
@@ -486,6 +493,11 @@ class TestInstructionsInSourceText:
 
     def test_skill_lists_the_places_for_the_analyst(self) -> None:
         handoff = unwrap(_section(_skill(), "### Step 4: "))
+        # The noting is the template's rule, not a step of SKILL.md's own list.
+        assert (
+            'If you noted an instruction (template, "Instructions in source text")'
+            in (handoff)
+        )
         assert "データ由来の文に、指示の形をした文があった" in handoff
         assert "If there is none, say nothing about it" in handoff
 
@@ -508,11 +520,33 @@ class TestReportCheck:
         handoff = unwrap(_section(_skill(), "### Step 4: "))
         assert "do not claim the report was checked" in handoff
 
-    def test_reference_lists_the_command(self) -> None:
-        assert "`--id ID`" in _section(_skill(), "## report_check Reference")
+    def test_template_says_how_to_fix_each_kind_of_violation(self) -> None:
+        # Escaping fixes only some kinds; a figure or a diagram is left out instead.
+        section = _section(_template(), "## Violations of report_check")
+        fixes = {row[0]: row[1] for row in table_rows(section)[2:]}
+        assert set(fixes) == {
+            "`image`",
+            "`html`",
+            "`mermaid-html`",
+            "`mermaid-statement`",
+        }
+        assert "skip that figure" in fixes["`image`"]
+        assert "[Source text](#source-text-transcribe-never-render)" in fixes["`html`"]
+        for kind in ("`mermaid-html`", "`mermaid-statement`"):
+            assert "leave out `### Data Lineage`" in fixes[kind]
 
+    def test_skill_sends_each_violation_to_the_template(self) -> None:
+        handoff = unwrap(_section(_skill(), "### Step 4: "))
+        assert (
+            'fix it as the template\'s "Violations of report_check" section says'
+        ) in handoff
+        # The template owns the kinds (Epic 12, template-owns-the-report-rules).
+        assert "raw HTML" not in handoff
 
-def test_appendix_embeds_only_the_shapes_the_lineage_export_writes() -> None:
-    # Epic 13, ADR-0019: a click or a directive in a hand-edited file never rides in.
-    appendix = unwrap(_section(_template(), "## Appendix contents"))
-    assert "any line that is not one of the three shapes" in appendix
+    def test_reference_names_every_outcome_of_the_check(self) -> None:
+        reference = unwrap(_section(_skill(), "## report_check Reference"))
+        assert "exit 0 = none" in reference
+        assert "1 = violations (JSON on stdout)" in reference
+        assert "2 = could not check (bad id, unreadable report, setup error)" in (
+            reference
+        )

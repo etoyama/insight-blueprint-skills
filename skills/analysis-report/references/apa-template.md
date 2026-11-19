@@ -360,3 +360,18 @@ single line under Results:
 ```
 
 The report still assembles from text + tables — a missing optional artifact never blocks it.
+
+## Violations of report_check
+
+`report_check` lists what is still active markup in the written report. Escaping fixes only
+the violations that came from source text; a figure or a diagram that breaks its safety rule is
+left out instead. Fix each violation by its `kind`:
+
+| Kind | Fix |
+|---|---|
+| `image` | When it is a figure link (`../notebooks/...`), the figure fails the safety of the image link: skip that figure. Otherwise it came from source text: transcribe that text again as [Source text](#source-text-transcribe-never-render) says. |
+| `html` | Put a backslash before the `<`, as [Source text](#source-text-transcribe-never-render) says. In a sentence you wrote yourself, say it without the `<`. |
+| `mermaid-html` | The lineage diagram fails the safety rule of the Appendix: leave out `### Data Lineage`. |
+| `mermaid-statement` | The same: leave out `### Data Lineage`. |
+
+Never fix a violation by deleting words from source text.
