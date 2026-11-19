@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   # No base-branch filter: run on every PR, including stacked Story->Epic PRs
   # (base = epic/*) and Epic->main PRs. Closes the gap where non-main-base PRs
   # were not CI-gated (ADR-0002).
@@ -50,13 +51,20 @@ jobs:
 
   plugin-validate:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v7.0.1
-      - name: Validate plugin structure
-        run: |
-          if command -v claude &> /dev/null; then
-            claude plugin validate .
-          else
-            echo "::warning::claude CLI not available, skipping plugin validation"
-          fi
+
+      # The runner image has no claude CLI. Track the "stable" dist-tag rather
+      # than an exact version: nothing bumps an npm pin here, and validate needs
+      # no auth.
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code@stable
+
+      # "validate ." checks only marketplace.json; the plugin manifest path is
+      # what also validates each skills/*/SKILL.md. No --strict: it fails on the
+      # root CLAUDE.md warning, which is repo guidance, not plugin content.
+      - name: Validate marketplace manifest
+        run: claude plugin validate .
+
+      - name: Validate plugin manifest and skills
+        run: claude plugin validate .claude-plugin/plugin.json
