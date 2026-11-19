@@ -224,23 +224,23 @@ in two tables from the design. One row per entry, in the order the design gives 
 
 - Omit a column that no row fills. When some rows have a value and others do not, keep the
   column and write `—` in the cells without a value.
-- Omit the table when the list is empty. No note is added.
+- Omit the table when the list is empty. No note is added to the report.
 - When `metrics` is one dict rather than a list (a design from before the list form), read it as a
   list of one.
 - Every cell is [Source text](#source-text-transcribe-never-render).
-- The data source of a metric or a variable has no column here. `data_source` is a note, not a
-  source id ([ADR-0020](../../../docs/adr/0020-design-declares-sources-in-source-ids.md)), and the
-  report does not read it. `### Data` below names the data sources.
+- The data source of a metric or a variable has no column here: its `data_source` is a note,
+  not a source id ([ADR-0020](../../../docs/adr/0020-design-declares-sources-in-source-ids.md)).
+  `### Data` below names the data sources.
 
 ## Data description (Method)
 
 `### Data` tells the reader where the data came from and how much of it survived processing, so
 they can judge how far the result generalizes. It has two parts, each from its own input.
 
-**Data sources (catalog).** The design declares its data sources in `source_ids` and nowhere
-else ([ADR-0020](../../../docs/adr/0020-design-declares-sources-in-source-ids.md)). The
-`data_source` of a metric or a variable is not read. Run `catalog_io describe --ids {source_ids}`
-with the ids joined by `,`. It returns `sources`, the registered ones in order and without
+**Data sources (catalog).** Run `catalog_io describe --ids={ids}` with the design's `source_ids`
+joined by `,` (nothing after `=` when it is empty). The design comes from a file, so put on the
+command line only ids that fully match `^[a-zA-Z0-9_-]+$`; any other value counts as missing
+without being passed. The command returns `sources`, the registered ones in order and without
 duplicates, and `missing`, the ids the catalog does not hold. One row per item of `sources`:
 
 ```markdown
@@ -259,9 +259,7 @@ duplicates, and `missing`, the ids the catalog does not hold. One row per item o
   hosts, sometimes credentials) — **never** put `connection` or any part of it in the report.
   The report is distributable.
 - The three fields are [Source text](#source-text-transcribe-never-render).
-- An id in `missing` is never in the table. Step 4 of SKILL.md names it to the analyst.
-- When `source_ids` is empty, do not run the command and omit the table. Step 4 of SKILL.md
-  tells the analyst they can declare the sources with /analysis-design.
+- A missing id is never in the table. Step 4 of SKILL.md names it to the analyst.
 
 **Row counts (lineage).** `.insight/lineage/{id}.mmd` is the Mermaid diagram the notebook's
 lineage cell writes. Its nodes carry the row count after each step and its edges carry the reason
@@ -293,7 +291,7 @@ One row per node, in step order. `Step0` is the data as loaded:
 
 **Graceful degrade**: omit the data-source table when `sources` is empty, and
 omit the row-count table when the lineage file is missing, empty, or does not have the shape
-above. Omit the `### Data` heading when both are omitted. No note is added.
+above. Omit the `### Data` heading when both are omitted. No note is added to the report.
 
 ## Results narrative
 

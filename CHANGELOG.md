@@ -20,11 +20,13 @@ them from there. Design: `docs/design/epic-15-declared-source-ids.md`.
 ### Changed
 
 - **`/analysis-design` asks for the data sources and writes them to `source_ids`**, after checking
-  each id with `catalog_io get`. It never writes an unregistered id. `data_source` on a metric or an
+  the ids with `catalog_io describe`. It never writes an unregistered id. It can also open an
+  existing design to declare its sources (Step 0 → Step 3b). `data_source` on a metric or an
   explanatory variable is now a free-form note that no skill reads as an id.
 - **`/analysis-report`, `/analysis-notebook`, `/premortem`, and `/analysis-auto` read the data sources
   from `source_ids` only.** The report passes them to `catalog_io describe` and no longer collects
-  candidates from `data_source`. The model is unchanged.
+  candidates from `data_source`. `/premortem` returns `HARD_BLOCK` with the reason
+  `no data source declared` for a design whose `source_ids` is empty. The model is unchanged.
 
 ### Upgrade note
 

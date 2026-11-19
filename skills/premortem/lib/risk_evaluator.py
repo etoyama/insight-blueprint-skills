@@ -25,7 +25,7 @@ def evaluate(
 
     Decision tree (priority order):
       1. Terminal status -> SKIP
-      2. HARD_BLOCK (source/allowlist/location explicit False)
+      2. HARD_BLOCK (no source_ids, or source/allowlist/location explicit False)
       3. API failure (location/allowlist None) -> HIGH + flags
       4. Row-count tiers: > static_rows_high -> HIGH, > static_rows_medium ->
          MEDIUM, else LOW
@@ -36,6 +36,10 @@ def evaluate(
 
     # 2. HARD_BLOCK conditions (explicit False)
     hard_block_reasons: list[str] = []
+    # source_checks_map defaults a design it lacks to registered, so the design itself
+    # must say it declares a source (ADR-0020), or a notebook is the first to stop.
+    if not design.get("source_ids"):
+        hard_block_reasons.append("no data source declared")
     if source_checks.source_registered is False:
         hard_block_reasons.append("source not registered")
     if source_checks.allowlist_ok is False:

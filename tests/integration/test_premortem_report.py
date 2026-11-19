@@ -16,8 +16,18 @@ from skills.premortem.cli import main
 def _payload() -> dict:
     return {
         "designs": [
-            {"id": "FP-H01", "intent": "confirmatory", "status": "in_review"},
-            {"id": "FP-H02", "intent": "exploratory", "status": "in_review"},
+            {
+                "id": "FP-H01",
+                "intent": "confirmatory",
+                "status": "in_review",
+                "source_ids": ["src"],
+            },
+            {
+                "id": "FP-H02",
+                "intent": "exploratory",
+                "status": "in_review",
+                "source_ids": ["src"],
+            },
         ],
         "source_checks_map": {
             "FP-H01": {
@@ -47,7 +57,9 @@ def test_exit_2_when_hard_block(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_exit_0_when_all_low(capsys: pytest.CaptureFixture[str]) -> None:
     payload = {
-        "designs": [{"id": "A", "intent": "x", "status": "in_review"}],
+        "designs": [
+            {"id": "A", "intent": "x", "status": "in_review", "source_ids": ["src"]}
+        ],
         "source_checks_map": {
             "A": {
                 "source_registered": True,
@@ -63,7 +75,9 @@ def test_exit_0_when_all_low(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_high_rows_exit_2(capsys: pytest.CaptureFixture[str]) -> None:
     payload = {
-        "designs": [{"id": "A", "intent": "x", "status": "in_review"}],
+        "designs": [
+            {"id": "A", "intent": "x", "status": "in_review", "source_ids": ["src"]}
+        ],
         "source_checks_map": {
             "A": {
                 "source_registered": True,
@@ -102,7 +116,9 @@ def test_no_token_written(tmp_path: Path) -> None:
 def _low_row_payload() -> dict:
     """A registered source with 1000 rows -> LOW under defaults (< 1M)."""
     return {
-        "designs": [{"id": "A", "intent": "x", "status": "in_review"}],
+        "designs": [
+            {"id": "A", "intent": "x", "status": "in_review", "source_ids": ["src"]}
+        ],
         "source_checks_map": {
             "A": {
                 "source_registered": True,

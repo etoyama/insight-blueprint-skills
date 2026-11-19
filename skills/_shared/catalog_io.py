@@ -196,7 +196,7 @@ def describe(source_ids: list[str], base_dir: Path = DEFAULT_BASE_DIR) -> dict:
             else {}
         )
         if source:
-            sources.append({key: source.get(key) for key in _DESCRIBED_FIELDS})
+            sources.append({key: source[key] for key in _DESCRIBED_FIELDS})
         else:
             missing.append(source_id)
     return {"sources": sources, "missing": missing}
@@ -417,6 +417,9 @@ def _main(argv: list[str] | None = None) -> int:
         help="include each printed source's connection (left out by default)",
     )
     args = parser.parse_args(argv)
+    if args.command == "describe" and args.with_connection:
+        # describe feeds a distributable report; say no rather than ignore the flag.
+        parser.error("describe never prints a connection; use get --with-connection")
     base = _resolve_base_dir(Path(args.base_dir))
 
     payload: dict = {}

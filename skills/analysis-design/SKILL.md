@@ -45,6 +45,8 @@ Before proceeding, confirm with the user:
 - Ask: "分析設計を新規作成しますか？"
 - If the user declines, exit gracefully with a brief message and do not proceed
 - If the user confirms, continue to Step 1
+- If the user instead names an existing design to change (e.g. to declare its data sources),
+  skip to Step 3b
 
 ### Step 1: Check Current State
 Run `design_io list` to understand existing designs:
@@ -126,21 +128,23 @@ It can be added later with `design_io update` (Step 3b).
 #### Data sources (asked before the metrics)
 
 Before the metrics and the explanatory variables, ask: "この分析で使うデータソースは？"
-`source_ids` is the only place a design declares its data sources. /analysis-notebook,
-/premortem, /analysis-auto, and /analysis-report read the sources from it and nowhere else.
+`source_ids` is the only place a design declares its data sources; every other skill reads them
+from there ([ADR-0020](../../docs/adr/0020-design-declares-sources-in-source-ids.md)).
 
-- For each source the analyst names, run `catalog_io get --id {source_id}`. A non-empty result
-  means it is registered. If the analyst gives a name rather than an id, find the id with
+- If the analyst gives a name rather than an id, find the id with
   `catalog_io search --query {name}` and confirm it with them.
-- `{}` means the id is not registered. Suggest /catalog-register and leave the id out.
-  **Never write an unregistered id**: downstream skills look each id up in the catalog and
-  would find nothing.
-- Write the confirmed ids, without duplicates, to `source_ids`. The analyst may not know the
-  sources yet; then write `source_ids: []` and add them later with `design_io update` (Step 3b).
+- Check the ids in one call: `catalog_io describe --ids={id},{id}`. Put on the command line
+  only ids that fully match `^[a-zA-Z0-9_-]+$`; any other value is not an id, so ask again.
+- Write the ids of `sources`, in that order, to `source_ids`. For each id in `missing`, suggest
+  /catalog-register and leave it out. **Never write an unregistered id**: downstream skills look
+  each id up in the catalog and would find nothing.
+- The analyst may not know the sources yet; then write `source_ids: []` and declare them later
+  (Step 3b).
 
 `data_source` on a metric or an explanatory variable is a free-form note on where in the declared
 sources the value comes from (a column, a table, a filter). It is not read as a source id by any
-skill. Put the ids in `source_ids`, not in `data_source`.
+skill. Put the ids in `source_ids`, not in `data_source`. If a value comes from a source the
+analyst could not declare (unregistered), say so in the note and tell the analyst.
 
 ### Step 2.5: Pre-creation Check
 
@@ -219,7 +223,11 @@ provided fields change; `updated_at` is refreshed and `referenced_knowledge` is 
 ```bash
 echo '{"next_action": {"if_supported": "パネルFEへ進む", "if_rejected": {"reason": "相関なし", "pivot": "時系列分析"}}}' \
   | design_io update --id FP-H01
+echo '{"source_ids": ["sales_monthly", "stores"]}' | design_io update --id FP-H01
 ```
+
+To change `source_ids`, ask and check the ids as "Data sources" (Step 2) says first. `source_ids`
+is replaced as a whole, so send every id the design uses, not only the new ones.
 
 ### Step 4: Confirm and Suggest Next Steps
 - Show the returned `id` (e.g., "FP-H01") to the user
@@ -257,7 +265,7 @@ same `validate.py` the pre-write hook uses. Invalid writes raise and write nothi
 | `methodology.reason` | str | free text (optional) | `""` |
 | `decision_context.decision_maker` | str | free text (required and non-empty when `decision_context` is present) | — |
 | `decision_context.decision` | str | free text (required and non-empty when `decision_context` is present) | — |
-| `source_ids` | list[str] | ids of registered catalog sources (`[a-zA-Z0-9_-]+`), no duplicates | `[]` |
+| `source_ids` | list[str] | ids of catalog sources. Not checked by `design_io`: "Data sources" (Step 2) writes only ids `catalog_io describe` returns in `sources` | `[]` |
 | `methodology.steps` | list[dict] | Each dict has `description` (str). Include concrete code patterns for notebook-generation fidelity. | `[]` |
 
 **Backward compatibility**: `role`, `tier`, `intent` fields are optional in input. If omitted, defaults are applied automatically.

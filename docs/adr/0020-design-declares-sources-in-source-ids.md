@@ -81,12 +81,14 @@ A2 は W1 を自分で崩す。A1 は既存の分析設計のレポートから�
 A を採り、既存の分析設計は A1 で扱う。決め手は W1 と W4。2026-11-20 に人間が選んだ。
 
 - 分析設計が使うデータソースは `source_ids` に宣言する。宣言する場所はここだけである。
-  `/analysis-design` は指標と説明変数より先に使うデータソースを聞き、`catalog_io get --id` で登録を確かめた id だけを書く。
+  `/analysis-design` は指標と説明変数より先に使うデータソースを聞き、`catalog_io describe` で登録を確かめた id だけを書く。
 - 指標と説明変数の `data_source` は、宣言したデータソースのどこから値を取るかを書くメモである。どの skill も id として読まない。
 - `/analysis-report`・`/analysis-notebook`・`/premortem`・`/analysis-auto` は、データソースを `source_ids` からだけ読む。
 - レポートに載せるデータソースは `catalog_io describe --ids a,b` が返す。登録済みのデータソースの `id`・`name`・`type`・`description` を、
   渡した順に重複なく `sources` に入れる。未登録の id と id の形でない値は `missing` に入れる。`connection` は返さない。
-  `catalog_io` は分析設計を読まない。`source_ids` を渡すのは呼ぶ skill の役目である。
+  `catalog_io` は分析設計を読まない。`source_ids` を渡すのは呼ぶ skill の役目で、`^[a-zA-Z0-9_-]+$` に完全に一致する値だけを `--ids=` でコマンド行に置く。
+  `describe` は `--with-connection` を拒む。
+- `/premortem` は、`source_ids` が空か無い分析設計を `HARD_BLOCK`（理由 `no data source declared`）にする。判定は `risk_evaluator` のコードが持つ。
 - `catalog_io get` は変えない。未登録の id には `{}` を返し、終了コードは 0 のままである。
 - model は変えない。`source_ids` は `list[str]` のまま、`data_source` は今の型のままである。
 - `source_ids` が空の分析設計からは、どの skill もデータソースを拾わない。

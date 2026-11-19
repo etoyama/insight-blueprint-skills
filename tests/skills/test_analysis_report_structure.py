@@ -237,8 +237,25 @@ class TestDataDescriptionInMethod:
 
     def test_skill_reads_the_catalog_and_the_lineage(self) -> None:
         gather = _section(_skill(), "### Step 2: ")
-        assert "catalog_io describe --ids" in gather
+        assert "catalog_io describe --ids=" in gather
+        assert "`source_ids`" in gather
         assert ".insight/lineage/{design_id}.mmd" in gather
+
+    def test_only_ids_reach_the_command_line(self) -> None:
+        # The design is a file and may come from elsewhere; anything else could be
+        # shell syntax once the model builds the command (ADR-0020).
+        section = unwrap(_section(_template(), "## Data description (Method)"))
+        assert "only ids that fully match `^[a-zA-Z0-9_-]+$`" in section
+        assert "counts as missing without being passed" in section
+
+    def test_a_missing_id_is_never_in_the_table(self) -> None:
+        section = unwrap(_section(_template(), "## Data description (Method)"))
+        assert "A missing id is never in the table" in section
+
+    def test_hand_off_names_an_empty_source_ids_or_missing_ids(self) -> None:
+        handoff = unwrap(_section(_skill(), "### Step 4: "))
+        assert "`source_ids` is empty" in handoff and "`missing`" in handoff
+        assert "/analysis-design（Step 3b）" in handoff
 
 
 class TestImplicationsAndRecommendation:
@@ -368,7 +385,7 @@ class TestReadOnlyConsumer:
     def test_references_list_only_the_reading_commands(self) -> None:
         t = _skill()
         assert "`get --id ID`" in _section(t, "## design_io Reference")
-        assert "`describe --ids ID,ID`" in _section(t, "## catalog_io Reference")
+        assert "`describe --ids=ID,ID`" in _section(t, "## catalog_io Reference")
 
     def test_the_report_is_the_only_file_written(self) -> None:
         handoff = _section(_skill(), "### Step 4: ")
@@ -735,6 +752,8 @@ class TestMethodTables:
         )
         assert "| Variable | Role | Description | Time points |" in section
         assert "| Data source |" not in section
+        # The reason the column is absent, so the reader does not take data_source as an id.
+        assert "not a source id" in unwrap(section)
 
     def test_tables_omit_what_has_no_value(self) -> None:
         section = unwrap(_section(_template(), METHOD_TABLES))

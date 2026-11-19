@@ -605,14 +605,26 @@ class TestDescribe:
     def test_cli_never_prints_the_connection(self, insight: Path) -> None:
         secret = "/Users/someone/secret/pop.csv"
         _create(insight, connection={"file_path": secret})
-        res = _run_cli(insight, "describe", "--ids", "jp-pop,nope", "--with-connection")
+        res = _run_cli(insight, "describe", "--ids=jp-pop,nope")
         assert res.returncode == 0, res.stderr
         assert secret not in res.stdout and "connection" not in res.stdout
         result = json.loads(res.stdout)
         assert [s["id"] for s in result["sources"]] == ["jp-pop"]
         assert result["missing"] == ["nope"]
 
+    def test_cli_refuses_to_describe_with_the_connection(self, insight: Path) -> None:
+        _create(insight)
+        res = _run_cli(insight, "describe", "--ids=jp-pop", "--with-connection")
+        assert res.returncode == 2
+        assert res.stdout == ""
+
+    def test_cli_takes_an_id_that_starts_with_a_dash(self, insight: Path) -> None:
+        _create(insight, id="-dash")
+        res = _run_cli(insight, "describe", "--ids=-dash")
+        assert res.returncode == 0, res.stderr
+        assert [s["id"] for s in json.loads(res.stdout)["sources"]] == ["-dash"]
+
     def test_cli_with_no_ids_describes_nothing(self, insight: Path) -> None:
-        res = _run_cli(insight, "describe", "--ids", "")
+        res = _run_cli(insight, "describe", "--ids=")
         assert res.returncode == 0, res.stderr
         assert json.loads(res.stdout) == {"sources": [], "missing": []}

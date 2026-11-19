@@ -52,7 +52,7 @@ extra are declared in `.insight/rules/package_allowlist.yaml` and supplied to a 
 with `--with <pip-name>` (e.g. `… --extra notebook --with scikit-learn …`) — the allowlist declares
 the boundary, `--with` supplies the package without mutating the read-only plugin env. Format and
 procedure: `references/notebook-contract.md` ("Package allowlist — format & supplying packages").
-The source must be registered in the catalog (else -> /catalog-register).
+The design's data sources (`source_ids`) must be registered in the catalog (else -> /catalog-register).
 
 ## Workflow
 
@@ -60,16 +60,16 @@ The source must be registered in the catalog (else -> /catalog-register).
 
 1. Identify the design: `$ARGUMENTS`, else `design_io list --status analyzing`.
 2. `design_io get --id {design_id}` — read methodology / intent / `source_ids`.
+   If `source_ids` is empty, stop before any transition and suggest declaring the sources with
+   /analysis-design (Step 3b).
 3. Status: needs `analyzing`. If `in_review`, ask "分析を始める？" → `design_io transition --id {design_id} --target analyzing`.
    If the design is terminal (`supported`/`rejected`/`inconclusive`), it can't be analyzed — don't force a
    transition (there is no edge back to `analyzing`); tell the user to branch a new design (/analysis-design)
    or pick another id instead.
 
-### Step 2: Gather the source (schema + connection)
+### Step 2: Gather the sources (schema + connection)
 
-For each id in the design's `source_ids` (the only place a design declares its data sources,
-ADR-0020), run the two commands below. If `source_ids` is empty, stop and suggest declaring
-the sources with /analysis-design (Step 3b).
+For each id in the design's `source_ids`, run the two commands below.
 
 - `catalog_io get --id {source_id} --with-connection` — the **full source**, whose
   `connection` (CSV path / SQL / provider) drives cell 2's data load. Without the flag `get`
