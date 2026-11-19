@@ -402,6 +402,7 @@ SECTIONS_WITH_TRANSCRIBED_INPUTS = (
     "## Results numbers table",
     "## Figure presentation format",
     "## Method tables (Method)",
+    "## Implications and Recommendation (Discussion)",
 )
 
 
@@ -630,7 +631,10 @@ class TestFormatOfTablesAndNumbers:
 
     def test_method_tables_show_every_item_but_the_data_source(self) -> None:
         section = _section(_template(), METHOD_TABLES)
-        assert "| Metric | Tier | Aggregation | Grouping | Filter | Comparison |" in section
+        assert (
+            "| Metric | Tier | Aggregation | Grouping | Filter | Comparison |"
+            in section
+        )
         assert "| Variable | Role | Description | Time points |" in section
         assert "| Data source |" not in section
 
@@ -664,3 +668,63 @@ class TestFormatOfTablesAndNumbers:
         assert "Never write the value of `direction`" in section
         assert "Omit a group that has no event" in section
         assert "An `evidence` event without a `direction`" in section
+
+
+ABSTRACT = "## Abstract (lead sentence)"
+RECOMMENDATION = "## Implications and Recommendation (Discussion)"
+
+# The fixed first sentence of the Abstract for each terminal status (US-3 AC 1).
+ABSTRACT_LEADS = {
+    "supported": "仮説は支持された。",
+    "rejected": "仮説は棄却された。",
+    "inconclusive": "仮説を支持するとも棄却するとも結論できなかった。",
+}
+
+
+class TestLeadSentencesAndDiscussion:
+    """US-3 (Epic 14): the sentences that state the result, and the Discussion, do not drift."""
+
+    def test_abstract_opens_with_one_sentence_per_status(self) -> None:
+        section = _section(_template(), ABSTRACT)
+        for status, lead in ABSTRACT_LEADS.items():
+            assert table_row(section, f"`{status}`")[1] == lead
+
+    def test_a_lead_sentence_keeps_its_meaning_in_another_language(self) -> None:
+        for heading in (ABSTRACT, RECOMMENDATION):
+            section = unwrap(_section(_template(), heading))
+            assert "When the narrative is not Japanese" in section, heading
+
+    def test_recommendation_opens_with_one_sentence_per_case(self) -> None:
+        section = _section(_template(), RECOMMENDATION)
+        leads = {
+            "both present": "{decision_maker} には、{decision} について次を推奨する。",
+            "`decision_context` only, status `supported` or `rejected`": (
+                "{decision} について、この分析の設計は取る行動を定めていない。"
+            ),
+            "`decision_context` only, status `inconclusive`": (
+                "この分析の証拠では、{decision} は決まらない。"
+            ),
+            "branch of `next_action` only": "次を推奨する。",
+        }
+        for case, lead in leads.items():
+            assert table_row(section, case)[1] == f"`{lead}`"
+        assert RECOMMENDATION in SECTIONS_WITH_TRANSCRIBED_INPUTS
+
+    def test_limitations_come_from_limits_and_evidence_against_the_conclusion(
+        self,
+    ) -> None:
+        section = unwrap(_section(_template(), DISCUSSION_TAIL))
+        assert "`conclude` and `reflect` events" in section
+        assert "`contradicts` when the status is `supported`" in section
+        assert "`supports` when it is `rejected`" in section
+        assert "Never repeat a sentence the Abstract already states" in section
+
+    def test_an_empty_section_is_omitted_without_a_note(self) -> None:
+        section = unwrap(_section(_template(), DISCUSSION_TAIL))
+        assert "Omit `### Limitations` when it has nothing" in section
+        assert "Omit `### Future Directions` when no question is open" in section
+        assert "Never write that a section is empty" in section
+
+    def test_dropped_markup_is_not_reported_to_the_analyst(self) -> None:
+        section = unwrap(_source_text())
+        assert "Say nothing to the analyst about markup you left out" in section
