@@ -85,6 +85,7 @@ LIVING_DOCS = [
     "docs/adr/README.md",
     "docs/design/epic-11-repo-template-compliance.md",
     "docs/design/epic-12-decision-ready-report.md",
+    "docs/design/epic-13-report-source-text.md",
     *(str(p.relative_to(REPO_ROOT)) for p in _new_format_adrs()),
 ]
 
