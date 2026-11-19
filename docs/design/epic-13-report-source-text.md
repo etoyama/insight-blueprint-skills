@@ -90,7 +90,7 @@ AC の正本はここ。
   - notebook の契約の変更。図の説明に入れてよい文字は制限しない（[ADR-0019](../adr/0019-report-source-text-escaped-and-checked.md) の案 D）。
   - `/report-upload` が検査を流すこと。`/report-upload` は今までどおり、図でない画像を注記に置き換える。
   - lineage の書き出し（`_escape_mermaid`）の変更。
-  - リンクと素の URL の検査。写す手順が `[` をエスケープするので、写した文のリンクは効かない。検査は画像と HTML だけを見る。
+  - リンクと素の URL の検査。写す手順が `[` をエスケープするので、写した文のリンクは効かない。検査はインラインのリンク（角かっこと丸かっこの形）と素の URL を見ない。`<https://…>` の形の autolink は、タグの始まりとして違反になる。
 
 ## Architecture
 
@@ -165,7 +165,7 @@ classDiagram
 | `apa-template.md` の「Source text」の節 | 写す入力の一覧、写す手順、語り直す入力の扱い、指示の形をした文の扱いを定める | どの入力をどの節に書くかは決めない → 同じテンプレートの各節（隙間は issue #76） |
 | `/analysis-report` Step 3 | テンプレートの手順でデータ由来の文を写す。指示の形をした文の箇所を控える | 手順を言い直さない → テンプレート |
 | `/analysis-report` Step 4 | レポートを書き、`report_check` を流し、違反を直し、箇所を分析者に挙げる | 外部に送らない → `/report-upload` |
-| `skills/_shared/report_check.py::find_violations` | Markdown の文字列から、図でない画像・生の HTML・mermaid の中のタグを挙げる（I/O を持たない） | エスケープしない。レポートを書き換えない → `/analysis-report`。指示の形をした文は見ない → モデルの判断 |
+| `skills/_shared/report_check.py::find_violations` | Markdown の文字列から、図でない画像・タグの始まり・mermaid の中の `<br/>` 以外のタグと書き出しに無い行を挙げる（I/O を持たない） | エスケープしない。レポートを書き換えない → `/analysis-report`。指示の形をした文は見ない → モデルの判断 |
 | `skills/_shared/report_check.py::_main`、`bin/report_check` | id を確かめ、レポートを読み、違反を JSON で出し、終了コードを返す | 分析設計・verdict・catalog を読まない |
 | `/report-upload`（変更なし） | レポートの文をデータとして扱い、図でない画像を注記に置き換える | 検査を流さない（範囲外） |
 
@@ -213,7 +213,7 @@ sequenceDiagram
 
 ### Decision: checker-ignores-links
 
-- What: `report_check` は画像と HTML だけを見る。Markdown のリンクと素の URL は違反にしない。
+- What: `report_check` はインラインのリンク（角かっこと丸かっこの形）と素の URL を違反にしない。`<https://…>` の形の autolink はタグの始まりとして違反になる（Decision `checker-fails-closed`）。
 - Why: 写す手順が `[` をエスケープするので、写した文のリンクは効かない。分析者があとから足すリンクは正当でありうる。
   画像は開いただけで取りに行くが、リンクは読者が押すまで何も起きない。
 - Criteria: 正しいレポートを違反にしないこと（US-2 AC 2）。決め手はこれ。

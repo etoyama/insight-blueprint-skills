@@ -458,3 +458,32 @@ def test_the_three_shapes_of_the_lineage_export_are_not_violations() -> None:
 
 def test_closing_tag_start_in_the_middle_of_a_line_is_a_violation() -> None:
     assert [v.kind for v in find_violations("説明 </div")] == ["html"]
+
+
+def test_a_diagram_the_lineage_export_writes_is_not_a_violation() -> None:
+    # The allowed Mermaid shapes are the export's output; this ties the two together,
+    # so a change to the export that the check does not know fails here.
+    from datetime import UTC, datetime
+
+    from insight_blueprint.lineage.exporter import export_lineage_as_mermaid
+    from insight_blueprint.lineage.tracker import LineageSession, StepRecord
+
+    session = LineageSession(name='月次 "売上" | 2025\n速報')
+    for rows_before, rows_after, reason in (
+        (12000, 11800, 'p<0.5 の行を除く\n"外れ値" | 店舗'),
+        (11800, 11900, "補完した行を足す"),
+    ):
+        session.record(
+            StepRecord(
+                step_number=session.next_step_number(),
+                reason=reason,
+                rows_before=rows_before,
+                rows_after=rows_after,
+                rows_delta=rows_after - rows_before,
+                timestamp=datetime.now(UTC),
+                function_name="fn",
+            )
+        )
+    diagram = export_lineage_as_mermaid(session)
+
+    assert find_violations(f"```mermaid\n{diagram}```\n") == []
