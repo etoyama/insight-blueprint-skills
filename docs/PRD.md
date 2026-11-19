@@ -71,6 +71,7 @@ Epic 06 からは軽量版の上に分析の能力を足していく。
 | Epic 11 | [epic-11](design/epic-11-repo-template-compliance.md) | repo-template の開発フローへの準拠 | 完了 |
 | Epic 12 | [epic-12](design/epic-12-decision-ready-report.md) | 意思決定に使えるレポートと Claude Docs へのアップロード | 完了 |
 | Epic 13 | [epic-13](design/epic-13-report-source-text.md) | レポートに写すデータ由来の文の扱い | 完了 |
+| Epic 14 | [epic-14](design/epic-14-report-template-gaps.md) | レポートのテンプレートに書いていない所を決める | 進行中 |
 
 各 Epic の DesignDoc は `## Scope` 節で、本書のどの要件と
 ARCHITECTURE のどのコンポーネントを前進させるかを示す。
