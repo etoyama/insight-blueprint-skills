@@ -128,35 +128,15 @@ flowchart TD
 
 ## Domain Model
 
-Python のクラスを持たないファイルの契約なので、図は関係だけを描く（[ADR-0011](../adr/0011-domain-model-overview-in-architecture.md)）。
+変更なし。`src/insight_blueprint/models/` と `skills/_shared/models.py` のクラスは変えていない。全体図は
+[docs/ARCHITECTURE.md の「Domain Model」](../ARCHITECTURE.md#domain-model) にある（[ADR-0011](../adr/0011-domain-model-overview-in-architecture.md)）。
 
-```mermaid
-classDiagram
-    class Report {
-        <<.insight/reports/id.md>>
-    }
-    class SourceText {
-        <<Value Object>>
-        写す入力の1項目
-    }
-    class Violation {
-        <<Value Object>>
-        +line: int
-        +kind: image | html | mermaid-html | mermaid-statement
-        +text: str
-    }
-    Report "1" o-- "0..*" SourceText : エスケープして写す
-    Report "1" ..> "0..*" Violation : report_check が挙げる
-```
-
-| 型 | 種類 | 不変条件 |
-|---|---|---|
-| データ由来の文（`Source text`） | 値オブジェクト | レポートに載るときは1行で、8つの文字にバックスラッシュが付く。言葉は入力と同じ |
-| 違反（`Violation`） | 値オブジェクト | 行番号は1始まり。種類は `image`・`html`・`mermaid-html`・`mermaid-statement` のどれか |
+Python のクラスを持たないファイルの契約は、図に描かず表で示す（同じ ADR）。
 
 | ファイル | 変更 | 形の正本 |
 |---|---|---|
-| `.insight/reports/{id}.md` | データ由来の文がエスケープされて載る。節の構成は変えない | [apa-template.md](../../skills/analysis-report/references/apa-template.md) |
+| `.insight/reports/{id}.md` | データ由来の文がエスケープされて載る。節の構成は変えない | [apa-template.md](../../skills/analysis-report/references/apa-template.md) の「Source text」 |
+| `report_check` の出力（JSON） | 新規。`report`（レポートのパス）と `violations`（違反の一覧）を持つ。違反は `line`（1始まりの行番号）・`kind`（`image`・`html`・`mermaid-html`・`mermaid-statement`）・`text`（その箇所の文字、120文字まで）を持つ | [report_check.py](../../skills/_shared/report_check.py) |
 
 ## Module Responsibilities
 
@@ -261,7 +241,8 @@ sequenceDiagram
 - 2026-11-19 — DesignDoc 初版。
 - 2026-11-19 — Story #84・#86 completed: テンプレートに「Source text」の節を足し、ほかの節がそこを指すようにした。指示の形をした文の案内を Step 4 に足した。
 - 2026-11-19 — Story #85: `report_check` を足した（別の worktree のサブエージェントが書き、レビューして取り込んだ）。
-  行をまたぐタグと、ラッパーの終了コードを直した。ラッパーの終了コードのテストは Red を見ずに修正と同時に書いた。
+  行をまたぐタグと、ラッパーの終了コードを直した。ラッパーの終了コードのテストは Red を見ずに修正と同時に書いた
+  （2026-11-20 に、終了コードを修正前の 1 に戻すとこのテストが落ちることを確かめた）。
 - 2026-11-19 — コミットへの自動のセキュリティレビューが、検査の見落としを指摘した（タグの文法、ファイル名の `%`、mermaid の `click`、エスケープの集合）。
 - 2026-11-20 — 人間が指摘の扱いを決めた。検査の3つを直し、素の URL は穴として残す（Decision `checker-fails-closed`）。
 - 2026-11-20 — 手動確認（US-1・US-2・US-3）: 合成データの `.insight/` を作り、写す入力のすべてに記法を仕込んだ
@@ -281,3 +262,4 @@ sequenceDiagram
   検査のすり抜けを4系統直した（Decision `checker-fails-closed` の追記）。CommonMark のレンダラ（markdown-it-py）との差分テストを手で流した（自動テストにはしていない）。
   合成データのレポート2本（sonnet と haiku が書いたもの）は、直したあとの検査でも違反0件だった。
   人間の判断が要る指摘（`SAFE_ID_PATTERN` の3つ目の写し、bin ラッパーの前置きの4つ目の写し）は直していない。
+- 2026-11-20 — Domain Model の節を ADR-0011 に合わせた。初版はクラスの無いファイルの契約を図に描いていた。モデルのクラスは変えていないので「変更なし」とし、契約は表にした。

@@ -583,6 +583,7 @@ classDiagram
 | `designs/{id}_journal.yaml` | journal（観察・証拠・決定・問い） | [skills/analysis-journal/SKILL.md](../skills/analysis-journal/SKILL.md) |
 | `designs/{id}_revision.yaml` | review コメントへの対応の追跡 | [skills/analysis-revision/SKILL.md](../skills/analysis-revision/SKILL.md) |
 | `notebooks/{id}_verdict.json` | notebook の verdict と figures manifest（`figures[]`）。指標は任意で効果量・信頼区間・標本サイズを持つ | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md)、[ADR-0008](adr/0008-notebook-figure-manifest.md)、[ADR-0013](adr/0013-verdict-metric-optional-items.md) |
+| `reports/{id}.md` | レポート。データ由来の文はエスケープして載る | [apa-template.md](../skills/analysis-report/references/apa-template.md) |
 | `rules/package_allowlist.yaml` | notebook が使ってよいパッケージ | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md) |
 | `config.yaml` | premortem の閾値（読み込むと `PremortemConfig` になる） | [skills/_shared/config_loader.py](../skills/_shared/config_loader.py) |
 
