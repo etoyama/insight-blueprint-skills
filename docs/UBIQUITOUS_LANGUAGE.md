@@ -56,7 +56,7 @@
 | レポートの検査 | `report_check` | できたレポートに、効く記法（図でない画像、タグ、lineage の書き出しに無い mermaid の行）が残っていないかを確かめること。レポートを書き換えない | — | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md) |
 | 違反 | `Violation` | レポートの検査が挙げる、効く記法が残っている箇所。行・種類・その箇所の文字を持つ | — | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md) |
 | lineage | `/data-lineage`、`tracked_pipe` | notebook の中のデータ加工の履歴と、その Mermaid 図 | 系譜 | fork 前 |
-| データソース | `DataSource` | catalog に登録した分析の入力データ。種類は open string | データ源 | fork 前 |
+| データソース | `DataSource`、`source_ids` | catalog に登録した分析の入力データ。種類は open string。分析設計は使うデータソースの id を `source_ids` に宣言する | データ源 | [ADR-0020](adr/0020-design-declares-sources-in-source-ids.md) |
 | 列のスキーマ | `ColumnSchema` | データソースの1列の名前・型・説明 | — | fork 前 |
 | catalog | `/catalog-register`、`.insight/catalog/` | 登録したデータソースとドメイン知識の置き場 | カタログ | fork 前 |
 | ドメイン知識 | `DomainKnowledge`、`DomainKnowledgeEntry` | 1つのデータソースについて分析から取り出した、使い回せる知識 | — | [epic-05b](design/epic-05b-knowledge-extraction.md) |

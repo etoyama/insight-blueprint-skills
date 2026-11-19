@@ -69,7 +69,7 @@ Map Brief sections to analysis-design fields as draft values:
 | Framing Brief セクション | analysis-design フィールド | マッピング |
 |---|---|---|
 | テーマ | `title` | テーマの1行要約を title の候補として提示 |
-| 利用可能データ | `explanatory`, `metrics` | データソース・カラムから explanatory/metrics の候補を生成 |
+| 利用可能データ | `source_ids`, `explanatory`, `metrics` | データソースの id を source_ids の候補にし、カラムから explanatory/metrics の候補を生成 |
 | 既存分析 | `parent_id` | 関連デザイン ID を parent_id の候補として提示 |
 | ギャップ | `hypothesis_background` | ギャップ情報を仮説の背景・動機の下書きに活用 |
 | 推奨方向.仮説の方向性 | `title`, `hypothesis_background` | 方向性から title 候補を生成し、背景の下書きに活用 |
@@ -98,8 +98,9 @@ Interview the user for required fields:
 | `theme_id` | No | Uppercase identifier — defaults to "DEFAULT" | "FP", "TX", "ECON" |
 | `parent_id` | No | Parent design ID if this is derived | "FP-H01" |
 | `analysis_intent` | No | "exploratory", "confirmatory" (default), or "mixed" | "exploratory" |
-| `metrics` | No | List of verification metric dicts (tier: "primary" / "secondary" / "guardrail") | `[{target: "crime_rate_per_100k", tier: "primary", data_source: {crime: "0000010111"}, grouping: [...], filter: "...", aggregation: "mean", comparison: "..."}]` |
-| `explanatory` | No | List of explanatory variable dicts (role: "treatment" / "confounder" / "covariate" / "instrumental" / "mediator") | `[{name: "foreign_ratio", description: "外国人比率", role: "treatment", data_source: "0000010101", time_points: "2012-2022"}]` |
+| `source_ids` | No (always asked) | Ids of the registered catalog data sources the analysis uses — see "Data sources" below | `["crime_stats", "population"]` |
+| `metrics` | No | List of verification metric dicts (tier: "primary" / "secondary" / "guardrail") | `[{target: "crime_rate_per_100k", tier: "primary", data_source: {column: "crime_count"}, grouping: [...], filter: "...", aggregation: "mean", comparison: "..."}]` |
+| `explanatory` | No | List of explanatory variable dicts (role: "treatment" / "confounder" / "covariate" / "instrumental" / "mediator") | `[{name: "foreign_ratio", description: "外国人比率", role: "treatment", data_source: "population の foreign_count 列", time_points: "2012-2022"}]` |
 | `chart` | No | List of visualization definition dicts (intent: "distribution" / "correlation" / "trend" / "comparison") | `[{intent: "correlation", type: "scatter", description: "FP ratio vs crime rate", x: "foreign_ratio", y: "crime_rate"}]` |
 | `methodology` | **Yes** | Analysis method and package (must include `method` key) | `{method: "OLS", package: "statsmodels", reason: "線形回帰で相関を検証"}` |
 | `next_action` | No | Branch definition after hypothesis test | `{if_supported: "...", if_rejected: {reason: "...", pivot: "..."}}` |
@@ -122,6 +123,25 @@ rejects a half-filled context, and a placeholder would later read as a real deci
 If the answer covers only one side, ask once for the other; if it still is not given, omit the field.
 It can be added later with `design_io update` (Step 3b).
 
+#### Data sources (asked before the metrics)
+
+Before the metrics and the explanatory variables, ask: "この分析で使うデータソースは？"
+`source_ids` is the only place a design declares its data sources. /analysis-notebook,
+/premortem, /analysis-auto, and /analysis-report read the sources from it and nowhere else.
+
+- For each source the analyst names, run `catalog_io get --id {source_id}`. A non-empty result
+  means it is registered. If the analyst gives a name rather than an id, find the id with
+  `catalog_io search --query {name}` and confirm it with them.
+- `{}` means the id is not registered. Suggest /catalog-register and leave the id out.
+  **Never write an unregistered id**: downstream skills look each id up in the catalog and
+  would find nothing.
+- Write the confirmed ids, without duplicates, to `source_ids`. The analyst may not know the
+  sources yet; then write `source_ids: []` and add them later with `design_io update` (Step 3b).
+
+`data_source` on a metric or an explanatory variable is a free-form note on where in the declared
+sources the value comes from (a column, a table, a filter). It is not read as a source id by any
+skill. Put the ids in `source_ids`, not in `data_source`.
+
 ### Step 2.5: Pre-creation Check
 
 Before creating the design, verify that `methodology` is NOT null.
@@ -133,7 +153,7 @@ If the interview did not cover methodology, ask now:
 
 Downstream notebook generation (Claude Code) works from methodology content. Concrete code patterns dramatically improve generation fidelity.
 
-**When `data_source` references a registered catalog source**, auto-generate a code pattern from the catalog schema and include it in `methodology.steps`:
+**For each id in `source_ids`**, auto-generate a code pattern from the catalog schema (`catalog_io get-schema --id {source_id}`) and include it in `methodology.steps`:
 
 ```python
 methodology = {
@@ -149,7 +169,7 @@ methodology = {
 ```
 
 **Rules:**
-- If `data_source` is a BQ table: generate `BigQueryAccessor` pattern with actual table name, key columns from schema, and filter conditions
+- If the source is a BQ table: generate `BigQueryAccessor` pattern with actual table name, key columns from schema, and filter conditions
 - If methodology uses a specific library (e.g., lingam, shap, dowhy): include the exact API call with parameter names in a subsequent step
 - If the user provides their own code pattern, use it as-is — do not overwrite
 
@@ -173,6 +193,7 @@ echo '{
   "decision_context": {"decision_maker": "<who decides>", "decision": "<what they decide>"},
   "theme_id": "FP",
   "parent_id": null,
+  "source_ids": ["<source_id>"],
   "metrics": [],
   "explanatory": [],
   "chart": [],
@@ -217,7 +238,7 @@ echo '{"next_action": {"if_supported": "パネルFEへ進む", "if_rejected": {"
 |---------|---------|-------|
 | `list [--status S]` | List existing designs | — |
 | `get --id ID` | Retrieve a design | — |
-| `create` | Create new design (auto id, validated) | stdin: `{title, hypothesis_statement, hypothesis_background, methodology, theme_id?, parent_id?, metrics?, explanatory?, chart?, next_action?, analysis_intent?, decision_context?}` |
+| `create` | Create new design (auto id, validated) | stdin: `{title, hypothesis_statement, hypothesis_background, methodology, theme_id?, parent_id?, source_ids?, metrics?, explanatory?, chart?, next_action?, analysis_intent?, decision_context?}` |
 | `update --id ID` | Partial update (merge, refresh updated_at) | stdin: `{<fields to change>}` |
 | `transition --id ID --target S` | Change status (validated) | — |
 
@@ -236,6 +257,7 @@ same `validate.py` the pre-write hook uses. Invalid writes raise and write nothi
 | `methodology.reason` | str | free text (optional) | `""` |
 | `decision_context.decision_maker` | str | free text (required and non-empty when `decision_context` is present) | — |
 | `decision_context.decision` | str | free text (required and non-empty when `decision_context` is present) | — |
+| `source_ids` | list[str] | ids of registered catalog sources (`[a-zA-Z0-9_-]+`), no duplicates | `[]` |
 | `methodology.steps` | list[dict] | Each dict has `description` (str). Include concrete code patterns for notebook-generation fidelity. | `[]` |
 
 **Backward compatibility**: `role`, `tier`, `intent` fields are optional in input. If omitted, defaults are applied automatically.

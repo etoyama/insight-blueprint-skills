@@ -199,7 +199,7 @@ sequenceDiagram
 
 ### Cross-epic decisions (links to ADR)
 
-- ADR-0020（Story US-1 で書く）: 分析設計が使うデータソースは `source_ids` に宣言する。
+- [ADR-0020: 分析設計が使うデータソースは `source_ids` に宣言し、下流の skill はそこだけを読む](../adr/0020-design-declares-sources-in-source-ids.md)
 
 ## Test Design Matrix
 
