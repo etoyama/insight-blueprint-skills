@@ -109,8 +109,8 @@ gate policy above:
 5. **notebook**: run `/analysis-notebook`. The declared source(s) are the ids in the design's
    `source_ids`. Auto-run only when premortem cleared **and** the analysis is
    confined to the declared source(s) + allowlisted packages + local computation. The allowlist is
-   `.insight/rules/package_allowlist.yaml`; if `.insight/rules/package_allowlist.yaml` does not exist,
-   the default allowlist in the notebook contract (ADR-0021). If the methodology needs a non-allowlisted package, network egress beyond the
+   `.insight/rules/package_allowlist.yaml`, or the default allowlist in the notebook contract when the
+   file does not exist (ADR-0021). If the methodology needs a non-allowlisted package, network egress beyond the
    declared source, or another side-effect, **stop** and get the user's go-ahead first.
 6. **journal**: the notebook step already records observe/evidence/question — no pause.
 7. **reflection**: run `/analysis-reflection`; **pause at the conclusion** (conclude/refine/branch) and
