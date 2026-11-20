@@ -31,6 +31,7 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0023](0023-catalog-holds-no-credentials.md) | catalog は認証情報を持たない | Accepted |
 | [0024](0024-question-tree-yaml-and-generated-html.md) | 論点ツリーの正本は YAML に置き、表示は正本から生成する HTML にする | Accepted |
 | [0025](0025-cited-answers-checked-after-writing.md) | モデルが書く答えは記録を引用させ、書いた後に検査する | Accepted |
+| [0026](0026-analysis-auto-walks-the-question-tree.md) | 分析者の入口を `/analysis-auto` ひとつにし、論点ごとに巡回させる | Accepted |
 
 - ADR-0001〜0008 は旧形式のまま残す。ADR-0009 からは新形式（Problem と Decision Analysis の節を持つ）で書く。
 - 開発フローの決定の出典は [flow/](flow/README.md) にある。repo-template の ADR のコピーで、`FLOW-000N` と表記する。

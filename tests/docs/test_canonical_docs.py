@@ -471,6 +471,7 @@ class TestQuestionTreeDocs:
             "Artifact",
             "合成シナリオ",
             "引き継ぎの試行",
+            "巡回",
         }
         assert added - terms == set()
 
@@ -491,3 +492,13 @@ class TestQuestionTreeDocs:
         doc = _read(self.DESIGN_DOC)
         assert "adr/0024-question-tree-yaml-and-generated-html.md" in doc
         assert "adr/0025-cited-answers-checked-after-writing.md" in doc
+
+    def test_design_doc_makes_analysis_auto_the_entry(self) -> None:
+        doc = _read(self.DESIGN_DOC)
+        assert "adr/0026-analysis-auto-walks-the-question-tree.md" in doc
+        assert "### US-8" in section(doc, "## User Stories")
+        assert "/analysis-auto" in section(doc, "## Architecture")
+        scope = section(doc, "## Scope")
+        in_scope = scope.split("- Epic 範囲外:")[0]
+        assert "/analysis-auto" in in_scope
+        assert "/analysis-auto" not in scope.split("- Epic 範囲外:")[1]

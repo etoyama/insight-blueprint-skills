@@ -12,6 +12,7 @@ design document	分析設計
 サブクエスチョン	論点
 ゴール	到達点
 暫定回答	現時点の答え
+イテレーション	巡回
 ノートブック	notebook
 図のマニフェスト	figures manifest
 エフェクトサイズ	効果量

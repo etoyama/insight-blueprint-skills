@@ -59,6 +59,7 @@
 | Artifact | — | ホストが持つ、HTML のページを claude.ai に置いて URL で開ける機能。plugin は持たない。論点ツリーの表示を渡すのに使う | — | [ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md) |
 | 合成シナリオ | — | 公開する例・図・テストデータに使う架空の題材。今は公共図書館の予約本 | — | [epic-18](design/epic-18-question-tree.md) |
 | 引き継ぎの試行 | — | 論点ツリーの表示だけを別の読み手に渡し、現在地と次の一手を説明できるかを確かめること。製品の成功基準 | — | [epic-18](design/epic-18-question-tree.md) |
+| 巡回 | — | guided autopilot が論点を1つ調べるひと回り。論点に分析設計を起こすところから、ツリーの決定を残すところまで | イテレーション | [ADR-0026](adr/0026-analysis-auto-walks-the-question-tree.md) |
 | framing | `/analysis-framing`、`Framing Brief` | 使えるデータと既存の分析を見て、分析の方向を決めること。結果を Framing Brief にまとめる | — | fork 前 |
 | notebook | `/analysis-notebook` | 分析設計の手法から生成して実行する marimo notebook。8つの cell の契約に従う | ノートブック | [epic-07](design/epic-07-analysis-notebook.md) |
 | verdict | `{id}_verdict.json` | notebook が出す検証結果の要約。skill が読み戻して journal に書く | — | [epic-07](design/epic-07-analysis-notebook.md) |

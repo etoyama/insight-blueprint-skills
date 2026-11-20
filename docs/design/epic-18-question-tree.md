@@ -20,6 +20,7 @@ Epic issue（[#116](https://github.com/etoyama/insight-blueprint-skills/issues/1
 
 この Epic の要求は、人間が書いた Handoff（リポジトリ外のメモ）と、2026-11-20 の壁打ちの判断1〜5 から作った。
 判断の記録は「Decisions」と [ADR-0024](../adr/0024-question-tree-yaml-and-generated-html.md)・[ADR-0025](../adr/0025-cited-answers-checked-after-writing.md) にある。
+分析者の入口を `/analysis-auto` ひとつにする判断は、初版のシーケンス図を見た人間が同じ日に足した（[ADR-0026](../adr/0026-analysis-auto-walks-the-question-tree.md)）。
 
 ### 前提にした事実
 
@@ -39,6 +40,10 @@ Epic issue（[#116](https://github.com/etoyama/insight-blueprint-skills/issues/1
 - 分析設計の `DecisionContext` と、根の到達点の関係。根の値を分析設計に写すのか、別々に持つのか。
 - 人が確認・再構成に費やす時間の目標値。基準値が取れてから決める（[docs/PRD.md](../PRD.md) の成功基準）。
 - 1つのテーマに論点ツリーを2つ以上持つ必要が出るか。この Epic では1テーマ1ツリーにする。
+- 論点ツリーが無いテーマの、既にある分析設計を `design_id` で `/analysis-auto` に渡されたときの扱い。
+- `/rq-problematization` の先行研究の収集を、検索の記録、採否の基準、文献ごとの質の評価を残すラピッドレビューに強めるか。
+- 結果を別のソースや別の条件で確かめる skill が要るか（業務工程の 6）。
+- 人に聞く問いへの答えを、論点ツリーのどこに残すか。今の次の候補は、問いと、その答えで変わる判断までを持つ。
 
 ## User Stories
 
@@ -108,6 +113,16 @@ AC の正本はここ。
 - [ ] AC 2: 文脈を持たない別の Claude セッションに HTML だけを渡し、[docs/PRD.md](../PRD.md) の成功基準の5つの問いに答えさせる手順がある。採点は文言でなく判断の一致で行う。
 - [ ] AC 3: 人による試行の記録の型がある。5つの問いへの答え、正誤、確認と再構成にかかった時間を残す。
 
+### US-8: 分析者が、`/analysis-auto` ひとつから論点を順に調べられる
+
+分析者として、skill の名前と順番を覚えずに問いを委ねるために、`/analysis-auto` ひとつから着手し、論点を1つずつ調べて、次の論点を選ぶところまで進めたい。
+
+- [ ] AC 1: `/analysis-auto` はテーマを受けると、論点ツリーが無ければ `/analysis-framing` で作り、あれば最新のツリーの決定が指す論点から再開する。研究で RQ がまだ無ければ、framing の前に `/rq-problematization` を呼ぶ。
+- [ ] AC 2: 1回の巡回は、論点に分析設計を起こし、premortem、notebook、journal、分析設計の振り返り、レポート、テーマを横断した振り返りを経て、ツリーの決定を残すまでである。
+- [ ] AC 3: 分析者に聞くのは KEEP ゲートだけである。guided autopilot の今のゲートに、根の問いと到達点、最初に調べる論点、ツリーの決定、根の版を上げるかどうかの4つを足す。
+- [ ] AC 4: 分析設計の結論が出たら（terminal status）、聞かずにレポートを書いて `/report-upload` を始める。ツリーの決定を聞くときは、レポートのパスと論点ツリーの HTML のパスを一緒に示す。結論が出ていない回はレポートを書かない。
+- [ ] AC 5: 分析者がツリーの決定で区切るを選ぶか、止めると言うまで巡回を続ける。巡回に使う skill は、それぞれ単独でも起動できる。
+
 ## Stories
 
 Story issue は DesignDoc の初版の合意後に起票する。1つの Story が扱う AC は5個以下。
@@ -122,13 +137,14 @@ Story issue は DesignDoc の初版の合意後に起票する。1つの Story �
 | 未起票（18.6 HTML の表示） | US-5 | AC 1〜5 |
 | 未起票（18.7 Artifact で渡す） | US-6 | AC 1〜3 |
 | 未起票（18.8 引き継ぎの試行） | US-7 | AC 1〜3 |
+| 未起票（18.9 `/analysis-auto` から巡回する） | US-8 | AC 1〜5 |
 
 ## Ubiquitous Language
 
 この Epic で追加・変更した語。定義の正本は
 [docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md)。
 
-- 追加: 論点ツリー、論点、根の問い、到達点、根の版、寄与、発見元、進捗、現時点の答え、振り返りの回、ツリーの決定、次の候補、ツリーの検査、Artifact、合成シナリオ、引き継ぎの試行
+- 追加: 論点ツリー、論点、根の問い、到達点、根の版、寄与、発見元、進捗、現時点の答え、振り返りの回、ツリーの決定、次の候補、ツリーの検査、Artifact、合成シナリオ、引き継ぎの試行、巡回
 - 変更: 違反（[ADR-0025](../adr/0025-cited-answers-checked-after-writing.md)。ツリーの検査も挙げる）
 
 ## Scope
@@ -139,10 +155,10 @@ Story issue は DesignDoc の初版の合意後に起票する。1つの Story �
   - `/analysis-reflection` のテーマを横断する振り返り。分析設計1つの振り返りは今のまま残す。
   - ツリーの検査（`tree_check`）、HTML の表示（`tree_io render`）、Artifact で渡す手順。
   - 合成シナリオの fixture と引き継ぎの試行。
+  - `/analysis-auto` を分析者の入口にし、論点ごとの巡回をさせること（[ADR-0026](../adr/0026-analysis-auto-walks-the-question-tree.md)）。
 - Epic 範囲外:
   - `/analysis-report` の Implications の数（#105）。この Epic のツリーの検査の型を流用できるかは、#105 の側で決める。
-  - RQ Brief の欄の変更（未決事項）。
-  - `/analysis-auto` からの論点ツリーの操作。guided autopilot は分析設計1つを単位に動かしたままにする。
+  - RQ Brief の欄の変更と、`/rq-problematization` の先行研究の集め方の変更（未決事項）。
   - レポートを論点ツリーの単位で書くこと。レポートは分析設計1つの単位のまま（#76）。
   - 施策の実行、承認のシステム化、継続運用の監視、ヒアリングそのもの（[docs/PRD.md](../PRD.md) のスコープ外）。
 
@@ -151,6 +167,9 @@ Story issue は DesignDoc の初版の合意後に起票する。1つの Story �
 ```mermaid
 flowchart TD
     U[分析者]
+    AUTO["/analysis-auto<br/>skills/analysis-auto/SKILL.md"]
+    RQ["/rq-problematization"]
+    RP["/analysis-report・/report-upload"]
     FR["/analysis-framing<br/>skills/analysis-framing/SKILL.md"]
     DS["/analysis-design"]
     RF["/analysis-reflection<br/>skills/analysis-reflection/SKILL.md"]
@@ -164,8 +183,15 @@ flowchart TD
     DES[(".insight/designs/<br/>*_hypothesis.yaml / *_journal.yaml")]
     ART["Artifact（ホストの機能。任意）"]
 
-    U --> FR
-    U --> RF
+    U -->|入口| AUTO
+    AUTO -->|研究で RQ が無いとき| RQ
+    RQ -->|RQ Brief| FR
+    AUTO -->|着手、根の変更| FR
+    AUTO -->|論点ごと| DS
+    AUTO -->|論点ごと| RF
+    AUTO -->|結論が出たら| RP
+    U -.->|単独でも起動できる| FR
+    U -.->|単独でも起動できる| RF
     FR -->|create / add-node / decide / revise-root| TIO
     DS -->|link| TIO
     RF -->|answer / decide| TIO
@@ -331,14 +357,17 @@ decisions:
 | `hooks/validate-design.py` | `*_tree.yaml` への直接の書き込みも検証する | 何を書くかは決めない |
 | `skills/_shared/tree_io.py`（新設） | ツリーの作成、論点の追加と昇格、分析設計を結ぶ、答えの追記、ツリーの決定、根の版の更新、HTML の生成 | 答えの中身を考えない → `/analysis-reflection`。引用先を確かめない → `tree_check` |
 | `skills/_shared/tree_check.py`（新設） | 現時点の答えの引用の実在、引用先と論点の対応、文の数が引用先の本文にあるかを確かめ、違反を挙げる | ツリーを書き換えない |
+| `/analysis-auto` | 分析者の入口。論点ツリーの有無で着手か再開かを決め、論点ごとの巡回を進め、KEEP ゲートでだけ止まる。結論が出たらレポートを書かせる | skill の中身を持たない → 各 skill。ツリーを直接書かない → `tree_io` を使う各 skill |
+| `/rq-problematization` | （変えない）先行研究を集め、前提を問い直し、RQ Brief を出す | 論点ツリーを作らない → `/analysis-framing` |
 | `/analysis-framing` | 根の問い・到達点・第一階層・最初の論点と理由を分析者と決め、`tree_io` で残す。Framing Brief に `theme_id` と論点の id を載せる | データの探索のやり方は変えない（Step 2 は Epic 17 の領分）。仮説の文を作らない → `/analysis-design` |
 | `/analysis-design` | 作った分析設計を、Framing Brief の論点に結ぶ | 論点を作らない → `/analysis-framing` |
 | `/analysis-reflection` | テーマを横断して現時点の答えを書き、ツリーの検査を通し、次の候補とツリーの決定を残す。承認の後に Artifact で渡す | 分析設計1つの振り返りは今のまま。HTML を書かない → `tree_io render` |
+| `/analysis-report`・`/report-upload` | （変えない）結論の出た分析設計のレポートを書き、承認の後に Claude Docs へ送る | いつ書くかは決めない → `/analysis-auto` |
 | `/analysis-journal` | （変えない）`question` の出来事を残す | 論点への昇格は `tree_io` |
 
 ## Sequence Diagram
 
-分析者の入口は `/analysis-auto` ひとつにする。
+分析者の入口は `/analysis-auto` ひとつにする（[ADR-0026](../adr/0026-analysis-auto-walks-the-question-tree.md)）。
 auto は論点ツリーを作り、論点を1つずつ巡回する。研究で RQ がまだ無いときは、ツリーを作る前に `/rq-problematization` で先行研究を集め、前提を問い直して RQ を立てる。
 1回の巡回は分析設計、premortem、notebook、journal、分析設計の振り返り、レポート、テーマを横断した振り返り、ツリーの決定の順に進む。
 分析者は、レポートと論点ツリーの両方を見てからツリーの決定をする（人間の発言、2026-11-20）。
@@ -511,6 +540,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 
 - [ADR-0024: 論点ツリーの正本は YAML に置き、表示は正本から生成する HTML にする](../adr/0024-question-tree-yaml-and-generated-html.md): 判断2・2'。Artifact は承認の後の任意の手順。
 - [ADR-0025: モデルが書く答えは記録を引用させ、書いた後に検査する](../adr/0025-cited-answers-checked-after-writing.md): 判断3。#105 と同じ型の捏造を止める。
+- [ADR-0026: 分析者の入口を `/analysis-auto` ひとつにし、論点ごとに巡回させる](../adr/0026-analysis-auto-walks-the-question-tree.md): レポートはツリーの決定の前に書く。研究では上流に `/rq-problematization` を置く。
 
 ## Test Design Matrix
 
@@ -524,9 +554,11 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 | Story 18.6 | ☐ | ☐ | ☐ |
 | Story 18.7 | ☐ | ☐ | ☐ |
 | Story 18.8 | — （試行の手順） | ☐ | ☐ |
+| Story 18.9 | — （SKILL.md だけ。構造テストは Integration に置く） | ☐ | ☐ |
 
 完了時に ✓ を付ける。このマトリクスが Epic PR のレビューゲート。
 
 ## Story Timeline
 
 - 2026-11-20 — PRD の改訂と DesignDoc の初版（判断1〜5）。
+- 2026-11-20 — 入口を `/analysis-auto` ひとつにし、シーケンス図を1枚に統合（ADR-0026、US-8）。

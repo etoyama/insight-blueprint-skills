@@ -37,6 +37,7 @@ reflection
 Artifact
 合成シナリオ
 引き継ぎの試行
+巡回
 framing
 notebook
 verdict
