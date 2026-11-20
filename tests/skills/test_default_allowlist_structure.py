@@ -126,3 +126,50 @@ class TestAutopilotUsesTheSameAllowlist:
             f"`package outside allowlist` → offer to declare the package in {ALLOWLIST_FILE}"
             in self._steps()
         )
+
+
+CONTRACT_IMPORTS_RULE = (
+    "The contract imports (`marimo`, `insight_blueprint`) are always allowed"
+)
+
+
+def _contract_imports() -> dict[str, str]:
+    block = section(_contract(), "### Contract imports")
+    fenced = re.search(r"```yaml\n(.*?)```", block, re.DOTALL)
+    assert fenced, "the contract imports are a yaml block"
+    return yaml.safe_load(fenced.group(1))["allowed_packages"]
+
+
+class TestContractImportsAreAlwaysAllowed:
+    """ADR-0027: a file can never exclude the imports the contract itself requires."""
+
+    def test_they_are_the_two_modules_the_contract_imports(self) -> None:
+        assert set(_contract_imports()) == {"marimo", "insight_blueprint"}
+
+    def test_they_are_part_of_the_default_allowlist(self) -> None:
+        assert _contract_imports().items() <= _default_allowlist().items()
+
+    def test_they_are_allowed_whether_or_not_the_file_exists(self) -> None:
+        block = unwrap(section(_contract(), "### Contract imports"))
+        assert "always allowed, whether or not the file exists" in block
+        assert "whatever the file lists" in block
+
+    def test_the_boundary_rule_covers_every_other_import(self) -> None:
+        block = unwrap(section(_contract(), "### Format"))
+        assert "every other top-level `import X`" in block
+
+    def test_only_the_file_counts_apart_from_the_contract_imports(self) -> None:
+        block = unwrap(section(_contract(), "### Default allowlist"))
+        assert "only the file counts, apart from the contract imports" in block
+
+    def test_premortem_allows_them(self) -> None:
+        workflow = unwrap(section(_read_skill("premortem"), "## Workflow"))
+        assert CONTRACT_IMPORTS_RULE in workflow
+
+    def test_the_autopilot_notebook_gate_allows_them(self) -> None:
+        assert CONTRACT_IMPORTS_RULE in unwrap(_read_skill("analysis-auto"))
+
+    def test_the_repo_sample_starts_from_the_default_allowlist(self) -> None:
+        sample = REPO_ROOT / ".insight" / "rules" / "package_allowlist.yaml"
+        allowed = yaml.safe_load(sample.read_text("utf-8"))["allowed_packages"]
+        assert _default_allowlist().items() <= allowed.items()

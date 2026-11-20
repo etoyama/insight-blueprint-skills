@@ -174,6 +174,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 [`skills/analysis-notebook/references/notebook-contract.md`](../skills/analysis-notebook/references/notebook-contract.md)
 の「Package allowlist — format & supplying packages」節が正本。
 ファイルが無いときは、plugin の env に最初から入っている既定の許可リストを使う（[ADR-0021](adr/0021-default-package-allowlist.md)）。
+契約の import（`marimo`、`insight_blueprint`）は、ファイルの有無や中身にかかわらず許す（[ADR-0027](adr/0027-contract-imports-always-allowed.md)）。
 
 **marimo notebook はどこに出るか（混乱ポイントの明示回答）**: 利用者プロジェクトの
 `${CLAUDE_PROJECT_DIR}/.insight/notebooks/`（および `lineage/`）に出る。**plugin ディレクトリではない**。

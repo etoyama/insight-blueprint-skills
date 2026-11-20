@@ -63,6 +63,7 @@ premortem
 リスクレベル
 パッケージ許可リスト
 既定の許可リスト
+契約の import
 guided autopilot
 KEEP ゲート
 AUTO

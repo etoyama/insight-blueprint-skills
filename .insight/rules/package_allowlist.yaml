@@ -5,6 +5,8 @@
 # egress beyond the declared data source, other side-effects) is a KEEP gate that pauses
 # the autopilot for the user (see ADR-0005).
 allowed_packages:
+  insight_blueprint: insight-blueprint-lineage
+  marimo: marimo
   pandas: pandas
   matplotlib: matplotlib
   numpy: numpy

@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`premortem` showed `unknown` in the INTENT column for every design** (#109). It read an
   `intent` key, but `design_io get` returns the field as `analysis_intent`. The risk level was
   not affected; only the table display was wrong.
+- **A project's `.insight/rules/package_allowlist.yaml` no longer has to list `marimo` and
+  `insight_blueprint`.** The imports the notebook contract requires are always allowed, so
+  `/analysis-auto` no longer pauses on them at the notebook gate. The file still decides every
+  other import ([ADR-0027](docs/adr/0027-contract-imports-always-allowed.md), #108).
 
 ## [0.12.0] - 2026-11-20
 

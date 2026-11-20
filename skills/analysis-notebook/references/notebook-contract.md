@@ -177,10 +177,24 @@ allowed_packages:
 ```
 
 `allowed_packages` is a map of **import name → pip distribution name**. The **import name** (left) is the
-boundary the notebook must respect — every top-level `import X` in the generated notebook must have `X`
-as a key of the allowlist. The **pip name** (right) is what actually gets installed (they differ for e.g.
+boundary the notebook must respect — every other top-level `import X` in the generated notebook (every
+import but the contract imports below) must have `X` as a key of the allowlist. The **pip name** (right) is what actually gets installed (they differ for e.g.
 `sklearn` / `scikit-learn`). Consumers: `/premortem` reads it for the `allowlist_ok` pre-flight check,
 and `/analysis-auto` treats an import outside it as a KEEP gate (pause) rather than auto-running.
+
+### Contract imports
+
+The contract imports (`marimo`, `insight_blueprint`) are always allowed, whether or not the file exists
+and whatever the file lists. Every notebook this contract describes imports them (cell 0 and cell 2), so
+an allowlist that left them out would stop every notebook and protect nothing (ADR-0027). The file
+decides only the other imports.
+
+```yaml
+# contract imports (always allowed)
+allowed_packages:
+  insight_blueprint: insight-blueprint-lineage
+  marimo: marimo
+```
 
 ### Default allowlist
 
@@ -199,7 +213,8 @@ allowed_packages:
   numpy: numpy
 ```
 
-When the file exists, only the file counts: the default allowlist is not merged in. A file that exists
+When the file exists, only the file counts, apart from the contract imports: the default allowlist is
+not merged in. A file that exists
 but cannot be read (invalid YAML, no `allowed_packages`) is an error, not a fallback to the default.
 An empty `allowed_packages` is readable and allows nothing.
 To allow one more package in a project without the file, copy the default allowlist into the file and
