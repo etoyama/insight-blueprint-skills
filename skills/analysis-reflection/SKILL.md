@@ -214,13 +214,18 @@ rejects a rewritten answer, and only `tree_io answer` checks the answer before i
 
 `tree_io answer` checks the answers first and reports on stdout:
 
-- Exit code 0: the answers are written. `written` lists the nodes whose answer is new or
-  changed, each with `previous_round` (`null` for a first answer). `unchanged` lists the
-  nodes whose statements equal their current answer; nothing is written for them.
+- Exit code 0: the answers are written. `written` lists the nodes that got an answer in
+  this round, each with `previous_round` (`null` for a first answer) and `restated`
+  (`true` when the statements are the same as before and only the root revision is newer).
+  `unchanged` lists the nodes whose statements equal their current answer under the
+  current root revision; nothing is written for them. `round` is the last round the tree
+  now holds.
 - Exit code 3: `violations` is not empty and `tree_io` wrote nothing, for any node. Fix
   each violation in your draft and send the whole call again.
-- Exit code 1: the call itself was wrong (unknown node, malformed payload). It wrote
-  nothing. Fix the payload and send it again.
+- Exit code 1: nothing was written, and the reason is on stderr. When it names the
+  payload (unknown node, a missing field, JSON that does not parse), fix the payload and
+  send it again. When a tree, design or journal file cannot be read or holds the same
+  event id twice, rewriting the answer cannot help: report the message to the analyst and stop.
 
 | Violation `kind` | How to fix it |
 |---|---|
@@ -240,11 +245,18 @@ Run `tree_check --theme {theme_id}`. It reads the tree and the journals and writ
 - Exit code 0: no violation. Go to Step T5.
 - Exit code 1: the current answer of some node violates. `tree_io answer` already stopped
   the answers of this round, so this is an answer from an earlier round whose journal has
-  changed since. Write a new answer for that node (Steps T2 and T3) and check again.
+  changed since. Write a new answer for that node (Steps T2 and T3) and check again, once.
+  When the node has no event left to cite, or the check still reports it, leave the node:
+  an answer cannot be withdrawn. List it under "Stale answers" in Step T5 with its
+  violations, show its answer nowhere, and go on with the other nodes.
 - Exit code 2: the check could not run (the message is on stderr). Do not rewrite any
   answer: nothing is known to be wrong with them. Report the message to the analyst and stop.
 
-Show no answer to the analyst until `tree_check` exits 0.
+Before Step T5, run `tree_io render --theme {theme_id}` so that the HTML of the tree shows
+the new answers. With a stale answer left, tell the analyst that the HTML still shows it.
+
+Show no answer to the analyst before `tree_check` has run, and never show an answer that
+`tree_check` reports.
 
 ### Step T5: Present the current answers
 
@@ -260,7 +272,7 @@ Root question: {root question}
     [弱める証拠と留保] {text}  ← {cites}
 
 ── Changed in this round ──
-  - {node_id}: 初めての答え | 回 {previous_round} から変わった
+  - {node_id}: 初めての答え | 回 {previous_round} から変わった | 根の版が上がり、同じ文で書き直した
 
 ── Unchanged ──
   - {node_id}
@@ -270,10 +282,16 @@ Root question: {root question}
 
 ── Removed statements ──
   - {node_id}: 「{text}」 — {violation kind}: {violation text}
+
+── Stale answers ──
+  - {node_id}: 回 {round} の答えは記録と合わなくなった — {violation kind}: {violation text}
 ```
 
-- Changed and unchanged nodes come from `written`, `previous_round` and `unchanged` in the
-  output of `tree_io answer`. For a changed node, show the previous answer next to the new one.
+- Changed and unchanged nodes come from `written`, `previous_round`, `restated` and
+  `unchanged` in the output of `tree_io answer`. For a changed node, show the previous
+  answer next to the new one. A `restated` answer says the same as before: say so
+  instead of calling it changed.
+- A node under "Stale answers" shows its question and progress, not its answer.
 - An answer whose `root_revision` is lower than the current root revision answers an
   earlier root question: mark it "根の変更前の答え".
 - List every removed statement with its violation. Never drop one silently: the analyst

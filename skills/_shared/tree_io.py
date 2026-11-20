@@ -30,11 +30,17 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from ruamel.yaml import YAMLError
 
 from insight_blueprint.models.common import THEME_ID_PATTERN, now_jst
 from insight_blueprint.models.design import DesignStatus
-from insight_blueprint.models.tree import Progress, QuestionTree, design_id_of
+from insight_blueprint.models.tree import (
+    AnswerStatement,
+    Progress,
+    QuestionTree,
+    design_id_of,
+)
 from insight_blueprint.validate import validate_tree_schema
 from skills._shared._atomic import atomic_write_text, atomic_write_yaml
 from skills._shared.design_io import (
@@ -267,6 +273,15 @@ def decide(
     return _write_tree(tree, theme_id, base_dir)["decisions"][-1]
 
 
+class _AnswerEntry(BaseModel):
+    """What a caller says about one node in ``answer``: nothing tree_io sets."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str
+    statements: list[AnswerStatement] = Field(min_length=1)
+
+
 def answer(
     theme_id: str, *, answers: list[dict], base_dir: Path = DEFAULT_BASE_DIR
 ) -> dict:
@@ -279,47 +294,21 @@ def answer(
     and not written. The candidate tree is checked before it is saved, and with
     any violation in a node being written nothing is saved: the result then has
     those ``violations`` and an empty ``written``.
+
+    ``round`` in the result is the last round the tree holds after the call: the
+    new round when answers were written, the earlier one when none were. A
+    violation carries the round its answer would have had.
     """
     from skills._shared.tree_check import check_tree  # tree_check imports tree_io
 
+    # The payload is JSON a model wrote, so it is parsed before anything reads it.
+    entries = TypeAdapter(list[_AnswerEntry]).validate_python(answers)
     data = _require_tree(theme_id, base_dir)
     current = validate_tree_schema(data)
-    revision = current.current_revision().revision
-    # The payload is JSON a model wrote: a bare id in place of an entry must
-    # be an error it can read, not a traceback.
-    if not all(isinstance(entry, dict) for entry in answers):
-        raise ValueError("answers: each entry is an object with node_id and statements")
-    node_ids = [entry.get("node_id") for entry in answers]
-    if len(set(node_ids)) != len(node_ids):
-        raise ValueError("a node can be answered only once in one round")
-
-    round_ = current.current_round() + 1
-    written: list[dict] = []
-    unchanged: list[str] = []
-    for entry in answers:
-        node = _node(data, entry.get("node_id", ""))
-        last = (node.get("answers") or [None])[-1]
-        if (
-            last is not None
-            and last["statements"] == entry.get("statements")
-            and last["root_revision"] == revision
-        ):
-            unchanged.append(node["id"])
-            continue
-        written.append(
-            {"node_id": node["id"], "previous_round": last["round"] if last else None}
-        )
-        node.setdefault("answers", []).append(
-            {
-                "round": round_,
-                "root_revision": revision,
-                "statements": entry.get("statements"),
-                "created_at": now_jst().isoformat(),
-            }
-        )
+    written, unchanged = _append_round(data, current, entries)
     result: dict[str, Any] = {
         "round": current.current_round(),
-        "root_revision": revision,
+        "root_revision": current.current_revision().revision,
         "written": [],
         "unchanged": unchanged,
         "violations": [],
@@ -327,15 +316,56 @@ def answer(
     if not written:
         return result
 
-    candidate = validate_tree_schema(data)
     being_written = {w["node_id"] for w in written}
     result["violations"] = [
-        asdict(v) for v in check_tree(candidate, base_dir) if v.node_id in being_written
+        asdict(v)
+        for v in check_tree(validate_tree_schema(data), base_dir)
+        if v.node_id in being_written
     ]
     if not result["violations"]:
         _write_tree(data, theme_id, base_dir)
-        result |= {"round": round_, "written": written}
+        result |= {"round": current.current_round() + 1, "written": written}
     return result
+
+
+def _append_round(
+    data: dict, current: QuestionTree, entries: list[_AnswerEntry]
+) -> tuple[list[dict], list[str]]:
+    """Append the next round to *data* in place; return what was written and what was not."""
+    names = [entry.node_id for entry in entries]
+    if len(set(names)) != len(names):
+        raise ValueError("a node can be answered only once in one round")
+    nodes = {node.id: node for node in current.nodes}
+    revision = current.current_revision().revision
+    written: list[dict] = []
+    unchanged: list[str] = []
+    for entry in entries:
+        if entry.node_id not in nodes:
+            raise ValueError(
+                f"node '{entry.node_id}' not found in the tree of {current.theme_id}"
+            )
+        last = nodes[entry.node_id].current_answer()
+        same = last is not None and last.statements == entry.statements
+        if last is not None and same and last.root_revision == revision:
+            unchanged.append(entry.node_id)
+            continue
+        written.append(
+            {
+                "node_id": entry.node_id,
+                "previous_round": last.round if last else None,
+                # The same statements, written again for a newer root revision.
+                "restated": same,
+            }
+        )
+        _node(data, entry.node_id).setdefault("answers", []).append(
+            {
+                "round": current.current_round() + 1,
+                "root_revision": revision,
+                "statements": [s.model_dump(mode="json") for s in entry.statements],
+                "created_at": now_jst().isoformat(),
+            }
+        )
+    return written, unchanged
 
 
 def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
@@ -478,14 +508,13 @@ def _main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     base = _resolve_base_dir(Path(args.base_dir))
 
-    payload: dict = {}
-    if not sys.stdin.isatty():
-        raw = sys.stdin.read().strip()
-        if raw:
-            payload = json.loads(raw)
-
     exit_code = 0
     try:
+        payload: dict = {}
+        if not sys.stdin.isatty():
+            raw = sys.stdin.read().strip()
+            if raw:
+                payload = json.loads(raw)
         if args.command != "create" and args.theme is None:
             raise ValueError(f"--theme is required for {args.command}")
         if args.command == "create":
@@ -500,8 +529,8 @@ def _main(argv: list[str] | None = None) -> int:
             result = revise_root(args.theme, base_dir=base, **payload)
         elif args.command == "answer":
             result = answer(args.theme, base_dir=base, **payload)
-            # 3, not 1: for this command 1 stays "error", and a caller must tell
-            # "rewrite the answer" from "the tool broke".
+            # 3, not 1: 1 stays "the call or a file is wrong", and a caller must
+            # tell that apart from "rewrite the answer".
             exit_code = 3 if result["violations"] else 0
         elif args.command == "get":
             result = load_tree(args.theme, base_dir=base)
@@ -509,8 +538,8 @@ def _main(argv: list[str] | None = None) -> int:
             result = render(args.theme, base_dir=base)
         else:
             result = progress(args.theme, base_dir=base)
-    # A YAML file that cannot be parsed is the user's to fix, not a crash.
-    except (ValueError, TypeError, YAMLError) as exc:
+    # A payload or a file that cannot be read is the caller's to fix, not a crash.
+    except (ValueError, TypeError, YAMLError, OSError) as exc:
         print(f"tree_io: {exc}", file=sys.stderr)
         return 1
 

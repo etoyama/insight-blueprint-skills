@@ -462,7 +462,9 @@ class TestAnswer:
         assert result == {
             "round": 1,
             "root_revision": 1,
-            "written": [{"node_id": "LIB-Q02", "previous_round": None}],
+            "written": [
+                {"node_id": "LIB-Q02", "previous_round": None, "restated": False}
+            ],
             "unchanged": [],
             "violations": [],
         }
@@ -483,7 +485,9 @@ class TestAnswer:
         )
 
         assert result["round"] == 2
-        assert result["written"] == [{"node_id": "LIB-Q02", "previous_round": 1}]
+        assert result["written"] == [
+            {"node_id": "LIB-Q02", "previous_round": 1, "restated": False}
+        ]
         assert [a["round"] for a in self._answers_of(world, "LIB-Q02")] == [1, 2]
 
     def test_one_call_gives_every_node_it_answers_the_same_round(
@@ -521,7 +525,9 @@ class TestAnswer:
         )
 
         assert result["round"] == 3
-        assert result["written"] == [{"node_id": "LIB-Q03", "previous_round": 1}]
+        assert result["written"] == [
+            {"node_id": "LIB-Q03", "previous_round": 1, "restated": False}
+        ]
         assert [a["round"] for a in self._answers_of(world, "LIB-Q03")] == [1, 3]
 
     def test_an_answer_with_the_same_statements_is_not_written_again(
@@ -573,7 +579,9 @@ class TestAnswer:
         result = tree_io.answer("LIB", answers=[entry], base_dir=world)
 
         assert result["root_revision"] == 2
-        assert result["written"] == [{"node_id": "LIB-Q02", "previous_round": 1}]
+        assert result["written"] == [
+            {"node_id": "LIB-Q02", "previous_round": 1, "restated": True}
+        ]
         assert [a["root_revision"] for a in self._answers_of(world, "LIB-Q02")] == [
             1,
             2,
@@ -651,7 +659,9 @@ class TestAnswer:
         )
 
         assert result["violations"] == []
-        assert result["written"] == [{"node_id": "LIB-Q02", "previous_round": None}]
+        assert result["written"] == [
+            {"node_id": "LIB-Q02", "previous_round": None, "restated": False}
+        ]
 
     def test_citing_a_design_linked_only_to_a_sibling_branch_writes_nothing(
         self, world: Path
@@ -711,8 +721,42 @@ class TestAnswer:
     def test_an_entry_that_is_not_an_object_is_rejected(
         self, world: Path, answers: object
     ) -> None:
-        with pytest.raises(ValueError, match="node_id and statements"):
+        with pytest.raises(ValueError):
             tree_io.answer("LIB", answers=answers, base_dir=world)  # type: ignore[arg-type]
+
+    def test_an_entry_without_a_node_id_is_rejected_for_that_reason(
+        self, world: Path
+    ) -> None:
+        statements = _entry("LIB-Q02", "期限切れは152件")["statements"]
+        nameless = {"statements": statements}
+
+        with pytest.raises(ValueError, match="node_id"):
+            tree_io.answer("LIB", answers=[nameless, nameless], base_dir=world)
+
+    @pytest.mark.parametrize("extra", ["round", "root_revision", "created_at"])
+    def test_an_entry_cannot_set_what_tree_io_sets(
+        self, world: Path, extra: str
+    ) -> None:
+        entry = _entry("LIB-Q02", "期限切れは152件") | {extra: 7}
+
+        with pytest.raises(ValueError, match=extra):
+            tree_io.answer("LIB", answers=[entry], base_dir=world)
+
+    def test_the_order_of_the_keys_does_not_make_an_answer_changed(
+        self, world: Path
+    ) -> None:
+        entry = _entry("LIB-Q02", "期限切れは152件")
+        tree_io.answer("LIB", answers=[entry], base_dir=world)
+        reordered = {
+            "statements": [
+                dict(reversed(list(s.items()))) for s in entry["statements"]
+            ],
+            "node_id": "LIB-Q02",
+        }
+
+        result = tree_io.answer("LIB", answers=[reordered], base_dir=world)
+
+        assert result["unchanged"] == ["LIB-Q02"]
 
     @pytest.mark.parametrize(
         "statements",
@@ -839,7 +883,9 @@ class TestCli:
         assert done.returncode == 0, done.stderr
         out = json.loads(done.stdout)
         assert (out["round"], out["violations"]) == (1, [])
-        assert out["written"] == [{"node_id": "LIB-Q02", "previous_round": None}]
+        assert out["written"] == [
+            {"node_id": "LIB-Q02", "previous_round": None, "restated": False}
+        ]
 
     def test_answer_exits_3_with_the_violations_and_leaves_the_file_alone(
         self, world: Path
@@ -860,6 +906,40 @@ class TestCli:
         assert [v["kind"] for v in out["violations"]] == ["number-not-cited"]
         assert (out["round"], out["written"]) == (0, [])
         assert path.read_bytes() == before
+
+    def test_a_payload_that_is_not_json_exits_1_without_a_traceback(
+        self, world: Path
+    ) -> None:
+        done = subprocess.run(
+            [sys.executable, "-m", "skills._shared.tree_io", "answer", "--theme", "LIB"]
+            + ["--base-dir", str(world)],
+            input="{answers:",
+            capture_output=True,
+            text=True,
+        )
+
+        assert done.returncode == 1
+        assert done.stderr.startswith("tree_io: ")
+        assert "Traceback" not in done.stderr
+
+    def test_a_journal_that_cannot_be_read_exits_1_without_a_traceback(
+        self, world: Path
+    ) -> None:
+        journal = world / "designs" / "LIB-H01_journal.yaml"
+        journal.unlink()
+        journal.mkdir()
+
+        done = self._run(
+            world,
+            "answer",
+            "--theme",
+            "LIB",
+            payload={"answers": [_entry("LIB-Q02", "期限切れは152件")]},
+        )
+
+        assert done.returncode == 1
+        assert done.stderr.startswith("tree_io: ")
+        assert "Traceback" not in done.stderr
 
     def test_answer_exits_1_for_a_node_that_is_not_in_the_tree(
         self, world: Path

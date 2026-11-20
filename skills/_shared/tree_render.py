@@ -285,7 +285,6 @@ class _Context:
     designs: Mapping[str, DesignSummary]
     events: Mapping[str, CitedEvent]
     progress: Mapping[str, Progress]
-    latest_round: int | None
 
     @classmethod
     def of(
@@ -306,15 +305,14 @@ class _Context:
             )
             for node in tree.nodes
         }
-        rounds = [a.round for n in tree.nodes for a in n.answers]
-        return cls(tree, designs, events, progress, max(rounds, default=None))
+        return cls(tree, designs, events, progress)
 
     def marks_of(self, node: QuestionNode) -> list[Mark]:
         answer = node.current_answer()
         if answer is None:
             return []
         marks: list[Mark] = []
-        if answer.round == self.latest_round:
+        if answer.round == self.tree.current_round():
             if len(node.answers) == 1:
                 marks.append(Mark.first)
             elif answer.statements != node.answers[-2].statements:

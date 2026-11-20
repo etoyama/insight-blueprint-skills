@@ -17,7 +17,7 @@ import re
 import sys
 import unicodedata
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 from pathlib import Path
 from typing import Literal
@@ -26,8 +26,8 @@ from insight_blueprint.models.tree import AnswerStatement, QuestionTree, design_
 from skills._shared.design_io import DEFAULT_BASE_DIR, _resolve_base_dir
 from skills._shared.tree_io import _tree_path, cited_journal_events, load_tree_model
 
-# Every dash and every triangle a writer may use for "down" reads as a minus:
-# a glyph left out would pass as an unsigned number. The wave dash is left out
+# The dashes and triangles writers use for "down" all read as one minus: a
+# glyph left out passes as an unsigned number. The wave dash is left out
 # on purpose, since it only ever writes a range.
 _MINUS = "-‐‒–—―−▲△▼▽"
 # A sign right after an ASCII letter or digit is the hyphen of a range (10-20),
@@ -42,14 +42,11 @@ Sign = Literal["", "+", "-"]
 
 @dataclass(frozen=True)
 class Number:
-    token: str
+    """Two numbers are the same when sign and value agree, however they are spelled."""
+
+    token: str = field(compare=False)
     sign: Sign
     value: Decimal  # the magnitude; the direction is in sign
-
-    @property
-    def signed(self) -> tuple[Sign, Decimal]:
-        """What two numbers must share to be the same number."""
-        return (self.sign, self.value)
 
 
 def numbers_in(text: str) -> list[Number]:
@@ -118,14 +115,14 @@ def _statement_problems(
         if design_id_of(cite) not in linked:
             problems.append(("unlinked-design", cite))
     seen = {
-        n.signed
+        number
         for cite in statement.cites
         if cite in events
-        for n in numbers_in(events[cite])
+        for number in numbers_in(events[cite])
     }
     for number in numbers_in(statement.text):
-        if number.signed not in seen:
-            seen.add(number.signed)
+        if number not in seen:
+            seen.add(number)
             problems.append(("number-not-cited", number.token))
     return problems
 

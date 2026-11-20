@@ -221,6 +221,27 @@ class TestViolationsAreFixedBeforeTheAnalystSeesThem:
         assert never, "no sentence forbids computing a number"
         assert "ratio" in never.group(0)
 
+    def test_exit_1_is_not_always_the_payload(self) -> None:
+        fix = _step("### Step T3: ")
+        broken = re.search(r"[^.]*cannot be read[^.]*\.", fix)
+        assert broken, "no sentence says what to do when a file cannot be read"
+        assert "stop" in broken.group(0)
+
+    def test_an_unchanged_answer_is_the_same_statements_under_the_same_root(
+        self,
+    ) -> None:
+        fix = _step("### Step T3: ")
+        assert "`restated`" in fix
+        assert "root revision" in fix
+
+    def test_a_stale_answer_that_cannot_be_rewritten_does_not_hold_the_rest(
+        self,
+    ) -> None:
+        check = _step("### Step T4: ")
+        assert "no event left to cite" in check
+        assert "Stale answers" in check
+        assert "Stale answers" in _step("### Step T5: ")
+
     def test_the_journal_is_never_edited_to_pass(self) -> None:
         assert "Never edit a journal" in _step("### Step T3: ")
 
@@ -239,7 +260,8 @@ class TestViolationsAreFixedBeforeTheAnalystSeesThem:
 
     def test_nothing_is_shown_before_the_check_passes(self) -> None:
         check = _step("### Step T4: ")
-        assert "Show no answer to the analyst until `tree_check` exits 0" in check
+        assert "Show no answer to the analyst before `tree_check` has run" in check
+        assert "never show an answer that `tree_check` reports" in check
 
 
 class TestReflectionCallsOnlyCommandsThatExist:
