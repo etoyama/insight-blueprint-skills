@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-20
+
+### Upgrade note
+
+- Designs created before this release have an empty `source_ids`. Their report leaves out the data
+  source table and says how to add them, `/premortem` returns `HARD_BLOCK`, and `/analysis-notebook`
+  stops and points to `/analysis-design`. Add the ids once with `/analysis-design`: open the existing
+  design and declare its sources (Step 0 → Step 3b).
+
 Epic 15 (#71): a design declares the data sources it uses in `source_ids`, and every skill reads
 them from there. Design: `docs/design/epic-15-declared-source-ids.md`.
 
@@ -45,13 +54,6 @@ Design: `docs/design/epic-14-report-template-gaps.md`.
   evidence against the conclusion. An empty Limitations or Future Directions is left out, with no
   note in its place.
 - **`/analysis-journal`** accepts one id or a list of ids in `metadata.resolves`.
-
-### Upgrade note
-
-- Designs created before this release have an empty `source_ids`. Their report leaves out the data
-  source table and says how to add them, `/premortem` returns `HARD_BLOCK`, and `/analysis-notebook`
-  stops and points to `/analysis-design`. Add the ids once with `/analysis-design`: open the existing
-  design and declare its sources (Step 0 → Step 3b).
 
 ## [0.10.0] - 2026-11-20
 
@@ -434,7 +436,8 @@ Version bumps and maintenance releases. See git history for details:
 - YAML direct edit resilience (extra field preservation + corrupt file isolation)
 - SQLite FTS5 full-text search index
 
-[unreleased]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.10.0...HEAD
+[unreleased]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.7.3...v0.8.0
