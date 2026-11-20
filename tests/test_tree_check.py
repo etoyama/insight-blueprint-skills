@@ -552,6 +552,17 @@ class TestCheckTheme:
         assert not (tmp_path / "designs").exists()
 
 
+class TestCheckTree:
+    def test_it_checks_a_tree_that_is_not_on_disk(self, tmp_path: Path) -> None:
+        write_journal(tmp_path, "LIB-H01", (1, "期限切れは152件"))
+
+        found = tree_check.check_tree(
+            answered_tree("期限切れは999件", "LIB-H01-E01"), tmp_path
+        )
+
+        assert [(v.kind, v.text) for v in found] == [("number-not-cited", "999")]
+
+
 def run_main(
     capsys: pytest.CaptureFixture[str], base: Path, theme: str = "LIB"
 ) -> tuple[int, str, str]:

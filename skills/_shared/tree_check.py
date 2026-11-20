@@ -151,7 +151,11 @@ def check_theme(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> list[Violat
     fails its schema or names another theme, or a cited event id that two
     events share, and OSError or YAMLError for a file that cannot be read.
     """
-    tree = load_tree_model(theme_id, base_dir)
+    return check_tree(load_tree_model(theme_id, base_dir), base_dir)
+
+
+def check_tree(tree: QuestionTree, base_dir: Path) -> list[Violation]:
+    """Check a tree already in memory against the journals under *base_dir*."""
     return find_violations(tree, _cited_events(tree, base_dir))
 
 
