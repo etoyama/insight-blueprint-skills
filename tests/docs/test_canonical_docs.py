@@ -502,3 +502,10 @@ class TestQuestionTreeDocs:
         in_scope = scope.split("- Epic 範囲外:")[0]
         assert "/analysis-auto" in in_scope
         assert "/analysis-auto" not in scope.split("- Epic 範囲外:")[1]
+
+    def test_design_doc_records_the_two_decisions_made_after_the_first_edition(
+        self,
+    ) -> None:
+        decisions = section(_read(self.DESIGN_DOC), "## Decisions")
+        assert "### Decision: inquiry-answer-copied-to-journal" in decisions
+        assert "### Decision: ask-once-for-treeless-design" in decisions

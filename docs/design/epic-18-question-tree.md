@@ -40,10 +40,9 @@ Epic issue（[#116](https://github.com/etoyama/insight-blueprint-skills/issues/1
 - 分析設計の `DecisionContext` と、根の到達点の関係。根の値を分析設計に写すのか、別々に持つのか。
 - 人が確認・再構成に費やす時間の目標値。基準値が取れてから決める（[docs/PRD.md](../PRD.md) の成功基準）。
 - 1つのテーマに論点ツリーを2つ以上持つ必要が出るか。この Epic では1テーマ1ツリーにする。
-- 論点ツリーが無いテーマの、既にある分析設計を `design_id` で `/analysis-auto` に渡されたときの扱い。
 - `/rq-problematization` の先行研究の収集を、検索の記録、採否の基準、文献ごとの質の評価を残すラピッドレビューに強めるか。
 - 結果を別のソースや別の条件で確かめる skill が要るか（業務工程の 6）。
-- 人に聞く問いへの答えを、論点ツリーのどこに残すか。今の次の候補は、問いと、その答えで変わる判断までを持つ。
+- 人に聞いた答えを journal に写すとき、出来事のどの種類を使うか。`observe` の定義は「データの観察」で、ぴったりは合わない。Story 18.5 で決める。
 
 ## User Stories
 
@@ -76,7 +75,7 @@ AC の正本はここ。
 - [ ] AC 1: `/analysis-reflection` はテーマを渡されると、論点ごとに、ひもづく分析設計とその journal を読んで現時点の答えを書く。答えの文はそれぞれ、種類（言えること・未判別・弱める証拠と留保）と、引用する journal の出来事の id を1つ以上持つ。
 - [ ] AC 2: 親の論点の答えは子の論点の進捗の数から推定しない。子孫の論点にひもづく分析設計の出来事を引用して書く。
 - [ ] AC 3: 現時点の答えは追記だけで、振り返りの回と根の版を持つ。前の回と答えが変わった論点を分析者に示す。
-- [ ] AC 4: 次の候補として、未着手の論点を示す。候補には、人に聞く問い、その答えで変わる判断、catalog とドメイン知識から分かっていることを添えられる。データソースは `catalog_io list` で読み、`connection` の値を論点ツリーに書かない（[ADR-0022](../adr/0022-connection-reaches-only-the-notebook.md)）。
+- [ ] AC 4: 次の候補として、未着手の論点を示す。候補には、人に聞く問い、その答えで変わる判断、catalog とドメイン知識から分かっていることを添えられる。分析者が聞いてきた答えは、誰に聞いたかと日付を添えて次の候補に残せる。その論点に分析設計を起こすとき、答えを journal に写す。データソースは `catalog_io list` で読み、`connection` の値を論点ツリーに書かない（[ADR-0022](../adr/0022-connection-reaches-only-the-notebook.md)）。
 - [ ] AC 5: 分析者が選んだ決定（`deepen`・`return`・`close`）と理由を、ツリーの決定として残す。
 
 ### US-4: 分析者に届く答えに、記録に無い数と参照が混ざらない
@@ -117,15 +116,15 @@ AC の正本はここ。
 
 分析者として、skill の名前と順番を覚えずに問いを委ねるために、`/analysis-auto` ひとつから着手し、論点を1つずつ調べて、次の論点を選ぶところまで進めたい。
 
-- [ ] AC 1: `/analysis-auto` はテーマを受けると、論点ツリーが無ければ `/analysis-framing` で作り、あれば最新のツリーの決定が指す論点から再開する。研究で RQ がまだ無ければ、framing の前に `/rq-problematization` を呼ぶ。
+- [ ] AC 1: `/analysis-auto` はテーマを受けると、論点ツリーが無ければ `/analysis-framing` で作り、あれば最新のツリーの決定が指す論点から再開する。研究で RQ がまだ無ければ、framing の前に `/rq-problematization` を呼ぶ。論点ツリーが無いテーマの `design_id` を渡されたら、ツリーを作って巡回に入るか、その分析設計だけを流すかを聞く。ツリーを作るときは、既にある分析設計をどの論点に結ぶかを framing で分析者と決める。
 - [ ] AC 2: 1回の巡回は、論点に分析設計を起こし、premortem、notebook、journal、分析設計の振り返り、レポート、テーマを横断した振り返りを経て、ツリーの決定を残すまでである。
-- [ ] AC 3: 分析者に聞くのは KEEP ゲートだけである。guided autopilot の今のゲートに、根の問いと到達点、最初に調べる論点、ツリーの決定、根の版を上げるかどうかの4つを足す。
+- [ ] AC 3: 分析者に聞くのは KEEP ゲートだけである。guided autopilot の今のゲートに、根の問いと到達点、最初に調べる論点、ツリーの決定、根の版を上げるかどうか、ツリーの無いテーマでツリーを作るかどうかの5つを足す。
 - [ ] AC 4: 分析設計の結論が出たら（terminal status）、聞かずにレポートを書いて `/report-upload` を始める。ツリーの決定を聞くときは、レポートのパスと論点ツリーの HTML のパスを一緒に示す。結論が出ていない回はレポートを書かない。
 - [ ] AC 5: 分析者がツリーの決定で区切るを選ぶか、止めると言うまで巡回を続ける。巡回に使う skill は、それぞれ単独でも起動できる。
 
 ## Stories
 
-初版に合意した Story から起票する（人間の判断、2026-11-20）。未決事項が形に効く 18.5 と 18.9 は、その未決事項を決めてから起票する。1つの Story が扱う AC は5個以下。
+初版に合意した Story から起票した（人間の判断、2026-11-20）。18.5 と 18.9 は、形に効く未決事項を決めてから起票した（Decisions の判断A・B）。1つの Story が扱う AC は5個以下。
 
 | Story issue | User Story | 扱う AC |
 |---|---|---|
@@ -133,11 +132,11 @@ AC の正本はここ。
 | [#120](https://github.com/etoyama/insight-blueprint-skills/issues/120)（18.2 framing で着手） | US-1 | AC 1〜4 |
 | [#121](https://github.com/etoyama/insight-blueprint-skills/issues/121)（18.3 ツリーの検査） | US-4 | AC 1、AC 3 |
 | [#122](https://github.com/etoyama/insight-blueprint-skills/issues/122)（18.4 横断の振り返り） | US-3、US-4 | US-3 AC 1〜3、US-4 AC 2 |
-| 未起票（18.5 次の候補とツリーの決定。未決事項「人に聞く問いへの答えの置き場」の後） | US-3 | AC 4、AC 5 |
+| [#126](https://github.com/etoyama/insight-blueprint-skills/issues/126)（18.5 次の候補とツリーの決定） | US-3 | AC 4、AC 5 |
 | [#123](https://github.com/etoyama/insight-blueprint-skills/issues/123)（18.6 HTML の表示） | US-5 | AC 1〜5 |
 | [#124](https://github.com/etoyama/insight-blueprint-skills/issues/124)（18.7 Artifact で渡す） | US-6 | AC 1〜3 |
 | [#125](https://github.com/etoyama/insight-blueprint-skills/issues/125)（18.8 引き継ぎの試行） | US-7 | AC 1〜3 |
-| 未起票（18.9 `/analysis-auto` から巡回する。未決事項「`design_id` で渡されたときの扱い」の後） | US-8 | AC 1〜5 |
+| [#127](https://github.com/etoyama/insight-blueprint-skills/issues/127)（18.9 `/analysis-auto` から巡回する） | US-8 | AC 1〜5 |
 
 ## Ubiquitous Language
 
@@ -268,6 +267,9 @@ classDiagram
         +ask
         +changes_if
         +known
+        +answer
+        +answered_by
+        +answered_at
     }
     class TreeDecision {
         <<Value Object>>
@@ -371,7 +373,7 @@ decisions:
 auto は論点ツリーを作り、論点を1つずつ巡回する。研究で RQ がまだ無いときは、ツリーを作る前に `/rq-problematization` で先行研究を集め、前提を問い直して RQ を立てる。
 1回の巡回は分析設計、premortem、notebook、journal、分析設計の振り返り、レポート、テーマを横断した振り返り、ツリーの決定の順に進む。
 分析者は、レポートと論点ツリーの両方を見てからツリーの決定をする（人間の発言、2026-11-20）。
-分析者とのやり取りは KEEP ゲートだけで起きる。図では、分析者が答えるメッセージに G1〜G13 の番号を振った。
+分析者とのやり取りは KEEP ゲートだけで起きる。図では、分析者が答えるメッセージに G1〜G14 の番号を振った。G14 は後から足したゲートで、位置は図の上の方にある。
 各 skill は今までどおり単独でも起動できる（[ADR-0005](../adr/0005-selective-autonomous-chaining.md)）。
 
 ```mermaid
@@ -390,6 +392,11 @@ sequenceDiagram
     U->>A: テーマ（theme_id）と、顧客が決めたいこと、または研究テーマ
     A->>T: ツリーを読む
     alt ツリーが無い
+        opt design_id を渡された
+            A-->>U: ツリーを作って巡回に入るか、この分析設計だけを流すか
+            U->>A: G14 どちらにするか
+            Note over A,O: 分析設計だけを流すなら、今までどおり1つを最後まで進めて終わる
+        end
         opt 研究で、RQ がまだ無い
             Note over U,O: 研究の上流 ラピッドレビュー、問題化、RQ の設定
             A->>Q: 研究テーマを任せる
@@ -424,6 +431,7 @@ sequenceDiagram
         D-->>U: 仮説、手法、データの取り方、図の案
         U->>D: G5 4つの確認（仮説と決定の文脈、手法、データの取り方、図）
         D->>T: link（分析設計を論点に結ぶ）
+        D->>N: 人に聞いた答えがあれば journal に写す（AUTO）
         opt レビューを頼まれた
             D-->>U: レビューの指摘
             U->>D: G6 判定
@@ -464,7 +472,7 @@ sequenceDiagram
         end
         R->>T: render
         R-->>U: レポートのパスと Doc の URL、ツリーの HTML のパス、変わった答え、未判別の論点、次の候補（人に聞く問いと、その答えで変わる判断）
-        U->>R: G11 深める・親に戻る・区切る と理由、次に調べる論点
+        U->>R: G11 深める・親に戻る・区切る と理由、次に調べる論点、人に聞いてきた答え
         R->>T: decide
 
         opt 根の問いか到達点を変える（工程1へ戻る。研究では前提の問い直しへ戻ることもある）
@@ -498,7 +506,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 | 研究 a ラピッドレビュー | `/rq-problematization` の Step 2・3（先行研究を集めて検証の状態を付け、既存の理論をまとめる） | なし | 引用の検証はあるが、検索の記録、採否の基準、文献ごとの質の評価、レビューの限界を残す手順は無い |
 | 研究 b 問題化 | `/rq-problematization` の Step 4〜6（前提の抜き出し、批判役との詰め、評価） | G1、G2 | — |
 | 研究 c RQ の設定 | `/rq-problematization` の Step 7・8 と RQ Brief | G3 | RQ Brief に想定読者の欄が無い。framing が G3 で聞く（US-1 AC 4） |
-| 1 相談・課題の定義 | `/analysis-framing`（根の問い、到達点） | G3、G12 | ヒアリングそのものは扱わない。AI が出すのは人に聞く問いの案まで |
+| 1 相談・課題の定義 | `/analysis-framing`（根の問い、到達点） | G3、G12、G14 | ヒアリングそのものは扱わない。AI が出すのは人に聞く問いの案まで |
 | 2 分析・収集の設計 | `/analysis-framing`（第一階層、最初の論点）、`/analysis-design`、`/analysis-review` | G4、G5、G6 | — |
 | 3 データ取得・理解・整備 | `/premortem`、`/catalog-register`、`/analysis-design` のデータの取り方、`/analysis-notebook` のリネージ | G5、G7 | データの発生源を担当者に確かめる手順は無い。次の候補の「人に聞く問い」で代える |
 | 4 探索・仮説の更新 | `/analysis-notebook`、`/analysis-journal`（`observe`・`question`）、`question` の論点への昇格 | G8、G11 | — |
@@ -536,6 +544,24 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - Alternatives considered: 根が変わったら答えを消す（受入条件5 と両立しない）。この Epic では扱わない（試行で根が変わると受入条件5 を満たせない）。
 - Consequences: 言い換え程度の変更でも版が上がると、全論点が「変更前」になる。版を上げるかは分析者に聞く。
 
+### Decision: inquiry-answer-copied-to-journal
+
+- What: 次の候補に、分析者が聞いてきた答え、誰に聞いたか、日付を残せるようにする。その論点に分析設計を起こすとき、答えを journal の出来事として写す（判断A、2026-11-20）。
+- Why: 聞いてきた答えは次の論点を選ぶ根拠になる。残す場所が無いと、選んだ理由が辿れない。答えを現時点の答えの根拠に使うには、引用できる記録になっている必要がある（[ADR-0025](../adr/0025-cited-answers-checked-after-writing.md)）。
+- Criteria: Must は「現時点の答えの文に入るものは、引用できる記録にある」（ADR-0025）。Want は「聞いてきた答えが図で見える」（高、Claude の推測）、「後で根拠に使える」（中、Claude の推測）、「足す量が少ない」（中、Claude の推測）。決め手は後の2つの釣り合い。人間が推奨を採った。
+- Affected modules: 論点ツリーのモデル（`Inquiry`）、`tree_io`、`/analysis-reflection`、`/analysis-design`、`tree_io render`。
+- Alternatives considered: 欄を足すだけ（根拠に使えない）。論点ツリーに自分の出来事を持たせる（ADR-0025 を改め、検査の対象が2種類になる）。何もしない（ツリーの決定の理由欄に文で書くことになり、図で探せない）。
+- Consequences: 同じ答えが論点ツリーと journal の2か所に載る。論点ツリーの側を元とし、journal の側には写した元の論点の id を書く。分析設計を起こすまでは、答えを現時点の答えの根拠に使えない。
+
+### Decision: ask-once-for-treeless-design
+
+- What: 論点ツリーが無いテーマの `design_id` を `/analysis-auto` に渡されたら、ツリーを作って巡回に入るか、その分析設計だけを流すかを KEEP ゲートで聞く。ツリーがあるテーマでは聞かない（判断B、2026-11-20）。
+- Why: 既にある利用者は、論点ツリーの無い分析設計を持っている。聞かずに動きを分けると、入口をひとつにした auto が、渡した引数で別物になる。
+- Criteria: Must は「既にある分析設計を途中から再開できる」（[ADR-0005](../adr/0005-selective-autonomous-chaining.md)）。Want は「auto の動きが引数で黙って変わらない」（高、Claude の推測）と「今の使い方をしている人が余計な手順を踏まない」（中、Claude の推測）。決め手は前者。人間が推奨を採った。
+- Affected modules: `/analysis-auto`、`/analysis-framing`。
+- Alternatives considered: ツリーを作らず今までどおり流す（動きが黙って分かれる）。必ず framing でツリーを作る（再開したいだけの人も根の問いと到達点を決めることになる）。
+- Consequences: ゲートが1つ増える。答えは論点ツリーの有無として残るので、覚える仕組みは要らない。ツリーを作るときは、既にある分析設計をどの論点に結ぶかを framing で決める。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0024: 論点ツリーの正本は YAML に置き、表示は正本から生成する HTML にする](../adr/0024-question-tree-yaml-and-generated-html.md): 判断2・2'。Artifact は承認の後の任意の手順。
@@ -563,3 +589,4 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - 2026-11-20 — PRD の改訂と DesignDoc の初版（判断1〜5）。
 - 2026-11-20 — 入口を `/analysis-auto` ひとつにし、シーケンス図を1枚に統合（ADR-0026、US-8）。
 - 2026-11-20 — 初版に合意。Story 18.1〜18.4、18.6〜18.8 を起票（#119〜#125）。
+- 2026-11-20 — PR #117 を main にマージ。未決事項2つを決め（判断A・B）、Story 18.5 と 18.9 を起票（#126、#127）。
