@@ -21,6 +21,23 @@ journal
 journal の出来事
 未解決の問い
 reflection
+論点ツリー
+論点
+根の問い
+到達点
+根の版
+寄与
+発見元
+進捗
+現時点の答え
+振り返りの回
+ツリーの決定
+次の候補
+ツリーの検査
+Artifact
+合成シナリオ
+引き継ぎの試行
+巡回
 framing
 notebook
 verdict
