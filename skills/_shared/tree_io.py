@@ -22,6 +22,7 @@ import json
 import re
 import sys
 from collections.abc import Iterator
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -260,6 +261,73 @@ def decide(
     }
     tree.setdefault("decisions", []).append(decision)
     return _write_tree(tree, theme_id, base_dir)["decisions"][-1]
+
+
+def answer(
+    theme_id: str, *, answers: list[dict], base_dir: Path = DEFAULT_BASE_DIR
+) -> dict:
+    """Append one reflection round of answers, if the cited-answer check passes.
+
+    *answers* holds ``{"node_id", "statements"}`` entries. The round and the root
+    revision are never passed: the round is one past the highest in the tree, and
+    the root revision is the current one. An entry whose statements equal the
+    node's current answer, given under the current root revision, is unchanged
+    and not written. The candidate tree is checked before it is saved, and with
+    any violation in a node being written nothing is saved: the result then has
+    those ``violations`` and an empty ``written``.
+    """
+    from skills._shared.tree_check import check_tree  # tree_check imports tree_io
+
+    data = _require_tree(theme_id, base_dir)
+    current = validate_tree_schema(data)
+    revision = current.current_revision().revision
+    node_ids = [entry.get("node_id") for entry in answers]
+    if len(set(node_ids)) != len(node_ids):
+        raise ValueError("a node can be answered only once in one round")
+
+    round_ = current.current_round() + 1
+    written: list[dict] = []
+    unchanged: list[str] = []
+    for entry in answers:
+        node = _node(data, entry.get("node_id"))
+        last = (node.get("answers") or [None])[-1]
+        if (
+            last is not None
+            and last["statements"] == entry.get("statements")
+            and last["root_revision"] == revision
+        ):
+            unchanged.append(node["id"])
+            continue
+        written.append(
+            {"node_id": node["id"], "previous_round": last["round"] if last else None}
+        )
+        node.setdefault("answers", []).append(
+            {
+                "round": round_,
+                "root_revision": revision,
+                "statements": entry.get("statements"),
+                "created_at": now_jst().isoformat(),
+            }
+        )
+    result: dict[str, Any] = {
+        "round": current.current_round(),
+        "root_revision": revision,
+        "written": [],
+        "unchanged": unchanged,
+        "violations": [],
+    }
+    if not written:
+        return result
+
+    candidate = validate_tree_schema(data)
+    being_written = {w["node_id"] for w in written}
+    result["violations"] = [
+        asdict(v) for v in check_tree(candidate, base_dir) if v.node_id in being_written
+    ]
+    if not result["violations"]:
+        _write_tree(data, theme_id, base_dir)
+        result |= {"round": round_, "written": written}
+    return result
 
 
 def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
