@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted（ファイルがあるときに既定の許可リストを足さない、という決定は [ADR-0027](0027-default-allowlist-always-allowed.md) が改めた）
 
 ## Context
 
@@ -96,7 +96,7 @@ v0.10.0 の手動確認（2026-11-20）では、`.insight/rules/` が空のプ�
 
 - 新しいプロジェクトで `statsmodels` などを使う分析は、今は `HIGH` で止まるところが `HARD_BLOCK` で止まる。止まる理由は「読めない」から「許可リストの外」に変わり、直し方が分かるようになる。
 - 照合は今も driver の解釈で行う。SKILL.md の文が守られるかは、構造テストでは確かめられない。
-- ファイルを置いた分析者は、`marimo` と `insight_blueprint` も自分で書く必要がある。書かないと、notebook の契約が求める import が許可リストの外になる。この食い違いはこの ADR の前からあり、ここでは塞がない（issue #108）。
+- ファイルを置いた分析者は、`marimo` と `insight_blueprint` も自分で書く必要がある。書かないと、notebook の契約が求める import が許可リストの外になる。この食い違いはこの ADR の前からあり、ここでは塞がない（issue #108）。[ADR-0027](0027-default-allowlist-always-allowed.md) が、既定の許可リストを常に許すことで塞いだ。
 
 ## Alternatives considered
 
