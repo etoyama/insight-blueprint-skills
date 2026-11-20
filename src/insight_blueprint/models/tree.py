@@ -207,6 +207,10 @@ class QuestionTree(BaseModel):
     def current_revision(self) -> RootRevision:
         return self.root_revisions[-1]
 
+    def current_round(self) -> int:
+        """The reflection round last written; a round numbers the whole tree."""
+        return max((a.round for n in self.nodes for a in n.answers), default=0)
+
     def root(self) -> QuestionNode:
         return next(n for n in self.nodes if n.parent_question_id is None)
 

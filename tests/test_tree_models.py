@@ -297,6 +297,16 @@ decisions:
         assert "confidence" in errors_of(data)
 
 
+class TestCurrentRound:
+    def test_it_is_0_while_no_node_has_an_answer(self) -> None:
+        assert QuestionTree.model_validate(tree_dict()).current_round() == 0
+
+    def test_it_is_the_highest_round_across_the_nodes(self) -> None:
+        data = tree_with_answers(answer(round=1), answer(round=3))
+        data["nodes"][0]["answers"] = [answer(round=2)]
+        assert QuestionTree.model_validate(data).current_round() == 3
+
+
 class TestRootRevision:
     def test_a_later_revision_needs_a_reason(self) -> None:
         data = tree_dict()
