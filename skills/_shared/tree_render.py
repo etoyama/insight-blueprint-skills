@@ -13,10 +13,11 @@ as markup.
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from html import escape
+from typing import TYPE_CHECKING
 
 from insight_blueprint.models.design import DesignStatus
 from insight_blueprint.models.tree import (
@@ -31,6 +32,9 @@ from insight_blueprint.models.tree import (
     TreeDecisionKind,
     design_id_of,
 )
+
+if TYPE_CHECKING:  # tree_check imports tree_io, which imports this module
+    from skills._shared.tree_check import Violation
 
 
 @dataclass(frozen=True)
@@ -47,6 +51,13 @@ class CitedEvent:
     type: str
     direction: str | None
     content: str
+
+
+@dataclass(frozen=True)
+class CheckFailed:
+    """The cited-answer check could not run, so no answer is known to be sound."""
+
+    message: str
 
 
 class _Html(str):
@@ -71,8 +82,8 @@ def _el(tag: str, *children: str | None, **attrs: str | None) -> _Html:
     return _Html(f"<{tag}{rendered}>{inner}</{tag}>")
 
 
-def _join(blocks: Iterable[_Html]) -> _Html:
-    return _Html("\n".join(blocks))
+def _join(blocks: Iterable[_Html | None]) -> _Html:
+    return _Html("\n".join(b for b in blocks if b is not None))
 
 
 _CSS = """
@@ -120,6 +131,8 @@ summary { cursor: pointer; color: var(--accent); }
 .mark { color: var(--mark); font-weight: 700; margin-right: .6rem; }
 .statements { margin: .3rem 0; padding-left: 1.2rem; }
 .kind { font-weight: 700; }
+.notice { border: 1px solid var(--investigating); padding: .4rem .8rem; }
+.notes { margin: .3rem 0; padding-left: 1.2rem; }
 """
 
 _AIM_LABELS = {
@@ -140,6 +153,7 @@ class Mark(StrEnum):
     changed = "changed"
     first = "first"
     before_root_change = "before_root_change"
+    violating = "violating"
 
 
 # Each table holds the word shown on the page and what the legend says it means,
@@ -159,19 +173,31 @@ _KIND_WORDS = {
     ),
 }
 
+# "{round}" is the round of the answer on a page and "N" in the legend.
 _MARK_WORDS = {
     Mark.changed: (
-        "この回で変わった",
-        "最も新しい振り返りの回で、前の回から書き換わった答え。",
+        "回 {round} で変わった",
+        "最も新しい振り返りの回（N）で、前の回から書き換わった答え。",
     ),
     Mark.first: (
-        "この回で初めて答えた",
-        "最も新しい振り返りの回で、初めて書いた答え。",
+        "回 {round} で初めて答えた",
+        "最も新しい振り返りの回（N）で、初めて書いた答え。",
     ),
     Mark.before_root_change: (
         "根の変更前の答え",
         "根の問いか到達点が変わる前の根の版に対して書いた答え。",
     ),
+    Mark.violating: (
+        "記録と合わない答え",
+        "引用した出来事が journal に無い、結んでいない分析設計の出来事を引いている、"
+        "引用に無い数字を書いている、のどれかの答え。答えの文は閉じた中に畳む。",
+    ),
+}
+
+_VIOLATION_WORDS = {
+    "missing-event": "journal に無い出来事",
+    "unlinked-design": "この論点に結んでいない分析設計の出来事",
+    "number-not-cited": "引用した出来事に無い数字",
 }
 
 _DECISION_LABELS = {
@@ -180,6 +206,12 @@ _DECISION_LABELS = {
     TreeDecisionKind.return_: "親に戻る",
     TreeDecisionKind.close: "区切る",
 }
+
+_NOTE_LABELS = (
+    ("ask", "人に聞く問い"),
+    ("changes_if", "その答えで変わる判断"),
+    ("known", "分かっていること"),
+)
 
 _DIRECTION_GLOSSES = {
     "supports": "仮説を支持する",
@@ -191,6 +223,7 @@ def render_tree_html(
     tree: QuestionTree,
     designs: Mapping[str, DesignSummary],
     events: Mapping[str, CitedEvent],
+    violations: Sequence[Violation] | CheckFailed = (),
 ) -> str:
     title = f"論点ツリー {tree.theme_id}"
     head = _el(
@@ -200,15 +233,17 @@ def render_tree_html(
         _el("title", title),
         _el("style", _Html(_CSS)),
     )
-    context = _Context.of(tree, designs, events)
+    context = _Context.of(tree, designs, events, violations)
     body = _el(
         "body",
         _join(
             [
                 _header(tree),
+                _check_notice(violations),
                 _legend(),
                 _counts(context),
                 _decisions(tree),
+                _next_candidates(context),
                 _question_tree(context),
                 _derivation(context),
             ]
@@ -270,7 +305,10 @@ def _legend() -> _Html:
         _el("p", "現時点の答えは、文ごとに種類の言葉を付けて並べる。"),
         _word_list(_KIND_WORDS.values()),
         _el("p", "答えの上に出す印。"),
-        _word_list(_MARK_WORDS.values()),
+        _word_list(
+            (word.format(round="N"), meaning) for word, meaning in _MARK_WORDS.values()
+        ),
+        _el("p", "まだ分析設計を結んでいない論点は「次の候補」に並べる。"),
         _el(
             "p",
             "各論点の「根拠を開く」を押すと、引用した journal の出来事、前の回の答え、"
@@ -290,6 +328,7 @@ class _Context:
     designs: Mapping[str, DesignSummary]
     events: Mapping[str, CitedEvent]
     progress: Mapping[str, Progress]
+    violations: Mapping[str, Sequence[Violation]]
 
     @classmethod
     def of(
@@ -297,6 +336,7 @@ class _Context:
         tree: QuestionTree,
         designs: Mapping[str, DesignSummary],
         events: Mapping[str, CitedEvent],
+        checked: Sequence[Violation] | CheckFailed,
     ) -> _Context:
         for node in tree.nodes:
             for design_id in node.design_ids:
@@ -310,14 +350,19 @@ class _Context:
             )
             for node in tree.nodes
         }
-        return cls(tree, designs, events, progress)
+        violations: dict[str, list[Violation]] = {}
+        for violation in () if isinstance(checked, CheckFailed) else checked:
+            violations.setdefault(violation.node_id, []).append(violation)
+        return cls(tree, designs, events, progress, violations)
 
     def marks_of(self, node: QuestionNode) -> list[Mark]:
         answer = node.current_answer()
         if answer is None:
             return []
         marks: list[Mark] = []
-        if answer.round == self.tree.current_round():
+        if node.id in self.violations:
+            marks.append(Mark.violating)
+        elif answer.round == self.tree.current_round():
             if len(node.answers) == 1:
                 marks.append(Mark.first)
             elif answer.statements != node.answers[-2].statements:
@@ -351,7 +396,11 @@ def _decisions(tree: QuestionTree) -> _Html:
     rows = [
         _el(
             "li",
-            f"{_DECISION_LABELS[d.kind]}: ",
+            _DECISION_LABELS[d.kind],
+            None
+            if d.kind is TreeDecisionKind.start
+            else f"（回 {d.round} の答えを見て）",
+            ": ",
             _link(d.node_id, d.node_id),
             f" {d.reason}",
         )
@@ -359,6 +408,61 @@ def _decisions(tree: QuestionTree) -> _Html:
     ]
     body = _el("ul", _join(rows)) if rows else _el("p", "まだ決めていない。")
     return _el("section", _el("h2", "ツリーの決定"), body, id="decisions")
+
+
+def _check_notice(violations: Sequence[Violation] | CheckFailed) -> _Html | None:
+    if not isinstance(violations, CheckFailed):
+        return None
+    return _el(
+        "p",
+        f"答えを記録と照らして確かめられなかった（{violations.message}）。"
+        "答えが記録と合うかは確かめていない。",
+        class_="notice",
+        id="check-notice",
+    )
+
+
+def _notes(node: QuestionNode) -> _Html | None:
+    note = node.next_candidate
+    if note is None:
+        return None
+    rows = [
+        _el("li", f"{label}: {getattr(note, field)}")
+        for field, label in _NOTE_LABELS
+        if getattr(note, field)
+    ]
+    if note.answer:
+        rows.append(
+            _el(
+                "li",
+                f"聞いてきた答え: {note.answer}"
+                f"（{note.answered_by}、{note.answered_at}）",
+            )
+        )
+    return _el("ul", _join(rows), class_="notes")
+
+
+def _next_candidates(context: _Context) -> _Html:
+    items = [
+        _el(
+            "li",
+            _el("strong", _link(node.id, node.id)),
+            f" {node.question}",
+            _notes(node) or _el("p", "まだメモは無い。", class_="note"),
+        )
+        for node in context.tree.untouched_nodes()
+    ]
+    return _el(
+        "section",
+        _el("h2", "次の候補"),
+        _el(
+            "p",
+            "分析設計をまだ結んでいない論点。人に聞く問いと、聞いてきた答えを添える。",
+            class_="note",
+        ),
+        _el("ul", _join(items)) if items else _el("p", "着手していない論点は無い。"),
+        id="next-candidates",
+    )
 
 
 def _question_tree(context: _Context) -> _Html:
@@ -408,20 +512,24 @@ def _node_card(context: _Context, node: QuestionNode) -> _Html:
         ]
         if marks:
             parts.append(_el("p", *marks))
-        parts += [
-            _el(
-                "ul",
-                _join(_statement(s) for s in answer.statements),
-                class_="statements",
-            ),
-            _round_meta(answer),
-        ]
+        if node.id not in context.violations:
+            parts.append(
+                _el(
+                    "ul",
+                    _join(_statement(s) for s in answer.statements),
+                    class_="statements",
+                )
+            )
+        parts.append(_round_meta(answer))
+    notes = _notes(node)
+    if notes is not None:
+        parts.append(notes)
     parts.append(_evidence(context, node))
     return _el("div", _join(parts), class_=f"node progress-{progress.value}")
 
 
 def _mark_text(mark: Mark, answer: Answer) -> str:
-    word = _MARK_WORDS[mark][0]
+    word = _MARK_WORDS[mark][0].format(round=answer.round)
     if mark is Mark.before_root_change:
         return f"{word}（根の版 {answer.root_revision} への答え）"
     return word
@@ -448,10 +556,24 @@ def _evidence(context: _Context, node: QuestionNode) -> _Html:
     answer = node.current_answer()
     sections: list[_Html] = []
     if answer is not None:
-        sections += [
-            _el("h4", "現時点の答えの根拠"),
-            _cited_statements(context, answer),
-        ]
+        if node.id in context.violations:
+            sections += [
+                _el("h4", "記録と合わない点"),
+                _el(
+                    "ul",
+                    _join(_violation(v) for v in context.violations[node.id]),
+                ),
+                _el(
+                    "details",
+                    _el("summary", "記録と合わなかった答えの文"),
+                    _cited_statements(context, answer),
+                ),
+            ]
+        else:
+            sections += [
+                _el("h4", "現時点の答えの根拠"),
+                _cited_statements(context, answer),
+            ]
         earlier = list(reversed(node.answers[:-1]))
         if earlier:
             sections.append(_el("h4", "前の回の答え"))
@@ -474,6 +596,15 @@ def _evidence(context: _Context, node: QuestionNode) -> _Html:
     if not sections:
         sections.append(_el("p", "まだ根拠は無い。"))
     return _el("details", _el("summary", f"{node.id} の根拠を開く"), _join(sections))
+
+
+def _violation(violation: Violation) -> _Html:
+    word = _VIOLATION_WORDS.get(violation.kind, violation.kind)
+    return _el(
+        "li",
+        f"文 {violation.statement}: {word}（{violation.kind}）",
+        _el("blockquote", violation.text),
+    )
 
 
 def _cited_statements(context: _Context, answer: Answer) -> _Html:

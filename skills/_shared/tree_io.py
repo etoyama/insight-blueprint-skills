@@ -28,7 +28,7 @@ import sys
 from collections.abc import Iterator
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from ruamel.yaml import YAMLError
@@ -52,7 +52,15 @@ from skills._shared.design_io import (
     read_yaml,
     write_journal,
 )
-from skills._shared.tree_render import CitedEvent, DesignSummary, render_tree_html
+from skills._shared.tree_render import (
+    CheckFailed,
+    CitedEvent,
+    DesignSummary,
+    render_tree_html,
+)
+
+if TYPE_CHECKING:  # tree_check imports this module
+    from skills._shared.tree_check import Violation
 
 
 def _tree_path(theme_id: str, base_dir: Path) -> Path:
@@ -620,6 +628,22 @@ def _require_usable_links(
                 )
 
 
+def _check_for_page(
+    tree: QuestionTree, base_dir: Path
+) -> list[Violation] | CheckFailed:
+    """The violations of the current answers, or why they could not be found.
+
+    A stale answer is not stored as withdrawn, so the page is where it shows. A
+    check that cannot run must not stop the page: it says so on the page.
+    """
+    from skills._shared.tree_check import check_tree  # tree_check imports tree_io
+
+    try:
+        return check_tree(tree, base_dir)
+    except (ValueError, OSError, YAMLError) as exc:
+        return CheckFailed(str(exc))
+
+
 def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     """Write ``{theme_id}_tree.html`` from the canonical tree and return its path.
 
@@ -630,7 +654,9 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     tree = load_tree_model(theme_id, base_dir)
     designs = _design_summaries(theme_id, base_dir)
     _require_usable_links(tree, designs)
-    html = render_tree_html(tree, designs, _cited_events(tree, base_dir))
+    html = render_tree_html(
+        tree, designs, _cited_events(tree, base_dir), _check_for_page(tree, base_dir)
+    )
     path = _tree_path(theme_id, base_dir).with_suffix(".html")
     atomic_write_text(path, html)
     return {"path": str(path)}

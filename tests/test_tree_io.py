@@ -1409,6 +1409,51 @@ class TestRender:
         assert ROOT_QUESTION in text
         assert "<script" not in text
 
+    def test_a_stale_answer_that_no_longer_matches_the_record_is_marked(
+        self, tree: Path
+    ) -> None:
+        design_id = self._answered(tree)
+        design_io.write_journal(
+            design_id,
+            {
+                "events": [
+                    {"id": f"{design_id}-E01", "type": "evidence", "content": "x"}
+                ]
+            },
+            base_dir=tree,
+        )
+
+        shown = _rendered(tree)
+
+        assert 'class="mark">記録と合わない答え' in shown
+        assert "number-not-cited" in shown
+        stored = tree_io.load_tree("LIB", tree)["nodes"][1]["answers"]
+        assert len(stored) == 1  # the answer is marked on the page, never withdrawn
+
+    def test_an_answer_that_matches_the_record_carries_no_mark(
+        self, tree: Path
+    ) -> None:
+        self._answered(tree)
+
+        shown = _rendered(tree)
+
+        assert "取消を除くと期限切れは 346 件" in shown
+        assert "check-notice" not in shown
+        assert 'class="mark">記録と合わない答え' not in shown
+
+    def test_a_check_that_cannot_run_still_writes_a_page_that_says_so(
+        self, tree: Path
+    ) -> None:
+        design_id = self._answered(tree)
+        event = {"id": f"{design_id}-E01", "type": "evidence", "content": "346 件"}
+        design_io.write_journal(design_id, {"events": [event, event]}, base_dir=tree)
+
+        shown = _rendered(tree)
+
+        assert 'id="check-notice"' in shown
+        assert "appears twice" in shown
+        assert "取消を除くと期限切れは 346 件" in shown
+
     def test_rendering_twice_gives_identical_bytes(self, tree: Path) -> None:
         self._answered(tree)
         tree_io.render("LIB", base_dir=tree)
