@@ -43,6 +43,14 @@ def tree_dict() -> dict:
                 "contribution": "予約取消が混ざると、延長で改善しうる件数が変わる",
             },
         ],
+        "decisions": [
+            {
+                "round": 0,
+                "kind": "start",
+                "node_id": "LIB-Q02",
+                "reason": "取消が混ざると延長で改善しうる件数が変わるため",
+            }
+        ],
     }
 
 
@@ -122,6 +130,54 @@ class TestQuestionTree:
         data = tree_dict()
         data["nodes"][1]["status"] = "analyzed"
         assert "status" in errors_of(data)
+
+
+class TestTreeDecision:
+    def test_a_tree_without_decisions_is_valid(self) -> None:
+        data = tree_dict()
+        del data["decisions"]
+        assert QuestionTree.model_validate(data).decisions == []
+
+    def test_a_start_decision_keeps_its_node_and_reason(self) -> None:
+        decision = QuestionTree.model_validate(tree_dict()).decisions[0]
+        assert decision.node_id == "LIB-Q02"
+        assert decision.reason == "取消が混ざると延長で改善しうる件数が変わるため"
+
+    def test_a_decision_on_a_node_outside_the_tree_is_rejected(self) -> None:
+        data = tree_dict()
+        data["decisions"][0]["node_id"] = "LIB-Q09"
+        assert "LIB-Q09" in errors_of(data)
+
+    def test_a_start_decision_belongs_to_round_zero(self) -> None:
+        data = tree_dict()
+        data["decisions"][0]["round"] = 1
+        assert "round 0" in errors_of(data)
+
+    def test_a_decision_needs_a_reason(self) -> None:
+        data = tree_dict()
+        data["decisions"][0]["reason"] = ""
+        assert "reason" in errors_of(data)
+
+    def test_a_kind_other_than_start_is_rejected(self) -> None:
+        data = tree_dict()
+        data["decisions"][0]["kind"] = "close"
+        assert "kind" in errors_of(data)
+
+    def test_an_unknown_field_of_a_decision_is_rejected(self) -> None:
+        data = tree_dict()
+        data["decisions"][0]["status"] = "done"
+        assert "status" in errors_of(data)
+
+    def test_several_start_decisions_are_allowed(self) -> None:
+        data = tree_dict()
+        data["decisions"].append({**data["decisions"][0], "node_id": "LIB-Q01"})
+        assert len(QuestionTree.model_validate(data).decisions) == 2
+
+    def test_a_tree_without_decisions_dumps_no_decisions_key(self) -> None:
+        data = tree_dict()
+        del data["decisions"]
+        dumped = QuestionTree.model_validate(data).model_dump(exclude_defaults=True)
+        assert "decisions" not in dumped
 
 
 class TestRootRevision:
@@ -279,6 +335,36 @@ class TestValidateTree:
         new["root_revisions"][0]["question"] = "書き換えた過去の問い"
         errors = validate_tree(new, current=tree_dict())
         assert errors == ["root_revisions: revision 1 is history and cannot change"]
+
+    def _with_second_decision(self) -> dict:
+        data = tree_dict()
+        data["decisions"].append({**data["decisions"][0], "node_id": "LIB-Q01"})
+        return data
+
+    def test_appending_a_decision_is_allowed(self) -> None:
+        assert validate_tree(self._with_second_decision(), current=tree_dict()) == []
+
+    def test_dropping_a_decision_is_an_error(self) -> None:
+        errors = validate_tree(tree_dict(), current=self._with_second_decision())
+        assert errors == ["decisions: a decision cannot be removed (2 -> 1)"]
+
+    def test_dropping_every_decision_is_an_error(self) -> None:
+        data = tree_dict()
+        del data["decisions"]
+        errors = validate_tree(data, current=tree_dict())
+        assert errors == ["decisions: a decision cannot be removed (1 -> 0)"]
+
+    def test_rewriting_a_decision_is_an_error(self) -> None:
+        new = tree_dict()
+        new["decisions"][0]["reason"] = "後から書き換えた理由"
+        errors = validate_tree(new, current=tree_dict())
+        assert errors == ["decisions: decision 1 is history and cannot change"]
+
+    def test_rewriting_a_decision_while_appending_is_an_error(self) -> None:
+        new = self._with_second_decision()
+        new["decisions"][0]["node_id"] = "LIB-Q01"
+        errors = validate_tree(new, current=tree_dict())
+        assert errors == ["decisions: decision 1 is history and cannot change"]
 
     def test_a_broken_file_on_disk_does_not_block_its_repair(self) -> None:
         assert validate_tree(tree_dict(), current={"theme_id": "LIB"}) == []

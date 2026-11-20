@@ -136,8 +136,8 @@ def validate_tree(
     list means the tree is valid). *expected_theme_id* is the theme the file name carries;
     the caller owns the path and passes it in so this stays pure.
     *current* is the tree on disk, or ``None`` for a new file: its root
-    revisions are history, so none may be removed and only the last revision of
-    the written tree may differ.
+    revisions and decisions are history: none may be removed, only the last
+    root revision may differ, and decisions may only be appended.
     """
     try:
         tree = validate_tree_schema(data)
@@ -151,12 +151,16 @@ def validate_tree(
     if current is None:
         return []
     try:
-        before = validate_tree_schema(current).root_revisions
+        on_disk = validate_tree_schema(current)
     except ValidationError:
         # The file on disk is already broken; do not block the write that
         # may be repairing it.
         return []
-    after = tree.root_revisions
+    return _revision_errors(on_disk, tree) + _decision_errors(on_disk, tree)
+
+
+def _revision_errors(on_disk: QuestionTree, written: QuestionTree) -> list[str]:
+    before, after = on_disk.root_revisions, written.root_revisions
     if len(after) < len(before):
         return [
             "root_revisions: a root revision cannot be removed "
@@ -168,6 +172,19 @@ def validate_tree(
     return [
         f"root_revisions: revision {old.revision} is history and cannot change"
         for old, new in zip(history, after, strict=False)
+        if old != new
+    ]
+
+
+def _decision_errors(on_disk: QuestionTree, written: QuestionTree) -> list[str]:
+    before, after = on_disk.decisions, written.decisions
+    if len(after) < len(before):
+        return [
+            f"decisions: a decision cannot be removed ({len(before)} -> {len(after)})"
+        ]
+    return [
+        f"decisions: decision {n} is history and cannot change"
+        for n, (old, new) in enumerate(zip(before, after, strict=False), start=1)
         if old != new
     ]
 

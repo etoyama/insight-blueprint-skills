@@ -118,6 +118,30 @@ class QuestionNode(BaseModel):
         return self
 
 
+class TreeDecisionKind(StrEnum):
+    """What a tree decision decided. Only ``start`` exists until Story 18.5."""
+
+    start = "start"
+
+
+class TreeDecision(BaseModel):
+    """One decision about where the investigation goes, and why."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    round: int = Field(ge=0)
+    kind: TreeDecisionKind
+    node_id: str
+    reason: str = Field(min_length=1)
+    created_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def _start_precedes_the_first_round(self) -> Self:
+        if self.kind is TreeDecisionKind.start and self.round != 0:
+            raise ValueError("round: a start decision is taken at round 0")
+        return self
+
+
 class QuestionTree(BaseModel):
     """The question tree of one theme. Aggregate root."""
 
@@ -126,6 +150,7 @@ class QuestionTree(BaseModel):
     theme_id: str = Field(pattern=rf"^{THEME_ID_PATTERN.pattern}$")
     root_revisions: list[RootRevision] = Field(min_length=1)
     nodes: list[QuestionNode] = Field(min_length=1)
+    decisions: list[TreeDecision] = Field(default_factory=list)
 
     def current_revision(self) -> RootRevision:
         return self.root_revisions[-1]
@@ -139,6 +164,7 @@ class QuestionTree(BaseModel):
         self._check_node_ids()
         self._check_references()
         self._check_parents()
+        self._check_decisions()
         if self.root().question != self.current_revision().question:
             raise ValueError(
                 "the root question must equal the question of the current root revision"
@@ -176,6 +202,14 @@ class QuestionTree(BaseModel):
                 raise ValueError(
                     f"{node.id}: origin '{origin}' must be "
                     f"{self.theme_id}-H{{nn}}-E{{nn}}"
+                )
+
+    def _check_decisions(self) -> None:
+        node_ids = {n.id for n in self.nodes}
+        for decision in self.decisions:
+            if decision.node_id not in node_ids:
+                raise ValueError(
+                    f"decisions: node '{decision.node_id}' is not in the tree"
                 )
 
     def _check_parents(self) -> None:
