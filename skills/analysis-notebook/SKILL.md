@@ -95,6 +95,9 @@ marimo rules). Drive cell content from the design:
 - cell 0 (imports): pandas / matplotlib / numpy + `insight_blueprint.lineage` + `json` / `pathlib`
 - cell 1 (meta): `title` / `id` / `hypothesis_statement` / `analysis_intent`
 - cell 2 (data_load): source `connection` → `pd.read_csv(...)` / SQL; init `LineageSession`.
+  Replace each `{source:ID}` in `methodology.steps` with the location in that source's `connection`
+  (from Step 2: the file path, or the full table name), written as a string literal. An `ID` that is
+  not in `source_ids` is a design error: stop and suggest /analysis-design.
   If the design carries a confirmed extraction query in `methodology.steps` (drafted in
   `/analysis-design` Step 2.6, and — under `/analysis-auto` — already confirmed by the user at the
   data-extraction gate), cell 2 must **use that query as-is**; do not silently substitute a different

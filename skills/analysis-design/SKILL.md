@@ -166,16 +166,25 @@ methodology = {
     "reason": "線形回帰で相関を検証",
     "steps": [
         {
-            "description": "from lib.accessor.bigquery import BigQueryAccessor\nacc = BigQueryAccessor(project_id='lmi-datau-prod')\nraw_df = acc.query_to_dataframe('''\n  SELECT col1, col2, ...\n  FROM `project.dataset.table`\n  WHERE ...\n''')"
+            "description": "SELECT store_id, month, sales\nFROM {source:sales_monthly}\nWHERE month >= '2024-01'"
+        },
+        {
+            "description": "raw_df = pd.read_csv({source:stores}, usecols=['store_id', 'region'])"
         }
     ]
 }
 ```
 
 **Rules:**
-- If the source is a BQ table: generate `BigQueryAccessor` pattern with actual table name, key columns from schema, and filter conditions
+- Name each data source as `{source:ID}`, where `ID` is an id in `source_ids`. `/analysis-notebook`
+  replaces it with the location in the source's `connection`. Never write a path, host, project id or
+  table name: the design is read by every later skill, including `/analysis-report`, and `connection`
+  reaches only the notebook ([ADR-0022](../../docs/adr/0022-connection-reaches-only-the-notebook.md)).
+- If the source is a SQL table: write the query with key columns from the schema and the filter
+  conditions, and `FROM {source:ID}` for the table
 - If methodology uses a specific library (e.g., lingam, shap, dowhy): include the exact API call with parameter names in a subsequent step
-- If the user provides their own code pattern, use it as-is — do not overwrite
+- If the user provides their own code pattern, use it as-is — do not overwrite — but replace any
+  path or table name in it with `{source:ID}`
 
 > **Under `/analysis-auto`**: this auto-generated query is not committed silently. The driver surfaces it
 > as the *data-extraction* confirmation beat (`/analysis-auto` gate policy, design beat ③) — the actual
