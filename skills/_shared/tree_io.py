@@ -8,6 +8,9 @@ the pre-write hook only guards the Write/Edit tool path, not direct python write
 Progress is never written. ``progress`` derives it from the status of the
 designs linked to each node.
 
+``render`` writes the generated view ``{theme_id}_tree.html`` next to the
+canonical file. The page is built by ``tree_render`` and is never edited.
+
 Usage from a skill (CLI):
     echo '<json>' | python -m skills._shared.tree_io create --base-dir .insight
 """
@@ -305,15 +308,16 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
             f"theme_id: '{tree.theme_id}' does not match the file name "
             f"({theme_id}_tree.yaml)"
         )
+    # Design files can be written by hand, so every field is read defensively.
     designs = {
-        d["id"]: DesignSummary(
-            id=d["id"],
-            title=str(d.get("title", "")),
-            status=str(d.get("status", "")),
-            parent_id=d.get("parent_id"),
+        design_id: DesignSummary(
+            id=design_id,
+            title=str(d.get("title") or ""),
+            status=str(d.get("status") or ""),
+            parent_id=None if d.get("parent_id") is None else str(d["parent_id"]),
         )
         for d in list_designs(base_dir)
-        if d.get("theme_id") == theme_id
+        if d.get("theme_id") == theme_id and isinstance(design_id := d.get("id"), str)
     }
     html = render_tree_html(tree, designs, _cited_events(tree, base_dir))
     path = _tree_path(theme_id, base_dir).with_suffix(".html")

@@ -435,7 +435,7 @@ def _evidence(context: _Context, node: QuestionNode) -> _Html:
         ]
     if not sections:
         sections.append(_el("p", "まだ根拠は無い。"))
-    return _el("details", _el("summary", "根拠を開く"), _join(sections))
+    return _el("details", _el("summary", f"{node.id} の根拠を開く"), _join(sections))
 
 
 def _cited_statements(context: _Context, answer: Answer) -> _Html:

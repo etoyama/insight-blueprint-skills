@@ -677,3 +677,15 @@ class TestRender:
 
         assert done.returncode == 1
         assert "has no question tree" in done.stderr
+
+
+class TestRenderReadsHandWrittenDesigns:
+    def test_a_design_file_without_an_id_is_left_out(self, tree: Path) -> None:
+        atomic_write_yaml(
+            tree / "designs" / "LIB-H09_hypothesis.yaml",
+            {"theme_id": "LIB", "title": "id の無い分析設計"},
+        )
+
+        page = Path(tree_io.render("LIB", base_dir=tree)["path"]).read_text("utf-8")
+
+        assert "id の無い分析設計" not in page
