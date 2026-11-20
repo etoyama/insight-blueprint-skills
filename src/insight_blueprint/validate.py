@@ -136,7 +136,8 @@ def validate_tree(
     list means the tree is valid). *expected_theme_id* is the theme the file name carries;
     the caller owns the path and passes it in so this stays pure.
     *current* is the tree on disk, or ``None`` for a new file: its root
-    revisions are history, so none may be removed and only the last may change.
+    revisions are history, so none may be removed and only the last revision of
+    the written tree may differ.
     """
     try:
         tree = validate_tree_schema(data)
@@ -161,9 +162,12 @@ def validate_tree(
             "root_revisions: a root revision cannot be removed "
             f"({len(before)} -> {len(after)})"
         ]
+    # Only the last revision of the written tree may differ from the disk:
+    # appending one freezes every revision that was there before.
+    history = before if len(after) > len(before) else before[:-1]
     return [
         f"root_revisions: revision {old.revision} is history and cannot change"
-        for old, new in zip(before[:-1], after, strict=False)
+        for old, new in zip(history, after, strict=False)
         if old != new
     ]
 

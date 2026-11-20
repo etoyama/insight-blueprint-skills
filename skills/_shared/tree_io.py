@@ -53,15 +53,21 @@ def _require_tree(theme_id: str, base_dir: Path) -> dict:
     return tree
 
 
-def _write_tree(tree: dict, base_dir: Path) -> dict:
-    """Validate *tree*, write it, and return what was written.
+def _write_tree(tree: dict, theme_id: str, base_dir: Path) -> dict:
+    """Validate *tree*, write it to the file of *theme_id*, and return it.
 
     An invalid tree raises pydantic ``ValidationError`` (a ValueError) and
-    nothing is written.
+    nothing is written. The path comes from the caller's theme, never from the
+    file content, so a file that names another theme cannot redirect the write.
     """
     model = validate_tree_schema(tree)
+    if model.theme_id != theme_id:
+        raise ValueError(
+            f"theme_id: '{model.theme_id}' does not match the file name "
+            f"({theme_id}_tree.yaml)"
+        )
     data = model.model_dump(mode="json", exclude_none=True, exclude_defaults=True)
-    atomic_write_yaml(_tree_path(model.theme_id, base_dir), data)
+    atomic_write_yaml(_tree_path(theme_id, base_dir), data)
     return data
 
 
@@ -89,7 +95,7 @@ def create_tree(
         "root_revisions": [revision],
         "nodes": [{"id": f"{theme_id}-Q01", "question": question}],
     }
-    return _write_tree(tree, base_dir)
+    return _write_tree(tree, theme_id, base_dir)
 
 
 def _next_node_id(tree: dict) -> str:
@@ -139,7 +145,7 @@ def add_node(
     validate_tree_schema(tree)
     if origin_event_id is not None:
         _require_question_event(origin_event_id, base_dir)
-    return _node(_write_tree(tree, base_dir), node_id)
+    return _node(_write_tree(tree, theme_id, base_dir), node_id)
 
 
 def _require_design(design_id: str, base_dir: Path) -> dict:
@@ -164,7 +170,7 @@ def link_design(
     if design_id not in linked:
         linked.append(design_id)
     node["design_ids"] = linked
-    return _node(_write_tree(tree, base_dir), node_id)
+    return _node(_write_tree(tree, theme_id, base_dir), node_id)
 
 
 def revise_root(
@@ -206,7 +212,7 @@ def revise_root(
         tree["root_revisions"][-1] = revised
     root = next(n for n in tree["nodes"] if n.get("parent_question_id") is None)
     root["question"] = revised["question"]
-    return _write_tree(tree, base_dir)
+    return _write_tree(tree, theme_id, base_dir)
 
 
 def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:

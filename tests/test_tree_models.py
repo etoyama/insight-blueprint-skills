@@ -274,6 +274,12 @@ class TestValidateTree:
         errors = validate_tree(new, current=self._with_second_revision())
         assert errors == ["root_revisions: revision 1 is history and cannot change"]
 
+    def test_rewriting_the_current_revision_while_appending_is_an_error(self) -> None:
+        new = self._with_second_revision()
+        new["root_revisions"][0]["question"] = "書き換えた過去の問い"
+        errors = validate_tree(new, current=tree_dict())
+        assert errors == ["root_revisions: revision 1 is history and cannot change"]
+
     def test_a_broken_file_on_disk_does_not_block_its_repair(self) -> None:
         assert validate_tree(tree_dict(), current={"theme_id": "LIB"}) == []
 

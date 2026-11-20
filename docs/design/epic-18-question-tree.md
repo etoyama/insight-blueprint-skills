@@ -613,12 +613,12 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 
 ### Decision: earlier-root-revisions-are-history
 
-- What: 検証は、書き込む前の正本と比べて、根の版が減っていないことと、今の版より前の版が変わっていないことを確かめる。今の版だけは書き換えられる（`bump: false` の言い換え）。`tree_io` と pre-write hook の両方に効く。
+- What: 検証は、書き込む前の正本と比べて、根の版が減っていないことと、今の版より前の版が変わっていないことを確かめる。今の版だけは書き換えられる（`bump: false` の言い換え）。版を足す書き込みでは、それまでの版をすべて変えられない。`tree_io` と pre-write hook の両方に効く。
 - Why: 根の版は、どの答えがどの根に対するものかを示す（Decision `root-revision-marks-stale-answers`）。直接の書き込みで版を減らせると、Story 18.4 で入る答えの `root_revision` が指す版が無くなる。
 - Criteria: US-1 AC 5（上げた版と理由を残す）。分析設計の検証が、書き込む前の状態と比べて遷移を確かめている前例（`validate_design_change`）。決め手は、残した版と理由が直接の書き込みでも消えないこと。レビュー（thermos）の指摘で足した。
 - Affected modules: `validate.py`（`validate_tree` の `current`）、pre-write hook。
 - Alternatives considered: 形だけを見る（版を減らす書き込みが通る）。今の版の書き換えも禁じる（言い換えができなくなる）。
-- Consequences: 今の版の問いと到達点は、直接の書き込みでも書き換えられる。根を変えるのを `/analysis-framing` に限ることは、hook では守れない。Bash からの書き込みは hook を通らない（分析設計と同じ）。
+- Consequences: 今の版の問いと到達点は、直接の書き込みでも書き換えられる。根を変えるのを `/analysis-framing` に限ることは、hook では守れない。書き込む前の正本が検証に通らない形なら、比べずに通す。壊れた正本を直す書き込みを止めないためで、分析設計の検証（`validate_design_change`）と同じ扱いである。Bash からの書き込みは hook を通らない（分析設計と同じ）。
 
 ### Cross-epic decisions (links to ADR)
 

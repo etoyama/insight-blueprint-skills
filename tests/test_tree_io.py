@@ -129,6 +129,23 @@ class TestAddNode:
             _add(tree, contribution="")
         assert len(tree_io.load_tree("LIB", base_dir=tree)["nodes"]) == 1
 
+    def test_a_file_that_names_another_theme_is_not_written_elsewhere(
+        self, tree: Path
+    ) -> None:
+        path = tree / "themes" / "LIB_tree.yaml"
+        text = path.read_text(encoding="utf-8")
+        path.write_text(text.replace("LIB", "FP"), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="does not match the file name"):
+            tree_io.add_node(
+                "LIB",
+                question="q",
+                parent_question_id="FP-Q01",
+                contribution="c",
+                base_dir=tree,
+            )
+        assert not (tree / "themes" / "FP_tree.yaml").exists()
+
     def test_a_tree_must_exist_first(self, insight: Path) -> None:
         with pytest.raises(ValueError, match="no question tree"):
             _add(insight)
