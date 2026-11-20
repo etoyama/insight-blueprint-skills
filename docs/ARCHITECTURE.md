@@ -611,6 +611,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 13 | Skill layer（`/analysis-report` の写す手順）+ `report_check`（できたレポートの検査） |
 | Epic 14 | Skill layer（`/analysis-report` のテンプレートの出典・書式・省く条件） |
 | Epic 15 | Skill layer（`/analysis-design`・`/analysis-report`・`/analysis-notebook`・`/premortem`・`/analysis-auto` がデータソースを読む場所）+ `catalog_io describe` |
+| Epic 17 | Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-notebook`・`/analysis-auto`・`/catalog-register` が `connection` を読む場所）+ `catalog_io create`・`update` の認証情報の検査 |
 
 
 ## 参照

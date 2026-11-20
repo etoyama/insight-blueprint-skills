@@ -1,4 +1,4 @@
-# Epic 16: 接続情報を notebook の外に出さず、認証情報を catalog に入れない
+# Epic 17: 接続情報を notebook の外に出さず、認証情報を catalog に入れない
 
 ## Background
 
@@ -55,9 +55,9 @@ AC の正本はここ。
 
 | Story issue | User Story | 扱う AC |
 |---|---|---|
-| TBD | US-1 | AC 1〜3 |
-| TBD | US-2 | AC 1〜4 |
-| TBD | US-3 | AC 1〜5 |
+| [#110](https://github.com/etoyama/insight-blueprint-skills/issues/110) | US-1 | AC 1〜3 |
+| [#111](https://github.com/etoyama/insight-blueprint-skills/issues/111) | US-2 | AC 1〜4 |
+| [#112](https://github.com/etoyama/insight-blueprint-skills/issues/112) | US-3 | AC 1〜5 |
 
 ## Ubiquitous Language
 
@@ -187,8 +187,9 @@ sequenceDiagram
 
 ### Cross-epic decisions (links to ADR)
 
-- ADR-0021: `connection` の値をモデルの文脈に入れるのは `/analysis-notebook` だけにする（US-1・US-2）
-- ADR-0022: catalog は認証情報を持たない（US-3）
+- [ADR-0022: `connection` の値をモデルの文脈に入れるのは `/analysis-notebook` だけにする](../adr/0022-connection-reaches-only-the-notebook.md)（US-1・US-2）
+- ADR-0021 と Epic 16 は並行する Epic（#101）が使うので、この Epic は Epic 17、ADR は 0022 から採番した
+- ADR-0023: catalog は認証情報を持たない（US-3）
 
 ## Test Design Matrix
 
@@ -205,4 +206,4 @@ sequenceDiagram
 - 2026-11-20 — 人間が3つを決めた（Decision Analysis）。framing は `catalog_io list` で読み、構造テストで守る（1A。hook は足さない）。
   分析設計はデータソースを `{source:ID}` で指し、notebook が `get --with-connection` で解決する（2A）。
   `catalog_io create`・`update` は認証情報のキー名を拒み、`*_env` は通す（3B）。
-- 2026-11-20 — DesignDoc 初版。
+- 2026-11-20 — DesignDoc 初版。issue #102 を Epic にし、Story を起票した（#110・#111・#112）。
