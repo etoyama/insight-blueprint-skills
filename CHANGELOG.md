@@ -7,12 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Epic 15 (#71): a design declares the data sources it uses in `source_ids`, and every skill reads
+them from there. Design: `docs/design/epic-15-declared-source-ids.md`.
+
 Epic 14 (#76): a report written from the same analysis has the same shape whichever model writes
 it. The parts of the `/analysis-report` template that were left to the model are now rules.
 Design: `docs/design/epic-14-report-template-gaps.md`.
 
+### Added
+
+- **`catalog_io describe --ids a,b`** returns `{"sources": [...], "missing": [...]}`: the registered
+  sources in the order given, once each, with only `id`, `name`, `type`, and `description` (never
+  `connection`), and every other id under `missing`
+  ([ADR-0020](docs/adr/0020-design-declares-sources-in-source-ids.md)).
+
 ### Changed
 
+- **`/analysis-design` asks for the data sources and writes them to `source_ids`**, after checking
+  the ids with `catalog_io describe`. It never writes an unregistered id. It can also open an
+  existing design to declare its sources (Step 0 → Step 3b). `data_source` on a metric or an
+  explanatory variable is now a free-form note that no skill reads as an id.
+- **`/analysis-report`, `/analysis-notebook`, `/premortem`, and `/analysis-auto` read the data sources
+  from `source_ids` only.** The report passes them to `catalog_io describe` and no longer collects
+  candidates from `data_source`. `/premortem` returns `HARD_BLOCK` with the reason
+  `no data source declared` for a design whose `source_ids` is empty. The model is unchanged.
 - **`/analysis-report` names the source of every section.** Open questions follow the journal's
   definition, and the title comes from the design's `title`. The report no longer reads the
   verdict's `evidence_summary` or `open_questions`, which reach it through the journal. Future
@@ -27,6 +45,13 @@ Design: `docs/design/epic-14-report-template-gaps.md`.
   evidence against the conclusion. An empty Limitations or Future Directions is left out, with no
   note in its place.
 - **`/analysis-journal`** accepts one id or a list of ids in `metadata.resolves`.
+
+### Upgrade note
+
+- Designs created before this release have an empty `source_ids`. Their report leaves out the data
+  source table and says how to add them, `/premortem` returns `HARD_BLOCK`, and `/analysis-notebook`
+  stops and points to `/analysis-design`. Add the ids once with `/analysis-design`: open the existing
+  design and declare its sources (Step 0 → Step 3b).
 
 ## [0.10.0] - 2026-11-20
 

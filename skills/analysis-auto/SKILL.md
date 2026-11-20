@@ -90,7 +90,8 @@ gate policy above:
    2. **methodology** — present `methodology` (method + code patterns), `metrics`, and especially the
       explanatory variables' causal roles (`treatment` / `confounder` / `covariate` / …) + `analysis_intent`;
       confirm. These shape the analysis and are genuine choices.
-   3. **data-extraction** — present the actual **data-acquisition plan**: for a SQL source, the query text
+   3. **data-extraction** — present the design's `source_ids` (each checked as `/analysis-design`
+      "Data sources" says) and the actual **data-acquisition plan**: for a SQL source, the query text
       drafted into `methodology.steps` (see `/analysis-design` Step 2.6); for a CSV/other source, the file
       + the columns/filter that will be read — plus the expected grain and a rough row-count. Confirm the
       pull *before* it is committed to the design, so premortem (item 4) estimates cost against the
@@ -100,9 +101,11 @@ gate policy above:
    After all four beats are confirmed, `design_io create` the design.
 3. **review** (optional): if the user wants a review pass, run `/analysis-review`; **pause on the verdict**.
 4. **premortem**: always run `/premortem` before touching data. If `HARD_BLOCK`/`HIGH`, **stop** and
-   surface the risk (unregistered source → offer /catalog-register; cost/allowlist/location → let the
+   surface the risk (`source not registered` → offer /catalog-register; `no data source declared` →
+   offer /analysis-design to fill `source_ids`; cost/allowlist/location → let the
    user decide). If `LOW`/`MEDIUM`, continue.
-5. **notebook**: run `/analysis-notebook`. Auto-run only when premortem cleared **and** the analysis is
+5. **notebook**: run `/analysis-notebook`. The declared source(s) are the ids in the design's
+   `source_ids`. Auto-run only when premortem cleared **and** the analysis is
    confined to the declared source(s) + allowlisted packages (`.insight/rules/package_allowlist.yaml`) +
    local computation. If the methodology needs a non-allowlisted package, network egress beyond the
    declared source, or another side-effect, **stop** and get the user's go-ahead first.

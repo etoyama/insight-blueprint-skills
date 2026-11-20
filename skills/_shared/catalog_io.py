@@ -177,6 +177,31 @@ def update_source(
     return data
 
 
+_DESCRIBED_FIELDS = ("id", "name", "type", "description")
+
+
+def describe(source_ids: list[str], base_dir: Path = DEFAULT_BASE_DIR) -> dict:
+    """The declared sources as a distributable report may show them (ADR-0020).
+
+    Registered sources come back in the order given, once each, with only
+    id/name/type/description. Every other value is ``missing``: an id that is not
+    registered, or a value no catalog can hold because create_source rejects it.
+    """
+    sources: list[dict] = []
+    missing: list[str] = []
+    for source_id in dict.fromkeys(source_ids):
+        source = (
+            load_source(source_id, base_dir)
+            if SAFE_ID_PATTERN.fullmatch(source_id)
+            else {}
+        )
+        if source:
+            sources.append({key: source[key] for key in _DESCRIBED_FIELDS})
+        else:
+            missing.append(source_id)
+    return {"sources": sources, "missing": missing}
+
+
 def get_schema(source_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
     """Return the column schema of a source ({} if absent)."""
     data = load_source(source_id, base_dir)
@@ -370,6 +395,7 @@ def _main(argv: list[str] | None = None) -> int:
             "update",
             "get",
             "list",
+            "describe",
             "get-schema",
             "search",
             "get-knowledge",
@@ -378,6 +404,9 @@ def _main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--base-dir", default=str(DEFAULT_BASE_DIR))
     parser.add_argument("--id", default=None)
+    parser.add_argument(
+        "--ids", default=None, help="comma-separated source ids (describe)"
+    )
     parser.add_argument("--query", default=None)
     parser.add_argument("--type", default=None)
     parser.add_argument("--tags", default=None)
@@ -388,6 +417,9 @@ def _main(argv: list[str] | None = None) -> int:
         help="include each printed source's connection (left out by default)",
     )
     args = parser.parse_args(argv)
+    if args.command == "describe" and args.with_connection:
+        # describe feeds a distributable report; say no rather than ignore the flag.
+        parser.error("describe never prints a connection; use get --with-connection")
     base = _resolve_base_dir(Path(args.base_dir))
 
     payload: dict = {}
@@ -406,6 +438,9 @@ def _main(argv: list[str] | None = None) -> int:
         result = load_source(args.id, base_dir=base)
     elif args.command == "list":
         result = list_sources(base_dir=base)
+    elif args.command == "describe":
+        ids = [i.strip() for i in (args.ids or "").split(",") if i.strip()]
+        result = describe(ids, base_dir=base)
     elif args.command == "get-schema":
         result = get_schema(args.id, base_dir=base)
     elif args.command == "get-knowledge":

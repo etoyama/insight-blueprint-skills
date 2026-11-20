@@ -14,6 +14,10 @@ from skills.premortem.lib.risk_evaluator import evaluate
 CONFIG = PremortemConfig(static_rows_high=10_000_000, static_rows_medium=1_000_000)
 
 
+# Every design declares a source (ADR-0020); a design without one is its own case.
+_IN_REVIEW = {"status": "in_review", "source_ids": ["src"]}
+
+
 def _checks(**over: object) -> SourceChecks:
     base: dict = {
         "source_registered": True,
@@ -31,53 +35,65 @@ def test_terminal_status_skips(status: str) -> None:
 
 
 def test_source_not_registered_hard_blocks() -> None:
-    d = evaluate({"status": "in_review"}, CONFIG, _checks(source_registered=False))
+    d = evaluate(_IN_REVIEW, CONFIG, _checks(source_registered=False))
     assert d.level is RiskLevel.HARD_BLOCK
     assert any("registered" in r for r in d.reasons)
 
 
 def test_allowlist_false_hard_blocks() -> None:
-    d = evaluate({"status": "in_review"}, CONFIG, _checks(allowlist_ok=False))
+    d = evaluate(_IN_REVIEW, CONFIG, _checks(allowlist_ok=False))
     assert d.level is RiskLevel.HARD_BLOCK
     assert any("allowlist" in r for r in d.reasons)
 
 
 def test_location_false_hard_blocks() -> None:
-    d = evaluate({"status": "in_review"}, CONFIG, _checks(location_ok=False))
+    d = evaluate(_IN_REVIEW, CONFIG, _checks(location_ok=False))
     assert d.level is RiskLevel.HARD_BLOCK
 
 
 def test_api_failure_none_is_high_with_flag() -> None:
-    d = evaluate({"status": "in_review"}, CONFIG, _checks(location_ok=None))
+    d = evaluate(_IN_REVIEW, CONFIG, _checks(location_ok=None))
     assert d.level is RiskLevel.HIGH
     assert "location_check_failed" in d.flags
 
 
 def test_rows_above_high_is_high() -> None:
-    d = evaluate({"status": "in_review"}, CONFIG, _checks(estimated_rows=20_000_000))
+    d = evaluate(_IN_REVIEW, CONFIG, _checks(estimated_rows=20_000_000))
     assert d.level is RiskLevel.HIGH
 
 
 def test_rows_above_medium_is_medium() -> None:
-    d = evaluate({"status": "in_review"}, CONFIG, _checks(estimated_rows=2_000_000))
+    d = evaluate(_IN_REVIEW, CONFIG, _checks(estimated_rows=2_000_000))
     assert d.level is RiskLevel.MEDIUM
 
 
 def test_small_rows_is_low() -> None:
-    d = evaluate({"status": "in_review"}, CONFIG, _checks(estimated_rows=1000))
+    d = evaluate(_IN_REVIEW, CONFIG, _checks(estimated_rows=1000))
     assert d.level is RiskLevel.LOW
 
 
 def test_none_rows_is_low() -> None:
-    d = evaluate({"status": "in_review"}, CONFIG, _checks(estimated_rows=None))
+    d = evaluate(_IN_REVIEW, CONFIG, _checks(estimated_rows=None))
     assert d.level is RiskLevel.LOW
 
 
 def test_hard_block_precedes_high_rows() -> None:
     """HARD_BLOCK wins even when rows would be HIGH."""
     d = evaluate(
-        {"status": "in_review"},
+        _IN_REVIEW,
         CONFIG,
         _checks(source_registered=False, estimated_rows=99_000_000),
     )
+    assert d.level is RiskLevel.HARD_BLOCK
+
+
+def test_a_design_that_declares_no_source_hard_blocks() -> None:
+    d = evaluate({"status": "in_review", "source_ids": []}, CONFIG, _checks())
+    assert d.level is RiskLevel.HARD_BLOCK
+    assert d.reasons == ["no data source declared"]
+
+
+def test_a_design_without_source_ids_hard_blocks() -> None:
+    # A design made before ADR-0020 has the key empty or absent; both fail closed.
+    d = evaluate({"status": "in_review"}, CONFIG, _checks())
     assert d.level is RiskLevel.HARD_BLOCK

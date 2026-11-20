@@ -61,7 +61,7 @@ the figure-manifest contract is [ADR-0008](../../../docs/adr/0008-notebook-figur
 | Abstract | the terminal `status`, `conclude` event, `verdict.conclusion` | `design_io get` / journal / verdict.json |
 | Introduction | `hypothesis_statement`, `hypothesis_background`, optional `decision_context` | `design_io get` |
 | Method | `methodology`, `metrics`, `explanatory` | `design_io get` |
-| Method (data sources) | `name`, `type`, `description` of each data source | `catalog_io get` |
+| Method (data sources) | `name`, `type`, `description` of each source in the design's `source_ids` | `catalog_io describe` |
 | Method (row counts) | the steps of the lineage diagram | `.insight/lineage/{id}.mmd` |
 | Results (narrative) | `observe`, `evidence` (with `metadata.direction`) | journal |
 | Results (table) | `verdict.metrics` (incl. optional `effect_size`, `confidence_interval`, `sample_size`) | verdict.json |
@@ -224,23 +224,24 @@ in two tables from the design. One row per entry, in the order the design gives 
 
 - Omit a column that no row fills. When some rows have a value and others do not, keep the
   column and write `—` in the cells without a value.
-- Omit the table when the list is empty. No note is added.
+- Omit the table when the list is empty. No note is added to the report.
 - When `metrics` is one dict rather than a list (a design from before the list form), read it as a
   list of one.
 - Every cell is [Source text](#source-text-transcribe-never-render).
-- The data source of a metric or a variable has no column here. `### Data` below names the data
-  sources.
+- The data source of a metric or a variable has no column here: its `data_source` is a note,
+  not a source id ([ADR-0020](../../../docs/adr/0020-design-declares-sources-in-source-ids.md)).
+  `### Data` below names the data sources.
 
 ## Data description (Method)
 
 `### Data` tells the reader where the data came from and how much of it survived processing, so
 they can judge how far the result generalizes. It has two parts, each from its own input.
 
-**Data sources (catalog).** Collect the candidate source ids from the design: `source_ids`, plus
-the `data_source` values of `metrics` (the values of the dict) and `explanatory` (the string).
-A source id must fully match `^[a-zA-Z0-9_-]+$`; drop any other value without calling the
-catalog. Run `catalog_io get --id {source_id}` for each candidate and keep the ones that are
-registered (a non-empty result). One row per source, without duplicates:
+**Data sources (catalog).** Run `catalog_io describe --ids={ids}` with the design's `source_ids`
+joined by `,` (nothing after `=` when it is empty). The design comes from a file, so put on the
+command line only ids that fully match `^[a-zA-Z0-9_-]+$`; any other value counts as missing
+without being passed. The command returns `sources`, the registered ones in order and without
+duplicates, and `missing`, the ids the catalog does not hold. One row per item of `sources`:
 
 ```markdown
 | Data source | Type | Description |
@@ -258,6 +259,7 @@ registered (a non-empty result). One row per source, without duplicates:
   hosts, sometimes credentials) — **never** put `connection` or any part of it in the report.
   The report is distributable.
 - The three fields are [Source text](#source-text-transcribe-never-render).
+- A missing id is never in the table. Step 4 of SKILL.md names it to the analyst.
 
 **Row counts (lineage).** `.insight/lineage/{id}.mmd` is the Mermaid diagram the notebook's
 lineage cell writes. Its nodes carry the row count after each step and its edges carry the reason
@@ -287,9 +289,9 @@ One row per node, in step order. `Step0` is the data as loaded:
 - `Reason` is [Source text](#source-text-transcribe-never-render). It is the edge label up to its last `<br/>`; what follows is
   the change.
 
-**Graceful degrade**: omit the data-source table when the design names no registered source, and
+**Graceful degrade**: omit the data-source table when `sources` is empty, and
 omit the row-count table when the lineage file is missing, empty, or does not have the shape
-above. Omit the `### Data` heading when both are omitted. No note is added.
+above. Omit the `### Data` heading when both are omitted. No note is added to the report.
 
 ## Results narrative
 

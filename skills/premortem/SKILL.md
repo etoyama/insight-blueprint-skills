@@ -32,11 +32,15 @@ It does **not** issue tokens, gate execution, or write to disk — it advises.
 1. **Collect design data** (Claude Code responsibility):
    - `design_io list` to enumerate designs
      (use `--design <id>` to scope to one).
-   - For each design: `design_io get --id <id>`, then build `source_checks_map` from
-     `catalog_io get-schema --id <source_id>` / `catalog_io search --query <source_id>`
-     and `.insight/rules/package_allowlist.yaml` (source registered? location ok?
-     packages allowed? estimated rows?).
-   - Pipe `{ "designs": [...], "source_checks_map": {...} }` as JSON to cli.py stdin.
+   - For each design: `design_io get --id <id>`, then, for each id in its `source_ids`, build
+     `source_checks_map` from `catalog_io get-schema --id <source_id>` /
+     `catalog_io search --query <source_id>` and `.insight/rules/package_allowlist.yaml`
+     (source registered? location ok? packages allowed? estimated rows?). The map holds one
+     entry per design: a check is `false` when it fails for any of its sources, and
+     `estimated_rows` is the largest of theirs.
+   - Pipe `{ "designs": [...], "source_checks_map": {...} }` as JSON to cli.py stdin. Put each
+     design in `designs` as `design_io get` returned it: a design without `source_ids` is
+     `HARD_BLOCK` with the reason `no data source declared`.
 
 2. **Evaluate** (pure static decision engine):
    ```bash

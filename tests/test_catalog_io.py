@@ -551,3 +551,80 @@ class TestCliKeepsTheConnectionBack:
         )
         assert res.returncode == 0, res.stderr
         assert json.loads(res.stdout)["connection"]["file_path"] == self.SECRET
+
+
+class TestDescribe:
+    """ADR-0020: the sources a design declares, as the report may show them."""
+
+    def test_returns_the_registered_sources_in_the_order_given(
+        self, insight: Path
+    ) -> None:
+        _create(insight)
+        _create(insight, id="sales", name="月次売上", description="店舗別の売上")
+        result = catalog_io.describe(["sales", "jp-pop"], base_dir=insight)
+        assert result == {
+            "sources": [
+                {
+                    "id": "sales",
+                    "name": "月次売上",
+                    "type": "csv",
+                    "description": "店舗別の売上",
+                },
+                {
+                    "id": "jp-pop",
+                    "name": "人口統計",
+                    "type": "csv",
+                    "description": "市区町村別の人口データ",
+                },
+            ],
+            "missing": [],
+        }
+
+    def test_a_repeated_id_appears_once(self, insight: Path) -> None:
+        _create(insight)
+        result = catalog_io.describe(["jp-pop", "jp-pop", "nope", "nope"], insight)
+        assert [s["id"] for s in result["sources"]] == ["jp-pop"]
+        assert result["missing"] == ["nope"]
+
+    def test_an_unregistered_id_is_missing(self, insight: Path) -> None:
+        _create(insight)
+        result = catalog_io.describe(["nope", "jp-pop"], base_dir=insight)
+        assert [s["id"] for s in result["sources"]] == ["jp-pop"]
+        assert result["missing"] == ["nope"]
+
+    @pytest.mark.parametrize("bad", _BAD_IDS)
+    def test_a_value_that_is_not_an_id_is_missing(
+        self, insight: Path, bad: str
+    ) -> None:
+        # create_source rejects these, so no catalog can hold them.
+        assert catalog_io.describe([bad], base_dir=insight) == {
+            "sources": [],
+            "missing": [bad],
+        }
+
+    def test_cli_never_prints_the_connection(self, insight: Path) -> None:
+        secret = "/Users/someone/secret/pop.csv"
+        _create(insight, connection={"file_path": secret})
+        res = _run_cli(insight, "describe", "--ids=jp-pop,nope")
+        assert res.returncode == 0, res.stderr
+        assert secret not in res.stdout and "connection" not in res.stdout
+        result = json.loads(res.stdout)
+        assert [s["id"] for s in result["sources"]] == ["jp-pop"]
+        assert result["missing"] == ["nope"]
+
+    def test_cli_refuses_to_describe_with_the_connection(self, insight: Path) -> None:
+        _create(insight)
+        res = _run_cli(insight, "describe", "--ids=jp-pop", "--with-connection")
+        assert res.returncode == 2
+        assert res.stdout == ""
+
+    def test_cli_takes_an_id_that_starts_with_a_dash(self, insight: Path) -> None:
+        _create(insight, id="-dash")
+        res = _run_cli(insight, "describe", "--ids=-dash")
+        assert res.returncode == 0, res.stderr
+        assert [s["id"] for s in json.loads(res.stdout)["sources"]] == ["-dash"]
+
+    def test_cli_with_no_ids_describes_nothing(self, insight: Path) -> None:
+        res = _run_cli(insight, "describe", "--ids=")
+        assert res.returncode == 0, res.stderr
+        assert json.loads(res.stdout) == {"sources": [], "missing": []}
