@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upgrade note
+
+- `catalog_io create` and `update` now refuse a `connection` key that names a credential. A source
+  stored earlier with such a key is still read, but `update` refuses it until you pass a whole new
+  `connection` that keeps the secret in an environment variable and names it in a `*_env` key
+  (e.g. `"password_env": "PG_PASSWORD"`).
+- Designs created earlier may carry a file path or table name in `methodology.steps`. They still
+  work. To keep the path out of the design and the report, rewrite the step with `{source:ID}`
+  through `/analysis-design`.
+
+Epic 17 (#102): a data source's `connection` reaches the model only in `/analysis-notebook`, and the
+catalog holds no credentials. Design: `docs/design/epic-17-connection-boundary.md`.
+
+### Changed
+
+- **`/analysis-framing` reads the data sources with `catalog_io list`**, which leaves `connection`
+  out, instead of opening the catalog YAML. Its cross-search no longer greps the source files
+  ([ADR-0022](docs/adr/0022-connection-reaches-only-the-notebook.md)).
+- **`/analysis-design` names a data source as `{source:ID}` in `methodology.steps`** and never writes
+  a path, host, project id or table name. `/analysis-notebook` replaces each `{source:ID}` with the
+  location in that source's `connection` in cell 2. `/analysis-auto`'s data-extraction beat shows
+  the data source id instead of the file ([ADR-0022](docs/adr/0022-connection-reaches-only-the-notebook.md)).
+- **`catalog_io create` and `update` refuse credential keys in `connection`** (`password`, `token`,
+  `api_key`, `secret`, `credential`, `private_key`, `access_key`, nested too) and exit non-zero,
+  naming the key but not its value. A key ending in `_env` passes. Reading is unchanged
+  ([ADR-0023](docs/adr/0023-catalog-holds-no-credentials.md)).
+
 ## [0.11.0] - 2026-11-20
 
 ### Upgrade note

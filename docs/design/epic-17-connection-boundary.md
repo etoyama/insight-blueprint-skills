@@ -143,6 +143,17 @@ Python のクラスを持たない契約は表で示す（[ADR-0011](../adr/0011
 | `methodology.steps` の `{source:ID}` | 追加。notebook の cell 2 が `connection` の値で置き換える | `skills/analysis-notebook/references/notebook-contract.md` と ADR |
 | `catalog_io create`・`update` の拒否 | 追加。認証情報のキーがあれば非ゼロで終わり、キー名を stderr に出す | `skills/_shared/catalog_io.py` と ADR |
 
+## Module Responsibilities
+
+| モジュール / 関数 | 責務（する） | 境界（しない → 委譲先） |
+|---|---|---|
+| `skills/analysis-framing/SKILL.md` Step 2b・2d | データソースを `catalog_io list` で読み、Grep は `designs/`・`catalog/knowledge/`・`rules/` に限る | データソースの YAML を開かない → `catalog_io` |
+| `skills/analysis-design/SKILL.md` Step 2.6 | `methodology.steps` にクエリやカラムの選び方を書き、データソースは `{source:ID}` で指す | 置き場所（パス・テーブル名）を書かない → `/analysis-notebook` |
+| `skills/analysis-notebook/SKILL.md` Step 3 と `references/notebook-contract.md` | cell 2 で `{source:ID}` を `connection` の値の文字列リテラルに置き換える | `source_ids` に無い id を推測で埋めない → `/analysis-design` へ戻す |
+| `skills/analysis-auto/SKILL.md` design ③ | 確かめる読み込みの計画に、データソースの id・カラム・フィルタを見せる | パスを見せない（id から分かる → `/catalog-register` の登録） |
+| `skills/_shared/catalog_io.py::_reject_credentials` | `create_source`・`update_source` が書く前に、`connection` の認証情報のキーを挙げて `ValueError` を出す | 値の形は見ない。読み込み（`load_source`・`list_sources`）は検査しない |
+| `skills/catalog-register/SKILL.md` Step 3 と catalog_io Reference | 認証情報を `connection` に書かず、`*_env` に環境変数の名前を書くよう案内する | キーの検査はしない → `catalog_io` |
+
 ## Sequence Diagram
 
 ```mermaid
