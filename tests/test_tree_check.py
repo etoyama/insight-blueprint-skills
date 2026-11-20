@@ -22,6 +22,10 @@ def values(text: str) -> list[Decimal]:
     return [n.value for n in numbers_in(text)]
 
 
+def signs(text: str) -> list[str]:
+    return [n.sign for n in numbers_in(text)]
+
+
 class TestNumbersIn:
     def test_a_text_without_digits_has_no_numbers(self) -> None:
         assert numbers_in("取消を除いて比べた") == []
@@ -61,8 +65,33 @@ class TestNumbersIn:
     def test_a_rounded_value_is_a_different_number(self) -> None:
         assert values("35") != values("34.6")
 
-    def test_the_sign_is_ignored(self) -> None:
-        assert values("-3.2") == [Decimal("3.2")]
+    @pytest.mark.parametrize("text", ["-3.2", "−3.2", "▲3.2", "－3.2"])
+    def test_a_clear_minus_sign_belongs_to_the_number(self, text: str) -> None:
+        (found,) = numbers_in(text)
+        assert (found.sign, found.value) == ("-", Decimal("3.2"))
+
+    @pytest.mark.parametrize("text", ["+3.2", "＋3.2"])
+    def test_a_clear_plus_sign_belongs_to_the_number(self, text: str) -> None:
+        (found,) = numbers_in(text)
+        assert (found.sign, found.value) == ("+", Decimal("3.2"))
+
+    def test_a_number_written_without_a_sign_has_none(self) -> None:
+        assert signs("3.2ポイント") == [""]
+
+    def test_the_token_keeps_the_sign_as_written(self) -> None:
+        assert [n.token for n in numbers_in("前年比▲3.2%")] == ["▲3.2"]
+
+    @pytest.mark.parametrize("text", ["10-20", "10+20", "2026-11-21"])
+    def test_a_hyphen_or_plus_right_after_a_digit_is_not_a_sign(
+        self, text: str
+    ) -> None:
+        assert set(signs(text)) == {""}
+
+    def test_a_hyphen_inside_an_id_is_not_a_sign(self) -> None:
+        assert signs("LIB-H01-E02") == ["", ""]
+
+    def test_a_sign_set_apart_from_the_digits_is_not_a_sign(self) -> None:
+        assert signs("- 3.2") == [""]
 
     def test_a_number_is_a_whole_token_never_a_substring(self) -> None:
         assert Decimal("1.9") not in values("21.95")
@@ -149,6 +178,35 @@ class TestFindViolations:
     def test_a_number_is_compared_by_value(self) -> None:
         events = {"LIB-H01-E01": "割合は１，２００．０％"}
         assert checked(claim("割合は1200パーセント", "LIB-H01-E01"), events) == []
+
+    def test_a_signed_number_the_record_states_in_words_is_not_cited(self) -> None:
+        events = {"LIB-H01-E01": "期限切れは3.2ポイント減った"}
+        found = checked(claim("期限切れは−3.2ポイント", "LIB-H01-E01"), events)
+        assert [(v.kind, v.text) for v in found] == [("number-not-cited", "−3.2")]
+
+    def test_the_same_sign_in_another_glyph_is_the_same_number(self) -> None:
+        events = {"LIB-H01-E01": "前年比 -3.2%"}
+        assert checked(claim("前年比▲3.2%", "LIB-H01-E01"), events) == []
+
+    def test_a_recorded_plus_sign_passes_when_written_again(self) -> None:
+        events = {"LIB-H01-E01": "前年比 +3.2%"}
+        assert checked(claim("前年比+3.2%", "LIB-H01-E01"), events) == []
+
+    @pytest.mark.parametrize(
+        ("recorded", "written", "token"),
+        [
+            ("-3.2", "3.2", "3.2"),
+            ("-3.2", "+3.2", "+3.2"),
+            ("3.2", "+3.2", "+3.2"),
+            ("+3.2", "3.2", "3.2"),
+        ],
+    )
+    def test_a_number_matches_only_with_the_sign_the_record_wrote(
+        self, recorded: str, written: str, token: str
+    ) -> None:
+        events = {"LIB-H01-E01": f"差は {recorded} ポイント"}
+        found = checked(claim(f"差は {written} ポイント", "LIB-H01-E01"), events)
+        assert [(v.kind, v.text) for v in found] == [("number-not-cited", token)]
 
     def test_without_any_existing_event_every_number_is_not_cited(self) -> None:
         found = checked(claim("152件だった", "LIB-H01-E09"), {})

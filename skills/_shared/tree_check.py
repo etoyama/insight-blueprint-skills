@@ -26,25 +26,49 @@ from insight_blueprint.models.tree import AnswerStatement, QuestionTree, design_
 from skills._shared.design_io import DEFAULT_BASE_DIR, _resolve_base_dir
 from skills._shared.tree_io import _tree_path, cited_journal_events, load_tree_model
 
-_NUMBER = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?")
+# A sign counts only when it touches the digits and no digit comes before it:
+# the hyphen of a range (10-20), a date or an id is not a sign.
+_NUMBER = re.compile(
+    r"(?:(?<!\d)(?P<sign>[-+−▲]))?"
+    r"(?P<digits>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)"
+)
+
+Sign = Literal["", "+", "-"]
 
 
 @dataclass(frozen=True)
 class Number:
     token: str
-    value: Decimal
+    sign: Sign
+    value: Decimal  # the magnitude; the direction is in sign
+
+    @property
+    def signed(self) -> tuple[Sign, Decimal]:
+        """What two numbers must share to be the same number."""
+        return (self.sign, self.value)
 
 
 def numbers_in(text: str) -> list[Number]:
-    """Numbers in *text*, compared by value: unit, sign and spelling do not count.
+    """Numbers in *text*, compared by sign and value: unit and spelling do not count.
 
     A converted or rounded value is a different number, so an answer cannot pass
-    by computing one.
+    by computing one. A written sign is part of the number: the direction of a
+    change is a claim, so "-3.2" passes only when a record wrote it with a minus.
     """
     return [
-        Number(m.group(), Decimal(m.group().replace(",", "")))
+        Number(
+            m.group(),
+            _sign_of(m.group("sign")),
+            Decimal(m.group("digits").replace(",", "")),
+        )
         for m in _NUMBER.finditer(unicodedata.normalize("NFKC", text))
     ]
+
+
+def _sign_of(written: str | None) -> Sign:
+    if written is None:
+        return ""
+    return "+" if written == "+" else "-"
 
 
 ViolationKind = Literal["missing-event", "unlinked-design", "number-not-cited"]
@@ -90,14 +114,14 @@ def _statement_problems(
         if design_id_of(cite) not in linked:
             problems.append(("unlinked-design", cite))
     seen = {
-        n.value
+        n.signed
         for cite in statement.cites
         if cite in events
         for n in numbers_in(events[cite])
     }
     for number in numbers_in(statement.text):
-        if number.value not in seen:
-            seen.add(number.value)
+        if number.signed not in seen:
+            seen.add(number.signed)
             problems.append(("number-not-cited", number.token))
     return problems
 
