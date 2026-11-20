@@ -70,13 +70,26 @@ class TestTheRenderedFileIsTheOnlySource:
 
     def test_renders_the_tree_first_and_takes_the_printed_path(self) -> None:
         step = _step(1)
-        assert "tree_io render --theme {theme_id}" in step
+        # Without the redirect the command waits on an unclosed stdin (#129).
+        assert "tree_io render --theme {theme_id} </dev/null" in step
         assert "`path`" in step
 
     def test_a_theme_without_a_tree_points_at_framing_and_stops(self) -> None:
         step = _step(1)
-        assert "/analysis-framing" in step
-        assert "exit" in step.lower()
+        assert (
+            "このテーマには論点ツリーがない。/analysis-framing {theme_id} で作ろう"
+            in step
+        )
+
+    def test_the_missing_tree_is_told_by_the_file_not_by_the_message(self) -> None:
+        # render exits 1 both for a missing tree and for a missing linked design.
+        step = _step(1)
+        missing = re.search(
+            r"[^.]*`\.insight/themes/\{theme_id\}_tree\.yaml`[^.]*\.", step
+        )
+        assert missing, "no sentence checks the tree file before render"
+        assert "does not exist" in missing.group(0)
+        assert step.index("_tree.yaml` does not exist") < step.index("tree_io render")
 
     def test_the_model_never_writes_or_changes_the_html(self) -> None:
         text = unwrap(_skill())
@@ -94,9 +107,9 @@ class TestTheRenderedFileIsTheOnlySource:
         assert "already approved" in step
 
     def test_always_creates_a_new_artifact(self) -> None:
-        text = unwrap(_skill())
-        assert "new Artifact" in text
-        assert "never update" in text.lower()
+        step = _step(4)
+        assert "Always a new Artifact" in step
+        assert "never update" in step.lower()
 
 
 class TestArtifactIsOptional:
@@ -109,7 +122,7 @@ class TestArtifactIsOptional:
         assert "exit" in step.lower()
 
     def test_tells_the_analyst_where_the_local_html_is(self) -> None:
-        assert ".insight/themes/{theme_id}_tree.html" in _step(2)
+        assert "論点ツリーの図は {path} にある" in _step(2)
 
     def test_names_no_tool(self) -> None:
         # Tool names carry a prefix that differs per environment.
@@ -127,7 +140,7 @@ class TestApprovalGate:
 
     def test_shows_the_destination_and_the_private_start_with_the_list(self) -> None:
         step = _step(3)
-        assert "Artifact" in step
+        assert "送り先: claude.ai の新しい Artifact" in step
         assert "自分だけに見える" in step
 
     @pytest.mark.parametrize(

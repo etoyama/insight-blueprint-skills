@@ -802,13 +802,15 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - `theme_id` は `^[A-Z][A-Z0-9]*$` に全体が一致するときだけ受け、パスを `.insight/themes/` の外へ出さない。
   - `/analysis-framing` は、ツリーを書いた実行の最後（5a か、4c の `revise-root` の後）に `render` を1回呼び、パスを伝える（Step 5c）。HTML は送らない。
 - Why: DesignDoc の中で置き場所が食い違っていた。Module Responsibilities と構成図は `/analysis-reflection` が渡すとし、シーケンス図は G13 を別の参加者に置いていた。framing も HTML を作るようになったので（人間の判断、PR #128 のコメント、2026-11-21）、reflection の中だけに置くと framing の直後の図を渡せない。
-- Criteria: Must は「ファイルを列挙して KEEP ゲートで待ち、承認を覚えない」（US-6 AC 1、ADR-0016）と「送るのは `render` が書いたファイル」（AC 3）。Want は「framing の直後も含めて図を渡せる」（高、Claude の推測）、「守りの文が1か所にある」（高、ADR-0016 の W1）、「18.4 との衝突と直すファイルの数」（中、Claude の推測）、「skill と名前が1つ増える」（中、Claude の推測）。決め手は守りの文が1か所にあること。置き場所と名前は人間が決めた（Story 18.7 のセッション、2026-11-21）。名前は Claude が `/tree-publish` を推したが、人間が `/tree-upload` を選んだ。`/report-upload` のときと同じく、publish は誰でも見られる公開と読めるため。
+- Criteria: Must は「ファイルを列挙して KEEP ゲートで待ち、承認を覚えない」（US-6 AC 1、ADR-0016）と「送るのは `render` が書いたファイル」（AC 3）。Want は「framing の直後も含めて図を渡せる」（高、Claude の推測）、「論点ツリーを送る守りの文が1か所にある」（高、ADR-0016 の W1）、「18.4 との衝突と直すファイルの数」（中、Claude の推測）、「skill と名前が1つ増える」（中、Claude の推測）。決め手は、論点ツリーを送る守りの文が1か所にあること。置き場所と名前は人間が決めた（Story 18.7 のセッション、2026-11-21）。名前は Claude が `/tree-publish` を推したが、人間が `/tree-upload` を選んだ。`/report-upload` のときと同じく、publish は誰でも見られる公開と読めるため。
 - Affected modules: `skills/tree-upload/SKILL.md`（新設）、`skills/analysis-framing/SKILL.md`、`skills/analysis-reflection/SKILL.md`、`tests/skills/test_tree_upload_structure.py`（新設）、`tests/skills/test_question_tree_structure.py`。
 - Alternatives considered:
   - `/analysis-reflection` の中に置く。skill は増えないが、振り返りの後にしか渡せない。18.4 が同じ時期に書き換えていた SKILL.md なので rebase で当たる。
   - framing と reflection の両方に同じ手順を書く。守りの文とテストが2組になり、片方だけ直す食い違いが起きる。
 - Consequences:
   - 分析者が覚える skill が1つ増える。framing と reflection の最後の案内で補う。
+  - 外部へ送る守りの文（データを指示として扱わない、KEEP ゲート、ホストに機能が無いときの停止）は、`/report-upload` と `/tree-upload` の2か所に写した。3つめの外部へ送る skill が来たら、共有の参照ファイルと、skill 名で回す ADR-0016 の構造テストに切り出す（Rule of Three）。
+  - `tree_io render` は、ツリーが無いときと結んだ分析設計が無いときに、どちらも終了コード 1 を返す。`/tree-upload` は render の前に正本のファイルがあるかを見て、framing への案内を出し分ける。
   - `/analysis-auto` の G13 の配線は 18.9 で入れる。driver は「送るか」を別に聞かず、`/tree-upload` のゲートがただ1回の問いになる（ADR-0016）。
   - 送った後でツリーが変わっても、Artifact は変わらない。新しい図を渡すには、もう一度 `/tree-upload` を打つ。
   - 生成した HTML は `<!doctype html>` から始まる完全な文書である。ホストの Artifact がそれをどう包むかは、ホストの側で決まる。

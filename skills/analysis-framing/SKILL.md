@@ -293,15 +293,13 @@ creates to that node.
 - 推奨手法: {methodology_suggestion}
 ````
 
-After outputting the Framing Brief, suggest:
-"仮説を設計するなら `/analysis-design`"
-
 #### 5c: Render the tree
 
-Run this once, after the last `tree_io` write of this run (5a, or a `revise-root` in 4c):
+Run this once, after the last `tree_io` write of this run (5a, or a `revise-root` in 4c).
+Run it even when this run wrote nothing, so the view matches the tree:
 
 ```bash
-tree_io render --theme LIB
+tree_io render --theme LIB </dev/null
 ```
 
 It writes the HTML view next to the tree (`.insight/themes/{theme_id}_tree.html`) and prints
@@ -314,6 +312,9 @@ its `path`. Tell the analyst that path: "論点ツリーの図: {path}（ブラ�
 - The HTML stays on this machine. This skill sends it nowhere. To hand it over by URL, the
   analyst runs `/tree-upload {theme_id}`, which asks before sending. Say so in one line; do not
   start it.
+
+Then end with the next step:
+"仮説を設計するなら `/analysis-design`"
 
 ## Chaining
 

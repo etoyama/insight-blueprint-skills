@@ -309,7 +309,10 @@ class TestDesignLinksItselfToTheNode:
 class TestSkillsCallOnlyCommandsTreeIoHas:
     """A command a skill names must exist, or the step fails at the analyst's desk."""
 
-    @pytest.mark.parametrize("skill", ["analysis-framing", "analysis-design"])
+    @pytest.mark.parametrize(
+        "skill",
+        ["analysis-framing", "analysis-design", "analysis-reflection", "tree-upload"],
+    )
     def test_every_named_command_exists(self, skill: str) -> None:
         named = set(_COMMAND.findall(_read_skill(skill)))
 
@@ -329,7 +332,7 @@ class TestFramingRendersTheTree:
         insight = tmp_path / ".insight"
         _run_shown_commands(_framing("#### 5a: "), insight, monkeypatch)
         shown = re.search(
-            r"^tree_io (render --theme LIB)$", _framing("#### 5c: "), re.M
+            r"^tree_io (render --theme LIB) </dev/null$", _framing("#### 5c: "), re.M
         )
         assert shown, "5c shows no render command for the example theme"
         monkeypatch.setattr("sys.stdin", io.StringIO(""))
@@ -364,6 +367,10 @@ class TestFramingRendersTheTree:
         failed = re.search(r"[^.]*non-zero[^.]*\.", step)
         assert failed, "no sentence says what a failed render means"
         assert "the tree itself is written" in step
+
+    def test_the_run_still_ends_on_the_design(self) -> None:
+        step = unwrap(_framing("#### 5c: "))
+        assert step.rstrip().endswith('"仮説を設計するなら `/analysis-design`"')
 
     def test_framing_sends_the_html_nowhere(self) -> None:
         step = unwrap(_framing("#### 5c: "))

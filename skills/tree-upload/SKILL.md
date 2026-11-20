@@ -43,11 +43,11 @@ The skill never updates an existing Artifact and never shares one.
 1. Take `{theme_id}` from the argument. Without one, list `.insight/themes/*_tree.yaml` and ask
    which theme to upload. The whole id must fully match `^[A-Z][A-Z0-9]*$`. Otherwise stop and
    send nothing: the path built from it must stay inside `.insight/themes/`.
-2. Run `tree_io render --theme {theme_id} </dev/null`. It writes the HTML from the canonical
-   tree and prints its `path`; that path is the only file this skill sends.
-   - If it says the tree is not found, stop:
-     "このテーマには論点ツリーがない。/analysis-framing {theme_id} で作ろう" → exit.
-   - Any other non-zero exit: show stderr, send nothing, and exit.
+2. If `.insight/themes/{theme_id}_tree.yaml` does not exist, stop:
+   "このテーマには論点ツリーがない。/analysis-framing {theme_id} で作ろう" → exit.
+3. Run `tree_io render --theme {theme_id} </dev/null`. It writes the HTML from the canonical
+   tree and prints its `path`; that path is the only file this skill sends. If it exits
+   non-zero (for example, a linked design is gone), show stderr, send nothing, and exit.
 
 Never write, edit, copy or regenerate the HTML yourself, and never send a page you wrote:
 the page is what `tree_io render` printed, byte for byte.
@@ -64,7 +64,7 @@ local HTML file as a page on claude.ai; its name differs per environment, so go 
 
 If it is not there, send nothing and stop:
 "この環境では Artifact が使えないので、アップロードできない。何も送っていない。
-論点ツリーの図は `.insight/themes/{theme_id}_tree.html` にある。ブラウザで開くか、ファイルのまま渡してほしい" → exit.
+論点ツリーの図は {path} にある。ブラウザで開くか、ファイルのまま渡してほしい" → exit.
 Do not ask for approval first, and do not try another destination.
 
 ### Step 3: List the file and wait for approval (KEEP gate)
