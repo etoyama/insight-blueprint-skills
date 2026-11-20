@@ -174,7 +174,12 @@ _MARK_WORDS = {
     ),
 }
 
-_DECISION_LABELS = {TreeDecisionKind.start: "最初の論点を選ぶ"}
+_DECISION_LABELS = {
+    TreeDecisionKind.start: "最初の論点を選ぶ",
+    TreeDecisionKind.deepen: "深める",
+    TreeDecisionKind.return_: "親に戻る",
+    TreeDecisionKind.close: "区切る",
+}
 
 _DIRECTION_GLOSSES = {
     "supports": "仮説を支持する",

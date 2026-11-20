@@ -347,8 +347,10 @@ class TestDecide:
             self._decide(two_nodes, reason="")
         assert "decisions" not in tree_io.load_tree("LIB", two_nodes)
 
-    def test_a_kind_other_than_start_is_not_written(self, two_nodes: Path) -> None:
-        with pytest.raises(ValueError, match="kind"):
+    def test_a_first_decision_other_than_start_is_not_written(
+        self, two_nodes: Path
+    ) -> None:
+        with pytest.raises(ValueError, match="must be a start"):
             self._decide(two_nodes, kind="close")
         assert "decisions" not in tree_io.load_tree("LIB", two_nodes)
 

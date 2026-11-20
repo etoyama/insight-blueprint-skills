@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Self
 
@@ -133,6 +133,40 @@ class Answer(BaseModel):
     created_at: datetime | None = None
 
 
+class NextCandidate(BaseModel):
+    """What the analyst keeps about a node to ask a person next.
+
+    The nodes worth asking about are derived (``QuestionTree.untouched_nodes``);
+    this only holds the notes attached to one, and the answer that was heard.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    ask: str = ""
+    changes_if: str = ""
+    known: str = ""
+    answer: str = ""
+    answered_by: str = ""
+    answered_at: date | None = None
+
+    @model_validator(mode="after")
+    def _notes_hang_together(self) -> Self:
+        if not (self.ask or self.changes_if or self.known):
+            raise ValueError(
+                "next_candidate: needs at least one of ask, changes_if, known"
+            )
+        if self.changes_if and not self.ask:
+            raise ValueError("next_candidate: changes_if needs the ask it belongs to")
+        heard = (self.answer, self.answered_by, self.answered_at)
+        if any(heard) and not all(heard):
+            raise ValueError(
+                "next_candidate: answer, answered_by and answered_at are set together"
+            )
+        if self.answer and not self.ask:
+            raise ValueError("next_candidate: an answer needs the ask it answers")
+        return self
+
+
 class QuestionNode(BaseModel):
     """One node of the tree: a question, and what answering it does for its parent."""
 
@@ -145,6 +179,7 @@ class QuestionNode(BaseModel):
     origin_event_id: str | None = None
     design_ids: list[str] = Field(default_factory=list)
     answers: list[Answer] = Field(default_factory=list)
+    next_candidate: NextCandidate | None = None
 
     def current_answer(self) -> Answer | None:
         return self.answers[-1] if self.answers else None
@@ -171,9 +206,12 @@ class QuestionNode(BaseModel):
 
 
 class TreeDecisionKind(StrEnum):
-    """What a tree decision decided. Only ``start`` exists until Story 18.5."""
+    """What a tree decision decided; ``node_id`` is the node to investigate next."""
 
     start = "start"
+    deepen = "deepen"
+    return_ = "return"
+    close = "close"
 
 
 class TreeDecision(BaseModel):
@@ -213,6 +251,34 @@ class QuestionTree(BaseModel):
 
     def root(self) -> QuestionNode:
         return next(n for n in self.nodes if n.parent_question_id is None)
+
+    def current_node_id(self) -> str | None:
+        """The node of the last decision: where the investigation is now."""
+        return self.decisions[-1].node_id if self.decisions else None
+
+    def untouched_nodes(self) -> list[QuestionNode]:
+        """The next candidates: no design is linked to the node or anything below it."""
+        touched = {n.id for n in self.nodes if n.design_ids}
+        parents = {n.id: n.parent_question_id for n in self.nodes}
+        for node_id in list(touched):
+            parent = parents[node_id]
+            while parent is not None:
+                touched.add(parent)
+                parent = parents[parent]
+        return [
+            n
+            for n in self.nodes
+            if n.parent_question_id is not None and n.id not in touched
+        ]
+
+    def _is_within(self, node_id: str, branch_id: str) -> bool:
+        parents = {n.id: n.parent_question_id for n in self.nodes}
+        found: str | None = node_id
+        while found is not None:
+            if found == branch_id:
+                return True
+            found = parents[found]
+        return False
 
     @model_validator(mode="after")
     def _check_tree(self) -> Self:
@@ -290,6 +356,44 @@ class QuestionTree(BaseModel):
         starts = sum(d.kind is TreeDecisionKind.start for d in self.decisions)
         if starts > 1:
             raise ValueError("decisions: a tree has at most one start decision")
+        previous: TreeDecision | None = None
+        for decision in self.decisions:
+            self._check_decision_after(decision, previous)
+            previous = decision
+
+    def _check_decision_after(
+        self, decision: TreeDecision, previous: TreeDecision | None
+    ) -> None:
+        kind = decision.kind
+        if previous is None:
+            if kind is not TreeDecisionKind.start:
+                raise ValueError("decisions: the first decision must be a start")
+            return
+        if decision.round < previous.round:
+            raise ValueError(
+                f"decisions: rounds must not decrease, got {previous.round} "
+                f"then {decision.round}"
+            )
+        if decision.round > self.current_round():
+            raise ValueError(
+                f"decisions: round {decision.round} is past the last reflection "
+                f"round {self.current_round()}"
+            )
+        inside = self._is_within(decision.node_id, previous.node_id)
+        if kind is TreeDecisionKind.deepen and not inside:
+            raise ValueError(
+                f"decisions: deepen goes to {previous.node_id} or below it, "
+                f"not {decision.node_id}"
+            )
+        if kind is TreeDecisionKind.return_ and inside:
+            raise ValueError(
+                f"decisions: return leaves {previous.node_id}, "
+                f"but {decision.node_id} is inside it"
+            )
+        if kind is TreeDecisionKind.close and decision.node_id != previous.node_id:
+            raise ValueError(
+                f"decisions: close stops at {previous.node_id}, not {decision.node_id}"
+            )
 
     def _check_parents(self) -> None:
         parents = {n.id: n.parent_question_id for n in self.nodes}

@@ -14,7 +14,12 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 
 from insight_blueprint.models.design import DesignStatus
-from insight_blueprint.models.tree import Progress, QuestionTree, StatementKind
+from insight_blueprint.models.tree import (
+    NextCandidate,
+    Progress,
+    QuestionTree,
+    StatementKind,
+)
 from insight_blueprint.validate import validate_tree
 
 ROOT_QUESTION = "取り置き期限を延ばす試行をするか"
@@ -159,10 +164,15 @@ class TestTreeDecision:
         data["decisions"][0]["reason"] = ""
         assert "reason" in errors_of(data)
 
-    def test_a_kind_other_than_start_is_rejected(self) -> None:
+    def test_a_kind_outside_the_four_is_rejected(self) -> None:
+        data = tree_dict()
+        data["decisions"][0]["kind"] = "abandon"
+        assert "kind" in errors_of(data)
+
+    def test_the_first_decision_must_be_a_start(self) -> None:
         data = tree_dict()
         data["decisions"][0]["kind"] = "close"
-        assert "kind" in errors_of(data)
+        assert "first decision must be a start" in errors_of(data)
 
     def test_an_unknown_field_of_a_decision_is_rejected(self) -> None:
         data = tree_dict()
@@ -179,6 +189,179 @@ class TestTreeDecision:
         del data["decisions"]
         dumped = QuestionTree.model_validate(data).model_dump(exclude_defaults=True)
         assert "decisions" not in dumped
+
+
+def branching_tree(*decisions: dict) -> dict:
+    """Q01 root; Q02 and Q04 under it; Q03 under Q02; decided to start at Q02."""
+    data = tree_dict()
+    data["nodes"] += [
+        {
+            "id": "LIB-Q03",
+            "question": "通知は期限の何日前に届くか",
+            "parent_question_id": "LIB-Q02",
+            "contribution": "通知の遅れが期限切れに混ざる",
+        },
+        {
+            "id": "LIB-Q04",
+            "question": "取り置き待ちの人数は何人か",
+            "parent_question_id": "LIB-Q01",
+            "contribution": "延長で待ち時間が伸びる人数が決まる",
+        },
+    ]
+    data["nodes"][1]["answers"] = [
+        {
+            "round": 1,
+            "root_revision": 1,
+            "statements": [
+                {"kind": "claim", "text": "取消を除く", "cites": ["LIB-H01-E01"]}
+            ],
+        }
+    ]
+    data["decisions"] += list(decisions)
+    return data
+
+
+def decision(kind: str, node_id: str, round: int = 1) -> dict:
+    return {"round": round, "kind": kind, "node_id": node_id, "reason": "理由"}
+
+
+class TestDecisionKinds:
+    def test_deepen_stays_on_the_node_or_goes_below_it(self) -> None:
+        tree = QuestionTree.model_validate(
+            branching_tree(decision("deepen", "LIB-Q02"), decision("deepen", "LIB-Q03"))
+        )
+        assert tree.current_node_id() == "LIB-Q03"
+
+    def test_deepen_to_a_node_outside_the_branch_is_rejected(self) -> None:
+        data = branching_tree(decision("deepen", "LIB-Q04"))
+        assert "deepen goes to LIB-Q02 or below" in errors_of(data)
+
+    def test_return_goes_to_a_node_outside_the_current_branch(self) -> None:
+        tree = QuestionTree.model_validate(
+            branching_tree(decision("return", "LIB-Q04"))
+        )
+        assert tree.current_node_id() == "LIB-Q04"
+
+    def test_return_to_the_same_node_or_below_it_is_rejected(self) -> None:
+        for target in ("LIB-Q02", "LIB-Q03"):
+            data = branching_tree(decision("return", target))
+            assert "return leaves LIB-Q02" in errors_of(data)
+
+    def test_return_to_the_parent_is_outside_the_branch(self) -> None:
+        tree = QuestionTree.model_validate(
+            branching_tree(decision("return", "LIB-Q01"))
+        )
+        assert tree.current_node_id() == "LIB-Q01"
+
+    def test_close_stops_at_the_node_it_was_investigating(self) -> None:
+        tree = QuestionTree.model_validate(branching_tree(decision("close", "LIB-Q02")))
+        assert tree.current_node_id() == "LIB-Q02"
+
+    def test_close_on_another_node_is_rejected(self) -> None:
+        data = branching_tree(decision("close", "LIB-Q04"))
+        assert "close stops at LIB-Q02" in errors_of(data)
+
+    def test_a_decision_round_cannot_pass_the_last_reflection_round(self) -> None:
+        data = branching_tree(decision("deepen", "LIB-Q02", round=2))
+        assert "past the last reflection round 1" in errors_of(data)
+
+    def test_decision_rounds_never_decrease(self) -> None:
+        data = branching_tree(
+            decision("deepen", "LIB-Q02", round=1),
+            decision("deepen", "LIB-Q02", round=0),
+        )
+        assert "rounds must not decrease" in errors_of(data)
+
+    def test_the_current_node_of_a_tree_without_decisions_is_none(self) -> None:
+        data = tree_dict()
+        del data["decisions"]
+        assert QuestionTree.model_validate(data).current_node_id() is None
+
+
+class TestUntouchedNodes:
+    def test_a_node_with_no_design_below_it_is_a_next_candidate(self) -> None:
+        data = branching_tree()
+        data["nodes"][2]["design_ids"] = ["LIB-H01"]
+        tree = QuestionTree.model_validate(data)
+        assert [n.id for n in tree.untouched_nodes()] == ["LIB-Q04"]
+
+    def test_a_node_whose_descendant_has_a_design_is_touched(self) -> None:
+        data = branching_tree()
+        data["nodes"][2]["design_ids"] = ["LIB-H01"]
+        ids = [n.id for n in QuestionTree.model_validate(data).untouched_nodes()]
+        assert "LIB-Q02" not in ids and "LIB-Q01" not in ids
+
+    def test_the_root_is_never_a_candidate(self) -> None:
+        tree = QuestionTree.model_validate(tree_dict())
+        assert [n.id for n in tree.untouched_nodes()] == ["LIB-Q02"]
+
+    def test_untouched_nodes_come_in_tree_order(self) -> None:
+        tree = QuestionTree.model_validate(branching_tree())
+        assert [n.id for n in tree.untouched_nodes()] == [
+            "LIB-Q02",
+            "LIB-Q03",
+            "LIB-Q04",
+        ]
+
+
+class TestNextCandidate:
+    ASK = "予約取消は、窓口でどれくらい起きますか"
+
+    def test_an_ask_alone_is_a_valid_note(self) -> None:
+        assert NextCandidate(ask=self.ASK).answer == ""
+
+    def test_known_alone_is_a_valid_note(self) -> None:
+        assert NextCandidate(known="カタログに取消フラグがある").ask == ""
+
+    def test_a_note_with_nothing_in_it_is_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="at least one of"):
+            NextCandidate()
+
+    def test_changes_if_needs_the_ask(self) -> None:
+        with pytest.raises(ValidationError, match="changes_if needs the ask"):
+            NextCandidate(known="x", changes_if="延長の可否")
+
+    def test_an_answer_needs_who_and_when(self) -> None:
+        with pytest.raises(ValidationError, match="set together"):
+            NextCandidate(ask=self.ASK, answer="月に十数件")
+
+    def test_who_and_when_without_an_answer_are_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="set together"):
+            NextCandidate(ask=self.ASK, answered_by="窓口の職員")
+
+    def test_an_answer_needs_the_ask_it_answers(self) -> None:
+        with pytest.raises(ValidationError, match="answer needs the ask"):
+            NextCandidate(
+                known="x",
+                answer="月に十数件",
+                answered_by="窓口の職員",
+                answered_at="2026-11-21",
+            )
+
+    def test_a_heard_answer_keeps_who_and_the_date(self) -> None:
+        note = NextCandidate(
+            ask=self.ASK,
+            answer="月に十数件",
+            answered_by="窓口の職員",
+            answered_at="2026-11-21",
+        )
+        assert (note.answered_by, note.answered_at.isoformat()) == (
+            "窓口の職員",
+            "2026-11-21",
+        )
+
+    def test_a_node_keeps_its_note_through_a_dump_and_a_load(self) -> None:
+        data = tree_dict()
+        data["nodes"][1]["next_candidate"] = {
+            "ask": self.ASK,
+            "answer": "月に十数件",
+            "answered_by": "窓口の職員",
+            "answered_at": "2026-11-21",
+        }
+        tree = QuestionTree.model_validate(data)
+        dumped = tree.model_dump(mode="json", exclude_none=True, exclude_defaults=True)
+        assert QuestionTree.model_validate(dumped) == tree
+        assert dumped["nodes"][1]["next_candidate"]["answered_at"] == "2026-11-21"
 
 
 def statement(**overrides: object) -> dict:
