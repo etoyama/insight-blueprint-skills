@@ -338,77 +338,144 @@ decisions:
 
 ## Sequence Diagram
 
-### 着手
+分析者の入口は `/analysis-auto` ひとつにする。
+auto は論点ツリーを作り、論点を1つずつ巡回する。研究で RQ がまだ無いときは、ツリーを作る前に `/rq-problematization` で先行研究を集め、前提を問い直して RQ を立てる。
+1回の巡回は分析設計、premortem、notebook、journal、分析設計の振り返り、テーマを横断した振り返り、ツリーの決定の順に進む。
+分析者とのやり取りは KEEP ゲートだけで起きる。図では、分析者が答えるメッセージに G1〜G14 の番号を振った。
+各 skill は今までどおり単独でも起動できる（[ADR-0005](../adr/0005-selective-autonomous-chaining.md)）。
 
 ```mermaid
 sequenceDiagram
     actor U as 分析者
+    participant A as /analysis-auto
+    participant Q as /rq-problematization
     participant F as /analysis-framing
-    participant T as tree_io
-    participant V as validate.py
-    participant FS as .insight/themes/
-    U->>F: 顧客が決めたいこと、または研究テーマと想定読者
-    F->>F: データと既存の分析を探索（Step 2、変えない）
-    F-->>U: 根の問い、到達点、暫定の第一階層、各論点の寄与と優先の理由
-    U->>F: 最初に調べる論点を選ぶ（理由つき）
-    F->>T: create（根、到達点、第一階層）、decide start
-    T->>V: 検証
-    V-->>T: ok
-    T->>FS: {theme_id}_tree.yaml を書く
-    T->>FS: render で {theme_id}_tree.html を書く
-    F-->>U: Framing Brief（theme_id、論点の id）、HTML のパス
-    U->>F: /analysis-design へ進む
-```
-
-### 横断の振り返り
-
-```mermaid
-sequenceDiagram
-    actor U as 分析者
+    participant D as /analysis-design・/analysis-review
+    participant P as /premortem
+    participant N as /analysis-notebook・/analysis-journal
     participant R as /analysis-reflection
-    participant T as tree_io
-    participant D as design_io
-    participant C as tree_check
-    participant FS as .insight/
-    U->>R: テーマ（theme_id）を渡す
-    R->>T: ツリーを読む
-    R->>D: 各論点の分析設計と状態を読む
-    R->>FS: 各分析設計の journal を読む
-    R->>R: 論点ごとに現時点の答えを書く（文ごとに種類と引用）
-    R->>T: answer（回と根の版つきで追記）
-    R->>C: 検査
-    C->>FS: 引用先の出来事と分析設計を読む
-    C-->>R: 違反の一覧
-    alt 違反がある
-        R->>T: 直した答えを追記するか、その文を除く
-        R->>C: もう一度検査
+    participant T as tree_io・tree_check
+    participant O as /analysis-report・/report-upload・Artifact
+
+    U->>A: テーマ（theme_id）と、顧客が決めたいこと、または研究テーマ
+    A->>T: ツリーを読む
+    alt ツリーが無い
+        opt 研究で、RQ がまだ無い
+            Note over U,O: 研究の上流 ラピッドレビュー、問題化、RQ の設定
+            A->>Q: 研究テーマを任せる
+            Q-->>U: 前提の一覧を途中で確認するか
+            U->>Q: G1 確認する、または最後まで進める
+            Q->>Q: 先行研究を集めて検証の状態を付け、既存の理論をまとめる（AUTO）
+            Q->>Q: 前提を5つの類型で抜き出し、批判役の agent と詰める（AUTO）
+            opt G1 で確認を選んだ
+                Q-->>U: 詰めた前提の一覧
+                U->>Q: G2 問い直す前提を選ぶ、直す
+            end
+            Q->>Q: 前提を評価し、代わりの前提から RQ を立て、想定読者を検討する（AUTO）
+            Q-->>A: RQ Brief と、文献と前提の整理を書いたファイルのパス
+        end
+
+        Note over U,O: 工程1 相談・課題の定義、工程2 分析・収集の設計
+        A->>F: framing に任せる（RQ Brief があれば渡す）
+        F->>F: データと既存の分析を探索する（AUTO）
+        F-->>U: Data Map、根の問いと到達点の案
+        U->>F: G3 根の問いと到達点を決める（研究では、検証する RQ、想定読者、主張の範囲）
+        F-->>U: 暫定の第一階層、各論点の寄与と優先の理由
+        U->>F: G4 最初に調べる論点を選ぶ（理由つき）
+        F->>T: create、decide start、render
+        F-->>A: Framing Brief（theme_id、論点の id）
+    else ツリーがある
+        T-->>A: 最新のツリーの決定と、次に調べる論点
     end
-    R->>T: render
-    R-->>U: 変わった答え、未判別の論点、次の候補（人に聞く問いと、答えで変わる判断）、HTML のパス
-    U->>R: 深める・親に戻る・区切る と理由
-    R->>T: decide
+
+    loop 論点ごとの巡回（区切るまで）
+        Note over U,O: 工程2 分析・収集の設計
+        A->>D: 論点から分析設計を起こす（AUTO で下書き）
+        D-->>U: 仮説、手法、データの取り方、図の案
+        U->>D: G5 4つの確認（仮説と決定の文脈、手法、データの取り方、図）
+        D->>T: link（分析設計を論点に結ぶ）
+        opt レビューを頼まれた
+            D-->>U: レビューの指摘
+            U->>D: G6 判定
+        end
+
+        Note over U,O: 工程3 データ取得・理解・整備
+        A->>P: premortem
+        alt HARD_BLOCK か HIGH
+            P-->>U: リスク（未登録のデータソース、費用、許可リスト外のパッケージ）
+            U->>A: G7 進める、分析設計を直す、/catalog-register で登録する
+        end
+
+        Note over U,O: 工程4 探索・仮説の更新、工程5 推定・モデル構築
+        A->>N: notebook を作って実行する
+        opt 宣言外の送受信、許可リスト外のパッケージ、ほかの副作用
+            N-->>U: 副作用の中身
+            U->>N: G8 進めてよいか
+        end
+        N->>N: observe・evidence・question を journal に残す（AUTO）
+
+        Note over U,O: 工程6 妥当性検証・レビュー、工程7 解釈・報告・意思決定支援
+        A->>R: 分析設計の振り返り
+        R-->>U: 証拠のまとめ
+        U->>R: G9 結論（conclude・refine・branch）と状態の遷移
+        A->>R: テーマを横断した振り返り
+        R->>R: 論点ごとに現時点の答えを書く（文ごとに種類と引用）
+        R->>T: answer、tree_check
+        T-->>R: 違反の一覧
+        opt 違反がある
+            R->>T: 直すか除いて、もう一度検査する（AUTO）
+        end
+        R->>T: render
+        R-->>U: 変わった答え、未判別の論点、次の候補（人に聞く問いと、その答えで変わる判断）、HTML のパス
+        U->>R: G10 深める・親に戻る・区切る と理由、次に調べる論点
+        R->>T: decide
+
+        opt 根の問いか到達点を変える（工程1へ戻る。研究では前提の問い直しへ戻ることもある）
+            A->>F: framing を再実行する
+            F-->>U: 根の版を上げるか
+            U->>F: G11 版を上げるかと、その理由
+            F->>T: revise-root
+        end
+        opt 結論の出た分析設計でレポートを作る
+            A-->>U: レポートを作るか
+            U->>A: G12 作る
+            A->>O: /analysis-report、続けて /report-upload
+            O-->>U: Claude Docs へ送るファイルの一覧
+            U->>O: G13 送るかどうか
+        end
+        opt 図を渡したい（定例報告やレビュー）
+            O-->>U: Artifact で送るファイルの一覧と、誰に見えるか
+            U->>O: G14 送るかどうか
+        end
+        break G10 で区切るを選んだ
+            A-->>U: 実行の要約（止まった所と理由、ツリーの HTML のパス）
+        end
+    end
 ```
 
-### Artifact で渡す
+人に聞く問いへの答えを集めるヒアリングは plugin の外で行う（[docs/PRD.md](../PRD.md) のスコープ外）。
+分析者は答えを持って G10 で次の論点を選ぶ。
+Artifact はホストの機能で、plugin は持たない。使えるかどうかはそのセッションのツールで判断する。使えなければ、何も送らずに手元の HTML のパスを伝える（G14 は起きない）。
 
-```mermaid
-sequenceDiagram
-    actor U as 分析者
-    participant R as /analysis-reflection
-    participant A as Artifact（ホスト）
-    U->>R: 図を渡したい
-    alt Artifact が使えない
-        R-->>U: 何も送っていない。手元の HTML のパス
-    else 使える
-        R-->>U: 送るファイルの一覧、送り先、誰に見えるか（KEEP ゲート）
-        U->>R: 承認
-        R->>A: {theme_id}_tree.html を公開
-        A-->>R: URL（本人だけに見える状態）
-        R-->>U: URL
-    end
-```
+### 業務工程と skill の対応
 
-Artifact はホストの機能で、plugin は持たない。使えるかどうかは、そのセッションのツールで判断する。
+工程は、人間が渡した資料「良い分析者を支える能力・手続き・態度」（ラピッドレビュー、2026-11-18、3頁）の8工程に従う。
+資料の8工程は業務の分析を想定しているので、研究では工程1の前に上流工程を3つ足す（人間の発言、2026-11-20）。
+資料は工程どうしを一方向に並べず、探索と検証の結果に応じて前の工程へ戻るとしている。上の図では論点ごとの巡回と、工程1へ戻る `revise-root` がこれにあたる。
+
+| 工程 | 担う skill | 分析者とのやり取り | 足りない所 |
+|---|---|---|---|
+| 研究 a ラピッドレビュー | `/rq-problematization` の Step 2・3（先行研究を集めて検証の状態を付け、既存の理論をまとめる） | なし | 引用の検証はあるが、検索の記録、採否の基準、文献ごとの質の評価、レビューの限界を残す手順は無い |
+| 研究 b 問題化 | `/rq-problematization` の Step 4〜6（前提の抜き出し、批判役との詰め、評価） | G1、G2 | — |
+| 研究 c RQ の設定 | `/rq-problematization` の Step 7・8 と RQ Brief | G3 | RQ Brief に想定読者の欄が無い。framing が G3 で聞く（US-1 AC 4） |
+| 1 相談・課題の定義 | `/analysis-framing`（根の問い、到達点） | G3、G11 | ヒアリングそのものは扱わない。AI が出すのは人に聞く問いの案まで |
+| 2 分析・収集の設計 | `/analysis-framing`（第一階層、最初の論点）、`/analysis-design`、`/analysis-review` | G4、G5、G6 | — |
+| 3 データ取得・理解・整備 | `/premortem`、`/catalog-register`、`/analysis-design` のデータの取り方、`/analysis-notebook` のリネージ | G5、G7 | データの発生源を担当者に確かめる手順は無い。次の候補の「人に聞く問い」で代える |
+| 4 探索・仮説の更新 | `/analysis-notebook`、`/analysis-journal`（`observe`・`question`）、`question` の論点への昇格 | G8、G10 | — |
+| 5 推定・モデル構築 | `/analysis-notebook` | G8 | — |
+| 6 妥当性検証・レビュー | `/analysis-journal` の `evidence`（`contradicts`）、ツリーの検査 | G9 | `/analysis-review` は実行する前の分析設計を見る。結果を別のソースや別の条件で確かめる skill は無い |
+| 7 解釈・報告・意思決定支援 | `/analysis-reflection`（分析設計1つと、テーマの横断）、`/analysis-report`、`/report-upload`、`tree_io render`、Artifact | G9、G10、G12〜G14 | — |
+| 8 導入・監視・改善・引き継ぎ | 論点ツリーの HTML、`/knowledge-extract` | なし | 導入と監視はスコープ外（[docs/PRD.md](../PRD.md)）。扱うのは引き継ぎだけ |
 
 ## Decisions
 
