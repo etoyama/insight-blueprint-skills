@@ -17,6 +17,23 @@ machine-readable (the `verdict` cell persists a JSON side-effect that the skill 
 | 6 | verdict | `def _(results, figure_manifest, json, Path, mo):` | `(verdict,)` | Build `verdict` dict (include `figures=figure_manifest`) and **persist it** to `.insight/notebooks/{id}_verdict.json` (the skill reads this). Display via `mo.md()` |
 | 7 | lineage | `def _(session, export_lineage_as_mermaid, mo):` | — | `export_lineage_as_mermaid(session, project_path=".")` → `.insight/lineage/{id}.mmd`; display via `mo.mermaid()` |
 
+## Lineage calls
+
+Call `LineageSession` and `tracked_pipe` exactly as below. `tracked_pipe` takes the step function
+first, then `reason` and `session` as **keyword-only** arguments, and returns a function of one
+DataFrame — pass it to `.pipe()`. It never takes the DataFrame itself, and it has no `name`.
+
+```python
+# cell 2 (data_load)
+session = LineageSession(name="{id}-analysis", design_id="{id}")
+
+# cell 3 (data_prep) — same shape in cell 4; one tracked_pipe per transform
+def _drop_nulls(df):
+    return df.dropna()
+
+df_clean = raw_df.pipe(tracked_pipe(_drop_nulls, reason="drop rows with nulls", session=session))
+```
+
 ## `results` shape (cell 4)
 
 ```python
