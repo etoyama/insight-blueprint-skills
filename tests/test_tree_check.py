@@ -117,13 +117,12 @@ def tree_with(*nodes: dict) -> QuestionTree:
     )
 
 
-def checked(statement: dict, events: dict[str, str], **fields: object) -> list:
+def checked(statement: dict, events: dict[str, str]) -> list[Violation]:
     """Violations of one answer to LIB-Q02, which links LIB-H01."""
     tree = tree_with(
         node(
             "LIB-Q02", "LIB-Q01", design_ids=["LIB-H01"], answers=[answer_of(statement)]
         )
-        | fields
     )
     return find_violations(tree, events)
 
@@ -285,7 +284,7 @@ def write_tree(base: Path, tree: QuestionTree) -> Path:
     return path
 
 
-def write_journal(base: Path, design_id: str, *events: tuple[str, object]) -> None:
+def write_journal(base: Path, design_id: str, *events: tuple[int, object]) -> None:
     design_io.write_journal(
         design_id,
         {
@@ -332,15 +331,91 @@ class TestCheckTheme:
 
         assert [v.kind for v in found] == ["missing-event"]
 
-    def test_an_event_without_text_content_holds_no_numbers(
-        self, tmp_path: Path
-    ) -> None:
-        write_tree(tmp_path, answered_tree("3件", "LIB-H01-E01", "LIB-H01-E02"))
-        write_journal(tmp_path, "LIB-H01", (1, None), (2, 3))
+    def test_an_event_without_content_holds_no_numbers(self, tmp_path: Path) -> None:
+        write_tree(tmp_path, answered_tree("3件", "LIB-H01-E01"))
+        write_journal(tmp_path, "LIB-H01", (1, None))
 
         found = tree_check.check_theme("LIB", tmp_path)
 
         assert [(v.kind, v.text) for v in found] == [("number-not-cited", "3")]
+
+    def test_content_written_as_a_bare_number_is_read_as_its_text(
+        self, tmp_path: Path
+    ) -> None:
+        write_tree(tmp_path, answered_tree("割合は34.6%", "LIB-H01-E01"))
+        write_journal(tmp_path, "LIB-H01", (1, 34.6))
+
+        assert tree_check.check_theme("LIB", tmp_path) == []
+
+    def test_an_event_filed_in_the_journal_of_another_design_is_missing(
+        self, tmp_path: Path
+    ) -> None:
+        tree = tree_with(
+            node(
+                "LIB-Q02",
+                "LIB-Q01",
+                design_ids=["LIB-H01", "LIB-H02"],
+                answers=[answer_of(claim("999件", "LIB-H01-E01", "LIB-H02-E05"))],
+            )
+        )
+        write_tree(tmp_path, tree)
+        design_io.write_journal(
+            "LIB-H01",
+            {
+                "events": [
+                    {"id": "LIB-H01-E01", "content": "記録"},
+                    {"id": "LIB-H02-E05", "content": "999件"},
+                ]
+            },
+            base_dir=tmp_path,
+        )
+
+        found = tree_check.check_theme("LIB", tmp_path)
+
+        assert [(v.kind, v.text) for v in found] == [
+            ("missing-event", "LIB-H02-E05"),
+            ("number-not-cited", "999"),
+        ]
+
+    def test_an_event_whose_id_is_not_text_is_skipped(self, tmp_path: Path) -> None:
+        write_tree(tmp_path, answered_tree("記録", "LIB-H01-E01"))
+        design_io.write_journal(
+            "LIB-H01", {"events": [{"id": ["x"], "content": "記録"}]}, base_dir=tmp_path
+        )
+
+        found = tree_check.check_theme("LIB", tmp_path)
+
+        assert [v.kind for v in found] == ["missing-event"]
+
+    def test_a_cited_id_that_two_events_share_cannot_be_checked(
+        self, tmp_path: Path
+    ) -> None:
+        write_tree(tmp_path, answered_tree("152件", "LIB-H01-E01"))
+        design_io.write_journal(
+            "LIB-H01",
+            {
+                "events": [
+                    {"id": "LIB-H01-E01", "content": "152件"},
+                    {"id": "LIB-H01-E01", "content": "80件"},
+                ]
+            },
+            base_dir=tmp_path,
+        )
+
+        with pytest.raises(ValueError, match="LIB-H01-E01"):
+            tree_check.check_theme("LIB", tmp_path)
+
+    def test_a_tree_that_names_another_theme_cannot_be_checked(
+        self, tmp_path: Path
+    ) -> None:
+        data = answered_tree("記録", "LIB-H01-E01").model_dump(
+            mode="json", exclude_none=True, exclude_defaults=True
+        )
+        other = json.loads(json.dumps(data).replace("LIB", "FP"))
+        atomic_write_yaml(tmp_path / "themes" / "LIB_tree.yaml", other)
+
+        with pytest.raises(ValueError, match="does not match"):
+            tree_check.check_theme("LIB", tmp_path)
 
     def test_a_journal_without_an_event_list_has_no_events(
         self, tmp_path: Path
@@ -353,24 +428,21 @@ class TestCheckTheme:
         assert [v.kind for v in found] == ["missing-event"]
 
     def test_it_writes_nothing(self, tmp_path: Path) -> None:
-        path = write_tree(tmp_path, answered_tree("152件", "LIB-H01-E01"))
+        write_tree(tmp_path, answered_tree("152件", "LIB-H01-E01"))
         write_journal(tmp_path, "LIB-H01", (1, "記録"))
         before = snapshot(tmp_path)
 
         tree_check.check_theme("LIB", tmp_path)
 
         assert snapshot(tmp_path) == before
-        assert path.read_bytes() == before["themes/LIB_tree.yaml"]
 
     def test_it_creates_no_designs_directory_when_none_exists(
         self, tmp_path: Path
     ) -> None:
         write_tree(tmp_path, answered_tree("記録", "LIB-H01-E01"))
-        before = snapshot(tmp_path)
 
         tree_check.check_theme("LIB", tmp_path)
 
-        assert snapshot(tmp_path) == before
         assert not (tmp_path / "designs").exists()
 
 
@@ -419,12 +491,13 @@ class TestMain:
     def test_it_keeps_non_ascii_text_unescaped(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        write_tree(tmp_path, answered_tree("記録", "LIB-H01-E01"))
-        write_journal(tmp_path, "LIB-H01", (1, "記録"))
+        base = tmp_path / "図書館"
+        write_tree(base, answered_tree("記録", "LIB-H01-E01"))
+        write_journal(base, "LIB-H01", (1, "記録"))
 
-        _, out, _ = run_main(capsys, tmp_path / ".." / tmp_path.name)
+        _, out, _ = run_main(capsys, base)
 
-        assert "\\u" not in out
+        assert "図書館" in out
 
     @pytest.mark.parametrize("theme", ["lib", "../LIB", "LIB X"])
     def test_it_exits_2_for_a_theme_id_that_is_not_one(
@@ -459,6 +532,22 @@ class TestMain:
         path = tmp_path / "themes" / "LIB_tree.yaml"
         path.parent.mkdir()
         path.write_text("nodes: [unclosed", encoding="utf-8")
+
+        code, out, err = run_main(capsys, tmp_path)
+
+        assert (code, out) == (2, "")
+        assert err.startswith("tree_check: ")
+
+    def test_it_exits_2_not_1_when_the_check_fails_in_a_way_nobody_foresaw(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        def broken(*_: object) -> list[Violation]:
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(tree_check, "check_theme", broken)
 
         code, out, err = run_main(capsys, tmp_path)
 

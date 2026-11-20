@@ -20,10 +20,9 @@ from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from decimal import Decimal
 from pathlib import Path
+from typing import Literal
 
-from ruamel.yaml import YAMLError
-
-from insight_blueprint.models.tree import AnswerStatement, QuestionTree
+from insight_blueprint.models.tree import AnswerStatement, QuestionTree, design_id_of
 from insight_blueprint.validate import validate_tree_schema
 from skills._shared.design_io import DEFAULT_BASE_DIR, _resolve_base_dir, load_journal
 from skills._shared.tree_io import _tree_path, load_tree
@@ -49,12 +48,15 @@ def numbers_in(text: str) -> list[Number]:
     ]
 
 
+ViolationKind = Literal["missing-event", "unlinked-design", "number-not-cited"]
+
+
 @dataclass(frozen=True)
 class Violation:
     node_id: str
     round: int
     statement: int  # 1-based position in the answer
-    kind: str  # "missing-event" | "unlinked-design" | "number-not-cited"
+    kind: ViolationKind
     text: str
 
 
@@ -67,9 +69,9 @@ def find_violations(tree: QuestionTree, events: Mapping[str, str]) -> list[Viola
     designs = _designs_by_branch(tree)
     violations: list[Violation] = []
     for node in tree.nodes:
-        if not node.answers:
+        answer = node.current_answer()
+        if answer is None:
             continue
-        answer = node.answers[-1]
         for position, statement in enumerate(answer.statements, start=1):
             found = _statement_problems(statement, events, designs[node.id])
             violations += [
@@ -81,23 +83,22 @@ def find_violations(tree: QuestionTree, events: Mapping[str, str]) -> list[Viola
 
 def _statement_problems(
     statement: AnswerStatement, events: Mapping[str, str], linked: set[str]
-) -> list[tuple[str, str]]:
-    problems: list[tuple[str, str]] = []
+) -> list[tuple[ViolationKind, str]]:
+    problems: list[tuple[ViolationKind, str]] = []
     for cite in statement.cites:
         if cite not in events:
             problems.append(("missing-event", cite))
-        if cite.rpartition("-E")[0] not in linked:
+        if design_id_of(cite) not in linked:
             problems.append(("unlinked-design", cite))
-    cited = {
+    seen = {
         n.value
         for cite in statement.cites
         if cite in events
         for n in numbers_in(events[cite])
     }
-    reported: set[Decimal] = set()
     for number in numbers_in(statement.text):
-        if number.value not in cited | reported:
-            reported.add(number.value)
+        if number.value not in seen:
+            seen.add(number.value)
             problems.append(("number-not-cited", number.token))
     return problems
 
@@ -119,13 +120,19 @@ def _designs_by_branch(tree: QuestionTree) -> dict[str, set[str]]:
 def check_theme(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> list[Violation]:
     """Load the tree of *theme_id* and the journals its answers cite, then check.
 
-    Raises ValueError for an invalid theme id, a missing tree or a tree that
-    fails its schema, and OSError or YAMLError for a file that cannot be read.
+    Raises ValueError for an invalid theme id, a missing tree, a tree that
+    fails its schema or names another theme, or a cited event id that two
+    events share, and OSError or YAMLError for a file that cannot be read.
     """
     data = load_tree(theme_id, base_dir)
     if not data:
         raise ValueError(f"Theme '{theme_id}' has no question tree")
     tree = validate_tree_schema(data)
+    if tree.theme_id != theme_id:
+        raise ValueError(
+            f"theme_id: '{tree.theme_id}' does not match the file name "
+            f"({theme_id}_tree.yaml)"
+        )
     return find_violations(tree, _cited_events(tree, base_dir))
 
 
@@ -134,17 +141,31 @@ def _cited_events(tree: QuestionTree, base_dir: Path) -> dict[str, str]:
     cited = {
         cite
         for node in tree.nodes
-        if node.answers
-        for statement in node.answers[-1].statements
+        if (answer := node.current_answer()) is not None
+        for statement in answer.statements
         for cite in statement.cites
     }
     events: dict[str, str] = {}
-    for design_id in {cite.rpartition("-E")[0] for cite in cited}:
+    for design_id in sorted({design_id_of(cite) for cite in cited}):
         journal = load_journal(design_id, base_dir).get("events")
         for event in journal if isinstance(journal, list) else []:
-            if isinstance(event, dict) and event.get("id") in cited:
-                content = event.get("content")
-                events[event["id"]] = content if isinstance(content, str) else ""
+            event_id = event.get("id") if isinstance(event, dict) else None
+            # An event counts only in the journal its id names: the same id
+            # written into another design's journal must not back a cite.
+            if (
+                not isinstance(event_id, str)
+                or event_id not in cited
+                or design_id_of(event_id) != design_id
+            ):
+                continue
+            if event_id in events:
+                raise ValueError(
+                    f"journal event '{event_id}' appears twice in the journal "
+                    f"of {design_id}"
+                )
+            content = event.get("content")
+            # A hand-written "content: 34.6" loads as a float, not as text.
+            events[event_id] = "" if content is None else str(content)
     return events
 
 
@@ -159,7 +180,9 @@ def _main(argv: list[str] | None = None) -> int:
         base = _resolve_base_dir(Path(args.base_dir))
         violations = check_theme(args.theme, base)
         tree_path = _tree_path(args.theme, base)
-    except (ValueError, OSError, YAMLError) as exc:
+    except Exception as exc:
+        # Python would end an uncaught error with exit 1, which a caller reads
+        # as "violations found" and tries to fix by rewriting the answer.
         print(f"tree_check: {exc}", file=sys.stderr)
         return 2
 

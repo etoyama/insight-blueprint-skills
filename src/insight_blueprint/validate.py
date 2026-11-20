@@ -171,14 +171,24 @@ def _revision_errors(on_disk: QuestionTree, written: QuestionTree) -> list[str]:
     # appending one freezes every revision that was there before.
     frozen = len(before) if len(after) > len(before) else len(before) - 1
     return _append_only_errors(
-        "root_revisions", "a root revision", "revision", before, after, frozen
+        "root_revisions",
+        removed="a root revision",
+        item="revision",
+        before=before,
+        after=after,
+        frozen=frozen,
     )
 
 
 def _decision_errors(on_disk: QuestionTree, written: QuestionTree) -> list[str]:
     before, after = on_disk.decisions, written.decisions
     return _append_only_errors(
-        "decisions", "a decision", "decision", before, after, len(before)
+        "decisions",
+        removed="a decision",
+        item="decision",
+        before=before,
+        after=after,
+        frozen=len(before),
     )
 
 
@@ -188,30 +198,32 @@ def _answer_errors(on_disk: QuestionTree, written: QuestionTree) -> list[str]:
     for node in on_disk.nodes:
         errors += _append_only_errors(
             f"{node.id}.answers",
-            "an answer",
-            "answer",
-            node.answers,
-            now.get(node.id, []),
-            len(node.answers),
+            removed="an answer",
+            item="answer",
+            before=node.answers,
+            after=now.get(node.id, []),
+            frozen=len(node.answers),
         )
     return errors
 
 
 def _append_only_errors(
     field: str,
-    removed_noun: str,
-    item_noun: str,
+    *,
+    removed: str,
+    item: str,
     before: Sequence[BaseModel],
     after: Sequence[BaseModel],
     frozen: int,
 ) -> list[str]:
-    """Errors for a history list: nothing removed, the first *frozen* items unchanged."""
+    """Errors for a history list: nothing removed, the first *frozen* items unchanged.
+
+    The number in a message is the position in the list, counted from 1.
+    """
     if len(after) < len(before):
-        return [
-            f"{field}: {removed_noun} cannot be removed ({len(before)} -> {len(after)})"
-        ]
+        return [f"{field}: {removed} cannot be removed ({len(before)} -> {len(after)})"]
     return [
-        f"{field}: {item_noun} {n} is history and cannot change"
+        f"{field}: {item} {n} is history and cannot change"
         for n, (old, new) in enumerate(
             zip(before[:frozen], after, strict=False), start=1
         )

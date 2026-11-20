@@ -500,7 +500,6 @@ class TestValidateTree:
 
     def test_rewriting_an_answer_while_appending_is_an_error(self) -> None:
         new = self._answered(1, 2)
-        new["nodes"][1]["answers"][0]["root_revision"] = 1
         new["nodes"][1]["answers"][0]["statements"][0]["kind"] = "weakening"
         errors = validate_tree(new, current=self._answered(1))
         assert errors == ["LIB-Q02.answers: answer 1 is history and cannot change"]

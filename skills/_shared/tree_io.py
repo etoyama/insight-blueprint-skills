@@ -22,7 +22,7 @@ from typing import Any
 
 from insight_blueprint.models.common import THEME_ID_PATTERN, now_jst
 from insight_blueprint.models.design import DesignStatus
-from insight_blueprint.models.tree import Progress
+from insight_blueprint.models.tree import Progress, design_id_of
 from insight_blueprint.validate import validate_tree_schema
 from skills._shared._atomic import atomic_write_yaml
 from skills._shared.design_io import (
@@ -105,7 +105,7 @@ def _next_node_id(tree: dict) -> str:
 
 
 def _require_question_event(event_id: str, base_dir: Path) -> None:
-    design_id = event_id.rpartition("-E")[0]
+    design_id = design_id_of(event_id)
     events = load_journal(design_id, base_dir).get("events") or []
     event = next((e for e in events if e.get("id") == event_id), None)
     if event is None:

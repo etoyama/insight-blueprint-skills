@@ -22,6 +22,11 @@ from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 _EVENT_ID_PATTERN = re.compile(r"[A-Za-z0-9_]+-H\d+-E\d+")
 
 
+def design_id_of(event_id: str) -> str:
+    """The design whose journal holds the event ``{design_id}-E{nn}``."""
+    return event_id.rpartition("-E")[0]
+
+
 class AimKind(StrEnum):
     """Whether the root question serves a business decision or a research claim."""
 
@@ -141,6 +146,9 @@ class QuestionNode(BaseModel):
     design_ids: list[str] = Field(default_factory=list)
     answers: list[Answer] = Field(default_factory=list)
 
+    def current_answer(self) -> Answer | None:
+        return self.answers[-1] if self.answers else None
+
     @model_validator(mode="after")
     def _check_node(self) -> Self:
         if self.parent_question_id is not None and not self.contribution:
@@ -207,6 +215,7 @@ class QuestionTree(BaseModel):
         self._check_revisions()
         self._check_node_ids()
         self._check_references()
+        self._check_answer_revisions()
         self._check_parents()
         self._check_decisions()
         if self.root().question != self.current_revision().question:
@@ -247,25 +256,25 @@ class QuestionTree(BaseModel):
                     f"{node.id}: origin '{origin}' must be "
                     f"{self.theme_id}-H{{nn}}-E{{nn}}"
                 )
-            self._check_answers(node, event_pattern)
+            for answer in node.answers:
+                for statement in answer.statements:
+                    for cite in statement.cites:
+                        if not event_pattern.fullmatch(cite):
+                            raise ValueError(
+                                f"{node.id}: cite '{cite}' must be "
+                                f"{self.theme_id}-H{{nn}}-E{{nn}}"
+                            )
 
-    def _check_answers(
-        self, node: QuestionNode, event_pattern: re.Pattern[str]
-    ) -> None:
+    def _check_answer_revisions(self) -> None:
         current = self.current_revision().revision
-        for answer in node.answers:
-            if answer.root_revision > current:
-                raise ValueError(
-                    f"{node.id}: answer round {answer.round} has root_revision "
-                    f"{answer.root_revision}, but the current root revision is {current}"
-                )
-            for statement in answer.statements:
-                for cite in statement.cites:
-                    if not event_pattern.fullmatch(cite):
-                        raise ValueError(
-                            f"{node.id}: cite '{cite}' must be "
-                            f"{self.theme_id}-H{{nn}}-E{{nn}}"
-                        )
+        for node in self.nodes:
+            for answer in node.answers:
+                if answer.root_revision > current:
+                    raise ValueError(
+                        f"{node.id}: answer round {answer.round} has root_revision "
+                        f"{answer.root_revision}, but the current root revision "
+                        f"is {current}"
+                    )
 
     def _check_decisions(self) -> None:
         node_ids = {n.id for n in self.nodes}
