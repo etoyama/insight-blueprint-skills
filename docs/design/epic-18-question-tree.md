@@ -212,7 +212,7 @@ flowchart TD
 クラス名は Story 18.1 の最初に人間が決めた（Decisions の `tree-type-names`）。
 Story 18.1 が実装したのは `QuestionTree`・`RootRevision`・`Aim`・`QuestionNode`・`Progress` で、[docs/ARCHITECTURE.md](../ARCHITECTURE.md) の全体図にも載せた。
 Story 18.2 は `TreeDecision` と `decisions` を足した。種類は `start` だけで、残りの3つは Story 18.5 で足す（Decisions の `start-is-the-only-decision-kind-for-now`）。
-Story 18.3 は `Answer`・`AnswerStatement`・`StatementKind` と `answers` を足した（Decisions の `answer-types-land-with-the-check`）。答えを書く手段（`tree_io answer`）は Story 18.4 で足す。
+Story 18.3 は `Answer`・`AnswerStatement`・`StatementKind` と `answers` を足した（Decisions の `answer-types-land-with-the-check`）。Story 18.4 は答えを書く手段（`tree_io answer`）と `current_round()` を足した（Decisions の `answers-are-checked-before-they-land`・`one-answer-call-is-one-round`）。
 `NextCandidate` と `next_candidate` は Story 18.5 で足す。
 モデルに無い項目は検証で拒むので、足すまではこれらの項目を正本に書けない。
 [docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) の「コード上の名前」は、名前がコードに実在する語から埋める。
@@ -371,7 +371,7 @@ decisions:
 | `src/insight_blueprint/models/`（論点ツリーのモデル） | 論点ツリーの形と、ファイル1つで判定できる不変条件を型で表す | ファイルをまたぐ参照は確かめない → `tree_check` |
 | `src/insight_blueprint/validate.py` | 論点ツリーの YAML を検証する純関数を足す | I/O をしない → `tree_io`・hook |
 | `hooks/validate-design.py` | `*_tree.yaml` への直接の書き込みも検証する | 何を書くかは決めない |
-| `skills/_shared/tree_io.py`（新設） | ツリーの作成、論点の追加と昇格、分析設計を結ぶ、答えの追記、ツリーの決定、根の版の更新、HTML の生成 | 答えの中身を考えない → `/analysis-reflection`。引用先を確かめない → `tree_check` |
+| `skills/_shared/tree_io.py`（新設） | ツリーの作成、論点の追加と昇格、分析設計を結ぶ、答えの追記、ツリーの決定、根の版の更新、HTML の生成 | 答えの中身を考えない → `/analysis-reflection`。引用先と数を自分では判定しない → `tree_check`（`answer` は書く前に `tree_check` の検査を呼び、違反があれば書かない） |
 | `skills/_shared/tree_render.py`（新設） | 論点ツリー、テーマの分析設計、引用した出来事を受け取り、HTML の文字列を返す純関数。進捗と、答えに付ける印を導く。ページに入る文字をすべてエスケープする | ファイルを読まない、書かない → `tree_io render`。引用の正しさは確かめない → `tree_check` |
 | `skills/_shared/tree_check.py`（新設） | 現時点の答えの引用の実在、引用先と論点の対応、文の数が引用先の本文にあるかを確かめ、違反を挙げる | ツリーを書き換えない |
 | `/analysis-auto` | 分析者の入口。論点ツリーの有無で着手か再開かを決め、論点ごとの巡回を進め、KEEP ゲートでだけ止まる。結論が出たらレポートを書かせる | skill の中身を持たない → 各 skill。ツリーを直接書かない → `tree_io` を使う各 skill |
@@ -480,11 +480,12 @@ sequenceDiagram
         end
         A->>R: テーマを横断した振り返り
         R->>R: 論点ごとに現時点の答えを書く（文ごとに種類と引用）
-        R->>T: answer、tree_check
+        R->>T: answer（検査を通るまで正本に書かない）
         T-->>R: 違反の一覧
         opt 違反がある
-            R->>T: 直すか除いて、もう一度検査する（AUTO）
+            R->>T: 直すか除いて、もう一度 answer（AUTO）
         end
+        R->>T: tree_check（書いた後の検査）
         R->>T: render
         R-->>U: レポートのパスと Doc の URL、ツリーの HTML のパス、変わった答え、未判別の論点、次の候補（人に聞く問いと、その答えで変わる判断）
         U->>R: G11 深める・親に戻る・区切る と理由、次に調べる論点、人に聞いてきた答え
@@ -702,7 +703,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - 数は、記録と同じ符号で書いたときだけ通る。記録が「3.2ポイント減った」と言葉で向きを書いていると、答えの「−3.2ポイント」は違反になる。記録が「−3.2」なら、答えの「3.2」も「+3.2」も違反になる。記録が符号なしの「3.2」なら、答えの「+3.2」は違反になる。違反を受けたら、記録の書き方に合わせて書き直す。Story 18.4 の手順にこのことを書く。
   - 言葉で書いた向き（「減った」「増えた」）は見ない。記録が「−3.2」で、答えが「−3.2 増えた」でも通る。数を含まない言い過ぎと同じ穴である。
   - 空白をはさんだ範囲（`10 - 20`）と、箇条書きの先頭のハイフン（`- 3件`）は、負の数として読む。記録と答えが同じ書き方なら通り、片方だけなら違反になる。
-  - 波ダッシュ（`〜`）は範囲にしか使わないので、符号にしない。括弧で書いた負の数（`(3.2)`）と `±` も符号として読まない。
+  - 波ダッシュ（`〜`）は範囲にしか使わないので、符号にしない。括弧で書いた負の数（`(3.2)`）と `±` も符号として読まない。長音記号（`ー`）、絵文字の `➖`、下向きの矢印（`↓`）も符号として読まない。記録が「3.2」で、答えが「ー3.2」なら通る（レビューの指摘）。
   - 漢数字（「約二倍」）は拾わない。`1e3` や `½` のような表記は別の数に分かれるので、記録にその数があれば通る。
   - 桁を表す語は見ない。`3万件` は 3 として拾うので、記録が「3件」なら通る。値が1万倍違っても止まらない。
   - 先頭の 0 を省いた小数（`.5`）は 5 として拾う。記録に 5 があれば通り、記録が `0.5` なら違反になる。
@@ -711,7 +712,43 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - 答えの文に論点や出来事の id、日付を書くと、その数字が違反になる。文には id を書かず、`cites` に書く。Story 18.4 の手順にこのことを書く。
   - 前の回の答えは検査しない。前の回に違反があっても、今の答えが通れば検査は通る。
   - 「ファイル1つで判定できる不変条件はモデルが持つ」（Module Responsibilities）から、引用先と論点の対応だけが外れる。
-  - 追記だけの比較が出す文の番号は、並びの中の位置である（`LIB-Q02.answers: answer 1 is history and cannot change`）。ツリーの検査が出す `round` は振り返りの回で、連番とは限らない。同じ答えを指す番号の意味が2つの道具でずれる。揃えるかは Story 18.4 で答えを書く手順を作るときに決める。
+  - 追記だけの比較とツリーの検査は、どちらも答えを振り返りの回で指す（`LIB-Q02.answers: the answer of round 3 is history and cannot change`）。Story 18.3 では追記だけの比較が並びの中の位置を出していて、回とずれていた。論点は毎回答えを持つとは限らないので、位置は別の答えを指しうる。Story 18.4 で回に揃えた（人間の判断、2026-11-21、Story 18.4 のセッション）。根の版は版の番号で、ツリーの決定は番号を持たないので位置で指す。
+  - 符号の読みは記録の側と答えの側で同じである。そのため、記録が箇条書きの「- 20件」や範囲の「10 - 20」を持つと、答えの「−20」が通る。答えが「A-3.2」と書くと符号なしとして読まれ、記録の「3.2」に通る。コミットの自動レビューが挙げた。人間が決めた線引きの内側なので、Story 18.4 では塞いでいない。
+
+### Decision: answers-are-checked-before-they-land
+
+- What: 現時点の答えを書く道は `tree_io answer` だけにする。`tree_io answer` は、答えを足した後のツリーをメモリの上で作り、ツリーの検査にかける。書こうとしている論点に違反が1つでもあれば、どの論点の答えも書かずに違反を返す（終了コード 3）。違反が無ければ正本に書く（人間の判断、2026-11-21、Story 18.4 のセッション）。
+- Why: 答えは追記だけで、既にある答えは書き換えられない（Decision `answer-types-land-with-the-check`）。正本に書いた後で違反が見つかると、直す手段が無い。直した答えを次の回として足すと、記録に無い数が正本に残り、回が「前の回から変わった答え」の目印として使えなくなる。
+- Criteria: Must は「違反のある答えが分析者に届かない」（US-4 AC 2）と「既にある答えを書き換えない」（US-3 AC 3）。Want は「記録に無い数が正本に残らない」（高、Claude の推測）、「回が変わった答えの目印として使える」（高、Claude の推測）、「手順を守るかどうかにモデルを頼らない」（中、Claude の推測、#105）、「既存の境界と文書を変える量」（中、Claude の推測）。決め手は3つめ。決まりを文で書くだけでは守られないと #105 で分かっている。人間が推奨を採った。
+- Affected modules: `skills/_shared/tree_io.py`（`answer`）、`skills/_shared/tree_check.py`（`check_tree`）、`/analysis-reflection`。
+- Alternatives considered:
+  - `tree_check` に書く前の候補を検査する入口を足し、`tree_io answer` は検査しない。境界は変わらないが、skill が先の検査を飛ばすと違反が正本に入る。
+  - 違反した答えも追記し、直した答えを次の回として追記する。記録に無い数が正本に残り、前の回との比較の相手が違反した下書きになる。
+  - 同じ回の間は最後の答えを書き換えてよいことにする。追記だけの不変条件が破れる。
+- Consequences:
+  - US-4 AC 2 と [ADR-0025](../adr/0025-cited-answers-checked-after-writing.md) の「書いた後に検査する」は、「モデルが文を書いた後、正本に入る前に検査する」と読む。`/analysis-reflection` は書いた後にも `tree_check` を回す。そこで見つかるのは、前の回の答えが、後から journal が変わって違反になった場合である。その論点に新しい答えを書いて直す。
+  - `tree_io` が `tree_check` を呼び、`tree_check` が `tree_io` を読む。`tree_io answer` は関数の中で `tree_check` を読み込む。違反を判定するのは `tree_check` だけである。
+  - `tree_io answer` が止めるのは、その呼び出しで書く論点の違反だけである。ほかの論点の今の答えに違反があっても、書き込みは止めない。
+  - 終了コード 3 は `answer` だけが返す。1 は「呼び出しが誤りか、ファイルを読めない」で、`tree_check` の 2（検査できない）とは番号が違う。1 のときに答えを書き直すかどうかは、stderr の文で分ける。payload の誤りなら直して送り直し、正本や journal を読めないなら分析者に伝えて止まる（レビューの指摘で `/analysis-reflection` の手順に足した）。
+  - 前の回の答えが後から違反になり、その論点に引用できる出来事が残っていないと、直す手段が無い。答えは取り下げられないからである。`/analysis-reflection` はその論点を「Stale answers」として違反と一緒に示し、答えは示さず、ほかの論点を届ける。正本と HTML には、その答えが今の答えとして残る。取り下げを記録する手段は、この Epic では持たない。
+  - `tree_io answer` が受け取る項目は `node_id` と `statements` だけである。`round` などを渡した呼び出しは拒む。
+  - Write や Edit で正本に直接書いた答えは、この検査を通らない。pre-write hook が見るのは形と追記だけである。`/analysis-reflection` の手順で直接の書き込みを禁じ、書いた後の `tree_check` で見つける。
+
+### Decision: one-answer-call-is-one-round
+
+- What: 1回の `tree_io answer` が、その振り返りで答える全論点の答えを受け取り、1つの振り返りの回にする。回は「ツリーの中で最大の回 + 1」（`QuestionTree.current_round()` + 1）を、根の版は今の版を、`tree_io` が振る。呼ぶ側は回も根の版も渡さない。今の答えと文が同じで、今の答えが今の根の版のものである論点は、書かない。文が同じでも、今の答えが前の根の版のものなら書く。
+- Why: US-3 AC 3 は、答えが振り返りの回を持ち、前の回と答えが変わった論点を示すとしている。回を呼ぶ側に決めさせると、同じ振り返りの答えが別の回になりうる。
+- Criteria: US-3 AC 3、用語表の「振り返りの回」（テーマを横断する振り返りの通し番号）。決め手は「その回の答えを持つ論点」がそのまま「その回で変わった論点」になること。表示（Story 18.6）は答えの回の最大値で「この回で変わった」を決めていて、同じ読みになる。
+- Affected modules: `skills/_shared/tree_io.py`（`answer`）、`src/insight_blueprint/models/tree.py`（`current_round`）、`/analysis-reflection`。
+- Alternatives considered: 論点ごとに1回ずつ呼ぶ（回を揃える手段が要る）。変わらない答えも毎回書く（どの論点が変わったかを、文を比べて導くことになる）。
+- Consequences:
+  - 論点の答えの回は連番とは限らない（回 1 の次が回 3 になりうる）。
+  - すべての論点が変わらなければ、何も書かず、回も進まない。
+  - 「変わった」は文の並びが1字でも違うことである。言い換えただけの答えも、変わった答えとして回を持つ。
+  - `tree_io answer` は、書いた論点（`written`）に、それまでの答えの回（`previous_round`。初めての答えなら無い）と、文が前と同じか（`restated`）を添えて返す。`/analysis-reflection` はこれで「初めての答え」「変わった答え」「根の版が上がり、同じ文で書き直した答え」を分けて示す。表示（Story 18.6）は、文が前と違うときだけ「この回で変わった」の印を付けるので、書き直した答えには印が付かない。両方とも、文が同じ答えを「変わった」とは呼ばない。
+  - 結果の `round` は、呼び出しの後にツリーが持つ最後の回である。違反で止まったときは前の回のままで、違反のほうが、書こうとした回を持つ。
+  - 違反で止まった呼び出しは何も書かないので、回を使わない。
+  - Story 18.5 は、ツリーの決定の回を `current_round()` から決められる。
 
 ### Decision: tree-html-is-static-and-marks-are-derived
 
@@ -761,7 +798,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 | Story 18.1 | ✓ | ✓ | — （skill を通らない） |
 | Story 18.2 | ✓（`tests/test_tree_models.py` の `TestTreeDecision`、`tests/test_tree_io.py` の `TestDecide`） | ✓（`tests/skills/test_question_tree_structure.py`。SKILL.md に書いたコマンドを `tree_io` に通す。`tests/test_validate_hook.py` は決定を消す書き込みを hook が止めることを確かめる） | —（headless 実行の E2E は [ADR-0010](../adr/0010-skill-tdd-structure-tests.md) で必須にしていない。skill を通した手動確認は Story Timeline の 2026-11-21 に記録した） |
 | Story 18.3 | ✓（`tests/test_tree_models.py` の `TestAnswer`、`TestValidateTree`。`tests/test_tree_check.py` の `TestNumbersIn`、`TestFindViolations`、`TestTheNumberThatWasNeverRecorded`） | ✓（`tests/test_tree_check.py` の `TestCheckTheme`・`TestMain` は正本と journal のファイルを読ませる。`tests/integration/test_bin_wrappers.py` は `bin/tree_check` を別の cwd から通す。`tests/test_validate_hook.py` は答えを書き換える Edit を hook が止めることを確かめる） | — （CLI だけ） |
-| Story 18.4 | ☐ | ☐ | ☐ |
+| Story 18.4 | ✓（`tests/test_tree_io.py` の `TestAnswer`。US-3 AC 2 は `test_a_parent_may_cite_an_event_of_a_design_linked_below_it` と `test_citing_a_design_linked_only_to_a_sibling_branch_writes_nothing`、AC 3 は回と根の版と変わらない答えのテスト、US-4 AC 2 は違反があれば何も書かないテスト。`tests/test_tree_models.py` の `TestCurrentRound`。`tests/test_tree_check.py` の `TestCheckTree` と、符号の `TestNumbersIn`・`TestFindViolations`。`tests/test_tree_models.py` の `TestValidateTree` は答えを回で名指す） | ✓（`tests/skills/test_theme_reflection_structure.py`。SKILL.md に書いた `tree_io answer` を、合成の正本と journal に通す。US-3 AC 1 は `TestThemeReflectionWritesCitedAnswers`、AC 2 は `TestParentAnswersCiteDescendants`、AC 3 は `TestAnswersGoThroughTreeIo`、US-4 AC 2 は `TestViolationsAreFixedBeforeTheAnalystSeesThem`。`tests/test_tree_io.py` の `TestCli` は終了コード 0・1・3 を別プロセスで確かめる） | —（headless 実行の E2E は [ADR-0010](../adr/0010-skill-tdd-structure-tests.md) で必須にしていない。skill を通した手動確認は Story Timeline の 2026-11-21 に記録した） |
 | Story 18.5 | ☐ | ☐ | ☐ |
 | Story 18.6 | ✓（`tests/test_tree_render.py`。AC 1 は `TestSelfContained`、AC 2 は `TestProgress`・`TestCurrentAnswer`、AC 3 は `TestEvidence`、AC 4 は `TestMarks`・`TestHeader`、AC 5 は `TestStructure`。エスケープは `TestEscaping`） | ✓（`tests/test_tree_io.py` の `TestRender` は正本、分析設計、journal のファイルを読ませて HTML を書かせる。`tests/integration/test_bin_wrappers.py` は `bin/tree_io render` を別の cwd から通す） | —（CLI だけ。ブラウザで開いた手動確認は Story Timeline の 2026-11-21 に記録した） |
 | Story 18.7 | ☐ | ☐ | ☐ |
@@ -783,3 +820,5 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - 2026-11-21 — Story 18.3 completed: 現時点の答えの型（`Answer`・`AnswerStatement`・`StatementKind`）と `answers` を入れ、答えを追記だけにした。追記だけの比較（根の版、ツリーの決定、現時点の答え）は1つにまとめた。ツリーの検査（`tree_check`、`bin/tree_check`）は、引用した出来事が無い、引用先の分析設計が論点か子孫に結んでいない、文の数が引用した出来事の本文に無い、の3つを違反として挙げる。#105 と同じ型（2つの出来事の数から作った比）を合成シナリオで違反にした。合成のプロジェクトに `bin/tree_check` を通して、違反の出力と終了コード 1、正本が変わらないことを確かめた。レビュー（thermos）の指摘で、別の分析設計の journal に書いた出来事を引用の根拠に数えないようにし、検査できない場合は必ず終了コード 2 にした。18.3 を先にする決定は人間がした（PR #128 のコメント、2026-11-21）。
 - 2026-11-21 — Story 18.6 completed: `tree_io render` が、正本から自己完結の HTML（`.insight/themes/{theme_id}_tree.html`）を作る。HTML を作る純関数は `skills/_shared/tree_render.py` に置いた。script は書かず、開閉は `<details>` で行う。各論点に進捗と現時点の答えを文字で出し、開くと答えの各文、引用した出来事、前の回の答え、結んだ分析設計が出る。最も新しい回で変わった答えと、根の変更前の答えに印を付ける。分析設計の派生は別の節に出す。合成のプロジェクトで `bin/tree_io render` を2回通し、同じバイト列になることを確かめた。built-in browser で開き、script・画像・外部への要求が0件であること、論点の開閉、出来事の本文に入れた `<script>` が文字として出ること、幅 375px で横にはみ出さないこと、暗い配色でも読めることを確かめた。答えを書く手段はまだ無いので、答えは合成の正本に直接書いた。
 - 2026-11-21 — Story 18.6 のレビュー（thermos）の指摘を直した。分析設計をファイルの中の `id` で引いていたので、写して作った分析設計があると進捗と題が `tree_io progress` と食い違った。ファイル名の id で引くようにした。別のテーマの壊れた分析設計で表示が止まらないようにし、読めない YAML では traceback でなくメッセージを出す。引用した出来事を読む手順と正本を読む手順は、ツリーの検査と共有した。表示の言葉と読み方の説明は1つの表から出すようにした。HTML に文字がエスケープされずに入る経路と、外部を読む経路は見つからなかった。
+- 2026-11-21 — Story 18.4 completed: `/analysis-reflection` はテーマの id を渡されると、論点ごとに、結んだ分析設計の journal を読んで現時点の答えを書く。文はそれぞれ種類と引用を持ち、親の論点は子孫の分析設計の出来事を引用する。答えを書く道は `tree_io answer` だけで、検査を通るまで正本に書かない。1回の呼び出しが1つの振り返りの回になり、変わらない答えは書かない。書いた後に `tree_check` を回し、`tree_io render` で HTML を作り直す。ツリーの検査は、はっきりした符号を数の一部として比べるようにした。追記だけの比較は、答えを回で名指す。人間がこのセッションで3つを決めた（検査を通るまで書かない、答えは回で名指す、符号の線引きを広げる）。レビュー（thermos）の指摘で、`tree_io answer` の入力を型で受け、読めないファイルを終了コード 1 の文で返し、直せない古い違反を「Stale answers」として示す出口を足した。分析設計1つの振り返りは変えていない。
+- 2026-11-21 — Story 18.4 を手動で確認した。合成データのプロジェクト（論点4つ、分析設計2つ）にプラグインを読み込み、headless の Claude Code（sonnet）で `/analysis-reflection LIB` を4回実行した。1回目は、3つの論点に回 1 の答えが書かれ、根の問いの答えは子の分析設計の出来事を引用し、分析設計の無い論点は答えを持たなかった。2回目は、割合と倍率を答えに入れるよう頼んだが、計算せず「記録されていない」と未判別の文で書いた。3回目は、journal に出来事を1つ足すと、その論点と根だけが回 3 になり、変わらない論点は回 2 のまま変化なしと示された。4回目は、最初の呼び出しに計算した割合（65.5%）をわざと入れさせた。`tree_io answer` は終了コード 3 で違反を返して何も書かず、skill はその文を除いて送り直し、除いた文と違反を分析者に示した。正本に 65.5 は残らなかった。4回目だけがレビューの指摘を直した後の手順で、1〜3回目はその前の手順で実行した。根の版が上がった後の書き直し（`restated`）と、古い違反（Stale answers）の経路は、skill を通しては確かめていない。長い payload をシェルの文字列で渡すとホストが拒むことがあったので、一時ファイルから渡す書き方を手順に足した。

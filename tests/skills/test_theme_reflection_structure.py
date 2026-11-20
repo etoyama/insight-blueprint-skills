@@ -258,6 +258,11 @@ class TestViolationsAreFixedBeforeTheAnalystSeesThem:
         assert could_not, "no sentence says what exit code 2 means"
         assert "Do not rewrite" in could_not.group(0)
 
+    def test_the_html_is_rendered_again_once_the_check_passes(self) -> None:
+        check = _step("### Step T4: ")
+        assert "`tree_io render --theme {theme_id}`" in check
+        assert "path" in _step("### Step T5: ")
+
     def test_nothing_is_shown_before_the_check_passes(self) -> None:
         check = _step("### Step T4: ")
         assert "Show no answer to the analyst before `tree_check` has run" in check
@@ -268,7 +273,7 @@ class TestReflectionCallsOnlyCommandsThatExist:
     def test_every_named_tree_io_command_exists(self) -> None:
         named = {c for tool, c in _COMMAND.findall(_skill()) if tool == "io"}
 
-        assert {"get", "progress", "answer"} <= named
+        assert {"get", "progress", "answer", "render"} <= named
         for command in named:
             with pytest.raises(SystemExit) as exit_:
                 tree_io._main([command, "--help"])

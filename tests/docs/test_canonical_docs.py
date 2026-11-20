@@ -554,6 +554,24 @@ class TestQuestionTreeDocs:
         assert "tree_io create / add-node / decide" in sequence
         assert "tree_io link" in sequence
 
+    def test_architecture_workflow_shows_the_answers_being_checked_and_written(
+        self,
+    ) -> None:
+        """Story 18.4: the theme reflection writes answers only through the check."""
+        sequence = section(_read("docs/ARCHITECTURE.md"), "### 分析ワークフロー全体")
+        assert "tree_io answer" in sequence
+        assert "tree_check" in sequence
+
+    def test_design_doc_records_how_answers_are_written(self) -> None:
+        decisions = section(
+            _read("docs/design/epic-18-question-tree.md"), "## Decisions"
+        )
+        for slug in (
+            "answers-are-checked-before-they-land",
+            "one-answer-call-is-one-round",
+        ):
+            assert f"### Decision: {slug}" in decisions, slug
+
     def test_architecture_carries_the_tree_file_and_its_guard(self) -> None:
         """ADR-0024: the .insight layout and the hook target change with Story 18.1."""
         doc = _read("docs/ARCHITECTURE.md")

@@ -75,6 +75,7 @@ flowchart TD
   根の問いがちょうど1つあること、論点の親が同じツリーにあって循環しないこと、根の版が1から1ずつ増えること、ツリーの決定が指す論点がツリーにあることを確かめ、モデルに無い項目を拒む。
   書き込む前の正本があれば、根の版が減っていないことと、今の版より前の版が変わっていないことも確かめる。ツリーの決定と現時点の答えは足すことだけができる。
   現時点の答えの引用先が実在するか、文の数が引用先の本文にあるかは、ここでは確かめない。journal を読む必要があるので、ツリーの検査（`tree_check`。[ADR-0025](adr/0025-cited-answers-checked-after-writing.md)）が確かめる。
+  現時点の答えは `tree_io answer` で書く。`tree_io answer` は書く前にツリーの検査を呼び、違反があれば何も書かない。
   進捗は項目に無いので、保存できない。`tree_io` は結んだ分析設計の状態から進捗を導く。
 - **pre-write hook（`hooks/validate-design.py`, plugin 同梱 `hooks/hooks.json`）** —
   `.insight/designs/*_hypothesis.yaml` と `.insight/themes/*_tree.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
@@ -290,6 +291,12 @@ sequenceDiagram
     end
     U->>CC: /analysis-reflection（結論 → status 遷移）
     CC->>IO: transition（supported / rejected / inconclusive）
+    opt テーマを横断した振り返り（論点ツリーがあるとき）
+        U->>CC: /analysis-reflection {theme_id}
+        CC->>IO: tree_io answer（論点ごとの現時点の答え。検査を通るまで書かない）
+        IO->>FS: atomic write
+        CC->>IO: tree_check（書いた後の検査）→ tree_io render
+    end
     opt 任意: 配布用レポート（terminal 後）
         U->>CC: /analysis-report（design/journal/verdict/figures/catalog/lineage → APA Markdown）
         CC->>FS: .insight/reports/{id}.md を Write（読み取り専用の消費者）

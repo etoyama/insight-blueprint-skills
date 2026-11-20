@@ -209,6 +209,9 @@ echo '{"answers": [
 ]}' | tree_io answer --theme LIB
 ```
 
+A long payload may not pass the shell as an inline string. Write it to a temporary JSON
+file and run `tree_io answer --theme {theme_id} < {file}` instead.
+
 Never write `.insight/themes/{theme_id}_tree.yaml` with the Write or Edit tool: the hook
 rejects a rewritten answer, and only `tree_io answer` checks the answer before it lands.
 
@@ -242,7 +245,8 @@ every statement of a node is removed, send no answer for that node in this round
 
 Run `tree_check --theme {theme_id}`. It reads the tree and the journals and writes nothing.
 
-- Exit code 0: no violation. Go to Step T5.
+- Exit code 0: no violation. Run `tree_io render --theme {theme_id}` so that the HTML of the
+  tree shows the new answers, then go to Step T5.
 - Exit code 1: the current answer of some node violates. `tree_io answer` already stopped
   the answers of this round, so this is an answer from an earlier round whose journal has
   changed since. Write a new answer for that node (Steps T2 and T3) and check again, once.
@@ -296,6 +300,7 @@ Root question: {root question}
   earlier root question: mark it "根の変更前の答え".
 - List every removed statement with its violation. Never drop one silently: the analyst
   must know what the answer does not say.
+- Show the `path` that `tree_io render` printed: the analyst reads the tree there.
 - Suggest what to do next:
   - "未着手の論点に分析設計を起こすなら /analysis-design"
   - "根の問いか到達点を変えるなら /analysis-framing {theme_id}"
@@ -322,6 +327,7 @@ Both are on PATH via the plugin. JSON on stdout.
 | `tree_io progress --theme T` | Progress of each node, derived from its designs |
 | `tree_io answer --theme T` (stdin JSON) | Check and append the answers of one reflection round |
 | `tree_check --theme T` | Check the current answers after writing (read-only) |
+| `tree_io render --theme T` | Rebuild the HTML of the tree from the canonical file |
 
 ## Chaining
 
