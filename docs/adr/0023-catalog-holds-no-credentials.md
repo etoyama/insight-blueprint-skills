@@ -16,7 +16,7 @@ Accepted
 
 比較の前提にした事実と、確かめた方法は次のとおり。
 
-- 認証情報の決まりは、`/catalog-register` の「API keys must come from environment variables. Never hardcode keys in YAML or catalog entries.」という1文だけだった（`skills/` を grep した）。
+- 認証情報の決まりは `/catalog-register` の「API keys must come from environment variables. Never hardcode keys in YAML or catalog entries.」という1文だけだった（`skills/` を grep した）。
 - `DataSource.connection` は `dict` で、キーを縛らない（`src/insight_blueprint/models/catalog.py` を読んだ）。model は PyPI の wheel に入るので、変えると公開の契約が変わる。
 - `create_source` と `update_source` は `catalog_io` の中にあり、どちらも書く前に `DataSource` で検証する。`update_source` は保存済みの値に変更を浅く重ねる（`skills/_shared/catalog_io.py` を読んだ）。
 - `/catalog-register` の API の見本は `"auth": "api_key"` を持つ。これは方式の名前で、値ではない（同じ SKILL.md）。

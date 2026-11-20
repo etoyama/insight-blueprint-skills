@@ -20,7 +20,7 @@ v0.10.0 の実機確認（2026-11-20）で、この経路から `connection` が
   Step 2d は `.insight/` 全体を Grep するよう書いていた（`skills/analysis-framing/SKILL.md` を読んだ）。
 - `catalog_io list` は `connection` を除いたデータソースを全部返す。framing が見る名前・`schema_info`・`tags` はすべて入る（`skills/_shared/catalog_io.py` を読んだ）。
 - `/catalog-register` を除くと、`catalog/sources` という語を書いた skill の文書は無い（`skills/` を grep した）。
-- `/analysis-design` の Step 2.6 の見本は、利用者の環境の project id とライブラリを含む BigQuery のコードだった。
+- `/analysis-design` の Step 2.6 の見本は利用者の環境の project id とライブラリを含む BigQuery のコードだった。
   `get-schema` は `connection` を返さないので、テーブル名やパスは会話の文脈から取っていたことになる（推測）。
 - `/analysis-notebook` の cell 2 は、`methodology.steps` に確かめ済みのクエリがあればそのまま使う決まりである（その SKILL.md の Step 3）。
 - plugin の hook は Write/Edit に対する `hooks/validate-design.py` の1本だけである（`hooks/hooks.json` を読んだ）。
@@ -86,9 +86,9 @@ framing の読み方（課題1）:
 
 - `connection` の値がモデルの文脈に入るのは、`/analysis-notebook` が `catalog_io get --with-connection` を呼んだときだけにする。
 - `/analysis-framing` はデータソースを `catalog_io list` で読む。Step 2d の Grep は `.insight/designs/`・`.insight/catalog/knowledge/`・`.insight/rules/` に限る。
-- `/catalog-register` を除く skill の文書は、`catalog/sources` を書かない。構造テストが見る。
+- `/catalog-register` を除く skill の文書は `catalog/sources` を書かない。構造テストが見る。
 - `/analysis-design` は `methodology.steps` でデータソースを `{source:ID}` と書く（データソースの参照）。パス・ホスト・project id・テーブル名を書かない。`ID` は `source_ids` にある id に限る。
-- `/analysis-notebook` の cell 2 は、`{source:ID}` を `get --id ID --with-connection` の `connection` の値で置き換える。
+- `/analysis-notebook` の cell 2 は `{source:ID}` を `get --id ID --with-connection` の `connection` の値で置き換える。
   Python のコード（ファイルのパス、URL）には文字列のリテラルとして入れる。SQL のクエリには、`connection` から組み立てたテーブル名を、その方言の引用符で囲んだ識別子として入れる。
   文字列の値として入れるとクエリが壊れる（`pstack:thermos` のレビュー、2026-11-20）。テーブル名はパラメータにできないので、値は `catalog_io get` からだけ取り、`methodology.steps` からは取らない。
 
