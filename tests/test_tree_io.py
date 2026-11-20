@@ -707,6 +707,13 @@ class TestAnswer:
         with pytest.raises(ValueError, match="no question tree"):
             tree_io.answer("LIB", answers=[], base_dir=insight)
 
+    @pytest.mark.parametrize("answers", [["LIB-Q02"], {"node_id": "LIB-Q02"}])
+    def test_an_entry_that_is_not_an_object_is_rejected(
+        self, world: Path, answers: object
+    ) -> None:
+        with pytest.raises(ValueError, match="node_id and statements"):
+            tree_io.answer("LIB", answers=answers, base_dir=world)  # type: ignore[arg-type]
+
     @pytest.mark.parametrize(
         "statements",
         [

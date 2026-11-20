@@ -285,6 +285,10 @@ def answer(
     data = _require_tree(theme_id, base_dir)
     current = validate_tree_schema(data)
     revision = current.current_revision().revision
+    # The payload is JSON a model wrote: a bare id in place of an entry must
+    # be an error it can read, not a traceback.
+    if not all(isinstance(entry, dict) for entry in answers):
+        raise ValueError("answers: each entry is an object with node_id and statements")
     node_ids = [entry.get("node_id") for entry in answers]
     if len(set(node_ids)) != len(node_ids):
         raise ValueError("a node can be answered only once in one round")
