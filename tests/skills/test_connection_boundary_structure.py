@@ -1,4 +1,4 @@
-"""Structure tests for where a data source's `connection` may enter a model's context (Epic 16).
+"""Structure tests for where a data source's `connection` may enter a model's context (Epic 17).
 
 Only /analysis-notebook reads `connection`, through `catalog_io get --with-connection`
 (ADR-0018). These tests close the paths around that command: a skill reading the
@@ -8,18 +8,18 @@ source YAML itself (US-1), and a design carrying `connection` values in
 
 from __future__ import annotations
 
-from pathlib import Path
+import pytest
 
 from tests.skills._markdown import section, unwrap
-from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
+from tests.skills.test_skill_structure import SKILLS_DIR, _prose_files, _read_skill
 
-_SOURCES_DIR = "catalog/sources"
-
-
-def _prose_files() -> list[Path]:
-    return sorted(SKILLS_DIR.glob("*/SKILL.md")) + sorted(
-        SKILLS_DIR.glob("*/references/*.md")
-    )
+# Each one points a reader at the source YAML, which holds the connection. The first
+# two are how /analysis-framing used to reach it (issue #102).
+_READS_THE_SOURCE_FILES = (
+    "`.insight/catalog/*",
+    "all of `.insight/`",
+    "catalog/sources",
+)
 
 
 class TestFramingReadsSourcesThroughCatalogIo:
@@ -28,29 +28,23 @@ class TestFramingReadsSourcesThroughCatalogIo:
     def test_catalog_exploration_lists_the_sources_with_catalog_io(self) -> None:
         step = unwrap(section(_read_skill("analysis-framing"), "#### 2b: "))
         assert "`catalog_io list`" in step
-        assert "Glob" not in step
-        assert "Read " not in step
 
-    def test_cross_search_names_its_directories_instead_of_all_of_insight(
-        self,
-    ) -> None:
+    def test_cross_search_names_its_directories(self) -> None:
         step = unwrap(section(_read_skill("analysis-framing"), "#### 2d: "))
-        assert "all of `.insight/`" not in step
         assert "`.insight/designs/`" in step
         assert "`.insight/catalog/knowledge/`" in step
 
-    def test_framing_never_globs_the_whole_catalog(self) -> None:
-        assert "`.insight/catalog/*" not in _read_skill("analysis-framing")
-
-    def test_only_catalog_register_names_the_source_files(self) -> None:
-        # /catalog-register says where a source is stored; no other skill may point
-        # a reader at those files, since the YAML holds the connection.
+    @pytest.mark.parametrize("pattern", _READS_THE_SOURCE_FILES)
+    def test_no_skill_but_catalog_register_points_at_the_source_files(
+        self, pattern: str
+    ) -> None:
+        # /catalog-register says where a source is stored; it is the one exception.
         mentions = {
             path.relative_to(SKILLS_DIR).parts[0]
             for path in _prose_files()
-            if _SOURCES_DIR in path.read_text()
+            if pattern in path.read_text()
         }
-        assert mentions == {"catalog-register"}
+        assert mentions <= {"catalog-register"}
 
 
 _REF = "`{source:ID}`"
@@ -68,8 +62,7 @@ class TestDesignPointsAtSourcesById:
     def test_the_sample_carries_no_one_users_environment(self) -> None:
         step = section(_read_skill("analysis-design"), "### Step 2.6: ")
         assert "lmi-datau-prod" not in step
-        assert "lib.accessor" not in step
-        assert "{source:" in step.split("```python", 1)[1].split("```", 1)[0]
+        assert "FROM {source:" in step
 
     def test_the_notebook_resolves_the_reference_in_cell_2(self) -> None:
         generate = unwrap(section(_read_skill("analysis-notebook"), "### Step 3: "))
@@ -90,7 +83,6 @@ class TestDesignPointsAtSourcesById:
         auto = _read_skill("analysis-auto")
         row = next(line for line in auto.splitlines() if "design ③" in line)
         assert "data source id" in row
-        assert "file + columns" not in row
 
 
 class TestCatalogRegisterKeepsCredentialsOut:

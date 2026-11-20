@@ -579,6 +579,8 @@ class TestConnectionHoldsNoCredentials:
             ({"bearer": "t0k"}, "connection.bearer"),
             ({"password_env": "hunter2"}, "connection.password_env"),
             ({"token_env": "export X=t0k"}, "connection.token_env"),
+            # The exemption needs the literal `_env` suffix; camelCase is a plain key.
+            ({"apiKeyEnv": "API_KEY"}, "connection.apiKeyEnv"),
         ],
     )
     def test_create_refuses_a_credential_key_and_writes_nothing(

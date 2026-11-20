@@ -125,6 +125,7 @@ def list_sources(base_dir: Path = DEFAULT_BASE_DIR) -> list[dict]:
 # all match. Values are not checked: a secret cannot be told from an id or a hash
 # without false alarms. The one exception is a *_env key, whose value must look like an
 # environment variable name, or the exemption would let a literal secret through.
+# The exemption matches the lowercased `_env` suffix exactly, so apiKeyEnv is refused.
 _CREDENTIAL_KEY_PARTS = (
     "password",
     "passwd",
