@@ -88,7 +88,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 - **Validation** is centralized in `src/insight_blueprint/validate.py` (Pydantic schema +
   state-transition guard). A **pre-write hook** (`hooks/validate-design.py`, shipped with the
   plugin via `hooks/hooks.json`) calls
-  the same library to block invalid writes to `*_hypothesis.yaml`.
+  the same library to block invalid writes to `*_hypothesis.yaml` and `*_tree.yaml`.
 - **Lineage** (`src/insight_blueprint/lineage/`) records DataFrame transformations and
   exports Mermaid diagrams.
 

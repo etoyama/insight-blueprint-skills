@@ -209,7 +209,11 @@ flowchart TD
 
 ## Domain Model
 
-クラス名は提案である。気になる点が3つあり、Story 18.1 の最初の作業で決める。「問い」が3つあること（journal の `question`、`QuestionNode`、`Inquiry`）、`CurrentAnswer` が履歴を持つこと、`Destination` の意味が広いこと。[docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) の「コード上の名前」は、Story 18.1 の実装で名前が実在してから埋める。
+クラス名は Story 18.1 の最初に人間が決めた（Decisions の `tree-type-names`）。
+Story 18.1 が実装したのは `QuestionTree`・`RootRevision`・`Aim`・`QuestionNode`・`Progress` で、[docs/ARCHITECTURE.md](../ARCHITECTURE.md) の全体図にも載せた。
+`Answer`・`AnswerStatement`・`NextCandidate`・`TreeDecision` と、それを持つ項目（`answers`・`next_candidate`・`decisions`）は、扱う Story で足す。
+モデルに無い項目は検証で拒むので、足すまではこれらの項目を正本に書けない。
+[docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) の「コード上の名前」は、名前がコードに実在する語から埋める。
 
 ```mermaid
 classDiagram
@@ -226,11 +230,11 @@ classDiagram
         <<Value Object>>
         +revision: int
         +question
-        +destination: Destination
+        +aim: Aim
         +reason
         +created_at
     }
-    class Destination {
+    class Aim {
         <<Value Object>>
         +kind: business | research
         +decision_maker
@@ -246,10 +250,10 @@ classDiagram
         +contribution
         +origin_event_id
         +design_ids: list
-        +answers: list~CurrentAnswer~
-        +inquiry: Inquiry
+        +answers: list~Answer~
+        +next_candidate: NextCandidate
     }
-    class CurrentAnswer {
+    class Answer {
         <<Value Object>>
         +round: int
         +root_revision: int
@@ -262,7 +266,7 @@ classDiagram
         +text
         +cites: list~event_id~
     }
-    class Inquiry {
+    class NextCandidate {
         <<Value Object>>
         +ask
         +changes_if
@@ -295,10 +299,10 @@ classDiagram
     QuestionTree "1" *-- "1..*" RootRevision
     QuestionTree "1" *-- "1..*" QuestionNode
     QuestionTree "1" *-- "0..*" TreeDecision
-    RootRevision --> Destination
-    QuestionNode "1" *-- "0..*" CurrentAnswer
-    QuestionNode --> Inquiry
-    CurrentAnswer "1" *-- "1..*" AnswerStatement
+    RootRevision --> Aim
+    QuestionNode "1" *-- "0..*" Answer
+    QuestionNode --> NextCandidate
+    Answer "1" *-- "1..*" AnswerStatement
     QuestionNode ..> AnalysisDesign : design_ids
     AnswerStatement ..> JournalEvent : cites
     QuestionNode ..> JournalEvent : origin_event_id
@@ -307,10 +311,11 @@ classDiagram
 
 | 型 | 種類 | 不変条件 |
 |---|---|---|
-| `QuestionTree` | 集約ルート | 1テーマに1つ。根の問い（`parent_question_id` を持たない論点）はちょうど1つ。論点の親は同じツリーの中にあり、循環しない。根の版は1から1ずつ増える。ツリーの決定の `node_id` は実在する |
-| `RootRevision` | 値オブジェクト | 版2以降は理由が空でない。`destination` は `kind` に応じた2項目がどちらも空でない |
-| `QuestionNode` | エンティティ | id は `{theme_id}-Q{nn}` で、ツリーの中で重ならない。根以外は寄与が空でない。発見元はあれば `{design_id}-E{nn}` の形 |
-| `CurrentAnswer` | 値オブジェクト | 追記だけ。`root_revision` は今の根の版以下。回は1つの論点の中で増え続ける |
+| `QuestionTree` | 集約ルート | 1テーマに1つ。根の問い（`parent_question_id` を持たない論点）はちょうど1つで、その文は今の根の版の問いと同じ。論点の親は同じツリーの中にあり、循環しない。根の版は1から1ずつ増える。ツリーの決定の `node_id` は実在する。モデルに無い項目を持てない |
+| `RootRevision` | 値オブジェクト | 版2以降は理由が空でない |
+| `Aim` | 値オブジェクト | `kind` に応じた2項目がどちらも空でない |
+| `QuestionNode` | エンティティ | id は `{theme_id}-Q{nn}` で、ツリーの中で重ならない。根以外は寄与が空でない。発見元はあれば `{design_id}-E{nn}` の形。同じ分析設計を2度結ばない |
+| `Answer` | 値オブジェクト | 現時点の答えの1回分。追記だけで、最後の要素が今の答え。`root_revision` は今の根の版以下。回は1つの論点の中で増え続ける |
 | `AnswerStatement` | 値オブジェクト | `cites` は1つ以上。引用先の実在と数の一致は `validate.py` でなくツリーの検査が確かめる（I/O が要るため） |
 | `Progress` | 導出する列挙 | 保存しない。`design_ids` の分析設計の状態から導く（US-2 AC 1） |
 
@@ -323,8 +328,7 @@ theme_id: LIB
 root_revisions:
   - revision: 1
     question: 取り置き期限を延ばす試行をするか
-    destination: {kind: business, decision_maker: 図書館員, decision: 取り置き期限を延ばす試行を始めるか}
-    reason: ""
+    aim: {kind: business, decision_maker: 図書館員, decision: 取り置き期限を延ばす試行を始めるか}
 nodes:
   - {id: LIB-Q01, question: 取り置き期限を延ばす試行をするか}
   - id: LIB-Q02
@@ -342,7 +346,7 @@ nodes:
     parent_question_id: LIB-Q04
     contribution: 通知の遅れと、来館できる日の少なさを見分ける
     origin_event_id: LIB-H02-E03
-    inquiry:
+    next_candidate:
       ask: 本を確保してから実際に通知するまで、曜日によって手順は変わりますか
       changes_if: 変わるなら通知の時点を調べる論点に進み、変わらないなら開館日数の論点を深める
       known: 今の抽出表に送信日時は無い
@@ -549,7 +553,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - What: 次の候補に、分析者が聞いてきた答え、誰に聞いたか、日付を残せるようにする。その論点に分析設計を起こすとき、答えを journal の出来事として写す（判断A、2026-11-20）。
 - Why: 聞いてきた答えは次の論点を選ぶ根拠になる。残す場所が無いと、選んだ理由が辿れない。答えを現時点の答えの根拠に使うには、引用できる記録になっている必要がある（[ADR-0025](../adr/0025-cited-answers-checked-after-writing.md)）。
 - Criteria: Must は「現時点の答えの文に入るものは、引用できる記録にある」（ADR-0025）。Want は「聞いてきた答えが図で見える」（高、Claude の推測）、「後で根拠に使える」（中、Claude の推測）、「足す量が少ない」（中、Claude の推測）。決め手は後の2つの釣り合い。人間が推奨を採った。
-- Affected modules: 論点ツリーのモデル（`Inquiry`）、`tree_io`、`/analysis-reflection`、`/analysis-design`、`tree_io render`。
+- Affected modules: 論点ツリーのモデル（`NextCandidate`）、`tree_io`、`/analysis-reflection`、`/analysis-design`、`tree_io render`。
 - Alternatives considered: 欄を足すだけ（根拠に使えない）。論点ツリーに自分の出来事を持たせる（ADR-0025 を改め、検査の対象が2種類になる）。何もしない（ツリーの決定の理由欄に文で書くことになり、図で探せない）。
 - Consequences: 同じ答えが論点ツリーと journal の2か所に載る。論点ツリーの側を元とし、journal の側には写した元の論点の id を書く。分析設計を起こすまでは、答えを現時点の答えの根拠に使えない。
 
@@ -562,6 +566,51 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - Alternatives considered: ツリーを作らず今までどおり流す（動きが黙って分かれる）。必ず framing でツリーを作る（再開したいだけの人も根の問いと到達点を決めることになる）。
 - Consequences: ゲートが1つ増える。答えは論点ツリーの有無として残るので、覚える仕組みは要らない。ツリーを作るときは、既にある分析設計をどの論点に結ぶかを framing で決める。
 
+### Decision: tree-type-names
+
+- What: Domain Model の型名を3つ変える。`Inquiry` を `NextCandidate`（項目は `next_candidate`）、`CurrentAnswer` を `Answer`、`Destination` を `Aim`（項目は `aim`）にする。`QuestionTree` と `QuestionNode` は変えない（人間の判断、2026-11-20、Story 18.1）。
+- Why: 初版の名前には気になる点が3つあった。「問い」に当たる名前が3つある。`CurrentAnswer` が過去の回も持つ。`Destination` が送り先と読める。
+- Criteria: Must は「用語表の『使わない言い換え』を英語にした名前でない」（[docs/WORKFLOW.md](../WORKFLOW.md) §7）。Want は「名前だけで別の概念と取り違えない」（高、Claude の推測）、「名前が中身と食い違わない」（高、Claude の推測）、「用語表の語と1対1で対応する」（中、Claude の推測）、「YAML のキーを大きく変えない」（低、Claude の推測）。決め手は順に、`Inquiry` が `skills/analysis-journal/SKILL.md` の「Inquiry Board」と衝突すること、履歴の要素に current が付くこと、`skills/report-upload/SKILL.md` が destination を送り先の意味で使うこと。人間が3つとも推奨を採った。
+- Affected modules: 論点ツリーのモデル、`tree_io`、正本の YAML のキー、[docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) の「コード上の名前」。
+- Alternatives considered: `QuestionNode` を `TreeNode` にする（何のノードかが名前から分からなくなる）。`AnswerRound`（「振り返りの回」と紛れる）。`RootDestination`（送り先の語感が残る）。`IssueTree` と `Goal` は、用語表が禁じた言い換えなので落とした。
+- Consequences: journal の `question` と `QuestionNode` の近さは残る。前者は出来事の種類の文字列、後者は型で、`origin_event_id` がつなぐ。`Aim` は研究の目的と読まれうるので、docstring に「誰が何を決めるか、誰に何を主張するか」と書いた。答えを聞き終えた論点にも `next_candidate` が残る点は、Story 18.5 で見直せる。
+
+### Decision: tree-schema-rejects-unknown-fields
+
+- What: 論点ツリーのモデルは、モデルに無い項目を拒む（pydantic の `extra="forbid"`）。分析設計のモデル（`extra="allow"`）とは逆にする。
+- Why: 進捗を保存しないこと（US-2 AC 1）を、モデルの形で守る。`progress` や `status` を論点に書いた正本は、`tree_io` でも pre-write hook でも通らない。
+- Criteria: US-2 AC 1、principle「Type System Discipline」（不正な状態を表せなくする）。決め手は、直接の書き込みでも進捗を保存できないこと。
+- Affected modules: `src/insight_blueprint/models/tree.py`、`validate.py`、pre-write hook。
+- Alternatives considered: `extra="allow"` にして `progress` だけを名指しで拒む（拒む名前の一覧が増えていく）。
+- Consequences: 後の Story は、項目を正本に書く前にモデルへ足す必要がある。項目名の打ち間違いも止まる。
+
+### Decision: root-question-is-held-twice-and-kept-equal
+
+- What: 根の問いの文は、根の版（`root_revisions[].question`）と根の論点（`nodes[].question`）の両方にある。検証で、根の論点の文が今の根の版の文と同じことを求める。書き換えは `tree_io revise-root` が両方を一度に行う。
+- Why: 初版の「正本の形」が両方に文を持つ。片方だけを直接書き換えると、表示と履歴がずれる。
+- Criteria: US-1 AC 5（根を変える手段を1つにする）。決め手は、ずれた正本が書き込めないこと。
+- Affected modules: 論点ツリーのモデル、`tree_io`。
+- Alternatives considered: 根の論点に文を持たせない（根だけ形が変わり、表示と検査が根を特別扱いする）。同じであることを求めない（ずれに気づけない）。
+- Consequences: 根の問いを直接の書き込みで直すときは、2か所を同時に直す必要がある。
+
+### Decision: revise-root-rewords-in-place-without-a-bump
+
+- What: `tree_io revise-root` は `bump` を必ず受け取る。`true` なら新しい根の版を理由つきで足す。`false` なら今の版の問いと到達点をその場で書き換え、版は上げない。
+- Why: US-1 AC 5 は、版を上げるかを分析者に聞くとしている。上げないと答えたときの書き込み先が要る。
+- Criteria: US-1 AC 5、Decision `root-revision-marks-stale-answers` の Consequences（言い換え程度で全論点を「変更前」にしない）。
+- Affected modules: `tree_io`、`/analysis-framing`（Story 18.2）。
+- Alternatives considered: 常に版を上げる（AC 5 と合わない）。版を上げない変更を禁じる（言い換えを直せない）。
+- Consequences: 版を上げない書き換えは、元の文を正本に残さない。残るのは git の差分だけになる。意味が変わる変更を `bump: false` で書けてしまう点は、`tree_io` では止めない。版を上げるかを聞くのは `/analysis-framing` の KEEP ゲートである。
+
+### Decision: link-and-promotion-check-the-other-file
+
+- What: `tree_io link` は、分析設計が実在し、その `theme_id` がツリーのテーマと同じことを確かめる。`tree_io add-node` は、発見元を渡されたら、その出来事が journal にあり種類が `question` であることを確かめる。`tree_io progress` は、結んだ分析設計が無くなっていたらエラーにする。
+- Why: 論点ツリーは1つのテーマの分析設計を束ねる（課題1）。別のテーマや実在しない分析設計を結べると、進捗と横断の振り返りが、気づかないうちに誤る。
+- Criteria: US-2 AC 1・AC 2、principle「Boundary Discipline」（ファイルをまたぐ確認は I/O を持つ側でする）。
+- Affected modules: `tree_io`。`validate.py` は純関数のままにする。
+- Alternatives considered: 何も確かめず `tree_check` に任せる（`tree_check` は現時点の答えの引用を見るもので、結びつきは見ない）。
+- Consequences: pre-write hook を通る直接の書き込みでは、この確認は効かない。hook が見るのはファイル1つの形だけである。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0024: 論点ツリーの正本は YAML に置き、表示は正本から生成する HTML にする](../adr/0024-question-tree-yaml-and-generated-html.md): 判断2・2'。Artifact は承認の後の任意の手順。
@@ -572,7 +621,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| Story 18.1 | ☐ | ☐ | — （skill を通らない） |
+| Story 18.1 | ✓ | ✓ | — （skill を通らない） |
 | Story 18.2 | ☐ | ☐ | ☐ |
 | Story 18.3 | ☐ | ☐ | — （CLI だけ） |
 | Story 18.4 | ☐ | ☐ | ☐ |
@@ -590,3 +639,4 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - 2026-11-20 — 入口を `/analysis-auto` ひとつにし、シーケンス図を1枚に統合（ADR-0026、US-8）。
 - 2026-11-20 — 初版に合意。Story 18.1〜18.4、18.6〜18.8 を起票（#119〜#125）。
 - 2026-11-20 — PR #117 を main にマージ。未決事項2つを決め（判断A・B）、Story 18.5 と 18.9 を起票（#126、#127）。
+- 2026-11-20 — Story 18.1 completed: 型名を決め（`NextCandidate`・`Answer`・`Aim`）、論点ツリーのモデル、`validate_tree`、`tree_io`（create・add-node・link・revise-root・get・progress）、`*_tree.yaml` を検証する pre-write hook、`bin/tree_io` を入れた。

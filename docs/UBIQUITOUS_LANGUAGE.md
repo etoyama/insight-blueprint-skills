@@ -43,14 +43,14 @@
 | journal の出来事 | `observe`、`hypothesize`、`evidence`、`question`、`decide`、`reflect`、`conclude`、`branch` | journal の1件。種類は観察・仮説・証拠・問い・決定・振り返り・結論・派生 | — | fork 前 |
 | 未解決の問い | `metadata.resolves` | journal の `question` のうち、どの `conclude` の `metadata.resolves` にも id が挙がっていないもの | オープンクエスチョン | [epic-14](design/epic-14-report-template-gaps.md) |
 | reflection | `/analysis-reflection` | journal を振り返り、結論を出すか、仮説を直すか、派生するかを決めること | — | fork 前 |
-| 論点ツリー | — | 1つのテーマ（`theme_id`）の問いの論理の構造。根の問いを1つ持ち、論点を親子でつなぐ。分析設計の派生とは別に辿る。正本は YAML で、表示は正本から生成する | イシューツリー、ロジックツリー | [ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md) |
-| 論点 | — | 論点ツリーの1つのノード。問いの文と、親の論点への寄与を持ち、答えるための分析設計を結べる。journal の `question` とは別に持つ | 子の問い、サブクエスチョン | [epic-18](design/epic-18-question-tree.md) |
+| 論点ツリー | `QuestionTree` | 1つのテーマ（`theme_id`）の問いの論理の構造。根の問いを1つ持ち、論点を親子でつなぐ。分析設計の派生とは別に辿る。正本は YAML で、表示は正本から生成する | イシューツリー、ロジックツリー | [ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md) |
+| 論点 | `QuestionNode` | 論点ツリーの1つのノード。問いの文と、親の論点への寄与を持ち、答えるための分析設計を結べる。journal の `question` とは別に持つ | 子の問い、サブクエスチョン | [epic-18](design/epic-18-question-tree.md) |
 | 根の問い | — | 論点ツリーの、親を持たない論点。ツリーに1つだけあり、到達点を持つ | — | [epic-18](design/epic-18-question-tree.md) |
-| 到達点 | — | 根の問いが目指す所。業務では誰が何を決めるか、研究では想定読者と主張の範囲 | ゴール | [epic-18](design/epic-18-question-tree.md) |
-| 根の版 | — | 根の問いか到達点を変えるたびに1つ上がる番号。変えた理由を持つ。古い版に対する現時点の答えは、根の変更前の答えとして表示する | — | [epic-18](design/epic-18-question-tree.md) |
-| 寄与 | — | 子の論点に答えると、親の論点の判断がどう進むか。論点の親子はこれで決める | — | [epic-18](design/epic-18-question-tree.md) |
-| 発見元 | — | 探索中に生まれた論点が生まれた journal の出来事。着手のときに置いた論点は持たない | — | [epic-18](design/epic-18-question-tree.md) |
-| 進捗 | — | 論点の分析がどこまで進んだか。未着手・検証中・分析済み。保存せず、結んだ分析設計の状態から導く | — | [epic-18](design/epic-18-question-tree.md) |
+| 到達点 | `Aim` | 根の問いが目指す所。業務では誰が何を決めるか、研究では想定読者と主張の範囲 | ゴール | [epic-18](design/epic-18-question-tree.md) |
+| 根の版 | `RootRevision` | 根の問いか到達点を変えるたびに1つ上がる番号。変えた理由を持つ。古い版に対する現時点の答えは、根の変更前の答えとして表示する | — | [epic-18](design/epic-18-question-tree.md) |
+| 寄与 | `contribution` | 子の論点に答えると、親の論点の判断がどう進むか。論点の親子はこれで決める | — | [epic-18](design/epic-18-question-tree.md) |
+| 発見元 | `origin_event_id` | 探索中に生まれた論点が生まれた journal の出来事。着手のときに置いた論点は持たない | — | [epic-18](design/epic-18-question-tree.md) |
+| 進捗 | `Progress` | 論点の分析がどこまで進んだか。未着手・検証中・分析済み。保存せず、結んだ分析設計の状態から導く | — | [epic-18](design/epic-18-question-tree.md) |
 | 現時点の答え | — | 振り返りで論点ごとに書く答え。文ごとに種類（言えること・未判別・弱める証拠と留保）と、引用する journal の出来事を持つ。追記だけで、振り返りの回と根の版を持つ | 暫定回答 | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
 | 振り返りの回 | — | テーマを横断する振り返りの通し番号。前の回から変わった答えを見分けるのに使う | — | [epic-18](design/epic-18-question-tree.md) |
 | ツリーの決定 | — | 論点ツリーで分析者が選んだこと（最初の論点を選ぶ、深める、親に戻る、区切る）と理由 | — | [epic-18](design/epic-18-question-tree.md) |

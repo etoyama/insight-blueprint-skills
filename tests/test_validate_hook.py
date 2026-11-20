@@ -308,3 +308,113 @@ class TestFailClosed:
     ) -> None:
         path = tmp_path / "notes.md"
         assert self._run_main_with_broken_evaluate(monkeypatch, str(path)) == 0
+
+
+# ---------------------------------------------------------------------------
+# Question tree files (Epic 18, Story 18.1, US-2 AC 4)
+# ---------------------------------------------------------------------------
+
+
+def tree_dict() -> dict:
+    question = "取り置き期限を延ばす試行をするか"
+    return {
+        "theme_id": "LIB",
+        "root_revisions": [
+            {
+                "revision": 1,
+                "question": question,
+                "aim": {
+                    "kind": "business",
+                    "decision_maker": "図書館員",
+                    "decision": "取り置き期限を延ばす試行を始めるか",
+                },
+            }
+        ],
+        "nodes": [{"id": "LIB-Q01", "question": question}],
+    }
+
+
+def tree_path(tmp_path: Path, theme_id: str = "LIB") -> Path:
+    themes = tmp_path / ".insight" / "themes"
+    themes.mkdir(parents=True, exist_ok=True)
+    return themes / f"{theme_id}_tree.yaml"
+
+
+def write_tool(path: Path, data: dict) -> dict:
+    return {
+        "tool_name": "Write",
+        "tool_input": {"file_path": str(path), "content": dump_yaml(data)},
+    }
+
+
+class TestTreeThemeId:
+    def test_reads_the_theme_from_a_tree_file_in_themes(self) -> None:
+        assert hook.tree_theme_id("/p/.insight/themes/LIB_tree.yaml") == "LIB"
+
+    def test_ignores_the_generated_html(self) -> None:
+        assert hook.tree_theme_id("/p/.insight/themes/LIB_tree.html") is None
+
+    def test_ignores_a_tree_file_outside_themes(self) -> None:
+        assert hook.tree_theme_id("/p/.insight/designs/LIB_tree.yaml") is None
+
+    def test_ignores_none(self) -> None:
+        assert hook.tree_theme_id(None) is None
+
+
+class TestHookSubprocessTree:
+    def test_a_valid_tree_is_allowed(self, tmp_path: Path) -> None:
+        result = run_hook(write_tool(tree_path(tmp_path), tree_dict()))
+        assert result.returncode == 0, result.stderr
+
+    def test_a_tree_that_stores_progress_is_blocked(self, tmp_path: Path) -> None:
+        data = tree_dict()
+        data["nodes"][0]["progress"] = "analyzed"
+
+        result = run_hook(write_tool(tree_path(tmp_path), data))
+
+        assert result.returncode == 2
+        assert "progress" in result.stderr
+
+    def test_a_theme_that_differs_from_the_file_name_is_blocked(
+        self, tmp_path: Path
+    ) -> None:
+        result = run_hook(write_tool(tree_path(tmp_path, "FP"), tree_dict()))
+
+        assert result.returncode == 2
+        assert "does not match the file name" in result.stderr
+
+    def test_an_edit_that_breaks_the_tree_is_blocked(self, tmp_path: Path) -> None:
+        path = tree_path(tmp_path)
+        path.write_text(dump_yaml(tree_dict()), encoding="utf-8")
+
+        result = run_hook(
+            {
+                "tool_name": "Edit",
+                "tool_input": {
+                    "file_path": str(path),
+                    "old_string": "id: LIB-Q01",
+                    "new_string": "id: LIB-Q01\n  parent_question_id: LIB-Q01",
+                },
+            }
+        )
+
+        assert result.returncode == 2
+        assert "contribution" in result.stderr
+
+    def test_malformed_yaml_is_blocked(self, tmp_path: Path) -> None:
+        result = run_hook(
+            {
+                "tool_name": "Write",
+                "tool_input": {
+                    "file_path": str(tree_path(tmp_path)),
+                    "content": "nodes: [unclosed",
+                },
+            }
+        )
+        assert result.returncode == 2
+
+    def test_a_tree_write_fails_closed(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        run = TestFailClosed()._run_main_with_broken_evaluate
+        assert run(monkeypatch, str(tree_path(tmp_path))) == 2

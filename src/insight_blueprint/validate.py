@@ -16,6 +16,7 @@ from __future__ import annotations
 from pydantic import ValidationError
 
 from insight_blueprint.models.design import AnalysisDesign, DesignStatus
+from insight_blueprint.models.tree import QuestionTree
 
 # State-transition allow-table. This is the canonical definition; core/reviews.py
 # imports it from here to avoid duplication.
@@ -113,6 +114,25 @@ def validate_design_change(
             errors.append(str(exc))
 
     return errors
+
+
+def validate_tree(data: dict, expected_theme_id: str | None = None) -> list[str]:
+    """Validate a question tree document (ADR-0024).
+
+    Never raises: returns human-readable error strings (empty list means the
+    tree is valid). *expected_theme_id* is the theme the file name carries;
+    the caller owns the path and passes it in so this stays pure.
+    """
+    try:
+        tree = QuestionTree.model_validate(data)
+    except ValidationError as exc:
+        return _format_validation_error(exc)
+    if expected_theme_id is not None and tree.theme_id != expected_theme_id:
+        return [
+            f"theme_id: '{tree.theme_id}' does not match the file name "
+            f"({expected_theme_id}_tree.yaml)"
+        ]
+    return []
 
 
 def _format_validation_error(exc: ValidationError) -> list[str]:

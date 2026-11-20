@@ -509,3 +509,39 @@ class TestQuestionTreeDocs:
         decisions = section(_read(self.DESIGN_DOC), "## Decisions")
         assert "### Decision: inquiry-answer-copied-to-journal" in decisions
         assert "### Decision: ask-once-for-treeless-design" in decisions
+
+    def test_design_doc_uses_the_type_names_the_human_chose(self) -> None:
+        """Story 18.1: NextCandidate, Answer and Aim replace the first proposal."""
+        model = section(_read(self.DESIGN_DOC), "## Domain Model")
+        for name in ("NextCandidate", "Answer", "Aim"):
+            assert f"class {name} {{" in model, name
+        for name in ("Inquiry", "CurrentAnswer", "Destination"):
+            assert name not in model, name
+
+    def test_ubiquitous_language_names_the_tree_classes_that_exist(self) -> None:
+        rows = {
+            r[words.TERM]: r[words.CODE_NAME]
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        expected = {
+            "論点ツリー": "QuestionTree",
+            "論点": "QuestionNode",
+            "到達点": "Aim",
+            "根の版": "RootRevision",
+            "寄与": "contribution",
+            "発見元": "origin_event_id",
+            "進捗": "Progress",
+        }
+        for term, name in expected.items():
+            assert f"`{name}`" in rows[term], term
+
+    def test_architecture_carries_the_tree_file_and_its_guard(self) -> None:
+        """ADR-0024: the .insight layout and the hook target change with Story 18.1."""
+        doc = _read("docs/ARCHITECTURE.md")
+        layout = section(doc, "### 2. plugin 利用者視点の構成")
+        assert "themes/" in layout
+        assert "{theme_id}_tree.yaml" in layout
+        components = section(doc, "## コンポーネントと責務")
+        assert "*_tree.yaml" in components
+        assert "validate_tree" in components
+        assert "tree_io" in section(doc, "### パス解決機構")

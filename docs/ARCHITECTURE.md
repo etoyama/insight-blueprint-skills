@@ -55,13 +55,13 @@ flowchart TD
         hook["pre-write hook<br/>hooks/validate-design.py（plugin 同梱）"]
         marimo["marimo + lineage<br/>notebook 契約・加工透明性"]
     end
-    yaml["(.insight/) designs / journals / catalog / knowledge — YAML"]
+    yaml["(.insight/) designs / journals / themes / catalog / knowledge — YAML"]
 
     user --> cc --> skills
     skills -->|read/write| yaml
     cc -->|Write/Edit/MultiEdit| hook
     hook -->|検証| validate
-    hook -->|"対象: *_hypothesis.yaml"| yaml
+    hook -->|"対象: *_hypothesis.yaml、*_tree.yaml"| yaml
     skills --> marimo
 ```
 
@@ -71,11 +71,15 @@ flowchart TD
   状態遷移ガード（`VALID_TRANSITIONS`。例: `analyzing` から進めるのは `in_review` だけで、`analyzing → supported` は拒む。terminal status からはどこへも遷移しない）。分析設計の整合性の単一正本。
   `design_io` 経由で書く skill も、書く前に Python 側で同じ検証を通す。tool の書き込み（hook）と
   helper の書き込み（`design_io`）の両方が守られる。
+  論点ツリーの形も同じ場所で検証する（`validate_tree`。[ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md)）。
+  根の問いがちょうど1つあること、論点の親が同じツリーにあって循環しないこと、根の版が1から1ずつ増えることを確かめ、モデルに無い項目を拒む。
+  進捗は項目に無いので、保存できない。`tree_io` は結んだ分析設計の状態から進捗を導く。
 - **pre-write hook（`hooks/validate-design.py`, plugin 同梱 `hooks/hooks.json`）** —
-  `.insight/designs/*_hypothesis.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
-  にかけ、違反を `exit 2` でブロックする I/O 殻。利用者の install 先プロジェクトでも効く
+  `.insight/designs/*_hypothesis.yaml` と `.insight/themes/*_tree.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
+  にかけ、違反を `exit 2` でブロックする I/O 殻。論点ツリーでは、ファイル名のテーマと中身の `theme_id` が同じことも確かめる。利用者の install 先プロジェクトでも効く
   （この repo の `.claude/settings.json` は dev 用に同スクリプトを配線）。
-- **Skill-managed YAML（`.insight/`）** — designs / journals / catalog / knowledge。skill が直接管理する。
+- **Skill-managed YAML（`.insight/`）** — designs / journals / themes / catalog / knowledge。skill が直接管理する。
+  論点ツリー（`themes/{theme_id}_tree.yaml`）は `tree_io` を通して書く。
 - **marimo + lineage（`src/insight_blueprint/lineage/`）** — 分析 notebook は同梱テンプレートでなく、
   **`/analysis-notebook` skill が分析設計の `methodology` から 8-cell 契約に沿って生成・実行**する
   （`skills/analysis-notebook/references/notebook-contract.md`）。`lineage`（`tracked_pipe` / Mermaid export）は
@@ -117,9 +121,9 @@ notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定�
 ```
 insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配布物の中身）
 ├── .claude-plugin/                # plugin マニフェスト（plugin.json / marketplace.json）
-├── bin/                           # plugin 有効時に PATH に載る: design_io / catalog_io / premortem / report_check ラッパー
+├── bin/                           # plugin 有効時に PATH に載る: design_io / catalog_io / tree_io / premortem / report_check ラッパー
 ├── hooks/                         # plugin 同梱 hook: hooks.json + validate-design.py
-├── skills/                        # 全 skill + _shared/（design_io.py / catalog_io.py / report_check.py / ids.py / config_loader.py / models.py）+ premortem/
+├── skills/                        # 全 skill + _shared/（design_io.py / catalog_io.py / tree_io.py / report_check.py / ids.py / config_loader.py / models.py）+ premortem/
 ├── src/insight_blueprint/         # PyPI パッケージ insight-blueprint-lineage: models/ · validate.py · lineage/
 ├── tests/  docs/  scripts/
 ├── pyproject.toml · uv.lock       # ← この uv プロジェクトが「plugin の実行環境」を供給する
@@ -154,6 +158,8 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 │   ├── {id}_journal.yaml           # journal イベント
 │   ├── {id}_reviews.yaml           # review バッチ
 │   └── {id}_revision.yaml          # /analysis-revision の修正追跡
+├── themes/
+│   └── {theme_id}_tree.yaml        # 論点ツリーの正本。tree_io が書く（pre-write hook が検証）
 ├── catalog/
 │   ├── sources/{id}.yaml           # /catalog-register
 │   └── knowledge/{id}.yaml         # /knowledge-extract
@@ -186,7 +192,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 
 | 経路 | cwd | パス解決 | 出力先 |
 |---|---|---|---|
-| `design_io` / `catalog_io` / `premortem`（bin ラッパー） | plugin のルートに**移動する**（`${CLAUDE_PLUGIN_ROOT}`。無ければラッパー自身の場所から求める） | 絶対パス env `INSIGHT_BASE_DIR=${CLAUDE_PROJECT_DIR}/.insight` で解決（`CLAUDE_PROJECT_DIR` が無ければ cwd） | 利用者 `.insight/` |
+| `design_io` / `catalog_io` / `tree_io` / `premortem`（bin ラッパー） | plugin のルートに**移動する**（`${CLAUDE_PLUGIN_ROOT}`。無ければラッパー自身の場所から求める） | 絶対パス env `INSIGHT_BASE_DIR=${CLAUDE_PROJECT_DIR}/.insight` で解決（`CLAUDE_PROJECT_DIR` が無ければ cwd） | 利用者 `.insight/` |
 | `/analysis-notebook`（marimo 実行） | **利用者プロジェクトのまま**（移動しない） | 相対パス `.insight/notebooks/…`（cwd 基準） | 利用者 `.insight/` |
 
 ポイントは notebook 経路の `uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook …`:
@@ -536,6 +542,47 @@ classDiagram
         LOW
         SKIP
     }
+    class QuestionTree {
+        <<Aggregate Root>>
+        theme_id
+        root_revisions
+        nodes
+    }
+    class RootRevision {
+        <<Value Object>>
+        revision
+        question
+        aim
+        reason
+    }
+    class Aim {
+        <<Value Object>>
+        kind
+        decision_maker
+        decision
+        audience
+        claim_scope
+    }
+    class QuestionNode {
+        <<Entity>>
+        id
+        question
+        parent_question_id
+        contribution
+        origin_event_id
+        design_ids
+    }
+    class AimKind {
+        <<enumeration>>
+        business
+        research
+    }
+    class Progress {
+        <<enumeration>>
+        not_started
+        investigating
+        analyzed
+    }
 
     AnalysisDesign "1" *-- "0..1" Methodology
     AnalysisDesign "1" *-- "0..1" DecisionContext
@@ -560,6 +607,13 @@ classDiagram
     DomainKnowledgeEntry --> KnowledgeImportance
     SourceChecks ..> DataSource : 事前確認の対象
     RiskDecision --> RiskLevel
+    QuestionTree "1" *-- "1..*" RootRevision
+    QuestionTree "1" *-- "1..*" QuestionNode
+    RootRevision "1" *-- "1" Aim
+    Aim --> AimKind
+    QuestionNode ..> QuestionNode : parent_question_id
+    QuestionNode ..> AnalysisDesign : design_ids
+    QuestionNode ..> Progress : 導く（保存しない）
 ```
 
 図の読み方: 箱は1つのクラスで、上段がクラス名と種類（`<<Aggregate Root>>` など）、下段が主なフィールドか enum の値を表す。
@@ -567,6 +621,7 @@ classDiagram
 実線の黒いひし形（`*--`）は「親が子を持つ」で、両端の数字は個数を表す。
 実線の矢印（`-->`）は「その enum の値を持つ」を表す。破線の矢印（`..>`）は型で結ばれていない参照で、ラベルが参照に使うフィールドを表す（ID のほか、`schema_info` のように dict に入れた形もある）。
 `RiskDecision`・`SourceChecks`・`PremortemConfig` は `/premortem` の入出力で、ファイルには保存しない。
+`Progress` も保存しない。論点に結んだ分析設計の `status` から導く。
 
 | 型 | 種類 | 不変条件 |
 |---|---|---|
@@ -574,6 +629,7 @@ classDiagram
 | `ReviewBatch` | 集約ルート | `comments` は1件以上。1つのバッチは `status_after` への遷移を1回だけ起こす |
 | `DataSource` | 集約ルート | `type` は空でない open string（[ADR-0004](adr/0004-open-string-catalog-taxonomy.md)） |
 | `DomainKnowledge` | 集約ルート | 1つの `source_id` に属する。`category` は空でない open string |
+| `QuestionTree` | 集約ルート | 1テーマに1つ。根の問い（親を持たない論点）はちょうど1つで、その文は今の根の版の問いと同じ。論点の親は同じツリーにあり、循環しない。根の版は1から1ずつ増える。モデルに無い項目を持てない（[epic-18](design/epic-18-question-tree.md)） |
 
 ### Python のクラスを持たないファイルの契約
 
@@ -614,7 +670,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 15 | Skill layer（`/analysis-design`・`/analysis-report`・`/analysis-notebook`・`/premortem`・`/analysis-auto` がデータソースを読む場所）+ `catalog_io describe` |
 | Epic 16 | Skill layer（`/premortem`・`/analysis-auto` がパッケージ許可リストの無いときに使う既定の許可リスト）+ `risk_evaluator` の `HARD_BLOCK` の理由 |
 | Epic 17 | Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-notebook`・`/analysis-auto`・`/catalog-register` が `connection` を読む場所）+ `catalog_io create`・`update` の認証情報の検査 |
-| Epic 18 | Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-reflection` の論点ツリー、`/analysis-auto` の論点ごとの巡回）+ 論点ツリーのモデルと `validate.py` の検証 + `tree_io`・`tree_check`（計画中。構成図とシーケンス図への反映は実装の Story で行う） |
+| Epic 18 | Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-reflection` の論点ツリー、`/analysis-auto` の論点ごとの巡回）+ 論点ツリーのモデルと `validate.py` の検証 + `tree_io`・`tree_check`（Story 18.1 で正本・`tree_io`・hook の対象を実装した。残りは計画中で、シーケンス図への反映は実装の Story で行う） |
 
 
 ## 参照

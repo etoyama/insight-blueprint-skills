@@ -70,6 +70,7 @@ def test_wrapper_writes_to_project_dir_from_foreign_cwd(tmp_path: Path) -> None:
     [
         ("design_io", ["list"]),
         ("catalog_io", ["list"]),
+        ("tree_io", ["get", "--theme", "LIB"]),
         ("premortem", ["--help"]),
         ("report_check", ["--help"]),
     ],
@@ -97,6 +98,38 @@ def test_wrapper_runs_from_its_own_plugin_without_plugin_root(
         env=env,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_tree_io_wrapper_writes_the_tree_to_the_project_from_foreign_cwd(
+    tmp_path: Path,
+) -> None:
+    """tree_io writes CLAUDE_PROJECT_DIR/.insight/themes, not the cwd (Story 18.1)."""
+    project = tmp_path / "userproj"
+    project.mkdir()
+    foreign_cwd = tmp_path / "elsewhere"
+    foreign_cwd.mkdir()
+    env = _base_env()
+    env["CLAUDE_PLUGIN_ROOT"] = str(REPO_ROOT)
+    env["CLAUDE_PROJECT_DIR"] = str(project)
+    payload = {
+        "theme_id": "LIB",
+        "question": "取り置き期限を延ばす試行をするか",
+        "aim": {"kind": "research", "audience": "司書", "claim_scope": "1館"},
+    }
+
+    result = subprocess.run(
+        [str(REPO_ROOT / "bin" / "tree_io"), "create"],
+        input=json.dumps(payload),
+        capture_output=True,
+        text=True,
+        cwd=str(foreign_cwd),
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["nodes"][0]["id"] == "LIB-Q01"
+    assert (project / ".insight" / "themes" / "LIB_tree.yaml").exists()
+    assert not (foreign_cwd / ".insight").exists()
 
 
 def test_report_check_wrapper_reads_the_project_report_from_foreign_cwd(
