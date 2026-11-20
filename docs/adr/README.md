@@ -26,12 +26,13 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0018](0018-catalog-io-omits-connection-by-default.md) | `catalog_io` は、頼まれない限りデータソースの `connection` を返さない | Accepted |
 | [0019](0019-report-source-text-escaped-and-checked.md) | レポートに写すデータ由来の文は、削らずエスケープし、できたレポートをコードで検査する | Accepted |
 | [0020](0020-design-declares-sources-in-source-ids.md) | 分析設計が使うデータソースは `source_ids` に宣言し、下流の skill はそこだけを読む | Accepted |
-| [0021](0021-default-package-allowlist.md) | パッケージ許可リストが無いときは、plugin の既定の許可リストを使う | Accepted |
+| [0021](0021-default-package-allowlist.md) | パッケージ許可リストが無いときは、plugin の既定の許可リストを使う | Accepted（ファイルがあるときの扱いは ADR-0027 が改めた） |
 | [0022](0022-connection-reaches-only-the-notebook.md) | `connection` の値をモデルの文脈に入れるのは `/analysis-notebook` だけにする | Accepted |
 | [0023](0023-catalog-holds-no-credentials.md) | catalog は認証情報を持たない | Accepted |
 | [0024](0024-question-tree-yaml-and-generated-html.md) | 論点ツリーの正本は YAML に置き、表示は正本から生成する HTML にする | Accepted |
 | [0025](0025-cited-answers-checked-after-writing.md) | モデルが書く答えは記録を引用させ、書いた後に検査する | Accepted |
 | [0026](0026-analysis-auto-walks-the-question-tree.md) | 分析者の入口を `/analysis-auto` ひとつにし、論点ごとに巡回させる | Accepted |
+| [0027](0027-default-allowlist-always-allowed.md) | 既定の許可リストは常に許し、パッケージ許可リストのファイルはそこにパッケージを足す | Accepted |
 
 - ADR-0001〜0008 は旧形式のまま残す。ADR-0009 からは新形式（Problem と Decision Analysis の節を持つ）で書く。
 - 開発フローの決定の出典は [flow/](flow/README.md) にある。repo-template の ADR のコピーで、`FLOW-000N` と表記する。

@@ -156,7 +156,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 <あなたのプロジェクト>/.insight/          ← ${CLAUDE_PROJECT_DIR}/.insight
 ├── config.yaml                     # 任意: premortem 閾値など（無ければ既定値）
 ├── rules/
-│   └── package_allowlist.yaml      # 任意: notebook が使ってよいパッケージ許可リスト（無ければ既定の許可リスト。下記†）
+│   └── package_allowlist.yaml      # 任意: 既定の許可リストに足して notebook が使ってよいパッケージ（下記†）
 ├── designs/
 │   ├── {id}_hypothesis.yaml        # design_io create/update（pre-write hook が検証）
 │   ├── {id}_journal.yaml           # journal イベント
@@ -184,7 +184,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 供給手順（`--with <pip名>` による ephemeral 注入）は
 [`skills/analysis-notebook/references/notebook-contract.md`](../skills/analysis-notebook/references/notebook-contract.md)
 の「Package allowlist — format & supplying packages」節が正本。
-ファイルが無いときは、plugin の env に最初から入っている既定の許可リストを使う（[ADR-0021](adr/0021-default-package-allowlist.md)）。
+plugin の env に最初から入っている既定の許可リストは、ファイルの有無や中身にかかわらず許し、ファイルはそこにパッケージを足す（[ADR-0021](adr/0021-default-package-allowlist.md)、[ADR-0027](adr/0027-default-allowlist-always-allowed.md)）。
 
 **marimo notebook はどこに出るか（混乱ポイントの明示回答）**: 利用者プロジェクトの
 `${CLAUDE_PROJECT_DIR}/.insight/notebooks/`（および `lineage/`）に出る。**plugin ディレクトリではない**。

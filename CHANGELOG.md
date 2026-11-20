@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upgrade note
+
+- A project's `.insight/rules/package_allowlist.yaml` can no longer forbid pandas, matplotlib,
+  numpy, marimo or insight_blueprint: the default allowlist is always allowed. The packages the
+  file already lists stay allowed, so nothing that ran before stops.
+
 ### Added
 
 - `/analysis-framing` makes the HTML view of the question tree with `tree_io render` after it
@@ -14,6 +20,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/tree-upload` uploads the HTML view of a theme's question tree to the host's Artifact as a new
   page that only you can see. It lists the file and waits for your approval; without the host's
   Artifact feature nothing is sent and the HTML stays on your machine.
+
+### Changed
+
+- **A project's `.insight/rules/package_allowlist.yaml` now adds packages to the default
+  allowlist instead of replacing it.** The default allowlist (pandas, matplotlib, numpy, marimo,
+  insight_blueprint) is what every contract notebook imports, so it is always allowed and
+  `/analysis-auto` no longer pauses on those imports at the notebook gate. To allow one more
+  package, list only that package in the file. Only `json` and `pathlib`, the standard-library modules
+  the contract itself imports, need no entry ([ADR-0027](docs/adr/0027-default-allowlist-always-allowed.md), #108).
+
+### Fixed
+
+- **`premortem` showed `unknown` in the INTENT column for every design** (#109). It read an
+  `intent` key, but `design_io get` returns the field as `analysis_intent`. The risk level was
+  not affected; only the table display was wrong.
 
 ## [0.12.0] - 2026-11-20
 

@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from skills._shared.design_io import create_design
 from skills.premortem.cli import main
 
 
@@ -18,13 +19,13 @@ def _payload() -> dict:
         "designs": [
             {
                 "id": "FP-H01",
-                "intent": "confirmatory",
+                "analysis_intent": "confirmatory",
                 "status": "in_review",
                 "source_ids": ["src"],
             },
             {
                 "id": "FP-H02",
-                "intent": "exploratory",
+                "analysis_intent": "exploratory",
                 "status": "in_review",
                 "source_ids": ["src"],
             },
@@ -55,10 +56,43 @@ def test_exit_2_when_hard_block(capsys: pytest.CaptureFixture[str]) -> None:
     assert "low" in out.out  # FP-H01 small rows
 
 
+def test_intent_column_shows_analysis_intent(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """INTENT shows analysis_intent as design_io writes it, so a key drift fails."""
+    designs = [
+        create_design(
+            title="t",
+            hypothesis_statement="h",
+            hypothesis_background="b",
+            theme_id="FP",
+            analysis_intent=intent,
+            source_ids=["src"],
+            base_dir=tmp_path,
+        )
+        for intent in ("confirmatory", "exploratory")
+    ]
+    main(
+        argv=["--base-dir", str(tmp_path)],
+        stdin_data={"designs": designs, "source_checks_map": {}},
+    )
+    rows = {
+        line.split()[0]: line.split()[1]
+        for line in capsys.readouterr().out.splitlines()
+        if line.startswith("FP-H")
+    }
+    assert rows == {"FP-H01": "confirmatory", "FP-H02": "exploratory"}
+
+
 def test_exit_0_when_all_low(capsys: pytest.CaptureFixture[str]) -> None:
     payload = {
         "designs": [
-            {"id": "A", "intent": "x", "status": "in_review", "source_ids": ["src"]}
+            {
+                "id": "A",
+                "analysis_intent": "x",
+                "status": "in_review",
+                "source_ids": ["src"],
+            }
         ],
         "source_checks_map": {
             "A": {
@@ -76,7 +110,12 @@ def test_exit_0_when_all_low(capsys: pytest.CaptureFixture[str]) -> None:
 def test_high_rows_exit_2(capsys: pytest.CaptureFixture[str]) -> None:
     payload = {
         "designs": [
-            {"id": "A", "intent": "x", "status": "in_review", "source_ids": ["src"]}
+            {
+                "id": "A",
+                "analysis_intent": "x",
+                "status": "in_review",
+                "source_ids": ["src"],
+            }
         ],
         "source_checks_map": {
             "A": {
@@ -117,7 +156,12 @@ def _low_row_payload() -> dict:
     """A registered source with 1000 rows -> LOW under defaults (< 1M)."""
     return {
         "designs": [
-            {"id": "A", "intent": "x", "status": "in_review", "source_ids": ["src"]}
+            {
+                "id": "A",
+                "analysis_intent": "x",
+                "status": "in_review",
+                "source_ids": ["src"],
+            }
         ],
         "source_checks_map": {
             "A": {
