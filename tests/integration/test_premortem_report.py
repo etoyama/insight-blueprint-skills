@@ -164,3 +164,18 @@ def test_config_read_from_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     finally:
         monkeypatch.delenv("INSIGHT_BASE_DIR", raising=False)
         importlib.reload(cli_mod)
+
+
+def test_allowlist_stop_prints_where_to_declare_the_package(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """ADR-0021: the risk table tells the analyst how to allow the package."""
+    payload = {
+        "designs": [{"id": "AL-H01", "status": "in_review", "source_ids": ["src"]}],
+        "source_checks_map": {"AL-H01": {"allowlist_ok": False}},
+    }
+    rc = main(argv=["--base-dir", "/tmp/nope"], stdin_data=payload)
+    out = capsys.readouterr().out
+    assert rc == 2
+    assert "hard_block" in out
+    assert "declare it in .insight/rules/package_allowlist.yaml" in out

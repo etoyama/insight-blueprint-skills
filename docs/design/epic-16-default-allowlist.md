@@ -35,7 +35,7 @@ AC の正本はここ。
 
 | Story issue | User Story | 扱う AC |
 |---|---|---|
-| #NN | US-1 | AC 1〜4 |
+| [#107](https://github.com/etoyama/insight-blueprint-skills/issues/107) | US-1 | AC 1〜4 |
 
 ## Ubiquitous Language
 
@@ -171,4 +171,4 @@ sequenceDiagram
 ## Story Timeline
 
 - 2026-11-20 — 人間が扱いを決めた。ファイルが無いときは、plugin 側に置いた既定の許可リストで `allowlist_ok` を決める（案 A）。判断は ADR に残す。
-- 2026-11-20 — DesignDoc 初版。issue #101 を Epic にした。
+- 2026-11-20 — DesignDoc 初版。issue #101 を Epic にし、Story #107 を起票した。

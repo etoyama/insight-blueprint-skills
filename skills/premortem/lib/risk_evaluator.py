@@ -43,7 +43,10 @@ def evaluate(
     if source_checks.source_registered is False:
         hard_block_reasons.append("source not registered")
     if source_checks.allowlist_ok is False:
-        hard_block_reasons.append("package outside allowlist")
+        hard_block_reasons.append(
+            "package outside allowlist "
+            "(declare it in .insight/rules/package_allowlist.yaml)"
+        )
     if source_checks.location_ok is False:
         hard_block_reasons.append("BQ location mismatch")
     if hard_block_reasons:

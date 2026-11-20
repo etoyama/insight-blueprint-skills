@@ -164,6 +164,28 @@ as a key here. The **pip name** (right) is what actually gets installed (they di
 `sklearn` / `scikit-learn`). Consumers: `/premortem` reads it for the `allowlist_ok` pre-flight check,
 and `/analysis-auto` treats an import outside it as a KEEP gate (pause) rather than auto-running.
 
+### Default allowlist
+
+When `.insight/rules/package_allowlist.yaml` does not exist, the allowlist is the default allowlist
+below: the packages the plugin env ships (the `notebook` extra of the plugin's `pyproject.toml` and the
+plugin's own `insight_blueprint`). A new project can then run an analysis that needs nothing else
+without writing the file first (ADR-0021).
+
+```yaml
+# default allowlist (no .insight/rules/package_allowlist.yaml)
+allowed_packages:
+  insight_blueprint: insight-blueprint-lineage
+  marimo: marimo
+  pandas: pandas
+  matplotlib: matplotlib
+  numpy: numpy
+```
+
+When the file exists, only the file counts: the default allowlist is not merged in. A file that exists
+but cannot be read (invalid YAML, no `allowed_packages`) is an error, not a fallback to the default.
+To allow one more package in a project without the file, copy the default allowlist into the file and
+add the package; a file that lists only the new package would drop pandas and the rest.
+
 ### Supplying an allowlisted package to the run
 
 The plugin env (`${CLAUDE_PLUGIN_ROOT}`) is a **read-only distributed artifact** — do not mutate it, and

@@ -38,6 +38,12 @@ It does **not** issue tokens, gate execution, or write to disk — it advises.
      (source registered? location ok? packages allowed? estimated rows?). The map holds one
      entry per design: a check is `false` when it fails for any of its sources, and
      `estimated_rows` is the largest of theirs.
+   - `allowlist_ok`: check each package named in `methodology.package` against the import names
+     and pip names of the allowlist in `.insight/rules/package_allowlist.yaml`. If the file does not
+     exist, use the default allowlist ("Default allowlist" in
+     [notebook-contract.md](../analysis-notebook/references/notebook-contract.md)). `true` when every package is in it, `false` when one is not.
+     An empty `methodology.package` is `true`. A missing file is never `null`: use `null` only
+     when the file exists but cannot be read (invalid YAML, no `allowed_packages`).
    - Pipe `{ "designs": [...], "source_checks_map": {...} }` as JSON to cli.py stdin. Put each
      design in `designs` as `design_io get` returned it: a design without `source_ids` is
      `HARD_BLOCK` with the reason `no data source declared`.
@@ -57,8 +63,8 @@ It does **not** issue tokens, gate execution, or write to disk — it advises.
 
 | Level | Trigger | Suggested action |
 |-------|---------|------------------|
-| `HARD_BLOCK` | Unregistered source, allowlist violation, or BigQuery location mismatch | Don't run this design; fix it (`/analysis-design`) first |
-| `HIGH` | `estimated_rows` > `static_rows_high`, or a source check errored (location/allowlist `null`) | Reconsider before expensive access |
+| `HARD_BLOCK` | Unregistered source, allowlist violation, or BigQuery location mismatch | Don't run this design; fix it first (`/analysis-design`, or declare the package in `.insight/rules/package_allowlist.yaml`) |
+| `HIGH` | `estimated_rows` > `static_rows_high`, or a source check errored (location API error, or an allowlist file that exists but cannot be read) | Reconsider before expensive access |
 | `MEDIUM` | `estimated_rows` > `static_rows_medium` | Proceed with awareness |
 | `LOW` | Small/unknown row count, all checks pass | Happy path |
 | `SKIP` | Terminal status (`supported` / `rejected` / `inconclusive`) | Not evaluated |
