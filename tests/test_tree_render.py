@@ -14,7 +14,15 @@ from html.parser import HTMLParser
 
 import pytest
 
+from insight_blueprint.models.tree import (
+    AimKind,
+    Progress,
+    QuestionTree,
+    StatementKind,
+    TreeDecisionKind,
+)
 from insight_blueprint.validate import validate_tree_schema
+from skills._shared import tree_render
 from skills._shared.tree_render import CitedEvent, DesignSummary, render_tree_html
 
 BUSINESS_AIM = {
@@ -219,7 +227,7 @@ def make_tree(**over: object) -> dict:
     return tree
 
 
-def build(tree: dict | None = None) -> object:
+def build(tree: dict | None = None) -> QuestionTree:
     return validate_tree_schema(
         copy.deepcopy(tree if tree is not None else make_tree())
     )
@@ -250,14 +258,18 @@ def render(
     events: dict[str, CitedEvent] | None = None,
 ) -> str:
     return render_tree_html(
-        build(tree),  # type: ignore[arg-type]
+        build(tree),
         make_designs() if designs is None else designs,
         make_events() if events is None else events,
     )
 
 
-def page(**kwargs: object) -> Element:
-    return parse(render(**kwargs))  # type: ignore[arg-type]
+def page(
+    tree: dict | None = None,
+    designs: dict[str, DesignSummary] | None = None,
+    events: dict[str, CitedEvent] | None = None,
+) -> Element:
+    return parse(render(tree, designs, events))
 
 
 class TestSelfContained:
@@ -385,8 +397,12 @@ def node_text(root: Element, node_id: str) -> str:
 
 def details_text(root: Element, node_id: str) -> str:
     node = by_id(root, node_id)
-    (details,) = [e for e in node.children if e.tag == "div"][0].children[-1:]
-    assert details.tag == "details"
+    nested = [e for e in node.children if e.tag == "ul"]
+    (details,) = [
+        e
+        for e in node.walk()
+        if e.tag == "details" and not any(e.is_inside(n) for n in nested)
+    ]
     return squash(details.text())
 
 
@@ -446,7 +462,7 @@ class TestDecisions:
         tree = make_tree()
         del tree["decisions"]
 
-        assert "decisions" in render(tree=tree)
+        assert "まだ決めていない" in by_id(page(tree=tree), "decisions").text()
 
 
 class TestMarks:
@@ -642,3 +658,20 @@ class TestEscaping:
         assert not [e for e in root.walk() if e.tag == "script"]
         assert not any("onmouseover" in e.attrs for e in root.walk())
         assert "<script>alert(1)</script>" in squash(root.text())
+
+
+class TestEveryKindHasItsWord:
+    """A kind added to the model without a word would stop the page."""
+
+    @pytest.mark.parametrize(
+        ("words", "kinds"),
+        [
+            (tree_render._PROGRESS_WORDS, Progress),
+            (tree_render._KIND_WORDS, StatementKind),
+            (tree_render._MARK_WORDS, tree_render.Mark),
+            (tree_render._DECISION_LABELS, TreeDecisionKind),
+            (tree_render._AIM_LABELS, AimKind),
+        ],
+    )
+    def test_the_table_covers_the_enum(self, words: dict, kinds: type) -> None:
+        assert set(words) == set(kinds)

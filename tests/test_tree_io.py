@@ -400,15 +400,23 @@ class TestProgress:
             tree_io.progress("LIB", base_dir=tree)
 
 
+def _run_cli(insight: Path, *args: str, payload: dict | None = None):
+    return subprocess.run(
+        [sys.executable, "-m", "skills._shared.tree_io", *args]
+        + ["--base-dir", str(insight)],
+        input=json.dumps(payload) if payload is not None else "",
+        capture_output=True,
+        text=True,
+    )
+
+
+def _rendered(insight: Path) -> str:
+    return Path(tree_io.render("LIB", base_dir=insight)["path"]).read_text("utf-8")
+
+
 class TestCli:
     def _run(self, insight: Path, *args: str, payload: dict | None = None):
-        return subprocess.run(
-            [sys.executable, "-m", "skills._shared.tree_io", *args]
-            + ["--base-dir", str(insight)],
-            input=json.dumps(payload) if payload is not None else "",
-            capture_output=True,
-            text=True,
-        )
+        return _run_cli(insight, *args, payload=payload)
 
     def test_create_add_link_and_progress_round_trip(self, insight: Path) -> None:
         created = self._run(
@@ -663,7 +671,7 @@ class TestRender:
         assert not (tree / "themes" / "LIB_tree.html").exists()
 
     def test_the_cli_prints_the_path_and_exits_0(self, tree: Path) -> None:
-        done = TestCli()._run(tree, "render", "--theme", "LIB")
+        done = _run_cli(tree, "render", "--theme", "LIB")
 
         assert done.returncode == 0, done.stderr
         assert json.loads(done.stdout) == {
@@ -673,19 +681,73 @@ class TestRender:
     def test_the_cli_exits_1_with_a_message_when_it_cannot_render(
         self, insight: Path
     ) -> None:
-        done = TestCli()._run(insight, "render", "--theme", "LIB")
+        done = _run_cli(insight, "render", "--theme", "LIB")
 
         assert done.returncode == 1
         assert "has no question tree" in done.stderr
 
+    def test_a_design_is_known_by_its_file_name_not_by_the_id_inside(
+        self, tree: Path
+    ) -> None:
+        """A copied design file still carries the id of the one it was copied from."""
+        _add(tree)
+        first = _design(tree)
+        tree_io.link_design("LIB", "LIB-Q02", first, base_dir=tree)
+        copied = dict(design_io.load_design(first, base_dir=tree))
+        copied |= {"title": "写した分析設計", "status": "supported"}
+        atomic_write_yaml(tree / "designs" / "LIB-H02_hypothesis.yaml", copied)
 
-class TestRenderReadsHandWrittenDesigns:
-    def test_a_design_file_without_an_id_is_left_out(self, tree: Path) -> None:
-        atomic_write_yaml(
-            tree / "designs" / "LIB-H09_hypothesis.yaml",
-            {"theme_id": "LIB", "title": "id の無い分析設計"},
-        )
+        page = _rendered(tree)
 
-        page = Path(tree_io.render("LIB", base_dir=tree)["path"]).read_text("utf-8")
+        assert tree_io.progress("LIB", base_dir=tree)["LIB-Q02"] == "investigating"
+        assert "検証中 1" in page
+        assert "分析済み 0" in page
+        assert "写した分析設計" in page
 
-        assert "id の無い分析設計" not in page
+    def test_a_linked_design_without_an_id_inside_is_still_shown(
+        self, tree: Path
+    ) -> None:
+        _add(tree)
+        design_id = _design(tree)
+        tree_io.link_design("LIB", "LIB-Q02", design_id, base_dir=tree)
+        stored = dict(design_io.load_design(design_id, base_dir=tree))
+        del stored["id"]
+        stored["title"] = "id の無い分析設計"
+        atomic_write_yaml(tree / "designs" / f"{design_id}_hypothesis.yaml", stored)
+
+        assert "id の無い分析設計" in _rendered(tree)
+
+    def test_a_linked_design_with_an_unknown_status_names_the_design(
+        self, tree: Path
+    ) -> None:
+        _add(tree)
+        design_id = _design(tree)
+        tree_io.link_design("LIB", "LIB-Q02", design_id, base_dir=tree)
+        stored = dict(design_io.load_design(design_id, base_dir=tree))
+        stored["status"] = "finished"
+        atomic_write_yaml(tree / "designs" / f"{design_id}_hypothesis.yaml", stored)
+
+        with pytest.raises(ValueError, match=f"{design_id}.*finished"):
+            tree_io.render("LIB", base_dir=tree)
+
+    def test_a_broken_design_of_another_theme_does_not_stop_the_page(
+        self, tree: Path
+    ) -> None:
+        broken = tree / "designs" / "FP-H01_hypothesis.yaml"
+        broken.parent.mkdir(parents=True, exist_ok=True)
+        broken.write_text("title: [unclosed\n", encoding="utf-8")
+
+        assert "論点ツリー LIB" in _rendered(tree)
+
+    def test_the_cli_exits_1_with_a_message_when_a_journal_cannot_be_read(
+        self, tree: Path
+    ) -> None:
+        design_id = self._answered(tree)
+        journal = tree / "designs" / f"{design_id}_journal.yaml"
+        journal.write_text("events: [unclosed\n", encoding="utf-8")
+
+        done = _run_cli(tree, "render", "--theme", "LIB")
+
+        assert done.returncode == 1
+        assert done.stderr.startswith("tree_io: ")
+        assert "Traceback" not in done.stderr

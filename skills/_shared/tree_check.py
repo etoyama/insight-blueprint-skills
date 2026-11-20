@@ -23,9 +23,8 @@ from pathlib import Path
 from typing import Literal
 
 from insight_blueprint.models.tree import AnswerStatement, QuestionTree, design_id_of
-from insight_blueprint.validate import validate_tree_schema
-from skills._shared.design_io import DEFAULT_BASE_DIR, _resolve_base_dir, load_journal
-from skills._shared.tree_io import _tree_path, load_tree
+from skills._shared.design_io import DEFAULT_BASE_DIR, _resolve_base_dir
+from skills._shared.tree_io import _tree_path, cited_journal_events, load_tree_model
 
 _NUMBER = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?")
 
@@ -124,15 +123,7 @@ def check_theme(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> list[Violat
     fails its schema or names another theme, or a cited event id that two
     events share, and OSError or YAMLError for a file that cannot be read.
     """
-    data = load_tree(theme_id, base_dir)
-    if not data:
-        raise ValueError(f"Theme '{theme_id}' has no question tree")
-    tree = validate_tree_schema(data)
-    if tree.theme_id != theme_id:
-        raise ValueError(
-            f"theme_id: '{tree.theme_id}' does not match the file name "
-            f"({theme_id}_tree.yaml)"
-        )
+    tree = load_tree_model(theme_id, base_dir)
     return find_violations(tree, _cited_events(tree, base_dir))
 
 
@@ -146,26 +137,16 @@ def _cited_events(tree: QuestionTree, base_dir: Path) -> dict[str, str]:
         for cite in statement.cites
     }
     events: dict[str, str] = {}
-    for design_id in sorted({design_id_of(cite) for cite in cited}):
-        journal = load_journal(design_id, base_dir).get("events")
-        for event in journal if isinstance(journal, list) else []:
-            event_id = event.get("id") if isinstance(event, dict) else None
-            # An event counts only in the journal its id names: the same id
-            # written into another design's journal must not back a cite.
-            if (
-                not isinstance(event_id, str)
-                or event_id not in cited
-                or design_id_of(event_id) != design_id
-            ):
-                continue
-            if event_id in events:
-                raise ValueError(
-                    f"journal event '{event_id}' appears twice in the journal "
-                    f"of {design_id}"
-                )
-            content = event.get("content")
-            # A hand-written "content: 34.6" loads as a float, not as text.
-            events[event_id] = "" if content is None else str(content)
+    for event in cited_journal_events(cited, base_dir):
+        event_id = event["id"]
+        if event_id in events:
+            raise ValueError(
+                f"journal event '{event_id}' appears twice in the journal "
+                f"of {design_id_of(event_id)}"
+            )
+        content = event.get("content")
+        # A hand-written "content: 34.6" loads as a float, not as text.
+        events[event_id] = "" if content is None else str(content)
     return events
 
 

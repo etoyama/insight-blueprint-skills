@@ -6,7 +6,8 @@ inputs give the same bytes. Interaction is ``<details>`` only.
 
 Every string that reaches the page comes from analysts or models, so none of it
 is trusted. ``_el`` escapes each plain ``str`` it is given; only an ``_Html``
-value, which ``_el`` and ``_raw`` produce, goes in as markup.
+value, which only ``_el`` and the constants of this module produce, goes in
+as markup.
 """
 
 from __future__ import annotations
@@ -14,12 +15,15 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from enum import StrEnum
 from html import escape
 
 from insight_blueprint.models.design import DesignStatus
 from insight_blueprint.models.tree import (
+    Aim,
     AimKind,
     Answer,
+    AnswerStatement,
     Progress,
     QuestionNode,
     QuestionTree,
@@ -49,25 +53,25 @@ class _Html(str):
     """Markup that is already safe to place in the page."""
 
 
-def _raw(markup: str) -> _Html:
-    return _Html(markup)
+def _el(tag: str, *children: str | None, **attrs: str | None) -> _Html:
+    """Build ``<tag>``; a plain ``str`` child or attribute value is escaped.
 
-
-def _el(tag: str, *children: str, **attrs: str | None) -> _Html:
-    """Build ``<tag>``; a plain ``str`` child or attribute value is escaped."""
+    A ``None`` child or attribute is left out.
+    """
     rendered = "".join(
-        f' {name.rstrip("_").replace("_", "-")}="{escape(value, quote=True)}"'
+        f' {name.rstrip("_")}="{escape(value, quote=True)}"'
         for name, value in attrs.items()
         if value is not None
     )
     inner = "".join(
         child if isinstance(child, _Html) else escape(child, quote=True)
         for child in children
+        if child is not None
     )
     return _Html(f"<{tag}{rendered}>{inner}</{tag}>")
 
 
-def _join(blocks: Iterable[str]) -> _Html:
+def _join(blocks: Iterable[_Html]) -> _Html:
     return _Html("\n".join(blocks))
 
 
@@ -130,16 +134,44 @@ _AIM_LABELS = {
 }
 
 
-_PROGRESS_LABELS = {
-    Progress.not_started: "未着手",
-    Progress.investigating: "検証中",
-    Progress.analyzed: "分析済み",
+class Mark(StrEnum):
+    """What a reader must notice about the current answer of a node."""
+
+    changed = "changed"
+    first = "first"
+    before_root_change = "before_root_change"
+
+
+# Each table holds the word shown on the page and what the legend says it means,
+# so the legend cannot drift from the page.
+_PROGRESS_WORDS = {
+    Progress.not_started: ("未着手", "分析設計を結んでいない。"),
+    Progress.investigating: ("検証中", "結んだ分析設計に、終わっていないものがある。"),
+    Progress.analyzed: ("分析済み", "結んだ分析設計がすべて終わっている。"),
 }
 
-_KIND_LABELS = {
-    StatementKind.claim: "言えること",
-    StatementKind.undetermined: "未判別",
-    StatementKind.weakening: "弱める証拠と留保",
+_KIND_WORDS = {
+    StatementKind.claim: ("言えること", "引用する出来事が支える主張。"),
+    StatementKind.undetermined: ("未判別", "記録からは決められないこと。"),
+    StatementKind.weakening: (
+        "弱める証拠と留保",
+        "主張を弱める証拠や、言える範囲の限定。",
+    ),
+}
+
+_MARK_WORDS = {
+    Mark.changed: (
+        "この回で変わった",
+        "最も新しい振り返りの回で、前の回から書き換わった答え。",
+    ),
+    Mark.first: (
+        "この回で初めて答えた",
+        "最も新しい振り返りの回で、初めて書いた答え。",
+    ),
+    Mark.before_root_change: (
+        "根の変更前の答え",
+        "根の問いか到達点が変わる前の根の版に対して書いた答え。",
+    ),
 }
 
 _DECISION_LABELS = {TreeDecisionKind.start: "最初の論点を選ぶ"}
@@ -158,12 +190,12 @@ def render_tree_html(
     title = f"論点ツリー {tree.theme_id}"
     head = _el(
         "head",
-        _raw('<meta charset="utf-8">'),
-        _raw('<meta name="viewport" content="width=device-width, initial-scale=1">'),
+        _Html('<meta charset="utf-8">'),
+        _Html('<meta name="viewport" content="width=device-width, initial-scale=1">'),
         _el("title", title),
-        _el("style", _raw(_CSS)),
+        _el("style", _Html(_CSS)),
     )
-    context = _Context(tree, designs, events)
+    context = _Context.of(tree, designs, events)
     body = _el(
         "body",
         _join(
@@ -182,14 +214,10 @@ def render_tree_html(
 
 def _header(tree: QuestionTree) -> _Html:
     revision = tree.current_revision()
-    aim_lines = [
-        _el("p", f"{label}: {getattr(revision.aim, field)}")
-        for label, field in _AIM_LABELS[revision.aim.kind]
-    ]
     parts = [
         _el("h1", f"論点ツリー {tree.theme_id}"),
         _el("p", _el("strong", "根の問い: "), revision.question),
-        *aim_lines,
+        *(_el("p", line) for line in _aim_lines(revision.aim)),
         _el("p", f"根の版 {revision.revision}", class_="meta"),
     ]
     if len(tree.root_revisions) > 1:
@@ -197,13 +225,14 @@ def _header(tree: QuestionTree) -> _Html:
     return _el("header", _join(parts), id="header")
 
 
+def _aim_lines(aim: Aim) -> list[str]:
+    return [f"{label}: {getattr(aim, field)}" for label, field in _AIM_LABELS[aim.kind]]
+
+
 def _root_history(tree: QuestionTree) -> _Html:
     rows = []
     for revision in tree.root_revisions:
-        aim = "、".join(
-            f"{label}: {getattr(revision.aim, field)}"
-            for label, field in _AIM_LABELS[revision.aim.kind]
-        )
+        aim = "、".join(_aim_lines(revision.aim))
         rows.append(
             _el(
                 "li",
@@ -219,6 +248,10 @@ def _root_history(tree: QuestionTree) -> _Html:
     )
 
 
+def _word_list(words: Iterable[tuple[str, str]]) -> _Html:
+    return _el("ul", _join(_el("li", f"{word}: {meaning}") for word, meaning in words))
+
+
 def _legend() -> _Html:
     return _el(
         "section",
@@ -228,32 +261,11 @@ def _legend() -> _Html:
             "進捗は、論点に結んだ分析設計の状態から導いた言葉。色は添えただけで、"
             "意味は言葉が持つ。",
         ),
-        _el(
-            "ul",
-            _el("li", "未着手: 分析設計を結んでいない。"),
-            _el("li", "検証中: 結んだ分析設計に、終わっていないものがある。"),
-            _el("li", "分析済み: 結んだ分析設計がすべて終わっている。"),
-        ),
+        _word_list(_PROGRESS_WORDS.values()),
         _el("p", "現時点の答えは、文ごとに種類の言葉を付けて並べる。"),
-        _el(
-            "ul",
-            _el("li", "言えること: 引用する出来事が支える主張。"),
-            _el("li", "未判別: 記録からは決められないこと。"),
-            _el("li", "弱める証拠と留保: 主張を弱める証拠や、言える範囲の限定。"),
-        ),
-        _el("p", "答えの横に出す印は2つ。"),
-        _el(
-            "ul",
-            _el(
-                "li",
-                "この回で変わった / この回で初めて答えた: 直近の振り返りの回で"
-                "書き換わった、または初めて書かれた答え。",
-            ),
-            _el(
-                "li",
-                "根の変更前の答え: 根の問いか到達点が変わる前の版に対して書いた答え。",
-            ),
-        ),
+        _word_list(_KIND_WORDS.values()),
+        _el("p", "答えの上に出す印。"),
+        _word_list(_MARK_WORDS.values()),
         _el(
             "p",
             "各論点の「根拠を開く」を押すと、引用した journal の出来事、前の回の答え、"
@@ -267,24 +279,49 @@ def _legend() -> _Html:
 
 @dataclass(frozen=True)
 class _Context:
+    """The inputs of a page and the facts derived from them, computed once."""
+
     tree: QuestionTree
     designs: Mapping[str, DesignSummary]
     events: Mapping[str, CitedEvent]
+    progress: Mapping[str, Progress]
+    latest_round: int | None
 
-    @property
-    def latest_round(self) -> int | None:
-        rounds = [a.round for n in self.tree.nodes for a in n.answers]
-        return max(rounds, default=None)
+    @classmethod
+    def of(
+        cls,
+        tree: QuestionTree,
+        designs: Mapping[str, DesignSummary],
+        events: Mapping[str, CitedEvent],
+    ) -> _Context:
+        for node in tree.nodes:
+            for design_id in node.design_ids:
+                if design_id not in designs:
+                    raise ValueError(
+                        f"design '{design_id}' is linked to {node.id} but not given"
+                    )
+        progress = {
+            node.id: Progress.of(
+                DesignStatus(designs[d].status) for d in node.design_ids
+            )
+            for node in tree.nodes
+        }
+        rounds = [a.round for n in tree.nodes for a in n.answers]
+        return cls(tree, designs, events, progress, max(rounds, default=None))
 
-    def progress_of(self, node: QuestionNode) -> Progress:
-        return Progress.of(
-            DesignStatus(self.design(design_id).status) for design_id in node.design_ids
-        )
-
-    def design(self, design_id: str) -> DesignSummary:
-        if design_id not in self.designs:
-            raise ValueError(f"design '{design_id}' is linked to a node but not given")
-        return self.designs[design_id]
+    def marks_of(self, node: QuestionNode) -> list[Mark]:
+        answer = node.current_answer()
+        if answer is None:
+            return []
+        marks: list[Mark] = []
+        if answer.round == self.latest_round:
+            if len(node.answers) == 1:
+                marks.append(Mark.first)
+            elif answer.statements != node.answers[-2].statements:
+                marks.append(Mark.changed)
+        if answer.root_revision < self.tree.current_revision().revision:
+            marks.append(Mark.before_root_change)
+        return marks
 
 
 def _link(target: str, label: str) -> _Html:
@@ -292,14 +329,14 @@ def _link(target: str, label: str) -> _Html:
 
 
 def _counts(context: _Context) -> _Html:
-    found = Counter(context.progress_of(n) for n in context.tree.nodes)
+    found = Counter(context.progress.values())
     return _el(
         "section",
         _el("h2", "進捗の数"),
         _el(
             "p",
             _join(
-                _el("span", f"{_PROGRESS_LABELS[p]} {found[p]}", class_="count")
+                _el("span", f"{_PROGRESS_WORDS[p][0]} {found[p]}", class_="count")
                 for p in Progress
             ),
         ),
@@ -332,7 +369,7 @@ def _question_tree(context: _Context) -> _Html:
         return _el(
             "li",
             _node_card(context, node),
-            _el("ul", _join(branch(c) for c in below)) if below else _raw(""),
+            _el("ul", _join(branch(c) for c in below)) if below else None,
             id=node.id,
         )
 
@@ -344,28 +381,11 @@ def _question_tree(context: _Context) -> _Html:
     )
 
 
-def _signature(answer: Answer) -> list[tuple[str, str, tuple[str, ...]]]:
-    return [(s.kind.value, s.text, tuple(s.cites)) for s in answer.statements]
-
-
-def _marks(context: _Context, node: QuestionNode, answer: Answer) -> list[str]:
-    marks: list[str] = []
-    if answer.round == context.latest_round:
-        if len(node.answers) == 1:
-            marks.append("この回で初めて答えた")
-        elif _signature(answer) != _signature(node.answers[-2]):
-            marks.append("この回で変わった")
-    revision = context.tree.current_revision().revision
-    if answer.root_revision < revision:
-        marks.append(f"根の変更前の答え（根の版 {answer.root_revision} への答え）")
-    return marks
-
-
 def _node_card(context: _Context, node: QuestionNode) -> _Html:
-    progress = context.progress_of(node)
+    progress = context.progress[node.id]
     meta: list[_Html | str] = [
         "進捗: ",
-        _el("span", _PROGRESS_LABELS[progress], class_="progress"),
+        _el("span", _PROGRESS_WORDS[progress][0], class_="progress"),
     ]
     if node.parent_question_id is not None:
         meta.append(f"　寄与: {node.contribution}")
@@ -379,30 +399,45 @@ def _node_card(context: _Context, node: QuestionNode) -> _Html:
     if answer is None:
         parts.append(_el("p", "まだ答えていない"))
     else:
+        marks = [
+            _el("span", _mark_text(mark, answer), class_="mark")
+            for mark in context.marks_of(node)
+        ]
+        if marks:
+            parts.append(_el("p", *marks))
         parts += [
             _el(
-                "p",
-                *(_el("span", m, class_="mark") for m in _marks(context, node, answer)),
+                "ul",
+                _join(_statement(s) for s in answer.statements),
+                class_="statements",
             ),
-            _statements(answer),
-            _el(
-                "p",
-                f"振り返りの回 {answer.round}（根の版 {answer.root_revision}）",
-                class_="meta",
-            ),
+            _round_meta(answer),
         ]
     parts.append(_evidence(context, node))
     return _el("div", _join(parts), class_=f"node progress-{progress.value}")
 
 
-def _statements(answer: Answer) -> _Html:
+def _mark_text(mark: Mark, answer: Answer) -> str:
+    word = _MARK_WORDS[mark][0]
+    if mark is Mark.before_root_change:
+        return f"{word}（根の版 {answer.root_revision} への答え）"
+    return word
+
+
+def _statement(statement: AnswerStatement, *tail: str) -> _Html:
     return _el(
-        "ul",
-        _join(
-            _el("li", _el("span", _KIND_LABELS[s.kind], class_="kind"), f" {s.text}")
-            for s in answer.statements
-        ),
-        class_="statements",
+        "li",
+        _el("span", _KIND_WORDS[statement.kind][0], class_="kind"),
+        f" {statement.text}",
+        *tail,
+    )
+
+
+def _round_meta(answer: Answer) -> _Html:
+    return _el(
+        "p",
+        f"振り返りの回 {answer.round}（根の版 {answer.root_revision}）",
+        class_="meta",
     )
 
 
@@ -426,10 +461,10 @@ def _evidence(context: _Context, node: QuestionNode) -> _Html:
                 _join(
                     _el(
                         "li",
-                        _link(f"design-{d}", d),
-                        f" {context.design(d).title}　状態: {context.design(d).status}",
+                        _link(f"design-{design.id}", design.id),
+                        f" {design.title}　状態: {design.status}",
                     )
-                    for d in node.design_ids
+                    for design in (context.designs[d] for d in node.design_ids)
                 ),
             ),
         ]
@@ -442,12 +477,7 @@ def _cited_statements(context: _Context, answer: Answer) -> _Html:
     return _el(
         "ul",
         _join(
-            _el(
-                "li",
-                _el("span", _KIND_LABELS[s.kind], class_="kind"),
-                f" {s.text}",
-                _el("ul", _join(_cited_event(context, c) for c in s.cites)),
-            )
+            _statement(s, _el("ul", _join(_cited_event(context, c) for c in s.cites)))
             for s in answer.statements
         ),
     )
@@ -477,19 +507,11 @@ def _cited_event(context: _Context, event_id: str) -> _Html:
 def _earlier_answer(answer: Answer) -> _Html:
     return _el(
         "div",
-        _el(
-            "p",
-            f"振り返りの回 {answer.round}（根の版 {answer.root_revision}）",
-            class_="meta",
-        ),
+        _round_meta(answer),
         _el(
             "ul",
             _join(
-                _el(
-                    "li",
-                    _el("span", _KIND_LABELS[s.kind], class_="kind"),
-                    f" {s.text}（引用: {', '.join(s.cites)}）",
-                )
+                _statement(s, f"（引用: {', '.join(s.cites)}）")
                 for s in answer.statements
             ),
         ),
@@ -527,7 +549,7 @@ def _derivation(context: _Context) -> _Html:
                 _el("p", *facts, class_="meta"),
                 class_="design",
             ),
-            _el("ul", _join(branch(c) for c in below)) if below else _raw(""),
+            _el("ul", _join(branch(c) for c in below)) if below else None,
             id=f"design-{design_id}",
         )
 

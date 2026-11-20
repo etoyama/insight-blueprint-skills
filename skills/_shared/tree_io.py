@@ -19,9 +19,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
+
+from ruamel.yaml import YAMLError
 
 from insight_blueprint.models.common import THEME_ID_PATTERN, now_jst
 from insight_blueprint.models.design import DesignStatus
@@ -30,8 +34,8 @@ from insight_blueprint.validate import validate_tree_schema
 from skills._shared._atomic import atomic_write_text, atomic_write_yaml
 from skills._shared.design_io import (
     DEFAULT_BASE_DIR,
+    _designs_dir,
     _resolve_base_dir,
-    list_designs,
     load_design,
     load_journal,
     read_yaml,
@@ -58,6 +62,26 @@ def _require_tree(theme_id: str, base_dir: Path) -> dict:
     return tree
 
 
+def _named_like_its_file(model: QuestionTree, theme_id: str) -> QuestionTree:
+    if model.theme_id != theme_id:
+        raise ValueError(
+            f"theme_id: '{model.theme_id}' does not match the file name "
+            f"({theme_id}_tree.yaml)"
+        )
+    return model
+
+
+def load_tree_model(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> QuestionTree:
+    """The validated tree of *theme_id*.
+
+    Raises ValueError for an invalid theme id, a missing tree, a tree that
+    fails its schema, or a tree that names another theme.
+    """
+    return _named_like_its_file(
+        validate_tree_schema(_require_tree(theme_id, base_dir)), theme_id
+    )
+
+
 def _write_tree(tree: dict, theme_id: str, base_dir: Path) -> dict:
     """Validate *tree*, write it to the file of *theme_id*, and return it.
 
@@ -65,12 +89,7 @@ def _write_tree(tree: dict, theme_id: str, base_dir: Path) -> dict:
     nothing is written. The path comes from the caller's theme, never from the
     file content, so a file that names another theme cannot redirect the write.
     """
-    model = validate_tree_schema(tree)
-    if model.theme_id != theme_id:
-        raise ValueError(
-            f"theme_id: '{model.theme_id}' does not match the file name "
-            f"({theme_id}_tree.yaml)"
-        )
+    model = _named_like_its_file(validate_tree_schema(tree), theme_id)
     data = model.model_dump(mode="json", exclude_none=True, exclude_defaults=True)
     atomic_write_yaml(_tree_path(theme_id, base_dir), data)
     return data
@@ -255,11 +274,30 @@ def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]
     }
 
 
-def _cited_events(tree: QuestionTree, base_dir: Path) -> dict[str, CitedEvent]:
-    """Each event cited by any answer of the tree, read from its own journal.
+def cited_journal_events(cited: set[str], base_dir: Path) -> Iterator[dict]:
+    """The journal events whose id is in *cited*.
 
-    An event counts only in the journal its id names. A cited id that two events
-    share keeps the first: tree_check reports it, render must still show a page.
+    An event counts only in the journal its id names: the same id written into
+    another design's journal must not back a cite. An id that appears twice is
+    yielded twice; the caller decides what that means.
+    """
+    for design_id in sorted({design_id_of(cite) for cite in cited}):
+        journal = load_journal(design_id, base_dir).get("events")
+        for event in journal if isinstance(journal, list) else []:
+            event_id = event.get("id") if isinstance(event, dict) else None
+            if (
+                isinstance(event_id, str)
+                and event_id in cited
+                and design_id_of(event_id) == design_id
+            ):
+                yield event
+
+
+def _cited_events(tree: QuestionTree, base_dir: Path) -> dict[str, CitedEvent]:
+    """Each event cited by any answer of the tree, earlier rounds included.
+
+    A cited id that two events share keeps the first: tree_check reports it,
+    render must still show a page.
     """
     cited = {
         cite
@@ -269,56 +307,72 @@ def _cited_events(tree: QuestionTree, base_dir: Path) -> dict[str, CitedEvent]:
         for cite in statement.cites
     }
     events: dict[str, CitedEvent] = {}
-    for design_id in sorted({design_id_of(cite) for cite in cited}):
-        journal = load_journal(design_id, base_dir).get("events")
-        for event in journal if isinstance(journal, list) else []:
-            event_id = event.get("id") if isinstance(event, dict) else None
-            if (
-                not isinstance(event_id, str)
-                or event_id not in cited
-                or design_id_of(event_id) != design_id
-                or event_id in events
-            ):
-                continue
-            metadata = event.get("metadata")
-            direction = (
-                metadata.get("direction") if isinstance(metadata, dict) else None
-            )
-            content = event.get("content")
-            events[event_id] = CitedEvent(
-                id=event_id,
+    for event in cited_journal_events(cited, base_dir):
+        metadata = event.get("metadata")
+        direction = metadata.get("direction") if isinstance(metadata, dict) else None
+        content = event.get("content")
+        events.setdefault(
+            event["id"],
+            CitedEvent(
+                id=event["id"],
                 type=str(event.get("type") or ""),
                 direction=None if direction is None else str(direction),
                 content="" if content is None else str(content),
-            )
+            ),
+        )
     return events
+
+
+def _design_summaries(theme_id: str, base_dir: Path) -> dict[str, DesignSummary]:
+    """The designs of the theme, known by file name as ``load_design`` knows them.
+
+    A copied design file still carries the id of its source, so the id inside
+    the file is not read. Only files of this theme are opened: a broken design
+    of another theme must not stop the page.
+    """
+    name = re.compile(rf"({re.escape(theme_id)}-H\d+)_hypothesis\.yaml")
+    summaries: dict[str, DesignSummary] = {}
+    for path in sorted(_designs_dir(base_dir).glob(f"{theme_id}-H*_hypothesis.yaml")):
+        matched = name.fullmatch(path.name)
+        if matched is None:
+            continue
+        data = read_yaml(path)
+        parent_id = data.get("parent_id")
+        summaries[matched[1]] = DesignSummary(
+            id=matched[1],
+            title=str(data.get("title") or ""),
+            status=str(data.get("status") or ""),
+            parent_id=None if parent_id is None else str(parent_id),
+        )
+    return summaries
+
+
+def _require_usable_links(
+    tree: QuestionTree, designs: dict[str, DesignSummary]
+) -> None:
+    """Progress is derived from linked designs, so each must exist with a status."""
+    statuses = {status.value for status in DesignStatus}
+    for node in tree.nodes:
+        for design_id in node.design_ids:
+            if design_id not in designs:
+                raise ValueError(f"design '{design_id}' not found")
+            if designs[design_id].status not in statuses:
+                raise ValueError(
+                    f"design '{design_id}' has an unknown status "
+                    f"'{designs[design_id].status}'"
+                )
 
 
 def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     """Write ``{theme_id}_tree.html`` from the canonical tree and return its path.
 
     The HTML is generated, never edited: the same tree, designs and journals give
-    the same bytes. A design linked to a node that no longer exists is an error
-    (as in ``progress``) and nothing is written.
+    the same bytes. A linked design that no longer exists is an error (as in
+    ``progress``) and nothing is written.
     """
-    data = _require_tree(theme_id, base_dir)
-    tree = validate_tree_schema(data)
-    if tree.theme_id != theme_id:
-        raise ValueError(
-            f"theme_id: '{tree.theme_id}' does not match the file name "
-            f"({theme_id}_tree.yaml)"
-        )
-    # Design files can be written by hand, so every field is read defensively.
-    designs = {
-        design_id: DesignSummary(
-            id=design_id,
-            title=str(d.get("title") or ""),
-            status=str(d.get("status") or ""),
-            parent_id=None if d.get("parent_id") is None else str(d["parent_id"]),
-        )
-        for d in list_designs(base_dir)
-        if d.get("theme_id") == theme_id and isinstance(design_id := d.get("id"), str)
-    }
+    tree = load_tree_model(theme_id, base_dir)
+    designs = _design_summaries(theme_id, base_dir)
+    _require_usable_links(tree, designs)
     html = render_tree_html(tree, designs, _cited_events(tree, base_dir))
     path = _tree_path(theme_id, base_dir).with_suffix(".html")
     atomic_write_text(path, html)
@@ -372,7 +426,8 @@ def _main(argv: list[str] | None = None) -> int:
             result = render(args.theme, base_dir=base)
         else:
             result = progress(args.theme, base_dir=base)
-    except (ValueError, TypeError) as exc:
+    # A YAML file that cannot be parsed is the user's to fix, not a crash.
+    except (ValueError, TypeError, YAMLError) as exc:
         print(f"tree_io: {exc}", file=sys.stderr)
         return 1
 
