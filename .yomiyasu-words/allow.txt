@@ -35,6 +35,9 @@ figures manifest
 違反
 lineage
 データソース
+接続情報
+認証情報
+データソースの参照
 列のスキーマ
 catalog
 ドメイン知識

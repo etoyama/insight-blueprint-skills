@@ -7,11 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upgrade note
+
+- `catalog_io create` and `update` now refuse a `connection` key that names a credential. A source
+  stored earlier with such a key is still read, but `update` refuses it. Edit its YAML by hand: keep
+  the secret in an environment variable and name it in a `*_env` key (e.g.
+  `"password_env": "PG_PASSWORD"`). Do not ask the model to read the source with `--with-connection`.
+- Designs created earlier may carry a file path or table name in `methodology.steps`. They still
+  work. To keep the path out of the design and the report, rewrite the step with `{source:ID}`
+  through `/analysis-design`.
+
+Epic 17 (#102): a data source's `connection` reaches the model only in `/analysis-notebook`, and the
+catalog holds no credentials. Design: `docs/design/epic-17-connection-boundary.md`.
+
 Epic 16 (#101): a project without `.insight/rules/package_allowlist.yaml` uses the default
 allowlist instead of stopping at premortem. Design: `docs/design/epic-16-default-allowlist.md`.
 
 ### Changed
 
+- **`/analysis-framing` reads the data sources with `catalog_io list`**, which leaves `connection`
+  out, instead of opening the catalog YAML. Its cross-search no longer greps the source files
+  ([ADR-0022](docs/adr/0022-connection-reaches-only-the-notebook.md)).
+- **`/analysis-design` names a data source as `{source:ID}` in `methodology.steps`** and never writes
+  a path, host, project id or table name. `/analysis-notebook` replaces each `{source:ID}` with the
+  location in that source's `connection` in cell 2. `/analysis-auto`'s data-extraction beat shows
+  the data source id instead of the file ([ADR-0022](docs/adr/0022-connection-reaches-only-the-notebook.md)).
+- **`catalog_io create` and `update` refuse credential keys in `connection`** (`password`, `token`,
+  `api_key`, `secret`, `credential`, `private_key`, `access_key`, nested too) and exit non-zero,
+  naming the key but not its value. A `*_env` key such as `password_env` passes when its value is an
+  environment variable name (`^[A-Z_][A-Z0-9_]*$`). Reading is unchanged
+  ([ADR-0023](docs/adr/0023-catalog-holds-no-credentials.md)).
 - **`/premortem` and `/analysis-auto` no longer stop a project that has no
   `.insight/rules/package_allowlist.yaml`.** They use the default allowlist (the packages the plugin
   env ships, listed in the notebook contract). A methodology that needs another package now stops at

@@ -14,5 +14,8 @@ design document	分析設計
 ソーステキスト	データ由来の文
 系譜	lineage
 データ源	データソース
+接続設定	接続情報
+クレデンシャル	認証情報
+秘密情報	認証情報
 カタログ	catalog
 事前評価	premortem

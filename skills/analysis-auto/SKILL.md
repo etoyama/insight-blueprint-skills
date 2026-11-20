@@ -40,7 +40,7 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | framing | **present the Data Map + candidate directions and settle the direction with the user** (Direction Dialogue) | agentic exploration of `.insight/`; Framing Brief construction once the direction is agreed |
 | design ① hypothesis | **confirm the hypothesis statement + background, and the decision context (who decides what; skippable)** | drafting them from the Framing Brief |
 | design ② methodology | **confirm the method + metrics + explanatory roles (treatment/confounder/…) + intent** | auto-drafting these fields from the Framing Brief |
-| design ③ data-extraction | **confirm the data-acquisition plan** — the actual query text (`methodology.steps`) for SQL sources, or file + columns + filter for CSV/others, plus expected grain & rough row scale | auto-drafting the query / column selection from the catalog schema |
+| design ③ data-extraction | **confirm the data-acquisition plan** — the actual query text (`methodology.steps`, with each table as `{source:ID}`) for SQL sources, or the data source id + columns + filter for CSV/others, plus expected grain & rough row scale | auto-drafting the query / column selection from the catalog schema |
 | design ④ charts | **confirm the planned `chart[]` specs (intent / type / x / y)** | auto-drafting chart specs from the direction |
 | review (optional) | **the verdict** (revision_requested vs approve) | running the critique itself |
 | premortem | **result is `HARD_BLOCK`/`HIGH`** → stop, surface the risk | running premortem; `LOW`/`MEDIUM` |
@@ -92,7 +92,7 @@ gate policy above:
       confirm. These shape the analysis and are genuine choices.
    3. **data-extraction** — present the design's `source_ids` (each checked as `/analysis-design`
       "Data sources" says) and the actual **data-acquisition plan**: for a SQL source, the query text
-      drafted into `methodology.steps` (see `/analysis-design` Step 2.6); for a CSV/other source, the file
+      drafted into `methodology.steps` (see `/analysis-design` Step 2.6); for a CSV/other source, the data source id
       + the columns/filter that will be read — plus the expected grain and a rough row-count. Confirm the
       pull *before* it is committed to the design, so premortem (item 4) estimates cost against the
       confirmed query. A source with no SQL still gets this beat as a data-acquisition plan.
