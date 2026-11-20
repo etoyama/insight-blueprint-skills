@@ -173,7 +173,7 @@ def _revision_errors(on_disk: QuestionTree, written: QuestionTree) -> list[str]:
     return _append_only_errors(
         "root_revisions",
         removed="a root revision",
-        item="revision",
+        names=[f"revision {r.revision}" for r in before],
         before=before,
         after=after,
         frozen=frozen,
@@ -185,7 +185,8 @@ def _decision_errors(on_disk: QuestionTree, written: QuestionTree) -> list[str]:
     return _append_only_errors(
         "decisions",
         removed="a decision",
-        item="decision",
+        # A decision carries no number of its own, so its position names it.
+        names=[f"decision {n}" for n in range(1, len(before) + 1)],
         before=before,
         after=after,
         frozen=len(before),
@@ -199,7 +200,9 @@ def _answer_errors(on_disk: QuestionTree, written: QuestionTree) -> list[str]:
         errors += _append_only_errors(
             f"{node.id}.answers",
             removed="an answer",
-            item="answer",
+            # tree_check names an answer by its round, and a node need not be
+            # answered every round: the position would point at another answer.
+            names=[f"the answer of round {a.round}" for a in node.answers],
             before=node.answers,
             after=now.get(node.id, []),
             frozen=len(node.answers),
@@ -211,22 +214,20 @@ def _append_only_errors(
     field: str,
     *,
     removed: str,
-    item: str,
+    names: Sequence[str],
     before: Sequence[BaseModel],
     after: Sequence[BaseModel],
     frozen: int,
 ) -> list[str]:
     """Errors for a history list: nothing removed, the first *frozen* items unchanged.
 
-    The number in a message is the position in the list, counted from 1.
+    *names* gives what a message calls each item of *before*.
     """
     if len(after) < len(before):
         return [f"{field}: {removed} cannot be removed ({len(before)} -> {len(after)})"]
     return [
-        f"{field}: {item} {n} is history and cannot change"
-        for n, (old, new) in enumerate(
-            zip(before[:frozen], after, strict=False), start=1
-        )
+        f"{field}: {name} is history and cannot change"
+        for name, old, new in zip(names, before[:frozen], after, strict=False)
         if old != new
     ]
 

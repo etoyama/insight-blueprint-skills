@@ -496,13 +496,25 @@ class TestValidateTree:
         new = self._answered(1)
         new["nodes"][1]["answers"][0]["statements"][0]["text"] = "書き換えた"
         errors = validate_tree(new, current=self._answered(1))
-        assert errors == ["LIB-Q02.answers: answer 1 is history and cannot change"]
+        assert errors == [
+            "LIB-Q02.answers: the answer of round 1 is history and cannot change"
+        ]
 
     def test_rewriting_an_answer_while_appending_is_an_error(self) -> None:
         new = self._answered(1, 2)
         new["nodes"][1]["answers"][0]["statements"][0]["kind"] = "weakening"
         errors = validate_tree(new, current=self._answered(1))
-        assert errors == ["LIB-Q02.answers: answer 1 is history and cannot change"]
+        assert errors == [
+            "LIB-Q02.answers: the answer of round 1 is history and cannot change"
+        ]
+
+    def test_a_rewritten_answer_is_named_by_its_round_not_its_position(self) -> None:
+        new = self._answered(1, 3)
+        new["nodes"][1]["answers"][1]["statements"][0]["text"] = "書き換えた"
+        errors = validate_tree(new, current=self._answered(1, 3))
+        assert errors == [
+            "LIB-Q02.answers: the answer of round 3 is history and cannot change"
+        ]
 
     def test_a_broken_file_on_disk_does_not_block_its_repair(self) -> None:
         assert validate_tree(tree_dict(), current={"theme_id": "LIB"}) == []

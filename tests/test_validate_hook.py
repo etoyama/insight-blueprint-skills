@@ -466,7 +466,7 @@ class TestHookSubprocessTree:
         )
 
         assert result.returncode == 2
-        assert "answer 1 is history" in result.stderr
+        assert "the answer of round 1 is history" in result.stderr
 
     def test_malformed_yaml_is_blocked(self, tmp_path: Path) -> None:
         result = run_hook(
