@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Epic 15 (#71): a design declares the data sources it uses in `source_ids`, and every skill reads
 them from there. Design: `docs/design/epic-15-declared-source-ids.md`.
 
+Epic 14 (#76): a report written from the same analysis has the same shape whichever model writes
+it. The parts of the `/analysis-report` template that were left to the model are now rules.
+Design: `docs/design/epic-14-report-template-gaps.md`.
+
 ### Added
 
 - **`catalog_io describe --ids a,b`** returns `{"sources": [...], "missing": [...]}`: the registered
@@ -27,6 +31,20 @@ them from there. Design: `docs/design/epic-15-declared-source-ids.md`.
   from `source_ids` only.** The report passes them to `catalog_io describe` and no longer collects
   candidates from `data_source`. `/premortem` returns `HARD_BLOCK` with the reason
   `no data source declared` for a design whose `source_ids` is empty. The model is unchanged.
+- **`/analysis-report` names the source of every section.** Open questions follow the journal's
+  definition, and the title comes from the design's `title`. The report no longer reads the
+  verdict's `evidence_summary` or `open_questions`, which reach it through the journal. Future
+  Directions is written from the open questions only. The line written when there is no figure
+  depends on why there is none.
+- **Fixed formats for tables and numbers.** Method has a table of metrics and one of explanatory
+  variables, and a column with no value in any row is left out. `Pass` is written as `✓`, `✗`, or
+  `—`. Results splits the evidence into what supports the hypothesis and what contradicts it.
+- **Fixed lead sentences.** The Abstract opens with one sentence per terminal status, and
+  Recommendation opens with one sentence per row of its table.
+- **Discussion.** Limitations is one paragraph built from the limits, the assumptions, and the
+  evidence against the conclusion. An empty Limitations or Future Directions is left out, with no
+  note in its place.
+- **`/analysis-journal`** accepts one id or a list of ids in `metadata.resolves`.
 
 ### Upgrade note
 
