@@ -41,6 +41,8 @@ catalog
 finding
 premortem
 リスクレベル
+パッケージ許可リスト
+既定の許可リスト
 guided autopilot
 KEEP ゲート
 AUTO
