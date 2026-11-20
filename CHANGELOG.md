@@ -50,7 +50,8 @@ Design: `docs/design/epic-14-report-template-gaps.md`.
 
 - Designs created before this release have an empty `source_ids`. Their report leaves out the data
   source table and says how to add them, `/premortem` returns `HARD_BLOCK`, and `/analysis-notebook`
-  stops and points to `/analysis-design`. Add the ids once with `design_io update --id {id}` (`{"source_ids": [...]}`).
+  stops and points to `/analysis-design`. Add the ids once with `/analysis-design`: open the existing
+  design and declare its sources (Step 0 → Step 3b).
 
 ## [0.10.0] - 2026-11-20
 
