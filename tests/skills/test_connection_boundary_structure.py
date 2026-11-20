@@ -128,3 +128,17 @@ class TestCatalogRegisterKeepsCredentialsOut:
     def test_a_password_inside_a_url_is_named_as_unchecked(self) -> None:
         step = unwrap(section(_read_skill("catalog-register"), "### Step 3: "))
         assert "`user:password@`" in step
+
+
+class TestArchitectureFollowsTheBoundary:
+    """ADR-0022 in the canonical architecture: the auto sequence matches the skills."""
+
+    _ARCHITECTURE = SKILLS_DIR.parent / "docs" / "ARCHITECTURE.md"
+
+    def test_the_data_extraction_gate_shows_ids_not_files(self) -> None:
+        text = self._ARCHITECTURE.read_text()
+        assert "file+columns+filter" not in text
+        assert "データソースの id + columns + filter" in text
+
+    def test_auto_framing_reads_the_sources_with_catalog_io_list(self) -> None:
+        assert "catalog_io list" in self._ARCHITECTURE.read_text()

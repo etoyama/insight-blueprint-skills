@@ -89,7 +89,7 @@ flowchart TD
 **selective autonomy（`/analysis-auto`）**: driver スキル `/analysis-auto` を起動したときに限り、Claude が
 既存 skill を順に駆動し、**本物の判断（KEEP ゲート）でだけ停止**する guided autopilot になる。invocation フラグは
 大域変更しない（自律性はこの run に限定）。KEEP ゲート = design の4ビート（① 仮説 / ② 手法・指標・explanatory の
-因果役割・intent / ③ データ取得プラン（SQL クエリ or file+columns+filter, premortem の前） / ④ chart 仕様）/
+因果役割・intent / ③ データ取得プラン（SQL クエリ or データソースの id + columns + filter, premortem の前。パスは見せない、[ADR-0022](adr/0022-connection-reaches-only-the-notebook.md)） / ④ chart 仕様）/
 データソース登録 / premortem `HARD_BLOCK`・`HIGH` / notebook の非 allowlist・宣言 source 以外の外部通信 / 結論 /
 レポートの生成 / アップロードで送るファイルの承認（`/report-upload` が聞く）。
 notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定のときのみ。詳細は
@@ -314,13 +314,13 @@ sequenceDiagram
     IO-->>D: design（無 / in_review / analyzing / results）
 
     Note over D,FS: framing（仮説が無ければ）
-    D->>IO: .insight/ 探索（catalog / 既存 design / 知識）
+    D->>IO: catalog_io list（connection なし）+ 既存 design / 知識の探索
     D->>U: 【KEEP】Data Map 提示 + Direction Dialogue（方向を一緒に決める）
     U-->>D: 方向を合意 → Framing Brief
     Note over D,FS: design（AUTO: Framing Brief から各フィールドを自動ドラフト → KEEP: ①〜④を順に確認）
     D->>U: 【KEEP①】仮説（statement + background）と決定の文脈（任意）を確認
     D->>U: 【KEEP②】手法 + metrics + explanatory の因果役割 + intent を確認
-    D->>U: 【KEEP③】データ取得プラン（SQL クエリ / file+columns+filter + 想定行数）を確認
+    D->>U: 【KEEP③】データ取得プラン（SQL クエリ / データソースの id + columns + filter + 想定行数）を確認
     D->>U: 【KEEP④】chart[] 仕様（intent/type/x/y）を確認
     U-->>D: 各ビートで確定（or 修正）
     D->>IO: design_io create（*_hypothesis.yaml, status=in_review）
