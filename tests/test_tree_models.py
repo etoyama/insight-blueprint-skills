@@ -11,9 +11,10 @@ import copy
 
 import pytest
 from pydantic import ValidationError
+from ruamel.yaml import YAML
 
 from insight_blueprint.models.design import DesignStatus
-from insight_blueprint.models.tree import Progress, QuestionTree
+from insight_blueprint.models.tree import Progress, QuestionTree, StatementKind
 from insight_blueprint.validate import validate_tree
 
 ROOT_QUESTION = "取り置き期限を延ばす試行をするか"
@@ -178,6 +179,122 @@ class TestTreeDecision:
         del data["decisions"]
         dumped = QuestionTree.model_validate(data).model_dump(exclude_defaults=True)
         assert "decisions" not in dumped
+
+
+def statement(**overrides: object) -> dict:
+    return {
+        "kind": "claim",
+        "text": "状態の履歴から取消を除き、期限を迎えた予約同士を比べられた",
+        "cites": ["LIB-H01-E01"],
+    } | overrides
+
+
+def answer(**overrides: object) -> dict:
+    return {"round": 1, "root_revision": 1, "statements": [statement()]} | overrides
+
+
+def tree_with_answers(*answers: dict) -> dict:
+    data = tree_dict()
+    data["nodes"][1]["answers"] = list(answers)
+    return data
+
+
+class TestAnswer:
+    def test_a_node_with_a_cited_answer_is_valid(self) -> None:
+        tree = QuestionTree.model_validate(tree_with_answers(answer()))
+        stated = tree.nodes[1].answers[0].statements[0]
+        assert stated.kind is StatementKind.claim
+        assert stated.cites == ["LIB-H01-E01"]
+
+    def test_a_tree_without_answers_dumps_no_answers_key(self) -> None:
+        dumped = QuestionTree.model_validate(tree_dict()).model_dump(
+            exclude_defaults=True
+        )
+        assert "answers" not in dumped["nodes"][1]
+
+    def test_the_shape_in_the_design_doc_is_valid(self) -> None:
+        text = """
+theme_id: LIB
+root_revisions:
+  - revision: 1
+    question: 取り置き期限を延ばす試行をするか
+    aim: {kind: business, decision_maker: 図書館員, decision: 取り置き期限を延ばす試行を始めるか}
+nodes:
+  - {id: LIB-Q01, question: 取り置き期限を延ばす試行をするか}
+  - id: LIB-Q02
+    question: 期限切れを一貫して数えられるか
+    parent_question_id: LIB-Q01
+    contribution: 予約取消が混ざると、延長で改善しうる件数が変わる
+    design_ids: [LIB-H01]
+    answers:
+      - round: 1
+        root_revision: 1
+        statements:
+          - {kind: claim, text: 状態の履歴から取消を除き、期限を迎えた予約同士を比べられた, cites: [LIB-H01-E01]}
+decisions:
+  - {round: 0, kind: start, node_id: LIB-Q02, reason: 取消が混ざると延長で改善しうる件数が変わるため}
+"""
+        assert validate_tree(YAML(typ="safe").load(text)) == []
+
+    @pytest.mark.parametrize("kind", ["undetermined", "weakening"])
+    def test_a_statement_can_say_it_is_undetermined_or_weakening(
+        self, kind: str
+    ) -> None:
+        data = tree_with_answers(answer(statements=[statement(kind=kind)]))
+        assert validate_tree(data) == []
+
+    def test_a_statement_kind_outside_the_three_is_rejected(self) -> None:
+        data = tree_with_answers(answer(statements=[statement(kind="guess")]))
+        assert "kind" in errors_of(data)
+
+    def test_a_statement_without_a_cite_is_rejected(self) -> None:
+        data = tree_with_answers(answer(statements=[statement(cites=[])]))
+        assert "cites" in errors_of(data)
+
+    def test_a_cite_that_is_not_an_event_id_is_rejected(self) -> None:
+        data = tree_with_answers(answer(statements=[statement(cites=["LIB-H01"])]))
+        assert "LIB-H01" in errors_of(data)
+
+    def test_a_cite_of_another_theme_is_rejected(self) -> None:
+        data = tree_with_answers(answer(statements=[statement(cites=["FP-H01-E01"])]))
+        assert "FP-H01-E01" in errors_of(data)
+
+    def test_a_statement_needs_text(self) -> None:
+        data = tree_with_answers(answer(statements=[statement(text="")]))
+        assert "text" in errors_of(data)
+
+    def test_an_answer_needs_a_statement(self) -> None:
+        assert "statements" in errors_of(tree_with_answers(answer(statements=[])))
+
+    @pytest.mark.parametrize("field", ["round", "root_revision"])
+    def test_round_and_root_revision_start_at_one(self, field: str) -> None:
+        assert field in errors_of(tree_with_answers(answer(**{field: 0})))
+
+    def test_rounds_increase_within_a_node(self) -> None:
+        data = tree_with_answers(answer(round=1), answer(round=2))
+        assert validate_tree(data) == []
+
+    def test_a_round_that_does_not_increase_is_rejected(self) -> None:
+        data = tree_with_answers(answer(round=2), answer(round=2))
+        assert "round" in errors_of(data)
+
+    def test_an_answer_to_a_root_revision_that_does_not_exist_yet_is_rejected(
+        self,
+    ) -> None:
+        data = tree_with_answers(answer(root_revision=2))
+        assert "root_revision" in errors_of(data)
+
+    def test_an_answer_to_an_earlier_root_revision_is_valid(self) -> None:
+        data = tree_with_answers(answer(root_revision=1))
+        second = copy.deepcopy(data["root_revisions"][0])
+        second |= {"revision": 2, "question": "延長の対象を絞るか", "reason": "x"}
+        data["root_revisions"].append(second)
+        data["nodes"][0]["question"] = "延長の対象を絞るか"
+        assert validate_tree(data) == []
+
+    def test_an_unknown_field_of_an_answer_is_rejected(self) -> None:
+        data = tree_with_answers(answer(confidence="high"))
+        assert "confidence" in errors_of(data)
 
 
 class TestRootRevision:

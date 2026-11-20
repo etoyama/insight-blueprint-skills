@@ -90,6 +90,44 @@ class RootRevision(BaseModel):
         return self
 
 
+class StatementKind(StrEnum):
+    """What one statement of an answer does."""
+
+    claim = "claim"
+    undetermined = "undetermined"
+    weakening = "weakening"
+
+
+class AnswerStatement(BaseModel):
+    """One sentence of an answer and the journal events it rests on."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: StatementKind
+    text: str = Field(min_length=1)
+    cites: list[str] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _cites_look_like_events(self) -> Self:
+        for cite in self.cites:
+            if not _EVENT_ID_PATTERN.fullmatch(cite):
+                raise ValueError(
+                    f"cites: '{cite}' is not a journal event id ({{design_id}}-E{{nn}})"
+                )
+        return self
+
+
+class Answer(BaseModel):
+    """One round of the current answer to a node. The last one is the current one."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    round: int = Field(ge=1)
+    root_revision: int = Field(ge=1)
+    statements: list[AnswerStatement] = Field(min_length=1)
+    created_at: datetime | None = None
+
+
 class QuestionNode(BaseModel):
     """One node of the tree: a question, and what answering it does for its parent."""
 
@@ -101,6 +139,7 @@ class QuestionNode(BaseModel):
     contribution: str = ""
     origin_event_id: str | None = None
     design_ids: list[str] = Field(default_factory=list)
+    answers: list[Answer] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _check_node(self) -> Self:
@@ -115,6 +154,11 @@ class QuestionNode(BaseModel):
             )
         if len(set(self.design_ids)) != len(self.design_ids):
             raise ValueError(f"design_ids: {self.id} links the same design twice")
+        rounds = [a.round for a in self.answers]
+        if rounds != sorted(set(rounds)):
+            raise ValueError(
+                f"answers: rounds of {self.id} must increase, got {rounds}"
+            )
         return self
 
 
@@ -203,6 +247,25 @@ class QuestionTree(BaseModel):
                     f"{node.id}: origin '{origin}' must be "
                     f"{self.theme_id}-H{{nn}}-E{{nn}}"
                 )
+            self._check_answers(node, event_pattern)
+
+    def _check_answers(
+        self, node: QuestionNode, event_pattern: re.Pattern[str]
+    ) -> None:
+        current = self.current_revision().revision
+        for answer in node.answers:
+            if answer.root_revision > current:
+                raise ValueError(
+                    f"{node.id}: answer round {answer.round} has root_revision "
+                    f"{answer.root_revision}, but the current root revision is {current}"
+                )
+            for statement in answer.statements:
+                for cite in statement.cites:
+                    if not event_pattern.fullmatch(cite):
+                        raise ValueError(
+                            f"{node.id}: cite '{cite}' must be "
+                            f"{self.theme_id}-H{{nn}}-E{{nn}}"
+                        )
 
     def _check_decisions(self) -> None:
         node_ids = {n.id for n in self.nodes}

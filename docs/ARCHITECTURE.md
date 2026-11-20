@@ -578,6 +578,25 @@ classDiagram
         contribution
         origin_event_id
         design_ids
+        answers
+    }
+    class Answer {
+        <<Value Object>>
+        round
+        root_revision
+        statements
+    }
+    class AnswerStatement {
+        <<Value Object>>
+        kind
+        text
+        cites
+    }
+    class StatementKind {
+        <<enumeration>>
+        claim
+        undetermined
+        weakening
     }
     class AimKind {
         <<enumeration>>
@@ -632,6 +651,9 @@ classDiagram
     QuestionNode ..> QuestionNode : parent_question_id
     QuestionNode ..> AnalysisDesign : design_ids
     QuestionNode ..> Progress : 導く（保存しない）
+    QuestionNode "1" *-- "*" Answer
+    Answer "1" *-- "1..*" AnswerStatement
+    AnswerStatement --> StatementKind
     QuestionTree "1" *-- "*" TreeDecision
     TreeDecision --> TreeDecisionKind
     TreeDecision ..> QuestionNode : node_id
