@@ -148,7 +148,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 <あなたのプロジェクト>/.insight/          ← ${CLAUDE_PROJECT_DIR}/.insight
 ├── config.yaml                     # 任意: premortem 閾値など（無ければ既定値）
 ├── rules/
-│   └── package_allowlist.yaml      # 任意: notebook が使ってよいパッケージ許可リスト（書式・供給手順は下記†）
+│   └── package_allowlist.yaml      # 任意: notebook が使ってよいパッケージ許可リスト（無ければ既定の許可リスト。下記†）
 ├── designs/
 │   ├── {id}_hypothesis.yaml        # design_io create/update（pre-write hook が検証）
 │   ├── {id}_journal.yaml           # journal イベント
@@ -173,6 +173,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 供給手順（`--with <pip名>` による ephemeral 注入）は
 [`skills/analysis-notebook/references/notebook-contract.md`](../skills/analysis-notebook/references/notebook-contract.md)
 の「Package allowlist — format & supplying packages」節が正本。
+ファイルが無いときは、plugin の env に最初から入っている既定の許可リストを使う（[ADR-0021](adr/0021-default-package-allowlist.md)）。
 
 **marimo notebook はどこに出るか（混乱ポイントの明示回答）**: 利用者プロジェクトの
 `${CLAUDE_PROJECT_DIR}/.insight/notebooks/`（および `lineage/`）に出る。**plugin ディレクトリではない**。
@@ -611,6 +612,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 13 | Skill layer（`/analysis-report` の写す手順）+ `report_check`（できたレポートの検査） |
 | Epic 14 | Skill layer（`/analysis-report` のテンプレートの出典・書式・省く条件） |
 | Epic 15 | Skill layer（`/analysis-design`・`/analysis-report`・`/analysis-notebook`・`/premortem`・`/analysis-auto` がデータソースを読む場所）+ `catalog_io describe` |
+| Epic 16 | Skill layer（`/premortem`・`/analysis-auto` がパッケージ許可リストの無いときに使う既定の許可リスト）+ `risk_evaluator` の `HARD_BLOCK` の理由 |
 | Epic 17 | Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-notebook`・`/analysis-auto`・`/catalog-register` が `connection` を読む場所）+ `catalog_io create`・`update` の認証情報の検査 |
 
 

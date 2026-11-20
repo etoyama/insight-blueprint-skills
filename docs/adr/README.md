@@ -26,6 +26,7 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0018](0018-catalog-io-omits-connection-by-default.md) | `catalog_io` は、頼まれない限りデータソースの `connection` を返さない | Accepted |
 | [0019](0019-report-source-text-escaped-and-checked.md) | レポートに写すデータ由来の文は、削らずエスケープし、できたレポートをコードで検査する | Accepted |
 | [0020](0020-design-declares-sources-in-source-ids.md) | 分析設計が使うデータソースは `source_ids` に宣言し、下流の skill はそこだけを読む | Accepted |
+| [0021](0021-default-package-allowlist.md) | パッケージ許可リストが無いときは、plugin の既定の許可リストを使う | Accepted |
 | [0022](0022-connection-reaches-only-the-notebook.md) | `connection` の値をモデルの文脈に入れるのは `/analysis-notebook` だけにする | Accepted |
 | [0023](0023-catalog-holds-no-credentials.md) | catalog は認証情報を持たない | Accepted |
 

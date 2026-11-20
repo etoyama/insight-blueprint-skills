@@ -46,6 +46,12 @@ def test_allowlist_false_hard_blocks() -> None:
     assert any("allowlist" in r for r in d.reasons)
 
 
+def test_allowlist_false_says_where_to_declare_the_package() -> None:
+    """ADR-0021: the stop tells the analyst how to allow the package."""
+    d = evaluate(_IN_REVIEW, CONFIG, _checks(allowlist_ok=False))
+    assert any(".insight/rules/package_allowlist.yaml" in r for r in d.reasons)
+
+
 def test_location_false_hard_blocks() -> None:
     d = evaluate(_IN_REVIEW, CONFIG, _checks(location_ok=False))
     assert d.level is RiskLevel.HARD_BLOCK

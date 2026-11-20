@@ -10,15 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Upgrade note
 
 - `catalog_io create` and `update` now refuse a `connection` key that names a credential. A source
-  stored earlier with such a key is still read, but `update` refuses it until you pass a whole new
-  `connection` that keeps the secret in an environment variable and names it in a `*_env` key
-  (e.g. `"password_env": "PG_PASSWORD"`).
+  stored earlier with such a key is still read, but `update` refuses it. Edit its YAML by hand: keep
+  the secret in an environment variable and name it in a `*_env` key (e.g.
+  `"password_env": "PG_PASSWORD"`). Do not ask the model to read the source with `--with-connection`.
 - Designs created earlier may carry a file path or table name in `methodology.steps`. They still
   work. To keep the path out of the design and the report, rewrite the step with `{source:ID}`
   through `/analysis-design`.
 
 Epic 17 (#102): a data source's `connection` reaches the model only in `/analysis-notebook`, and the
 catalog holds no credentials. Design: `docs/design/epic-17-connection-boundary.md`.
+
+Epic 16 (#101): a project without `.insight/rules/package_allowlist.yaml` uses the default
+allowlist instead of stopping at premortem. Design: `docs/design/epic-16-default-allowlist.md`.
 
 ### Changed
 
@@ -31,8 +34,16 @@ catalog holds no credentials. Design: `docs/design/epic-17-connection-boundary.m
   the data source id instead of the file ([ADR-0022](docs/adr/0022-connection-reaches-only-the-notebook.md)).
 - **`catalog_io create` and `update` refuse credential keys in `connection`** (`password`, `token`,
   `api_key`, `secret`, `credential`, `private_key`, `access_key`, nested too) and exit non-zero,
-  naming the key but not its value. A key ending in `_env` passes. Reading is unchanged
+  naming the key but not its value. A `*_env` key such as `password_env` passes when its value is an
+  environment variable name (`^[A-Z_][A-Z0-9_]*$`). Reading is unchanged
   ([ADR-0023](docs/adr/0023-catalog-holds-no-credentials.md)).
+- **`/premortem` and `/analysis-auto` no longer stop a project that has no
+  `.insight/rules/package_allowlist.yaml`.** They use the default allowlist (the packages the plugin
+  env ships, listed in the notebook contract). A methodology that needs another package now stops at
+  `HARD_BLOCK` instead of `HIGH` (ADR-0021).
+- The `HARD_BLOCK` reason for a package outside the allowlist is now
+  `package outside allowlist (declare it in .insight/rules/package_allowlist.yaml)`. A script that
+  matches the old reason exactly must match its prefix instead.
 
 ## [0.11.0] - 2026-11-20
 
