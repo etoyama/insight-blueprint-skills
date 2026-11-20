@@ -73,7 +73,8 @@ Construct the `catalog_io create` JSON payload with the discovered schema.
 This plugin does not handle credentials ([ADR-0023](../../docs/adr/0023-catalog-holds-no-credentials.md)).
 If the source needs one, keep it in an environment variable and write only the variable's
 name, in a key ending in `_env` (e.g. `"password_env": "PG_PASSWORD"`). `catalog_io` refuses
-the payload otherwise.
+the payload otherwise. It checks key names only, so also keep the password out of any URL or DSN
+(no `user:password@`): write the URL without it and name the variable in a `*_env` key.
 
 ### Step 4: Register and Confirm
 
@@ -242,7 +243,8 @@ echo '{
 `create` and `update` refuse a `connection` key that names a credential (`password`, `token`,
 `api_key`, `secret`, `credential`, `private_key`, …) and exit non-zero, naming the key but not its
 value; a key ending in `_env` passes when its value is a variable name (`^[A-Z_][A-Z0-9_]*$`) (ADR-0023). A source stored before that rule with such a key
-is still read, but `update` refuses it until the change carries a whole new `connection`.
+is still read, but `update` refuses it. To fix it, the analyst edits its YAML by hand: never read it with
+`--with-connection` or open the file, since that puts the secret in the model's context.
 For an id that is not registered, `get` prints `{}` and exits 0; a non-empty result means registered.
 
 Validation runs inside `catalog_io` (DataSource model) before writing; invalid input

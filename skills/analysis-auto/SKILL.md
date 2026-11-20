@@ -92,7 +92,7 @@ gate policy above:
       confirm. These shape the analysis and are genuine choices.
    3. **data-extraction** — present the design's `source_ids` (each checked as `/analysis-design`
       "Data sources" says) and the actual **data-acquisition plan**: for a SQL source, the query text
-      drafted into `methodology.steps` (see `/analysis-design` Step 2.6); for a CSV/other source, the file
+      drafted into `methodology.steps` (see `/analysis-design` Step 2.6); for a CSV/other source, the data source id
       + the columns/filter that will be read — plus the expected grain and a rough row-count. Confirm the
       pull *before* it is committed to the design, so premortem (item 4) estimates cost against the
       confirmed query. A source with no SQL still gets this beat as a data-acquisition plan.

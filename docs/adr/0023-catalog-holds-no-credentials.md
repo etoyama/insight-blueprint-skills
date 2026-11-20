@@ -66,11 +66,15 @@ Accepted
 - `catalog_io` の `create_source` と `update_source` は、`connection` のキー名が認証情報を表すときに `ValueError` を出し、何も書かない。CLI は非ゼロで終わる。
   入れ子の dict と、リストの中の dict も見る。
 - キー名は小文字にし、英数字以外を除いてから、`password`・`passwd`・`passphrase`・`secret`・`token`・`bearer`・`apikey`・`credential`・`privatekey`・`accesskey` を含むかで見る（`_CREDENTIAL_KEY_PARTS`）。
-- `_env` で終わるキーは通す。ただし値は環境変数の名前の形（`^[A-Z_][A-Z0-9_]*$`）に限る。形が合わなければ拒む。
+- `_env` で終わり、`_env` を除いた部分が認証情報の語を含むキー（`password_env` など）は通す。ただし値は環境変数の名前の形（`^[A-Z_][A-Z0-9_]*$`）に限る。形が合わなければ拒む。
+  認証情報と関係の無い `_env` のキー（`conda_env` など）は、ほかのキーと同じに扱い、値を問わない。
   名前の形だけを見ないと、`password_env: "hunter2"` のように秘密そのものが除外をすり抜ける（自動のセキュリティレビュー、2026-11-20）。
   ほかのキーの値は見ない。
 - エラーは拒んだキーの場所（`connection.auth.client_secret` など）を挙げ、値を出さない。環境変数の名前を `*_env` に書くよう案内する。
 - `update_source` は、変更を重ねたあとの `connection` を見る。保存済みのデータソースに認証情報のキーがあると、`connection` を丸ごと差し替えるまで `update` できない。
+- `connection` が dict でなければ、値を出さずに拒む。そのまま `DataSource` の検証に渡すと、pydantic のエラーが値を出す。
+- 保存済みのデータソースに認証情報のキーがあると、エラーは「分析者が YAML を手で直す。`--with-connection` で読まず、ファイルも開かない」と案内する。
+  `connection` を組み直すために、モデルが秘密ごと読みに行くのを防ぐ（`pstack:thermos` のレビュー、2026-11-20）。
 - 読み込み（`load_source`・`list_sources`・`catalog_io get`・`list`）は変えない。model（`DataSource`）も変えない。
 
 ## Consequences
@@ -84,7 +88,9 @@ Accepted
 
 - キー名を変えた認証情報（`pw`、`key` など）は通る。値の形は見ない（`*_env` を除く）。
   `auth`・`key`・`pass` は、`"auth": "api_key"` や `passage` のような正当なキーまで拒むので、拒む語に入れていない。
-- 大文字・数字・`_` だけでできた秘密は、`*_env` の値として通る。
+- 大文字・数字・`_` だけでできた秘密は、`*_env` の値として通る。小文字の環境変数の名前は拒む。
+- URL や DSN に埋めたパスワード（`postgresql://user:password@host/db`）は通る。値の形を見ないため。判断3で 3C を採らなかった結果で、`/catalog-register` の文で書かないよう頼む。
+- 秘密でない正当なキーも拒む。`credentials_path`（鍵ファイルのパス）、`secret_name`（秘密の保管先の参照名）、`token_uri`、`max_tokens` など。
 - `token_count` のような正当なキーも拒む。利用者はキー名を変える必要がある。
 - 保存済みのデータソースに認証情報のキーがあれば、今までどおり読め、`get --with-connection` で notebook に渡る。この決定は既存の YAML を書き換えない。
 - `catalog_io` を通さずに YAML を手で書けば、この検査は効かない。

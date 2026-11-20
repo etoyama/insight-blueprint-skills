@@ -237,3 +237,14 @@ sequenceDiagram
   `_prose_files` の重複、テストの docstring の Epic 番号、消した文字列を名指しする否定アサート、`apiKeyEnv` の扱いをテストに固定。notebook の契約に、`source_ids` に無い id で止まることを書いた。
   直していないもの: `catalog-register` の規則の2か所の記述（手順と Reference で役割が違う）。保存済みの YAML に `password` を置くテストの重複（2か所で Rule of Three に届かない）。
   ユビキタス言語の「コード上の名前」を `_CREDENTIAL_KEY_PARTS` のままにした（表はコードに実在する名前を書く決まり）。
+- 2026-11-20 — レビュー（`pstack:thermos`、バグ・セキュリティ）: High は無し。直したもの:
+  - SQL の `{source:ID}` を文字列のリテラルで入れるとクエリが壊れる。SQL では方言の引用符で囲んだ識別子にした。
+  - auto と design に「file + columns」を見せる文が残っていた。データソースの id にし、構造テストを両方の skill に広げた。
+  - 保存済みの認証情報を直すとき、モデルが `--with-connection` で秘密ごと読みに行く道があった。エラーと `/catalog-register` で、分析者が YAML を手で直すよう案内した。
+  - 認証情報と関係の無い `conda_env` などの値まで拒んでいた。`connection` が dict でないと pydantic のエラーに値が出ていた。
+  - ADR-0022 の Negative に、notebook を読む `/data-lineage` と、同じ会話でレポートまで進む `/analysis-auto` を書いた。
+  直していないもの:
+  - URL や DSN に埋めたパスワードは通る（判断3で 3C を採らなかった。ADR-0023 と `/catalog-register` に書いた。Epic PR で人間に確かめる）。
+  - `credentials_path` などの誤検知（判断3の W3 で受け入れた範囲。ADR-0023 に書いた）。
+  - `/premortem` が `connection` 無しでは BigQuery の場所を判定できないこと（#101 の領分で、今回より前からある）。
+- 2026-11-20 — 自動のセキュリティレビュー（構造テストの整理への指摘）: パターンのテストが、対象のファイルが0件でも通っていた。ファイルがあることと、`catalog/sources` では `/catalog-register` が当たることを確かめるようにした。

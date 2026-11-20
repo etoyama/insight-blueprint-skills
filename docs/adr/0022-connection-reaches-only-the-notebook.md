@@ -88,7 +88,9 @@ framing の読み方（課題1）:
 - `/analysis-framing` はデータソースを `catalog_io list` で読む。Step 2d の Grep は `.insight/designs/`・`.insight/catalog/knowledge/`・`.insight/rules/` に限る。
 - `/catalog-register` を除く skill の文書は、`catalog/sources` を書かない。構造テストが見る。
 - `/analysis-design` は `methodology.steps` でデータソースを `{source:ID}` と書く（データソースの参照）。パス・ホスト・project id・テーブル名を書かない。`ID` は `source_ids` にある id に限る。
-- `/analysis-notebook` の cell 2 は、`{source:ID}` を `get --id ID --with-connection` の `connection` の値（ファイルのパス、完全なテーブル名など）で置き換える。値は文字列のリテラルとして入れ、文字列をつないでコードを作らない。
+- `/analysis-notebook` の cell 2 は、`{source:ID}` を `get --id ID --with-connection` の `connection` の値で置き換える。
+  Python のコード（ファイルのパス、URL）には文字列のリテラルとして入れる。SQL のクエリには、`connection` から組み立てたテーブル名を、その方言の引用符で囲んだ識別子として入れる。
+  文字列の値として入れるとクエリが壊れる（`pstack:thermos` のレビュー、2026-11-20）。テーブル名はパラメータにできないので、値は `catalog_io get` からだけ取り、`methodology.steps` からは取らない。
 
 ## Consequences
 
@@ -101,6 +103,8 @@ framing の読み方（課題1）:
 
 - モデルが文を無視してデータソースの YAML を `cat` すると、今までどおり `connection` が見える。この決定は塞がない（1B を採らなかった）。
 - v0.11.0 までに作った分析設計の `methodology.steps` にあるパスは残る。分析者が `/analysis-design` で直す。移行はしない。
+- notebook の `.py` には `connection` の値がリテラルで入る。notebook を読む `/data-lineage` と、notebook のあとに同じ会話でレポートまで進む `/analysis-auto` では、
+  `connection` の値がすでに文脈にある。「`/analysis-report` は書き写す元を持たない」は、レポートを単独で呼んだときにだけ成り立つ。そこではレポートのテンプレートの文が守る。
 - `/analysis-auto` の design ③ で、分析者は読み込み先のパスを見なくなる。どのファイルやテーブルかは、データソースの id から `/catalog-register` の登録で分かる。
 
 ## Alternatives considered

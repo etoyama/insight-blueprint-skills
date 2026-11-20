@@ -39,12 +39,17 @@ class TestFramingReadsSourcesThroughCatalogIo:
         self, pattern: str
     ) -> None:
         # /catalog-register says where a source is stored; it is the one exception.
+        files = _prose_files()
+        assert files
         mentions = {
             path.relative_to(SKILLS_DIR).parts[0]
-            for path in _prose_files()
+            for path in files
             if pattern in path.read_text()
         }
-        assert mentions <= {"catalog-register"}
+        allowed = {"catalog-register"}
+        assert (
+            mentions == allowed if pattern == "catalog/sources" else mentions <= allowed
+        )
 
 
 _REF = "`{source:ID}`"
@@ -62,6 +67,7 @@ class TestDesignPointsAtSourcesById:
     def test_the_sample_carries_no_one_users_environment(self) -> None:
         step = section(_read_skill("analysis-design"), "### Step 2.6: ")
         assert "lmi-datau-prod" not in step
+        assert "lib.accessor" not in step
         assert "FROM {source:" in step
 
     def test_the_notebook_resolves_the_reference_in_cell_2(self) -> None:
@@ -69,7 +75,10 @@ class TestDesignPointsAtSourcesById:
         cell_2 = generate.split("- cell 2 (data_load):", 1)[1].split("- cell 3", 1)[0]
         assert _REF in cell_2
         assert "`connection`" in cell_2
+        # A file path goes into Python code, a table into a SQL query: a quoted string
+        # in the query would be a value, not a table.
         assert "string literal" in cell_2
+        assert "quoted identifier" in cell_2
 
     def test_the_notebook_contract_states_the_reference(self) -> None:
         contract = unwrap(
@@ -79,10 +88,11 @@ class TestDesignPointsAtSourcesById:
         )
         assert f"Each {_REF} in `methodology.steps`" in contract
 
-    def test_the_auto_data_extraction_beat_shows_ids_not_paths(self) -> None:
-        auto = _read_skill("analysis-auto")
-        row = next(line for line in auto.splitlines() if "design ③" in line)
-        assert "data source id" in row
+    @pytest.mark.parametrize("skill", ["analysis-auto", "analysis-design"])
+    def test_the_data_extraction_beat_shows_ids_not_files(self, skill: str) -> None:
+        text = unwrap(_read_skill(skill))
+        assert "the data source id + " in text
+        assert "the file + " not in text
 
 
 class TestCatalogRegisterKeepsCredentialsOut:
@@ -107,3 +117,14 @@ class TestCatalogRegisterKeepsCredentialsOut:
         )
         assert "refuse a `connection` key that names a credential" in reference
         assert "ADR-0023" in reference
+
+    def test_a_stored_credential_is_fixed_by_hand_and_never_read(self) -> None:
+        reference = unwrap(
+            section(_read_skill("catalog-register"), "## catalog_io Reference")
+        )
+        assert "the analyst edits its YAML by hand" in reference
+        assert "never read it with `--with-connection`" in reference
+
+    def test_a_password_inside_a_url_is_named_as_unchecked(self) -> None:
+        step = unwrap(section(_read_skill("catalog-register"), "### Step 3: "))
+        assert "`user:password@`" in step

@@ -599,6 +599,27 @@ class TestConnectionHoldsNoCredentials:
         connection = {"password_env": "PG_PASSWORD", "auth": "api_key"}
         assert _create(insight, connection=connection)["connection"] == connection
 
+    def test_an_env_key_unrelated_to_credentials_keeps_any_value(
+        self, insight: Path
+    ) -> None:
+        connection = {"conda_env": "analysis", "target_env": "prod"}
+        assert _create(insight, connection=connection)["connection"] == connection
+
+    def test_a_connection_that_is_not_an_object_is_refused_without_its_value(
+        self, insight: Path
+    ) -> None:
+        with pytest.raises(ValueError, match="must be an object") as err:
+            _create(insight, connection="postgresql://u:hunter2@h/db")  # type: ignore[arg-type]
+        assert "hunter2" not in str(err.value)
+
+    def test_refusing_a_stored_credential_tells_the_analyst_to_fix_the_yaml(
+        self, insight: Path
+    ) -> None:
+        with pytest.raises(ValueError) as err:
+            _create(insight, connection={"password": "hunter2"})
+        assert "by hand" in str(err.value)
+        assert "--with-connection" in str(err.value)
+
     def test_update_refuses_a_credential_key_and_keeps_the_stored_source(
         self, insight: Path
     ) -> None:

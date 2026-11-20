@@ -184,11 +184,11 @@ methodology = {
   conditions, and `FROM {source:ID}` for the table
 - If methodology uses a specific library (e.g., lingam, shap, dowhy): include the exact API call with parameter names in a subsequent step
 - If the user provides their own code pattern, use it as-is — do not overwrite — but replace any
-  path or table name in it with `{source:ID}`
+  path, host, project id or table name in it with `{source:ID}`
 
 > **Under `/analysis-auto`**: this auto-generated query is not committed silently. The driver surfaces it
 > as the *data-extraction* confirmation beat (`/analysis-auto` gate policy, design beat ③) — the actual
-> query text (or, for a non-SQL source, the file + columns/filter) is presented to the user **before**
+> query text (or, for a non-SQL source, the data source id + columns/filter) is presented to the user **before**
 > `design_io create` and before premortem. Standalone `/analysis-design` invocation is unchanged.
 
 ### Step 3: Create the Design
