@@ -372,6 +372,7 @@ decisions:
 | `src/insight_blueprint/validate.py` | 論点ツリーの YAML を検証する純関数を足す | I/O をしない → `tree_io`・hook |
 | `hooks/validate-design.py` | `*_tree.yaml` への直接の書き込みも検証する | 何を書くかは決めない |
 | `skills/_shared/tree_io.py`（新設） | ツリーの作成、論点の追加と昇格、分析設計を結ぶ、答えの追記、ツリーの決定、根の版の更新、HTML の生成 | 答えの中身を考えない → `/analysis-reflection`。引用先を確かめない → `tree_check` |
+| `skills/_shared/tree_render.py`（新設） | 論点ツリー、テーマの分析設計、引用した出来事を受け取り、HTML の文字列を返す純関数。進捗と、答えに付ける印を導く。ページに入る文字をすべてエスケープする | ファイルを読まない、書かない → `tree_io render`。引用の正しさは確かめない → `tree_check` |
 | `skills/_shared/tree_check.py`（新設） | 現時点の答えの引用の実在、引用先と論点の対応、文の数が引用先の本文にあるかを確かめ、違反を挙げる | ツリーを書き換えない |
 | `/analysis-auto` | 分析者の入口。論点ツリーの有無で着手か再開かを決め、論点ごとの巡回を進め、KEEP ゲートでだけ止まる。結論が出たらレポートを書かせる | skill の中身を持たない → 各 skill。ツリーを直接書かない → `tree_io` を使う各 skill |
 | `/rq-problematization` | （変えない）先行研究を集め、前提を問い直し、RQ Brief を出す | 論点ツリーを作らない → `/analysis-framing` |
@@ -706,6 +707,35 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - 「ファイル1つで判定できる不変条件はモデルが持つ」（Module Responsibilities）から、引用先と論点の対応だけが外れる。
   - 追記だけの比較が出す文の番号は、並びの中の位置である（`LIB-Q02.answers: answer 1 is history and cannot change`）。ツリーの検査が出す `round` は振り返りの回で、連番とは限らない。同じ答えを指す番号の意味が2つの道具でずれる。揃えるかは Story 18.4 で答えを書く手順を作るときに決める。
 
+### Decision: tree-html-is-static-and-marks-are-derived
+
+- What: 論点ツリーの HTML（`tree_io render`）の細部を次のように決める。
+  - script を1つも書かない。開閉は `<details>` で、スタイルはページの中の `<style>` 1つである。画像と外部への参照も出さない。
+  - 生成した時刻、絶対パス、乱数をページに入れない。論点は正本の並びの順に、分析設計は id の順に出す。
+  - HTML を作る純関数は `skills/_shared/tree_render.py` に置く。`tree_io render` はファイルを読んで渡し、結果を書く。
+  - 「この回で変わった」の印は、今の答えの回がツリーで最も新しい回で、1つ前の答えと文（種類・本文・引用）が違う論点に付ける。最も新しい回で初めて答えた論点には「この回で初めて答えた」を付ける。
+  - 「根の変更前の答え」の印は、今の答えの `root_revision` が今の根の版より小さい論点に付ける。根の版が2つ以上あれば、版ごとの問い・到達点・理由を履歴として出す。
+  - 論点ごとの開閉の中に、今の答えの各文と引用した出来事（id、分析設計の id、種類、`direction`、本文）、前の回の答え、結んだ分析設計を出す。引用した出来事は、すべての回の答えについて読む。
+  - 引用した出来事が journal に無ければ「journal に見つからない出来事」と出し、同じ id が2つあれば先のものを出す。どちらも表示は止めない。
+  - 結んだ分析設計が無くなっていたらエラーにして、何も書かない（`tree_io progress` と同じ）。
+  - 分析設計の派生は、論点ツリーとは別の節に、テーマの分析設計を `parent_id` で入れ子にして出す。論点に結んでいない分析設計も出す。親がテーマの中に無ければ最上位に置き、派生元の id を添える。
+  - ページに入る文字（問い、寄与、理由、答えの文、出来事の本文、分析設計の題と状態、id）は、すべてエスケープする。
+- Why: US-5 と [ADR-0024](../adr/0024-question-tree-yaml-and-generated-html.md) は、何を出すかと、外部を読まないことを決めている。開閉の手段、「変わった」の判定、検査が違反にする正本をどう表示するかは決めていない。
+- Criteria: 外部の script と stylesheet を読まず、同じ正本から同じ HTML ができること（US-5 AC 1）。色だけで区別しないこと（AC 2）。正本の文は分析者とモデルが書くので信頼しないこと（Story 18.6 の指示）。検査が違反にする正本でも図は読めること（違反を直す人が図を見るため）。決め手は最初の1つで、script を書かなければ決定的であることと自己完結であることが同時に満たせる。
+- Affected modules: `skills/_shared/tree_render.py`、`skills/_shared/tree_io.py`。
+- Alternatives considered:
+  - ページの中に script を書いて開閉する。外部は読まないが、Artifact として渡すときにホストの制約を受けうる。`<details>` で足りるので落とした。
+  - 「変わった」を、最も新しい回に答えがあるかだけで決める。毎回すべての論点に同じ答えを書き足す運用だと、全論点に印が付く。
+  - 引用した出来事が無いときにエラーにする。ツリーの検査が違反として挙げる正本を、図で確かめられなくなる。
+  - HTML を作る関数を `tree_io.py` の中に置く。I/O と表示が1つのファイルに混ざり、ファイルを用意しないと表示を試せない。
+- Consequences:
+  - すべての論点を一度に開く手段は無い。開閉の状態は覚えない。
+  - 最初の振り返りの回では、答えのある論点すべてに「この回で初めて答えた」が付く。
+  - 根の問いに分析設計を結ばない限り、根の進捗は未着手と出る（Decision `progress-is-derived`）。答えがあって未着手と出るので、読み方の節に、進捗は結んだ分析設計から導くと書いた。引き継ぎの試行（Story 18.8）で誤読が出るかを見る。
+  - 次の候補とツリーの決定の残りの種類は、Story 18.5 が型を足すときに表示へ足す。
+  - HTML は生成物で、pre-write hook は見ない。手で書き換えても、次の `render` が上書きする。
+  - `/analysis-framing` と `/analysis-reflection` が `render` を呼ぶ手順は、この Story では足していない。framing の側は未割り当てである。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0024: 論点ツリーの正本は YAML に置き、表示は正本から生成する HTML にする](../adr/0024-question-tree-yaml-and-generated-html.md): 判断2・2'。Artifact は承認の後の任意の手順。
@@ -721,7 +751,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 | Story 18.3 | ✓（`tests/test_tree_models.py` の `TestAnswer`、`TestValidateTree`。`tests/test_tree_check.py` の `TestNumbersIn`、`TestFindViolations`、`TestTheNumberThatWasNeverRecorded`） | ✓（`tests/test_tree_check.py` の `TestCheckTheme`・`TestMain` は正本と journal のファイルを読ませる。`tests/integration/test_bin_wrappers.py` は `bin/tree_check` を別の cwd から通す。`tests/test_validate_hook.py` は答えを書き換える Edit を hook が止めることを確かめる） | — （CLI だけ） |
 | Story 18.4 | ☐ | ☐ | ☐ |
 | Story 18.5 | ☐ | ☐ | ☐ |
-| Story 18.6 | ☐ | ☐ | ☐ |
+| Story 18.6 | ✓（`tests/test_tree_render.py`。AC 1 は `TestSelfContained`、AC 2 は `TestProgress`・`TestCurrentAnswer`、AC 3 は `TestEvidence`、AC 4 は `TestMarks`・`TestHeader`、AC 5 は `TestStructure`。エスケープは `TestEscaping`） | ✓（`tests/test_tree_io.py` の `TestRender` は正本、分析設計、journal のファイルを読ませて HTML を書かせる。`tests/integration/test_bin_wrappers.py` は `bin/tree_io render` を別の cwd から通す） | —（CLI だけ。ブラウザで開いた手動確認は Story Timeline の 2026-11-21 に記録した） |
 | Story 18.7 | ☐ | ☐ | ☐ |
 | Story 18.8 | — （試行の手順） | ☐ | ☐ |
 | Story 18.9 | — （SKILL.md だけ。構造テストは Integration に置く） | ☐ | ☐ |
@@ -739,3 +769,4 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - 2026-11-21 — Story 18.2 を手動で確認した。合成データのプロジェクトにプラグインを読み込み、headless の Claude Code（sonnet）で `/analysis-framing` と `/analysis-design` を実行した。新しいテーマでは、論点ツリーの正本に根の版 1 と `start` の決定が1件書かれた。`/analysis-design` は `tree_io link` で分析設計を論点に結び、`node_id` の無い Framing Brief では結ばずに作った。根の変更では、意味の変わる変更に「上げない」と答えると1回だけ聞き直し、2回目の答えに従った。言い換えは1回の確認で済んだ。pre-write hook は、決定を消す Edit と前の根の版を変える Edit を拒んだ。意味の変わる変更に「上げる」と答える経路は、skill を通しては確かめていない。
 - 2026-11-21 — 手動確認で、根の変更の聞き方が分析者の答えを誘導していると分かった。`/analysis-framing` の Step 4c を直し、版を上げるかは両方の答えとその結果を並べて聞き、skill の読みは分析者が答えるまで出さないようにした。同じやり方で、意味の変わる変更と言い換えの2本を再実行して確かめた。
 - 2026-11-21 — Story 18.3 completed: 現時点の答えの型（`Answer`・`AnswerStatement`・`StatementKind`）と `answers` を入れ、答えを追記だけにした。追記だけの比較（根の版、ツリーの決定、現時点の答え）は1つにまとめた。ツリーの検査（`tree_check`、`bin/tree_check`）は、引用した出来事が無い、引用先の分析設計が論点か子孫に結んでいない、文の数が引用した出来事の本文に無い、の3つを違反として挙げる。#105 と同じ型（2つの出来事の数から作った比）を合成シナリオで違反にした。合成のプロジェクトに `bin/tree_check` を通して、違反の出力と終了コード 1、正本が変わらないことを確かめた。レビュー（thermos）の指摘で、別の分析設計の journal に書いた出来事を引用の根拠に数えないようにし、検査できない場合は必ず終了コード 2 にした。18.3 を先にする決定は人間がした（PR #128 のコメント、2026-11-21）。
+- 2026-11-21 — Story 18.6 completed: `tree_io render` が、正本から自己完結の HTML（`.insight/themes/{theme_id}_tree.html`）を作る。HTML を作る純関数は `skills/_shared/tree_render.py` に置いた。script は書かず、開閉は `<details>` で行う。各論点に進捗と現時点の答えを文字で出し、開くと答えの各文、引用した出来事、前の回の答え、結んだ分析設計が出る。最も新しい回で変わった答えと、根の変更前の答えに印を付ける。分析設計の派生は別の節に出す。合成のプロジェクトで `bin/tree_io render` を2回通し、同じバイト列になることを確かめた。built-in browser で開き、script・画像・外部への要求が0件であること、論点の開閉、出来事の本文に入れた `<script>` が文字として出ること、幅 375px で横にはみ出さないこと、暗い配色でも読めることを確かめた。答えを書く手段はまだ無いので、答えは合成の正本に直接書いた。

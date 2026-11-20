@@ -82,6 +82,7 @@ flowchart TD
   （この repo の `.claude/settings.json` は dev 用に同スクリプトを配線）。
 - **Skill-managed YAML（`.insight/`）** — designs / journals / themes / catalog / knowledge。skill が直接管理する。
   論点ツリー（`themes/{theme_id}_tree.yaml`）は `tree_io` を通して書く。
+  表示（`themes/{theme_id}_tree.html`）は `tree_io render` が正本から作る生成物で、手では書かない。script を持たず、外部を読まない。
 - **marimo + lineage（`src/insight_blueprint/lineage/`）** — 分析 notebook は同梱テンプレートでなく、
   **`/analysis-notebook` skill が分析設計の `methodology` から 8-cell 契約に沿って生成・実行**する
   （`skills/analysis-notebook/references/notebook-contract.md`）。`lineage`（`tracked_pipe` / Mermaid export）は
@@ -125,7 +126,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 ├── .claude-plugin/                # plugin マニフェスト（plugin.json / marketplace.json）
 ├── bin/                           # plugin 有効時に PATH に載る: design_io / catalog_io / tree_io / premortem / report_check / tree_check ラッパー
 ├── hooks/                         # plugin 同梱 hook: hooks.json + validate-design.py
-├── skills/                        # 全 skill + _shared/（design_io.py / catalog_io.py / tree_io.py / report_check.py / tree_check.py / ids.py / config_loader.py / models.py）+ premortem/
+├── skills/                        # 全 skill + _shared/（design_io.py / catalog_io.py / tree_io.py / tree_render.py / report_check.py / tree_check.py / ids.py / config_loader.py / models.py）+ premortem/
 ├── src/insight_blueprint/         # PyPI パッケージ insight-blueprint-lineage: models/ · validate.py · lineage/
 ├── tests/  docs/  scripts/
 ├── pyproject.toml · uv.lock       # ← この uv プロジェクトが「plugin の実行環境」を供給する
@@ -161,7 +162,8 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 │   ├── {id}_reviews.yaml           # review バッチ
 │   └── {id}_revision.yaml          # /analysis-revision の修正追跡
 ├── themes/
-│   └── {theme_id}_tree.yaml        # 論点ツリーの正本。tree_io が書く（pre-write hook が検証）
+│   ├── {theme_id}_tree.yaml        # 論点ツリーの正本。tree_io が書く（pre-write hook が検証）
+│   └── {theme_id}_tree.html        # 論点ツリーの表示。tree_io render が正本から作る生成物
 ├── catalog/
 │   ├── sources/{id}.yaml           # /catalog-register
 │   └── knowledge/{id}.yaml         # /knowledge-extract
