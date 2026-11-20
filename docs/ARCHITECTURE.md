@@ -614,7 +614,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 15 | Skill layer（`/analysis-design`・`/analysis-report`・`/analysis-notebook`・`/premortem`・`/analysis-auto` がデータソースを読む場所）+ `catalog_io describe` |
 | Epic 16 | Skill layer（`/premortem`・`/analysis-auto` がパッケージ許可リストの無いときに使う既定の許可リスト）+ `risk_evaluator` の `HARD_BLOCK` の理由 |
 | Epic 17 | Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-notebook`・`/analysis-auto`・`/catalog-register` が `connection` を読む場所）+ `catalog_io create`・`update` の認証情報の検査 |
-| Epic 18 | Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-reflection` の論点ツリー）+ 論点ツリーのモデルと `validate.py` の検証 + `tree_io`・`tree_check`（計画中。構成図への反映は実装の Story で行う） |
+| Epic 18 | Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-reflection` の論点ツリー、`/analysis-auto` の論点ごとの巡回）+ 論点ツリーのモデルと `validate.py` の検証 + `tree_io`・`tree_check`（計画中。構成図とシーケンス図への反映は実装の Story で行う） |
 
 
 ## 参照
