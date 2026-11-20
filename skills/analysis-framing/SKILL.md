@@ -296,6 +296,23 @@ creates to that node.
 After outputting the Framing Brief, suggest:
 "仮説を設計するなら `/analysis-design`"
 
+#### 5c: Render the tree
+
+Run this once, after the last `tree_io` write of this run (5a, or a `revise-root` in 4c):
+
+```bash
+tree_io render --theme LIB
+```
+
+It writes the HTML view next to the tree (`.insight/themes/{theme_id}_tree.html`) and prints
+its `path`. Tell the analyst that path: "論点ツリーの図: {path}（ブラウザで開ける）".
+
+- Never create or change `.insight/themes/*_tree.html` with the Write or Edit tool. `tree_io`
+  generates the page from the tree; the next `render` overwrites it.
+- If `render` exits non-zero, show stderr and say that the view was not made. The Framing Brief
+  stands, because the tree itself is written.
+- The HTML stays on this machine. This skill sends it nowhere.
+
 ## Chaining
 
 | From | To | When |

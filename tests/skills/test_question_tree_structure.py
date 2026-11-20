@@ -318,3 +318,53 @@ class TestSkillsCallOnlyCommandsTreeIoHas:
             with pytest.raises(SystemExit) as exit_:
                 tree_io._main([command, "--help"])
             assert exit_.value.code == 0, command
+
+
+class TestFramingRendersTheTree:
+    """Story 18.7: framing makes the HTML view; the model never writes it."""
+
+    def test_the_shown_render_writes_the_html_next_to_the_tree(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        insight = tmp_path / ".insight"
+        _run_shown_commands(_framing("#### 5a: "), insight, monkeypatch)
+        shown = re.search(
+            r"^tree_io (render --theme LIB)$", _framing("#### 5c: "), re.M
+        )
+        assert shown, "5c shows no render command for the example theme"
+        monkeypatch.setattr("sys.stdin", io.StringIO(""))
+
+        code = tree_io._main([*shown[1].split(), "--base-dir", str(insight)])
+
+        assert code == 0
+        assert (
+            (insight / "themes" / "LIB_tree.html")
+            .read_text()
+            .startswith("<!doctype html>")
+        )
+
+    def test_the_render_follows_the_last_write_of_the_run(self) -> None:
+        step = unwrap(_framing("#### 5c: "))
+        assert "after the last `tree_io` write of this run" in step
+        assert "`revise-root`" in step
+
+    def test_the_html_is_never_written_by_hand(self) -> None:
+        step = unwrap(_framing("#### 5c: "))
+        by_hand = re.search(r"Never [^`]*`[^`]*_tree\.html`[^.]*\.", step)
+        assert by_hand, "no sentence forbids writing the HTML by hand"
+        assert "Write" in by_hand.group(0) and "Edit" in by_hand.group(0)
+
+    def test_the_analyst_is_told_the_path_render_printed(self) -> None:
+        step = unwrap(_framing("#### 5c: "))
+        assert "`path`" in step
+        assert "論点ツリーの図" in step
+
+    def test_a_failed_render_does_not_undo_the_tree(self) -> None:
+        step = unwrap(_framing("#### 5c: "))
+        failed = re.search(r"[^.]*non-zero[^.]*\.", step)
+        assert failed, "no sentence says what a failed render means"
+        assert "the tree itself is written" in step
+
+    def test_framing_sends_the_html_nowhere(self) -> None:
+        step = unwrap(_framing("#### 5c: "))
+        assert "stays on this machine" in step
