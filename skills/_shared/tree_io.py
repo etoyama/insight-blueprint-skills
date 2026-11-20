@@ -1,9 +1,9 @@
 """YAML I/O for the question tree of a theme (Epic 18, ADR-0024).
 
 The canonical file is ``.insight/themes/{theme_id}_tree.yaml``. Skills call this
-instead of writing the file themselves. Every write goes through
-``insight_blueprint.validate.validate_tree`` first: the pre-write hook only
-guards the Write/Edit tool path, not direct python writes.
+instead of writing the file themselves. Every write is checked against the
+``QuestionTree`` schema first (``insight_blueprint.validate.validate_tree_schema``):
+the pre-write hook only guards the Write/Edit tool path, not direct python writes.
 
 Progress is never written. ``progress`` derives it from the status of the
 designs linked to each node.

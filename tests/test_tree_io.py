@@ -330,11 +330,11 @@ class TestDecide:
         assert decision["created_at"]
         assert tree_io.load_tree("LIB", two_nodes)["decisions"] == [decision]
 
-    def test_a_second_start_decision_is_appended(self, two_nodes: Path) -> None:
-        self._decide(two_nodes)
-        self._decide(two_nodes, node_id="LIB-Q01", reason="根から見直す")
-        decisions = tree_io.load_tree("LIB", two_nodes)["decisions"]
-        assert [d["node_id"] for d in decisions] == ["LIB-Q02", "LIB-Q01"]
+    def test_a_second_start_decision_is_not_written(self, two_nodes: Path) -> None:
+        first = self._decide(two_nodes)
+        with pytest.raises(ValueError, match="at most one start"):
+            self._decide(two_nodes, node_id="LIB-Q01", reason="根から見直す")
+        assert tree_io.load_tree("LIB", two_nodes)["decisions"] == [first]
 
     def test_a_node_that_does_not_exist_is_not_written(self, two_nodes: Path) -> None:
         with pytest.raises(ValueError, match="LIB-Q09"):

@@ -211,6 +211,9 @@ class QuestionTree(BaseModel):
                 raise ValueError(
                     f"decisions: node '{decision.node_id}' is not in the tree"
                 )
+        starts = sum(d.kind is TreeDecisionKind.start for d in self.decisions)
+        if starts > 1:
+            raise ValueError("decisions: a tree has at most one start decision")
 
     def _check_parents(self) -> None:
         parents = {n.id: n.parent_question_id for n in self.nodes}

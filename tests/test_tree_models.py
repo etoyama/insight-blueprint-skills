@@ -168,10 +168,10 @@ class TestTreeDecision:
         data["decisions"][0]["status"] = "done"
         assert "status" in errors_of(data)
 
-    def test_several_start_decisions_are_allowed(self) -> None:
+    def test_a_second_start_decision_is_rejected(self) -> None:
         data = tree_dict()
         data["decisions"].append({**data["decisions"][0], "node_id": "LIB-Q01"})
-        assert len(QuestionTree.model_validate(data).decisions) == 2
+        assert "at most one start" in errors_of(data)
 
     def test_a_tree_without_decisions_dumps_no_decisions_key(self) -> None:
         data = tree_dict()
@@ -336,33 +336,21 @@ class TestValidateTree:
         errors = validate_tree(new, current=tree_dict())
         assert errors == ["root_revisions: revision 1 is history and cannot change"]
 
-    def _with_second_decision(self) -> dict:
+    def _without_decisions(self) -> dict:
         data = tree_dict()
-        data["decisions"].append({**data["decisions"][0], "node_id": "LIB-Q01"})
+        del data["decisions"]
         return data
 
     def test_appending_a_decision_is_allowed(self) -> None:
-        assert validate_tree(self._with_second_decision(), current=tree_dict()) == []
-
-    def test_dropping_a_decision_is_an_error(self) -> None:
-        errors = validate_tree(tree_dict(), current=self._with_second_decision())
-        assert errors == ["decisions: a decision cannot be removed (2 -> 1)"]
+        assert validate_tree(tree_dict(), current=self._without_decisions()) == []
 
     def test_dropping_every_decision_is_an_error(self) -> None:
-        data = tree_dict()
-        del data["decisions"]
-        errors = validate_tree(data, current=tree_dict())
+        errors = validate_tree(self._without_decisions(), current=tree_dict())
         assert errors == ["decisions: a decision cannot be removed (1 -> 0)"]
 
     def test_rewriting_a_decision_is_an_error(self) -> None:
         new = tree_dict()
         new["decisions"][0]["reason"] = "後から書き換えた理由"
-        errors = validate_tree(new, current=tree_dict())
-        assert errors == ["decisions: decision 1 is history and cannot change"]
-
-    def test_rewriting_a_decision_while_appending_is_an_error(self) -> None:
-        new = self._with_second_decision()
-        new["decisions"][0]["node_id"] = "LIB-Q01"
         errors = validate_tree(new, current=tree_dict())
         assert errors == ["decisions: decision 1 is history and cannot change"]
 
