@@ -13,6 +13,10 @@ canonical file. The page is built by ``tree_render`` and is never edited.
 
 Usage from a skill (CLI):
     echo '<json>' | python -m skills._shared.tree_io create --base-dir .insight
+    echo '{"answers": [...]}' | python -m skills._shared.tree_io answer --theme LIB
+
+Exit 0: done. Exit 1: error (message on stderr). Exit 3 (answer only): the check
+found violations, so nothing was written; they are in the JSON on stdout.
 """
 
 from __future__ import annotations
@@ -289,7 +293,7 @@ def answer(
     written: list[dict] = []
     unchanged: list[str] = []
     for entry in answers:
-        node = _node(data, entry.get("node_id"))
+        node = _node(data, entry.get("node_id", ""))
         last = (node.get("answers") or [None])[-1]
         if (
             last is not None
@@ -457,6 +461,7 @@ def _main(argv: list[str] | None = None) -> int:
             "link",
             "decide",
             "revise-root",
+            "answer",
             "get",
             "progress",
             "render",
@@ -475,6 +480,7 @@ def _main(argv: list[str] | None = None) -> int:
         if raw:
             payload = json.loads(raw)
 
+    exit_code = 0
     try:
         if args.command != "create" and args.theme is None:
             raise ValueError(f"--theme is required for {args.command}")
@@ -488,6 +494,11 @@ def _main(argv: list[str] | None = None) -> int:
             result = decide(args.theme, base_dir=base, **payload)
         elif args.command == "revise-root":
             result = revise_root(args.theme, base_dir=base, **payload)
+        elif args.command == "answer":
+            result = answer(args.theme, base_dir=base, **payload)
+            # 3, not 1: for this command 1 stays "error", and a caller must tell
+            # "rewrite the answer" from "the tool broke".
+            exit_code = 3 if result["violations"] else 0
         elif args.command == "get":
             result = load_tree(args.theme, base_dir=base)
         elif args.command == "render":
@@ -500,7 +511,7 @@ def _main(argv: list[str] | None = None) -> int:
         return 1
 
     json.dump(result, sys.stdout, ensure_ascii=False, default=str)
-    return 0
+    return exit_code
 
 
 if __name__ == "__main__":

@@ -412,37 +412,40 @@ def _run_cli(insight: Path, *args: str, payload: dict | None = None):
 
 def _rendered(insight: Path) -> str:
     return Path(tree_io.render("LIB", base_dir=insight)["path"]).read_text("utf-8")
+
+
+@pytest.fixture
+def world(tree: Path) -> Path:
+    """LIB-Q02 and LIB-Q03 under the root, each with a design and a journal."""
+    for node_id in ("LIB-Q02", "LIB-Q03"):
+        _add(tree, question=f"{node_id} の問い")
+        design_id = _design(tree)
+        tree_io.link_design("LIB", node_id, design_id, base_dir=tree)
+        design_io.write_journal(
+            design_id,
+            {
+                "events": [
+                    {
+                        "id": f"{design_id}-E01",
+                        "type": "observe",
+                        "content": f"{design_id} は期限切れ152件、取消除外後34.6%",
+                    }
+                ]
+            },
+            base_dir=tree,
+        )
+    return tree
+
+
+def _entry(node_id: str, text: str, cite: str = "LIB-H01-E01") -> dict:
+    return {
+        "node_id": node_id,
+        "statements": [{"kind": "claim", "text": text, "cites": [cite]}],
+    }
+
+
 class TestAnswer:
     """``answer`` is the one write path for answers: checked first, then appended."""
-
-    @pytest.fixture
-    def world(self, tree: Path) -> Path:
-        """LIB-Q02 and LIB-Q03 under the root, each with a design and a journal."""
-        for node_id in ("LIB-Q02", "LIB-Q03"):
-            _add(tree, question=f"{node_id} の問い")
-            design_id = _design(tree)
-            tree_io.link_design("LIB", node_id, design_id, base_dir=tree)
-            design_io.write_journal(
-                design_id,
-                {
-                    "events": [
-                        {
-                            "id": f"{design_id}-E01",
-                            "type": "observe",
-                            "content": f"{design_id} は期限切れ152件、取消除外後34.6%",
-                        }
-                    ]
-                },
-                base_dir=tree,
-            )
-        return tree
-
-    @staticmethod
-    def _entry(node_id: str, text: str, cite: str = "LIB-H01-E01") -> dict:
-        return {
-            "node_id": node_id,
-            "statements": [{"kind": "claim", "text": text, "cites": [cite]}],
-        }
 
     @staticmethod
     def _answers_of(base: Path, node_id: str) -> list[dict]:
@@ -453,7 +456,7 @@ class TestAnswer:
         self, world: Path
     ) -> None:
         result = tree_io.answer(
-            "LIB", answers=[self._entry("LIB-Q02", "期限切れは152件")], base_dir=world
+            "LIB", answers=[_entry("LIB-Q02", "期限切れは152件")], base_dir=world
         )
 
         assert result == {
@@ -472,11 +475,11 @@ class TestAnswer:
         self, world: Path
     ) -> None:
         tree_io.answer(
-            "LIB", answers=[self._entry("LIB-Q02", "期限切れは152件")], base_dir=world
+            "LIB", answers=[_entry("LIB-Q02", "期限切れは152件")], base_dir=world
         )
 
         result = tree_io.answer(
-            "LIB", answers=[self._entry("LIB-Q02", "取消除外後は34.6%")], base_dir=world
+            "LIB", answers=[_entry("LIB-Q02", "取消除外後は34.6%")], base_dir=world
         )
 
         assert result["round"] == 2
@@ -489,8 +492,8 @@ class TestAnswer:
         result = tree_io.answer(
             "LIB",
             answers=[
-                self._entry("LIB-Q02", "期限切れは152件"),
-                self._entry("LIB-Q03", "取消除外後は34.6%", "LIB-H02-E01"),
+                _entry("LIB-Q02", "期限切れは152件"),
+                _entry("LIB-Q03", "取消除外後は34.6%", "LIB-H02-E01"),
             ],
             base_dir=world,
         )
@@ -503,17 +506,17 @@ class TestAnswer:
         self, world: Path
     ) -> None:
         both = [
-            self._entry("LIB-Q02", "期限切れは152件"),
-            self._entry("LIB-Q03", "取消除外後は34.6%", "LIB-H02-E01"),
+            _entry("LIB-Q02", "期限切れは152件"),
+            _entry("LIB-Q03", "取消除外後は34.6%", "LIB-H02-E01"),
         ]
         tree_io.answer("LIB", answers=both, base_dir=world)
         tree_io.answer(
-            "LIB", answers=[self._entry("LIB-Q02", "取消除外後は34.6%")], base_dir=world
+            "LIB", answers=[_entry("LIB-Q02", "取消除外後は34.6%")], base_dir=world
         )
 
         result = tree_io.answer(
             "LIB",
-            answers=[self._entry("LIB-Q03", "期限切れは152件", "LIB-H02-E01")],
+            answers=[_entry("LIB-Q03", "期限切れは152件", "LIB-H02-E01")],
             base_dir=world,
         )
 
@@ -525,14 +528,14 @@ class TestAnswer:
         self, world: Path
     ) -> None:
         tree_io.answer(
-            "LIB", answers=[self._entry("LIB-Q02", "期限切れは152件")], base_dir=world
+            "LIB", answers=[_entry("LIB-Q02", "期限切れは152件")], base_dir=world
         )
 
         result = tree_io.answer(
             "LIB",
             answers=[
-                self._entry("LIB-Q02", "期限切れは152件"),
-                self._entry("LIB-Q03", "取消除外後は34.6%", "LIB-H02-E01"),
+                _entry("LIB-Q02", "期限切れは152件"),
+                _entry("LIB-Q03", "取消除外後は34.6%", "LIB-H02-E01"),
             ],
             base_dir=world,
         )
@@ -545,7 +548,7 @@ class TestAnswer:
     def test_a_call_with_nothing_to_write_leaves_the_file_and_the_round_alone(
         self, world: Path
     ) -> None:
-        entry = self._entry("LIB-Q02", "期限切れは152件")
+        entry = _entry("LIB-Q02", "期限切れは152件")
         tree_io.answer("LIB", answers=[entry], base_dir=world)
         path = world / "themes" / "LIB_tree.yaml"
         before = path.read_bytes()
@@ -560,7 +563,7 @@ class TestAnswer:
     def test_the_same_statements_are_written_again_after_the_root_revision_moved(
         self, world: Path
     ) -> None:
-        entry = self._entry("LIB-Q02", "期限切れは152件")
+        entry = _entry("LIB-Q02", "期限切れは152件")
         tree_io.answer("LIB", answers=[entry], base_dir=world)
         tree_io.revise_root(
             "LIB", question="延長の対象を絞るか", bump=True, reason="到達点が変わった",
@@ -583,7 +586,7 @@ class TestAnswer:
         before = path.read_bytes()
 
         result = tree_io.answer(
-            "LIB", answers=[self._entry("LIB-Q02", "期限切れは999件")], base_dir=world
+            "LIB", answers=[_entry("LIB-Q02", "期限切れは999件")], base_dir=world
         )
 
         assert path.read_bytes() == before
@@ -601,7 +604,7 @@ class TestAnswer:
     def test_the_statement_position_in_a_violation_is_one_based(
         self, world: Path
     ) -> None:
-        entry = self._entry("LIB-Q02", "期限切れは152件")
+        entry = _entry("LIB-Q02", "期限切れは152件")
         entry["statements"].append(
             {"kind": "claim", "text": "割合は77%", "cites": ["LIB-H01-E01"]}
         )
@@ -619,8 +622,8 @@ class TestAnswer:
         result = tree_io.answer(
             "LIB",
             answers=[
-                self._entry("LIB-Q02", "期限切れは152件"),
-                self._entry("LIB-Q03", "期限切れは999件", "LIB-H02-E01"),
+                _entry("LIB-Q02", "期限切れは152件"),
+                _entry("LIB-Q03", "期限切れは999件", "LIB-H02-E01"),
             ],
             base_dir=world,
         )
@@ -643,7 +646,7 @@ class TestAnswer:
 
         result = tree_io.answer(
             "LIB",
-            answers=[self._entry("LIB-Q02", "取消は12件", f"{grandchild_design}-E01")],
+            answers=[_entry("LIB-Q02", "取消は12件", f"{grandchild_design}-E01")],
             base_dir=world,
         )
 
@@ -658,7 +661,7 @@ class TestAnswer:
 
         result = tree_io.answer(
             "LIB",
-            answers=[self._entry("LIB-Q02", "期限切れ152件", "LIB-H02-E01")],
+            answers=[_entry("LIB-Q02", "期限切れ152件", "LIB-H02-E01")],
             base_dir=world,
         )
 
@@ -671,14 +674,14 @@ class TestAnswer:
         self, world: Path
     ) -> None:
         stored = tree_io.load_tree("LIB", base_dir=world)
-        stale = self._entry("LIB-Q03", "期限切れは999件", "LIB-H02-E01")
+        stale = _entry("LIB-Q03", "期限切れは999件", "LIB-H02-E01")
         next(n for n in stored["nodes"] if n["id"] == "LIB-Q03")["answers"] = [
             {"round": 1, "root_revision": 1, "statements": stale["statements"]}
         ]
         tree_io._write_tree(stored, "LIB", world)
 
         result = tree_io.answer(
-            "LIB", answers=[self._entry("LIB-Q02", "期限切れは152件")], base_dir=world
+            "LIB", answers=[_entry("LIB-Q02", "期限切れは152件")], base_dir=world
         )
 
         assert result["violations"] == []
@@ -686,16 +689,14 @@ class TestAnswer:
 
     def test_a_node_that_is_not_in_the_tree_is_rejected(self, world: Path) -> None:
         with pytest.raises(ValueError, match="LIB-Q09"):
-            tree_io.answer(
-                "LIB", answers=[self._entry("LIB-Q09", "152件")], base_dir=world
-            )
+            tree_io.answer("LIB", answers=[_entry("LIB-Q09", "152件")], base_dir=world)
 
     def test_a_node_answered_twice_in_one_call_is_rejected_and_nothing_is_written(
         self, world: Path
     ) -> None:
         path = world / "themes" / "LIB_tree.yaml"
         before = path.read_bytes()
-        entry = self._entry("LIB-Q02", "期限切れは152件")
+        entry = _entry("LIB-Q02", "期限切れは152件")
 
         with pytest.raises(ValueError, match="only once"):
             tree_io.answer("LIB", answers=[entry, entry], base_dir=world)
@@ -818,6 +819,55 @@ class TestCli:
         )
         assert rejected.returncode != 0
         assert "contribution" in rejected.stderr
+
+    def test_answer_exits_0_and_prints_the_round_written(self, world: Path) -> None:
+        done = self._run(
+            world,
+            "answer",
+            "--theme",
+            "LIB",
+            payload={"answers": [_entry("LIB-Q02", "期限切れは152件")]},
+        )
+
+        assert done.returncode == 0, done.stderr
+        out = json.loads(done.stdout)
+        assert (out["round"], out["violations"]) == (1, [])
+        assert out["written"] == [{"node_id": "LIB-Q02", "previous_round": None}]
+
+    def test_answer_exits_3_with_the_violations_and_leaves_the_file_alone(
+        self, world: Path
+    ) -> None:
+        path = world / "themes" / "LIB_tree.yaml"
+        before = path.read_bytes()
+
+        done = self._run(
+            world,
+            "answer",
+            "--theme",
+            "LIB",
+            payload={"answers": [_entry("LIB-Q02", "期限切れは999件")]},
+        )
+
+        assert done.returncode == 3, done.stderr
+        out = json.loads(done.stdout)
+        assert [v["kind"] for v in out["violations"]] == ["number-not-cited"]
+        assert (out["round"], out["written"]) == (0, [])
+        assert path.read_bytes() == before
+
+    def test_answer_exits_1_for_a_node_that_is_not_in_the_tree(
+        self, world: Path
+    ) -> None:
+        done = self._run(
+            world,
+            "answer",
+            "--theme",
+            "LIB",
+            payload={"answers": [_entry("LIB-Q09", "152件")]},
+        )
+
+        assert done.returncode == 1
+        assert "LIB-Q09" in done.stderr
+        assert done.stdout == ""
 
 
 class TestRender:
