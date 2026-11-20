@@ -125,19 +125,19 @@ AC の正本はここ。
 
 ## Stories
 
-Story issue は DesignDoc の初版の合意後に起票する。1つの Story が扱う AC は5個以下。
+初版に合意した Story から起票する（人間の判断、2026-11-20）。未決事項が形に効く 18.5 と 18.9 は、その未決事項を決めてから起票する。1つの Story が扱う AC は5個以下。
 
 | Story issue | User Story | 扱う AC |
 |---|---|---|
-| 未起票（18.1 正本と `tree_io`） | US-1、US-2 | US-1 AC 5、US-2 AC 1〜4 |
-| 未起票（18.2 framing で着手） | US-1 | AC 1〜4 |
-| 未起票（18.3 ツリーの検査） | US-4 | AC 1、AC 3 |
-| 未起票（18.4 横断の振り返り） | US-3、US-4 | US-3 AC 1〜3、US-4 AC 2 |
-| 未起票（18.5 次の候補とツリーの決定） | US-3 | AC 4、AC 5 |
-| 未起票（18.6 HTML の表示） | US-5 | AC 1〜5 |
-| 未起票（18.7 Artifact で渡す） | US-6 | AC 1〜3 |
-| 未起票（18.8 引き継ぎの試行） | US-7 | AC 1〜3 |
-| 未起票（18.9 `/analysis-auto` から巡回する） | US-8 | AC 1〜5 |
+| [#119](https://github.com/etoyama/insight-blueprint-skills/issues/119)（18.1 正本と `tree_io`） | US-1、US-2 | US-1 AC 5、US-2 AC 1〜4 |
+| [#120](https://github.com/etoyama/insight-blueprint-skills/issues/120)（18.2 framing で着手） | US-1 | AC 1〜4 |
+| [#121](https://github.com/etoyama/insight-blueprint-skills/issues/121)（18.3 ツリーの検査） | US-4 | AC 1、AC 3 |
+| [#122](https://github.com/etoyama/insight-blueprint-skills/issues/122)（18.4 横断の振り返り） | US-3、US-4 | US-3 AC 1〜3、US-4 AC 2 |
+| 未起票（18.5 次の候補とツリーの決定。未決事項「人に聞く問いへの答えの置き場」の後） | US-3 | AC 4、AC 5 |
+| [#123](https://github.com/etoyama/insight-blueprint-skills/issues/123)（18.6 HTML の表示） | US-5 | AC 1〜5 |
+| [#124](https://github.com/etoyama/insight-blueprint-skills/issues/124)（18.7 Artifact で渡す） | US-6 | AC 1〜3 |
+| [#125](https://github.com/etoyama/insight-blueprint-skills/issues/125)（18.8 引き継ぎの試行） | US-7 | AC 1〜3 |
+| 未起票（18.9 `/analysis-auto` から巡回する。未決事項「`design_id` で渡されたときの扱い」の後） | US-8 | AC 1〜5 |
 
 ## Ubiquitous Language
 
@@ -210,7 +210,7 @@ flowchart TD
 
 ## Domain Model
 
-クラス名は提案である。[docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) の「コード上の名前」は、Story 18.1 の実装で名前が実在してから埋める。
+クラス名は提案である。気になる点が3つあり、Story 18.1 の最初の作業で決める。「問い」が3つあること（journal の `question`、`QuestionNode`、`Inquiry`）、`CurrentAnswer` が履歴を持つこと、`Destination` の意味が広いこと。[docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) の「コード上の名前」は、Story 18.1 の実装で名前が実在してから埋める。
 
 ```mermaid
 classDiagram
@@ -562,3 +562,4 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 
 - 2026-11-20 — PRD の改訂と DesignDoc の初版（判断1〜5）。
 - 2026-11-20 — 入口を `/analysis-auto` ひとつにし、シーケンス図を1枚に統合（ADR-0026、US-8）。
+- 2026-11-20 — 初版に合意。Story 18.1〜18.4、18.6〜18.8 を起票（#119〜#125）。
