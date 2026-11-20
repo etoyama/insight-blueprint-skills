@@ -46,7 +46,7 @@ AC の正本はここ。
 分析者として、このプラグインに認証情報を預けずに済むように、catalog には認証情報を書けないようにしてほしい。
 
 - [ ] AC 1: `catalog_io create` と `update` は、`connection` のキー名が認証情報を表すとき（`password`・`secret`・`token`・`api_key`・`credential`・`private_key` など）、書かずに非ゼロで終わる。入れ子の dict も見る。unit test で確かめる。
-- [ ] AC 2: 名前が `_env` で終わるキー（環境変数の名前を書く）は通す。
+- [ ] AC 2: 名前が `_env` で終わるキー（環境変数の名前を書く）は通す。値が環境変数の名前の形でなければ拒む。
 - [ ] AC 3: エラーは拒んだキー名を挙げ、値を出さない。環境変数の名前を `*_env` に書くよう案内する。
 - [ ] AC 4: 読み込み（`load_source`・`catalog_io get`・`list`）は変えない。保存済みの YAML は今までどおり読める。
 - [ ] AC 5: `/catalog-register` は、`connection` に認証情報を書かないこと、要るなら環境変数の名前を `*_env` に書くことを説明し、見本もそれに従う。

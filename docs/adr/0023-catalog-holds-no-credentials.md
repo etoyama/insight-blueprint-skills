@@ -65,8 +65,10 @@ Accepted
 
 - `catalog_io` の `create_source` と `update_source` は、`connection` のキー名が認証情報を表すときに `ValueError` を出し、何も書かない。CLI は非ゼロで終わる。
   入れ子の dict と、リストの中の dict も見る。
-- キー名は小文字にし、`_` と `-` を除いてから、`password`・`passwd`・`secret`・`token`・`apikey`・`credential`・`privatekey`・`accesskey` を含むかで見る（`_CREDENTIAL_KEY_PARTS`）。
-  `_env` で終わるキーは通す。値は見ない。
+- キー名は小文字にし、英数字以外を除いてから、`password`・`passwd`・`passphrase`・`secret`・`token`・`bearer`・`apikey`・`credential`・`privatekey`・`accesskey` を含むかで見る（`_CREDENTIAL_KEY_PARTS`）。
+- `_env` で終わるキーは通す。ただし値は環境変数の名前の形（`^[A-Z_][A-Z0-9_]*$`）に限る。形が合わなければ拒む。
+  名前の形だけを見ないと、`password_env: "hunter2"` のように秘密そのものが除外をすり抜ける（自動のセキュリティレビュー、2026-11-20）。
+  ほかのキーの値は見ない。
 - エラーは拒んだキーの場所（`connection.auth.client_secret` など）を挙げ、値を出さない。環境変数の名前を `*_env` に書くよう案内する。
 - `update_source` は、変更を重ねたあとの `connection` を見る。保存済みのデータソースに認証情報のキーがあると、`connection` を丸ごと差し替えるまで `update` できない。
 - 読み込み（`load_source`・`list_sources`・`catalog_io get`・`list`）は変えない。model（`DataSource`）も変えない。
@@ -80,7 +82,9 @@ Accepted
 
 ### Negative
 
-- キー名を変えた認証情報（`pw`、`key` など）は通る。値の形は見ない。
+- キー名を変えた認証情報（`pw`、`key` など）は通る。値の形は見ない（`*_env` を除く）。
+  `auth`・`key`・`pass` は、`"auth": "api_key"` や `passage` のような正当なキーまで拒むので、拒む語に入れていない。
+- 大文字・数字・`_` だけでできた秘密は、`*_env` の値として通る。
 - `token_count` のような正当なキーも拒む。利用者はキー名を変える必要がある。
 - 保存済みのデータソースに認証情報のキーがあれば、今までどおり読め、`get --with-connection` で notebook に渡る。この決定は既存の YAML を書き換えない。
 - `catalog_io` を通さずに YAML を手で書けば、この検査は効かない。

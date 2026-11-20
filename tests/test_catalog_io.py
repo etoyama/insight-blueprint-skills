@@ -574,6 +574,11 @@ class TestConnectionHoldsNoCredentials:
             ({"private_key": "-----BEGIN"}, "connection.private_key"),
             ({"aws_access_key_id": "AKIA"}, "connection.aws_access_key_id"),
             ({"credentials": {"user": "u"}}, "connection.credentials"),
+            ({"api.key": "abc123"}, "connection.api.key"),
+            ({"ssh_passphrase": "s3"}, "connection.ssh_passphrase"),
+            ({"bearer": "t0k"}, "connection.bearer"),
+            ({"password_env": "hunter2"}, "connection.password_env"),
+            ({"token_env": "export X=t0k"}, "connection.token_env"),
         ],
     )
     def test_create_refuses_a_credential_key_and_writes_nothing(

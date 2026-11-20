@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -120,18 +121,23 @@ def list_sources(base_dir: Path = DEFAULT_BASE_DIR) -> list[dict]:
 
 
 # Key-name fragments that mark a credential (ADR-0023). Keys are compared lowercased
-# with "_" and "-" dropped, so api_key, API-Key and apiKey all match. Only names are
-# checked: a value cannot be told from an id or a hash without false alarms.
+# with every non-alphanumeric character dropped, so api_key, API-Key, api.key and apiKey
+# all match. Values are not checked: a secret cannot be told from an id or a hash
+# without false alarms. The one exception is a *_env key, whose value must look like an
+# environment variable name, or the exemption would let a literal secret through.
 _CREDENTIAL_KEY_PARTS = (
     "password",
     "passwd",
+    "passphrase",
     "secret",
     "token",
+    "bearer",
     "apikey",
     "credential",
     "privatekey",
     "accesskey",
 )
+_ENV_VAR_NAME = re.compile(r"[A-Z_][A-Z0-9_]*")
 
 
 def _credential_keys(value: Any, path: str = "connection") -> list[str]:
@@ -146,10 +152,13 @@ def _credential_keys(value: Any, path: str = "connection") -> list[str]:
     found: list[str] = []
     for key, inner in value.items():
         name = str(key).lower()
-        squashed = name.replace("_", "").replace("-", "")
-        if not name.endswith("_env") and any(
-            part in squashed for part in _CREDENTIAL_KEY_PARTS
-        ):
+        if name.endswith("_env"):
+            names_a_variable = isinstance(inner, str) and _ENV_VAR_NAME.fullmatch(inner)
+            if not names_a_variable:
+                found.append(f"{path}.{key}")
+            continue
+        squashed = re.sub(r"[^a-z0-9]", "", name)
+        if any(part in squashed for part in _CREDENTIAL_KEY_PARTS):
             found.append(f"{path}.{key}")
         else:
             found.extend(_credential_keys(inner, f"{path}.{key}"))
@@ -163,7 +172,8 @@ def _reject_credentials(connection: Any) -> None:
         raise ValueError(
             f"connection holds credential keys ({', '.join(keys)}); the catalog "
             "stores no credentials (ADR-0023). Keep the secret in an environment "
-            "variable and put its name in a key ending in _env (e.g. password_env). "
+            "variable and put its name (A-Z, 0-9, _) in a key ending in _env "
+            "(e.g. password_env: PG_PASSWORD). "
             "A stored source is fixed by updating it with a whole new connection."
         )
 

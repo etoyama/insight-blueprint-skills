@@ -241,7 +241,7 @@ echo '{
 `create` and `update` also print the source without `connection`; the stored source keeps it.
 `create` and `update` refuse a `connection` key that names a credential (`password`, `token`,
 `api_key`, `secret`, `credential`, `private_key`, …) and exit non-zero, naming the key but not its
-value; a key ending in `_env` passes (ADR-0023). A source stored before that rule with such a key
+value; a key ending in `_env` passes when its value is a variable name (`^[A-Z_][A-Z0-9_]*$`) (ADR-0023). A source stored before that rule with such a key
 is still read, but `update` refuses it until the change carries a whole new `connection`.
 For an id that is not registered, `get` prints `{}` and exits 0; a non-empty result means registered.
 
