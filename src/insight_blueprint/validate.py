@@ -13,7 +13,9 @@ dicts in.
 
 from __future__ import annotations
 
-from pydantic import ValidationError
+from collections.abc import Sequence
+
+from pydantic import BaseModel, ValidationError
 
 from insight_blueprint.models.design import AnalysisDesign, DesignStatus
 from insight_blueprint.models.tree import QuestionTree
@@ -136,8 +138,8 @@ def validate_tree(
     list means the tree is valid). *expected_theme_id* is the theme the file name carries;
     the caller owns the path and passes it in so this stays pure.
     *current* is the tree on disk, or ``None`` for a new file: its root
-    revisions and decisions are history: none may be removed, only the last
-    root revision may differ, and decisions may only be appended.
+    revisions, decisions and answers are history: none may be removed, only the
+    last root revision may differ, and decisions and answers may only be appended.
     """
     try:
         tree = validate_tree_schema(data)
@@ -156,35 +158,63 @@ def validate_tree(
         # The file on disk is already broken; do not block the write that
         # may be repairing it.
         return []
-    return _revision_errors(on_disk, tree) + _decision_errors(on_disk, tree)
+    return (
+        _revision_errors(on_disk, tree)
+        + _decision_errors(on_disk, tree)
+        + _answer_errors(on_disk, tree)
+    )
 
 
 def _revision_errors(on_disk: QuestionTree, written: QuestionTree) -> list[str]:
     before, after = on_disk.root_revisions, written.root_revisions
-    if len(after) < len(before):
-        return [
-            "root_revisions: a root revision cannot be removed "
-            f"({len(before)} -> {len(after)})"
-        ]
     # Only the last revision of the written tree may differ from the disk:
     # appending one freezes every revision that was there before.
-    history = before if len(after) > len(before) else before[:-1]
-    return [
-        f"root_revisions: revision {old.revision} is history and cannot change"
-        for old, new in zip(history, after, strict=False)
-        if old != new
-    ]
+    frozen = len(before) if len(after) > len(before) else len(before) - 1
+    return _append_only_errors(
+        "root_revisions", "a root revision", "revision", before, after, frozen
+    )
 
 
 def _decision_errors(on_disk: QuestionTree, written: QuestionTree) -> list[str]:
     before, after = on_disk.decisions, written.decisions
+    return _append_only_errors(
+        "decisions", "a decision", "decision", before, after, len(before)
+    )
+
+
+def _answer_errors(on_disk: QuestionTree, written: QuestionTree) -> list[str]:
+    now = {n.id: n.answers for n in written.nodes}
+    errors: list[str] = []
+    for node in on_disk.nodes:
+        errors += _append_only_errors(
+            f"{node.id}.answers",
+            "an answer",
+            "answer",
+            node.answers,
+            now.get(node.id, []),
+            len(node.answers),
+        )
+    return errors
+
+
+def _append_only_errors(
+    field: str,
+    removed_noun: str,
+    item_noun: str,
+    before: Sequence[BaseModel],
+    after: Sequence[BaseModel],
+    frozen: int,
+) -> list[str]:
+    """Errors for a history list: nothing removed, the first *frozen* items unchanged."""
     if len(after) < len(before):
         return [
-            f"decisions: a decision cannot be removed ({len(before)} -> {len(after)})"
+            f"{field}: {removed_noun} cannot be removed ({len(before)} -> {len(after)})"
         ]
     return [
-        f"decisions: decision {n} is history and cannot change"
-        for n, (old, new) in enumerate(zip(before, after, strict=False), start=1)
+        f"{field}: {item_noun} {n} is history and cannot change"
+        for n, (old, new) in enumerate(
+            zip(before[:frozen], after, strict=False), start=1
+        )
         if old != new
     ]
 

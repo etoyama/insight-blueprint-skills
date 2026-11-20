@@ -471,6 +471,40 @@ class TestValidateTree:
         errors = validate_tree(new, current=tree_dict())
         assert errors == ["decisions: decision 1 is history and cannot change"]
 
+    def _answered(self, *rounds: int) -> dict:
+        return tree_with_answers(*(answer(round=r) for r in rounds))
+
+    def test_appending_an_answer_is_allowed(self) -> None:
+        assert validate_tree(self._answered(1, 2), current=self._answered(1)) == []
+
+    def test_adding_the_first_answer_to_a_node_is_allowed(self) -> None:
+        assert validate_tree(self._answered(1), current=tree_dict()) == []
+
+    def test_dropping_an_answer_is_an_error(self) -> None:
+        errors = validate_tree(tree_dict(), current=self._answered(1))
+        assert errors == ["LIB-Q02.answers: an answer cannot be removed (1 -> 0)"]
+
+    def test_dropping_a_node_that_had_answers_is_an_error(self) -> None:
+        new = self._without_decisions()
+        del new["nodes"][1]
+        on_disk = self._answered(1)
+        del on_disk["decisions"]
+        errors = validate_tree(new, current=on_disk)
+        assert errors == ["LIB-Q02.answers: an answer cannot be removed (1 -> 0)"]
+
+    def test_rewriting_an_answer_is_an_error(self) -> None:
+        new = self._answered(1)
+        new["nodes"][1]["answers"][0]["statements"][0]["text"] = "書き換えた"
+        errors = validate_tree(new, current=self._answered(1))
+        assert errors == ["LIB-Q02.answers: answer 1 is history and cannot change"]
+
+    def test_rewriting_an_answer_while_appending_is_an_error(self) -> None:
+        new = self._answered(1, 2)
+        new["nodes"][1]["answers"][0]["root_revision"] = 1
+        new["nodes"][1]["answers"][0]["statements"][0]["kind"] = "weakening"
+        errors = validate_tree(new, current=self._answered(1))
+        assert errors == ["LIB-Q02.answers: answer 1 is history and cannot change"]
+
     def test_a_broken_file_on_disk_does_not_block_its_repair(self) -> None:
         assert validate_tree(tree_dict(), current={"theme_id": "LIB"}) == []
 

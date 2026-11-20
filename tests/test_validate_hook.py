@@ -428,6 +428,46 @@ class TestHookSubprocessTree:
         assert result.returncode == 2
         assert "decision" in result.stderr
 
+    def test_an_edit_that_rewrites_an_answer_is_blocked(self, tmp_path: Path) -> None:
+        path = tree_path(tmp_path)
+        on_disk = tree_dict()
+        on_disk["nodes"].append(
+            {
+                "id": "LIB-Q02",
+                "question": "期限切れを数えられるか",
+                "parent_question_id": "LIB-Q01",
+                "contribution": "件数が変わる",
+                "answers": [
+                    {
+                        "round": 1,
+                        "root_revision": 1,
+                        "statements": [
+                            {
+                                "kind": "claim",
+                                "text": "取消を除いて比べられた",
+                                "cites": ["LIB-H01-E01"],
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+        path.write_text(dump_yaml(on_disk), encoding="utf-8")
+
+        result = run_hook(
+            {
+                "tool_name": "Edit",
+                "tool_input": {
+                    "file_path": str(path),
+                    "old_string": "取消を除いて比べられた",
+                    "new_string": "後から書き換えた",
+                },
+            }
+        )
+
+        assert result.returncode == 2
+        assert "answer 1 is history" in result.stderr
+
     def test_malformed_yaml_is_blocked(self, tmp_path: Path) -> None:
         result = run_hook(
             {
