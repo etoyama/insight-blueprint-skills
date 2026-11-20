@@ -187,6 +187,25 @@ class TestFramingAsksBeforeTheRootChanges:
         rerun = unwrap(_framing("#### 4c: "))
         assert re.search(r"(?i)never[^.]*`bump`[^.]*yourself", rerun)
 
+    def test_the_bump_question_gives_both_answers_and_what_each_does(self) -> None:
+        rerun = unwrap(_framing("#### 4c: "))
+        asked = re.search(r"[^.]*both answers[^.]*\.", rerun)
+        assert asked, "no sentence says how the bump question is put"
+        assert "what each one does" in asked.group(0)
+
+    def test_the_skill_holds_its_reading_until_the_analyst_answers(self) -> None:
+        rerun = unwrap(_framing("#### 4c: "))
+        assert re.search(r"(?i)do not say which answer you expect", rerun)
+        assert re.search(
+            r"(?i)keep your reading[^.]*until the analyst has answered", rerun
+        )
+        assert re.search(r"(?i)do not ask for a `reason`[^.]*before", rerun)
+
+    def test_the_reading_comes_out_only_after_a_no_on_a_change_of_meaning(self) -> None:
+        rerun = unwrap(_framing("#### 4c: "))
+        assert re.search(r"(?i)only then[^.]*which part changed", rerun)
+        assert "ask once more" in rerun
+
     def test_a_change_of_meaning_always_raises_the_revision(self) -> None:
         rerun = unwrap(_framing("#### 4c: "))
         kept = re.search(r"`\"bump\": false`[^.]*\.", rerun)
