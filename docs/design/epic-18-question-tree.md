@@ -475,7 +475,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 | 4 探索・仮説の更新 | `/analysis-notebook`、`/analysis-journal`（`observe`・`question`）、`question` の論点への昇格 | G8、G11 | — |
 | 5 推定・モデル構築 | `/analysis-notebook` | G8 | — |
 | 6 妥当性検証・レビュー | `/analysis-journal` の `evidence`（`contradicts`）、ツリーの検査 | G9 | `/analysis-review` は実行する前の分析設計を見る。結果を別のソースや別の条件で確かめる skill は無い |
-| 7 解釈・報告・意思決定支援 | `/analysis-reflection`（分析設計1つと、テーマの横断）、`/analysis-report`、`/report-upload`、`tree_io render`、Artifact | G9〜G11、G13 | 結論が出ていない分析設計（refine・branch）にはレポートが無い。そのときのツリーの決定は、ツリーと journal だけを見てする |
+| 7 解釈・報告・意思決定支援 | `/analysis-reflection`（分析設計1つと、テーマの横断）、`/analysis-report`、`/report-upload`、`tree_io render`、Artifact | G9〜G11、G13 | 結論が出ていない分析設計（refine・branch）にはレポートを書かない（人間の判断、2026-11-20）。そのときのツリーの決定は、ツリーと journal だけを見てする |
 | 8 導入・監視・改善・引き継ぎ | 論点ツリーの HTML、`/knowledge-extract` | なし | 導入と監視はスコープ外（[docs/PRD.md](../PRD.md)）。扱うのは引き継ぎだけ |
 
 ## Decisions
