@@ -185,6 +185,10 @@ sequenceDiagram
 
 `/catalog-register` の `create`・`update` で認証情報のキーを渡すと、`catalog_io` は書かずに非ゼロで終わる。図には描かない。
 
+図は、分析者が skill を1つずつ呼ぶ既定の使い方で描いた。`/analysis-auto` は、同じ会話でこの順に skill を動かす。
+そのため framing で `connection` が文脈に入ると、design ③ まで届く（#102 の再現はこの経路）。
+notebook のあとに同じ会話でレポートまで進むと、notebook が読んだ `connection` はレポートを書くときにも文脈に残る（[ADR-0022](../adr/0022-connection-reaches-only-the-notebook.md) の Negative）。
+
 ## Decisions
 
 ### Decision: promote-issue-102-to-epic
