@@ -72,8 +72,8 @@ flowchart TD
   `design_io` 経由で書く skill も、書く前に Python 側で同じ検証を通す。tool の書き込み（hook）と
   helper の書き込み（`design_io`）の両方が守られる。
   論点ツリーの形も同じ場所で検証する（`validate_tree`。[ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md)）。
-  根の問いがちょうど1つあること、論点の親が同じツリーにあって循環しないこと、根の版が1から1ずつ増えることを確かめ、モデルに無い項目を拒む。
-  書き込む前の正本があれば、根の版が減っていないことと、今の版より前の版が変わっていないことも確かめる。
+  根の問いがちょうど1つあること、論点の親が同じツリーにあって循環しないこと、根の版が1から1ずつ増えること、ツリーの決定が指す論点がツリーにあることを確かめ、モデルに無い項目を拒む。
+  書き込む前の正本があれば、根の版が減っていないことと、今の版より前の版が変わっていないことも確かめる。ツリーの決定は足すことだけができる。
   進捗は項目に無いので、保存できない。`tree_io` は結んだ分析設計の状態から進捗を導く。
 - **pre-write hook（`hooks/validate-design.py`, plugin 同梱 `hooks/hooks.json`）** —
   `.insight/designs/*_hypothesis.yaml` と `.insight/themes/*_tree.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
@@ -252,14 +252,19 @@ Claude Docs はホストが持つコネクタで、plugin の外にある（[ADR
 sequenceDiagram
     actor U as 分析者
     participant CC as Claude Code
-    participant IO as design_io / catalog_io
+    participant IO as design_io / catalog_io / tree_io
     participant MO as marimo + lineage
     participant FS as .insight/（YAML）
     participant DC as Claude Docs
 
     Note over U,FS: 各ステップは /command で明示起動（対話型・human-in-the-loop）
-    U->>CC: /analysis-framing → /analysis-design
-    CC->>IO: create（hypothesis.yaml, status=in_review）
+    U->>CC: /analysis-framing
+    CC->>IO: tree_io create / add-node / decide（論点ツリー、最初に調べる論点と理由）
+    IO->>FS: atomic write
+    U->>CC: /analysis-design
+    CC->>IO: design_io create（hypothesis.yaml, status=in_review）
+    IO->>FS: atomic write
+    CC->>IO: tree_io link（分析設計を論点に結ぶ）
     IO->>FS: atomic write
 
     opt 任意: レビュー / 事前リスク評価
@@ -548,6 +553,7 @@ classDiagram
         theme_id
         root_revisions
         nodes
+        decisions
     }
     class RootRevision {
         <<Value Object>>
@@ -577,6 +583,17 @@ classDiagram
         <<enumeration>>
         business
         research
+    }
+    class TreeDecision {
+        <<Value Object>>
+        round
+        kind
+        node_id
+        reason
+    }
+    class TreeDecisionKind {
+        <<enumeration>>
+        start
     }
     class Progress {
         <<enumeration>>
@@ -615,6 +632,9 @@ classDiagram
     QuestionNode ..> QuestionNode : parent_question_id
     QuestionNode ..> AnalysisDesign : design_ids
     QuestionNode ..> Progress : 導く（保存しない）
+    QuestionTree "1" *-- "*" TreeDecision
+    TreeDecision --> TreeDecisionKind
+    TreeDecision ..> QuestionNode : node_id
 ```
 
 図の読み方: 箱は1つのクラスで、上段がクラス名と種類（`<<Aggregate Root>>` など）、下段が主なフィールドか enum の値を表す。
@@ -671,7 +691,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 15 | Skill layer（`/analysis-design`・`/analysis-report`・`/analysis-notebook`・`/premortem`・`/analysis-auto` がデータソースを読む場所）+ `catalog_io describe` |
 | Epic 16 | Skill layer（`/premortem`・`/analysis-auto` がパッケージ許可リストの無いときに使う既定の許可リスト）+ `risk_evaluator` の `HARD_BLOCK` の理由 |
 | Epic 17 | Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-notebook`・`/analysis-auto`・`/catalog-register` が `connection` を読む場所）+ `catalog_io create`・`update` の認証情報の検査 |
-| Epic 18 | Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-reflection` の論点ツリー、`/analysis-auto` の論点ごとの巡回）+ 論点ツリーのモデルと `validate.py` の検証 + `tree_io`・`tree_check`（Story 18.1 で正本・`tree_io`・hook の対象を実装した。残りは計画中で、シーケンス図への反映は実装の Story で行う） |
+| Epic 18 | Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-reflection` の論点ツリー、`/analysis-auto` の論点ごとの巡回）+ 論点ツリーのモデルと `validate.py` の検証 + `tree_io`・`tree_check`（Story 18.1 で正本・`tree_io`・hook の対象を、Story 18.2 で `/analysis-framing` と `/analysis-design` の論点ツリーを実装した。残りは計画中で、シーケンス図への反映は実装の Story で行う） |
 
 
 ## 参照

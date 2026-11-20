@@ -53,7 +53,7 @@
 | 進捗 | `Progress` | 論点の分析がどこまで進んだか。未着手・検証中・分析済み。保存せず、結んだ分析設計の状態から導く | — | [epic-18](design/epic-18-question-tree.md) |
 | 現時点の答え | — | 振り返りで論点ごとに書く答え。文ごとに種類（言えること・未判別・弱める証拠と留保）と、引用する journal の出来事を持つ。追記だけで、振り返りの回と根の版を持つ | 暫定回答 | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
 | 振り返りの回 | — | テーマを横断する振り返りの通し番号。前の回から変わった答えを見分けるのに使う | — | [epic-18](design/epic-18-question-tree.md) |
-| ツリーの決定 | — | 論点ツリーで分析者が選んだこと（最初の論点を選ぶ、深める、親に戻る、区切る）と理由 | — | [epic-18](design/epic-18-question-tree.md) |
+| ツリーの決定 | `TreeDecision` | 論点ツリーで分析者が選んだこと（最初の論点を選ぶ、深める、親に戻る、区切る）と理由 | — | [epic-18](design/epic-18-question-tree.md) |
 | 次の候補 | — | 振り返りが示す、次に調べるとよい未着手の論点。人に聞く問い、その答えで変わる判断、既に分かっていることを添えられる | — | [epic-18](design/epic-18-question-tree.md) |
 | ツリーの検査 | — | 現時点の答えの引用先が実在し、論点に結んだ分析設計のものか、文の数が引用先の本文にあるかを確かめること。論点ツリーを書き換えない | — | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
 | Artifact | — | ホストが持つ、HTML のページを claude.ai に置いて URL で開ける機能。plugin は持たない。論点ツリーの表示を渡すのに使う | — | [ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md) |

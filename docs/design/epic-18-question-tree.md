@@ -211,7 +211,8 @@ flowchart TD
 
 クラス名は Story 18.1 の最初に人間が決めた（Decisions の `tree-type-names`）。
 Story 18.1 が実装したのは `QuestionTree`・`RootRevision`・`Aim`・`QuestionNode`・`Progress` で、[docs/ARCHITECTURE.md](../ARCHITECTURE.md) の全体図にも載せた。
-`Answer`・`AnswerStatement`・`NextCandidate`・`TreeDecision` と、それを持つ項目（`answers`・`next_candidate`・`decisions`）は、扱う Story で足す。
+Story 18.2 は `TreeDecision` と `decisions` を足した。種類は `start` だけで、残りの3つは Story 18.5 で足す（Decisions の `start-is-the-only-decision-kind-for-now`）。
+`Answer`・`AnswerStatement`・`NextCandidate` と、それを持つ項目（`answers`・`next_candidate`）は、扱う Story で足す。
 モデルに無い項目は検証で拒むので、足すまではこれらの項目を正本に書けない。
 [docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) の「コード上の名前」は、名前がコードに実在する語から埋める。
 
@@ -317,6 +318,7 @@ classDiagram
 | `QuestionNode` | エンティティ | id は `{theme_id}-Q{nn}` で、ツリーの中で重ならない。根以外は寄与が空でない。発見元はあれば同じテーマの `{design_id}-E{nn}` の形。結ぶ分析設計は同じテーマの `{theme_id}-H{nn}` で、同じものを2度結ばない |
 | `Answer` | 値オブジェクト | 現時点の答えの1回分。追記だけで、最後の要素が今の答え。`root_revision` は今の根の版以下。回は1つの論点の中で増え続ける |
 | `AnswerStatement` | 値オブジェクト | `cites` は1つ以上。引用先の実在と数の一致は `validate.py` でなくツリーの検査が確かめる（I/O が要るため） |
+| `TreeDecision` | 値オブジェクト | 理由が空でない。`start` の回は 0。追記だけで、書き換えも削除もできない |
 | `Progress` | 導出する列挙 | 保存しない。`design_ids` の分析設計の状態から導く（US-2 AC 1） |
 
 ### 正本の形（合成シナリオ）
@@ -620,6 +622,42 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - Alternatives considered: 形だけを見る（版を減らす書き込みが通る）。今の版の書き換えも禁じる（言い換えができなくなる）。
 - Consequences: 今の版の問いと到達点は、直接の書き込みでも書き換えられる。根を変えるのを `/analysis-framing` に限ることは、hook では守れない。書き込む前の正本が検証に通らない形なら、比べずに通す。壊れた正本を直す書き込みを止めないためで、分析設計の検証（`validate_design_change`）と同じ扱いである。Bash からの書き込みは hook を通らない（分析設計と同じ）。
 
+### Decision: start-is-the-only-decision-kind-for-now
+
+- What: Story 18.2 が入れるツリーの決定の種類は `start` だけにする。`deepen`・`return`・`close` は Story 18.5 で足す。`start` の回は 0 で、モデルはそれ以外の回を拒む。`tree_io decide` は回を受け取らず、0 を書く。ツリーに決定が既にあるとき、`/analysis-framing` は2つめの `start` を書かない。
+- Why: 振り返りの回は Story 18.4 で入る。それまでは、回を数える元が無い。
+- Criteria: YAGNI（[.claude/rules/coding-principles.md](../../.claude/rules/coding-principles.md)）、US-1 AC 2。決め手は今のコードで意味を持たない値を正本に書けないこと。
+- Affected modules: `src/insight_blueprint/models/tree.py`（`TreeDecisionKind`）、`tree_io decide`、`/analysis-framing`。
+- Alternatives considered: 4種類を今から受け付ける（回の決め方が無いまま `deepen` を書ける）。
+- Consequences: Story 18.5 は種類を足し、回を現時点の答えから決める。2つめの `start` をモデルは拒まない。書かないことは `/analysis-framing` の手順が守る。
+
+### Decision: decisions-are-append-only
+
+- What: 検証は書き込む前の正本と比べ、ツリーの決定が減っていないことと、既にある決定が変わっていないことを確かめる。できるのは足すことだけである。`tree_io` と pre-write hook の両方に効く。
+- Why: US-1 AC 2 は最初の論点と理由を残すとしている。直接の書き込みで消せると、なぜその論点から調べたかを辿れなくなる（課題2）。
+- Criteria: US-1 AC 2。根の版と同じ扱いにすること（Decision `earlier-root-revisions-are-history`）。
+- Affected modules: `validate.py`（`validate_tree` の `current`）、pre-write hook。
+- Alternatives considered: 形だけを見る（決定を消す書き込みが通る）。
+- Consequences: 書き間違えた決定は直せない。直すには次の決定を足す。書き込む前の正本が検証に通らない形なら、根の版と同じく比べずに通す。
+
+### Decision: framing-brief-carries-node-id
+
+- What: Framing Brief の「推奨方向」に、`node_id`（論点の id）と「論点」（問いの文）の行を足す。`theme_id` は提案ではなく、論点ツリーのテーマそのものにする。`/analysis-design` は `design_io create` の後に `tree_io link` を呼ぶ。`node_id` が無い Framing Brief では、結ばずに分析設計を作る。分析者がテーマを変えたときも結ばない。
+- Why: US-1 AC 3。項目名は `TreeDecision` の `node_id` と `tree_io link --node` に合わせた。
+- Criteria: US-1 AC 3。`/analysis-design` の Step 1.5 が今の Framing Brief を検出できること。決め手は後者。
+- Affected modules: `/analysis-framing`（Step 5）、`/analysis-design`（Step 1.5、Step 3、Step 4）。
+- Alternatives considered: `question_id`（journal の `question` と紛れる）。`node_id` を必須にする（framing を通さない使い方と、古い Framing Brief が止まる）。
+- Consequences: 論点に結ばれていない分析設計ができうる。そのとき論点の進捗は未着手のままになる。`/analysis-framing` は `tree_io decide` が通るまで Framing Brief を出さない。到達点が決まらないと、framing は Framing Brief を出さずに止まる。
+
+### Decision: meaning-change-raises-the-root-revision
+
+- What: `/analysis-framing` の再実行で根の問いか到達点を変えるとき、skill は `bump` を自分で決めず、既定値も置かない。新旧を並べて分析者に聞く。意味が変わる変更は版を上げる。意味が変わるとは、問いが別のことを聞く、決める役割か決める内容が変わる、想定読者か主張の範囲が動く、のどれかである。分析者が「上げない」と答え、skill がその変更を意味の変更と読んだときは、どこが変わったかと、これまでの答えが新しい根への答えとして読まれることを伝え、もう一度だけ聞く。2度目の答えに従う。
+- Why: `tree_io` は意味の変更を見分けられない（Decision `revise-root-rewords-in-place-without-a-bump`）。人間がこの穴を Story 18.2 の KEEP ゲートで止めると決めた（PR #128 のコメント、2026-11-20）。
+- Criteria: US-1 AC 5。決め手は版を上げない書き換えが分析者の明示の答えなしに起きないこと。
+- Affected modules: `/analysis-framing`（Step 4c）。
+- Alternatives considered: 到達点の項目が変わったら必ず版を上げる（言い換えでも全論点が「変更前」になる）。skill が意味の変更と読んだら `bump: false` を拒む（決めるのは分析者で、skill の読みが外れたときに直せない）。
+- Consequences: 止めるのは手順で、コードではない。構造テストは文があることを確かめるだけで、モデルが従うかは確かめない。分析者が2度「上げない」と答えれば、意味の変わる書き換えも通る。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0024: 論点ツリーの正本は YAML に置き、表示は正本から生成する HTML にする](../adr/0024-question-tree-yaml-and-generated-html.md): 判断2・2'。Artifact は承認の後の任意の手順。
@@ -631,7 +669,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
 | Story 18.1 | ✓ | ✓ | — （skill を通らない） |
-| Story 18.2 | ☐ | ☐ | ☐ |
+| Story 18.2 | ✓（`tests/test_tree_models.py` の `TestTreeDecision`、`tests/test_tree_io.py` の `TestDecide`） | ✓（`tests/skills/test_question_tree_structure.py`。SKILL.md に書いたコマンドを `tree_io` に通す。`tests/test_validate_hook.py` は決定を消す書き込みを hook が止めることを確かめる） | —（headless 実行の E2E は [ADR-0010](../adr/0010-skill-tdd-structure-tests.md) で必須にしていない。skill を通した手動確認はしていない） |
 | Story 18.3 | ☐ | ☐ | — （CLI だけ） |
 | Story 18.4 | ☐ | ☐ | ☐ |
 | Story 18.5 | ☐ | ☐ | ☐ |
@@ -649,3 +687,4 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - 2026-11-20 — 初版に合意。Story 18.1〜18.4、18.6〜18.8 を起票（#119〜#125）。
 - 2026-11-20 — PR #117 を main にマージ。未決事項2つを決め（判断A・B）、Story 18.5 と 18.9 を起票（#126、#127）。
 - 2026-11-20 — Story 18.1 completed: 型名を決め（`NextCandidate`・`Answer`・`Aim`）、論点ツリーのモデル、`validate_tree`、`tree_io`（create・add-node・link・revise-root・get・progress）、`*_tree.yaml` を検証する pre-write hook、`bin/tree_io` を入れた。
+- 2026-11-20 — Story 18.2 completed: `/analysis-framing` の Step 4・5 が根の問い、到達点、第一階層の論点を分析者と決めて `tree_io` で書き、最初に調べる論点と理由をツリーの決定（`start`）として残す。Framing Brief に `theme_id` と `node_id` を載せ、`/analysis-design` が `tree_io link` で結ぶ。`TreeDecision` と `tree_io decide` を足した。`tree_io render` は Story 18.6 で入るので、framing はまだ HTML を作らない。

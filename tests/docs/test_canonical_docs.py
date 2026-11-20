@@ -531,9 +531,28 @@ class TestQuestionTreeDocs:
             "寄与": "contribution",
             "発見元": "origin_event_id",
             "進捗": "Progress",
+            "ツリーの決定": "TreeDecision",
         }
         for term, name in expected.items():
             assert f"`{name}`" in rows[term], term
+
+    def test_design_doc_records_the_decisions_of_story_18_2(self) -> None:
+        decisions = section(_read(self.DESIGN_DOC), "## Decisions")
+        for slug in (
+            "start-is-the-only-decision-kind-for-now",
+            "decisions-are-append-only",
+            "framing-brief-carries-node-id",
+            "meaning-change-raises-the-root-revision",
+        ):
+            assert f"### Decision: {slug}" in decisions, slug
+
+    def test_architecture_workflow_shows_the_tree_being_written_and_linked(
+        self,
+    ) -> None:
+        """Story 18.2: framing writes the tree and design links itself to a node."""
+        sequence = section(_read("docs/ARCHITECTURE.md"), "### 分析ワークフロー全体")
+        assert "tree_io create / add-node / decide" in sequence
+        assert "tree_io link" in sequence
 
     def test_architecture_carries_the_tree_file_and_its_guard(self) -> None:
         """ADR-0024: the .insight layout and the hook target change with Story 18.1."""
