@@ -215,6 +215,29 @@ def revise_root(
     return _write_tree(tree, theme_id, base_dir)
 
 
+def decide(
+    theme_id: str,
+    *,
+    kind: str,
+    node_id: str,
+    reason: str,
+    base_dir: Path = DEFAULT_BASE_DIR,
+) -> dict:
+    """Append a decision to the tree and return it."""
+    tree = _require_tree(theme_id, base_dir)
+    decision = {
+        # No reflection round exists before Story 18.4, so every decision is
+        # taken at round 0.
+        "round": 0,
+        "kind": kind,
+        "node_id": node_id,
+        "reason": reason,
+        "created_at": now_jst().isoformat(),
+    }
+    tree.setdefault("decisions", []).append(decision)
+    return _write_tree(tree, theme_id, base_dir)["decisions"][-1]
+
+
 def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     """Derive the progress of every node from the status of its linked designs."""
     tree = _require_tree(theme_id, base_dir)
@@ -231,7 +254,15 @@ def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="tree_io")
     parser.add_argument(
         "command",
-        choices=["create", "add-node", "link", "revise-root", "get", "progress"],
+        choices=[
+            "create",
+            "add-node",
+            "link",
+            "decide",
+            "revise-root",
+            "get",
+            "progress",
+        ],
     )
     parser.add_argument("--base-dir", default=str(DEFAULT_BASE_DIR))
     parser.add_argument("--theme", default=None)
@@ -255,6 +286,8 @@ def _main(argv: list[str] | None = None) -> int:
             result = add_node(args.theme, base_dir=base, **payload)
         elif args.command == "link":
             result = link_design(args.theme, args.node, args.design, base_dir=base)
+        elif args.command == "decide":
+            result = decide(args.theme, base_dir=base, **payload)
         elif args.command == "revise-root":
             result = revise_root(args.theme, base_dir=base, **payload)
         elif args.command == "get":

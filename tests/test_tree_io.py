@@ -303,6 +303,59 @@ class TestReviseRoot:
             tree_io.revise_root("LIB", bump=True, reason="x", base_dir=tree)
 
 
+class TestDecide:
+    REASON = "取消が混ざると延長で改善しうる件数が変わるため"
+
+    def _decide(self, insight: Path, **over: object) -> dict:
+        kwargs: dict = {
+            "kind": "start",
+            "node_id": "LIB-Q02",
+            "reason": self.REASON,
+            "base_dir": insight,
+        }
+        kwargs.update(over)
+        return tree_io.decide("LIB", **kwargs)
+
+    @pytest.fixture
+    def two_nodes(self, tree: Path) -> Path:
+        _add(tree)
+        return tree
+
+    def test_records_the_first_question_and_why(self, two_nodes: Path) -> None:
+        decision = self._decide(two_nodes)
+        assert decision["kind"] == "start"
+        assert decision["node_id"] == "LIB-Q02"
+        assert decision["reason"] == self.REASON
+        assert decision["round"] == 0
+        assert decision["created_at"]
+        assert tree_io.load_tree("LIB", two_nodes)["decisions"] == [decision]
+
+    def test_a_second_start_decision_is_appended(self, two_nodes: Path) -> None:
+        self._decide(two_nodes)
+        self._decide(two_nodes, node_id="LIB-Q01", reason="根から見直す")
+        decisions = tree_io.load_tree("LIB", two_nodes)["decisions"]
+        assert [d["node_id"] for d in decisions] == ["LIB-Q02", "LIB-Q01"]
+
+    def test_a_node_that_does_not_exist_is_not_written(self, two_nodes: Path) -> None:
+        with pytest.raises(ValueError, match="LIB-Q09"):
+            self._decide(two_nodes, node_id="LIB-Q09")
+        assert "decisions" not in tree_io.load_tree("LIB", two_nodes)
+
+    def test_an_empty_reason_is_not_written(self, two_nodes: Path) -> None:
+        with pytest.raises(ValueError, match="reason"):
+            self._decide(two_nodes, reason="")
+        assert "decisions" not in tree_io.load_tree("LIB", two_nodes)
+
+    def test_a_kind_other_than_start_is_not_written(self, two_nodes: Path) -> None:
+        with pytest.raises(ValueError, match="kind"):
+            self._decide(two_nodes, kind="close")
+        assert "decisions" not in tree_io.load_tree("LIB", two_nodes)
+
+    def test_a_tree_must_exist_first(self, insight: Path) -> None:
+        with pytest.raises(ValueError, match="has no question tree"):
+            self._decide(insight)
+
+
 class TestProgress:
     """US-2 AC 1: progress comes from the linked designs and is never stored."""
 
@@ -410,6 +463,20 @@ class TestCli:
         )
         assert revised.returncode == 0, revised.stderr
         assert len(json.loads(revised.stdout)["root_revisions"]) == 2
+
+    def test_decide_reads_the_decision_from_the_payload(self, tree: Path) -> None:
+        _add(tree)
+        decided = self._run(
+            tree,
+            "decide",
+            "--theme",
+            "LIB",
+            payload={"kind": "start", "node_id": "LIB-Q02", "reason": "件数が変わる"},
+        )
+        assert decided.returncode == 0, decided.stderr
+        assert json.loads(decided.stdout)["node_id"] == "LIB-Q02"
+        got = self._run(tree, "get", "--theme", "LIB")
+        assert len(json.loads(got.stdout)["decisions"]) == 1
 
     def test_a_command_without_its_theme_says_so(self, tree: Path) -> None:
         missing = self._run(tree, "progress")

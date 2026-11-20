@@ -415,6 +415,19 @@ class TestHookSubprocessTree:
         assert result.returncode == 2
         assert "cannot be removed" in result.stderr
 
+    def test_a_write_that_drops_a_decision_is_blocked(self, tmp_path: Path) -> None:
+        path = tree_path(tmp_path)
+        on_disk = tree_dict()
+        on_disk["decisions"] = [
+            {"round": 0, "kind": "start", "node_id": "LIB-Q01", "reason": "根から"}
+        ]
+        path.write_text(dump_yaml(on_disk), encoding="utf-8")
+
+        result = run_hook(write_tool(path, tree_dict()))
+
+        assert result.returncode == 2
+        assert "decision" in result.stderr
+
     def test_malformed_yaml_is_blocked(self, tmp_path: Path) -> None:
         result = run_hook(
             {
