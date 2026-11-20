@@ -83,9 +83,8 @@
 | finding | `finding` | その分析だけで言える発見。ドメイン知識にせず reflection に残す | — | [epic-05b](design/epic-05b-knowledge-extraction.md) |
 | premortem | `/premortem` | 高いデータアクセスの前に、費用とリスクを見積もって報告すること。止めはしない | 事前評価 | [epic-05a](design/epic-05a-premortem-standalone.md) |
 | リスクレベル | `RiskLevel` | premortem の判定。`HARD_BLOCK`・`HIGH`・`MEDIUM`・`LOW`・`SKIP` | — | [epic-05a](design/epic-05a-premortem-standalone.md) |
-| パッケージ許可リスト | `package_allowlist.yaml`、`allowlist_ok` | notebook が import してよいパッケージの宣言。premortem と guided autopilot は、これを notebook へ進んでよいかの境界に使う。ファイルが無ければ既定の許可リストを使う | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |
-| 既定の許可リスト | `notebook` extra | パッケージ許可リストが無いときに使う、plugin の env に最初から入っているパッケージ | — | [ADR-0021](adr/0021-default-package-allowlist.md) |
-| 契約の import | contract imports | notebook の契約がすべての notebook に求める import（`marimo` と `insight_blueprint`）。パッケージ許可リストの有無や中身にかかわらず許す | — | [ADR-0027](adr/0027-contract-imports-always-allowed.md) |
+| パッケージ許可リスト | `package_allowlist.yaml`、`allowlist_ok` | notebook が import してよいパッケージの宣言。premortem と guided autopilot は、既定の許可リストにこれを足したものを、notebook へ進んでよいかの境界に使う。ファイルが無ければ既定の許可リストだけを使う | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |
+| 既定の許可リスト | `notebook` extra | notebook の契約がすべての notebook で import するパッケージ。plugin の env に最初から入っている。パッケージ許可リストの有無や中身にかかわらず許す | — | [ADR-0021](adr/0021-default-package-allowlist.md)、[ADR-0027](adr/0027-default-allowlist-always-allowed.md) |
 | guided autopilot | `/analysis-auto` | driver が既存の skill を順に動かし、KEEP ゲートでだけ止まる実行 | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |
 | KEEP ゲート | `KEEP` | skill が止まって分析者の判断を待つ所。guided autopilot はここでだけ止まる。`.insight/` の中身を外部へ送る skill は、単独で起動されたときもここで承認を待つ | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md)、[ADR-0016](adr/0016-approval-before-external-send.md) |
 | AUTO | `AUTO` | guided autopilot が分析者に聞かずに進める所 | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |

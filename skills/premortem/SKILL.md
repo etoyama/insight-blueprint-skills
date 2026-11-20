@@ -39,11 +39,9 @@ It does **not** issue tokens, gate execution, or write to disk — it advises.
      entry per design: a check is `false` when it fails for any of its sources, and
      `estimated_rows` is the largest of theirs.
    - `allowlist_ok`: check each package named in `methodology.package` against the import names
-     and pip names of the allowlist in `.insight/rules/package_allowlist.yaml`. If the file does not
-     exist, use the default allowlist ("Default allowlist" in
-     [notebook-contract.md](../analysis-notebook/references/notebook-contract.md)). `true` when every package is in it, `false` when one is not.
-     The contract imports (`marimo`, `insight_blueprint`) are always allowed, whatever the file lists
-     ("Contract imports" in the same contract).
+     and pip names of the default allowlist plus the packages in `.insight/rules/package_allowlist.yaml`
+     ("Default allowlist" in [notebook-contract.md](../analysis-notebook/references/notebook-contract.md)).
+     A missing file adds nothing. `true` when every package is in it, `false` when one is not.
      `methodology.package` is free text: compare the top-level module of each name (the part
      before the first `.`) case-insensitively, and skip words that are not package names.
      An empty `methodology.package` is `true`. A missing file is never `null`: use `null` only

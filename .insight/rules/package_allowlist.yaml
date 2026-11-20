@@ -1,15 +1,10 @@
 # Package allowlist for analysis notebooks.
 # Consumed by /premortem (allowlist_ok risk check) and enforced by /analysis-auto: a
-# generated notebook may only import these packages. This tuple is the dependency /
-# external-communication boundary — anything outside it (a non-listed package, network
-# egress beyond the declared data source, other side-effects) is a KEEP gate that pauses
-# the autopilot for the user (see ADR-0005).
+# generated notebook may import these packages on top of the default allowlist in
+# skills/analysis-notebook/references/notebook-contract.md, which is always allowed (ADR-0027).
+# Anything outside both (a non-listed package, network egress beyond the declared data source,
+# other side-effects) is a KEEP gate that pauses the autopilot for the user (see ADR-0005).
 allowed_packages:
-  insight_blueprint: insight-blueprint-lineage
-  marimo: marimo
-  pandas: pandas
-  matplotlib: matplotlib
-  numpy: numpy
   scipy: scipy
   sklearn: scikit-learn
   statsmodels: statsmodels
