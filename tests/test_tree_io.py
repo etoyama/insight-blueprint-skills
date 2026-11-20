@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from skills._shared import design_io, tree_io
+from skills._shared._atomic import atomic_write_yaml
 
 ROOT_QUESTION = "取り置き期限を延ばす試行をするか"
 AIM = {
@@ -493,3 +494,186 @@ class TestCli:
         )
         assert rejected.returncode != 0
         assert "contribution" in rejected.stderr
+
+
+class TestRender:
+    def _answered(self, insight: Path) -> str:
+        """LIB-Q02 linked to a design and answered with a citation; returns the design id."""
+        _add(insight)
+        design_id = _design(insight)
+        tree_io.link_design("LIB", "LIB-Q02", design_id, base_dir=insight)
+        stored = tree_io.load_tree("LIB", base_dir=insight)
+        stored["nodes"][1]["answers"] = [
+            {
+                "round": 1,
+                "root_revision": 1,
+                "statements": [
+                    {
+                        "kind": "claim",
+                        "text": "取消を除くと期限切れは 346 件",
+                        "cites": [f"{design_id}-E01"],
+                    }
+                ],
+            }
+        ]
+        atomic_write_yaml(insight / "themes" / "LIB_tree.yaml", stored)
+        design_io.write_journal(
+            design_id,
+            {
+                "events": [
+                    {
+                        "id": f"{design_id}-E01",
+                        "type": "evidence",
+                        "content": "期限切れは取消除外で 346 件",
+                        "metadata": {"direction": "supports"},
+                    }
+                ]
+            },
+            base_dir=insight,
+        )
+        return design_id
+
+    def test_writes_the_html_next_to_the_tree_and_returns_its_path(
+        self, tree: Path
+    ) -> None:
+        result = tree_io.render("LIB", base_dir=tree)
+
+        path = tree / "themes" / "LIB_tree.html"
+        assert result == {"path": str(path)}
+        text = path.read_text(encoding="utf-8")
+        assert ROOT_QUESTION in text
+        assert "<script" not in text
+
+    def test_rendering_twice_gives_identical_bytes(self, tree: Path) -> None:
+        self._answered(tree)
+        tree_io.render("LIB", base_dir=tree)
+        first = (tree / "themes" / "LIB_tree.html").read_bytes()
+
+        tree_io.render("LIB", base_dir=tree)
+
+        assert (tree / "themes" / "LIB_tree.html").read_bytes() == first
+
+    def test_shows_the_cited_event_and_the_design_of_the_theme(
+        self, tree: Path
+    ) -> None:
+        design_id = self._answered(tree)
+
+        tree_io.render("LIB", base_dir=tree)
+
+        text = (tree / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
+        assert "期限切れは取消除外で 346 件" in text
+        assert "direction: supports" in text
+        assert f'id="design-{design_id}"' in text
+
+    def test_a_tree_without_answers_or_designs_renders(self, tree: Path) -> None:
+        tree_io.render("LIB", base_dir=tree)
+
+        text = (tree / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
+        assert "まだ答えていない" in text
+
+    def test_designs_of_another_theme_are_not_shown(self, tree: Path) -> None:
+        other = _design(tree, theme_id="FP")
+
+        tree_io.render("LIB", base_dir=tree)
+
+        text = (tree / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
+        assert other not in text
+
+    def test_an_event_counts_only_in_the_journal_its_id_names(self, tree: Path) -> None:
+        design_id = self._answered(tree)
+        other = _design(tree)
+        design_io.write_journal(
+            other,
+            {
+                "events": [
+                    {
+                        "id": f"{design_id}-E01",
+                        "type": "evidence",
+                        "content": "別の journal に書いた同じ id",
+                    }
+                ]
+            },
+            base_dir=tree,
+        )
+        design_io.write_journal(design_id, {"events": []}, base_dir=tree)
+
+        tree_io.render("LIB", base_dir=tree)
+
+        text = (tree / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
+        assert "別の journal に書いた同じ id" not in text
+        assert "journal に見つからない出来事" in text
+
+    def test_an_event_id_written_twice_keeps_the_first(self, tree: Path) -> None:
+        design_id = self._answered(tree)
+        event = {"id": f"{design_id}-E01", "type": "evidence", "content": "二つ目"}
+        journal = design_io.load_journal(design_id, base_dir=tree)
+        journal["events"].append(event)
+        design_io.write_journal(design_id, journal, base_dir=tree)
+
+        tree_io.render("LIB", base_dir=tree)
+
+        text = (tree / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
+        assert "期限切れは取消除外で 346 件" in text
+        assert "二つ目" not in text
+
+    def test_a_non_text_content_is_shown_as_text(self, tree: Path) -> None:
+        design_id = self._answered(tree)
+        design_io.write_journal(
+            design_id,
+            {
+                "events": [
+                    {"id": f"{design_id}-E01", "type": "observe", "content": 34.6}
+                ]
+            },
+            base_dir=tree,
+        )
+
+        tree_io.render("LIB", base_dir=tree)
+
+        text = (tree / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
+        assert "34.6" in text
+
+    def test_a_linked_design_that_disappeared_is_an_error_and_nothing_is_written(
+        self, tree: Path
+    ) -> None:
+        design_id = self._answered(tree)
+        (tree / "designs" / f"{design_id}_hypothesis.yaml").unlink()
+
+        with pytest.raises(ValueError, match=design_id):
+            tree_io.render("LIB", base_dir=tree)
+        assert not (tree / "themes" / "LIB_tree.html").exists()
+
+    def test_a_missing_tree_is_an_error(self, insight: Path) -> None:
+        with pytest.raises(ValueError, match="has no question tree"):
+            tree_io.render("LIB", base_dir=insight)
+
+    @pytest.mark.parametrize("theme_id", ["../evil", "lib", ""])
+    def test_an_invalid_theme_id_is_an_error(
+        self, insight: Path, theme_id: str
+    ) -> None:
+        with pytest.raises(ValueError, match="theme_id"):
+            tree_io.render(theme_id, base_dir=insight)
+
+    def test_a_tree_file_that_names_another_theme_is_an_error(self, tree: Path) -> None:
+        path = tree / "themes" / "LIB_tree.yaml"
+        path.write_text(path.read_text(encoding="utf-8").replace("LIB", "FP"))
+
+        with pytest.raises(ValueError, match="does not match the file name"):
+            tree_io.render("LIB", base_dir=tree)
+        assert not (tree / "themes" / "LIB_tree.html").exists()
+
+    def test_the_cli_prints_the_path_and_exits_0(self, tree: Path) -> None:
+        done = TestCli()._run(tree, "render", "--theme", "LIB")
+
+        assert done.returncode == 0, done.stderr
+        assert json.loads(done.stdout) == {
+            "path": str(tree / "themes" / "LIB_tree.html")
+        }
+
+    def test_the_cli_exits_1_with_a_message_when_it_cannot_render(
+        self, insight: Path
+    ) -> None:
+        done = TestCli()._run(insight, "render", "--theme", "LIB")
+
+        assert done.returncode == 1
+        assert "has no question tree" in done.stderr

@@ -22,16 +22,18 @@ from typing import Any
 
 from insight_blueprint.models.common import THEME_ID_PATTERN, now_jst
 from insight_blueprint.models.design import DesignStatus
-from insight_blueprint.models.tree import Progress, design_id_of
+from insight_blueprint.models.tree import Progress, QuestionTree, design_id_of
 from insight_blueprint.validate import validate_tree_schema
-from skills._shared._atomic import atomic_write_yaml
+from skills._shared._atomic import atomic_write_text, atomic_write_yaml
 from skills._shared.design_io import (
     DEFAULT_BASE_DIR,
     _resolve_base_dir,
+    list_designs,
     load_design,
     load_journal,
     read_yaml,
 )
+from skills._shared.tree_render import CitedEvent, DesignSummary, render_tree_html
 
 
 def _tree_path(theme_id: str, base_dir: Path) -> Path:
@@ -250,6 +252,75 @@ def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]
     }
 
 
+def _cited_events(tree: QuestionTree, base_dir: Path) -> dict[str, CitedEvent]:
+    """Each event cited by any answer of the tree, read from its own journal.
+
+    An event counts only in the journal its id names. A cited id that two events
+    share keeps the first: tree_check reports it, render must still show a page.
+    """
+    cited = {
+        cite
+        for node in tree.nodes
+        for answer in node.answers
+        for statement in answer.statements
+        for cite in statement.cites
+    }
+    events: dict[str, CitedEvent] = {}
+    for design_id in sorted({design_id_of(cite) for cite in cited}):
+        journal = load_journal(design_id, base_dir).get("events")
+        for event in journal if isinstance(journal, list) else []:
+            event_id = event.get("id") if isinstance(event, dict) else None
+            if (
+                not isinstance(event_id, str)
+                or event_id not in cited
+                or design_id_of(event_id) != design_id
+                or event_id in events
+            ):
+                continue
+            metadata = event.get("metadata")
+            direction = (
+                metadata.get("direction") if isinstance(metadata, dict) else None
+            )
+            content = event.get("content")
+            events[event_id] = CitedEvent(
+                id=event_id,
+                type=str(event.get("type") or ""),
+                direction=None if direction is None else str(direction),
+                content="" if content is None else str(content),
+            )
+    return events
+
+
+def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
+    """Write ``{theme_id}_tree.html`` from the canonical tree and return its path.
+
+    The HTML is generated, never edited: the same tree, designs and journals give
+    the same bytes. A design linked to a node that no longer exists is an error
+    (as in ``progress``) and nothing is written.
+    """
+    data = _require_tree(theme_id, base_dir)
+    tree = validate_tree_schema(data)
+    if tree.theme_id != theme_id:
+        raise ValueError(
+            f"theme_id: '{tree.theme_id}' does not match the file name "
+            f"({theme_id}_tree.yaml)"
+        )
+    designs = {
+        d["id"]: DesignSummary(
+            id=d["id"],
+            title=str(d.get("title", "")),
+            status=str(d.get("status", "")),
+            parent_id=d.get("parent_id"),
+        )
+        for d in list_designs(base_dir)
+        if d.get("theme_id") == theme_id
+    }
+    html = render_tree_html(tree, designs, _cited_events(tree, base_dir))
+    path = _tree_path(theme_id, base_dir).with_suffix(".html")
+    atomic_write_text(path, html)
+    return {"path": str(path)}
+
+
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="tree_io")
     parser.add_argument(
@@ -262,6 +333,7 @@ def _main(argv: list[str] | None = None) -> int:
             "revise-root",
             "get",
             "progress",
+            "render",
         ],
     )
     parser.add_argument("--base-dir", default=str(DEFAULT_BASE_DIR))
@@ -292,6 +364,8 @@ def _main(argv: list[str] | None = None) -> int:
             result = revise_root(args.theme, base_dir=base, **payload)
         elif args.command == "get":
             result = load_tree(args.theme, base_dir=base)
+        elif args.command == "render":
+            result = render(args.theme, base_dir=base)
         else:
             result = progress(args.theme, base_dir=base)
     except (ValueError, TypeError) as exc:
