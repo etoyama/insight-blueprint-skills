@@ -31,7 +31,7 @@ v0.10.0 の実機確認（2026-11-20）で、この経路から `connection` が
   ADR-0018 のコードの守りを、skill の文が迂回させている。
 - 課題2: 分析設計の `methodology.steps` に `connection` の値が入ると、分析設計を読むすべての skill に値が渡る。レポートに載るかどうかは、Method の叙述の書き方しだいになる。
 
-扱わない範囲: notebook のセルに認証情報を書かない決まり（今までどおり文で守る）。catalog に認証情報を入れないこと（ADR-0023）。
+扱わない範囲: notebook のセルに認証情報を書かない決まり（今までどおり文で守る）。catalog に認証情報を入れないこと（[ADR-0023](0023-catalog-holds-no-credentials.md)）。
 
 ## Decision Analysis
 
@@ -111,5 +111,5 @@ framing の読み方（課題1）:
 
 - Epic: #102、[epic-17](../design/epic-17-connection-boundary.md)
 - Stories: #110、#111
-- 関連: [ADR-0018](0018-catalog-io-omits-connection-by-default.md)、[ADR-0020](0020-design-declares-sources-in-source-ids.md)、ADR-0023
+- 関連: [ADR-0018](0018-catalog-io-omits-connection-by-default.md)、[ADR-0020](0020-design-declares-sources-in-source-ids.md)、[ADR-0023](0023-catalog-holds-no-credentials.md)
 - Supersedes: なし

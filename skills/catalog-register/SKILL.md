@@ -69,6 +69,12 @@ Follow the appropriate exploration workflow below.
 
 Construct the `catalog_io create` JSON payload with the discovered schema.
 
+`connection` never holds a credential: no password, token, API key, secret or private key.
+This plugin does not handle credentials ([ADR-0023](../../docs/adr/0023-catalog-holds-no-credentials.md)).
+If the source needs one, keep it in an environment variable and write only the variable's
+name, in a key ending in `_env` (e.g. `"password_env": "PG_PASSWORD"`). `catalog_io` refuses
+the payload otherwise.
+
 ### Step 4: Register and Confirm
 
 Pipe the payload to `catalog_io create` and show the returned JSON to the user.
@@ -126,7 +132,7 @@ echo '{
 2. For **e-Stat** APIs:
    - Use `getMetaInfo` endpoint to discover table structure:
      ```
-     GET {base_url}/app/json/getMetaInfo?appId=$API_KEY&statsDataId={table_id}
+     GET {base_url}/app/json/getMetaInfo?appId=$ESTAT_API_KEY&statsDataId={table_id}
      ```
    - **Security**: API keys must come from environment variables. Never hardcode keys in YAML or catalog entries.
    - Parse CLASS_INF to extract column definitions
@@ -151,7 +157,7 @@ echo '{
   "name": "e-Stat Population Census",
   "type": "api",
   "description": "Japanese population statistics from e-Stat",
-  "connection": {"base_url": "https://api.e-stat.go.jp/rest/3.0", "provider": "e-stat", "table_id": "0003348423", "auth": "api_key"},
+  "connection": {"base_url": "https://api.e-stat.go.jp/rest/3.0", "provider": "e-stat", "table_id": "0003348423", "auth": "api_key", "api_key_env": "ESTAT_API_KEY"},
   "columns": [
     {"name": "prefecture_code", "type": "string", "description": "JIS X 0401 code (01-47)", "nullable": false, "examples": ["01", "13", "47"]},
     {"name": "year", "type": "integer", "description": "Census year", "range": {"min": 2000, "max": 2024}},
@@ -233,6 +239,10 @@ echo '{
 | `add-knowledge --id ID` | Append/upsert knowledge (authoring: → /knowledge-extract) | stdin: `{entries:[...]}` |
 
 `create` and `update` also print the source without `connection`; the stored source keeps it.
+`create` and `update` refuse a `connection` key that names a credential (`password`, `token`,
+`api_key`, `secret`, `credential`, `private_key`, …) and exit non-zero, naming the key but not its
+value; a key ending in `_env` passes (ADR-0023). A source stored before that rule with such a key
+is still read, but `update` refuses it until the change carries a whole new `connection`.
 For an id that is not registered, `get` prints `{}` and exits 0; a non-empty result means registered.
 
 Validation runs inside `catalog_io` (DataSource model) before writing; invalid input

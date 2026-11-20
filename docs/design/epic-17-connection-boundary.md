@@ -189,7 +189,7 @@ sequenceDiagram
 
 - [ADR-0022: `connection` の値をモデルの文脈に入れるのは `/analysis-notebook` だけにする](../adr/0022-connection-reaches-only-the-notebook.md)（US-1・US-2）
 - ADR-0021 と Epic 16 は並行する Epic（#101）が使うので、この Epic は Epic 17、ADR は 0022 から採番した
-- ADR-0023: catalog は認証情報を持たない（US-3）
+- [ADR-0023: catalog は認証情報を持たない](../adr/0023-catalog-holds-no-credentials.md)（US-3）
 
 ## Test Design Matrix
 

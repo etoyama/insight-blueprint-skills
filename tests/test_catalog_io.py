@@ -8,6 +8,7 @@ only on insight_blueprint.models.catalog (which survives the E4 server removal).
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -473,7 +474,13 @@ class TestCliKeepsTheConnectionBack:
     SECRET = "/Users/someone/secret/pop.csv"
 
     def _register(self, insight: Path) -> None:
-        _create(insight, connection={"file_path": self.SECRET, "password": "hunter2"})
+        _create(insight, connection={"file_path": self.SECRET})
+        # A source stored before ADR-0023 may still hold a credential; reading it
+        # back must not change, so the read tests keep one in the stored YAML.
+        path = insight / "catalog" / "sources" / "jp-pop.yaml"
+        stored = catalog_io.read_yaml(path)
+        stored["connection"]["password"] = "hunter2"
+        catalog_io.write_yaml(path, stored)
 
     def test_get_prints_the_source_without_its_connection(self, insight: Path) -> None:
         self._register(insight)
@@ -517,7 +524,7 @@ class TestCliKeepsTheConnectionBack:
     def test_update_prints_the_source_without_its_stored_connection(
         self, insight: Path
     ) -> None:
-        self._register(insight)
+        _create(insight, connection={"file_path": self.SECRET})
         res = _run_cli(
             insight, "update", "--id", "jp-pop", stdin='{"description": "新しい説明"}'
         )
@@ -545,12 +552,94 @@ class TestCliKeepsTheConnectionBack:
         assert self.SECRET not in res.stdout
 
     def test_update_prints_the_connection_when_asked(self, insight: Path) -> None:
-        self._register(insight)
+        _create(insight, connection={"file_path": self.SECRET})
         res = _run_cli(
             insight, "update", "--id", "jp-pop", "--with-connection", stdin="{}"
         )
         assert res.returncode == 0, res.stderr
         assert json.loads(res.stdout)["connection"]["file_path"] == self.SECRET
+
+
+class TestConnectionHoldsNoCredentials:
+    """ADR-0023: the catalog refuses a connection key that names a credential."""
+
+    @pytest.mark.parametrize(
+        ("connection", "key"),
+        [
+            ({"password": "hunter2"}, "connection.password"),
+            ({"API-Key": "abc123"}, "connection.API-Key"),
+            ({"apiKey": "abc123"}, "connection.apiKey"),
+            ({"auth": {"client_secret": "s3"}}, "connection.auth.client_secret"),
+            ({"hosts": [{"token": "t0k"}]}, "connection.hosts[0].token"),
+            ({"private_key": "-----BEGIN"}, "connection.private_key"),
+            ({"aws_access_key_id": "AKIA"}, "connection.aws_access_key_id"),
+            ({"credentials": {"user": "u"}}, "connection.credentials"),
+        ],
+    )
+    def test_create_refuses_a_credential_key_and_writes_nothing(
+        self, insight: Path, connection: dict, key: str
+    ) -> None:
+        with pytest.raises(ValueError, match=re.escape(key)) as err:
+            _create(insight, connection=connection)
+        assert not (insight / "catalog" / "sources" / "jp-pop.yaml").exists()
+        for value in ("hunter2", "abc123", "s3", "t0k", "-----BEGIN", "AKIA"):
+            assert value not in str(err.value)
+        assert "_env" in str(err.value)
+
+    def test_create_accepts_the_name_of_an_environment_variable(
+        self, insight: Path
+    ) -> None:
+        connection = {"password_env": "PG_PASSWORD", "auth": "api_key"}
+        assert _create(insight, connection=connection)["connection"] == connection
+
+    def test_update_refuses_a_credential_key_and_keeps_the_stored_source(
+        self, insight: Path
+    ) -> None:
+        _create(insight)
+        with pytest.raises(ValueError, match="connection.token"):
+            catalog_io.update_source(
+                "jp-pop", {"connection": {"token": "t0k"}}, base_dir=insight
+            )
+        stored = catalog_io.load_source("jp-pop", base_dir=insight)
+        assert stored["connection"] == {"path": "data/pop.csv"}
+
+    def test_a_stored_credential_is_still_read_but_blocks_an_update(
+        self, insight: Path
+    ) -> None:
+        _create(insight)
+        path = insight / "catalog" / "sources" / "jp-pop.yaml"
+        stored = catalog_io.read_yaml(path)
+        stored["connection"]["password"] = "hunter2"
+        catalog_io.write_yaml(path, stored)
+
+        assert (
+            catalog_io.load_source("jp-pop", base_dir=insight)["connection"]["password"]
+            == "hunter2"
+        )
+        with pytest.raises(ValueError, match="connection.password"):
+            catalog_io.update_source("jp-pop", {"description": "x"}, base_dir=insight)
+        fixed = catalog_io.update_source(
+            "jp-pop",
+            {"connection": {"path": "data/pop.csv", "password_env": "PG_PASSWORD"}},
+            base_dir=insight,
+        )
+        assert "password" not in fixed["connection"]
+
+    def test_the_cli_exits_non_zero_and_names_the_key_but_not_the_value(
+        self, insight: Path
+    ) -> None:
+        payload = {
+            "id": "cli-src",
+            "name": "CLI源",
+            "type": "csv",
+            "description": "テスト用のソース",
+            "connection": {"file_path": "data/x.csv", "password": "hunter2"},
+        }
+        res = _run_cli(insight, "create", stdin=json.dumps(payload))
+        assert res.returncode != 0
+        assert "connection.password" in res.stderr
+        assert "hunter2" not in res.stderr + res.stdout
+        assert not (insight / "catalog" / "sources" / "cli-src.yaml").exists()
 
 
 class TestDescribe:

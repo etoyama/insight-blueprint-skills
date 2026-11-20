@@ -91,3 +91,27 @@ class TestDesignPointsAtSourcesById:
         row = next(line for line in auto.splitlines() if "design ③" in line)
         assert "data source id" in row
         assert "file + columns" not in row
+
+
+class TestCatalogRegisterKeepsCredentialsOut:
+    """US-3 AC 5: /catalog-register never puts a credential in `connection`."""
+
+    def test_building_the_registration_says_connection_holds_no_credential(
+        self,
+    ) -> None:
+        step = unwrap(section(_read_skill("catalog-register"), "### Step 3: "))
+        assert "`connection` never holds a credential" in step
+        assert "a key ending in `_env`" in step
+
+    def test_the_api_sample_names_the_environment_variable(self) -> None:
+        text = _read_skill("catalog-register")
+        assert '"api_key_env": "ESTAT_API_KEY"' in text
+
+    def test_the_reference_says_create_and_update_refuse_credential_keys(
+        self,
+    ) -> None:
+        reference = unwrap(
+            section(_read_skill("catalog-register"), "## catalog_io Reference")
+        )
+        assert "refuse a `connection` key that names a credential" in reference
+        assert "ADR-0023" in reference

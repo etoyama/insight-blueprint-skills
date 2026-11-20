@@ -119,6 +119,55 @@ def list_sources(base_dir: Path = DEFAULT_BASE_DIR) -> list[dict]:
     return out
 
 
+# Key-name fragments that mark a credential (ADR-0023). Keys are compared lowercased
+# with "_" and "-" dropped, so api_key, API-Key and apiKey all match. Only names are
+# checked: a value cannot be told from an id or a hash without false alarms.
+_CREDENTIAL_KEY_PARTS = (
+    "password",
+    "passwd",
+    "secret",
+    "token",
+    "apikey",
+    "credential",
+    "privatekey",
+    "accesskey",
+)
+
+
+def _credential_keys(value: Any, path: str = "connection") -> list[str]:
+    if isinstance(value, list):
+        return [
+            key
+            for index, item in enumerate(value)
+            for key in _credential_keys(item, f"{path}[{index}]")
+        ]
+    if not isinstance(value, dict):
+        return []
+    found: list[str] = []
+    for key, inner in value.items():
+        name = str(key).lower()
+        squashed = name.replace("_", "").replace("-", "")
+        if not name.endswith("_env") and any(
+            part in squashed for part in _CREDENTIAL_KEY_PARTS
+        ):
+            found.append(f"{path}.{key}")
+        else:
+            found.extend(_credential_keys(inner, f"{path}.{key}"))
+    return found
+
+
+def _reject_credentials(connection: Any) -> None:
+    # Name the keys, never their values: the message lands in a model's context.
+    keys = _credential_keys(connection)
+    if keys:
+        raise ValueError(
+            f"connection holds credential keys ({', '.join(keys)}); the catalog "
+            "stores no credentials (ADR-0023). Keep the secret in an environment "
+            "variable and put its name in a key ending in _env (e.g. password_env). "
+            "A stored source is fixed by updating it with a whole new connection."
+        )
+
+
 def create_source(
     *,
     id: str,
@@ -137,6 +186,7 @@ def create_source(
     source_path = _sources_dir(base_dir) / f"{id}.yaml"
     if source_path.exists():
         raise ValueError(f"Source '{id}' already exists")
+    _reject_credentials(connection)
 
     schema_info: dict[str, Any] = {"columns": columns or []}
     if primary_key is not None:
@@ -171,6 +221,7 @@ def update_source(
     if not current:
         raise ValueError(f"Source '{source_id}' not found")
     merged = {**current, **changes, "updated_at": now_jst().isoformat()}
+    _reject_credentials(merged.get("connection"))
     source = DataSource.model_validate(merged)  # validates
     data = source.model_dump(mode="json")
     write_yaml(_sources_dir(base_dir) / f"{source_id}.yaml", data)
