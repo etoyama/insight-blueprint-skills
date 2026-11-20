@@ -96,10 +96,10 @@ Epic 06 からは軽量版の上に分析の能力を足していく。
 | Epic 11 | [epic-11](design/epic-11-repo-template-compliance.md) | repo-template の開発フローへの準拠 | 完了 |
 | Epic 12 | [epic-12](design/epic-12-decision-ready-report.md) | 意思決定に使えるレポートと Claude Docs へのアップロード | 完了 |
 | Epic 13 | [epic-13](design/epic-13-report-source-text.md) | レポートに写すデータ由来の文の扱い | 完了 |
-| Epic 14 | [epic-14](design/epic-14-report-template-gaps.md) | レポートのテンプレートに書いていない所を決める | 進行中 |
+| Epic 14 | [epic-14](design/epic-14-report-template-gaps.md) | レポートのテンプレートに書いていない所を決める | 完了 |
 | Epic 15 | [epic-15](design/epic-15-declared-source-ids.md) | 分析設計が使うデータソースを `source_ids` に宣言する | 完了 |
-| Epic 16 | [epic-16](design/epic-16-default-allowlist.md) | パッケージ許可リストが無いプロジェクトでは既定の許可リストを使う | 進行中 |
-| Epic 17 | [epic-17](design/epic-17-connection-boundary.md) | 接続情報を notebook の外に出さず、認証情報を catalog に入れない | 進行中 |
+| Epic 16 | [epic-16](design/epic-16-default-allowlist.md) | パッケージ許可リストが無いプロジェクトでは既定の許可リストを使う | 完了 |
+| Epic 17 | [epic-17](design/epic-17-connection-boundary.md) | 接続情報を notebook の外に出さず、認証情報を catalog に入れない | 完了 |
 | Epic 18 | [epic-18](design/epic-18-question-tree.md) | テーマごとの論点ツリー | 計画中 |
 
 各 Epic の DesignDoc は `## Scope` 節で、本書のどの要件と
