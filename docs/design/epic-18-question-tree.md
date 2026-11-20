@@ -340,8 +340,9 @@ decisions:
 
 分析者の入口は `/analysis-auto` ひとつにする。
 auto は論点ツリーを作り、論点を1つずつ巡回する。研究で RQ がまだ無いときは、ツリーを作る前に `/rq-problematization` で先行研究を集め、前提を問い直して RQ を立てる。
-1回の巡回は分析設計、premortem、notebook、journal、分析設計の振り返り、テーマを横断した振り返り、ツリーの決定の順に進む。
-分析者とのやり取りは KEEP ゲートだけで起きる。図では、分析者が答えるメッセージに G1〜G14 の番号を振った。
+1回の巡回は分析設計、premortem、notebook、journal、分析設計の振り返り、レポート、テーマを横断した振り返り、ツリーの決定の順に進む。
+分析者は、レポートと論点ツリーの両方を見てからツリーの決定をする（人間の発言、2026-11-20）。
+分析者とのやり取りは KEEP ゲートだけで起きる。図では、分析者が答えるメッセージに G1〜G13 の番号を振った。
 各 skill は今までどおり単独でも起動できる（[ADR-0005](../adr/0005-selective-autonomous-chaining.md)）。
 
 ```mermaid
@@ -418,6 +419,13 @@ sequenceDiagram
         A->>R: 分析設計の振り返り
         R-->>U: 証拠のまとめ
         U->>R: G9 結論（conclude・refine・branch）と状態の遷移
+        alt G9 で結論が出た（分析設計が terminal status）
+            A->>O: /analysis-report でレポートを書く（AUTO）、続けて /report-upload
+            O-->>U: Claude Docs へ送るファイルの一覧
+            U->>O: G10 送るかどうか
+        else refine か branch
+            Note over A,O: レポートは書かない（/analysis-report は terminal status を求める）
+        end
         A->>R: テーマを横断した振り返り
         R->>R: 論点ごとに現時点の答えを書く（文ごとに種類と引用）
         R->>T: answer、tree_check
@@ -426,36 +434,29 @@ sequenceDiagram
             R->>T: 直すか除いて、もう一度検査する（AUTO）
         end
         R->>T: render
-        R-->>U: 変わった答え、未判別の論点、次の候補（人に聞く問いと、その答えで変わる判断）、HTML のパス
-        U->>R: G10 深める・親に戻る・区切る と理由、次に調べる論点
+        R-->>U: レポートのパスと Doc の URL、ツリーの HTML のパス、変わった答え、未判別の論点、次の候補（人に聞く問いと、その答えで変わる判断）
+        U->>R: G11 深める・親に戻る・区切る と理由、次に調べる論点
         R->>T: decide
 
         opt 根の問いか到達点を変える（工程1へ戻る。研究では前提の問い直しへ戻ることもある）
             A->>F: framing を再実行する
             F-->>U: 根の版を上げるか
-            U->>F: G11 版を上げるかと、その理由
+            U->>F: G12 版を上げるかと、その理由
             F->>T: revise-root
-        end
-        opt 結論の出た分析設計でレポートを作る
-            A-->>U: レポートを作るか
-            U->>A: G12 作る
-            A->>O: /analysis-report、続けて /report-upload
-            O-->>U: Claude Docs へ送るファイルの一覧
-            U->>O: G13 送るかどうか
         end
         opt 図を渡したい（定例報告やレビュー）
             O-->>U: Artifact で送るファイルの一覧と、誰に見えるか
-            U->>O: G14 送るかどうか
+            U->>O: G13 送るかどうか
         end
-        break G10 で区切るを選んだ
+        break G11 で区切るを選んだ
             A-->>U: 実行の要約（止まった所と理由、ツリーの HTML のパス）
         end
     end
 ```
 
 人に聞く問いへの答えを集めるヒアリングは plugin の外で行う（[docs/PRD.md](../PRD.md) のスコープ外）。
-分析者は答えを持って G10 で次の論点を選ぶ。
-Artifact はホストの機能で、plugin は持たない。使えるかどうかはそのセッションのツールで判断する。使えなければ、何も送らずに手元の HTML のパスを伝える（G14 は起きない）。
+分析者は答えを持って G11 で次の論点を選ぶ。
+Artifact はホストの機能で、plugin は持たない。使えるかどうかはそのセッションのツールで判断する。使えなければ、何も送らずに手元の HTML のパスを伝える（G13 は起きない）。
 
 ### 業務工程と skill の対応
 
@@ -468,13 +469,13 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 | 研究 a ラピッドレビュー | `/rq-problematization` の Step 2・3（先行研究を集めて検証の状態を付け、既存の理論をまとめる） | なし | 引用の検証はあるが、検索の記録、採否の基準、文献ごとの質の評価、レビューの限界を残す手順は無い |
 | 研究 b 問題化 | `/rq-problematization` の Step 4〜6（前提の抜き出し、批判役との詰め、評価） | G1、G2 | — |
 | 研究 c RQ の設定 | `/rq-problematization` の Step 7・8 と RQ Brief | G3 | RQ Brief に想定読者の欄が無い。framing が G3 で聞く（US-1 AC 4） |
-| 1 相談・課題の定義 | `/analysis-framing`（根の問い、到達点） | G3、G11 | ヒアリングそのものは扱わない。AI が出すのは人に聞く問いの案まで |
+| 1 相談・課題の定義 | `/analysis-framing`（根の問い、到達点） | G3、G12 | ヒアリングそのものは扱わない。AI が出すのは人に聞く問いの案まで |
 | 2 分析・収集の設計 | `/analysis-framing`（第一階層、最初の論点）、`/analysis-design`、`/analysis-review` | G4、G5、G6 | — |
 | 3 データ取得・理解・整備 | `/premortem`、`/catalog-register`、`/analysis-design` のデータの取り方、`/analysis-notebook` のリネージ | G5、G7 | データの発生源を担当者に確かめる手順は無い。次の候補の「人に聞く問い」で代える |
-| 4 探索・仮説の更新 | `/analysis-notebook`、`/analysis-journal`（`observe`・`question`）、`question` の論点への昇格 | G8、G10 | — |
+| 4 探索・仮説の更新 | `/analysis-notebook`、`/analysis-journal`（`observe`・`question`）、`question` の論点への昇格 | G8、G11 | — |
 | 5 推定・モデル構築 | `/analysis-notebook` | G8 | — |
 | 6 妥当性検証・レビュー | `/analysis-journal` の `evidence`（`contradicts`）、ツリーの検査 | G9 | `/analysis-review` は実行する前の分析設計を見る。結果を別のソースや別の条件で確かめる skill は無い |
-| 7 解釈・報告・意思決定支援 | `/analysis-reflection`（分析設計1つと、テーマの横断）、`/analysis-report`、`/report-upload`、`tree_io render`、Artifact | G9、G10、G12〜G14 | — |
+| 7 解釈・報告・意思決定支援 | `/analysis-reflection`（分析設計1つと、テーマの横断）、`/analysis-report`、`/report-upload`、`tree_io render`、Artifact | G9〜G11、G13 | 結論が出ていない分析設計（refine・branch）にはレポートが無い。そのときのツリーの決定は、ツリーと journal だけを見てする |
 | 8 導入・監視・改善・引き継ぎ | 論点ツリーの HTML、`/knowledge-extract` | なし | 導入と監視はスコープ外（[docs/PRD.md](../PRD.md)）。扱うのは引き継ぎだけ |
 
 ## Decisions
