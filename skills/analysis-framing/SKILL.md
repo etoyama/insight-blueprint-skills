@@ -202,7 +202,10 @@ show it (root question, aim, nodes, decisions) and ask what this run changes.
   choice, and `tree_io` rejects a second one.
 - **The root question or the aim** — this skill is the only place they change, and it is a
   KEEP gate. Show the old and the new root question and aim side by side, and ask whether
-  the root revision goes up. Send the analyst's answer as `bump`:
+  the root revision goes up. Put both answers in the question, with what each one does:
+  raising it keeps the earlier answers with the previous root and needs a reason; not
+  raising it rewrites the current revision in place, and the earlier answers then read as
+  answers to the new root. Send the analyst's answer as `bump`:
 
 ```bash
 echo '{"question": "取り置き期限を延ばす試行を、分館も含めて始めるか", "bump": true, "reason": "分館も対象に入り、決める範囲が変わった"}' | tree_io revise-root --theme LIB
@@ -214,11 +217,15 @@ earlier answers are shown as answers to the previous root.
 `"bump": false` takes no `reason`; `tree_io` rejects one, because nothing would keep it.
 When the aim changes, send the whole `aim` (`kind` and both of its fields) in the same payload.
 
-Never choose `bump` yourself and never default it. A change of meaning always raises the
+Never choose `bump` yourself and never default it. Do not say which answer you expect, and
+keep your reading of the change (a rewording or a change of meaning) to yourself until the analyst has answered.
+Do not ask for a `reason`, or for a go-ahead on a `bump` value, before they answer; ask for the reason once they have chosen to raise the revision.
+
+A change of meaning always raises the
 revision: the question asks something else, another role decides, the decision differs, or
 the audience or the claim scope moves. If the analyst answers "no bump" to a change you read
-as one of these, tell them which part changed and that earlier answers would silently read
-as answers to the new root, then ask once more. Their second answer stands.
+as one of these, only then tell them which part changed and that earlier answers would silently read
+as answers to the new root, and ask once more. Their second answer stands.
 
 ### Step 5: Output Framing Brief
 
