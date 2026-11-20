@@ -658,6 +658,15 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - Alternatives considered: 到達点の項目が変わったら必ず版を上げる（言い換えでも全論点が「変更前」になる）。skill が意味の変更と読んだら `bump: false` を拒む（決めるのは分析者で、skill の読みが外れたときに直せない）。
 - Consequences: 止めるのは手順で、コードではない。構造テストは文があることを確かめるだけで、モデルが従うかは確かめない。分析者が2度「上げない」と答えれば、意味の変わる書き換えも通る。
 
+### Decision: answer-types-land-with-the-check
+
+- What: Story 18.3 を Story 18.4 より先に実装する。`Answer`・`AnswerStatement` の型と、`QuestionNode` の `answers` の項目は Story 18.3 で入れる。形は Domain Model のとおりにする（`cites` は1つ以上、`root_revision` を持つ、追記だけ）。Stories 表の AC の割り当ては変えない（人間の判断、2026-11-21、[PR #128 のコメント](https://github.com/etoyama/insight-blueprint-skills/pull/128#issuecomment-7049465133)）。
+- Why: 18.3 と 18.4 はお互いを前提にしていた。18.4 は答えを書いた後にツリーの検査を回す（US-4 AC 2）。18.3 は答えを検査するので、答えの型が要る。
+- Criteria: 答えを書き始める時点で検査がもうあること（[ADR-0025](../adr/0025-cited-answers-checked-after-writing.md)、#105）。型が先に入り、18.4 と 18.6 を並行して進められること。1つの Story が扱う AC は5個以下という決まり。決め手は前の2つ。
+- Affected modules: `src/insight_blueprint/models/tree.py`、`validate.py`、`skills/_shared/tree_check.py`。
+- Alternatives considered: 18.4 を先にして US-4 AC 2 を 18.3 に移す（検査を通らない答えが epic ブランチに残る）。18.3 と 18.4 を1つにまとめる（AC が6個になる）。
+- Consequences: 答えを書く手段（`tree_io answer`）は 18.4 まで無いので、18.3 の間に答えを持つ正本は、テストが直接書いたものだけである。18.4 で答えを書いてみて型の項目が足りないと分かったら、計画外の判断として人間に出す。追記だけの項目が3つめになるので、根の版・ツリーの決定・現時点の答えの比較を1つにまとめる（Decision `decisions-are-append-only` の Consequences）。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0024: 論点ツリーの正本は YAML に置き、表示は正本から生成する HTML にする](../adr/0024-question-tree-yaml-and-generated-html.md): 判断2・2'。Artifact は承認の後の任意の手順。
