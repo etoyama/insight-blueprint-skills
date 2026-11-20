@@ -65,7 +65,21 @@ class TestNumbersIn:
     def test_a_rounded_value_is_a_different_number(self) -> None:
         assert values("35") != values("34.6")
 
-    @pytest.mark.parametrize("text", ["-3.2", "−3.2", "▲3.2", "－3.2"])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "-3.2",
+            "−3.2",
+            "－3.2",
+            "‐3.2",
+            "–3.2",
+            "—3.2",
+            "▲3.2",
+            "△3.2",
+            "▼3.2",
+            "▽3.2",
+        ],
+    )
     def test_a_clear_minus_sign_belongs_to_the_number(self, text: str) -> None:
         (found,) = numbers_in(text)
         assert (found.sign, found.value) == ("-", Decimal("3.2"))
@@ -87,11 +101,30 @@ class TestNumbersIn:
     ) -> None:
         assert set(signs(text)) == {""}
 
-    def test_a_hyphen_inside_an_id_is_not_a_sign(self) -> None:
-        assert signs("LIB-H01-E02") == ["", ""]
+    @pytest.mark.parametrize("text", ["LIB-H01-E02", "A-3.2", "LIB-3", "Ｑ－3"])
+    def test_a_hyphen_right_after_a_letter_of_an_id_is_not_a_sign(
+        self, text: str
+    ) -> None:
+        assert set(signs(text)) == {""}
 
-    def test_a_sign_set_apart_from_the_digits_is_not_a_sign(self) -> None:
-        assert signs("- 3.2") == [""]
+    def test_a_hyphen_after_a_japanese_word_is_a_sign(self) -> None:
+        assert signs("前年比-3.2%") == ["-"]
+
+    @pytest.mark.parametrize(
+        ("text", "sign"), [("- 3.2", "-"), ("▲ 3.2", "-"), ("+ 3.2", "+")]
+    )
+    def test_a_sign_set_apart_by_spaces_still_belongs_to_the_number(
+        self, text: str, sign: str
+    ) -> None:
+        assert signs(text) == [sign]
+
+    def test_a_range_written_with_spaces_reads_as_a_signed_number(self) -> None:
+        # Told apart from "10 -20" by nothing a reader could rely on, so it
+        # falls on the side of a violation.
+        assert signs("10 - 20") == ["", "-"]
+
+    def test_a_wave_dash_is_a_range_never_a_sign(self) -> None:
+        assert signs("〜3日") == [""]
 
     def test_a_number_is_a_whole_token_never_a_substring(self) -> None:
         assert Decimal("1.9") not in values("21.95")
@@ -183,6 +216,21 @@ class TestFindViolations:
         events = {"LIB-H01-E01": "期限切れは3.2ポイント減った"}
         found = checked(claim("期限切れは−3.2ポイント", "LIB-H01-E01"), events)
         assert [(v.kind, v.text) for v in found] == [("number-not-cited", "−3.2")]
+
+    @pytest.mark.parametrize(
+        ("recorded", "written", "token"),
+        [
+            ("3.2", "△3.2", "△3.2"),
+            ("3.2", "- 3.2", "- 3.2"),
+            ("A-3.2", "−3.2", "−3.2"),
+        ],
+    )
+    def test_no_spelling_of_a_sign_slips_past_an_unsigned_record(
+        self, recorded: str, written: str, token: str
+    ) -> None:
+        events = {"LIB-H01-E01": f"差は {recorded} ポイント"}
+        found = checked(claim(f"差は {written} ポイント", "LIB-H01-E01"), events)
+        assert [(v.kind, v.text) for v in found] == [("number-not-cited", token)]
 
     def test_the_same_sign_in_another_glyph_is_the_same_number(self) -> None:
         events = {"LIB-H01-E01": "前年比 -3.2%"}

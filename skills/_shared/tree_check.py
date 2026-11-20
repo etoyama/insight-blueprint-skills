@@ -26,10 +26,14 @@ from insight_blueprint.models.tree import AnswerStatement, QuestionTree, design_
 from skills._shared.design_io import DEFAULT_BASE_DIR, _resolve_base_dir
 from skills._shared.tree_io import _tree_path, cited_journal_events, load_tree_model
 
-# A sign counts only when it touches the digits and no digit comes before it:
-# the hyphen of a range (10-20), a date or an id is not a sign.
+# Every dash and every triangle a writer may use for "down" reads as a minus:
+# a glyph left out would pass as an unsigned number. The wave dash is left out
+# on purpose, since it only ever writes a range.
+_MINUS = "-‐‒–—―−▲△▼▽"
+# A sign right after an ASCII letter or digit is the hyphen of a range (10-20),
+# a date or an id (A-3), not a sign. Spaces may part the sign from its digits.
 _NUMBER = re.compile(
-    r"(?:(?<!\d)(?P<sign>[-+−▲]))?"
+    rf"(?:(?<![0-9A-Za-z])(?P<sign>[{_MINUS}+])\s*)?"
     r"(?P<digits>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)"
 )
 
