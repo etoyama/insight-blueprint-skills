@@ -28,28 +28,28 @@ AC の正本はここ。
 
 分析者として、framing のあとの分析設計やレポートに自分のパスや接続先が流れないように、framing には `connection` を読まずにデータソースを探してほしい。
 
-- [ ] AC 1: `/analysis-framing` の Step 2b はデータソースを `catalog_io list` で読む。データソースの YAML を Glob や Read で読むよう書かない。
-- [ ] AC 2: `/analysis-framing` の Step 2d の Grep は `catalog/sources/` を対象から外す。
-- [ ] AC 3: `/catalog-register` を除くどの skill の文書も `catalog/sources/` を読む先として書かない（構造テストで確かめる）。
+- [x] AC 1: `/analysis-framing` の Step 2b はデータソースを `catalog_io list` で読む。データソースの YAML を Glob や Read で読むよう書かない。
+- [x] AC 2: `/analysis-framing` の Step 2d の Grep は `catalog/sources/` を対象から外す。
+- [x] AC 3: `/catalog-register` を除くどの skill の文書も `catalog/sources/` を読む先として書かない（構造テストで確かめる）。
 
 ### US-2: 分析設計が、データソースを id で指す
 
 分析者として、分析設計とレポートに接続先が載らないように、分析設計にはデータソースの id だけを書いてほしい。データをどこから読むかは notebook が決める。
 
-- [ ] AC 1: `/analysis-design` の Step 2.6 は `methodology.steps` でデータソースを `{source:ID}` と書く。パス・ホスト・project id・テーブル名など `connection` の値を書かない。
-- [ ] AC 2: Step 2.6 の見本は特定の利用者の環境の値（project id、社内のライブラリ）を含まない。
-- [ ] AC 3: `/analysis-notebook` の cell 2 は `{source:ID}` を `catalog_io get --id ID --with-connection` の `connection` で置き換えて読む。notebook の契約にも書く。
-- [ ] AC 4: `/analysis-auto` の design ③ data-extraction のビートは、パスではなくデータソースの id・カラム・フィルタを見せる。
+- [x] AC 1: `/analysis-design` の Step 2.6 は `methodology.steps` でデータソースを `{source:ID}` と書く。パス・ホスト・project id・テーブル名など `connection` の値を書かない。
+- [x] AC 2: Step 2.6 の見本は特定の利用者の環境の値（project id、社内のライブラリ）を含まない。
+- [x] AC 3: `/analysis-notebook` の cell 2 は `{source:ID}` を `catalog_io get --id ID --with-connection` の `connection` で置き換えて読む。notebook の契約にも書く。
+- [x] AC 4: `/analysis-auto` の design ③ data-extraction のビートは、パスではなくデータソースの id・カラム・フィルタを見せる。
 
 ### US-3: catalog が認証情報を受け付けない
 
 分析者として、このプラグインに認証情報を預けずに済むように、catalog には認証情報を書けないようにしてほしい。
 
-- [ ] AC 1: `catalog_io create` と `update` は、`connection` のキー名が認証情報を表すとき（`password`・`secret`・`token`・`api_key`・`credential`・`private_key` など）、書かずに非ゼロで終わる。入れ子の dict も見る。unit test で確かめる。
-- [ ] AC 2: 名前が `_env` で終わるキー（環境変数の名前を書く）は通す。値が環境変数の名前の形でなければ拒む。
-- [ ] AC 3: エラーは拒んだキー名を挙げ、値を出さない。環境変数の名前を `*_env` に書くよう案内する。
-- [ ] AC 4: 読み込み（`load_source`・`catalog_io get`・`list`）は変えない。保存済みの YAML は今までどおり読める。
-- [ ] AC 5: `/catalog-register` は、`connection` に認証情報を書かないこと、要るなら環境変数の名前を `*_env` に書くことを説明し、見本もそれに従う。
+- [x] AC 1: `catalog_io create` と `update` は、`connection` のキー名が認証情報を表すとき（`password`・`secret`・`token`・`api_key`・`credential`・`private_key` など）、書かずに非ゼロで終わる。入れ子の dict も見る。unit test で確かめる。
+- [x] AC 2: 名前が `_env` で終わるキー（環境変数の名前を書く）は通す。値が環境変数の名前の形でなければ拒む。
+- [x] AC 3: エラーは拒んだキー名を挙げ、値を出さない。環境変数の名前を `*_env` に書くよう案内する。
+- [x] AC 4: 読み込み（`load_source`・`catalog_io get`・`list`）は変えない。保存済みの YAML は今までどおり読める。
+- [x] AC 5: `/catalog-register` は、`connection` に認証情報を書かないこと、要るなら環境変数の名前を `*_env` に書くことを説明し、見本もそれに従う。
 
 ## Stories
 
@@ -206,9 +206,9 @@ sequenceDiagram
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| US-1 framing | ☐ | ☐ | ☐ |
-| US-2 design と notebook | ☐ | ☐ | ☐ |
-| US-3 認証情報 | ☐ | ☐ | ☐ |
+| US-1 framing | ✓（`tests/skills/test_connection_boundary_structure.py`: `TestFramingReadsSourcesThroughCatalogIo`。YAML を読ませる3つの書き方を全 skill で禁じる） | —（framing の読み方はモデルが行い、Python の境界が無い。手動確認を Story Timeline に残す） | —（headless 実行の E2E は ADR-0010 で必須にしていない） |
+| US-2 design と notebook | ✓（同じファイルの `TestDesignPointsAtSourcesById`） | —（同上。手動確認で、分析設計に `{source:ID}` だけが入り、notebook の cell 2 がパスに置き換えてデータを読んだことを確かめた） | —（同上） |
+| US-3 認証情報 | ✓（`tests/test_catalog_io.py`: `TestConnectionHoldsNoCredentials`。`test_connection_boundary_structure.py`: `TestCatalogRegisterKeepsCredentialsOut`） | ✓（`TestConnectionHoldsNoCredentials` の CLI のテストが、サブプロセスで `catalog_io create` を動かし、非ゼロで終わってキーだけを出すことを確かめる） | —（同上） |
 
 完了時に ✓ を付ける。自動テストがない層には「—（理由）」を書く（[ADR-0010](../adr/0010-skill-tdd-structure-tests.md)）。
 
@@ -218,3 +218,22 @@ sequenceDiagram
   分析設計はデータソースを `{source:ID}` で指し、notebook が `get --with-connection` で解決する（2A）。
   `catalog_io create`・`update` は認証情報のキー名を拒み、`*_env` は通す（3B）。
 - 2026-11-20 — DesignDoc 初版。issue #102 を Epic にし、Story を起票した（#110・#111・#112）。
+- 2026-11-20 — Story #110・#111・#112 completed: framing が `catalog_io list` で読み、分析設計が `{source:ID}` でデータソースを指し、
+  `catalog_io create`・`update` が認証情報のキーを拒むようにした。構造テストと unit test を先に Red にした。
+- 2026-11-20 — 自動のセキュリティレビュー（コミットへの指摘）: `*_env` の除外で `password_env: "hunter2"` が通っていた。`*_env` の値を環境変数の名前の形に限った（ADR-0023）。
+  キー名は英数字以外を全部除いて比べ、`passphrase`・`bearer` を足した。値の形の検査は判断3（3C を採らない）に従って入れていない。
+- 2026-11-20 — 手動確認: 合成データの `.insight/` を作り、この作業を知らないサブエージェント（sonnet）に SKILL.md のパスだけを渡して、framing → design → notebook を回させた。
+  データソースは2つ置いた。`sales_monthly`（`connection.file_path` に目印 `MARKER_sales_7f3a` を含む CSV）と、`pg_orders`（ADR-0023 より前の形を `write_yaml` で置いた。`connection` に目印のホストとパスワード）。
+  - framing は `catalog_io list` だけでデータソースを読み、Glob・Grep・Read でデータソースの YAML を開かなかった。報告にも Data Map にも目印は出なかった。
+  - 分析設計 PROMO-H01 の `methodology.steps` は `pd.read_csv({source:sales_monthly}, usecols=[...])` で、パスは無かった（YAML を自分で grep して確かめた）。
+  - notebook の cell 2 は `get --with-connection` の `file_path` を文字列リテラルで入れた。notebook を自分で実行し、cell 2 がデータを読んだことを確かめた。
+    cell 3 は、サブエージェントが推測した `tracked_pipe` の呼び方が合わずに止まった。notebook の契約に呼び方が書いていないためで、この Epic の範囲の外にある。
+  - `pg_orders` の目印は、`catalog/sources/` の外のどのファイルにも出なかった。
+  - `catalog_io create` に `password` を渡すと、非ゼロで終わり、キーの場所だけを出した（自分で実行した）。
+  - 迷った所: `catalog_io list` に期間が無く、Data Map の「期間」を「不明」と書いた。テーマに関係の薄いデータソースを Data Map に載せるか。
+    `methodology.steps` にモデルの式を入れるか。パッケージ許可リストが無いときの扱い（#101 の範囲）。どれも直していない。
+  - 確かめていないこと: `/analysis-auto` の design ③ のビートは実行していない。構造テストだけである。sonnet 以外のモデル。
+- 2026-11-20 — レビュー（`pstack:thermos`、コード品質）: High は無し。直したもの: 構造テストを「YAML を読ませる3つの書き方を全 skill で禁じる」1つにまとめた（Medium、framing 以外の skill の退行を捕まえていなかった）。
+  `_prose_files` の重複、テストの docstring の Epic 番号、消した文字列を名指しする否定アサート、`apiKeyEnv` の扱いをテストに固定。notebook の契約に、`source_ids` に無い id で止まることを書いた。
+  直していないもの: `catalog-register` の規則の2か所の記述（手順と Reference で役割が違う）。保存済みの YAML に `password` を置くテストの重複（2か所で Rule of Three に届かない）。
+  ユビキタス言語の「コード上の名前」を `_CREDENTIAL_KEY_PARTS` のままにした（表はコードに実在する名前を書く決まり）。
