@@ -312,7 +312,7 @@ classDiagram
 
 | 型 | 種類 | 不変条件 |
 |---|---|---|
-| `QuestionTree` | 集約ルート | 1テーマに1つ。根の問い（`parent_question_id` を持たない論点）はちょうど1つで、その文は今の根の版の問いと同じ。論点の親は同じツリーの中にあり、循環しない。根の版は1から1ずつ増え、今の版より前の版は書き換えも削除もできない。ツリーの決定の `node_id` は実在する。モデルに無い項目を持てない |
+| `QuestionTree` | 集約ルート | 1テーマに1つ。根の問い（`parent_question_id` を持たない論点）はちょうど1つで、その文は今の根の版の問いと同じ。論点の親は同じツリーの中にあり、循環しない。根の版は1から1ずつ増え、今の版より前の版は書き換えも削除もできない。ツリーの決定の `node_id` は実在する。`start` の決定は1つまで。モデルに無い項目を持てない |
 | `RootRevision` | 値オブジェクト | 版2以降は理由が空でない |
 | `Aim` | 値オブジェクト | `kind` に応じた2項目がどちらも空でない |
 | `QuestionNode` | エンティティ | id は `{theme_id}-Q{nn}` で、ツリーの中で重ならない。根以外は寄与が空でない。発見元はあれば同じテーマの `{design_id}-E{nn}` の形。結ぶ分析設計は同じテーマの `{theme_id}-H{nn}` で、同じものを2度結ばない |
@@ -615,7 +615,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 
 ### Decision: earlier-root-revisions-are-history
 
-- What: 検証は、書き込む前の正本と比べて、根の版が減っていないことと、今の版より前の版が変わっていないことを確かめる。今の版だけは書き換えられる（`bump: false` の言い換え）。版を足す書き込みでは、それまでの版をすべて変えられない。`tree_io` と pre-write hook の両方に効く。
+- What: 検証は、書き込む前の正本と比べて、根の版が減っていないことと、今の版より前の版が変わっていないことを確かめる。今の版だけは書き換えられる（`bump: false` の言い換え）。版を足す書き込みでは、それまでの版をすべて変えられない。書き込む前の正本と比べるのは pre-write hook である。`tree_io` は形だけを検証し、`revise-root` は版を足すか今の版を書き換えるだけである（Story 18.2 のレビューで訂正。初めは `tree_io` にも効くと書いていた）。
 - Why: 根の版は、どの答えがどの根に対するものかを示す（Decision `root-revision-marks-stale-answers`）。直接の書き込みで版を減らせると、Story 18.4 で入る答えの `root_revision` が指す版が無くなる。
 - Criteria: US-1 AC 5（上げた版と理由を残す）。分析設計の検証が、書き込む前の状態と比べて遷移を確かめている前例（`validate_design_change`）。決め手は、残した版と理由が直接の書き込みでも消えないこと。レビュー（thermos）の指摘で足した。
 - Affected modules: `validate.py`（`validate_tree` の `current`）、pre-write hook。
@@ -624,21 +624,21 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 
 ### Decision: start-is-the-only-decision-kind-for-now
 
-- What: Story 18.2 が入れるツリーの決定の種類は `start` だけにする。`deepen`・`return`・`close` は Story 18.5 で足す。`start` の回は 0 で、モデルはそれ以外の回を拒む。`tree_io decide` は回を受け取らず、0 を書く。ツリーに決定が既にあるとき、`/analysis-framing` は2つめの `start` を書かない。
+- What: Story 18.2 が入れるツリーの決定の種類は `start` だけにする。`deepen`・`return`・`close` は Story 18.5 で足す。`start` の回は 0 で、モデルはそれ以外の回を拒む。`tree_io decide` は回を受け取らず、0 を書く。`start` は1つのツリーに1つまでで、モデルは2つめを拒む。
 - Why: 振り返りの回は Story 18.4 で入る。それまでは、回を数える元が無い。
 - Criteria: YAGNI（[.claude/rules/coding-principles.md](../../.claude/rules/coding-principles.md)）、US-1 AC 2。決め手は今のコードで意味を持たない値を正本に書けないこと。
 - Affected modules: `src/insight_blueprint/models/tree.py`（`TreeDecisionKind`）、`tree_io decide`、`/analysis-framing`。
 - Alternatives considered: 4種類を今から受け付ける（回の決め方が無いまま `deepen` を書ける）。
-- Consequences: Story 18.5 は種類を足し、回を現時点の答えから決める。2つめの `start` をモデルは拒まない。書かないことは `/analysis-framing` の手順が守る。
+- Consequences: Story 18.5 は種類を足し、回を現時点の答えから決める。それまで、1つのツリーが持てる決定は1つである。`start` が根の問いを指すことは拒まない。
 
 ### Decision: decisions-are-append-only
 
-- What: 検証は書き込む前の正本と比べ、ツリーの決定が減っていないことと、既にある決定が変わっていないことを確かめる。できるのは足すことだけである。`tree_io` と pre-write hook の両方に効く。
+- What: 検証は書き込む前の正本と比べ、ツリーの決定が減っていないことと、既にある決定が変わっていないことを確かめる。できるのは足すことだけである。書き込む前の正本と比べるのは pre-write hook である。`tree_io` は形だけを検証し、決定を足す書き込みしかしない。
 - Why: US-1 AC 2 は最初の論点と理由を残すとしている。直接の書き込みで消せると、なぜその論点から調べたかを辿れなくなる（課題2）。
 - Criteria: US-1 AC 2。根の版と同じ扱いにすること（Decision `earlier-root-revisions-are-history`）。
 - Affected modules: `validate.py`（`validate_tree` の `current`）、pre-write hook。
 - Alternatives considered: 形だけを見る（決定を消す書き込みが通る）。
-- Consequences: 書き間違えた決定は直せない。直すには次の決定を足す。書き込む前の正本が検証に通らない形なら、根の版と同じく比べずに通す。
+- Consequences: 書き間違えた決定は直せない。種類が `start` だけの間は次の決定も足せないので、誤った `start` は Story 18.5 まで残る。書き込む前の正本が検証に通らない形なら、根の版と同じく比べずに通す。根の版と決定は同じ形の比較を2つ持つ。追記だけの項目が3つめ（現時点の答え）になるとき、1つにまとめる。
 
 ### Decision: framing-brief-carries-node-id
 
@@ -687,4 +687,4 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - 2026-11-20 — 初版に合意。Story 18.1〜18.4、18.6〜18.8 を起票（#119〜#125）。
 - 2026-11-20 — PR #117 を main にマージ。未決事項2つを決め（判断A・B）、Story 18.5 と 18.9 を起票（#126、#127）。
 - 2026-11-20 — Story 18.1 completed: 型名を決め（`NextCandidate`・`Answer`・`Aim`）、論点ツリーのモデル、`validate_tree`、`tree_io`（create・add-node・link・revise-root・get・progress）、`*_tree.yaml` を検証する pre-write hook、`bin/tree_io` を入れた。
-- 2026-11-20 — Story 18.2 completed: `/analysis-framing` の Step 4・5 が根の問い、到達点、第一階層の論点を分析者と決めて `tree_io` で書き、最初に調べる論点と理由をツリーの決定（`start`）として残す。Framing Brief に `theme_id` と `node_id` を載せ、`/analysis-design` が `tree_io link` で結ぶ。`TreeDecision` と `tree_io decide` を足した。`tree_io render` は Story 18.6 で入るので、framing はまだ HTML を作らない。
+- 2026-11-20 — Story 18.2 completed: `/analysis-framing` の Step 4・5 が根の問い、到達点、第一階層の論点を分析者と決めて `tree_io` で書き、最初に調べる論点と理由をツリーの決定（`start`）として残す。Framing Brief に `theme_id` と `node_id` を載せ、`/analysis-design` が `tree_io link` で結ぶ。`TreeDecision` と `tree_io decide` を足した。レビュー（thermos）の指摘で、2つめの `start` をモデルで拒むようにし、再実行の手順の食い違いを直した。`tree_io render` は Story 18.6 で入るので、framing はまだ HTML を作らない。

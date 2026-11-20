@@ -154,7 +154,8 @@ This is a KEEP gate. Settle three things with the analyst and wait for their ans
 
 1. **`theme_id`** — it names the tree file and prefixes every design id, so it must match
    `[A-Z][A-Z0-9]*`. Propose the theme of the related designs in the Data Map, or a new one.
-   Then run `tree_io get --theme {theme_id}`. If it prints a tree, go to 4c instead of 4b.
+   Then run `tree_io get --theme {theme_id}`. If it prints `{}`, the theme has no tree yet:
+   continue with 2 and 3. Otherwise the theme already has a tree: go to 4c now, without 2 and 3.
 2. **Root question** — the one question the whole theme answers, as a single sentence.
 3. **Aim** — what the root question is for. It has one of two kinds:
 
@@ -194,10 +195,11 @@ The second level may stay empty. Deeper nodes are added when the analysis raises
 One theme has one tree. When `tree_io get` printed a tree in 4a, the theme already has one, so
 show it (root question, aim, nodes, decisions) and ask what this run changes.
 
+- **An unfinished tree** — an earlier run stopped halfway. If the tree has no decision yet, go back through 4b: confirm the nodes it has, draft the missing ones, and take the first node and the reason from the analyst.
 - **New nodes** — draft and confirm them as in 4b, then add them with `tree_io add-node` (5a).
 - **The node to design next** — the analyst picks it; it goes into the Framing Brief (5b).
-  Record a `start` decision only if the tree has no decision yet (an earlier run stopped
-  halfway). `start` is the first choice, so a tree never gets a second one.
+  If the tree already has a decision, do not run `tree_io decide`: `start` is the first
+  choice, and `tree_io` rejects a second one.
 - **The root question or the aim** — this skill is the only place they change, and it is a
   KEEP gate. Show the old and the new root question and aim side by side, and ask whether
   the root revision goes up. Send the analyst's answer as `bump`:
@@ -209,7 +211,8 @@ echo '{"question": "取り置き期限を延ばす試行を、分館も含めて
 `"bump": true` appends a root revision and needs the analyst's `reason`. From then on the
 earlier answers are shown as answers to the previous root.
 `"bump": false` rewrites the current revision in place, so it is only for a rewording that keeps the meaning.
-Send `aim` in the same payload when the aim changes.
+`"bump": false` takes no `reason`; `tree_io` rejects one, because nothing would keep it.
+When the aim changes, send the whole `aim` (`kind` and both of its fields) in the same payload.
 
 Never choose `bump` yourself and never default it. A change of meaning always raises the
 revision: the question asks something else, another role decides, the decision differs, or
@@ -223,7 +226,8 @@ as answers to the new root, then ask once more. Their second answer stands.
 
 Write the tree with `tree_io` (on PATH; JSON on stdin, JSON on stdout; it validates before
 every write). Never create or change `.insight/themes/*_tree.yaml` with the Write or Edit tool.
-Run the commands in this order, one `add-node` per first-level node:
+For a new tree, run the commands in this order, one `add-node` per first-level node.
+Coming from 4c, skip `create`, run `add-node` only for the new nodes, and run `decide` only if the tree has no decision:
 
 ```bash
 echo '{"theme_id": "LIB",
@@ -244,8 +248,9 @@ echo '{"kind": "start", "node_id": "LIB-Q02",
 - `decide` records the first node to investigate and the analyst's reason (4b).
 
 A command that exits non-zero wrote nothing: read stderr, fix the payload and run that
-command again. Do not output the Framing Brief until `decide` has succeeded. If the run
-stops between commands, the next run finds the tree in 4a and continues from 4c.
+command again. Do not output the Framing Brief until the tree has a `start` decision
+(`tree_io get --theme {theme_id}` shows it under `decisions`). If the run stops between
+commands, the next run finds the tree in 4a and continues from 4c.
 
 #### 5b: Framing Brief
 

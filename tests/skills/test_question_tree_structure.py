@@ -9,7 +9,6 @@ by the real tree_io, where the analyst is asked, and what the Framing Brief carr
 from __future__ import annotations
 
 import io
-import json
 import re
 from pathlib import Path
 
@@ -70,6 +69,11 @@ class TestFramingSettlesTheRootQuestionAndTheAim:
         assert "`theme_id`" in step
         assert "tree_io get --theme" in step
 
+    def test_a_theme_with_a_tree_leaves_4a_at_once(self) -> None:
+        step = unwrap(_framing("#### 4a: "))
+        assert "prints `{}`" in step
+        assert "go to 4c now" in step
+
 
 class TestFramingLaysOutTheFirstLevel:
     """US-1 AC 1, AC 2: first-level nodes with a contribution; one is chosen first."""
@@ -88,7 +92,8 @@ class TestFramingLaysOutTheFirstLevel:
         assert "second level" in unwrap(_framing("#### 4b: "))
 
     def test_no_hypothesis_statement_is_written(self) -> None:
-        assert "hypothesis_statement" in _framing("### Step 4: ")
+        step = unwrap(_framing("### Step 4: "))
+        assert re.search(r"Do NOT create[^.]*`hypothesis_statement`", step)
 
 
 class TestFramingWritesTheTreeThroughTreeIo:
@@ -118,8 +123,21 @@ class TestFramingWritesTheTreeThroughTreeIo:
         assert by_hand, "no sentence forbids writing the tree file by hand"
         assert "Write" in by_hand.group(0) and "Edit" in by_hand.group(0)
 
-    def test_a_failed_command_stops_the_brief(self) -> None:
+    def test_a_failed_command_wrote_nothing_and_is_run_again(self) -> None:
         assert "non-zero" in unwrap(_framing("#### 5a: "))
+
+    def test_the_brief_waits_for_the_start_decision(self) -> None:
+        step = unwrap(_framing("#### 5a: "))
+        assert (
+            "Do not output the Framing Brief until the tree has a `start` decision"
+            in step
+        )
+
+    def test_a_rerun_skips_what_the_tree_already_has(self) -> None:
+        step = unwrap(_framing("#### 5a: "))
+        rerun = re.search(r"[^.]*4c[^.]*skip `create`[^.]*\.", step)
+        assert rerun, "no sentence says what a rerun skips"
+        assert "`decide`" in rerun.group(0)
 
 
 class TestFramingAsksBeforeTheRootChanges:
@@ -146,7 +164,24 @@ class TestFramingAsksBeforeTheRootChanges:
     def test_the_analyst_is_asked_whether_to_raise_the_revision(self) -> None:
         rerun = unwrap(_framing("#### 4c: "))
         assert "KEEP" in rerun
-        assert "old" in rerun and "new" in rerun
+        assert "the old and the new root question and aim side by side" in rerun
+
+    def test_a_tree_without_a_decision_goes_back_through_4b(self) -> None:
+        rerun = unwrap(_framing("#### 4c: "))
+        unfinished = re.search(r"[^.]*no decision[^.]*\.", rerun)
+        assert unfinished, "no sentence covers a tree without a decision"
+        assert "4b" in unfinished.group(0)
+
+    def test_a_tree_with_a_decision_gets_no_second_start(self) -> None:
+        rerun = unwrap(_framing("#### 4c: "))
+        assert re.search(
+            r"already has a decision[^.]*do not run `tree_io decide`", rerun
+        )
+
+    def test_the_revision_payload_is_complete(self) -> None:
+        rerun = unwrap(_framing("#### 4c: "))
+        assert "the whole `aim`" in rerun
+        assert re.search(r"`\"bump\": false`[^.]*no `reason`", rerun)
 
     def test_the_skill_never_picks_the_bump_itself(self) -> None:
         rerun = unwrap(_framing("#### 4c: "))
@@ -170,7 +205,7 @@ class TestFramingBriefNamesTheNode:
 
     def test_the_node_id_is_the_one_tree_io_returned(self) -> None:
         brief = unwrap(_framing("#### 5b: "))
-        assert "tree_io add-node" in brief or "5a" in brief
+        assert "printed in 5a" in brief
         assert "{theme_id}-Q{nn}" in brief
 
 
@@ -180,6 +215,10 @@ class TestDesignLinksItselfToTheNode:
     def test_the_brief_mapping_reads_the_node_id(self) -> None:
         step = section(_read_skill("analysis-design"), "### Step 1.5: ")
         assert "tree_io link" in table_row(step, "推奨方向.node_id")[2]
+
+    def test_the_brief_mapping_covers_the_node_question(self) -> None:
+        step = section(_read_skill("analysis-design"), "### Step 1.5: ")
+        assert "`title`" in table_row(step, "推奨方向.論点")[1]
 
     def test_the_shown_link_is_accepted_by_tree_io(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -244,7 +283,8 @@ class TestDesignLinksItselfToTheNode:
         assert re.search(r"(?i)never[^.]*`tree_io add-node`", linking)
 
     def test_the_linked_node_is_shown_at_the_end(self) -> None:
-        assert "node" in section(_read_skill("analysis-design"), "### Step 4: ")
+        step = section(_read_skill("analysis-design"), "### Step 4: ")
+        assert "question node it answers" in step
 
 
 class TestSkillsCallOnlyCommandsTreeIoHas:
@@ -252,12 +292,10 @@ class TestSkillsCallOnlyCommandsTreeIoHas:
 
     @pytest.mark.parametrize("skill", ["analysis-framing", "analysis-design"])
     def test_every_named_command_exists(self, skill: str) -> None:
-        source = Path(tree_io.__file__).read_text(encoding="utf-8")
-        choices = re.search(r"choices=\[(.*?)\]", source, re.S)
-        assert choices
-        known = set(json.loads(f"[{choices.group(1).rstrip().rstrip(',')}]"))
-
         named = set(_COMMAND.findall(_read_skill(skill)))
 
         assert named, f"{skill} names no tree_io command"
-        assert named <= known
+        for command in named:
+            with pytest.raises(SystemExit) as exit_:
+                tree_io._main([command, "--help"])
+            assert exit_.value.code == 0, command

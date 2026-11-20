@@ -77,6 +77,7 @@ Map Brief sections to analysis-design fields as draft values:
 | 推奨方向.仮説の方向性 | `title`, `hypothesis_background` | 方向性から title 候補を生成し、背景の下書きに活用 |
 | 推奨方向.theme_id | `theme_id` | デフォルト値として設定 |
 | 推奨方向.node_id | （分析設計の項目ではない） | 作った分析設計を結ぶ論点。Step 3 の `tree_io link` に渡す |
+| 推奨方向.論点 | `title`, `hypothesis_background` | この分析設計が答える問い。title 候補と背景の下書きに活用（仮説の文にはしない） |
 | 推奨方向.parent_id | `parent_id` | デフォルト値として設定 |
 | 推奨方向.analysis_intent | `analysis_intent` | デフォルト値として設定 |
 | 推奨方向.推奨手法 | `methodology` | `{method: "推奨手法の値", reason: "Framing Brief の推奨"}` としてデフォルト設定 |
