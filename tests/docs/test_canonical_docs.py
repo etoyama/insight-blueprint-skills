@@ -455,9 +455,22 @@ class TestQuestionTreeDocs:
             for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
         }
         added = {
-            "論点ツリー", "論点", "根の問い", "到達点", "根の版", "寄与", "発見元", "進捗",
-            "現時点の答え", "振り返りの回", "ツリーの決定", "次の候補", "ツリーの検査",
-            "Artifact", "合成シナリオ", "引き継ぎの試行",
+            "論点ツリー",
+            "論点",
+            "根の問い",
+            "到達点",
+            "根の版",
+            "寄与",
+            "発見元",
+            "進捗",
+            "現時点の答え",
+            "振り返りの回",
+            "ツリーの決定",
+            "次の候補",
+            "ツリーの検査",
+            "Artifact",
+            "合成シナリオ",
+            "引き継ぎの試行",
         }
         assert added - terms == set()
 
@@ -469,7 +482,9 @@ class TestQuestionTreeDocs:
             ("## Sequence Diagram", "sequenceDiagram"),
         ],
     )
-    def test_design_doc_has_the_first_edition_diagram(self, heading: str, diagram: str) -> None:
+    def test_design_doc_has_the_first_edition_diagram(
+        self, heading: str, diagram: str
+    ) -> None:
         assert f"```mermaid\n{diagram}" in section(_read(self.DESIGN_DOC), heading)
 
     def test_design_doc_links_both_adrs(self) -> None:
