@@ -141,14 +141,120 @@ Discuss with the user to narrow the hypothesis direction:
 - Hypothesis directions verifiable with available data
 - How to fill missing data (guide toward `/catalog-register`)
 
+The agreed direction is kept as the theme's **question tree**
+(`.insight/themes/{theme_id}_tree.yaml`): the root question, its aim, and the first-level
+nodes under it. The analyst settles them at two KEEP gates (4a, 4b). You draft, the analyst decides.
+
 Do NOT create a hypothesis statement (`hypothesis_statement`).
-The framing skill's responsibility ends at "proceed to analysis-design in this direction."
+The framing skill's responsibility ends at "proceed to analysis-design on this node."
+
+#### 4a: Root question and aim (KEEP gate)
+
+This is a KEEP gate. Settle three things with the analyst and wait for their answer:
+
+1. **`theme_id`** — it names the tree file and prefixes every design id, so it must match
+   `[A-Z][A-Z0-9]*`. Propose the theme of the related designs in the Data Map, or a new one.
+   Then run `tree_io get --theme {theme_id}`. If it prints a tree, go to 4c instead of 4b.
+2. **Root question** — the one question the whole theme answers, as a single sentence.
+3. **Aim** — what the root question is for. It has one of two kinds:
+
+| `kind` | Fields (both required) | Meaning |
+|---|---|---|
+| `business` | `decision_maker`, `decision` | Who decides what on the strength of the answer. Write a role or a team, not a personal name |
+| `research` | `audience`, `claim_scope` | Who reads the claim, and how far it reaches (population, period, conditions) |
+
+Take the kind from the conversation and confirm it. A theme that came from
+`/rq-problematization` is `research`, and its root question is the research question the
+analyst chooses to test.
+If the RQ Brief does not state the audience, ask the analyst who the audience is before you go on.
+Take `claim_scope` from the analyst as well; propose a draft from the research questions if that helps.
+
+Never fill a field of the aim with a guess, an empty string, or a placeholder such as "未定":
+`tree_io` rejects a half-filled aim, and a placeholder would later read as a real decision.
+If the analyst cannot name the aim yet, stop here and say that the tree needs it.
+
+#### 4b: First-level nodes and the first node to investigate (KEEP gate)
+
+Draft the first-level nodes: the questions that sit directly under the root question.
+Each node has two parts:
+
+- `question` — what to find out, as a question. Not a hypothesis and not a method.
+- `contribution` — how answering it moves the judgment on the root question.
+  A node whose contribution you cannot state does not belong under this root.
+
+Ground the draft in the Data Map: say for each node which sources could answer it, and name
+the gaps. Present the nodes with a recommended order and the reason for it. This is a KEEP
+gate, so ask the analyst two things and wait: whether the nodes are right (add, drop, reword), and which node
+to investigate first, with their reason. Keep the reason in the analyst's words.
+
+The second level may stay empty. Deeper nodes are added when the analysis raises them.
+
+#### 4c: When the theme already has a tree
+
+One theme has one tree. When `tree_io get` printed a tree in 4a, the theme already has one, so
+show it (root question, aim, nodes, decisions) and ask what this run changes.
+
+- **New nodes** — draft and confirm them as in 4b, then add them with `tree_io add-node` (5a).
+- **The node to design next** — the analyst picks it; it goes into the Framing Brief (5b).
+  Record a `start` decision only if the tree has no decision yet (an earlier run stopped
+  halfway). `start` is the first choice, so a tree never gets a second one.
+- **The root question or the aim** — this skill is the only place they change, and it is a
+  KEEP gate. Show the old and the new root question and aim side by side, and ask whether
+  the root revision goes up. Send the analyst's answer as `bump`:
+
+```bash
+echo '{"question": "取り置き期限を延ばす試行を、分館も含めて始めるか", "bump": true, "reason": "分館も対象に入り、決める範囲が変わった"}' | tree_io revise-root --theme LIB
+```
+
+`"bump": true` appends a root revision and needs the analyst's `reason`. From then on the
+earlier answers are shown as answers to the previous root.
+`"bump": false` rewrites the current revision in place, so it is only for a rewording that keeps the meaning.
+Send `aim` in the same payload when the aim changes.
+
+Never choose `bump` yourself and never default it. A change of meaning always raises the
+revision: the question asks something else, another role decides, the decision differs, or
+the audience or the claim scope moves. If the analyst answers "no bump" to a change you read
+as one of these, tell them which part changed and that earlier answers would silently read
+as answers to the new root, then ask once more. Their second answer stands.
 
 ### Step 5: Output Framing Brief
 
-When a direction is agreed upon, output the following structured text **verbatim**
+#### 5a: Write the question tree
+
+Write the tree with `tree_io` (on PATH; JSON on stdin, JSON on stdout; it validates before
+every write). Never create or change `.insight/themes/*_tree.yaml` with the Write or Edit tool.
+Run the commands in this order, one `add-node` per first-level node:
+
+```bash
+echo '{"theme_id": "LIB",
+  "question": "取り置き期限を延ばす試行をするか",
+  "aim": {"kind": "business", "decision_maker": "図書館員", "decision": "取り置き期限を延ばす試行を始めるか"}}' | tree_io create
+
+echo '{"question": "期限切れを一貫して数えられるか",
+  "parent_question_id": "LIB-Q01",
+  "contribution": "予約取消が混ざると、延長で改善しうる件数が変わる"}' | tree_io add-node --theme LIB
+
+echo '{"kind": "start", "node_id": "LIB-Q02",
+  "reason": "取消が混ざると延長で改善しうる件数が変わるため"}' | tree_io decide --theme LIB
+```
+
+- `create` writes the root question as `{theme_id}-Q01` with the first root revision.
+  A research aim is `{"kind": "research", "audience": "...", "claim_scope": "..."}`.
+- `add-node` prints the node it wrote. Its `id` (`{theme_id}-Q{nn}`) is the id to use from here on.
+- `decide` records the first node to investigate and the analyst's reason (4b).
+
+A command that exits non-zero wrote nothing: read stderr, fix the payload and run that
+command again. Do not output the Framing Brief until `decide` has succeeded. If the run
+stops between commands, the next run finds the tree in 4a and continues from 4c.
+
+#### 5b: Framing Brief
+
+Output the following structured text **verbatim**
 (copy the heading hierarchy exactly). analysis-design will detect this format
 from the conversation context and pre-populate draft values.
+`theme_id` is the theme of the tree, and `node_id` is the `{theme_id}-Q{nn}` id that
+`tree_io` printed in 5a for the node to design next. `/analysis-design` links the design it
+creates to that node.
 
 ````markdown
 ## Framing Brief
@@ -167,7 +273,9 @@ from the conversation context and pre-populate draft values.
 
 ### 推奨方向
 - 仮説の方向性: {direction_description}
-- theme_id: {suggested_theme_id}
+- theme_id: {theme_id}
+- node_id: {node_id}
+- 論点: {node_question}
 - parent_id: {suggested_parent_id or "なし"}
 - analysis_intent: {exploratory | confirmatory | mixed}
 - 推奨手法: {methodology_suggestion}
