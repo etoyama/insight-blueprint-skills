@@ -181,3 +181,9 @@ sequenceDiagram
   - 迷った所: `source_checks_map` のキーの名前が SKILL.md に無い。`designs` の要素の形。`catalog_io get-schema` が失敗したときの扱い。どれもこの Epic の前からあり、直していない。
   - 見つけた不具合: 表の INTENT 列が常に `unknown` になる（issue #109）。もう1つ、ファイルを置いたプロジェクトでは notebook の契約が求める import が許可リストの外になりうる（issue #108）。
   - 確かめていないこと: `/analysis-auto` を通した実行。notebook の自動実行の判断。sonnet 以外のモデル。
+- 2026-11-20 — レビュー（`pstack:thermos`）: バグ・セキュリティとコード品質の2観点で Epic ブランチを見た。2観点がそろって挙げたのは、notebook の契約の境界の文がファイルだけを指していたこと。
+  直したもの: 境界の文と `import X` の文を「許可リスト（ファイル、無ければ既定の許可リスト）」にした。契約の「Supplying」節にあった短いパッケージの一覧を消し、既定の許可リストを指すようにした。
+  `methodology.package` の照合の規則（`.` の前の最上位のモジュールを、大文字と小文字を区別せずに比べ、パッケージ名でない語は飛ばす）を `/premortem` に書いた。
+  空の `allowed_packages` は読めるもので何も許さないと書いた。`/analysis-auto` の step 5 は規則を言い直さず契約を指すようにした。CHANGELOG を短くし、理由の文が変わったことを書いた。
+  直していないもの: `risk_evaluator` の理由の文にパスを書いたこと（`INSIGHT_BASE_DIR` は wrapper がプロジェクトの `.insight/` を渡すためのもので、パスは変わらない）。
+  `/analysis-notebook` の SKILL.md（並行する #102 の作業が触るため。今の文はファイルに宣言する手順で、誤りではない）。文をそのまま照合する構造テスト（ADR-0010 の流儀）。
