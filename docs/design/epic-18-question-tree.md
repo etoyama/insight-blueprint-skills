@@ -212,7 +212,8 @@ flowchart TD
 クラス名は Story 18.1 の最初に人間が決めた（Decisions の `tree-type-names`）。
 Story 18.1 が実装したのは `QuestionTree`・`RootRevision`・`Aim`・`QuestionNode`・`Progress` で、[docs/ARCHITECTURE.md](../ARCHITECTURE.md) の全体図にも載せた。
 Story 18.2 は `TreeDecision` と `decisions` を足した。種類は `start` だけで、残りの3つは Story 18.5 で足す（Decisions の `start-is-the-only-decision-kind-for-now`）。
-`Answer`・`AnswerStatement`・`NextCandidate` と、それを持つ項目（`answers`・`next_candidate`）は、扱う Story で足す。
+Story 18.3 は `Answer`・`AnswerStatement`・`StatementKind` と `answers` を足した（Decisions の `answer-types-land-with-the-check`）。答えを書く手段（`tree_io answer`）は Story 18.4 で足す。
+`NextCandidate` と `next_candidate` は Story 18.5 で足す。
 モデルに無い項目は検証で拒むので、足すまではこれらの項目を正本に書けない。
 [docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) の「コード上の名前」は、名前がコードに実在する語から埋める。
 
@@ -263,9 +264,15 @@ classDiagram
     }
     class AnswerStatement {
         <<Value Object>>
-        +kind: claim | undetermined | weakening
+        +kind: StatementKind
         +text
         +cites: list~event_id~
+    }
+    class StatementKind {
+        <<enumeration>>
+        claim
+        undetermined
+        weakening
     }
     class NextCandidate {
         <<Value Object>>
@@ -304,6 +311,7 @@ classDiagram
     QuestionNode "1" *-- "0..*" Answer
     QuestionNode --> NextCandidate
     Answer "1" *-- "1..*" AnswerStatement
+    AnswerStatement --> StatementKind
     QuestionNode ..> AnalysisDesign : design_ids
     AnswerStatement ..> JournalEvent : cites
     QuestionNode ..> JournalEvent : origin_event_id
@@ -316,8 +324,8 @@ classDiagram
 | `RootRevision` | 値オブジェクト | 版2以降は理由が空でない |
 | `Aim` | 値オブジェクト | `kind` に応じた2項目がどちらも空でない |
 | `QuestionNode` | エンティティ | id は `{theme_id}-Q{nn}` で、ツリーの中で重ならない。根以外は寄与が空でない。発見元はあれば同じテーマの `{design_id}-E{nn}` の形。結ぶ分析設計は同じテーマの `{theme_id}-H{nn}` で、同じものを2度結ばない |
-| `Answer` | 値オブジェクト | 現時点の答えの1回分。追記だけで、最後の要素が今の答え。`root_revision` は今の根の版以下。回は1つの論点の中で増え続ける |
-| `AnswerStatement` | 値オブジェクト | `cites` は1つ以上。引用先の実在と数の一致は `validate.py` でなくツリーの検査が確かめる（I/O が要るため） |
+| `Answer` | 値オブジェクト | 現時点の答えの1回分。文を1つ以上持つ。追記だけで、最後の要素が今の答え。`root_revision` は今の根の版以下。回は1以上で、1つの論点の中で増え続ける |
+| `AnswerStatement` | 値オブジェクト | 文は空でない。`cites` は1つ以上で、どれも同じテーマの `{design_id}-E{nn}` の形。引用先の実在、引用先と論点の対応、数の一致は `validate.py` でなくツリーの検査が確かめる（Decisions の `tree-check-reads-the-last-answer-and-compares-values`） |
 | `TreeDecision` | 値オブジェクト | 理由が空でない。`start` の回は 0。追記だけで、書き換えも削除もできない |
 | `Progress` | 導出する列挙 | 保存しない。`design_ids` の分析設計の状態から導く（US-2 AC 1） |
 
@@ -667,6 +675,31 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - Alternatives considered: 18.4 を先にして US-4 AC 2 を 18.3 に移す（検査を通らない答えが epic ブランチに残る）。18.3 と 18.4 を1つにまとめる（AC が6個になる）。
 - Consequences: 答えを書く手段（`tree_io answer`）は 18.4 まで無いので、18.3 の間に答えを持つ正本は、テストが直接書いたものだけである。18.4 で答えを書いてみて型の項目が足りないと分かったら、計画外の判断として人間に出す。追記だけの項目が3つめになるので、根の版・ツリーの決定・現時点の答えの比較を1つにまとめる（Decision `decisions-are-append-only` の Consequences）。
 
+### Decision: tree-check-reads-the-last-answer-and-compares-values
+
+- What: ツリーの検査（`tree_check`）の細部を次のように決める。
+  - 検査するのは、各論点の最後の答え（今の答え）だけである。
+  - 数は値で比べる。全角と半角、桁区切り、`1.90` と `1.9` は同じ数として扱う。単位と符号は見ない。`34.6％`・`34.6%`・`34.6パーセント` は同じ数である。
+  - 換算した値と丸めた値は別の数である。記録が `34.6%` のとき、`0.346` と `35` は違反になる。
+  - id や日付に見える数にも例外を置かない。文に出てくる数字の並びは、すべて数として拾う。
+  - 引用先の分析設計が論点か子孫に結んであるかは、モデルでなくツリーの検査が確かめる。引用の id の形と、テーマが同じことは、モデルが確かめる。
+  - 終了コードは、違反なしが 0、違反ありが 1、検査できない（テーマの id が不正、正本が無い、正本が形の検証に通らない、YAML を読めない）が 2 である。
+- Why: US-4 AC 1 と [ADR-0025](../adr/0025-cited-answers-checked-after-writing.md) は、何を違反にするかを決めているが、どの答えを見るかと、数をどう比べるかは決めていない。
+- Criteria: 記録に無い数が届く前に止まること（US-4、#105）。表記の揺れで誤検知しないこと（ADR-0025 の抑え方）。迷ったら違反に倒すこと（`report_check` の前例）。追記だけの答えは直せないこと（Domain Model の `Answer`）。決め手は最初の2つ。
+- Affected modules: `skills/_shared/tree_check.py`、`src/insight_blueprint/models/tree.py`。
+- Alternatives considered:
+  - すべての回の答えを検査する。前の回は追記だけで直せないので、一度違反が残ると検査が通らなくなる。
+  - 単位や符号の一致も求める。`34.6 %` と `34.6パーセント` のような揺れや、範囲のハイフン（`10-20`）で誤検知する。
+  - `%` と比の換算（`34.6%` と `0.346`）を同じ数として扱う。換算は計算であり、どこまでを同じとみなすかの線が引けない。
+  - 引用先と論点の対応をモデルで拒む。正本1つで判定できるが、US-4 AC 1 がツリーの検査の違反として挙げると決めている。モデルで拒むと、その正本は検査まで届かず、他の違反と一緒に挙げられない。
+- Consequences:
+  - 記録の数と値が同じなら、意味が違っても通る（記録が「35件」で、答えが「35%」）。符号の違いも通る。数を含まない言い過ぎと同じ種類の穴で、この Epic では塞がない（未決事項）。
+  - 漢数字（「約二倍」）は拾わない。`1e3` や `½` のような表記は別の数に分かれるので、記録にその数があれば通る。
+  - `152/80` のように、記録の2つの数を並べただけの文は通る。新しい数を作っていないので、写しとして扱う。
+  - 答えの文に論点や出来事の id、日付を書くと、その数字が違反になる。文には id を書かず、`cites` に書く。Story 18.4 の手順にこのことを書く。
+  - 前の回の答えは検査しない。前の回に違反があっても、今の答えが通れば検査は通る。
+  - 「ファイル1つで判定できる不変条件はモデルが持つ」（Module Responsibilities）から、引用先と論点の対応だけが外れる。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0024: 論点ツリーの正本は YAML に置き、表示は正本から生成する HTML にする](../adr/0024-question-tree-yaml-and-generated-html.md): 判断2・2'。Artifact は承認の後の任意の手順。
@@ -679,7 +712,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 |---|---|---|---|
 | Story 18.1 | ✓ | ✓ | — （skill を通らない） |
 | Story 18.2 | ✓（`tests/test_tree_models.py` の `TestTreeDecision`、`tests/test_tree_io.py` の `TestDecide`） | ✓（`tests/skills/test_question_tree_structure.py`。SKILL.md に書いたコマンドを `tree_io` に通す。`tests/test_validate_hook.py` は決定を消す書き込みを hook が止めることを確かめる） | —（headless 実行の E2E は [ADR-0010](../adr/0010-skill-tdd-structure-tests.md) で必須にしていない。skill を通した手動確認は Story Timeline の 2026-11-21 に記録した） |
-| Story 18.3 | ☐ | ☐ | — （CLI だけ） |
+| Story 18.3 | ✓（`tests/test_tree_models.py` の `TestAnswer`、`TestValidateTree`。`tests/test_tree_check.py` の `TestNumbersIn`、`TestFindViolations`、`TestTheNumberThatWasNeverRecorded`） | ✓（`tests/test_tree_check.py` の `TestCheckTheme`・`TestMain` は正本と journal のファイルを読ませる。`tests/integration/test_bin_wrappers.py` は `bin/tree_check` を別の cwd から通す。`tests/test_validate_hook.py` は答えを書き換える Edit を hook が止めることを確かめる） | — （CLI だけ） |
 | Story 18.4 | ☐ | ☐ | ☐ |
 | Story 18.5 | ☐ | ☐ | ☐ |
 | Story 18.6 | ☐ | ☐ | ☐ |
@@ -699,3 +732,4 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - 2026-11-20 — Story 18.2 completed: `/analysis-framing` の Step 4・5 が根の問い、到達点、第一階層の論点を分析者と決めて `tree_io` で書き、最初に調べる論点と理由をツリーの決定（`start`）として残す。Framing Brief に `theme_id` と `node_id` を載せ、`/analysis-design` が `tree_io link` で結ぶ。`TreeDecision` と `tree_io decide` を足した。レビュー（thermos）の指摘で、2つめの `start` をモデルで拒むようにし、再実行の手順の食い違いを直した。`tree_io render` は Story 18.6 で入るので、framing はまだ HTML を作らない。
 - 2026-11-21 — Story 18.2 を手動で確認した。合成データのプロジェクトにプラグインを読み込み、headless の Claude Code（sonnet）で `/analysis-framing` と `/analysis-design` を実行した。新しいテーマでは、論点ツリーの正本に根の版 1 と `start` の決定が1件書かれた。`/analysis-design` は `tree_io link` で分析設計を論点に結び、`node_id` の無い Framing Brief では結ばずに作った。根の変更では、意味の変わる変更に「上げない」と答えると1回だけ聞き直し、2回目の答えに従った。言い換えは1回の確認で済んだ。pre-write hook は、決定を消す Edit と前の根の版を変える Edit を拒んだ。意味の変わる変更に「上げる」と答える経路は、skill を通しては確かめていない。
 - 2026-11-21 — 手動確認で、根の変更の聞き方が分析者の答えを誘導していると分かった。`/analysis-framing` の Step 4c を直し、版を上げるかは両方の答えとその結果を並べて聞き、skill の読みは分析者が答えるまで出さないようにした。同じやり方で、意味の変わる変更と言い換えの2本を再実行して確かめた。
+- 2026-11-21 — Story 18.3 completed: 現時点の答えの型（`Answer`・`AnswerStatement`・`StatementKind`）と `answers` を入れ、答えを追記だけにした。追記だけの比較（根の版、ツリーの決定、現時点の答え）は1つにまとめた。ツリーの検査（`tree_check`、`bin/tree_check`）は、引用した出来事が無い、引用先の分析設計が論点か子孫に結んでいない、文の数が引用した出来事の本文に無い、の3つを違反として挙げる。#105 と同じ型（2つの出来事の数から作った比）を合成シナリオで違反にした。合成のプロジェクトに `bin/tree_check` を通して、違反の出力と終了コード 1、正本が変わらないことを確かめた。18.3 を先にする決定は人間がした（PR #128 のコメント、2026-11-21）。
