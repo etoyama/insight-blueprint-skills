@@ -20,10 +20,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from insight_blueprint.models.common import now_jst
+from insight_blueprint.models.common import THEME_ID_PATTERN, now_jst
 from insight_blueprint.models.design import DesignStatus
-from insight_blueprint.models.tree import THEME_ID_PATTERN, Progress, QuestionTree
-from insight_blueprint.validate import validate_tree
+from insight_blueprint.models.tree import Progress
+from insight_blueprint.validate import validate_tree_schema
 from skills._shared._atomic import atomic_write_yaml
 from skills._shared.design_io import (
     DEFAULT_BASE_DIR,
@@ -54,16 +54,14 @@ def _require_tree(theme_id: str, base_dir: Path) -> dict:
 
 
 def _write_tree(tree: dict, base_dir: Path) -> dict:
-    """Validate *tree*, write it, and return what was written."""
-    theme_id = str(tree.get("theme_id", ""))
-    path = _tree_path(theme_id, base_dir)
-    errors = validate_tree(tree, expected_theme_id=theme_id)
-    if errors:
-        raise ValueError("Invalid question tree: " + "; ".join(errors))
-    data = QuestionTree.model_validate(tree).model_dump(
-        mode="json", exclude_none=True, exclude_defaults=True
-    )
-    atomic_write_yaml(path, data)
+    """Validate *tree*, write it, and return what was written.
+
+    An invalid tree raises pydantic ``ValidationError`` (a ValueError) and
+    nothing is written.
+    """
+    model = validate_tree_schema(tree)
+    data = model.model_dump(mode="json", exclude_none=True, exclude_defaults=True)
+    atomic_write_yaml(_tree_path(model.theme_id, base_dir), data)
     return data
 
 
@@ -138,9 +136,7 @@ def add_node(
     tree["nodes"].append(node)
     # The shape is checked before the journal is read, so a malformed event id
     # never reaches a path.
-    errors = validate_tree(tree)
-    if errors:
-        raise ValueError("Invalid question tree: " + "; ".join(errors))
+    validate_tree_schema(tree)
     if origin_event_id is not None:
         _require_question_event(origin_event_id, base_dir)
     return _node(_write_tree(tree, base_dir), node_id)
@@ -185,8 +181,13 @@ def revise_root(
     *bump* appends a new root revision, which needs *reason*. Without it the
     current revision is reworded in place and answers keep their revision.
     """
+    # The payload is JSON a model wrote; "false" as a string would bump.
+    if not isinstance(bump, bool):
+        raise ValueError("bump must be true or false")
     if question is None and aim is None:
         raise ValueError("revise-root needs a new question or aim")
+    if reason and not bump:
+        raise ValueError("a reason is kept only with a bump; without one it is lost")
     tree = _require_tree(theme_id, base_dir)
     current = tree["root_revisions"][-1]
     revised = {
@@ -240,6 +241,8 @@ def _main(argv: list[str] | None = None) -> int:
             payload = json.loads(raw)
 
     try:
+        if args.command != "create" and args.theme is None:
+            raise ValueError(f"--theme is required for {args.command}")
         if args.command == "create":
             result: Any = create_tree(base_dir=base, **payload)
         elif args.command == "add-node":

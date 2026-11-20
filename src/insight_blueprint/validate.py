@@ -116,15 +116,30 @@ def validate_design_change(
     return errors
 
 
-def validate_tree(data: dict, expected_theme_id: str | None = None) -> list[str]:
+def validate_tree_schema(data: dict) -> QuestionTree:
+    """Validate a raw question tree dict against the QuestionTree schema.
+
+    Returns the parsed model. Raises pydantic ``ValidationError`` when the
+    shape or an invariant of the tree is broken.
+    """
+    return QuestionTree.model_validate(data)
+
+
+def validate_tree(
+    data: dict,
+    expected_theme_id: str | None = None,
+    current: dict | None = None,
+) -> list[str]:
     """Validate a question tree document (ADR-0024).
 
-    Never raises: returns human-readable error strings (empty list means the
-    tree is valid). *expected_theme_id* is the theme the file name carries;
+    Hook-facing. Never raises: returns human-readable error strings (empty
+    list means the tree is valid). *expected_theme_id* is the theme the file name carries;
     the caller owns the path and passes it in so this stays pure.
+    *current* is the tree on disk, or ``None`` for a new file: its root
+    revisions are history, so none may be removed and only the last may change.
     """
     try:
-        tree = QuestionTree.model_validate(data)
+        tree = validate_tree_schema(data)
     except ValidationError as exc:
         return _format_validation_error(exc)
     if expected_theme_id is not None and tree.theme_id != expected_theme_id:
@@ -132,7 +147,25 @@ def validate_tree(data: dict, expected_theme_id: str | None = None) -> list[str]
             f"theme_id: '{tree.theme_id}' does not match the file name "
             f"({expected_theme_id}_tree.yaml)"
         ]
-    return []
+    if current is None:
+        return []
+    try:
+        before = validate_tree_schema(current).root_revisions
+    except ValidationError:
+        # The file on disk is already broken; do not block the write that
+        # may be repairing it.
+        return []
+    after = tree.root_revisions
+    if len(after) < len(before):
+        return [
+            "root_revisions: a root revision cannot be removed "
+            f"({len(before)} -> {len(after)})"
+        ]
+    return [
+        f"root_revisions: revision {old.revision} is history and cannot change"
+        for old, new in zip(before[:-1], after, strict=False)
+        if old != new
+    ]
 
 
 def _format_validation_error(exc: ValidationError) -> list[str]:

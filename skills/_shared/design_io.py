@@ -16,7 +16,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import sys
 import uuid
 from pathlib import Path
@@ -24,7 +23,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-from insight_blueprint.models.common import now_jst
+from insight_blueprint.models.common import THEME_ID_PATTERN, now_jst
 from insight_blueprint.models.design import DesignStatus
 from insight_blueprint.models.review import BatchComment, ReviewBatch
 from insight_blueprint.validate import (
@@ -36,8 +35,6 @@ from skills._shared._atomic import atomic_write_yaml
 from skills._shared.ids import SAFE_ID_PATTERN
 
 DEFAULT_BASE_DIR = Path(os.environ.get("INSIGHT_BASE_DIR", ".insight"))
-
-THEME_ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9]*$")
 
 
 def _validate_id(design_id: str) -> None:
@@ -139,7 +136,7 @@ def list_designs(
 
 def next_design_id(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> str:
     """Return the next id ``{theme_id}-H{nn}`` using a max-N+1 strategy."""
-    if not THEME_ID_PATTERN.match(theme_id):
+    if not THEME_ID_PATTERN.fullmatch(theme_id):
         raise ValueError(f"Invalid theme_id '{theme_id}': must match [A-Z][A-Z0-9]*")
     designs_dir = _designs_dir(base_dir)
     prefix = f"{theme_id}-H"

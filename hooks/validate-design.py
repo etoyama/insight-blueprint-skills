@@ -156,17 +156,16 @@ def evaluate(tool_name: str, tool_input: dict) -> list[str]:
     except Exception as exc:  # any parse failure blocks the write
         return [f"invalid YAML: {exc}"]
 
-    theme_id = tree_theme_id(file_path)
-    if theme_id is not None:
-        return validate_tree(new_data, expected_theme_id=theme_id)
-
     current_data: dict | None = None
     if current_text is not None:
         try:
             current_data = parse_yaml(current_text)
-        except Exception:  # pre-existing corruption: skip the transition check
+        except Exception:  # pre-existing corruption: skip the comparison
             current_data = None
 
+    theme_id = tree_theme_id(file_path)
+    if theme_id is not None:
+        return validate_tree(new_data, expected_theme_id=theme_id, current=current_data)
     return validate_design_change(new_data, current_data)
 
 

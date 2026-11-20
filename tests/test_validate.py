@@ -191,3 +191,9 @@ class TestValidateDesignChange:
         new = make_design(status="analyzing", methodology={"method": ""})
         errors = validate_design_change(new, current)
         assert errors
+
+
+def test_terminal_statuses_are_the_ones_nothing_follows() -> None:
+    from insight_blueprint.models.design import TERMINAL_STATUSES
+
+    assert TERMINAL_STATUSES == {s for s, t in VALID_TRANSITIONS.items() if not t}

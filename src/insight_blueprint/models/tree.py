@@ -16,14 +16,10 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from insight_blueprint.models.design import DesignStatus
+from insight_blueprint.models.common import THEME_ID_PATTERN
+from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 
-THEME_ID_PATTERN = re.compile(r"[A-Z][A-Z0-9]*")
 _EVENT_ID_PATTERN = re.compile(r"[A-Za-z0-9_]+-H\d+-E\d+")
-
-_TERMINAL_STATUSES = frozenset(
-    {DesignStatus.supported, DesignStatus.rejected, DesignStatus.inconclusive}
-)
 
 
 class AimKind(StrEnum):
@@ -46,7 +42,7 @@ class Progress(StrEnum):
         found = set(statuses)
         if not found:
             return cls.not_started
-        if found <= _TERMINAL_STATUSES:
+        if found <= TERMINAL_STATUSES:
             return cls.analyzed
         return cls.investigating
 
@@ -137,13 +133,11 @@ class QuestionTree(BaseModel):
     def root(self) -> QuestionNode:
         return next(n for n in self.nodes if n.parent_question_id is None)
 
-    def node(self, node_id: str) -> QuestionNode | None:
-        return next((n for n in self.nodes if n.id == node_id), None)
-
     @model_validator(mode="after")
     def _check_tree(self) -> Self:
         self._check_revisions()
         self._check_node_ids()
+        self._check_references()
         self._check_parents()
         if self.root().question != self.current_revision().question:
             raise ValueError(
@@ -164,6 +158,25 @@ class QuestionTree(BaseModel):
         duplicated = [i for i, c in Counter(n.id for n in self.nodes).items() if c > 1]
         if duplicated:
             raise ValueError(f"duplicated node id: {', '.join(duplicated)}")
+
+    def _check_references(self) -> None:
+        # A tree gathers the designs of its own theme, so an id of another
+        # theme (or anything that is not a design id) is never a valid link.
+        design_id = rf"{re.escape(self.theme_id)}-H\d+"
+        design_pattern = re.compile(design_id)
+        event_pattern = re.compile(rf"{design_id}-E\d+")
+        for node in self.nodes:
+            for linked in node.design_ids:
+                if not design_pattern.fullmatch(linked):
+                    raise ValueError(
+                        f"{node.id}: design '{linked}' must be {self.theme_id}-H{{nn}}"
+                    )
+            origin = node.origin_event_id
+            if origin is not None and not event_pattern.fullmatch(origin):
+                raise ValueError(
+                    f"{node.id}: origin '{origin}' must be "
+                    f"{self.theme_id}-H{{nn}}-E{{nn}}"
+                )
 
     def _check_parents(self) -> None:
         parents = {n.id: n.parent_question_id for n in self.nodes}

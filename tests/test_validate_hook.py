@@ -401,6 +401,20 @@ class TestHookSubprocessTree:
         assert result.returncode == 2
         assert "contribution" in result.stderr
 
+    def test_a_write_that_drops_a_root_revision_is_blocked(
+        self, tmp_path: Path
+    ) -> None:
+        path = tree_path(tmp_path)
+        on_disk = tree_dict()
+        second = {**on_disk["root_revisions"][0], "revision": 2, "reason": "x"}
+        on_disk["root_revisions"].append(second)
+        path.write_text(dump_yaml(on_disk), encoding="utf-8")
+
+        result = run_hook(write_tool(path, tree_dict()))
+
+        assert result.returncode == 2
+        assert "cannot be removed" in result.stderr
+
     def test_malformed_yaml_is_blocked(self, tmp_path: Path) -> None:
         result = run_hook(
             {

@@ -185,6 +185,19 @@ class TestQuestionNode:
         data["nodes"][1]["design_ids"] = ["LIB-H01"]
         QuestionTree.model_validate(data)
 
+    @pytest.mark.parametrize("design_id", ["FP-H01", "../../etc/passwd", "LIB-Q01"])
+    def test_a_linked_design_must_be_a_design_id_of_the_theme(
+        self, design_id: str
+    ) -> None:
+        data = tree_dict()
+        data["nodes"][1]["design_ids"] = [design_id]
+        assert "LIB-H{nn}" in errors_of(data)
+
+    def test_an_origin_in_another_theme_is_rejected(self) -> None:
+        data = tree_dict()
+        data["nodes"][1]["origin_event_id"] = "FP-H01-E01"
+        assert "LIB-H{nn}-E{nn}" in errors_of(data)
+
     def test_the_same_design_twice_on_one_node_is_rejected(self) -> None:
         data = tree_dict()
         data["nodes"][1]["design_ids"] = ["LIB-H01", "LIB-H01"]
@@ -234,6 +247,35 @@ class TestValidateTree:
         errors = validate_tree(data)
         assert len(errors) == 1
         assert "contribution" in errors[0]
+
+    def _with_second_revision(self) -> dict:
+        data = tree_dict()
+        second = copy.deepcopy(data["root_revisions"][0])
+        second |= {"revision": 2, "question": "延長の対象を絞るか", "reason": "x"}
+        data["root_revisions"].append(second)
+        data["nodes"][0]["question"] = "延長の対象を絞るか"
+        return data
+
+    def test_appending_a_root_revision_is_allowed(self) -> None:
+        assert validate_tree(self._with_second_revision(), current=tree_dict()) == []
+
+    def test_rewording_the_current_root_revision_is_allowed(self) -> None:
+        new = self._with_second_revision()
+        new["root_revisions"][1]["question"] = new["nodes"][0]["question"] = "絞るか"
+        assert validate_tree(new, current=self._with_second_revision()) == []
+
+    def test_dropping_a_root_revision_is_an_error(self) -> None:
+        errors = validate_tree(tree_dict(), current=self._with_second_revision())
+        assert errors == ["root_revisions: a root revision cannot be removed (2 -> 1)"]
+
+    def test_rewriting_an_earlier_root_revision_is_an_error(self) -> None:
+        new = self._with_second_revision()
+        new["root_revisions"][0]["question"] = "書き換えた過去の問い"
+        errors = validate_tree(new, current=self._with_second_revision())
+        assert errors == ["root_revisions: revision 1 is history and cannot change"]
+
+    def test_a_broken_file_on_disk_does_not_block_its_repair(self) -> None:
+        assert validate_tree(tree_dict(), current={"theme_id": "LIB"}) == []
 
     def test_a_theme_id_that_differs_from_the_file_name_is_an_error(self) -> None:
         errors = validate_tree(tree_dict(), expected_theme_id="FP")

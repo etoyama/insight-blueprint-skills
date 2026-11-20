@@ -269,7 +269,19 @@ class TestReviseRoot:
         assert revised["root_revisions"][1]["aim"] == aim
         assert revised["root_revisions"][1]["question"] == ROOT_QUESTION
 
-    def test_a_revision_that_changes_nothing_is_rejected(self, tree: Path) -> None:
+    def test_a_bump_must_be_a_boolean(self, tree: Path) -> None:
+        with pytest.raises(ValueError, match="bump must be true or false"):
+            tree_io.revise_root(
+                "LIB", question="別の問い", bump="false", reason="x", base_dir=tree
+            )
+
+    def test_a_reason_without_a_bump_is_rejected(self, tree: Path) -> None:
+        with pytest.raises(ValueError, match="only with a bump"):
+            tree_io.revise_root(
+                "LIB", question="別の問い", bump=False, reason="x", base_dir=tree
+            )
+
+    def test_a_revision_needs_a_new_question_or_aim(self, tree: Path) -> None:
         with pytest.raises(ValueError, match="question or aim"):
             tree_io.revise_root("LIB", bump=True, reason="x", base_dir=tree)
 
@@ -381,6 +393,11 @@ class TestCli:
         )
         assert revised.returncode == 0, revised.stderr
         assert len(json.loads(revised.stdout)["root_revisions"]) == 2
+
+    def test_a_command_without_its_theme_says_so(self, tree: Path) -> None:
+        missing = self._run(tree, "progress")
+        assert missing.returncode != 0
+        assert "--theme is required" in missing.stderr
 
     def test_a_rejected_write_exits_with_an_error(self, tree: Path) -> None:
         rejected = self._run(

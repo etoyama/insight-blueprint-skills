@@ -311,10 +311,10 @@ classDiagram
 
 | 型 | 種類 | 不変条件 |
 |---|---|---|
-| `QuestionTree` | 集約ルート | 1テーマに1つ。根の問い（`parent_question_id` を持たない論点）はちょうど1つで、その文は今の根の版の問いと同じ。論点の親は同じツリーの中にあり、循環しない。根の版は1から1ずつ増える。ツリーの決定の `node_id` は実在する。モデルに無い項目を持てない |
+| `QuestionTree` | 集約ルート | 1テーマに1つ。根の問い（`parent_question_id` を持たない論点）はちょうど1つで、その文は今の根の版の問いと同じ。論点の親は同じツリーの中にあり、循環しない。根の版は1から1ずつ増え、今の版より前の版は書き換えも削除もできない。ツリーの決定の `node_id` は実在する。モデルに無い項目を持てない |
 | `RootRevision` | 値オブジェクト | 版2以降は理由が空でない |
 | `Aim` | 値オブジェクト | `kind` に応じた2項目がどちらも空でない |
-| `QuestionNode` | エンティティ | id は `{theme_id}-Q{nn}` で、ツリーの中で重ならない。根以外は寄与が空でない。発見元はあれば `{design_id}-E{nn}` の形。同じ分析設計を2度結ばない |
+| `QuestionNode` | エンティティ | id は `{theme_id}-Q{nn}` で、ツリーの中で重ならない。根以外は寄与が空でない。発見元はあれば同じテーマの `{design_id}-E{nn}` の形。結ぶ分析設計は同じテーマの `{theme_id}-H{nn}` で、同じものを2度結ばない |
 | `Answer` | 値オブジェクト | 現時点の答えの1回分。追記だけで、最後の要素が今の答え。`root_revision` は今の根の版以下。回は1つの論点の中で増え続ける |
 | `AnswerStatement` | 値オブジェクト | `cites` は1つ以上。引用先の実在と数の一致は `validate.py` でなくツリーの検査が確かめる（I/O が要るため） |
 | `Progress` | 導出する列挙 | 保存しない。`design_ids` の分析設計の状態から導く（US-2 AC 1） |
@@ -609,7 +609,16 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - Criteria: US-2 AC 1・AC 2、principle「Boundary Discipline」（ファイルをまたぐ確認は I/O を持つ側でする）。
 - Affected modules: `tree_io`。`validate.py` は純関数のままにする。
 - Alternatives considered: 何も確かめず `tree_check` に任せる（`tree_check` は現時点の答えの引用を見るもので、結びつきは見ない）。
-- Consequences: pre-write hook を通る直接の書き込みでは、この確認は効かない。hook が見るのはファイル1つの形だけである。
+- Consequences: pre-write hook を通る直接の書き込みでは、実在の確認は効かない。hook が見るのはファイル1つの形だけである。テーマが同じことは id の形で分かるので、モデルでも確かめる（結んだ分析設計は `{theme_id}-H{nn}`、発見元は `{theme_id}-H{nn}-E{nn}`）。1つの `question` を2つの論点に昇格することは止めない。1つの問いが2つの論点に分かれることがあるためである。
+
+### Decision: earlier-root-revisions-are-history
+
+- What: 検証は、書き込む前の正本と比べて、根の版が減っていないことと、今の版より前の版が変わっていないことを確かめる。今の版だけは書き換えられる（`bump: false` の言い換え）。`tree_io` と pre-write hook の両方に効く。
+- Why: 根の版は、どの答えがどの根に対するものかを示す（Decision `root-revision-marks-stale-answers`）。直接の書き込みで版を減らせると、Story 18.4 で入る答えの `root_revision` が指す版が無くなる。
+- Criteria: US-1 AC 5（上げた版と理由を残す）。分析設計の検証が、書き込む前の状態と比べて遷移を確かめている前例（`validate_design_change`）。決め手は、残した版と理由が直接の書き込みでも消えないこと。レビュー（thermos）の指摘で足した。
+- Affected modules: `validate.py`（`validate_tree` の `current`）、pre-write hook。
+- Alternatives considered: 形だけを見る（版を減らす書き込みが通る）。今の版の書き換えも禁じる（言い換えができなくなる）。
+- Consequences: 今の版の問いと到達点は、直接の書き込みでも書き換えられる。根を変えるのを `/analysis-framing` に限ることは、hook では守れない。Bash からの書き込みは hook を通らない（分析設計と同じ）。
 
 ### Cross-epic decisions (links to ADR)
 

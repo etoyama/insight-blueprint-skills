@@ -73,6 +73,7 @@ flowchart TD
   helper の書き込み（`design_io`）の両方が守られる。
   論点ツリーの形も同じ場所で検証する（`validate_tree`。[ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md)）。
   根の問いがちょうど1つあること、論点の親が同じツリーにあって循環しないこと、根の版が1から1ずつ増えることを確かめ、モデルに無い項目を拒む。
+  書き込む前の正本があれば、根の版が減っていないことと、今の版より前の版が変わっていないことも確かめる。
   進捗は項目に無いので、保存できない。`tree_io` は結んだ分析設計の状態から進捗を導く。
 - **pre-write hook（`hooks/validate-design.py`, plugin 同梱 `hooks/hooks.json`）** —
   `.insight/designs/*_hypothesis.yaml` と `.insight/themes/*_tree.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
@@ -629,7 +630,7 @@ classDiagram
 | `ReviewBatch` | 集約ルート | `comments` は1件以上。1つのバッチは `status_after` への遷移を1回だけ起こす |
 | `DataSource` | 集約ルート | `type` は空でない open string（[ADR-0004](adr/0004-open-string-catalog-taxonomy.md)） |
 | `DomainKnowledge` | 集約ルート | 1つの `source_id` に属する。`category` は空でない open string |
-| `QuestionTree` | 集約ルート | 1テーマに1つ。根の問い（親を持たない論点）はちょうど1つで、その文は今の根の版の問いと同じ。論点の親は同じツリーにあり、循環しない。根の版は1から1ずつ増える。モデルに無い項目を持てない（[epic-18](design/epic-18-question-tree.md)） |
+| `QuestionTree` | 集約ルート | 1テーマに1つ。根の問い（親を持たない論点）はちょうど1つで、その文は今の根の版の問いと同じ。論点の親は同じツリーにあり、循環しない。根の版は1から1ずつ増え、今の版より前の版は書き換えも削除もできない。結ぶ分析設計と発見元は同じテーマのもの。モデルに無い項目を持てない（[epic-18](design/epic-18-question-tree.md)） |
 
 ### Python のクラスを持たないファイルの契約
 
