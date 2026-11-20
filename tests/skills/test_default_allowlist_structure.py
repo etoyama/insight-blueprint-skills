@@ -55,6 +55,19 @@ class TestDefaultAllowlistIsThePluginEnv:
         assert "only the file counts" in block
         assert "not merged in" in block
 
+    def test_the_boundary_names_the_default_too(self) -> None:
+        boundary = unwrap(section(_contract(), "### Security"))
+        assert "the default allowlist when the file does not exist" in boundary
+
+    def test_supplying_points_at_the_default_instead_of_listing_it(self) -> None:
+        supplying = section(_contract(), "### Supplying an allowlisted package")
+        assert "Baseline packages (" not in supplying
+        assert "default allowlist" in supplying
+
+    def test_an_empty_map_is_readable_and_allows_nothing(self) -> None:
+        block = unwrap(section(_contract(), "### Default allowlist"))
+        assert "An empty `allowed_packages` is readable and allows nothing" in block
+
     def test_a_new_file_starts_from_the_default(self) -> None:
         block = unwrap(section(_contract(), "### Default allowlist"))
         assert "copy the default allowlist into the file" in block
@@ -71,6 +84,12 @@ class TestPremortemBuildsAllowlistOk:
         assert "each package named in `methodology.package`" in workflow
         assert "import names and pip names" in workflow
         assert "An empty `methodology.package` is `true`" in workflow
+
+    def test_it_compares_top_level_modules_case_insensitively(self) -> None:
+        workflow = self._workflow()
+        assert "the part before the first `.`" in workflow
+        assert "case-insensitively" in workflow
+        assert "words that are not package names" in workflow
 
     def test_a_missing_file_falls_back_to_the_default_allowlist(self) -> None:
         workflow = self._workflow()
@@ -98,7 +117,7 @@ class TestAutopilotUsesTheSameAllowlist:
 
     def test_notebook_gate_uses_the_default_when_the_file_is_missing(self) -> None:
         assert (
-            f"if {ALLOWLIST_FILE} does not exist, the default allowlist"
+            "the default allowlist in the notebook contract when the file does not exist"
             in self._steps()
         )
 

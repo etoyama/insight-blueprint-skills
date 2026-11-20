@@ -12,15 +12,13 @@ allowlist instead of stopping at premortem. Design: `docs/design/epic-16-default
 
 ### Changed
 
-- **`/premortem` and `/analysis-auto` fall back to the default allowlist** when
-  `.insight/rules/package_allowlist.yaml` does not exist: the packages the plugin env ships
-  (`insight_blueprint`, marimo, pandas, matplotlib, numpy), listed in the notebook contract.
-  `allowlist_ok` is built from `methodology.package`, is `true` when it is empty, and is `null`
-  only for a file that exists but cannot be read (ADR-0021). A new project whose methodology needs
-  only these packages no longer stops at `HIGH` (`allowlist check failed (read error)`); one that
-  needs another package now stops at `HARD_BLOCK`.
-- The `HARD_BLOCK` reason for a package outside the allowlist says where to declare it:
-  `package outside allowlist (declare it in .insight/rules/package_allowlist.yaml)`.
+- **`/premortem` and `/analysis-auto` no longer stop a project that has no
+  `.insight/rules/package_allowlist.yaml`.** They use the default allowlist (the packages the plugin
+  env ships, listed in the notebook contract). A methodology that needs another package now stops at
+  `HARD_BLOCK` instead of `HIGH` (ADR-0021).
+- The `HARD_BLOCK` reason for a package outside the allowlist is now
+  `package outside allowlist (declare it in .insight/rules/package_allowlist.yaml)`. A script that
+  matches the old reason exactly must match its prefix instead.
 
 ## [0.11.0] - 2026-11-20
 
