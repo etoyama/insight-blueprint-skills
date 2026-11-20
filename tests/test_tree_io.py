@@ -784,6 +784,308 @@ class TestAnswer:
         assert path.read_bytes() == before
 
 
+class TestDecideAfterTheStart:
+    """deepen, return and close are taken at the round of the answers in view."""
+
+    @pytest.fixture
+    def started(self, world: Path) -> Path:
+        tree_io.decide(
+            "LIB", kind="start", node_id="LIB-Q02", reason="最初", base_dir=world
+        )
+        return world
+
+    def _decide(self, base: Path, kind: str, node_id: str) -> dict:
+        return tree_io.decide(
+            "LIB", kind=kind, node_id=node_id, reason="答えを見て", base_dir=base
+        )
+
+    def test_a_decision_after_a_reflection_carries_that_round(
+        self, started: Path
+    ) -> None:
+        tree_io.answer(
+            "LIB", answers=[_entry("LIB-Q02", "期限切れは152件")], base_dir=started
+        )
+        decision = self._decide(started, "deepen", "LIB-Q02")
+        assert (decision["kind"], decision["round"]) == ("deepen", 1)
+
+    def test_decisions_do_not_move_the_round_of_the_next_answers(
+        self, started: Path
+    ) -> None:
+        tree_io.answer(
+            "LIB", answers=[_entry("LIB-Q02", "期限切れは152件")], base_dir=started
+        )
+        self._decide(started, "return", "LIB-Q03")
+        result = tree_io.answer(
+            "LIB",
+            answers=[_entry("LIB-Q03", "取消後は34.6%", "LIB-H02-E01")],
+            base_dir=started,
+        )
+        assert result["round"] == 2
+
+    def test_return_records_the_node_to_investigate_next(self, started: Path) -> None:
+        self._decide(started, "return", "LIB-Q03")
+        stored = tree_io.load_tree("LIB", started)["decisions"]
+        assert [(d["kind"], d["node_id"]) for d in stored] == [
+            ("start", "LIB-Q02"),
+            ("return", "LIB-Q03"),
+        ]
+
+    def test_close_stops_at_the_node_investigated(self, started: Path) -> None:
+        assert self._decide(started, "close", "LIB-Q02")["kind"] == "close"
+
+    def test_a_deepen_outside_the_branch_is_not_written(self, started: Path) -> None:
+        with pytest.raises(ValueError, match="deepen goes to LIB-Q02"):
+            self._decide(started, "deepen", "LIB-Q03")
+        assert len(tree_io.load_tree("LIB", started)["decisions"]) == 1
+
+    def test_a_round_in_the_payload_is_refused(self, started: Path) -> None:
+        with pytest.raises(TypeError):
+            tree_io.decide(
+                "LIB",
+                kind="deepen",
+                node_id="LIB-Q02",
+                reason="x",
+                round=5,  # type: ignore[call-arg]
+                base_dir=started,
+            )
+
+
+class TestNextCandidates:
+    ASK = "予約取消は、窓口でどれくらい起きますか"
+
+    def _note(self, base: Path, node_id: str = "LIB-Q03", **over: str) -> dict:
+        kwargs = {"ask": self.ASK, "changes_if": "取消が多ければ延長を見送る"} | over
+        return tree_io.candidate("LIB", node_id, base_dir=base, **kwargs)
+
+    def test_a_node_with_no_design_is_listed_with_its_question(
+        self, world: Path
+    ) -> None:
+        _add(world, question="通知は期限の何日前に届くか")
+        listed = tree_io.candidates("LIB", base_dir=world)
+        assert [c["id"] for c in listed] == ["LIB-Q04"]
+        assert listed[0]["question"] == "通知は期限の何日前に届くか"
+        assert "next_candidate" not in listed[0]
+
+    def test_a_node_with_a_linked_design_is_not_listed(self, world: Path) -> None:
+        assert tree_io.candidates("LIB", base_dir=world) == []
+
+    def test_notes_are_listed_with_the_node(self, world: Path) -> None:
+        _add(world, question="通知は期限の何日前に届くか")
+        self._note(world, "LIB-Q04")
+        listed = tree_io.candidates("LIB", base_dir=world)
+        assert listed[0]["next_candidate"] == {
+            "ask": self.ASK,
+            "changes_if": "取消が多ければ延長を見送る",
+        }
+
+    def test_the_notes_of_a_node_are_stored_on_it(self, world: Path) -> None:
+        node = self._note(world, known="カタログに取消フラグがある")
+        assert node["next_candidate"]["known"] == "カタログに取消フラグがある"
+        stored = tree_io.load_tree("LIB", world)["nodes"][2]
+        assert stored["next_candidate"] == node["next_candidate"]
+
+    def test_noting_again_replaces_the_notes(self, world: Path) -> None:
+        self._note(world)
+        node = self._note(world, changes_if="")
+        assert "changes_if" not in node["next_candidate"]
+
+    def test_notes_with_nothing_in_them_are_not_written(self, world: Path) -> None:
+        with pytest.raises(ValueError, match="at least one of"):
+            self._note(world, ask="", changes_if="")
+        assert "next_candidate" not in tree_io.load_tree("LIB", world)["nodes"][2]
+
+    def test_a_node_outside_the_tree_is_refused(self, world: Path) -> None:
+        with pytest.raises(ValueError, match="LIB-Q09"):
+            self._note(world, "LIB-Q09")
+
+
+class TestHear:
+    ASK = "予約取消は、窓口でどれくらい起きますか"
+    HEARD = {
+        "answer": "月に十数件で、ほとんどが電話での取消",
+        "answered_by": "窓口の職員",
+        "answered_at": "2026-11-21",
+    }
+
+    @pytest.fixture
+    def asked(self, world: Path) -> Path:
+        tree_io.candidate(
+            "LIB", "LIB-Q03", ask=self.ASK, changes_if="件数次第", base_dir=world
+        )
+        return world
+
+    def test_the_answer_is_kept_with_who_and_when(self, asked: Path) -> None:
+        node = tree_io.hear("LIB", "LIB-Q03", base_dir=asked, **self.HEARD)
+        assert node["next_candidate"] | {} == {
+            "ask": self.ASK,
+            "changes_if": "件数次第",
+            **self.HEARD,
+        }
+        stored = tree_io.load_tree("LIB", asked)["nodes"][2]["next_candidate"]
+        assert str(stored["answered_at"]) == "2026-11-21"
+
+    def test_a_listed_candidate_shows_the_answer_heard(self, asked: Path) -> None:
+        _add(asked, question="通知は期限の何日前に届くか")
+        tree_io.candidate("LIB", "LIB-Q04", ask="通知の担当は", base_dir=asked)
+        tree_io.hear("LIB", "LIB-Q04", base_dir=asked, **self.HEARD)
+        heard = tree_io.candidates("LIB", base_dir=asked)[0]["next_candidate"]
+        assert heard["answered_by"] == "窓口の職員"
+
+    def test_hearing_again_replaces_the_answer(self, asked: Path) -> None:
+        tree_io.hear("LIB", "LIB-Q03", base_dir=asked, **self.HEARD)
+        node = tree_io.hear(
+            "LIB", "LIB-Q03", base_dir=asked, **self.HEARD | {"answer": "月に数件"}
+        )
+        assert node["next_candidate"]["answer"] == "月に数件"
+
+    def test_a_node_without_an_ask_cannot_be_answered(self, world: Path) -> None:
+        with pytest.raises(ValueError, match="no ask to answer"):
+            tree_io.hear("LIB", "LIB-Q03", base_dir=world, **self.HEARD)
+
+    def test_an_answer_without_who_is_not_written(self, asked: Path) -> None:
+        with pytest.raises(ValueError, match="set together"):
+            tree_io.hear(
+                "LIB", "LIB-Q03", base_dir=asked, **self.HEARD | {"answered_by": ""}
+            )
+        note = tree_io.load_tree("LIB", asked)["nodes"][2]["next_candidate"]
+        assert "answer" not in note
+
+    def test_a_date_that_is_not_a_date_is_not_written(self, asked: Path) -> None:
+        with pytest.raises(ValueError, match="answered_at"):
+            tree_io.hear(
+                "LIB", "LIB-Q03", base_dir=asked, **self.HEARD | {"answered_at": "昨日"}
+            )
+
+    def test_the_ask_cannot_change_once_it_is_answered(self, asked: Path) -> None:
+        tree_io.hear("LIB", "LIB-Q03", base_dir=asked, **self.HEARD)
+        with pytest.raises(ValueError, match="the ask cannot change"):
+            tree_io.candidate("LIB", "LIB-Q03", ask="別の問い", base_dir=asked)
+
+    def test_the_other_notes_can_change_after_the_answer_and_keep_it(
+        self, asked: Path
+    ) -> None:
+        tree_io.hear("LIB", "LIB-Q03", base_dir=asked, **self.HEARD)
+        node = tree_io.candidate(
+            "LIB", "LIB-Q03", ask=self.ASK, known="追記", base_dir=asked
+        )
+        assert node["next_candidate"]["answer"] == self.HEARD["answer"]
+        assert node["next_candidate"]["known"] == "追記"
+
+
+class TestCopyHearing:
+    ASK = "予約取消は、窓口でどれくらい起きますか"
+    ANSWER = "月に十数件で、ほとんどが電話での取消"
+
+    @pytest.fixture
+    def heard(self, world: Path) -> Path:
+        tree_io.candidate("LIB", "LIB-Q03", ask=self.ASK, base_dir=world)
+        tree_io.hear(
+            "LIB",
+            "LIB-Q03",
+            answer=self.ANSWER,
+            answered_by="窓口の職員",
+            answered_at="2026-11-21",
+            base_dir=world,
+        )
+        return world
+
+    @staticmethod
+    def _design_of(base: Path) -> str:
+        return tree_io.load_tree("LIB", base)["nodes"][2]["design_ids"][0]
+
+    def test_the_answer_lands_in_the_journal_as_a_hearing_event(
+        self, heard: Path
+    ) -> None:
+        design_id = self._design_of(heard)
+        result = tree_io.copy_hearing("LIB", "LIB-Q03", design_id, base_dir=heard)
+
+        assert result["copied"] is True
+        event = result["event"]
+        assert event["id"] == f"{design_id}-E02"
+        assert (event["type"], event["content"]) == ("hearing", self.ANSWER)
+        assert event["metadata"] == {
+            "node_id": "LIB-Q03",
+            "ask": self.ASK,
+            "answered_by": "窓口の職員",
+            "answered_at": "2026-11-21",
+        }
+        events = design_io.load_journal(design_id, base_dir=heard)["events"]
+        assert [e["id"] for e in events] == [f"{design_id}-E01", f"{design_id}-E02"]
+        assert events[1]["content"] == self.ANSWER
+
+    def test_copying_twice_writes_one_event(self, heard: Path) -> None:
+        design_id = self._design_of(heard)
+        tree_io.copy_hearing("LIB", "LIB-Q03", design_id, base_dir=heard)
+        again = tree_io.copy_hearing("LIB", "LIB-Q03", design_id, base_dir=heard)
+
+        assert again["copied"] is False
+        assert "already" in again["reason"]
+        events = design_io.load_journal(design_id, base_dir=heard)["events"]
+        assert len(events) == 2
+
+    def test_a_changed_answer_is_copied_as_a_new_event(self, heard: Path) -> None:
+        design_id = self._design_of(heard)
+        tree_io.copy_hearing("LIB", "LIB-Q03", design_id, base_dir=heard)
+        tree_io.hear(
+            "LIB",
+            "LIB-Q03",
+            answer="月に数件",
+            answered_by="窓口の職員",
+            answered_at="2026-11-22",
+            base_dir=heard,
+        )
+        tree_io.copy_hearing("LIB", "LIB-Q03", design_id, base_dir=heard)
+        events = design_io.load_journal(design_id, base_dir=heard)["events"]
+        assert [e["id"][-3:] for e in events] == ["E01", "E02", "E03"]
+
+    def test_a_journal_that_does_not_exist_is_created_with_its_header(
+        self, tree: Path
+    ) -> None:
+        _add(tree)
+        design_id = _design(tree)
+        tree_io.link_design("LIB", "LIB-Q02", design_id, base_dir=tree)
+        tree_io.candidate("LIB", "LIB-Q02", ask=self.ASK, base_dir=tree)
+        tree_io.hear(
+            "LIB",
+            "LIB-Q02",
+            answer=self.ANSWER,
+            answered_by="窓口の職員",
+            answered_at="2026-11-21",
+            base_dir=tree,
+        )
+        tree_io.copy_hearing("LIB", "LIB-Q02", design_id, base_dir=tree)
+
+        journal = design_io.load_journal(design_id, base_dir=tree)
+        assert journal["metadata"]["design_id"] == design_id
+        assert journal["metadata"]["created_at"] and journal["metadata"]["updated_at"]
+        assert [e["id"] for e in journal["events"]] == [f"{design_id}-E01"]
+
+    def test_a_node_without_an_answer_copies_nothing_and_is_not_an_error(
+        self, world: Path
+    ) -> None:
+        design_id = self._design_of(world)
+        result = tree_io.copy_hearing("LIB", "LIB-Q03", design_id, base_dir=world)
+        assert result["copied"] is False
+        assert "no answer" in result["reason"]
+
+    def test_a_design_not_linked_to_the_node_is_refused(self, heard: Path) -> None:
+        other = _design(heard)
+        with pytest.raises(ValueError, match="not linked"):
+            tree_io.copy_hearing("LIB", "LIB-Q03", other, base_dir=heard)
+
+    def test_a_copied_hearing_can_back_an_answer_as_a_journal_event(
+        self, heard: Path
+    ) -> None:
+        design_id = self._design_of(heard)
+        tree_io.copy_hearing("LIB", "LIB-Q03", design_id, base_dir=heard)
+        result = tree_io.answer(
+            "LIB",
+            answers=[_entry("LIB-Q03", "取消は月に十数件", f"{design_id}-E02")],
+            base_dir=heard,
+        )
+        assert result["violations"] == []
+
+
 class TestCli:
     def _run(self, insight: Path, *args: str, payload: dict | None = None):
         return _run_cli(insight, *args, payload=payload)
@@ -856,6 +1158,106 @@ class TestCli:
         assert json.loads(decided.stdout)["node_id"] == "LIB-Q02"
         got = self._run(tree, "get", "--theme", "LIB")
         assert len(json.loads(got.stdout)["decisions"]) == 1
+
+    def test_the_next_candidate_commands_round_trip_through_the_cli(
+        self, world: Path
+    ) -> None:
+        design_id = tree_io.load_tree("LIB", world)["nodes"][2]["design_ids"][0]
+        noted = self._run(
+            world,
+            "candidate",
+            "--theme",
+            "LIB",
+            "--node",
+            "LIB-Q03",
+            payload={"ask": "取消は月に何件か", "changes_if": "件数次第"},
+        )
+        assert noted.returncode == 0, noted.stderr
+        assert json.loads(noted.stdout)["next_candidate"]["ask"] == "取消は月に何件か"
+
+        heard = self._run(
+            world,
+            "hear",
+            "--theme",
+            "LIB",
+            "--node",
+            "LIB-Q03",
+            payload={
+                "answer": "月に十数件",
+                "answered_by": "窓口の職員",
+                "answered_at": "2026-11-21",
+            },
+        )
+        assert heard.returncode == 0, heard.stderr
+
+        copied = self._run(
+            world,
+            "copy-hearing",
+            "--theme",
+            "LIB",
+            "--node",
+            "LIB-Q03",
+            "--design",
+            design_id,
+        )
+        assert copied.returncode == 0, copied.stderr
+        assert json.loads(copied.stdout)["event"]["type"] == "hearing"
+
+        again = self._run(
+            world,
+            "copy-hearing",
+            "--theme",
+            "LIB",
+            "--node",
+            "LIB-Q03",
+            "--design",
+            design_id,
+        )
+        assert (again.returncode, json.loads(again.stdout)["copied"]) == (0, False)
+
+        listed = self._run(world, "candidates", "--theme", "LIB")
+        assert json.loads(listed.stdout) == []
+
+    def test_hear_on_a_node_without_an_ask_exits_1_with_the_message(
+        self, world: Path
+    ) -> None:
+        done = self._run(
+            world,
+            "hear",
+            "--theme",
+            "LIB",
+            "--node",
+            "LIB-Q03",
+            payload={
+                "answer": "x",
+                "answered_by": "y",
+                "answered_at": "2026-11-21",
+            },
+        )
+        assert done.returncode == 1
+        assert "no ask to answer" in done.stderr
+        assert done.stdout == ""
+
+    def test_a_node_command_without_its_node_says_so(self, world: Path) -> None:
+        done = self._run(world, "hear", "--theme", "LIB", payload={})
+        assert done.returncode == 1
+        assert "--node is required" in done.stderr
+
+    def test_decide_with_a_round_exits_1(self, world: Path) -> None:
+        done = self._run(
+            world,
+            "decide",
+            "--theme",
+            "LIB",
+            payload={
+                "kind": "start",
+                "node_id": "LIB-Q02",
+                "reason": "x",
+                "round": 0,
+            },
+        )
+        assert done.returncode == 1
+        assert "round" in done.stderr
 
     def test_a_command_without_its_theme_says_so(self, tree: Path) -> None:
         missing = self._run(tree, "progress")

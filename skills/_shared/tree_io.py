@@ -50,6 +50,7 @@ from skills._shared.design_io import (
     load_design,
     load_journal,
     read_yaml,
+    write_journal,
 )
 from skills._shared.tree_render import CitedEvent, DesignSummary, render_tree_html
 
@@ -258,12 +259,14 @@ def decide(
     reason: str,
     base_dir: Path = DEFAULT_BASE_DIR,
 ) -> dict:
-    """Append a decision to the tree and return it."""
+    """Append a decision to the tree and return it.
+
+    The round is never passed: a ``start`` is taken at round 0, any other kind
+    at the last reflection round, which is the one whose answers it was made on.
+    """
     tree = _require_tree(theme_id, base_dir)
     decision = {
-        # No reflection round exists before Story 18.4, so every decision is
-        # taken at round 0.
-        "round": 0,
+        "round": 0 if kind == "start" else validate_tree_schema(tree).current_round(),
         "kind": kind,
         "node_id": node_id,
         "reason": reason,
@@ -271,6 +274,154 @@ def decide(
     }
     tree.setdefault("decisions", []).append(decision)
     return _write_tree(tree, theme_id, base_dir)["decisions"][-1]
+
+
+_HEARD_FIELDS = ("answer", "answered_by", "answered_at")
+
+
+def candidates(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> list[dict]:
+    """The next candidates: untouched nodes, each with its notes when it has any."""
+    return [
+        {
+            "id": node.id,
+            "question": node.question,
+            "parent_question_id": node.parent_question_id,
+            "contribution": node.contribution,
+            **(
+                {
+                    "next_candidate": node.next_candidate.model_dump(
+                        mode="json", exclude_defaults=True
+                    )
+                }
+                if node.next_candidate
+                else {}
+            ),
+        }
+        for node in load_tree_model(theme_id, base_dir).untouched_nodes()
+    ]
+
+
+def candidate(
+    theme_id: str,
+    node_id: str,
+    *,
+    ask: str = "",
+    changes_if: str = "",
+    known: str = "",
+    base_dir: Path = DEFAULT_BASE_DIR,
+) -> dict:
+    """Replace the notes of a node and return it; a recorded answer is kept.
+
+    The answer answers the old question, so *ask* cannot change while one is
+    recorded.
+    """
+    tree = _require_tree(theme_id, base_dir)
+    node = _node(tree, node_id)
+    heard = {
+        k: v
+        for k, v in (node.get("next_candidate") or {}).items()
+        if k in _HEARD_FIELDS
+    }
+    if heard and ask != node["next_candidate"].get("ask", ""):
+        raise ValueError(
+            f"{node_id} already has an answer to its ask; the ask cannot change"
+        )
+    node["next_candidate"] = {
+        "ask": ask,
+        "changes_if": changes_if,
+        "known": known,
+        **heard,
+    }
+    return _node(_write_tree(tree, theme_id, base_dir), node_id)
+
+
+def hear(
+    theme_id: str,
+    node_id: str,
+    *,
+    answer: str,
+    answered_by: str,
+    answered_at: str,
+    base_dir: Path = DEFAULT_BASE_DIR,
+) -> dict:
+    """Record the answer a person gave to the ask of a node and return the node.
+
+    Recording again replaces the answer.
+    """
+    tree = _require_tree(theme_id, base_dir)
+    node = _node(tree, node_id)
+    note = node.get("next_candidate")
+    if not note or not note.get("ask"):
+        raise ValueError(f"{node_id} has no ask to answer")
+    note |= {
+        "answer": answer,
+        "answered_by": answered_by,
+        "answered_at": answered_at,
+    }
+    return _node(_write_tree(tree, theme_id, base_dir), node_id)
+
+
+def copy_hearing(
+    theme_id: str,
+    node_id: str,
+    design_id: str,
+    base_dir: Path = DEFAULT_BASE_DIR,
+) -> dict:
+    """Copy the recorded answer of a node into the journal of *design_id*.
+
+    The text goes in verbatim, by code, so a model never retypes it. It is
+    written once: the same answer already in the journal is not written again.
+    """
+    tree = load_tree_model(theme_id, base_dir)
+    node = next((n for n in tree.nodes if n.id == node_id), None)
+    if node is None:
+        raise ValueError(f"node '{node_id}' not found in the tree of {theme_id}")
+    if design_id not in node.design_ids:
+        raise ValueError(f"design '{design_id}' is not linked to {node_id}")
+    note = node.next_candidate
+    if note is None or not note.answer:
+        return {"copied": False, "reason": f"{node_id} has no answer to copy"}
+
+    metadata = {
+        "node_id": node_id,
+        "ask": note.ask,
+        "answered_by": note.answered_by,
+        "answered_at": note.answered_at.isoformat() if note.answered_at else "",
+    }
+    now = now_jst().isoformat()
+    journal: dict[str, Any] = load_journal(design_id, base_dir)
+    if not journal:
+        journal = {
+            "metadata": {"design_id": design_id, "created_at": now},
+            "events": [],
+        }
+    events: list[dict[str, Any]] = journal.get("events") or []
+    same = {k: metadata[k] for k in ("node_id", "answered_by", "answered_at")}
+    for existing in events:
+        old = existing.get("metadata") or {}
+        if (
+            existing.get("type") == "hearing"
+            and existing.get("content") == note.answer
+            and {k: str(old.get(k)) for k in same} == same
+        ):
+            return {"copied": False, "reason": "the answer is already in the journal"}
+
+    taken = [
+        int(m[1])
+        for e in events
+        if (m := re.fullmatch(rf"{re.escape(design_id)}-E(\d+)", str(e.get("id"))))
+    ]
+    event = {
+        "id": f"{design_id}-E{max(taken, default=0) + 1:02d}",
+        "type": "hearing",
+        "content": note.answer,
+        "metadata": metadata,
+        "created_at": now,
+    }
+    journal["events"] = [*events, event]
+    journal.setdefault("metadata", {})["updated_at"] = now
+    write_journal(design_id, journal, base_dir)
+    return {"copied": True, "event": event}
 
 
 class _AnswerEntry(BaseModel):
@@ -485,6 +636,13 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     return {"path": str(path)}
 
 
+def _required(args: argparse.Namespace, name: str) -> str:
+    value = getattr(args, name)
+    if value is None:
+        raise ValueError(f"--{name} is required for {args.command}")
+    return value
+
+
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="tree_io")
     parser.add_argument(
@@ -494,6 +652,10 @@ def _main(argv: list[str] | None = None) -> int:
             "add-node",
             "link",
             "decide",
+            "candidates",
+            "candidate",
+            "hear",
+            "copy-hearing",
             "revise-root",
             "answer",
             "get",
@@ -525,6 +687,21 @@ def _main(argv: list[str] | None = None) -> int:
             result = link_design(args.theme, args.node, args.design, base_dir=base)
         elif args.command == "decide":
             result = decide(args.theme, base_dir=base, **payload)
+        elif args.command == "candidates":
+            result = candidates(args.theme, base_dir=base)
+        elif args.command == "candidate":
+            result = candidate(
+                args.theme, _required(args, "node"), base_dir=base, **payload
+            )
+        elif args.command == "hear":
+            result = hear(args.theme, _required(args, "node"), base_dir=base, **payload)
+        elif args.command == "copy-hearing":
+            result = copy_hearing(
+                args.theme,
+                _required(args, "node"),
+                _required(args, "design"),
+                base_dir=base,
+            )
         elif args.command == "revise-root":
             result = revise_root(args.theme, base_dir=base, **payload)
         elif args.command == "answer":

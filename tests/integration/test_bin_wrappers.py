@@ -176,6 +176,54 @@ def test_tree_io_render_wrapper_writes_the_html_to_the_project_from_foreign_cwd(
     assert not (foreign_cwd / ".insight").exists()
 
 
+def test_tree_io_candidates_wrapper_reads_the_project_tree_from_foreign_cwd(
+    tmp_path: Path,
+) -> None:
+    """tree_io candidates lists the untouched nodes of CLAUDE_PROJECT_DIR (Story 18.5)."""
+    project = tmp_path / "userproj"
+    project.mkdir()
+    foreign_cwd = tmp_path / "elsewhere"
+    foreign_cwd.mkdir()
+    env = _base_env()
+    env["CLAUDE_PLUGIN_ROOT"] = str(REPO_ROOT)
+    env["CLAUDE_PROJECT_DIR"] = str(project)
+    wrapper = str(REPO_ROOT / "bin" / "tree_io")
+
+    def run(*args: str, payload: dict | None = None) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [wrapper, *args],
+            input=json.dumps(payload) if payload else "",
+            capture_output=True,
+            text=True,
+            cwd=str(foreign_cwd),
+            env=env,
+        )
+
+    created = run(
+        "create",
+        payload={
+            "theme_id": "LIB",
+            "question": "取り置き期限を延ばす試行をするか",
+            "aim": {"kind": "research", "audience": "司書", "claim_scope": "1館"},
+        },
+    )
+    added = run(
+        "add-node",
+        "--theme",
+        "LIB",
+        payload={
+            "question": "期限切れを一貫して数えられるか",
+            "parent_question_id": "LIB-Q01",
+            "contribution": "件数が変わる",
+        },
+    )
+    listed = run("candidates", "--theme", "LIB")
+
+    assert (created.returncode, added.returncode) == (0, 0), added.stderr
+    assert listed.returncode == 0, listed.stderr
+    assert [c["id"] for c in json.loads(listed.stdout)] == ["LIB-Q02"]
+
+
 def test_report_check_wrapper_reads_the_project_report_from_foreign_cwd(
     tmp_path: Path,
 ) -> None:
