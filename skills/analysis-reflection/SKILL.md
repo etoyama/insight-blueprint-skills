@@ -301,6 +301,8 @@ Root question: {root question}
 - List every removed statement with its violation. Never drop one silently: the analyst
   must know what the answer does not say.
 - Show the `path` that `tree_io render` printed: the analyst reads the tree there.
+  To hand it over by URL, the analyst runs `/tree-upload {theme_id}`, which asks before
+  sending. Say so in one line; do not start it.
 - Suggest what to do next:
   - "未着手の論点に分析設計を起こすなら /analysis-design"
   - "根の問いか到達点を変えるなら /analysis-framing {theme_id}"
@@ -336,6 +338,7 @@ Both are on PATH via the plugin. JSON on stdout.
 | /analysis-journal | → /analysis-reflection | Evidence gathered |
 | /analysis-notebook | → /analysis-reflection | Notebook 実行の結果が揃った: 結論づけへ |
 | /analysis-auto | → /analysis-reflection | autopilot が結果到達; 結論はユーザー判断 |
+| /analysis-reflection | → /tree-upload | 現時点の答えを書き、図（HTML）を作り直した: "論点ツリーの図を URL で渡すなら /tree-upload" |
 | /analysis-reflection | → /analysis-report | Conclusion reached (terminal status): 配布用 APA レポートに畳む |
 | /analysis-reflection | → /analysis-journal | Need more evidence or branching |
 | /analysis-reflection | → /knowledge-extract | Conclusion produced reusable source knowledge |
