@@ -669,7 +669,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
 | Story 18.1 | ✓ | ✓ | — （skill を通らない） |
-| Story 18.2 | ✓（`tests/test_tree_models.py` の `TestTreeDecision`、`tests/test_tree_io.py` の `TestDecide`） | ✓（`tests/skills/test_question_tree_structure.py`。SKILL.md に書いたコマンドを `tree_io` に通す。`tests/test_validate_hook.py` は決定を消す書き込みを hook が止めることを確かめる） | —（headless 実行の E2E は [ADR-0010](../adr/0010-skill-tdd-structure-tests.md) で必須にしていない。skill を通した手動確認はしていない） |
+| Story 18.2 | ✓（`tests/test_tree_models.py` の `TestTreeDecision`、`tests/test_tree_io.py` の `TestDecide`） | ✓（`tests/skills/test_question_tree_structure.py`。SKILL.md に書いたコマンドを `tree_io` に通す。`tests/test_validate_hook.py` は決定を消す書き込みを hook が止めることを確かめる） | —（headless 実行の E2E は [ADR-0010](../adr/0010-skill-tdd-structure-tests.md) で必須にしていない。skill を通した手動確認は Story Timeline の 2026-11-21 に記録した） |
 | Story 18.3 | ☐ | ☐ | — （CLI だけ） |
 | Story 18.4 | ☐ | ☐ | ☐ |
 | Story 18.5 | ☐ | ☐ | ☐ |
@@ -688,3 +688,4 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - 2026-11-20 — PR #117 を main にマージ。未決事項2つを決め（判断A・B）、Story 18.5 と 18.9 を起票（#126、#127）。
 - 2026-11-20 — Story 18.1 completed: 型名を決め（`NextCandidate`・`Answer`・`Aim`）、論点ツリーのモデル、`validate_tree`、`tree_io`（create・add-node・link・revise-root・get・progress）、`*_tree.yaml` を検証する pre-write hook、`bin/tree_io` を入れた。
 - 2026-11-20 — Story 18.2 completed: `/analysis-framing` の Step 4・5 が根の問い、到達点、第一階層の論点を分析者と決めて `tree_io` で書き、最初に調べる論点と理由をツリーの決定（`start`）として残す。Framing Brief に `theme_id` と `node_id` を載せ、`/analysis-design` が `tree_io link` で結ぶ。`TreeDecision` と `tree_io decide` を足した。レビュー（thermos）の指摘で、2つめの `start` をモデルで拒むようにし、再実行の手順の食い違いを直した。`tree_io render` は Story 18.6 で入るので、framing はまだ HTML を作らない。
+- 2026-11-21 — Story 18.2 を手動で確認した。合成データのプロジェクトにプラグインを読み込み、headless の Claude Code（sonnet）で `/analysis-framing` と `/analysis-design` を実行した。新しいテーマでは、論点ツリーの正本に根の版 1 と `start` の決定が1件書かれた。`/analysis-design` は `tree_io link` で分析設計を論点に結び、`node_id` の無い Framing Brief では結ばずに作った。根の変更では、意味の変わる変更に「上げない」と答えると1回だけ聞き直し、2回目の答えに従った。言い換えは1回の確認で済んだ。pre-write hook は、決定を消す Edit と前の根の版を変える Edit を拒んだ。意味の変わる変更に「上げる」と答える経路は、skill を通しては確かめていない。
