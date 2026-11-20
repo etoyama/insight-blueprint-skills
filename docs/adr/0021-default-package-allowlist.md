@@ -18,7 +18,7 @@ v0.10.0 の手動確認（2026-11-20）では、`.insight/rules/` が空のプ�
   `skills/premortem/cli.py` は渡された値を `SourceChecks` に入れるだけである。
 - `skills/premortem/lib/risk_evaluator.py` は、`allowlist_ok` が `false` なら `HARD_BLOCK`、`null` なら `HIGH`（`allowlist check failed (read error)`）にする。
 - 照らす対象は分析設計の `methodology.package` で、空でもよい自由な文字列である（`src/insight_blueprint/models/design.py` の `Methodology`）。
-- plugin の env には、`pyproject.toml` の `notebook` extra（marimo・pandas・matplotlib・numpy）と `insight_blueprint` が最初から入っている。
+- plugin の env には `pyproject.toml` の `notebook` extra（marimo・pandas・matplotlib・numpy）と `insight_blueprint` が最初から入っている。
   notebook の契約は `marimo` と `LineageSession`（`insight_blueprint`）の import を求める（`skills/analysis-notebook/references/notebook-contract.md`）。
 - `.insight/` を初期化する skill は無い。リポジトリの `.insight/rules/package_allowlist.yaml` は開発用の見本で、利用者のプロジェクトには配られない。
 - driver が `null` を選んだのが、その回だけの解釈か、毎回そうなるのかは確かめていない。

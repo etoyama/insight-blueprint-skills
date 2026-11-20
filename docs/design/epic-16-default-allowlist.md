@@ -10,7 +10,7 @@ Epic issue（[#101](https://github.com/etoyama/insight-blueprint-skills/issues/1
     premortem は `HIGH`（`allowlist check failed (read error)`）を返して止まった。費用の問題ではないのに、初めて使う分析者が最初に止まる。
   - 課題2: ファイルが無いときに `allowlist_ok` をどう決めるかを、どの文書も書いていない。`/premortem` の SKILL.md は「`package_allowlist.yaml` から作る」とだけ書く。
     driver によって `null`・`true`・`false` のどれにもなりうる。
-  - 課題3: パッケージ許可リストは、notebook を自動で実行してよいかの境界でもある（[ADR-0005](../adr/0005-selective-autonomous-chaining.md)）。
+  - 課題3: パッケージ許可リストは notebook を自動で実行してよいかの境界でもある（[ADR-0005](../adr/0005-selective-autonomous-chaining.md)）。
     ファイルが無いときに何でも許すと、この境界が消える。
 - PRD の要件: [docs/PRD.md](../PRD.md) の非機能要件「Claude Code plugin として配布・利用できる」。plugin を入れたばかりのプロジェクトでも、基本のパッケージだけを使う分析は止まらずに notebook まで進む。
 - 既存手段が不十分な理由: [docs/ARCHITECTURE.md](../ARCHITECTURE.md) はこのファイルを「任意」としている。それなのに、ファイルが無いと必ず止まる。
@@ -24,12 +24,12 @@ AC の正本はここ。
 
 分析者として、パッケージ許可リストを書く前の新しいプロジェクトでも guided autopilot を notebook まで進めたい。そのために、ファイルが無いときは plugin の既定の許可リストを使ってほしい。
 
-- [ ] AC 1: notebook の契約（`notebook-contract.md`）に、ファイルが無いときに使う既定の許可リストがある。その import 名は、`pyproject.toml` の `notebook` extra と `insight_blueprint` に一致する。
+- [x] AC 1: notebook の契約（`notebook-contract.md`）に、ファイルが無いときに使う既定の許可リストがある。その import 名は `pyproject.toml` の `notebook` extra と `insight_blueprint` に一致する。
   ファイルがあるときは、ファイルの内容だけを使う。
-- [ ] AC 2: `/premortem` は、`methodology.package` に書かれた各パッケージを許可リスト（ファイル、無ければ既定の許可リスト）と照らして `allowlist_ok` を決める。
+- [x] AC 2: `/premortem` は、`methodology.package` に書かれた各パッケージを許可リスト（ファイル、無ければ既定の許可リスト）と照らして `allowlist_ok` を決める。
   `methodology.package` が空なら `true` にする。ファイルが無いことを理由に `null` にしない。`null` は、ファイルがあるのに読めないときだけ使う。
-- [ ] AC 3: `/analysis-auto` が notebook を自動で実行してよいかを決めるときも、ファイルが無ければ既定の許可リストを使う。
-- [ ] AC 4: パッケージ許可リストの外のパッケージで `HARD_BLOCK` になったとき、その理由は、パッケージを `.insight/rules/package_allowlist.yaml` に宣言すれば許せることを伝える。
+- [x] AC 3: `/analysis-auto` が notebook を自動で実行してよいかを決めるときも、ファイルが無ければ既定の許可リストを使う。
+- [x] AC 4: パッケージ許可リストの外のパッケージで `HARD_BLOCK` になったとき、その理由はパッケージを `.insight/rules/package_allowlist.yaml` に宣言すれば許せることを伝える。
 
 ## Stories
 
@@ -164,7 +164,7 @@ sequenceDiagram
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| US-1 既定の許可リスト | ☐ | ☐ | ☐ |
+| US-1 既定の許可リスト | ✓（`tests/skills/test_default_allowlist_structure.py`: `TestDefaultAllowlistIsThePluginEnv`、`TestPremortemBuildsAllowlistOk`、`TestAutopilotUsesTheSameAllowlist`。`tests/batch_harness/test_risk_evaluator.py`: `test_allowlist_false_says_where_to_declare_the_package`） | ✓（`tests/integration/test_premortem_report.py`: `test_allowlist_stop_prints_where_to_declare_the_package`。`cli.py` 経由で理由の文が表に出る） | —（headless 実行の E2E は ADR-0010 で必須にしていない。手動確認を Story Timeline に残す） |
 
 完了時に ✓ を付ける。自動テストがない層には「—（理由）」を書く（[ADR-0010](../adr/0010-skill-tdd-structure-tests.md)）。
 
@@ -172,3 +172,12 @@ sequenceDiagram
 
 - 2026-11-20 — 人間が扱いを決めた。ファイルが無いときは、plugin 側に置いた既定の許可リストで `allowlist_ok` を決める（案 A）。判断は ADR に残す。
 - 2026-11-20 — DesignDoc 初版。issue #101 を Epic にし、Story #107 を起票した。
+- 2026-11-20 — Story #107 completed: `/premortem` と `/analysis-auto` が、ファイルが無いときに notebook の契約の既定の許可リストを使うようにした。
+  `HARD_BLOCK` の理由に宣言する場所を書いた。構造テスト、unit test、integration test を先に Red にした。
+- 2026-11-20 — 手動確認（US-1）: 合成データの `.insight/` を2つ作り、この作業を知らないサブエージェント（sonnet）に `/premortem` の SKILL.md のパスだけを渡した。
+  - `.insight/rules/` の無いプロジェクト: `methodology.package` が空（SALES-H01）と `pandas`（SALES-H02）は、既定の許可リストで `allowlist_ok: true` になり、`low` だった。
+    `statsmodels`（SALES-H03）は `false` になり、`hard_block`（`package outside allowlist (declare it in .insight/rules/package_allowlist.yaml)`）だった。
+  - 壊れた YAML のファイルを置いたプロジェクト: `allowlist_ok: null` になり、`high`（`allowlist check failed (read error)`）だった。既定の許可リストには戻らなかった。
+  - 迷った所: `source_checks_map` のキーの名前が SKILL.md に無い。`designs` の要素の形。`catalog_io get-schema` が失敗したときの扱い。どれもこの Epic の前からあり、直していない。
+  - 見つけた不具合: 表の INTENT 列が常に `unknown` になる（issue #109）。もう1つ、ファイルを置いたプロジェクトでは notebook の契約が求める import が許可リストの外になりうる（issue #108）。
+  - 確かめていないこと: `/analysis-auto` を通した実行。notebook の自動実行の判断。sonnet 以外のモデル。
