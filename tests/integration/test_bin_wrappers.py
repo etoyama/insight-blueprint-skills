@@ -73,6 +73,7 @@ def test_wrapper_writes_to_project_dir_from_foreign_cwd(tmp_path: Path) -> None:
         ("tree_io", ["get", "--theme", "LIB"]),
         ("premortem", ["--help"]),
         ("report_check", ["--help"]),
+        ("tree_check", ["--help"]),
     ],
 )
 def test_wrapper_runs_from_its_own_plugin_without_plugin_root(
@@ -172,6 +173,77 @@ def test_report_check_wrapper_does_not_report_a_missing_project_as_violations(
 
     result = subprocess.run(
         [str(REPO_ROOT / "bin" / "report_check"), "--id", "X"],
+        capture_output=True,
+        text=True,
+        cwd=str(tmp_path),
+        env=env,
+    )
+
+    assert result.returncode == 2, result.stderr
+    assert result.stdout == ""
+
+
+def test_tree_check_wrapper_reads_the_project_tree_from_foreign_cwd(
+    tmp_path: Path,
+) -> None:
+    """tree_check checks CLAUDE_PROJECT_DIR/.insight/themes and creates nothing."""
+    project = tmp_path / "userproj"
+    themes = project / ".insight" / "themes"
+    themes.mkdir(parents=True)
+    (themes / "LIB_tree.yaml").write_text(
+        """\
+theme_id: LIB
+root_revisions:
+  - revision: 1
+    question: 取り置き期限を延ばす試行をするか
+    aim: {kind: business, decision_maker: 図書館員, decision: 試行を始めるか}
+nodes:
+  - id: LIB-Q01
+    question: 取り置き期限を延ばす試行をするか
+    answers:
+      - round: 1
+        root_revision: 1
+        statements:
+          - {kind: claim, text: 期限切れは152件だった, cites: [LIB-H01-E01]}
+""",
+        encoding="utf-8",
+    )
+    foreign_cwd = tmp_path / "elsewhere"
+    foreign_cwd.mkdir()
+
+    env = _base_env()
+    env["CLAUDE_PLUGIN_ROOT"] = str(REPO_ROOT)
+    env["CLAUDE_PROJECT_DIR"] = str(project)
+
+    result = subprocess.run(
+        [str(REPO_ROOT / "bin" / "tree_check"), "--theme", "LIB"],
+        capture_output=True,
+        text=True,
+        cwd=str(foreign_cwd),
+        env=env,
+    )
+
+    assert result.returncode == 1, result.stderr
+    out = json.loads(result.stdout)
+    assert [v["kind"] for v in out["violations"]] == [
+        "missing-event",
+        "unlinked-design",
+        "number-not-cited",
+    ]
+    assert list(foreign_cwd.iterdir()) == []
+    assert sorted(p.name for p in (project / ".insight").iterdir()) == ["themes"]
+
+
+def test_tree_check_wrapper_does_not_report_a_missing_project_as_violations(
+    tmp_path: Path,
+) -> None:
+    """Exit 1 means "violations found", so a setup error must not use it."""
+    env = _base_env()
+    env["CLAUDE_PLUGIN_ROOT"] = str(REPO_ROOT)
+    env["CLAUDE_PROJECT_DIR"] = str(tmp_path / "no-such-project")
+
+    result = subprocess.run(
+        [str(REPO_ROOT / "bin" / "tree_check"), "--theme", "LIB"],
         capture_output=True,
         text=True,
         cwd=str(tmp_path),
