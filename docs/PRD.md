@@ -73,6 +73,7 @@ Epic 06 からは軽量版の上に分析の能力を足していく。
 | Epic 13 | [epic-13](design/epic-13-report-source-text.md) | レポートに写すデータ由来の文の扱い | 完了 |
 | Epic 14 | [epic-14](design/epic-14-report-template-gaps.md) | レポートのテンプレートに書いていない所を決める | 進行中 |
 | Epic 15 | [epic-15](design/epic-15-declared-source-ids.md) | 分析設計が使うデータソースを `source_ids` に宣言する | 完了 |
+| Epic 16 | [epic-16](design/epic-16-default-allowlist.md) | パッケージ許可リストが無いプロジェクトでは既定の許可リストを使う | 進行中 |
 
 各 Epic の DesignDoc は `## Scope` 節で、本書のどの要件と
 ARCHITECTURE のどのコンポーネントを前進させるかを示す。

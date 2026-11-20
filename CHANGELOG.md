@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Epic 16 (#101): a project without `.insight/rules/package_allowlist.yaml` uses the default
+allowlist instead of stopping at premortem. Design: `docs/design/epic-16-default-allowlist.md`.
+
+### Changed
+
+- **`/premortem` and `/analysis-auto` no longer stop a project that has no
+  `.insight/rules/package_allowlist.yaml`.** They use the default allowlist (the packages the plugin
+  env ships, listed in the notebook contract). A methodology that needs another package now stops at
+  `HARD_BLOCK` instead of `HIGH` (ADR-0021).
+- The `HARD_BLOCK` reason for a package outside the allowlist is now
+  `package outside allowlist (declare it in .insight/rules/package_allowlist.yaml)`. A script that
+  matches the old reason exactly must match its prefix instead.
+
 ## [0.11.0] - 2026-11-20
 
 ### Upgrade note
