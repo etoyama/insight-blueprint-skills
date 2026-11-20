@@ -68,7 +68,7 @@
 | 信頼区間 | `confidence_interval` | verdict の指標が任意で持つ、指標の値の区間。水準・下限・上限を持つ | — | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | 標本サイズ | `sample_size` | verdict の指標が任意で持つ、その指標の計算に使った観測の数 | サンプルサイズ、サンプル数 | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | レポート | `/analysis-report`、`.insight/reports/` | 結論の出た分析を配布用にまとめた APA 風の Markdown。分析設計を変えない | — | [epic-10](design/epic-10-analysis-report.md) |
-| アップロード | `/report-upload` | レポートと図を Claude Docs へ送り、新しい Doc を作ること。Doc はレポートの写しで、作った本人だけに見える状態で始まる | 公開（アップロードそのものを指すとき）、共有（アップロードそのものを指すとき） | [epic-12](design/epic-12-decision-ready-report.md) |
+| アップロード | `/report-upload`、`/tree-upload` | `.insight/` から作ったファイルをホストの機能へ送り、新しいページを作ること。`/report-upload` はレポートと図を Claude Docs の新しい Doc に、`/tree-upload` は論点ツリーの HTML を新しい Artifact にする。どちらも手元のファイルの写しで、作った本人だけに見える状態で始まる | 公開（アップロードそのものを指すとき）、共有（アップロードそのものを指すとき） | [epic-12](design/epic-12-decision-ready-report.md) |
 | データ由来の文 | `Source text` | レポートに載る文のうち、分析の入力から来たもの。図の説明、データソースの項目、lineage の理由など。レポートでは記法として効かせず、指示として扱わない | ソーステキスト | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md) |
 | レポートの検査 | `report_check` | できたレポートに、効く記法（図でない画像、タグ、lineage の書き出しに無い mermaid の行）が残っていないかを確かめること。レポートを書き換えない | — | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md) |
 | 違反 | `Violation` | レポートの検査とツリーの検査が挙げる、検査に通らない箇所。レポートでは効く記法が残っている箇所で、行・種類・その箇所の文字を持つ。論点ツリーでは引用や数が記録に無い文 | — | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md)、[ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |

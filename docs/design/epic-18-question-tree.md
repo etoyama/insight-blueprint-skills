@@ -144,7 +144,7 @@ AC の正本はここ。
 [docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md)。
 
 - 追加: 論点ツリー、論点、根の問い、到達点、根の版、寄与、発見元、進捗、現時点の答え、振り返りの回、ツリーの決定、次の候補、ツリーの検査、Artifact、合成シナリオ、引き継ぎの試行、巡回
-- 変更: 違反（[ADR-0025](../adr/0025-cited-answers-checked-after-writing.md)。ツリーの検査も挙げる）
+- 変更: アップロード（Story 18.7。`/tree-upload` も指す）、違反（[ADR-0025](../adr/0025-cited-answers-checked-after-writing.md)。ツリーの検査も挙げる）
 
 ## Scope
 
@@ -180,6 +180,7 @@ flowchart TD
     TREE[(".insight/themes/{theme_id}_tree.yaml<br/>正本")]
     HTML[(".insight/themes/{theme_id}_tree.html<br/>生成物")]
     DES[(".insight/designs/<br/>*_hypothesis.yaml / *_journal.yaml")]
+    TU["/tree-upload（新設）<br/>skills/tree-upload/SKILL.md"]
     ART["Artifact（ホストの機能。任意）"]
 
     U -->|入口| AUTO
@@ -203,7 +204,11 @@ flowchart TD
     TC -->|読む| DES
     RF --> DIO
     DIO --> DES
-    RF -->|KEEP ゲートの後| ART
+    FR -->|render| TIO
+    RF -->|render| TIO
+    U -.->|図を渡したいとき| TU
+    TU -->|render| TIO
+    TU -->|KEEP ゲートの後| ART
     HTML -.->|同じファイルを送る| ART
 ```
 
@@ -378,7 +383,8 @@ decisions:
 | `/rq-problematization` | （変えない）先行研究を集め、前提を問い直し、RQ Brief を出す | 論点ツリーを作らない → `/analysis-framing` |
 | `/analysis-framing` | 根の問い・到達点・第一階層・最初の論点と理由を分析者と決め、`tree_io` で残す。Framing Brief に `theme_id` と論点の id を載せる | データの探索のやり方は変えない（Step 2 は Epic 17 の領分）。仮説の文を作らない → `/analysis-design` |
 | `/analysis-design` | 作った分析設計を、Framing Brief の論点に結ぶ | 論点を作らない → `/analysis-framing` |
-| `/analysis-reflection` | テーマを横断して現時点の答えを書き、ツリーの検査を通し、次の候補とツリーの決定を残す。承認の後に Artifact で渡す | 分析設計1つの振り返りは今のまま。HTML を書かない → `tree_io render` |
+| `/analysis-reflection` | テーマを横断して現時点の答えを書き、ツリーの検査を通し、次の候補とツリーの決定を残す | 分析設計1つの振り返りは今のまま。HTML を書かない → `tree_io render` |
+| `/tree-upload`（新設） | 分析者が頼んだときに、`tree_io render` が書いた HTML を列挙して KEEP ゲートで承認を待ち、承認の後に新しい Artifact として送る。Artifact が無いホストでは手元のパスを伝える | HTML を書かない → `tree_io render`。いつ渡すかは決めない → 分析者。framing と reflection は案内するだけで起動しない |
 | `/analysis-report`・`/report-upload` | （変えない）結論の出た分析設計のレポートを書き、承認の後に Claude Docs へ送る | いつ書くかは決めない → `/analysis-auto` |
 | `/analysis-journal` | （変えない）`question` の出来事を残す | 論点への昇格は `tree_io` |
 
@@ -402,7 +408,7 @@ sequenceDiagram
     participant N as /analysis-notebook・/analysis-journal
     participant R as /analysis-reflection
     participant T as tree_io・tree_check
-    participant O as /analysis-report・/report-upload・Artifact
+    participant O as /analysis-report・/report-upload・/tree-upload
 
     U->>A: テーマ（theme_id）と、顧客が決めたいこと、または研究テーマ
     A->>T: ツリーを読む
@@ -495,9 +501,11 @@ sequenceDiagram
             A->>F: framing を再実行する
             F-->>U: 根の版を上げるか
             U->>F: G12 版を上げるかと、その理由
-            F->>T: revise-root
+            F->>T: revise-root、render
         end
         opt 図を渡したい（定例報告やレビュー）
+            U->>O: /tree-upload
+            O->>T: render
             O-->>U: Artifact で送るファイルの一覧と、誰に見えるか
             U->>O: G13 送るかどうか
         end
@@ -528,7 +536,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 | 4 探索・仮説の更新 | `/analysis-notebook`、`/analysis-journal`（`observe`・`question`）、`question` の論点への昇格 | G8、G11 | — |
 | 5 推定・モデル構築 | `/analysis-notebook` | G8 | — |
 | 6 妥当性検証・レビュー | `/analysis-journal` の `evidence`（`contradicts`）、ツリーの検査 | G9 | `/analysis-review` は実行する前の分析設計を見る。結果を別のソースや別の条件で確かめる skill は無い |
-| 7 解釈・報告・意思決定支援 | `/analysis-reflection`（分析設計1つと、テーマの横断）、`/analysis-report`、`/report-upload`、`tree_io render`、Artifact | G9〜G11、G13 | 結論が出ていない分析設計（refine・branch）にはレポートを書かない（人間の判断、2026-11-20）。そのときのツリーの決定は、ツリーと journal だけを見てする |
+| 7 解釈・報告・意思決定支援 | `/analysis-reflection`（分析設計1つと、テーマの横断）、`/analysis-report`、`/report-upload`、`tree_io render`、`/tree-upload` | G9〜G11、G13 | 結論が出ていない分析設計（refine・branch）にはレポートを書かない（人間の判断、2026-11-20）。そのときのツリーの決定は、ツリーと journal だけを見てする |
 | 8 導入・監視・改善・引き継ぎ | 論点ツリーの HTML、`/knowledge-extract` | なし | 導入と監視はスコープ外（[docs/PRD.md](../PRD.md)）。扱うのは引き継ぎだけ |
 
 ## Decisions
@@ -784,6 +792,26 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - 引用した出来事を journal から読む手順（出来事はその id が指す分析設計の journal にあるときだけ数える）と、正本を読んで検証する手順は、`tree_io` に1つずつ置き、ツリーの検査と共有した。同じ id の出来事が2つあるときの扱いだけが違う。検査はエラーにし、表示は先のものを出す。
   - HTML は生成物で、pre-write hook は見ない。手で書き換えても、次の `render` が上書きする。
   - `/analysis-framing` と `/analysis-reflection` が `render` を呼ぶ手順は、この Story では足していない。framing の側は未割り当てである。
+
+### Decision: tree-upload-is-its-own-skill
+
+- What: 論点ツリーの HTML を Artifact で渡す手順は、新しい skill `/tree-upload` に置く。細部は次のとおり。
+  - `disable-model-invocation: true` にする。`/analysis-framing` と `/analysis-reflection` は HTML のパスを出した後に `/tree-upload {theme_id}` を1行で案内し、起動はしない。
+  - 送る前に `tree_io render` を通し、それが出力した `path` のファイルだけを送る。モデルは HTML を書かず、写しも作らない。
+  - 毎回新しい Artifact を作る。前の Artifact を更新しない。Artifact の URL を覚えると、承認を覚えない決まり（ADR-0016）と別の状態を持つことになるため。
+  - `theme_id` は `^[A-Z][A-Z0-9]*$` に全体が一致するときだけ受け、パスを `.insight/themes/` の外へ出さない。
+  - `/analysis-framing` は、ツリーを書いた実行の最後（5a か、4c の `revise-root` の後）に `render` を1回呼び、パスを伝える（Step 5c）。HTML は送らない。
+- Why: DesignDoc の中で置き場所が食い違っていた。Module Responsibilities と構成図は `/analysis-reflection` が渡すとし、シーケンス図は G13 を別の参加者に置いていた。framing も HTML を作るようになったので（人間の判断、PR #128 のコメント、2026-11-21）、reflection の中だけに置くと framing の直後の図を渡せない。
+- Criteria: Must は「ファイルを列挙して KEEP ゲートで待ち、承認を覚えない」（US-6 AC 1、ADR-0016）と「送るのは `render` が書いたファイル」（AC 3）。Want は「framing の直後も含めて図を渡せる」（高、Claude の推測）、「守りの文が1か所にある」（高、ADR-0016 の W1）、「18.4 との衝突と直すファイルの数」（中、Claude の推測）、「skill と名前が1つ増える」（中、Claude の推測）。決め手は守りの文が1か所にあること。置き場所と名前は人間が決めた（Story 18.7 のセッション、2026-11-21）。名前は Claude が `/tree-publish` を推したが、人間が `/tree-upload` を選んだ。`/report-upload` のときと同じく、publish は誰でも見られる公開と読めるため。
+- Affected modules: `skills/tree-upload/SKILL.md`（新設）、`skills/analysis-framing/SKILL.md`、`skills/analysis-reflection/SKILL.md`、`tests/skills/test_tree_upload_structure.py`（新設）、`tests/skills/test_question_tree_structure.py`。
+- Alternatives considered:
+  - `/analysis-reflection` の中に置く。skill は増えないが、振り返りの後にしか渡せない。18.4 が同じ時期に書き換えていた SKILL.md なので rebase で当たる。
+  - framing と reflection の両方に同じ手順を書く。守りの文とテストが2組になり、片方だけ直す食い違いが起きる。
+- Consequences:
+  - 分析者が覚える skill が1つ増える。framing と reflection の最後の案内で補う。
+  - `/analysis-auto` の G13 の配線は 18.9 で入れる。driver は「送るか」を別に聞かず、`/tree-upload` のゲートがただ1回の問いになる（ADR-0016）。
+  - 送った後でツリーが変わっても、Artifact は変わらない。新しい図を渡すには、もう一度 `/tree-upload` を打つ。
+  - 生成した HTML は `<!doctype html>` から始まる完全な文書である。ホストの Artifact がそれをどう包むかは、ホストの側で決まる。
 
 ### Cross-epic decisions (links to ADR)
 

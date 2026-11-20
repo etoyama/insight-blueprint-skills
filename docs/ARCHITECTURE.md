@@ -107,7 +107,7 @@ notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定�
 
 **外部へ送る前の KEEP ゲート**: skill が `.insight/` の中身を外部へ送るときは、送るファイルを列挙して KEEP ゲートで承認を待つ。
 `/analysis-auto` の中でも自動にしない。承認は1回の実行に限り、覚えない
-（[ADR-0016](adr/0016-approval-before-external-send.md)）。今これに当たる skill は `/report-upload` だけである。
+（[ADR-0016](adr/0016-approval-before-external-send.md)）。今これに当たる skill は `/report-upload` と `/tree-upload` である。
 
 ## ディレクトリ構成（開発時 vs plugin 利用時）
 
@@ -249,8 +249,8 @@ end-to-end の代表フロー。既定では**各 `/skill` はユーザーが明
 （guided autopilot）を使うと driver がこの同じ経路を駆動し KEEP ゲートでだけ停止する（上記 «Skill invocation model» /
 [ADR-0005](adr/0005-selective-autonomous-chaining.md)）。**notebook の生成・実行は `/analysis-notebook` が design の
 `methodology` から 8-cell 契約に沿って行う**（`skills/analysis-notebook/references/notebook-contract.md`）。
-`/analysis-review`・`/premortem`・`/data-lineage`・`/analysis-report`・`/report-upload` は任意ステップ。
-Claude Docs はホストが持つコネクタで、plugin の外にある（[ADR-0015](adr/0015-host-connectors-for-optional-features.md)）。
+`/analysis-review`・`/premortem`・`/data-lineage`・`/analysis-report`・`/report-upload`・`/tree-upload` は任意ステップ。
+Claude Docs のコネクタと Artifact はホストが持つ機能で、plugin の外にある（[ADR-0015](adr/0015-host-connectors-for-optional-features.md)）。
 
 ```mermaid
 sequenceDiagram

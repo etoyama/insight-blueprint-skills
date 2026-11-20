@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `/analysis-framing` makes the HTML view of the question tree with `tree_io render` after it
+  writes the tree, and tells you its path.
+- `/tree-upload` uploads the HTML view of a theme's question tree to the host's Artifact as a new
+  page that only you can see. It lists the file and waits for your approval; without the host's
+  Artifact feature nothing is sent and the HTML stays on your machine.
+
 ## [0.12.0] - 2026-11-20
 
 ### Upgrade note
