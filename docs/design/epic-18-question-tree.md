@@ -1,0 +1,464 @@
+# Epic 18: テーマごとの論点ツリー
+
+## Background
+
+本書がこの Epic の要求と背景の正本（[FLOW-0001](../adr/flow/0001-designdoc-owns-requirements.md)）。
+Epic issue（[#116](https://github.com/etoyama/insight-blueprint-skills/issues/116)）には要約と本書へのリンクだけを置く。
+
+- 解く課題: 分析者は合意した問いを1つ AI に委ねたあと、親の問いにどこまで答えられたかを把握できない。
+  - 課題1: reflection とレポートは分析設計1つを単位にしている。同じテーマに属する複数の分析設計を束ねて、
+    親の問いへの答えがどう動いたかを見る場所が無い。分析設計の `parent_id` は派生の履歴であり、問いの論理の親子ではない。
+  - 課題2: 着手のときに、全体像と「なぜこの論点から調べるか」が残らない。framing の Framing Brief は方向を1つ渡して終わる。
+    経験の浅い分析者は、何が未着手で何が分析済みなのに未判別なのかを区別できない。
+  - 課題3: 複数の分析設計を統合する文をモデルに書かせると、記録に無い数や結論が混ざる。
+    `/analysis-report` は「Never compute」の決まりがあっても、Implications で入力に無い比を書いた（[#105](https://github.com/etoyama/insight-blueprint-skills/issues/105)）。
+  - 課題4: 引き継いだ人や顧客に、現在地を渡す手段が無い。全体像はビジュアルで見せる価値が大きい（人間の発言、2026-11-20）。
+- PRD の要件: [docs/PRD.md](../PRD.md) のビジョンの「問いを委ね、到達を把握し、次の一手を選ぶ」と、
+  機能要件の論点ツリーの5項目、非機能要件の「記録に書いてあるものに限る」「表示は正本から決定的に生成する」。
+- 既存手段が不十分な理由: `theme_id` は分析設計の id の接頭辞にあるだけで、テーマ単位の記録は無い。
+  `DecisionContext` は分析設計ごとに持つ。RQ Brief は想定読者を検討するが（`/rq-problematization` の Step 8）、出力に想定読者の欄が無い。
+
+この Epic の要求は、人間が書いた Handoff（リポジトリ外のメモ）と、2026-11-20 の壁打ちの判断1〜5 から作った。
+判断の記録は「Decisions」と [ADR-0024](../adr/0024-question-tree-yaml-and-generated-html.md)・[ADR-0025](../adr/0025-cited-answers-checked-after-writing.md) にある。
+
+### 前提にした事実
+
+確かめた方法を添える。
+
+- `theme_id` は `AnalysisDesign` の項目で、分析設計の id は `{theme_id}-H{nn}` になる（`src/insight_blueprint/models/design.py:144`、`skills/_shared/design_io.py:140`）。
+- journal の出来事の id は `{design_id}-E{nn}`。`evidence` は `metadata.direction` に `supports` か `contradicts` を持つ（`skills/analysis-journal/SKILL.md` の表）。
+- 分析設計の検証は `src/insight_blueprint/validate.py` が正本で、pre-write hook（`hooks/validate-design.py`）は `*_hypothesis.yaml` だけを捕まえる（`docs/ARCHITECTURE.md` の L55〜74）。
+- 書いた後の検査には前例がある。`report_check` は `skills/_shared/report_check.py` にあり、`bin/report_check` から呼ぶ。違反があれば終了コード 1 を返す。
+- `/analysis-framing` の Step 2（探索）は、#102（Epic 17、PR #114）が書き換えている。この Epic が触るのは Step 4・5 と Framing Brief で、実装は #114 のマージ後に始める（`git diff origin/main origin/epic/102-connection-boundary -- skills/analysis-framing/SKILL.md` で確かめた）。
+- Artifact は手元の HTML ファイルを公開する仕組みで、公開した直後は本人にしか見えない。どのホストやアカウントでも使えるかは未確認。
+
+### 未決事項
+
+- 数を含まない言い過ぎ（「原因は通知の遅れだ」）は、ツリーの検査では止まらない。今の手は答えの文に種類を宣言させることと、引き継ぎの試行で人が読むこと。
+- RQ Brief に想定読者の欄を足すか。この Epic では framing が直接聞く（US-1 AC 4）。
+- 分析設計の `DecisionContext` と、根の到達点の関係。根の値を分析設計に写すのか、別々に持つのか。
+- 人が確認・再構成に費やす時間の目標値。基準値が取れてから決める（[docs/PRD.md](../PRD.md) の成功基準）。
+- 1つのテーマに論点ツリーを2つ以上持つ必要が出るか。この Epic では1テーマ1ツリーにする。
+
+## User Stories
+
+AC の正本はここ。
+
+### US-1: 分析者が、全体像を見て最初に委ねる論点を選べる
+
+分析者として、最初に AI に委ねる論点を納得して選ぶために、着手のときに根の問いと到達点、暫定の第一階層、最初の論点とそれを選んだ理由を論点ツリーに残したい。
+
+- [ ] AC 1: `/analysis-framing` は、合意した方向から論点ツリーを作る。ツリーは根の問い、到達点、第一階層の論点を持ち、各論点は問いの文と寄与を持つ。
+  到達点は業務なら `decision_maker` と `decision`、研究なら想定読者と主張の範囲である。
+- [ ] AC 2: `/analysis-framing` は、最初に調べる論点と選んだ理由をツリーの決定（種類 `start`）として残す。第二階層が空でもツリーを作れる。
+- [ ] AC 3: Framing Brief に `theme_id` と最初の論点の id を載せる。`/analysis-design` は、その論点に作った分析設計を結ぶ。
+- [ ] AC 4: 研究で RQ Brief から来たとき、RQ Brief に想定読者が無ければ、`/analysis-framing` が分析者に聞いて到達点に入れる。
+- [ ] AC 5: 根の問いか到達点を変えられるのは `/analysis-framing` の再実行だけである。変えるときは根の版を上げるかを分析者に聞き、上げたら版と理由を残す。
+
+### US-2: 分析者が、論点から分析設計と証拠へ辿れる
+
+分析者として、どこを調べていて何が未判別かを把握するために、各論点の進捗と、ひもづく分析設計を見たい。
+
+- [ ] AC 1: 進捗は保存しない。ひもづく分析設計の状態から導く。分析設計が無ければ未着手、terminal status でないものが1つでもあれば検証中、すべて terminal status なら分析済み。unit test で確かめる。
+- [ ] AC 2: journal の `question` を論点に昇格できる。昇格した論点は発見元としてその出来事の id を持つ。着手のときに置いた論点は発見元を持たない。
+- [ ] AC 3: 1つの分析設計を複数の論点に結べる。
+- [ ] AC 4: 論点ツリーの書き込みは `tree_io` を通す。`validate.py` が形を検証し、pre-write hook は `*_tree.yaml` への直接の書き込みも検証する。
+
+### US-3: 分析者が、テーマを横断して現時点の答えと次の一手を把握できる
+
+分析者として、同じ論点を深めるか、親に戻るか、区切るかを決めるために、テーマに属する分析設計を横断した現時点の答えと次の候補を見たい。
+
+- [ ] AC 1: `/analysis-reflection` はテーマを渡されると、論点ごとに、ひもづく分析設計とその journal を読んで現時点の答えを書く。答えの文はそれぞれ、種類（言えること・未判別・弱める証拠と留保）と、引用する journal の出来事の id を1つ以上持つ。
+- [ ] AC 2: 親の論点の答えは子の論点の進捗の数から推定しない。子孫の論点にひもづく分析設計の出来事を引用して書く。
+- [ ] AC 3: 現時点の答えは追記だけで、振り返りの回と根の版を持つ。前の回と答えが変わった論点を分析者に示す。
+- [ ] AC 4: 次の候補として、未着手の論点を示す。候補には、人に聞く問い、その答えで変わる判断、catalog とドメイン知識から分かっていることを添えられる。
+- [ ] AC 5: 分析者が選んだ決定（`deepen`・`return`・`close`）と理由を、ツリーの決定として残す。
+
+### US-4: 分析者に届く答えに、記録に無い数と参照が混ざらない
+
+分析者として、答えを信じて次の判断をするために、現時点の答えに記録に無い数や存在しない参照が混ざっていたら、届く前に止まってほしい。
+
+- [ ] AC 1: ツリーの検査（`tree_check`）は次を違反として挙げる。引用した出来事が無い。引用先の分析設計が、その論点か子孫の論点にひもづいていない。文に出てくる数が、引用した出来事の本文に無い。unit test で確かめる。
+- [ ] AC 2: `/analysis-reflection` は答えを書いた後にツリーの検査を回す。違反があれば分析者に届ける前に直し、直せなければその文を除いて、除いたことを伝える。
+- [ ] AC 3: #105 と同じ型の再現を持つ。合成シナリオで、引用した2つの出来事の数から作った比を含む文を、ツリーの検査が違反にする。
+
+### US-5: 分析者と引き継いだ人が、ツリーを図で読める
+
+分析者として、全体像と現在地をひと目でつかむために、論点ツリーを手元の図で読みたい。
+
+- [ ] AC 1: `tree_io render` は、正本から自己完結の HTML（`.insight/themes/{theme_id}_tree.html`）を作る。外部の script や stylesheet を読まず、同じ正本からは同じ HTML ができる。
+- [ ] AC 2: 各論点に、進捗と現時点の答えを文字で出す。色だけで区別しない。
+- [ ] AC 3: 論点を選ぶと、答えの各文と、引用した出来事（本文、分析設計の id、`direction`）が開く。
+- [ ] AC 4: 最新の振り返りの回で変わった答えと、根の版が古い答え（根の変更前の答え）を、それと分かるように出す。
+- [ ] AC 5: 論点の親子（寄与）と、分析設計の派生（`parent_id`）を別々に辿れる。
+
+### US-6: 分析者が、承認した後に限りツリーを Artifact で渡せる
+
+分析者として、定例報告やレビューで現在地を見せるために、論点ツリーの図を URL で渡したい。
+
+- [ ] AC 1: Artifact として渡す手順は、送るファイルを列挙して KEEP ゲートで承認を待つ。承認は覚えない（[ADR-0016](../adr/0016-approval-before-external-send.md)）。
+- [ ] AC 2: Artifact が使えないホストでは、何も送らず、手元の HTML のパスを案内して終わる（[ADR-0015](../adr/0015-host-connectors-for-optional-features.md)）。
+- [ ] AC 3: 送るのは、手元で生成した HTML と同じファイルである。モデルに HTML を書かせない。
+
+### US-7: 開発者が、引き継ぎで判断が伝わるかを試せる
+
+開発者として、論点ツリーが判断の質を上げたかを確かめるために、合成シナリオで引き継ぎの試行を繰り返したい。
+
+- [ ] AC 1: 合成シナリオ（公共図書館の予約本）の fixture を持つ。着手時に分かっていた情報と、その後の観察を順に足す段階に分けてある。
+- [ ] AC 2: 文脈を持たない別の Claude セッションに HTML だけを渡し、[docs/PRD.md](../PRD.md) の成功基準の5つの問いに答えさせる手順がある。採点は文言でなく判断の一致で行う。
+- [ ] AC 3: 人による試行の記録の型がある。5つの問いへの答え、正誤、確認と再構成にかかった時間を残す。
+
+## Stories
+
+Story issue は DesignDoc の初版の合意後に起票する。1つの Story が扱う AC は5個以下。
+
+| Story issue | User Story | 扱う AC |
+|---|---|---|
+| 未起票（18.1 正本と `tree_io`） | US-1、US-2 | US-1 AC 5、US-2 AC 1〜4 |
+| 未起票（18.2 framing で着手。#114 のマージ後） | US-1 | AC 1〜4 |
+| 未起票（18.3 ツリーの検査） | US-4 | AC 1、AC 3 |
+| 未起票（18.4 横断の振り返り） | US-3、US-4 | US-3 AC 1〜3、US-4 AC 2 |
+| 未起票（18.5 次の候補とツリーの決定） | US-3 | AC 4、AC 5 |
+| 未起票（18.6 HTML の表示） | US-5 | AC 1〜5 |
+| 未起票（18.7 Artifact で渡す） | US-6 | AC 1〜3 |
+| 未起票（18.8 引き継ぎの試行） | US-7 | AC 1〜3 |
+
+## Ubiquitous Language
+
+この Epic で追加・変更した語。定義の正本は
+[docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md)。
+
+- 追加: 論点ツリー、論点、根の問い、到達点、根の版、寄与、発見元、進捗、現時点の答え、振り返りの回、ツリーの決定、次の候補、ツリーの検査、Artifact、合成シナリオ、引き継ぎの試行
+- 変更: 違反（[ADR-0025](../adr/0025-cited-answers-checked-after-writing.md)。ツリーの検査も挙げる）
+
+## Scope
+
+- Epic 範囲内:
+  - 論点ツリーの正本（`.insight/themes/{theme_id}_tree.yaml`）、そのモデルと `validate.py` の検証、`tree_io`。
+  - `/analysis-framing` の Step 4・5 と Framing Brief、`/analysis-design` が分析設計を論点に結ぶ1手順。
+  - `/analysis-reflection` のテーマを横断する振り返り。分析設計1つの振り返りは今のまま残す。
+  - ツリーの検査（`tree_check`）、HTML の表示（`tree_io render`）、Artifact で渡す手順。
+  - 合成シナリオの fixture と引き継ぎの試行。
+- Epic 範囲外:
+  - `/analysis-report` の Implications の数（#105）。この Epic のツリーの検査の型を流用できるかは、#105 の側で決める。
+  - RQ Brief の欄の変更（未決事項）。
+  - `/analysis-auto` からの論点ツリーの操作。guided autopilot は分析設計1つを単位に動かしたままにする。
+  - レポートを論点ツリーの単位で書くこと。レポートは分析設計1つの単位のまま（#76）。
+  - 施策の実行、承認のシステム化、継続運用の監視、ヒアリングそのもの（[docs/PRD.md](../PRD.md) のスコープ外）。
+
+## Architecture
+
+```mermaid
+flowchart TD
+    U[分析者]
+    FR["/analysis-framing<br/>skills/analysis-framing/SKILL.md"]
+    DS["/analysis-design"]
+    RF["/analysis-reflection<br/>skills/analysis-reflection/SKILL.md"]
+    TIO["tree_io（新設）<br/>skills/_shared/tree_io.py + bin/tree_io"]
+    TC["tree_check（新設）<br/>skills/_shared/tree_check.py + bin/tree_check"]
+    VAL["validate.py<br/>src/insight_blueprint/validate.py"]
+    HOOK["pre-write hook<br/>hooks/validate-design.py"]
+    DIO["design_io"]
+    TREE[(".insight/themes/{theme_id}_tree.yaml<br/>正本")]
+    HTML[(".insight/themes/{theme_id}_tree.html<br/>生成物")]
+    DES[(".insight/designs/<br/>*_hypothesis.yaml / *_journal.yaml")]
+    ART["Artifact（ホストの機能。任意）"]
+
+    U --> FR
+    U --> RF
+    FR -->|create / add-node / decide / revise-root| TIO
+    DS -->|link| TIO
+    RF -->|answer / decide| TIO
+    RF -->|書いた後に検査| TC
+    TIO -->|検証| VAL
+    HOOK -->|"*_tree.yaml を検証"| VAL
+    TIO --> TREE
+    TIO -->|render| HTML
+    TC -->|読む| TREE
+    TC -->|読む| DES
+    RF --> DIO
+    DIO --> DES
+    RF -->|KEEP ゲートの後| ART
+    HTML -.->|同じファイルを送る| ART
+```
+
+## Domain Model
+
+クラス名は提案である。[docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) の「コード上の名前」は、Story 18.1 の実装で名前が実在してから埋める。
+
+```mermaid
+classDiagram
+    class QuestionTree {
+        <<Aggregate Root>>
+        +theme_id
+        +root_revisions: list~RootRevision~
+        +nodes: list~QuestionNode~
+        +decisions: list~TreeDecision~
+        +current_revision()
+        +current_round()
+    }
+    class RootRevision {
+        <<Value Object>>
+        +revision: int
+        +question
+        +destination: Destination
+        +reason
+        +created_at
+    }
+    class Destination {
+        <<Value Object>>
+        +kind: business | research
+        +decision_maker
+        +decision
+        +audience
+        +claim_scope
+    }
+    class QuestionNode {
+        <<Entity>>
+        +id: THEME-Qnn
+        +question
+        +parent_question_id
+        +contribution
+        +origin_event_id
+        +design_ids: list
+        +answers: list~CurrentAnswer~
+        +inquiry: Inquiry
+    }
+    class CurrentAnswer {
+        <<Value Object>>
+        +round: int
+        +root_revision: int
+        +statements: list~AnswerStatement~
+        +created_at
+    }
+    class AnswerStatement {
+        <<Value Object>>
+        +kind: claim | undetermined | weakening
+        +text
+        +cites: list~event_id~
+    }
+    class Inquiry {
+        <<Value Object>>
+        +ask
+        +changes_if
+        +known
+    }
+    class TreeDecision {
+        <<Value Object>>
+        +round: int
+        +kind: start | deepen | return | close
+        +node_id
+        +reason
+        +created_at
+    }
+    class Progress {
+        <<enumeration>>
+        not_started
+        investigating
+        analyzed
+    }
+    class AnalysisDesign {
+        <<Aggregate Root（既存）>>
+    }
+    class JournalEvent {
+        <<既存>>
+    }
+
+    QuestionTree "1" *-- "1..*" RootRevision
+    QuestionTree "1" *-- "1..*" QuestionNode
+    QuestionTree "1" *-- "0..*" TreeDecision
+    RootRevision --> Destination
+    QuestionNode "1" *-- "0..*" CurrentAnswer
+    QuestionNode --> Inquiry
+    CurrentAnswer "1" *-- "1..*" AnswerStatement
+    QuestionNode ..> AnalysisDesign : design_ids
+    AnswerStatement ..> JournalEvent : cites
+    QuestionNode ..> JournalEvent : origin_event_id
+    QuestionNode ..> Progress : 導く
+```
+
+| 型 | 種類 | 不変条件 |
+|---|---|---|
+| `QuestionTree` | 集約ルート | 1テーマに1つ。根の問い（`parent_question_id` を持たない論点）はちょうど1つ。論点の親は同じツリーの中にあり、循環しない。根の版は1から1ずつ増える。ツリーの決定の `node_id` は実在する |
+| `RootRevision` | 値オブジェクト | 版2以降は理由が空でない。`destination` は `kind` に応じた2項目がどちらも空でない |
+| `QuestionNode` | エンティティ | id は `{theme_id}-Q{nn}` で、ツリーの中で重ならない。根以外は寄与が空でない。発見元はあれば `{design_id}-E{nn}` の形 |
+| `CurrentAnswer` | 値オブジェクト | 追記だけ。`root_revision` は今の根の版以下。回は1つの論点の中で増え続ける |
+| `AnswerStatement` | 値オブジェクト | `cites` は1つ以上。引用先の実在と数の一致は `validate.py` でなくツリーの検査が確かめる（I/O が要るため） |
+| `Progress` | 導出する列挙 | 保存しない。`design_ids` の分析設計の状態から導く（US-2 AC 1） |
+
+### 正本の形（合成シナリオ）
+
+公共図書館の予約本の架空の例。最初の振り返りの後の状態を、形を示すために縮めて書く。
+
+```yaml
+theme_id: LIB
+root_revisions:
+  - revision: 1
+    question: 取り置き期限を延ばす試行をするか
+    destination: {kind: business, decision_maker: 図書館員, decision: 取り置き期限を延ばす試行を始めるか}
+    reason: ""
+nodes:
+  - {id: LIB-Q01, question: 取り置き期限を延ばす試行をするか}
+  - id: LIB-Q02
+    question: 期限切れを一貫して数えられるか
+    parent_question_id: LIB-Q01
+    contribution: 予約取消が混ざると、延長で改善しうる件数が変わる
+    design_ids: [LIB-H01]
+    answers:
+      - round: 1
+        root_revision: 1
+        statements:
+          - {kind: claim, text: 状態の履歴から取消を除き、期限を迎えた予約同士を比べられた, cites: [LIB-H01-E01]}
+  - id: LIB-Q05
+    question: 通知から期限まで何日開館していたか
+    parent_question_id: LIB-Q04
+    contribution: 通知の遅れと、来館できる日の少なさを見分ける
+    origin_event_id: LIB-H02-E03
+    inquiry:
+      ask: 本を確保してから実際に通知するまで、曜日によって手順は変わりますか
+      changes_if: 変わるなら通知の時点を調べる論点に進み、変わらないなら開館日数の論点を深める
+      known: 今の抽出表に送信日時は無い
+decisions:
+  - {round: 0, kind: start, node_id: LIB-Q02, reason: 取消が混ざると延長で改善しうる件数が変わるため}
+```
+
+## Module Responsibilities
+
+| モジュール / 関数 | 責務（する） | 境界（しない → 委譲先） |
+|---|---|---|
+| `src/insight_blueprint/models/`（論点ツリーのモデル） | 論点ツリーの形と、ファイル1つで判定できる不変条件を型で表す | ファイルをまたぐ参照は確かめない → `tree_check` |
+| `src/insight_blueprint/validate.py` | 論点ツリーの YAML を検証する純関数を足す | I/O をしない → `tree_io`・hook |
+| `hooks/validate-design.py` | `*_tree.yaml` への直接の書き込みも検証する | 何を書くかは決めない |
+| `skills/_shared/tree_io.py`（新設） | ツリーの作成、論点の追加と昇格、分析設計を結ぶ、答えの追記、ツリーの決定、根の版の更新、HTML の生成 | 答えの中身を考えない → `/analysis-reflection`。引用先を確かめない → `tree_check` |
+| `skills/_shared/tree_check.py`（新設） | 現時点の答えの引用の実在、引用先と論点の対応、文の数が引用先の本文にあるかを確かめ、違反を挙げる | ツリーを書き換えない |
+| `/analysis-framing` | 根の問い・到達点・第一階層・最初の論点と理由を分析者と決め、`tree_io` で残す。Framing Brief に `theme_id` と論点の id を載せる | データの探索のやり方は変えない（Step 2 は Epic 17 の領分）。仮説の文を作らない → `/analysis-design` |
+| `/analysis-design` | 作った分析設計を、Framing Brief の論点に結ぶ | 論点を作らない → `/analysis-framing` |
+| `/analysis-reflection` | テーマを横断して現時点の答えを書き、ツリーの検査を通し、次の候補とツリーの決定を残す。承認の後に Artifact で渡す | 分析設計1つの振り返りは今のまま。HTML を書かない → `tree_io render` |
+| `/analysis-journal` | （変えない）`question` の出来事を残す | 論点への昇格は `tree_io` |
+
+## Sequence Diagram
+
+### 着手
+
+```mermaid
+sequenceDiagram
+    actor U as 分析者
+    participant F as /analysis-framing
+    participant T as tree_io
+    participant V as validate.py
+    participant FS as .insight/themes/
+    U->>F: 顧客が決めたいこと、または研究テーマと想定読者
+    F->>F: データと既存の分析を探索（Step 2、変えない）
+    F-->>U: 根の問い、到達点、暫定の第一階層、各論点の寄与と優先の理由
+    U->>F: 最初に調べる論点を選ぶ（理由つき）
+    F->>T: create（根、到達点、第一階層）、decide start
+    T->>V: 検証
+    V-->>T: ok
+    T->>FS: {theme_id}_tree.yaml を書く
+    T->>FS: render で {theme_id}_tree.html を書く
+    F-->>U: Framing Brief（theme_id、論点の id）、HTML のパス
+    U->>F: /analysis-design へ進む
+```
+
+### 横断の振り返り
+
+```mermaid
+sequenceDiagram
+    actor U as 分析者
+    participant R as /analysis-reflection
+    participant T as tree_io
+    participant D as design_io
+    participant C as tree_check
+    participant FS as .insight/
+    U->>R: テーマ（theme_id）を渡す
+    R->>T: ツリーを読む
+    R->>D: 各論点の分析設計と状態を読む
+    R->>FS: 各分析設計の journal を読む
+    R->>R: 論点ごとに現時点の答えを書く（文ごとに種類と引用）
+    R->>T: answer（回と根の版つきで追記）
+    R->>C: 検査
+    C->>FS: 引用先の出来事と分析設計を読む
+    C-->>R: 違反の一覧
+    alt 違反がある
+        R->>T: 直した答えを追記するか、その文を除く
+        R->>C: もう一度検査
+    end
+    R->>T: render
+    R-->>U: 変わった答え、未判別の論点、次の候補（人に聞く問いと、答えで変わる判断）、HTML のパス
+    U->>R: 深める・親に戻る・区切る と理由
+    R->>T: decide
+```
+
+### Artifact で渡す
+
+```mermaid
+sequenceDiagram
+    actor U as 分析者
+    participant R as /analysis-reflection
+    participant A as Artifact（ホスト）
+    U->>R: 図を渡したい
+    alt Artifact が使えない
+        R-->>U: 何も送っていない。手元の HTML のパス
+    else 使える
+        R-->>U: 送るファイルの一覧、送り先、誰に見えるか（KEEP ゲート）
+        U->>R: 承認
+        R->>A: {theme_id}_tree.html を公開
+        A-->>R: URL（本人だけに見える状態）
+        R-->>U: URL
+    end
+```
+
+Artifact はホストの機能で、plugin は持たない。使えるかどうかは、そのセッションのツールで判断する。
+
+## Decisions
+
+### Decision: one-tree-per-theme
+
+- What: 1つのテーマ（`theme_id`）に論点ツリーを1つだけ持つ。
+- Why: テーマは分析設計の id の接頭辞として既にあり、新しい束ね方の単位を作らずに済む。
+- Criteria: 課題1、YAGNI（[.claude/rules/coding-principles.md](../../.claude/rules/coding-principles.md)）。決め手は新しい単位を作らないこと。
+- Affected modules: `tree_io`、`/analysis-framing`、`/analysis-reflection`。
+- Alternatives considered: テーマの下に複数のツリーを持つ。必要になった例が無いので落とした（未決事項に残す）。
+- Consequences: 同じテーマで根の問いが変わるときは、根の版を上げて扱う。
+
+### Decision: progress-is-derived
+
+- What: 論点の進捗は保存せず、ひもづく分析設計の状態から導く。
+- Why: 保存すると、分析設計の状態と論点の進捗という2つの正本ができ、いずれずれる。
+- Criteria: 課題2。principle「Model the Domain」。決め手は正本を1つにすること。
+- Affected modules: `tree_io render`、`/analysis-reflection`。
+- Alternatives considered: 論点に進捗を保存する。分析設計を遷移させるたびにツリーも直す手順が増えるので落とした。
+- Consequences: 論点に分析設計が無い限り、進捗は未着手のままになる。「分析は済んだが未判別」は、進捗が分析済みで、答えに種類が未判別の文があることで表す。
+
+### Decision: root-revision-marks-stale-answers
+
+- What: 根の問いか到達点を変えるときは根の版を上げる。古い版に対する答えは消さず、表示で「根の変更前の答え」と出す（判断4、2026-11-20）。
+- Why: 古い根に対する答えが黙って残ると、引き継いだ人が誤読する。消すと、どの証拠で答えが変わったかを辿れなくなる。
+- Criteria: Must は「根が変わったことと理由が残る」（Handoff の受入条件5）。Want は「古い答えがそれと分かる」（高、Claude の推測）と「部品が増えない」（中、Claude の推測）。決め手は前者。
+- Affected modules: `tree_io`、`/analysis-framing`、`tree_io render`。
+- Alternatives considered: 根が変わったら答えを消す（受入条件5 と両立しない）。この Epic では扱わない（試行で根が変わると受入条件5 を満たせない）。
+- Consequences: 言い換え程度の変更でも版が上がると、全論点が「変更前」になる。版を上げるかは分析者に聞く。
+
+### Cross-epic decisions (links to ADR)
+
+- [ADR-0024: 論点ツリーの正本は YAML に置き、表示は正本から生成する HTML にする](../adr/0024-question-tree-yaml-and-generated-html.md): 判断2・2'。Artifact は承認の後の任意の手順。
+- [ADR-0025: モデルが書く答えは記録を引用させ、書いた後に検査する](../adr/0025-cited-answers-checked-after-writing.md): 判断3。#105 と同じ型の捏造を止める。
+
+## Test Design Matrix
+
+| Story \ Layer | Unit | Integration | E2E |
+|---|---|---|---|
+| Story 18.1 | ☐ | ☐ | — （skill を通らない） |
+| Story 18.2 | ☐ | ☐ | ☐ |
+| Story 18.3 | ☐ | ☐ | — （CLI だけ） |
+| Story 18.4 | ☐ | ☐ | ☐ |
+| Story 18.5 | ☐ | ☐ | ☐ |
+| Story 18.6 | ☐ | ☐ | ☐ |
+| Story 18.7 | ☐ | ☐ | ☐ |
+| Story 18.8 | — （試行の手順） | ☐ | ☐ |
+
+完了時に ✓ を付ける。このマトリクスが Epic PR のレビューゲート。
+
+## Story Timeline
+
+- 2026-11-20 — PRD の改訂と DesignDoc の初版（判断1〜5）。

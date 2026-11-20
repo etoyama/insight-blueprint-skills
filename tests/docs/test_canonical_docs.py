@@ -87,6 +87,7 @@ LIVING_DOCS = [
     "docs/design/epic-12-decision-ready-report.md",
     "docs/design/epic-13-report-source-text.md",
     "docs/design/epic-14-report-template-gaps.md",
+    "docs/design/epic-18-question-tree.md",
     *(str(p.relative_to(REPO_ROOT)) for p in _new_format_adrs()),
 ]
 
@@ -422,3 +423,56 @@ class TestReleaseProcedure:
     def test_troubleshooting_covers_a_rejected_metadata_version(self) -> None:
         trouble = section(_read("docs/RELEASE.md"), "## Troubleshooting")
         assert "not a valid metadata version" in trouble
+
+
+class TestQuestionTreeDocs:
+    """Epic 18 first edition: the PRD carries the question tree, and the DesignDoc has its diagrams."""
+
+    DESIGN_DOC = "docs/design/epic-18-question-tree.md"
+
+    def test_prd_core_values_carry_the_question_tree(self) -> None:
+        assert "論点ツリー" in section(_read("docs/PRD.md"), "## コアバリュー")
+
+    def test_prd_functional_requirements_carry_the_question_tree(self) -> None:
+        requirements = section(_read("docs/PRD.md"), "### 機能要件")
+        for phrase in ("論点ツリー", "到達点", "現時点の答え", "Artifact"):
+            assert phrase in requirements, phrase
+
+    def test_prd_requires_checked_answers_and_generated_display(self) -> None:
+        requirements = section(_read("docs/PRD.md"), "### 非機能要件")
+        assert "ツリーの検査" in requirements
+        assert "決定的に生成" in requirements
+
+    def test_prd_success_criteria_separate_the_product_from_the_migration(self) -> None:
+        criteria = section(_read("docs/PRD.md"), "## 成功基準")
+        assert "### 製品" in criteria
+        assert "### 移行期（達成済み）" in criteria
+        assert "引き継ぎの試行" in criteria
+
+    def test_ubiquitous_language_has_the_terms_of_epic_18(self) -> None:
+        terms = {
+            r[words.TERM]
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        added = {
+            "論点ツリー", "論点", "根の問い", "到達点", "根の版", "寄与", "発見元", "進捗",
+            "現時点の答え", "振り返りの回", "ツリーの決定", "次の候補", "ツリーの検査",
+            "Artifact", "合成シナリオ", "引き継ぎの試行",
+        }
+        assert added - terms == set()
+
+    @pytest.mark.parametrize(
+        ("heading", "diagram"),
+        [
+            ("## Architecture", "flowchart"),
+            ("## Domain Model", "classDiagram"),
+            ("## Sequence Diagram", "sequenceDiagram"),
+        ],
+    )
+    def test_design_doc_has_the_first_edition_diagram(self, heading: str, diagram: str) -> None:
+        assert f"```mermaid\n{diagram}" in section(_read(self.DESIGN_DOC), heading)
+
+    def test_design_doc_links_both_adrs(self) -> None:
+        doc = _read(self.DESIGN_DOC)
+        assert "adr/0024-question-tree-yaml-and-generated-html.md" in doc
+        assert "adr/0025-cited-answers-checked-after-writing.md" in doc
