@@ -128,7 +128,7 @@ classDiagram
     }
     AnalysisDesign "1" *-- "1" Methodology
     AnalysisDesign ..> DataSource : source_ids
-    Methodology ..> DataSource : steps の {source:ID}
+    Methodology ..> DataSource : steps の データソースの参照
 ```
 
 | 型 | 種類 | 不変条件 |
