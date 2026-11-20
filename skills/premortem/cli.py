@@ -61,7 +61,7 @@ def _read_stdin_payload() -> dict:
     Expected schema::
 
         {
-            "designs": [{ "id": ..., "intent": ..., "status": ..., ... }],
+            "designs": [{ "id": ..., "analysis_intent": ..., "status": ..., ... }],
             "source_checks_map": {
                 "<design_id>": {
                     "source_registered": bool,
@@ -161,7 +161,7 @@ def main(argv: list[str] | None = None, stdin_data: dict | None = None) -> int:
         print(
             _format_risk_line(
                 design_id=design_id,
-                intent=design.get("intent", "unknown"),
+                intent=design.get("analysis_intent", "unknown"),
                 estimated_rows=source_checks.estimated_rows,
                 strategy=_infer_strategy(source_checks.estimated_rows),
                 level=decision.level,

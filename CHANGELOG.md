@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`premortem` showed `unknown` in the INTENT column for every design** (#109). It read an
+  `intent` key, but `design_io get` returns the field as `analysis_intent`. The risk level was
+  not affected; only the table display was wrong.
+
 ## [0.12.0] - 2026-11-20
 
 ### Upgrade note
