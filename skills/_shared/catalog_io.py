@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -119,6 +120,73 @@ def list_sources(base_dir: Path = DEFAULT_BASE_DIR) -> list[dict]:
     return out
 
 
+# Key-name fragments that mark a credential (ADR-0023). Keys are compared lowercased
+# with every non-alphanumeric character dropped, so api_key, API-Key, api.key and apiKey
+# all match. Values are not checked: a secret cannot be told from an id or a hash
+# without false alarms. The one exception is a *_env key, whose value must look like an
+# environment variable name, or the exemption would let a literal secret through.
+# The exemption matches the lowercased `_env` suffix exactly, so apiKeyEnv is refused,
+# and only for a credential stem: conda_env keeps any value.
+_CREDENTIAL_KEY_PARTS = (
+    "password",
+    "passwd",
+    "passphrase",
+    "secret",
+    "token",
+    "bearer",
+    "apikey",
+    "credential",
+    "privatekey",
+    "accesskey",
+)
+_ENV_VAR_NAME = re.compile(r"[A-Z_][A-Z0-9_]*")
+
+
+def _names_a_credential(key: str) -> bool:
+    squashed = re.sub(r"[^a-z0-9]", "", key.lower())
+    return any(part in squashed for part in _CREDENTIAL_KEY_PARTS)
+
+
+def _credential_keys(value: Any, path: str = "connection") -> list[str]:
+    if isinstance(value, list):
+        return [
+            key
+            for index, item in enumerate(value)
+            for key in _credential_keys(item, f"{path}[{index}]")
+        ]
+    if not isinstance(value, dict):
+        return []
+    found: list[str] = []
+    for key, inner in value.items():
+        name = str(key)
+        here = f"{path}.{key}"
+        if name.lower().endswith("_env") and _names_a_credential(name[:-4]):
+            if not (isinstance(inner, str) and _ENV_VAR_NAME.fullmatch(inner)):
+                found.append(here)
+        elif _names_a_credential(name):
+            found.append(here)
+        else:
+            found.extend(_credential_keys(inner, here))
+    return found
+
+
+def _reject_credentials(connection: Any) -> None:
+    # Name the keys, never their values: the message lands in a model's context.
+    if connection is not None and not isinstance(connection, dict):
+        raise ValueError("connection must be an object (ADR-0023)")
+    keys = _credential_keys(connection)
+    if keys:
+        raise ValueError(
+            f"connection holds credential keys ({', '.join(keys)}); the catalog "
+            "stores no credentials (ADR-0023). Keep the secret in an environment "
+            "variable and put its name (A-Z, 0-9, _) in a key ending in _env "
+            "(e.g. password_env: PG_PASSWORD). For a source already stored with "
+            "one, the analyst edits its YAML by hand; do not read the source with "
+            "--with-connection or open the file, since that puts the secret in "
+            "the model's context."
+        )
+
+
 def create_source(
     *,
     id: str,
@@ -137,6 +205,7 @@ def create_source(
     source_path = _sources_dir(base_dir) / f"{id}.yaml"
     if source_path.exists():
         raise ValueError(f"Source '{id}' already exists")
+    _reject_credentials(connection)
 
     schema_info: dict[str, Any] = {"columns": columns or []}
     if primary_key is not None:
@@ -171,6 +240,7 @@ def update_source(
     if not current:
         raise ValueError(f"Source '{source_id}' not found")
     merged = {**current, **changes, "updated_at": now_jst().isoformat()}
+    _reject_credentials(merged.get("connection"))
     source = DataSource.model_validate(merged)  # validates
     data = source.model_dump(mode="json")
     write_yaml(_sources_dir(base_dir) / f"{source_id}.yaml", data)

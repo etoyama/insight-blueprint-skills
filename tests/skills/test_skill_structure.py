@@ -64,6 +64,13 @@ def _read_skill(skill_name: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _prose_files() -> list[Path]:
+    """Every SKILL.md and reference file the bundled skills ship as prose."""
+    return sorted(SKILLS_DIR.glob("*/SKILL.md")) + sorted(
+        SKILLS_DIR.glob("*/references/*.md")
+    )
+
+
 def parse_frontmatter(text: str) -> dict[str, Any]:
     """Extract YAML frontmatter between ``---`` delimiters and return as dict.
 

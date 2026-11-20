@@ -29,7 +29,7 @@ Epic issue（[#116](https://github.com/etoyama/insight-blueprint-skills/issues/1
 - journal の出来事の id は `{design_id}-E{nn}`。`evidence` は `metadata.direction` に `supports` か `contradicts` を持つ（`skills/analysis-journal/SKILL.md` の表）。
 - 分析設計の検証は `src/insight_blueprint/validate.py` が正本で、pre-write hook（`hooks/validate-design.py`）は `*_hypothesis.yaml` だけを捕まえる（`docs/ARCHITECTURE.md` の L55〜74）。
 - 書いた後の検査には前例がある。`report_check` は `skills/_shared/report_check.py` にあり、`bin/report_check` から呼ぶ。違反があれば終了コード 1 を返す。
-- `/analysis-framing` の Step 2（探索）は、#102（Epic 17、PR #114）が書き換えている。この Epic が触るのは Step 4・5 と Framing Brief で、実装は #114 のマージ後に始める（`git diff origin/main origin/epic/102-connection-boundary -- skills/analysis-framing/SKILL.md` で確かめた）。
+- `/analysis-framing` の Step 2（探索）は、Epic 17（PR #114、2026-11-20 にマージ）が書き換えた。データソースは `catalog_io list` で読み、`connection` の値がモデルの文脈に入るのは `/analysis-notebook` だけになった（[ADR-0022](../adr/0022-connection-reaches-only-the-notebook.md)）。この Epic が触るのは Step 4・5 と Framing Brief である（`git diff 905e456 origin/main -- skills/analysis-framing/SKILL.md` で確かめた）。
 - Artifact は手元の HTML ファイルを公開する仕組みで、公開した直後は本人にしか見えない。どのホストやアカウントでも使えるかは未確認。
 
 ### 未決事項
@@ -71,7 +71,7 @@ AC の正本はここ。
 - [ ] AC 1: `/analysis-reflection` はテーマを渡されると、論点ごとに、ひもづく分析設計とその journal を読んで現時点の答えを書く。答えの文はそれぞれ、種類（言えること・未判別・弱める証拠と留保）と、引用する journal の出来事の id を1つ以上持つ。
 - [ ] AC 2: 親の論点の答えは子の論点の進捗の数から推定しない。子孫の論点にひもづく分析設計の出来事を引用して書く。
 - [ ] AC 3: 現時点の答えは追記だけで、振り返りの回と根の版を持つ。前の回と答えが変わった論点を分析者に示す。
-- [ ] AC 4: 次の候補として、未着手の論点を示す。候補には、人に聞く問い、その答えで変わる判断、catalog とドメイン知識から分かっていることを添えられる。
+- [ ] AC 4: 次の候補として、未着手の論点を示す。候補には、人に聞く問い、その答えで変わる判断、catalog とドメイン知識から分かっていることを添えられる。データソースは `catalog_io list` で読み、`connection` の値を論点ツリーに書かない（[ADR-0022](../adr/0022-connection-reaches-only-the-notebook.md)）。
 - [ ] AC 5: 分析者が選んだ決定（`deepen`・`return`・`close`）と理由を、ツリーの決定として残す。
 
 ### US-4: 分析者に届く答えに、記録に無い数と参照が混ざらない
@@ -115,7 +115,7 @@ Story issue は DesignDoc の初版の合意後に起票する。1つの Story �
 | Story issue | User Story | 扱う AC |
 |---|---|---|
 | 未起票（18.1 正本と `tree_io`） | US-1、US-2 | US-1 AC 5、US-2 AC 1〜4 |
-| 未起票（18.2 framing で着手。#114 のマージ後） | US-1 | AC 1〜4 |
+| 未起票（18.2 framing で着手） | US-1 | AC 1〜4 |
 | 未起票（18.3 ツリーの検査） | US-4 | AC 1、AC 3 |
 | 未起票（18.4 横断の振り返り） | US-3、US-4 | US-3 AC 1〜3、US-4 AC 2 |
 | 未起票（18.5 次の候補とツリーの決定） | US-3 | AC 4、AC 5 |

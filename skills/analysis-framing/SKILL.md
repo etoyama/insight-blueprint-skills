@@ -33,7 +33,7 @@ Accept the analysis theme from `$ARGUMENTS` or ask the user for one.
 
 - If `$ARGUMENTS` is provided, use it as the theme
 - If the theme is vague or overly broad (e.g., "データ分析", "社会問題"):
-  - Present 2-3 candidate directions based on available data in `.insight/catalog/`
+  - Present 2-3 candidate directions based on the data sources `catalog_io list` returns
   - Ask the user to select or refine a direction before proceeding
   - Do NOT depend on development-partner for theme narrowing --- handle it independently
 - If forwarded from development-partner: accept the framing context from the conversation and build upon it
@@ -48,8 +48,9 @@ Accept the analysis theme from `$ARGUMENTS` or ask the user for one.
 
 ### Step 2: Domain Exploration (Agentic Search)
 
-Explore `.insight/` directories to gather theme-relevant information.
-Do NOT use MCP tools. Use only Glob, Read, and Grep via Agent tool.
+Explore `.insight/` to gather theme-relevant information.
+Do NOT use MCP tools. Use only Glob, Read, and Grep via Agent tool, plus `catalog_io list`
+for the data sources (2b).
 
 **Execution method**: Delegate exploration to an Agent tool (subagent_type: "Explore").
 Loading all `.insight/` YAML files into the main context would cause token
@@ -67,9 +68,12 @@ return a structured summary in the Data Map format (Step 3) to the main context.
 
 #### 2b: Catalog Exploration
 
-1. Glob `.insight/catalog/*.yaml` to list all catalog entries
-2. Read each entry and identify data sources usable for the theme:
-   - Check source name, column definitions, period, granularity
+1. Run `catalog_io list` to get every registered data source. It prints each source
+   without its `connection` (ADR-0018); the paths, hosts and project ids in `connection`
+   are for `/analysis-notebook` alone, so never open the source YAML files instead
+   ([ADR-0022](../../docs/adr/0022-connection-reaches-only-the-notebook.md)).
+2. Identify the data sources usable for the theme:
+   - Check source name, column definitions (`schema_info`), period, granularity
    - Also check the tags field
 
 #### 2c: Knowledge Exploration
@@ -81,13 +85,15 @@ return a structured summary in the Data Map format (Step 3) to the main context.
 
 #### 2d: Cross-search
 
-Run Grep across all of `.insight/` with keywords derived from the theme
-(synonyms, broader terms, narrower terms) to catch files missed in 2a-2c.
+Run Grep across `.insight/designs/`, `.insight/catalog/knowledge/` and `.insight/rules/`
+with keywords derived from the theme (synonyms, broader terms, narrower terms) to catch
+files missed in 2a-2c. Data sources come from 2b only: a Grep over the source YAML prints
+`connection` lines.
 
 #### Scope Control Guidelines
 
 - **Glob first, Read selectively**: List files with Glob first, then filter by filename/path relevance before Read. Do NOT Read all files unconditionally.
-- **Per-directory Read cap**: Read at most 20 files per directory (designs/, catalog/, rules/). If more exist, prioritize by filename relevance and timestamp (newer first).
+- **Per-directory Read cap**: Read at most 20 files per directory (designs/, catalog/knowledge/, rules/). If more exist, prioritize by filename relevance and timestamp (newer first).
 - **Staged reading**: On first pass, Read only the header fields (title, hypothesis_statement, source_id, name, etc.). Read full content only for files judged to be relevant.
 - **If too many relevant files found**: When more than 20 relevant files are identified, ask the user to narrow the theme before continuing.
 
@@ -124,7 +130,7 @@ Present the exploration results in the following structured format:
   - ...
 ```
 
-If `.insight/catalog/` is empty or has no relevant data:
+If `catalog_io list` returns no sources or no relevant data:
 - Clearly report that no data sources were found
 - Suggest `/catalog-register` to register new data sources
 

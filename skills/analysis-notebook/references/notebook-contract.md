@@ -10,12 +10,29 @@ machine-readable (the `verdict` cell persists a JSON side-effect that the skill 
 |---|------|-----------|---------|----------------|
 | 0 | imports | `def _():` | `(pd, plt, np, LineageSession, tracked_pipe, export_lineage_as_mermaid, json, Path)` | Library imports + `plt.rcParams["figure.figsize"] = (10, 6)` |
 | 1 | meta | `def _(mo):` | — | `mo.md()` of design id / title / hypothesis / intent (display only) |
-| 2 | data_load | `def _(pd, LineageSession):` | `(raw_df, session, mo)` | Load source into `raw_df`; `session = LineageSession(name="{id}-analysis", design_id="{id}")`. **Only this cell** does `import marimo as mo` |
+| 2 | data_load | `def _(pd, LineageSession):` | `(raw_df, session, mo)` | Load source into `raw_df`. Each `{source:ID}` in `methodology.steps` becomes the location in that source's `connection`: a string literal in Python code, a quoted identifier in a SQL query (ADR-0022); an `ID` not in `source_ids` stops the generation; `session = LineageSession(name="{id}-analysis", design_id="{id}")`. **Only this cell** does `import marimo as mo` |
 | 3 | data_prep | `def _(raw_df, session, tracked_pipe, mo):` | `(df_clean,)` | Methodology-**independent** cleaning (nulls, types, filters). Every transform via `tracked_pipe(...)` |
 | 4 | analysis | `def _(df_clean, pd, np, session, tracked_pipe, mo):` | `(results,)` | Methodology-**dependent** analysis (branch on `analysis_intent`). `results` MUST include `hypothesis_direction`, `observed_direction`, `confidence_level`, `decision_reason` |
 | 5 | viz | `def _(df_clean, results, plt):` | `(figure_manifest,)` | Plots; local vars use `_` prefix; **save each figure** to `.insight/notebooks/{id}_fig{NN:02d}.png` and build `figure_manifest` (see figures below); final expression is `plt.gcf()` |
 | 6 | verdict | `def _(results, figure_manifest, json, Path, mo):` | `(verdict,)` | Build `verdict` dict (include `figures=figure_manifest`) and **persist it** to `.insight/notebooks/{id}_verdict.json` (the skill reads this). Display via `mo.md()` |
 | 7 | lineage | `def _(session, export_lineage_as_mermaid, mo):` | — | `export_lineage_as_mermaid(session, project_path=".")` → `.insight/lineage/{id}.mmd`; display via `mo.mermaid()` |
+
+## Lineage calls
+
+Call `LineageSession` and `tracked_pipe` exactly as below. `tracked_pipe` takes the step function
+first, then `reason` and `session` as **keyword-only** arguments, and returns a function of one
+DataFrame — pass it to `.pipe()`. It never takes the DataFrame itself, and it has no `name`.
+
+```python
+# cell 2 (data_load)
+session = LineageSession(name="{id}-analysis", design_id="{id}")
+
+# cell 3 (data_prep) — same shape in cell 4; one tracked_pipe per transform
+def _drop_nulls(df):
+    return df.dropna()
+
+df_clean = raw_df.pipe(tracked_pipe(_drop_nulls, reason="drop rows with nulls", session=session))
+```
 
 ## `results` shape (cell 4)
 

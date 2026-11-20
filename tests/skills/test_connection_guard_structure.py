@@ -7,19 +7,10 @@ Only `/analysis-notebook` loads data, so it is the only skill that may ask for i
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from tests.skills._markdown import section, table_row, unwrap
-from tests.skills.test_skill_structure import _read_skill
+from tests.skills.test_skill_structure import SKILLS_DIR, _prose_files, _read_skill
 
-_SKILLS = Path(__file__).resolve().parents[2] / "skills"
 _FLAG = "--with-connection"
-
-
-def _prose_files() -> list[Path]:
-    return sorted(_SKILLS.glob("*/SKILL.md")) + sorted(
-        _SKILLS.glob("*/references/*.md")
-    )
 
 
 class TestOnlyTheNotebookAsksForTheConnection:
@@ -39,7 +30,7 @@ class TestOnlyTheNotebookAsksForTheConnection:
         # Any spelling of the flag counts, so a new skill cannot slip past with
         # another placeholder or with `list`. /catalog-register only documents it.
         mentions = {
-            path.relative_to(_SKILLS).parts[0]
+            path.relative_to(SKILLS_DIR).parts[0]
             for path in _prose_files()
             if _FLAG in path.read_text()
         }
