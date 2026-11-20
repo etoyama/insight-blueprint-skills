@@ -103,8 +103,8 @@ gate policy above:
 4. **premortem**: always run `/premortem` before touching data. If `HARD_BLOCK`/`HIGH`, **stop** and
    surface the risk (`source not registered` → offer /catalog-register; `no data source declared` →
    offer /analysis-design to fill `source_ids`; `package outside allowlist` → offer to declare the
-   package in `.insight/rules/package_allowlist.yaml` (the file lists only the packages beyond the
-   default allowlist); cost/location → let the user decide).
+   package in `.insight/rules/package_allowlist.yaml` (list only that package); cost/location → let
+   the user decide).
    If `LOW`/`MEDIUM`, continue.
 5. **notebook**: run `/analysis-notebook`. The declared source(s) are the ids in the design's
    `source_ids`. Auto-run only when premortem cleared **and** the analysis is

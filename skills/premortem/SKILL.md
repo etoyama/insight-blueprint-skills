@@ -41,11 +41,12 @@ It does **not** issue tokens, gate execution, or write to disk — it advises.
    - `allowlist_ok`: check each package named in `methodology.package` against the import names
      and pip names of the default allowlist plus the packages in `.insight/rules/package_allowlist.yaml`
      ("Default allowlist" in [notebook-contract.md](../analysis-notebook/references/notebook-contract.md)).
-     A missing file adds nothing. `true` when every package is in it, `false` when one is not.
+     `true` when every package is in it, `false` when one is not.
      `methodology.package` is free text: compare the top-level module of each name (the part
      before the first `.`) case-insensitively, and skip words that are not package names.
-     An empty `methodology.package` is `true`. A missing file is never `null`: use `null` only
-     when the file exists but cannot be read (invalid YAML, no `allowed_packages`).
+     An empty `methodology.package` is `true`. A missing file adds nothing and is never `null`: use
+     `null` only when the file exists but cannot be read (invalid YAML, no `allowed_packages`), even
+     when every package is in the default allowlist.
    - Pipe `{ "designs": [...], "source_checks_map": {...} }` as JSON to cli.py stdin. Put each
      design in `designs` as `design_io get` returned it: a design without `source_ids` is
      `HARD_BLOCK` with the reason `no data source declared`.

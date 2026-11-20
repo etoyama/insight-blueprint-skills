@@ -9,6 +9,7 @@ always allowed, the file only adds packages to it, and a missing file is never `
 from __future__ import annotations
 
 import re
+import sys
 import tomllib
 
 import yaml
@@ -21,14 +22,24 @@ CONTRACT = SKILLS_DIR / "analysis-notebook" / "references" / "notebook-contract.
 SAMPLE = REPO_ROOT / ".insight" / "rules" / "package_allowlist.yaml"
 ALLOWLIST_FILE = "`.insight/rules/package_allowlist.yaml`"
 
-# The names the contract's cells bind, and the module each one comes from.
-CONTRACT_BINDINGS = {
+# Where each name in cell 0's return tuple comes from.
+CELL0_SOURCES = {
     "pd": "pandas",
     "plt": "matplotlib",
     "np": "numpy",
     "LineageSession": "insight_blueprint",
-    "mo": "marimo",
+    "tracked_pipe": "insight_blueprint",
+    "export_lineage_as_mermaid": "insight_blueprint",
+    "json": "json",
+    "Path": "pathlib",
 }
+STALE_PHRASES = (
+    "only the file counts",
+    "not merged in",
+    "copy the default allowlist",
+    "allows nothing",
+    "Standard-library modules need no entry",
+)
 
 
 def _contract() -> str:
@@ -59,11 +70,23 @@ class TestDefaultAllowlistIsWhatTheContractImports:
     def test_the_plugin_library_is_allowed_by_its_import_name(self) -> None:
         assert _default_allowlist()["insight_blueprint"] == "insight-blueprint-lineage"
 
-    def test_import_names_are_the_modules_the_cells_bind(self) -> None:
-        cells = section(_contract(), "## Cells")
-        for name in CONTRACT_BINDINGS:
-            assert re.search(rf"\b{name}\b", cells), f"the cells bind {name}"
-        assert set(_default_allowlist()) == set(CONTRACT_BINDINGS.values())
+    def test_import_names_are_every_non_stdlib_module_the_cells_import(self) -> None:
+        returns = table_row(section(_contract(), "## Cells"), "0")[3]
+        names = re.findall(r"\w+", returns)
+        assert set(names) == set(CELL0_SOURCES), "cell 0 returns only known names"
+        modules = set(CELL0_SOURCES.values()) | {"marimo"}
+        assert "`import marimo as mo`" in _contract()
+        assert modules - sys.stdlib_module_names == set(_default_allowlist())
+
+    def test_only_the_stdlib_modules_of_cell_0_need_no_entry(self) -> None:
+        stdlib = set(CELL0_SOURCES.values()) & sys.stdlib_module_names
+        assert stdlib == {"json", "pathlib"}
+        block = unwrap(section(_contract(), "### Format"))
+        assert (
+            "The standard-library modules cell 0 imports (`json`, `pathlib`) need no entry"
+            in block
+        )
+        assert "any other standard-library module is checked like a package" in block
 
 
 class TestDefaultAllowlistIsAlwaysAllowed:
@@ -89,14 +112,17 @@ class TestDefaultAllowlistIsAlwaysAllowed:
     def test_one_more_package_is_the_only_entry_the_file_needs(self) -> None:
         assert "list only that package in the file" in self._block()
 
-    def test_standard_library_modules_need_no_entry(self) -> None:
-        assert "Standard-library modules need no entry" in unwrap(
-            section(_contract(), "### Format")
-        )
-
-    def test_the_boundary_is_the_default_plus_the_file(self) -> None:
+    def test_the_boundary_points_at_the_package_allowlist_section(self) -> None:
         boundary = unwrap(section(_contract(), "### Security"))
-        assert f"the default allowlist plus {ALLOWLIST_FILE}" in boundary
+        assert 'allowlisted packages (see "Package allowlist" below)' in boundary
+
+    def test_the_replaced_rules_are_gone(self) -> None:
+        texts = [_contract()] + [
+            _read_skill(name) for name in ("premortem", "analysis-auto")
+        ]
+        for text in texts:
+            for phrase in STALE_PHRASES:
+                assert phrase not in unwrap(text), phrase
 
     def test_supplying_points_at_the_default_instead_of_listing_it(self) -> None:
         supplying = section(_contract(), "### Supplying an allowlisted package")
@@ -136,8 +162,9 @@ class TestPremortemBuildsAllowlistOk:
 
     def test_null_is_kept_for_a_file_that_cannot_be_read(self) -> None:
         workflow = self._workflow()
-        assert "A missing file is never `null`" in workflow
+        assert "A missing file adds nothing and is never `null`" in workflow
         assert "`null` only when the file exists but cannot be read" in workflow
+        assert "even when every package is in the default allowlist" in workflow
 
     def test_high_row_names_only_an_unreadable_file(self) -> None:
         levels = section(_read_skill("premortem"), "## Risk Levels")
@@ -159,11 +186,11 @@ class TestAutopilotUsesTheSameAllowlist:
             in self._workflow()
         )
 
+    def test_the_stop_asks_for_only_the_missing_package(self) -> None:
+        assert "list only that package" in self._workflow()
+
     def test_allowlist_stop_points_at_the_file(self) -> None:
         assert (
             f"`package outside allowlist` → offer to declare the package in {ALLOWLIST_FILE}"
             in self._workflow()
         )
-
-    def test_the_stop_no_longer_asks_to_copy_the_default(self) -> None:
-        assert "start it from the default allowlist" not in self._workflow()

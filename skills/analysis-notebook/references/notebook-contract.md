@@ -154,17 +154,15 @@ keep credentials in environment variables (do not inline a `connection` password
 and remember generated `.py` / `_flat.py` / `.html` artifacts may embed data — gitignore if sensitive.
 
 The generated notebook must stay within the **declared source(s) + allowlisted packages + local
-computation**. The allowlist is the default allowlist plus `.insight/rules/package_allowlist.yaml`
-(see "Package allowlist" below). That allowlist is the dependency / external-communication boundary:
+computation**: allowlisted packages (see "Package allowlist" below). That allowlist is the dependency / external-communication boundary:
 anything outside it (a non-listed import, network egress beyond the declared source, other side-effects)
 is a decision gate — under `/analysis-auto` (guided autopilot) it pauses for the user rather than
 auto-running (see ADR-0005).
 
 ## Package allowlist — format & supplying packages
 
-`.insight/rules/package_allowlist.yaml` declares which packages a generated notebook may import on top of
-the default allowlist. It is
-a **boundary declaration, not an installer** — writing a package here does not make it importable; it
+`.insight/rules/package_allowlist.yaml` declares which packages a generated notebook may import. It is a
+**boundary declaration, not an installer** — writing a package here does not make it importable; it
 states that the package is *permitted*. Two separate steps: declare (below), then supply (below).
 
 ### Format
@@ -178,8 +176,9 @@ allowed_packages:
 
 `allowed_packages` is a map of **import name → pip distribution name**. The **import name** (left) is the
 boundary the notebook must respect — every top-level `import X` in the generated notebook must have `X`
-in the default allowlist or as a key of the file. Standard-library modules need no entry (`json` and
-`pathlib` in cell 0). The **pip name** (right) is what actually gets installed (they differ for e.g.
+in the default allowlist or as a key of the file. The standard-library modules cell 0 imports (`json`,
+`pathlib`) need no entry; any other standard-library module is checked like a package, since modules
+such as `socket` or `subprocess` reach outside the declared source. The **pip name** (right) is what actually gets installed (they differ for e.g.
 `sklearn` / `scikit-learn`). Consumers: `/premortem` reads it for the `allowlist_ok` pre-flight check,
 and `/analysis-auto` treats an import outside it as a KEEP gate (pause) rather than auto-running.
 
@@ -189,8 +188,7 @@ The default allowlist is always allowed, whether or not the file exists and what
 the file adds packages to it. It is every package the cells above import (`pd`, `plt`, `np` and
 `LineageSession` in cell 0, `mo` in cell 2), and those are exactly the packages the plugin env ships
 (the `notebook` extra of the plugin's `pyproject.toml` and the plugin's own `insight_blueprint`).
-Leaving one of them out would stop every notebook and protect nothing (ADR-0021, ADR-0027). A new
-project can therefore run an analysis that needs nothing else without writing the file.
+Leaving one of them out would stop every notebook and protect nothing (ADR-0021, ADR-0027).
 
 ```yaml
 # default allowlist (always allowed)
