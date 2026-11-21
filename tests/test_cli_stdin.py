@@ -27,6 +27,7 @@ NO_PAYLOAD = [
     ("catalog_io", "describe", "--ids", "src"),
     ("catalog_io", "get-schema", "--id", "src"),
     ("catalog_io", "get-knowledge", "--id", "src"),
+    ("catalog_io", "search", "--query", "src"),
     ("tree_io", "link", "--theme", "LIB", "--node", "LIB-Q01", "--design", "LIB-H01"),
     ("tree_io", "candidates", "--theme", "LIB"),
     ("tree_io", "copy-hearing", "--theme", "LIB", "--node", "LIB-Q01")
