@@ -304,7 +304,8 @@ class TestTheDriverReadsTheSkillsItDrives:
 
     def test_it_reads_the_skill_file_instead_of_calling_the_skill_tool(self) -> None:
         how = self._how()
-        assert "`../{skill-name}/SKILL.md`" in how
+        assert "`${CLAUDE_PLUGIN_ROOT}/skills/{skill-name}/SKILL.md`" in how
+        assert "Never search the disk" in how
         assert re.search(r"[Nn]ever call the Skill tool", how)
 
     def test_it_does_not_hand_the_command_back_to_the_analyst(self) -> None:

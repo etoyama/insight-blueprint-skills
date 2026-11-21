@@ -84,8 +84,9 @@ is intended: outside this run the skills stay explicit. Inside this run, the ana
 `/analysis-auto` is the explicit invocation that covers them
 ([ADR-0005](../../docs/adr/0005-selective-autonomous-chaining.md)).
 
-- To run a skill, Read its file — `../{skill-name}/SKILL.md` from this skill's base directory —
-  and follow it as written, under the gate policy above.
+- To run a skill, Read its file — `${CLAUDE_PLUGIN_ROOT}/skills/{skill-name}/SKILL.md`, the
+  sibling of this skill's own directory — and follow it as written, under the gate policy
+  above. Never search the disk for it.
 - Never call the Skill tool for a delegated skill, and never ask the analyst to type its
   `/command`: carrying the steps is what this run is for.
 - `design_io`, `catalog_io`, `tree_io`, `tree_check` and `report_check` are on PATH: call them
@@ -217,9 +218,10 @@ the round until the analyst closes the walk or says stop.
    when no report was written. Keep the skill's one-line outcome for item 10 and the summary.
 10. **theme reflection**: run `/analysis-reflection {theme_id}`. It writes the current answer
     of each node, checks them, shows the next candidates and renders the HTML without asking. Its
-    Step T7 is the KEEP gate of the round. Before that gate, show the report's path with the upload
-    outcome (when this round wrote a report) next to the path of the tree's HTML, so the analyst
-    decides with both in view. Never choose the kind, the node or the reason for them, and never
+    Step T7 is the KEEP gate of the round. Before that gate, show the report's path next to the
+    path of the tree's HTML, so the analyst decides with both in view. The report is the one of
+    this round's design, also when an earlier run wrote it; add the upload outcome when this run
+    has one. A round without a conclusion has no report: say so. Never choose the kind, the node or the reason for them, and never
     fill in an answer they heard.
 11. **next round**: after a `deepen` or a `return` the walk goes on: read `tree_io position`
     again and start the next round at item 1, in the same turn. Do not summarize in between, and
