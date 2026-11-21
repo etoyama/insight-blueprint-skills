@@ -1074,6 +1074,45 @@ class TestCopyHearing:
         with pytest.raises(ValueError, match="not linked"):
             tree_io.copy_hearing("LIB", "LIB-Q03", other, base_dir=heard)
 
+    @pytest.mark.parametrize("status", ["supported", "rejected", "inconclusive"])
+    def test_a_finished_design_is_refused_and_its_journal_is_left_as_it_is(
+        self, heard: Path, status: str
+    ) -> None:
+        design_id = self._design_of(heard)
+        design_io.transition_status(design_id, status, base_dir=heard)
+        before = self._journal_path(heard).read_bytes()
+
+        with pytest.raises(ValueError, match=f"{design_id} is {status}"):
+            tree_io.copy_hearing("LIB", "LIB-Q03", design_id, base_dir=heard)
+        assert self._journal_path(heard).read_bytes() == before
+
+    def test_the_refusal_says_where_the_answer_goes_instead(self, heard: Path) -> None:
+        design_id = self._design_of(heard)
+        _finish(heard, design_id)
+
+        with pytest.raises(ValueError, match="next design"):
+            tree_io.copy_hearing("LIB", "LIB-Q03", design_id, base_dir=heard)
+
+    def test_an_answer_copied_before_the_design_finished_is_not_an_error(
+        self, heard: Path
+    ) -> None:
+        design_id = self._design_of(heard)
+        tree_io.copy_hearing("LIB", "LIB-Q03", design_id, base_dir=heard)
+        _finish(heard, design_id)
+
+        again = tree_io.copy_hearing("LIB", "LIB-Q03", design_id, base_dir=heard)
+        assert again["copied"] is False
+        assert "already" in again["reason"]
+
+    def test_a_finished_design_with_no_answer_to_copy_is_not_an_error(
+        self, world: Path
+    ) -> None:
+        design_id = self._design_of(world)
+        _finish(world, design_id)
+
+        result = tree_io.copy_hearing("LIB", "LIB-Q03", design_id, base_dir=world)
+        assert result["copied"] is False
+
     def _journal_path(self, heard: Path) -> Path:
         return heard / "designs" / f"{self._design_of(heard)}_journal.yaml"
 
