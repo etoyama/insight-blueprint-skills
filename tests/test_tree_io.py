@@ -1421,6 +1421,27 @@ class TestCli:
         looked = str(insight.resolve() / "themes" / "LIB_tree.yaml")
         assert missing.stderr.strip() == f"tree_io: no tree at {looked}"
 
+    @pytest.mark.parametrize(
+        ("command", "payload"),
+        [
+            ("progress", None),
+            ("add-node", {"question": "q", "parent_question_id": "LIB-Q01"}),
+        ],
+    )
+    def test_a_tree_that_fails_its_schema_is_an_error_not_a_crash(
+        self, insight: Path, command: str, payload: dict | None
+    ) -> None:
+        (insight / "themes").mkdir(parents=True)
+        (insight / "themes" / "LIB_tree.yaml").write_text(
+            "theme_id: LIB\n", encoding="utf-8"
+        )
+
+        done = self._run(insight, command, "--theme", "LIB", payload=payload)
+
+        assert done.returncode == 1
+        assert done.stderr.startswith("tree_io: ")
+        assert "Traceback" not in done.stderr
+
     def test_get_is_silent_when_the_tree_is_there(self, insight: Path) -> None:
         self._run(
             insight,
@@ -1772,6 +1793,19 @@ class TestRender:
         assert "number-not-cited" in shown
         stored = tree_io.load_tree("LIB", tree)["nodes"][1]["answers"]
         assert len(stored) == 1  # the answer is marked on the page, never withdrawn
+
+    def test_a_cited_journal_that_is_not_a_mapping_stops_render_naming_the_file(
+        self, tree: Path
+    ) -> None:
+        design_id = self._answered(tree)
+        journal = tree / "designs" / f"{design_id}_journal.yaml"
+        journal.write_text(f"- id: {design_id}-E01\n", encoding="utf-8")
+
+        done = _run_cli(tree, "render", "--theme", "LIB")
+
+        assert done.returncode == 1
+        assert f"{design_id}_journal.yaml is not a mapping" in done.stderr
+        assert not (tree / "themes" / "LIB_tree.html").exists()
 
     def test_an_answer_that_matches_the_record_carries_no_mark(
         self, tree: Path

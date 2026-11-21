@@ -122,6 +122,15 @@ class TestTheThemeIsTheEntry:
         ):
             assert f"`{state}`" in rows, state
 
+    def test_an_analyzing_design_resumes_by_its_events_not_by_its_journal_file(
+        self,
+    ) -> None:
+        # /analysis-design copies a heard answer into the journal before premortem,
+        # so a journal file alone does not mean the analysis ran.
+        resume = unwrap(_step("### Step 1:"))
+        assert "other than `hearing`" in resume
+        assert "`analyzing` with a journal" not in resume
+
     def test_no_tree_goes_to_framing(self) -> None:
         build = unwrap(_step("### Step 2:"))
         assert "/analysis-framing" in build

@@ -43,7 +43,8 @@ identify remaining gaps, or decide to branch.
 
 1. `design_io get --id {design_id}` — load design (JSON)
 2. Read `.insight/designs/{design_id}_journal.yaml` using Read tool — load journal
-3. If no journal exists: "ジャーナルがない。まず /analysis-journal {id} で推論過程を記録してから振り返ろう" → exit
+3. If no journal exists, or it holds no event other than `hearing` (the answer `/analysis-design`
+   copied in before the analysis ran): "ジャーナルがない。まず /analysis-journal {id} で推論過程を記録してから振り返ろう" → exit
 
 ### Step 2: Present Analysis Summary
 

@@ -281,8 +281,13 @@ def transition_status(
 
 
 def load_journal(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
+    """The journal of *design_id*; {} if it does not exist or is empty.
+
+    A journal that is not a mapping raises ValueError: read as empty, its events
+    would look missing instead of unreadable.
+    """
     _validate_id(design_id)
-    return read_yaml(_designs_dir(base_dir) / f"{design_id}_journal.yaml")
+    return _read_journal(_designs_dir(base_dir) / f"{design_id}_journal.yaml")
 
 
 def write_journal(
@@ -305,7 +310,7 @@ def append_journal_event(
     _validate_id(design_id)
     path = _designs_dir(base_dir) / f"{design_id}_journal.yaml"
     now = now_jst().isoformat()
-    journal = _read_journal_for_append(path)
+    journal = _read_journal(path)
     if not journal:
         journal = {
             "metadata": {"design_id": design_id, "created_at": now},
@@ -334,7 +339,7 @@ def append_journal_event(
     return event
 
 
-def _read_journal_for_append(path: Path) -> dict:
+def _read_journal(path: Path) -> dict:
     if not path.exists():
         return {}
     with path.open("r", encoding="utf-8") as f:
@@ -342,7 +347,7 @@ def _read_journal_for_append(path: Path) -> dict:
     if data is None:
         return {}
     if not isinstance(data, dict):
-        raise ValueError(f"{path.name} is not a mapping; it was not changed")
+        raise ValueError(f"{path.name} is not a mapping")
     return data
 
 

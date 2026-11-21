@@ -511,6 +511,17 @@ class TestCheckTheme:
         with pytest.raises(ValueError, match="LIB-H01-E01"):
             tree_check.check_theme("LIB", tmp_path)
 
+    def test_a_journal_that_is_not_a_mapping_cannot_be_checked(
+        self, tmp_path: Path
+    ) -> None:
+        write_tree(tmp_path, answered_tree("152件", "LIB-H01-E01"))
+        journal = tmp_path / "designs" / "LIB-H01_journal.yaml"
+        journal.parent.mkdir(parents=True, exist_ok=True)
+        journal.write_text("- id: LIB-H01-E01\n  content: 152件\n", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="LIB-H01_journal.yaml"):
+            tree_check.check_theme("LIB", tmp_path)
+
     def test_a_tree_that_names_another_theme_cannot_be_checked(
         self, tmp_path: Path
     ) -> None:

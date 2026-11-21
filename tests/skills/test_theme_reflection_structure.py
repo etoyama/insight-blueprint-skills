@@ -97,6 +97,11 @@ class TestReflectionTakesAThemeOrADesign:
         ):
             assert heading in skill
 
+    def test_a_journal_with_only_a_heard_answer_is_not_reflected_on(self) -> None:
+        # The heard answer is copied in before the analysis runs (/analysis-design).
+        load = _step("### Step 1: ")
+        assert "other than `hearing`" in load
+
     def test_a_theme_without_a_tree_is_sent_to_framing(self) -> None:
         load = _step("### Step T1: ")
         assert "`tree_io get --theme {theme_id}`" in load

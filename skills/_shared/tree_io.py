@@ -79,11 +79,16 @@ def load_tree(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
     return read_yaml(_tree_path(theme_id, base_dir))
 
 
-def _require_tree(theme_id: str, base_dir: Path) -> dict:
+def _read_tree(theme_id: str, base_dir: Path) -> tuple[dict, QuestionTree]:
     tree = load_tree(theme_id, base_dir)
     if not tree:
         raise ValueError(f"Theme '{theme_id}' has no question tree")
-    return tree
+    return tree, _named_like_its_file(validate_tree_schema(tree), theme_id)
+
+
+def _require_tree(theme_id: str, base_dir: Path) -> dict:
+    """The tree of *theme_id* as a dict, validated before any command reads it."""
+    return _read_tree(theme_id, base_dir)[0]
 
 
 def _named_like_its_file(model: QuestionTree, theme_id: str) -> QuestionTree:
@@ -101,9 +106,7 @@ def load_tree_model(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Questio
     Raises ValueError for an invalid theme id, a missing tree, a tree that
     fails its schema, or a tree that names another theme.
     """
-    return _named_like_its_file(
-        validate_tree_schema(_require_tree(theme_id, base_dir)), theme_id
-    )
+    return _read_tree(theme_id, base_dir)[1]
 
 
 def _write_tree(tree: dict, theme_id: str, base_dir: Path) -> dict:
@@ -716,13 +719,15 @@ def _check_for_page(
     """The violations of the current answers, or why they could not be found.
 
     A stale answer is not stored as withdrawn, so the page is where it shows. A
-    check that cannot run must not stop the page: it says so on the page.
+    cited id that two events share stops the check, not the page: it says so on
+    the page. A journal that cannot be read already stopped ``render`` before
+    this runs, so the analyst is told which file to fix.
     """
     from skills._shared.tree_check import check_tree  # tree_check imports tree_io
 
     try:
         return check_tree(tree, base_dir)
-    except (ValueError, OSError, YAMLError) as exc:
+    except ValueError as exc:
         return CheckFailed(str(exc))
 
 

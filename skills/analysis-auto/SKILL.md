@@ -126,8 +126,10 @@ tree_io position --theme LIB
 | `closed` | The analyst closed the walk at `node_id`, and no design was made on it since | Step 3, item 1 (`/analysis-framing` asks which node to resume, 4d) |
 
    For `in_progress`, read the design with `design_io get --id {design_id}`:
-   `in_review` / `revision_requested` → item 3 or 4; `analyzing` without results → item 4;
-   `analyzing` with a journal → item 7. With more than one unfinished design, carry the first
+   `in_review` / `revision_requested` → item 3 or 4. For `analyzing`, read the journal: no event
+   other than `hearing` → item 4; any other event → item 7. A `hearing` event is the answer
+   `/analysis-design` copied in before premortem, so it does not mean the analysis ran.
+   With more than one unfinished design, carry the first
    and tell the analyst which ones wait.
 3. A `design_id` of a theme that has a tree is never asked about: carry that design, entering
    Step 3 at the item its status calls for. If no node of the tree holds it, say so and run
