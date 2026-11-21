@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-22
+
 ### Upgrade note
 
 - A project's `.insight/rules/package_allowlist.yaml` can no longer forbid pandas, matplotlib,
@@ -527,7 +529,8 @@ Version bumps and maintenance releases. See git history for details:
 - YAML direct edit resilience (extra field preservation + corrupt file isolation)
 - SQLite FTS5 full-text search index
 
-[unreleased]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.12.0...HEAD
+[unreleased]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.9.0...v0.10.0
