@@ -268,7 +268,7 @@ sequenceDiagram
     U->>CC: /analysis-design
     CC->>IO: design_io create（hypothesis.yaml, status=in_review）
     IO->>FS: atomic write
-    CC->>IO: tree_io link（分析設計を論点に結ぶ）
+    CC->>IO: tree_io link（分析設計を論点に結ぶ）→ tree_io copy-hearing（聞いてきた答えを journal に写す）
     IO->>FS: atomic write
 
     opt 任意: レビュー / 事前リスク評価
@@ -296,6 +296,7 @@ sequenceDiagram
         CC->>IO: tree_io answer（論点ごとの現時点の答え。検査を通るまで書かない）
         IO->>FS: atomic write
         CC->>IO: tree_check（書いた後の検査）→ tree_io render
+        CC->>IO: tree_io candidates / candidate / hear / decide（次の候補、聞いてきた答え、ツリーの決定）
     end
     opt 任意: 配布用レポート（terminal 後）
         U->>CC: /analysis-report（design/journal/verdict/figures/catalog/lineage → APA Markdown）
@@ -696,7 +697,7 @@ classDiagram
 | `ReviewBatch` | 集約ルート | `comments` は1件以上。1つのバッチは `status_after` への遷移を1回だけ起こす |
 | `DataSource` | 集約ルート | `type` は空でない open string（[ADR-0004](adr/0004-open-string-catalog-taxonomy.md)） |
 | `DomainKnowledge` | 集約ルート | 1つの `source_id` に属する。`category` は空でない open string |
-| `QuestionTree` | 集約ルート | 1テーマに1つ。根の問い（親を持たない論点）はちょうど1つで、その文は今の根の版の問いと同じ。論点の親は同じツリーにあり、循環しない。根の版は1から1ずつ増え、今の版より前の版は書き換えも削除もできない。結ぶ分析設計と発見元は同じテーマのもの。モデルに無い項目を持てない（[epic-18](design/epic-18-question-tree.md)） |
+| `QuestionTree` | 集約ルート | 1テーマに1つ。根の問い（親を持たない論点）はちょうど1つで、その文は今の根の版の問いと同じ。論点の親は同じツリーにあり、循環しない。根の版は1から1ずつ増え、今の版より前の版は書き換えも削除もできない。結ぶ分析設計と発見元は同じテーマのもの。ツリーの決定は追記だけで、最初の決定は `start`、`deepen` は直前の決定の論点かその下、`return` はその外、`close` は同じ論点を指す。モデルに無い項目を持てない（[epic-18](design/epic-18-question-tree.md)） |
 
 ### Python のクラスを持たないファイルの契約
 
@@ -704,7 +705,7 @@ classDiagram
 
 | ファイル | 中身 | 形の正本 |
 |---|---|---|
-| `designs/{id}_journal.yaml` | journal（観察・証拠・決定・問い） | [skills/analysis-journal/SKILL.md](../skills/analysis-journal/SKILL.md) |
+| `designs/{id}_journal.yaml` | journal（観察・証拠・人に聞いた答え・決定・問い） | [skills/analysis-journal/SKILL.md](../skills/analysis-journal/SKILL.md) |
 | `designs/{id}_revision.yaml` | review コメントへの対応の追跡 | [skills/analysis-revision/SKILL.md](../skills/analysis-revision/SKILL.md) |
 | `notebooks/{id}_verdict.json` | notebook の verdict と figures manifest（`figures[]`）。指標は任意で効果量・信頼区間・標本サイズを持つ | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md)、[ADR-0008](adr/0008-notebook-figure-manifest.md)、[ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | `reports/{id}.md` | レポート。データ由来の文はエスケープして載る | [apa-template.md](../skills/analysis-report/references/apa-template.md) |

@@ -15,6 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `/analysis-reflection {theme_id}` now goes on after the current answers: it lists the next
+  candidates (the nodes of the question tree with no design on them or below them), can attach a
+  question to ask a person, keeps the answer you bring back with who answered and when, and asks
+  whether you deepen the same node, return to its parent, or close. Your choice and its reason are
+  kept in the tree as a decision.
+- A new journal event type, `hearing`, holds what a person answered. `/analysis-design` copies an
+  answer kept on a question node into the journal of the design it links to that node, so a later
+  answer can cite it. `/analysis-journal` records one too.
+- The HTML view of the question tree lists the next candidates, shows the round each decision was
+  taken at, and marks an answer that no longer matches the record instead of showing it as the
+  current answer.
 - `/analysis-framing` makes the HTML view of the question tree with `tree_io render` after it
   writes the tree, and tells you its path.
 - `/tree-upload` uploads the HTML view of a theme's question tree to the host's Artifact as a new
@@ -23,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A rerun of `/analysis-framing` on a theme that has a question tree now always asks which node to
+  design next. When you pick a node other than the one the latest decision names, it asks for your
+  reason and keeps the change as a decision.
 - **A project's `.insight/rules/package_allowlist.yaml` now adds packages to the default
   allowlist instead of replacing it.** The default allowlist (pandas, matplotlib, numpy, marimo,
   insight_blueprint) is what every contract notebook imports, so it is always allowed and

@@ -40,7 +40,7 @@
 | review コメント | `BatchComment` | review batch の中の1件の指摘。分析設計の節を指せる | — | fork 前 |
 | revision | `/analysis-revision`、`{design_id}_revision.yaml` | review コメントに分析設計を直して応えること。その対応の追跡 | — | fork 前 |
 | journal | `/analysis-journal`、`{id}_journal.yaml` | 分析中の推論を出来事として積む記録 | 分析ログ | fork 前 |
-| journal の出来事 | `observe`、`hypothesize`、`evidence`、`question`、`decide`、`reflect`、`conclude`、`branch` | journal の1件。種類は観察・仮説・証拠・問い・決定・振り返り・結論・派生 | — | fork 前 |
+| journal の出来事 | `observe`、`hypothesize`、`evidence`、`hearing`、`question`、`decide`、`reflect`、`conclude`、`branch` | journal の1件。種類は観察・仮説・証拠・人に聞いた答え・問い・決定・振り返り・結論・派生 | — | fork 前、[ADR-0028](adr/0028-hearing-is-its-own-journal-event.md) |
 | 未解決の問い | `metadata.resolves` | journal の `question` のうち、どの `conclude` の `metadata.resolves` にも id が挙がっていないもの | オープンクエスチョン | [epic-14](design/epic-14-report-template-gaps.md) |
 | reflection | `/analysis-reflection` | journal を振り返り、結論を出すか、仮説を直すか、派生するかを決めること | — | fork 前 |
 | 論点ツリー | `QuestionTree` | 1つのテーマ（`theme_id`）の問いの論理の構造。根の問いを1つ持ち、論点を親子でつなぐ。分析設計の派生とは別に辿る。正本は YAML で、表示は正本から生成する | イシューツリー、ロジックツリー | [ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md) |
@@ -53,8 +53,8 @@
 | 進捗 | `Progress` | 論点の分析がどこまで進んだか。未着手・検証中・分析済み。保存せず、結んだ分析設計の状態から導く | — | [epic-18](design/epic-18-question-tree.md) |
 | 現時点の答え | `Answer` | 振り返りで論点ごとに書く答え。文ごとに種類（言えること・未判別・弱める証拠と留保）と、引用する journal の出来事を持つ。追記だけで、振り返りの回と根の版を持つ | 暫定回答 | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
 | 振り返りの回 | `round` | テーマを横断する振り返りの通し番号。1回の `tree_io answer` が1つの回になる。前の回から変わった答えを見分けるのに使う | — | [epic-18](design/epic-18-question-tree.md) |
-| ツリーの決定 | `TreeDecision` | 論点ツリーで分析者が選んだこと（最初の論点を選ぶ、深める、親に戻る、区切る）と理由 | — | [epic-18](design/epic-18-question-tree.md) |
-| 次の候補 | — | 振り返りが示す、次に調べるとよい未着手の論点。人に聞く問い、その答えで変わる判断、既に分かっていることを添えられる | — | [epic-18](design/epic-18-question-tree.md) |
+| ツリーの決定 | `TreeDecision` | 論点ツリーで分析者が選んだこと（最初の論点を選ぶ、深める、親に戻る、区切る）と理由。次に調べる論点を指し、区切るときは区切った論点を指す。決めた時点の振り返りの回を持つ | — | [epic-18](design/epic-18-question-tree.md) |
+| 次の候補 | `NextCandidate` | 振り返りが示す、次に調べるとよい未着手の論点。根を除き、自分にも下の論点にも分析設計を結んでいない論点を指す。人に聞く問い、その答えで変わる判断、既に分かっていること、聞いてきた答え（誰に、いつ）を添えられる | — | [epic-18](design/epic-18-question-tree.md) |
 | ツリーの検査 | `tree_check` | 現時点の答えの引用先が実在し、論点に結んだ分析設計のものか、文の数が引用先の本文にあるかを確かめること。論点ツリーを書き換えない | — | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
 | Artifact | — | ホストが持つ、HTML のページを claude.ai に置いて URL で開ける機能。plugin は持たない。論点ツリーの表示を渡すのに使う | — | [ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md) |
 | 合成シナリオ | — | 公開する例・図・テストデータに使う架空の題材。今は公共図書館の予約本 | — | [epic-18](design/epic-18-question-tree.md) |
