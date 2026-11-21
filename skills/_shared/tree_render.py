@@ -223,7 +223,7 @@ def render_tree_html(
     tree: QuestionTree,
     designs: Mapping[str, DesignSummary],
     events: Mapping[str, CitedEvent],
-    violations: Sequence[Violation] | CheckFailed = (),
+    violations: Sequence[Violation] | CheckFailed,
 ) -> str:
     title = f"論点ツリー {tree.theme_id}"
     head = _el(
@@ -399,7 +399,11 @@ def _decisions(tree: QuestionTree) -> _Html:
             _DECISION_LABELS[d.kind],
             None
             if d.kind is TreeDecisionKind.start
-            else f"（回 {d.round} の答えを見て）",
+            else (
+                "（振り返りの前）"
+                if d.round == 0
+                else f"（回 {d.round} の振り返りの後）"
+            ),
             ": ",
             _link(d.node_id, d.node_id),
             f" {d.reason}",
@@ -499,7 +503,8 @@ def _node_card(context: _Context, node: QuestionNode) -> _Html:
     if node.origin_event_id is not None:
         meta.append(f"　発見元: {node.origin_event_id}")
     answer = node.current_answer()
-    parts: list[_Html] = [
+    violated = context.violations.get(node.id, ())
+    parts: list[_Html | None] = [
         _el("p", _el("strong", node.id), f" {node.question}"),
         _el("p", *meta, class_="meta"),
     ]
@@ -512,7 +517,7 @@ def _node_card(context: _Context, node: QuestionNode) -> _Html:
         ]
         if marks:
             parts.append(_el("p", *marks))
-        if node.id not in context.violations:
+        if not violated:
             parts.append(
                 _el(
                     "ul",
@@ -521,10 +526,7 @@ def _node_card(context: _Context, node: QuestionNode) -> _Html:
                 )
             )
         parts.append(_round_meta(answer))
-    notes = _notes(node)
-    if notes is not None:
-        parts.append(notes)
-    parts.append(_evidence(context, node))
+    parts += [_notes(node), _evidence(context, node, violated)]
     return _el("div", _join(parts), class_=f"node progress-{progress.value}")
 
 
@@ -552,16 +554,18 @@ def _round_meta(answer: Answer) -> _Html:
     )
 
 
-def _evidence(context: _Context, node: QuestionNode) -> _Html:
+def _evidence(
+    context: _Context, node: QuestionNode, violated: Sequence[Violation]
+) -> _Html:
     answer = node.current_answer()
     sections: list[_Html] = []
     if answer is not None:
-        if node.id in context.violations:
+        if violated:
             sections += [
                 _el("h4", "記録と合わない点"),
                 _el(
                     "ul",
-                    _join(_violation(v) for v in context.violations[node.id]),
+                    _join(_violation(v) for v in violated),
                 ),
                 _el(
                     "details",
@@ -599,7 +603,7 @@ def _evidence(context: _Context, node: QuestionNode) -> _Html:
 
 
 def _violation(violation: Violation) -> _Html:
-    word = _VIOLATION_WORDS.get(violation.kind, violation.kind)
+    word = _VIOLATION_WORDS[violation.kind]
     return _el(
         "li",
         f"文 {violation.statement}: {word}（{violation.kind}）",

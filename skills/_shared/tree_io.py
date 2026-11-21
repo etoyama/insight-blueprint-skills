@@ -39,6 +39,7 @@ from insight_blueprint.models.tree import (
     AnswerStatement,
     Progress,
     QuestionTree,
+    TreeDecisionKind,
     design_id_of,
 )
 from insight_blueprint.validate import validate_tree_schema
@@ -272,9 +273,10 @@ def decide(
     The round is never passed: a ``start`` is taken at round 0, any other kind
     at the last reflection round, which is the one whose answers it was made on.
     """
+    is_start = TreeDecisionKind(kind) is TreeDecisionKind.start
     tree = _require_tree(theme_id, base_dir)
     decision = {
-        "round": 0 if kind == "start" else validate_tree_schema(tree).current_round(),
+        "round": 0 if is_start else validate_tree_schema(tree).current_round(),
         "kind": kind,
         "node_id": node_id,
         "reason": reason,
@@ -361,11 +363,8 @@ def hear(
     note = node.get("next_candidate")
     if not note or not note.get("ask"):
         raise ValueError(f"{node_id} has no ask to answer")
-    note |= {
-        "answer": answer,
-        "answered_by": answered_by,
-        "answered_at": answered_at,
-    }
+    given = {"answer": answer, "answered_by": answered_by, "answered_at": answered_at}
+    note |= {field: given[field] for field in _HEARD_FIELDS}
     return _node(_write_tree(tree, theme_id, base_dir), node_id)
 
 
@@ -699,7 +698,12 @@ def _main(argv: list[str] | None = None) -> int:
         elif args.command == "add-node":
             result = add_node(args.theme, base_dir=base, **payload)
         elif args.command == "link":
-            result = link_design(args.theme, args.node, args.design, base_dir=base)
+            result = link_design(
+                args.theme,
+                _required(args, "node"),
+                _required(args, "design"),
+                base_dir=base,
+            )
         elif args.command == "decide":
             result = decide(args.theme, base_dir=base, **payload)
         elif args.command == "candidates":

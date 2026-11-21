@@ -510,7 +510,16 @@ class TestDecisionRounds:
         tree = self._with(self._decision(kind, node_id))
         shown = squash(by_id(page(tree=tree), "decisions").text())
 
-        assert f"{label}（回 2 の答えを見て）: {node_id} 答えを見た" in shown
+        assert f"{label}（回 2 の振り返りの後）: {node_id} 答えを見た" in shown
+
+    def test_a_decision_taken_before_any_reflection_says_so_instead_of_naming_round_0(
+        self,
+    ) -> None:
+        tree = self._with(self._decision("deepen", "LIB-Q02", round=0))
+        shown = squash(by_id(page(tree=tree), "decisions").text())
+
+        assert "深める（振り返りの前）: LIB-Q02 答えを見た" in shown
+        assert "回 0" not in shown
 
     def test_the_start_decision_names_no_round(self) -> None:
         shown = squash(by_id(page(), "decisions").text())
