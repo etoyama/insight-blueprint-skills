@@ -24,7 +24,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-from insight_blueprint.models.common import now_jst
+from insight_blueprint.models.common import THEME_ID_PATTERN, now_jst
 from insight_blueprint.models.design import DesignStatus
 from insight_blueprint.models.review import BatchComment, ReviewBatch
 from insight_blueprint.validate import (
@@ -33,11 +33,10 @@ from insight_blueprint.validate import (
     validate_transition,
 )
 from skills._shared._atomic import atomic_write_yaml
+from skills._shared._stdin import read_payload
 from skills._shared.ids import SAFE_ID_PATTERN
 
 DEFAULT_BASE_DIR = Path(os.environ.get("INSIGHT_BASE_DIR", ".insight"))
-
-THEME_ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9]*$")
 
 
 def _validate_id(design_id: str) -> None:
@@ -139,7 +138,7 @@ def list_designs(
 
 def next_design_id(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> str:
     """Return the next id ``{theme_id}-H{nn}`` using a max-N+1 strategy."""
-    if not THEME_ID_PATTERN.match(theme_id):
+    if not THEME_ID_PATTERN.fullmatch(theme_id):
         raise ValueError(f"Invalid theme_id '{theme_id}': must match [A-Z][A-Z0-9]*")
     designs_dir = _designs_dir(base_dir)
     prefix = f"{theme_id}-H"
@@ -282,8 +281,13 @@ def transition_status(
 
 
 def load_journal(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
+    """The journal of *design_id*; {} if it does not exist or is empty.
+
+    A journal that is not a mapping raises ValueError: read as empty, its events
+    would look missing instead of unreadable.
+    """
     _validate_id(design_id)
-    return read_yaml(_designs_dir(base_dir) / f"{design_id}_journal.yaml")
+    return _read_journal(_designs_dir(base_dir) / f"{design_id}_journal.yaml")
 
 
 def write_journal(
@@ -291,6 +295,60 @@ def write_journal(
 ) -> None:
     _validate_id(design_id)
     atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_journal.yaml", data)
+
+
+def append_journal_event(
+    design_id: str, event_fields: dict, base_dir: Path = DEFAULT_BASE_DIR
+) -> dict:
+    """Append an event to the journal of *design_id* and return it as written.
+
+    The id is one past the highest ``{design_id}-E{nn}`` and ``created_at`` is
+    set here. A journal that does not exist yet gets the header
+    ``/analysis-journal`` writes. A journal that is not a mapping with a list of
+    events is refused and left untouched: reading it as empty would overwrite it.
+    """
+    _validate_id(design_id)
+    path = _designs_dir(base_dir) / f"{design_id}_journal.yaml"
+    now = now_jst().isoformat()
+    journal = _read_journal(path)
+    if not journal:
+        journal = {
+            "metadata": {"design_id": design_id, "created_at": now},
+            "events": [],
+        }
+    events = journal.get("events") or []
+    if not isinstance(events, list):
+        raise ValueError(f"'events' in {path.name} is not a list")
+    taken = [
+        int(m[1])
+        for e in events
+        if isinstance(e, dict)
+        and (m := re.fullmatch(rf"{re.escape(design_id)}-E(\d+)", str(e.get("id"))))
+    ]
+    event = {
+        "id": f"{design_id}-E{max(taken, default=0) + 1:02d}",
+        **event_fields,
+        "created_at": now,
+    }
+    journal["events"] = [*events, event]
+    metadata = journal.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = journal["metadata"] = {}
+    metadata["updated_at"] = now
+    write_journal(design_id, journal, base_dir)
+    return event
+
+
+def _read_journal(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    with path.open("r", encoding="utf-8") as f:
+        data = _yaml().load(f)
+    if data is None:
+        return {}
+    if not isinstance(data, dict):
+        raise ValueError(f"{path.name} is not a mapping")
+    return data
 
 
 # ---------------------------------------------------------------------------
@@ -368,6 +426,9 @@ def list_review_batches(
 # ---------------------------------------------------------------------------
 
 
+_TAKES_PAYLOAD = frozenset({"create", "update", "review-batch"})
+
+
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="design_io")
     parser.add_argument(
@@ -389,11 +450,7 @@ def _main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     base = _resolve_base_dir(Path(args.base_dir))
 
-    payload: dict = {}
-    if not sys.stdin.isatty():
-        raw = sys.stdin.read().strip()
-        if raw:
-            payload = json.loads(raw)
+    payload = read_payload() if args.command in _TAKES_PAYLOAD else {}
 
     if args.command == "create":
         result: Any = create_design(base_dir=base, **payload)

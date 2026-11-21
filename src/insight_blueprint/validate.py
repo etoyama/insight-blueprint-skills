@@ -13,9 +13,12 @@ dicts in.
 
 from __future__ import annotations
 
-from pydantic import ValidationError
+from collections.abc import Sequence
+
+from pydantic import BaseModel, ValidationError
 
 from insight_blueprint.models.design import AnalysisDesign, DesignStatus
+from insight_blueprint.models.tree import QuestionTree
 
 # State-transition allow-table. This is the canonical definition; core/reviews.py
 # imports it from here to avoid duplication.
@@ -113,6 +116,120 @@ def validate_design_change(
             errors.append(str(exc))
 
     return errors
+
+
+def validate_tree_schema(data: dict) -> QuestionTree:
+    """Validate a raw question tree dict against the QuestionTree schema.
+
+    Returns the parsed model. Raises pydantic ``ValidationError`` when the
+    shape or an invariant of the tree is broken.
+    """
+    return QuestionTree.model_validate(data)
+
+
+def validate_tree(
+    data: dict,
+    expected_theme_id: str | None = None,
+    current: dict | None = None,
+) -> list[str]:
+    """Validate a question tree document (ADR-0024).
+
+    Hook-facing. Never raises: returns human-readable error strings (empty
+    list means the tree is valid). *expected_theme_id* is the theme the file name carries;
+    the caller owns the path and passes it in so this stays pure.
+    *current* is the tree on disk, or ``None`` for a new file: its root
+    revisions, decisions and answers are history: none may be removed, only the
+    last root revision may differ, and decisions and answers may only be appended.
+    """
+    try:
+        tree = validate_tree_schema(data)
+    except ValidationError as exc:
+        return _format_validation_error(exc)
+    if expected_theme_id is not None and tree.theme_id != expected_theme_id:
+        return [
+            f"theme_id: '{tree.theme_id}' does not match the file name "
+            f"({expected_theme_id}_tree.yaml)"
+        ]
+    if current is None:
+        return []
+    try:
+        on_disk = validate_tree_schema(current)
+    except ValidationError:
+        # The file on disk is already broken; do not block the write that
+        # may be repairing it.
+        return []
+    return (
+        _revision_errors(on_disk, tree)
+        + _decision_errors(on_disk, tree)
+        + _answer_errors(on_disk, tree)
+    )
+
+
+def _revision_errors(on_disk: QuestionTree, written: QuestionTree) -> list[str]:
+    before, after = on_disk.root_revisions, written.root_revisions
+    # Only the last revision of the written tree may differ from the disk:
+    # appending one freezes every revision that was there before.
+    frozen = len(before) if len(after) > len(before) else len(before) - 1
+    return _append_only_errors(
+        "root_revisions",
+        removed="a root revision",
+        names=[f"revision {r.revision}" for r in before],
+        before=before,
+        after=after,
+        frozen=frozen,
+    )
+
+
+def _decision_errors(on_disk: QuestionTree, written: QuestionTree) -> list[str]:
+    before, after = on_disk.decisions, written.decisions
+    return _append_only_errors(
+        "decisions",
+        removed="a decision",
+        # A decision carries no number of its own, so its position names it.
+        names=[f"decision {n}" for n in range(1, len(before) + 1)],
+        before=before,
+        after=after,
+        frozen=len(before),
+    )
+
+
+def _answer_errors(on_disk: QuestionTree, written: QuestionTree) -> list[str]:
+    now = {n.id: n.answers for n in written.nodes}
+    errors: list[str] = []
+    for node in on_disk.nodes:
+        errors += _append_only_errors(
+            f"{node.id}.answers",
+            removed="an answer",
+            # tree_check names an answer by its round, and a node need not be
+            # answered every round: the position would point at another answer.
+            names=[f"the answer of round {a.round}" for a in node.answers],
+            before=node.answers,
+            after=now.get(node.id, []),
+            frozen=len(node.answers),
+        )
+    return errors
+
+
+def _append_only_errors(
+    field: str,
+    *,
+    removed: str,
+    names: Sequence[str],
+    before: Sequence[BaseModel],
+    after: Sequence[BaseModel],
+    frozen: int,
+) -> list[str]:
+    """Errors for a history list: nothing removed, the first *frozen* items unchanged.
+
+    *names* gives what a message calls each item of *before*.
+    """
+    if len(after) < len(before):
+        return [f"{field}: {removed} cannot be removed ({len(before)} -> {len(after)})"]
+    return [
+        f"{field}: {name} is history and cannot change"
+        for name, old, new in zip(names, before[:frozen], after, strict=False)
+        if old != new
+    ]
 
 
 def _format_validation_error(exc: ValidationError) -> list[str]:

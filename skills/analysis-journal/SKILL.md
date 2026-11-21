@@ -66,6 +66,7 @@ Listen to user input and classify into InsightType:
 | 〜だと思う / 仮説: / 〜が原因では | `hypothesize` | "価格改定（+8%）が売上低下の主因" |
 | 〜で確認した / データが示す / 〜のエビデンス | `evidence` | "回帰分析でp<0.01の有意な負の相関" |
 | 〜が気になる / 〜を調べたい / なぜ〜 | `question` | "季節要因を除外できているか？" |
+| 〜さんに聞いたら / 担当者によると / ヒアリングで | `hearing` | "金曜に確保した本は月曜にまとめて通知している（予約担当）" |
 | 〜を使う / 〜で分析する / 手法: | `decide` | "CausalImpact で因果効果を推定する" |
 | 振り返ると / 見直すと / 反省点 | `reflect` | "初期の相関分析では交絡が未考慮だった" |
 | 結論: / まとめると / 〜と言える | `conclude` | "価格改定は売上低下の主因と確認" |
@@ -137,7 +138,7 @@ When user is done recording, show:
 ```
 ── Journal Summary: {design_id} ──
 Phase: {inferred_phase}
-Events: {total} ({observe}obs / {hypothesize}hyp / {evidence}evi / {question}q / {decide}dec / {reflect}ref / {conclude}con)
+Events: {total} ({observe}obs / {hypothesize}hyp / {evidence}evi / {hearing}hear / {question}q / {decide}dec / {reflect}ref / {conclude}con)
 Open questions: {count}
   - {question_content} ({event_id})
 Branches: {list of child design IDs}
@@ -153,6 +154,7 @@ Next: /analysis-reflection {design_id} で振り返りと結論導出
 | `observe` | Raw data observation, pattern noticed | — |
 | `hypothesize` | Hypothesis formed or refined | `{forked_from?: design_id}` |
 | `evidence` | Evidence found from data analysis | `{direction: "supports" \| "contradicts"}` |
+| `hearing` | What a person answered when asked | `{answered_by: str, answered_at: "YYYY-MM-DD", ask?: str, node_id?: str}` |
 | `question` | New question or uncertainty raised | `{priority?: "high" \| "medium" \| "low"}` |
 | `decide` | Method, tool, or approach chosen | `{method: str, package?: str, reason?: str}` |
 
@@ -162,6 +164,8 @@ Next: /analysis-reflection {design_id} で振り返りと結論導出
 | `conclude` | Conclusion drawn from evidence | `{resolves?: event_id \| [event_id]}` |
 | `branch` | Fork to alternative hypothesis | `{new_design_id: str, reason?: str}` |
 
+> **hearing**: a `hearing` event is what a person said, not an `observe` of the data and not `evidence` from an analysis. Ask who answered and when, and keep the answer in their words. `tree_io copy-hearing` writes one when a design is made on a question node whose next candidate holds a heard answer; it adds `ask` and `node_id` ([ADR-0028](../../docs/adr/0028-hearing-is-its-own-journal-event.md)).
+
 ## Phase Inference (Derived, Not Stored)
 
 The current phase is inferred from the latest event type:
@@ -169,7 +173,7 @@ The current phase is inferred from the latest event type:
 | Latest event type | Inferred phase |
 |---|---|
 | `observe`, `hypothesize` | Narrative Development |
-| `evidence`, `question`, `decide` | Investigation |
+| `evidence`, `hearing`, `question`, `decide` | Investigation |
 | `reflect` | Reflection |
 | `conclude`, `branch` | Integration |
 

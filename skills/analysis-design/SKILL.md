@@ -76,6 +76,8 @@ Map Brief sections to analysis-design fields as draft values:
 | ギャップ | `hypothesis_background` | ギャップ情報を仮説の背景・動機の下書きに活用 |
 | 推奨方向.仮説の方向性 | `title`, `hypothesis_background` | 方向性から title 候補を生成し、背景の下書きに活用 |
 | 推奨方向.theme_id | `theme_id` | デフォルト値として設定 |
+| 推奨方向.node_id | （分析設計の項目ではない） | 作った分析設計を結ぶ論点。Step 3 の `tree_io link` に渡す |
+| 推奨方向.論点 | `title`, `hypothesis_background` | この分析設計が答える問い。title 候補と背景の下書きに活用（仮説の文にはしない） |
 | 推奨方向.parent_id | `parent_id` | デフォルト値として設定 |
 | 推奨方向.analysis_intent | `analysis_intent` | デフォルト値として設定 |
 | 推奨方向.推奨手法 | `methodology` | `{method: "推奨手法の値", reason: "Framing Brief の推奨"}` としてデフォルト設定 |
@@ -224,6 +226,46 @@ Leave `decision_context` out of the payload when the analyst skipped it (Step 2)
 If validation fails (e.g. empty `methodology.method`), the command exits non-zero
 with the error on stderr and **nothing is written** — fix the payload and retry.
 
+#### Link the design to its question node
+
+When the Framing Brief carries a `node_id`, link the design you just created to that node of
+the theme's question tree, with the `id` that `design_io create` returned:
+
+```bash
+tree_io link --theme FP --node FP-Q02 --design FP-H01
+```
+
+- `--theme` and `--node` come from the Brief's `theme_id` and `node_id`. The node belongs to
+  that theme, so a design the analyst moved to another theme is not linked: say so, and that
+  `/analysis-framing` can place it in the other theme's tree.
+- If the Brief has no `node_id`, or there is no Framing Brief, skip this step. The design is
+  created unlinked, as before.
+- If `tree_io link` exits non-zero, show the error. The design stays as written; do not
+  create it again.
+- Never run `tree_io add-node` or write the tree file here. Nodes are made by `/analysis-framing`.
+
+#### Copy what the analyst heard
+
+The node may carry an answer the analyst heard from a person (`/analysis-reflection` keeps
+it on the node). Run this every time `tree_io link` succeeded, with the same three ids:
+
+```bash
+tree_io copy-hearing --theme FP --node FP-Q02 --design FP-H01
+```
+
+- It copies the answer into the design's journal as one `hearing` event, with who answered
+  and when, so that a later answer can cite it. `"copied": true` comes with the event:
+  tell the analyst its id.
+- `"copied": false` means the node has no answer, or the same answer is already in the
+  journal. Both are fine; go on.
+- Never retype the answer into the journal yourself, and never write a `hearing` event for
+  it by hand: `tree_io` copies the text as the analyst gave it.
+- A finished design (`supported`, `rejected`, `inconclusive`) is refused: its journal is
+  the record it was concluded on. The answer stays on the node, and the next design linked
+  there gets it from its own `copy-hearing`. Never reopen the design or write the event
+  yourself to get around it.
+- If it exits non-zero, show the error. The design and its link stay as written.
+
 ### Step 3b: Update an Existing Design (optional)
 
 To add or modify fields, pipe a partial-changes JSON to `design_io update`. Only the
@@ -241,6 +283,7 @@ is replaced as a whole, so send every id the design uses, not only the new ones.
 ### Step 4: Confirm and Suggest Next Steps
 - Show the returned `id` (e.g., "FP-H01") to the user
 - Confirm the YAML file location: `.insight/designs/FP-H01_hypothesis.yaml`
+- If the design was linked, show the question node it answers (e.g., "FP-Q02")
 - Suggest next steps:
   - Refine the hypothesis: add `chart` / `next_action` / `decision_context` via `design_io update`
   - **Start recording reasoning: `/analysis-journal FP-H01`**
