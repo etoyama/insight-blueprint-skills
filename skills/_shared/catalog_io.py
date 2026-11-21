@@ -121,14 +121,9 @@ def list_sources(base_dir: Path = DEFAULT_BASE_DIR) -> list[dict]:
     return out
 
 
-# Key-name fragments that mark a credential (ADR-0023). Keys are compared lowercased
-# with every non-alphanumeric character dropped, so api_key, API-Key, api.key and apiKey
-# all match. A nested key is compared joined to its parent keys, so {"api": {"key": ...}}
-# is refused like api_key (ADR-0034). Values are not checked: a secret cannot be told
-# from an id or a hash without false alarms. The one exception is a *_env key, whose
-# value must look like an environment variable name, or the exemption would let a
-# literal secret through. The exemption matches the lowercased `_env` suffix exactly,
-# so apiKeyEnv is refused, and only for a credential stem: conda_env keeps any value.
+# Key-name fragments that mark a credential (ADR-0023). A key matches when its name,
+# lowercased with every non-alphanumeric character dropped, contains one: api_key,
+# API-Key and apiKey all match.
 _CREDENTIAL_KEY_PARTS = (
     "password",
     "passwd",
@@ -159,18 +154,25 @@ def _squash(key: str) -> str:
     return re.sub(r"[^a-z0-9]", "", key.lower())
 
 
-def _names_a_credential(key: str, parents: str) -> bool:
-    name = _squash(key)
-    joined = parents + name
+def _names_a_credential(name: str, parents: str) -> bool:
     return name in _CREDENTIAL_KEY_NAMES or any(
-        part in joined for part in _CREDENTIAL_KEY_PARTS
+        part in parents + name for part in _CREDENTIAL_KEY_PARTS
     )
 
 
 def _credential_keys(
     value: Any, path: str = "connection", parents: str = ""
 ) -> list[str]:
-    """Paths of the keys that name a credential; `parents` is the squashed keys above."""
+    """Return the paths of the keys that name a credential.
+
+    A key is judged joined to the keys above it (`parents`), so splitting api_key
+    into {"api": {"key": ...}} changes nothing (ADR-0034). A list index is not part
+    of the name. Values are not checked: a secret cannot be told from an id or a
+    hash without false alarms. The one exception is a *_env key, whose value must
+    look like an environment variable name, or the exemption would let a literal
+    secret through. The exemption needs the lowercased `_env` suffix, so apiKeyEnv
+    is refused, and a credential stem: conda_env keeps any value.
+    """
     if isinstance(value, list):
         return [
             key
@@ -181,15 +183,18 @@ def _credential_keys(
         return []
     found: list[str] = []
     for key, inner in value.items():
-        name = str(key)
+        raw = str(key)
+        name = _squash(raw)
         here = f"{path}.{key}"
-        if name.lower().endswith("_env") and _names_a_credential(name[:-4], parents):
+        if raw.lower().endswith("_env") and _names_a_credential(
+            _squash(raw[:-4]), parents
+        ):
             if not (isinstance(inner, str) and _ENV_VAR_NAME.fullmatch(inner)):
                 found.append(here)
         elif _names_a_credential(name, parents):
             found.append(here)
         else:
-            found.extend(_credential_keys(inner, here, parents + _squash(name)))
+            found.extend(_credential_keys(inner, here, parents + name))
     return found
 
 

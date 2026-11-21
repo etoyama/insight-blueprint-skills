@@ -74,7 +74,7 @@ A を採る（人間の判断、2026-11-22）。決め手は W1。ADR-0023 の�
 
 - 入れ子のキーは親のキーとつないだ名前で判定する。`connection` の直下から順に、小文字にして英数字以外を除いたキー名をつなぐ。
   `{"api": {"key": …}}` は `apikey` として、`{"app": {"id": …}}` は `appid` として拒む。リストの添字はつながない。
-  入れ子にしても平らに書いても、判定の結果は同じになる。
+  拒む語（`_CREDENTIAL_KEY_PARTS`）については、入れ子にしても平らに書いても判定の結果は同じになる。
 - `*_env` の例外もつないだ名前で判定する。`{"api": {"key_env": "ESTAT_API_KEY"}}` は通り、値が環境変数の名前の形でなければ拒む。
 - 拒む語に `consumerkey` と `dbpass` を足す。
 - `authorization` と `sas` は、キー名そのもの（小文字にして英数字以外を除いたもの）が一致するときに拒む（`_CREDENTIAL_KEY_NAMES`）。
@@ -88,15 +88,17 @@ A を採る（人間の判断、2026-11-22）。決め手は W1。ADR-0023 の�
 ### Positive
 
 - `headers: {Authorization: "Bearer …"}` を書いたデータソースは登録できない。
-- 入れ子に分けても、平らに書いたときと同じ判定になる。書き方で認証情報が通ることがなくなる。
+- 拒む語を含む名前は、入れ子に分けても平らに書いたときと同じ判定になる。`api_key` を `{"api": {"key": …}}` と分けても通らない。
 - `/catalog-register` は、API でも SQL でも、Claude にデータソースへ問い合わせさせない。
 
 ### Negative
 
 - 入れ子の正当なキーが新しく拒まれる。`api.keyword`、`map.pid`、`access.key_column`、秘密でない `app.id` など。利用者はキー名を変えるか、`*_env` を使う。
+- 足した拒む語は、平らなキーにも新しい誤検知を生む。`db_passthrough` や `consumer_keyword` は拒まれる。
 - 保存済みのデータソースがこれらのキーを持つと、YAML を手で直すまで `update` できない（ADR-0023 と同じ扱い）。
 - 親との間に別のキーが挟まる形（`{"api": {"v2": {"key": …}}}`）は通る。平らな `api_v2_key` が通るのと同じである。
-- `proxy_authorization` や `http_authorization` は通る。`authorization` は名前全体でしか比べない。
+- `proxy_authorization` や `headers_authorization` は通る。`authorization` と `sas` は名前全体でしか比べないので、入れ子の `headers.Authorization` は拒み、平らな `headers_authorization` は通す。この2語では、入れ子と平らで結果が分かれる。
+- `authorization` という名前のキーは、値が dict でも丸ごと拒む（`{"authorization": {"url": …}}`）。
 - キー名を変えた認証情報（`pw`、`pass`、`account_key` など）、URL や DSN に埋めたパスワード、値の形は、ADR-0023 と同じく見ない。
 - SQL のデータソースを登録するとき、分析者が自分で問い合わせを走らせて結果を貼る手間が要る。
 

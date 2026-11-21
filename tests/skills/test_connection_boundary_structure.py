@@ -181,11 +181,14 @@ class TestCatalogRegisterNeverRunsTheQuery:
         )
 
     def test_the_sql_workflow_says_not_to_run_the_query(self) -> None:
-        assert "Do not run the query yourself" in self._sql_workflow()
+        assert "Do not run the query" in self._sql_workflow()
 
-    def test_the_sql_workflow_reads_pasted_results(self) -> None:
-        workflow = self._sql_workflow()
-        assert "Ask the user to run the query and paste the results" in workflow
+    def test_the_sql_workflow_leaves_no_condition_for_running_the_query(self) -> None:
+        # The step once read "or run it if credentials are available".
+        assert "run it if" not in self._sql_workflow()
+
+    def test_the_sql_workflow_points_at_the_decision(self) -> None:
+        assert "ADR-0034" in self._sql_workflow()
 
 
 class TestCatalogRegisterExplainsTheCredentialCheck:
@@ -203,7 +206,9 @@ class TestCatalogRegisterExplainsTheCredentialCheck:
         assert "ADR-0034" in reference
 
     def test_authorization_is_refused_as_a_whole_key_name(self) -> None:
-        assert "`authorization`" in self._reference()
+        reference = self._reference()
+        assert "`authorization` and `sas` are refused as a whole key name" in reference
+        assert "`authorization_url` passes" in reference
 
 
 class TestArchitectureFollowsTheBoundary:

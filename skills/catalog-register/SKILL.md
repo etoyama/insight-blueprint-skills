@@ -195,7 +195,7 @@ echo '{
    ```
 4. Ask the user to run the query and paste the results. Do not run the query yourself: the
    project's own tools reach the database, and this plugin does not handle credentials
-   ([ADR-0023](../../docs/adr/0023-catalog-holds-no-credentials.md)).
+   ([ADR-0034](../../docs/adr/0034-credential-check-joins-nested-keys.md)).
 
 ### Step 2b: Gather Metadata
 
