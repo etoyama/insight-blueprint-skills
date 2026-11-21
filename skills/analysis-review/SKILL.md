@@ -40,6 +40,10 @@ Primarily a **design/plan review**: the outcome is `revision_requested` (needs w
 `inconclusive`) are possible through the same mechanism, but concluding a hypothesis is the
 job of `/analysis-reflection`.
 
+A review of the result after the analysis is optional and goes the same way: the `analyzing`
+design moves back to `in_review` (Step 2), and approving it returns it to `analyzing`. The
+analyst then concludes it with `/analysis-reflection`, not by analyzing again.
+
 ## Workflow
 
 ### Step 1: Load the design
@@ -121,7 +125,7 @@ Use `--status analyzing` to approve instead. Show the returned batch to the user
 ### Step 6: Hand off
 
 - `revision_requested` → "指摘に対応するなら /analysis-revision {design_id}"
-- `analyzing` → "分析を始めるなら /analysis-journal {design_id}"
+- `analyzing` → "分析を始めるなら /analysis-journal {design_id}"（結果のレビューなら "結論を出すなら /analysis-reflection {design_id}"）
 
 ## design_io Reference
 

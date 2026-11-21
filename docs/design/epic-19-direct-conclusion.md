@@ -148,7 +148,7 @@ sequenceDiagram
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| US-1 analyzing から結論へ | ✓（`tests/test_validate.py`: `test_analyzing_reaches_each_conclusion_directly`、`test_analyzing_can_still_go_back_to_in_review`、`test_message_lists_sorted_valid_targets`。`tests/skills/test_direct_conclusion_structure.py`: `TestAnalysisDesignStatusFlow`、`TestArchitectureStateGuard`、`TestReflectionConcludesFromAnalyzing`） | ✓（`tests/test_design_io.py`: `test_analyzed_design_concludes_without_a_review`。`tests/test_validate_hook.py`: `test_conclusion_from_analyzing_via_inplace_edit_passes`。hook を subprocess で動かす） | —（headless 実行の E2E は ADR-0010 で必須にしていない。`bin/design_io` を通した手動確認を Story Timeline に残す） |
+| US-1 analyzing から結論へ | ✓（`tests/test_validate.py`: `test_analyzing_reaches_each_conclusion_directly`、`test_analyzing_can_still_go_back_to_in_review`、`test_message_lists_sorted_valid_targets`。`tests/skills/test_direct_conclusion_structure.py`: `TestAnalysisDesignStatusFlow`、`TestArchitectureStateGuard`、`TestReflectionConcludesFromAnalyzing`、`TestAnalysisReviewCoversTheResult`） | ✓（`tests/test_design_io.py`: `test_analyzed_design_concludes_without_a_review`。`tests/test_validate_hook.py`: `test_conclusion_from_analyzing_via_inplace_edit_passes`。hook を subprocess で動かす） | —（headless 実行の E2E は ADR-0010 で必須にしていない。`bin/design_io` を通した手動確認を Story Timeline に残す） |
 
 完了時に ✓ を付ける。自動テストがない層には「—（理由）」を書く（[ADR-0010](../adr/0010-skill-tdd-structure-tests.md)）。
 
@@ -157,7 +157,12 @@ sequenceDiagram
 - 2026-11-22 — 人間が decision-analysis で案 B（`analyzing` から結論の status への辺を足す）に決めた。判断は ADR-0029 に残す。
 - 2026-11-22 — DesignDoc 初版。Epic #146 と Story #147 を起票し、#138 の原因の記述を訂正した。
 - 2026-11-22 — Story #147 completed: `VALID_TRANSITIONS` の `analyzing` の行に結論の status を足し、`/analysis-design` の Status Flow、`/analysis-reflection` の結論の手順の注記、ARCHITECTURE の状態遷移ガードを表に合わせた。
-  `analyzing → supported` を拒むことを前提にしたテスト（`tests/test_validate.py` に3本、`tests/test_design_io.py` と `tests/test_validate_hook.py` に1本ずつ）は、拒む例を `analyzing → revision_requested` に替えた。仕様の変更として、新しいテストとは別のコミットにした。
+  `analyzing → supported` を拒むことを前提にしたテスト（`tests/test_validate.py` に3本、`tests/test_design_io.py` に1本、`tests/test_validate_hook.py` に2本）は、拒む例を `analyzing → revision_requested` に替えた。仕様の変更として、新しいテストとは別のコミットにした。
   構造テストは、prose が述べる遷移を遷移表と照らす形にした。`/analysis-review`（`analyzing` なら `in_review` に戻してから記録する）と `/analysis-auto`（分析の後に `in_review` へ戻す手順は無い）は、表と食い違わないので直していない。
 - 2026-11-22 — 手動確認（US-1 AC 1）: 空のプロジェクトで `bin/design_io` を使い、`create` → `transition --target analyzing` → `transition --target supported` を実行した。`*_hypothesis.yaml` は `status: supported` になった。
   確かめていないこと: `/analysis-auto` を通した巡回。
+- 2026-11-22 — レビュー（`pstack:thermos`）: バグ・セキュリティとコード品質の2観点で Epic ブランチを見た。Critical・High・Medium の指摘は無かった。
+  直したもの: prose が遷移表の行を写していたので、例（`analyzing → supported` を許し、`analyzing → revision_requested` を拒む）に戻した。構造テストは、許すと書いた例が通り、拒むと書いた例が拒まれることを確かめる形にした。表の行全体と比べるのは Status Flow の図だけにした。
+  `/analysis-reflection` は結論の status に遷移した後で `/analysis-review` を勧めていた。terminal status の分析設計はレビューできないので、結果のレビューは遷移の前に聞くようにし、後の案内を消した。
+  `/analysis-review` の Scope に、結果のレビューは承認で `analyzing` に戻り、`/analysis-reflection` で結論を出すことを書いた。
+  直していないもの: hook のテストで、Write によるファイル全体の書き換えで `analyzing → supported` を通す例が無いこと。hook は書き込みの種類で検証を分けていないため。

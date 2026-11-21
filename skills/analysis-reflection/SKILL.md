@@ -120,19 +120,20 @@ If user chooses to conclude:
      created_at: "{now}"
    ```
 
-2. Suggest status transition (via design_io transition):
+2. Suggest status transition (via design_io transition). A review of the result with
+   /analysis-review is optional, and the analyst decides whether to ask for one. Offer it
+   before the transition: it moves the design back to `in_review`, and the conclusion comes
+   after the review. Once the design is concluded it can no longer be reviewed.
    "結論が出た。ステータスを変更する？"
    - supported: `design_io transition --id {design_id} --target supported`
    - rejected: `... --target rejected`
    - inconclusive: `... --target inconclusive`
 
-   Note: the design closes right after its analysis (`analyzing → supported`, validated by
-   VALID_TRANSITIONS). A review of the result with /analysis-review is optional: it moves
-   the design back to `in_review` first, and the analyst decides whether to ask for one.
+   Note: without a review the design closes right after its analysis
+   (`analyzing → supported`, validated by VALID_TRANSITIONS).
 
 3. Show final summary and suggest:
    - "周囲に説明・配布できる形にするなら /analysis-report（APAレポート化）"
-   - "レビューコメントを付けるなら /analysis-review（記録後 /analysis-revision で対応）"
    - "この分析で分かったソースの再利用知識を残すなら /knowledge-extract"
    - "新しいデータソース自体を登録するなら /catalog-register"
    - "派生仮説を立てるなら /analysis-design"
