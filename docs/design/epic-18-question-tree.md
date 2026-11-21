@@ -811,7 +811,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - 分析設計を結ぶと、その論点と祖先は次の候補から外れる。メモと聞いてきた答えは論点に残り、図では論点の中に出る。
   - 人に聞く問いは、答えを記録した後は変えられない。答えは前の問いへの答えだからである。答えは記録し直せる。
   - メモはツリーの検査の対象でない。`/analysis-reflection` は、読んでいないことを「分かっていること」に書かない決まりと、`connection` の値を書かない決まり（[ADR-0022](../adr/0022-connection-reaches-only-the-notebook.md)）を手順に持つ。守るのは文で、コードではない。
-  - 着手した論点にも `tree_io candidate` と `tree_io hear` は通る。分析設計を起こした後に答えを聞いてきたときは、`tree_io copy-hearing` をもう一度呼べば journal に写る。
+  - 着手した論点にも `tree_io candidate` と `tree_io hear` は通る。分析設計を起こした後に答えを聞いてきたときは、その分析設計が terminal status でなければ、`tree_io copy-hearing` をもう一度呼べば journal に写る。terminal status なら写らず、その論点に次に起こす分析設計に写す（下の Decision `hearing-is-copied-by-tree-io`）。
 
 ### Decision: hearing-is-copied-by-tree-io
 
@@ -824,6 +824,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - コードが journal を書く。これまで journal を書くのは skill だけだった。出来事の id の採番と追記は `design_io.append_journal_event` が持ち、journal が無ければ `/analysis-journal` と同じ見出しで作る。最上位が mapping でない journal と、`events` が list でない journal には書かず、エラーにする（レビューの指摘。読めたふりをして上書きすると、出来事が消える）。
   - 写すのは、答えを持つ論点そのものに結んだ分析設計の journal だけである。親の論点で答えを聞き、その子の論点に分析設計を起こすと、答えは journal に写らず、引用できない。この Story では塞いでいない。
   - 答えを記録し直してから写すと、新しい出来事が足される。前の出来事は消えない。
+  - 写し先の分析設計が terminal status なら、写さずにエラーにする（人間の判断、2026-11-21、[PR #128 のコメント](https://github.com/etoyama/insight-blueprint-skills/pull/128#issuecomment-7056358577)。Story 18.9 の最初のコミットで入れた）。結論を出して閉じた分析の journal に、あとから人の答えを足すと、閉じた時点の記録が変わるため。答えは論点に残り、その論点に次に起こす分析設計の `copy-hearing` で写る。同じ答えが既に journal にあるときと、写す答えが無いときは、terminal status でも今までどおり終了コード 0 で返す（書くものが無いので、エラーにしない）。
   - 写した出来事は `evidence_refs` と `parent_event_id` を持たない。
   - 論点ツリーの側が元である。journal の出来事を手で直しても、論点ツリーの答えは変わらない。
   - ツリーの検査は `hearing` の数を記録にある数として通す。答えを本当に人から聞いたかは、コードでは確かめない。図は、引用した出来事がすべて `hearing` の文に「人に聞いた答えによる」と添える（人間の判断、2026-11-21。[ADR-0028](../adr/0028-hearing-is-its-own-journal-event.md) の Negative）。

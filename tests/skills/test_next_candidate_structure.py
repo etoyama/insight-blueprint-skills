@@ -306,6 +306,12 @@ class TestDesignCopiesWhatTheAnalystHeard:
         assert event["content"] == "7月から新規の会員だけに配っている"
         assert event["metadata"]["answered_by"] == "販促の担当者"
 
+    def test_a_finished_design_keeps_its_journal_and_the_answer_waits(self) -> None:
+        copying = unwrap(self._copying())
+        assert re.search(r"finished[^.]*refus", copying)
+        assert re.search(r"next design[^.]*`copy-hearing`", copying)
+        assert re.search(r"[Nn]ever[^.]*reopen", copying)
+
     def test_the_copy_comes_after_the_link(self) -> None:
         step = section(_read_skill("analysis-design"), "### Step 3: ")
         assert step.index("#### Link the design") < step.index(

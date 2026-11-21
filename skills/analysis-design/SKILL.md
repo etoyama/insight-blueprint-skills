@@ -260,6 +260,10 @@ tree_io copy-hearing --theme FP --node FP-Q02 --design FP-H01
   journal. Both are fine; go on.
 - Never retype the answer into the journal yourself, and never write a `hearing` event for
   it by hand: `tree_io` copies the text as the analyst gave it.
+- A finished design (`supported`, `rejected`, `inconclusive`) is refused: its journal is
+  the record it was concluded on. The answer stays on the node, and the next design linked
+  there gets it from its own `copy-hearing`. Never reopen the design or write the event
+  yourself to get around it.
 - If it exits non-zero, show the error. The design and its link stay as written.
 
 ### Step 3b: Update an Existing Design (optional)

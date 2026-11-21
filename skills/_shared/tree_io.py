@@ -34,7 +34,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from ruamel.yaml import YAMLError
 
 from insight_blueprint.models.common import THEME_ID_PATTERN, now_jst
-from insight_blueprint.models.design import DesignStatus
+from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 from insight_blueprint.models.tree import (
     AnswerStatement,
     Progress,
@@ -379,6 +379,7 @@ def copy_hearing(
 
     The text goes in verbatim, by code, so a model never retypes it. It is
     written once: the same answer already in the journal is not written again.
+    A design in a terminal status is refused: nothing is added to its journal.
     """
     tree = load_tree_model(theme_id, base_dir)
     node = next((n for n in tree.nodes if n.id == node_id), None)
@@ -412,6 +413,14 @@ def copy_hearing(
             and {k: str(old.get(k)) for k in same} == same
         ):
             return {"copied": False, "reason": "the answer is already in the journal"}
+
+    status = DesignStatus(_require_design(design_id, base_dir)["status"])
+    if status in TERMINAL_STATUSES:
+        # A concluded analysis keeps the record it was concluded on.
+        raise ValueError(
+            f"{design_id} is {status.value}: a finished design takes no new hearing. "
+            f"The answer stays on {node_id}; copy it into the next design linked there"
+        )
 
     event = append_journal_event(
         design_id,
