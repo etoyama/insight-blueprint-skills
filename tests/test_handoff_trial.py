@@ -12,6 +12,8 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from types import NoneType
+from typing import get_args
 
 import pytest
 import yaml
@@ -55,7 +57,8 @@ def built(tmp_path: Path, scenario: handoff_trial.Scenario) -> Path:
 
 
 def _key_answers(key: handoff_trial.Key) -> dict:
-    return key.answers.model_dump(mode="json")
+    """The key as a reader would answer it: the allowed extras are the key's own."""
+    return key.answers.model_dump(mode="json", exclude={"q5": {"also_allowed"}})
 
 
 class TestStages:
@@ -308,12 +311,28 @@ class TestScore:
         del partial["q3"]
         assert score(Answers.model_validate(partial), key)["q3"] is False
 
-    def test_a_reason_may_name_more_events_than_the_key(
+    def test_a_reason_may_also_name_an_allowed_event(
         self, key: handoff_trial.Key
     ) -> None:
         more = _key_answers(key)
-        more["q5"]["reason_events"].append("LIB-H02-E03")
+        more["q5"]["reason_events"] += key.answers.q5.also_allowed
         assert score(Answers.model_validate(more), key)["q5"] is True
+
+    def test_a_reason_naming_only_an_allowed_event_is_wrong(
+        self, key: handoff_trial.Key
+    ) -> None:
+        only = _key_answers(key)
+        only["q5"]["reason_events"] = list(key.answers.q5.also_allowed)
+        assert score(Answers.model_validate(only), key)["q5"] is False
+
+    def test_naming_every_event_is_wrong(self, key: handoff_trial.Key) -> None:
+        hedged = _key_answers(key)
+        hedged["q5"]["reason_events"] += [
+            *key.answers.q5.also_allowed,
+            "LIB-H01-E01",
+            "LIB-H02-E01",
+        ]
+        assert score(Answers.model_validate(hedged), key)["q5"] is False
 
     def test_a_reason_without_the_key_events_is_wrong(
         self, key: handoff_trial.Key
@@ -331,17 +350,17 @@ class TestScore:
 class TestParseAnswers:
     def test_a_fenced_json_reply_is_read(self, key: handoff_trial.Key) -> None:
         text = "```json\n" + json.dumps(_key_answers(key), ensure_ascii=False) + "\n```"
-        assert parse_answers(text).model_dump() == key.answers.model_dump()
+        assert parse_answers(text).model_dump(mode="json") == _key_answers(key)
 
     @pytest.mark.parametrize("fence", ["```", "```JSON", "```jsonc"])
     def test_any_fence_label_is_read(self, key: handoff_trial.Key, fence: str) -> None:
         text = fence + "\n" + json.dumps(_key_answers(key)) + "\n```"
-        assert parse_answers(text).model_dump() == key.answers.model_dump()
+        assert parse_answers(text).model_dump(mode="json") == _key_answers(key)
 
     def test_prose_around_the_fence_is_ignored(self, key: handoff_trial.Key) -> None:
         body = json.dumps(_key_answers(key))
         text = f"答えは次のとおり。\n```json\n{body}\n```\n以上。"
-        assert parse_answers(text).model_dump() == key.answers.model_dump()
+        assert parse_answers(text).model_dump(mode="json") == _key_answers(key)
 
     def test_a_reply_that_is_not_json_is_refused(self) -> None:
         with pytest.raises(ValueError):
@@ -356,10 +375,12 @@ class TestPrompt:
         head = prompt[: -len(html)]
         for n in range(1, 6):
             assert f"\n{n}. " in head
-        for question, info in handoff_trial.KeyAnswers.model_fields.items():
+        for question, info in Answers.model_fields.items():
             assert f'"{question}"' in head
-            assert info.annotation is not None
-            for field in info.annotation.model_fields:
+            reader_type = next(
+                t for t in get_args(info.annotation) if t is not NoneType
+            )
+            for field in reader_type.model_fields:
                 assert f'"{field}"' in head, f"{question}.{field}"
         for field in handoff_trial.EventRef.model_fields:
             assert f'"{field}"' in head
