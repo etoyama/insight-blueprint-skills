@@ -127,8 +127,7 @@ def list_sources(base_dir: Path = DEFAULT_BASE_DIR) -> list[dict]:
 # without false alarms. The one exception is a *_env key, whose value must look like an
 # environment variable name, or the exemption would let a literal secret through.
 # The exemption matches the lowercased `_env` suffix exactly, so apiKeyEnv is refused,
-# and only for a credential stem: conda_env keeps any value. appid is here because
-# APIs such as e-Stat take their key under that name (issue #135).
+# and only for a credential stem: conda_env keeps any value.
 _CREDENTIAL_KEY_PARTS = (
     "password",
     "passwd",
@@ -140,9 +139,12 @@ _CREDENTIAL_KEY_PARTS = (
     "credential",
     "privatekey",
     "accesskey",
+    # e-Stat takes its key as appId. A public app id (Firebase, Facebook) is refused
+    # too; its name goes in app_id_env.
     "appid",
     "appkey",
     "subscriptionkey",
+    "pwd",
 )
 _ENV_VAR_NAME = re.compile(r"[A-Z_][A-Z0-9_]*")
 

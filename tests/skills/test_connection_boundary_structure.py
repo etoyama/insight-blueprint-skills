@@ -140,7 +140,8 @@ class TestCatalogRegisterNeverCallsTheApi:
             section(_read_skill("catalog-register"), "## API Source Workflow")
         )
 
-    def test_no_skill_builds_a_url_with_a_credential_variable(self) -> None:
+    def test_no_skill_puts_an_environment_variable_in_a_url_query(self) -> None:
+        # Catches the `?appId=$ESTAT_API_KEY` form; the wording tests below carry the rule.
         files = _prose_files()
         assert files
         builds = [
@@ -150,18 +151,25 @@ class TestCatalogRegisterNeverCallsTheApi:
         ]
         assert builds == []
 
-    def test_the_api_workflow_says_claude_never_calls_the_api(self) -> None:
+    def test_the_api_workflow_says_not_to_call_the_api(self) -> None:
         workflow = self._api_workflow()
-        assert "Claude never calls the API" in workflow
+        assert "Do not call the API yourself" in workflow
         assert "fetch script" in workflow
 
     def test_the_api_workflow_reads_a_saved_response_or_a_pasted_sample(
         self,
     ) -> None:
         workflow = self._api_workflow()
-        assert "getMetaInfo" not in workflow
-        assert "Fetch the response" not in workflow
-        assert "paste" in workflow
+        assert "a saved response" in workflow
+        assert "paste a sample response with the key removed" in workflow
+
+    def test_a_saved_response_holding_the_key_is_not_read(self) -> None:
+        workflow = self._api_workflow()
+        assert "stop reading" in workflow
+
+    def test_a_json_response_is_read_in_full_not_by_its_first_rows(self) -> None:
+        workflow = self._api_workflow()
+        assert "read a JSON response in full" in workflow
 
 
 class TestArchitectureFollowsTheBoundary:

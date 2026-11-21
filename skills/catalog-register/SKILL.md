@@ -129,14 +129,16 @@ echo '{
 
 ### Step 2a: Identify API Structure
 
-Claude never calls the API. Fetching data is the job of the analysis repository's fetch
-script, which reads the API key from an environment variable; this plugin does not handle
-credentials ([ADR-0023](../../docs/adr/0023-catalog-holds-no-credentials.md)).
+Do not call the API yourself. Fetching data is the job of the project's fetch script, which
+reads the API key from an environment variable; this plugin does not handle credentials
+([ADR-0023](../../docs/adr/0023-catalog-holds-no-credentials.md)).
 
 1. Ask the user for the API base URL, the provider, and the table or endpoint id
 2. Find the structure in what the fetch script already saved:
    - Ask for the path of a saved response (e.g. an e-Stat meta-info JSON, or the CSV the
-     script wrote) and read it the same way as Step 2a of the CSV workflow
+     script wrote). Read a CSV as in Step 2a of the CSV workflow; read a JSON response in full
+   - If the file holds the key or a URL with the key in it, stop reading and ask for a copy
+     with the key removed
    - If nothing is saved yet, ask the user to run the fetch script, or to paste a sample
      response with the key removed
 3. Extract the field names and types (for e-Stat, the column definitions in `CLASS_INF`)
