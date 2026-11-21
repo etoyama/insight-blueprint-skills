@@ -521,6 +521,63 @@ class TestPosition:
         position = tree_io.position("LIB", base_dir=started)
         assert (position["state"], position["node_id"]) == ("closed", "LIB-Q02")
 
+    def _closed(self, base: Path) -> None:
+        tree_io.decide(
+            "LIB", kind="close", node_id="LIB-Q02", reason="ここまで", base_dir=base
+        )
+
+    def test_a_design_made_after_the_close_resumes_the_node(
+        self, started: Path
+    ) -> None:
+        _finish(started, self._designed(started))
+        self._closed(started)
+        resumed = self._designed(started)
+
+        position = tree_io.position("LIB", base_dir=started)
+        assert (position["state"], position["design_ids"]) == ("in_progress", [resumed])
+
+    def test_a_design_made_and_finished_after_the_close_is_concluded(
+        self, started: Path
+    ) -> None:
+        self._closed(started)
+        resumed = self._designed(started)
+        _finish(started, resumed)
+
+        position = tree_io.position("LIB", base_dir=started)
+        assert (position["state"], position["design_ids"]) == ("concluded", [resumed])
+
+    def test_an_unfinished_design_left_behind_by_the_close_stays_closed(
+        self, started: Path
+    ) -> None:
+        self._designed(started)
+        self._closed(started)
+
+        assert tree_io.position("LIB", base_dir=started)["state"] == "closed"
+
+    @pytest.mark.parametrize("created_at", ["2026-11-21T10:00:00", "not a time", None])
+    def test_a_design_whose_time_cannot_be_compared_is_an_error(
+        self, started: Path, created_at: str | None
+    ) -> None:
+        design_id = self._designed(started)
+        _finish(started, design_id)
+        path = started / "designs" / f"{design_id}_hypothesis.yaml"
+        saved = design_io.read_yaml(path)
+        saved["created_at"] = created_at
+        atomic_write_yaml(path, saved)
+
+        with pytest.raises(ValueError, match=f"{design_id}.*created_at"):
+            tree_io.position("LIB", base_dir=started)
+
+    def test_the_states_are_the_ones_the_driver_enters_by(self) -> None:
+        assert {state.value for state in tree_io.WalkState} == {
+            "no_tree",
+            "no_decision",
+            "not_started",
+            "in_progress",
+            "concluded",
+            "closed",
+        }
+
     def test_a_decision_without_a_time_counts_every_finished_design_as_later(
         self, started: Path
     ) -> None:
