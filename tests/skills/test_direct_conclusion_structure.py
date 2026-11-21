@@ -88,5 +88,25 @@ class TestReflectionConcludesFromAnalyzing:
         _assert_allowed(moves)
         assert _concludes_from_analyzing(moves)
 
-    def test_a_review_of_the_result_is_optional(self) -> None:
-        assert "/analysis-review is optional" in self._step()
+    def test_a_review_of_the_result_is_optional_and_offered_before_the_transition(
+        self,
+    ) -> None:
+        step = self._step()
+        assert "/analysis-review is optional" in step
+        assert step.index("/analysis-review is optional") < step.index(
+            "--target supported"
+        )
+
+    def test_it_offers_no_review_once_the_design_is_concluded(self) -> None:
+        """/analysis-review exits on a terminal status, so offering it after is a dead end."""
+        after = self._step().split("--target inconclusive", 1)[1]
+        assert "/analysis-review" not in after
+
+
+class TestAnalysisReviewCoversTheResult:
+    """US-1 AC 4: /analysis-review says what a review of the result leads to."""
+
+    def test_its_scope_sends_a_reviewed_result_to_reflection(self) -> None:
+        scope = unwrap(section(_read_skill("analysis-review"), "## Scope"))
+        assert "review of the result" in scope
+        assert "/analysis-reflection" in scope
