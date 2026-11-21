@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A new journal event type, `hearing`, holds what a person answered. `/analysis-design` copies an
   answer kept on a question node into the journal of the design it links to that node, so a later
   answer can cite it. `/analysis-journal` records one too.
+- `tree_io get` says on stderr which file it looked for when a theme has no question tree, so
+  a tree that exists elsewhere is not taken for a missing one.
+- The HTML view of the question tree marks a statement whose every cited event is a `hearing`
+  with "人に聞いた答えによる".
 - The HTML view of the question tree lists the next candidates, shows the round each decision was
   taken at, and marks an answer that no longer matches the record instead of showing it as the
   current answer.

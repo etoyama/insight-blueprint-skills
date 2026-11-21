@@ -308,6 +308,11 @@ def _legend() -> _Html:
         _word_list(
             (word.format(round="N"), meaning) for word, meaning in _MARK_WORDS.values()
         ),
+        _el(
+            "p",
+            f"文の後ろの「{_HEARD_WORD}」は、引用した出来事がすべて人に聞いた答え"
+            "（hearing）で、データの出来事が1つも無い文に付ける。",
+        ),
         _el("p", "まだ分析設計を結んでいない論点は「次の候補」に並べる。"),
         _el(
             "p",
@@ -521,7 +526,10 @@ def _node_card(context: _Context, node: QuestionNode) -> _Html:
             parts.append(
                 _el(
                     "ul",
-                    _join(_statement(s) for s in answer.statements),
+                    _join(
+                        _statement(s, *_heard_word(context, s))
+                        for s in answer.statements
+                    ),
                     class_="statements",
                 )
             )
@@ -544,6 +552,21 @@ def _statement(statement: AnswerStatement, *tail: str) -> _Html:
         f" {statement.text}",
         *tail,
     )
+
+
+_HEARD_WORD = "（人に聞いた答えによる）"
+
+
+def _heard_word(context: _Context, statement: AnswerStatement) -> tuple[str, ...]:
+    """The word for a statement whose every cited event is what a person said.
+
+    The check counts a number in a hearing event as recorded, so the page is
+    where a reader sees that no event of the data stands behind the statement.
+    """
+    cited = [context.events.get(cite) for cite in statement.cites]
+    if all(event is not None and event.type == "hearing" for event in cited):
+        return (f" {_HEARD_WORD}",)
+    return ()
 
 
 def _round_meta(answer: Answer) -> _Html:

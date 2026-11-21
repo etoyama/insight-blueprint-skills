@@ -462,6 +462,53 @@ class TestCurrentAnswer:
         assert "まだ答えていない" in node_text(page(), "LIB-Q03")
 
 
+class TestHeardStatements:
+    """ADR-0028: a statement that rests only on what a person said is told apart."""
+
+    def _heard(self, *event_ids: str) -> dict[str, CitedEvent]:
+        events = make_events()
+        for event_id in event_ids:
+            events[event_id] = CitedEvent(
+                event_id, "hearing", None, "集計は年度ごとに別の館が行う"
+            )
+        return events
+
+    def test_a_statement_citing_only_hearing_events_says_so(self) -> None:
+        shown = node_text(page(events=self._heard("LIB-H01-E02")), "LIB-Q02")
+
+        assert "1館の1年度だけの数である （人に聞いた答えによる）" in shown
+
+    def test_a_statement_citing_an_event_of_the_data_carries_no_such_word(
+        self,
+    ) -> None:
+        shown = node_text(page(events=self._heard("LIB-H01-E02")), "LIB-Q02")
+
+        assert "取消を除くと期限切れは 346 件 （人に聞いた答えによる）" not in shown
+        assert shown.count("（人に聞いた答えによる）") == 1
+
+    def test_a_statement_citing_a_hearing_and_the_data_carries_no_such_word(
+        self,
+    ) -> None:
+        tree = make_tree()
+        statement = tree["nodes"][1]["answers"][-1]["statements"][1]
+        statement["cites"] = ["LIB-H01-E01", "LIB-H01-E02"]
+
+        shown = node_text(page(tree=tree, events=self._heard("LIB-H01-E02")), "LIB-Q02")
+
+        assert "（人に聞いた答えによる）" not in shown
+
+    def test_a_cited_event_that_is_missing_is_not_taken_for_a_hearing(self) -> None:
+        events = make_events()
+        del events["LIB-H01-E02"]
+
+        assert "（人に聞いた答えによる）" not in node_text(
+            page(events=events), "LIB-Q02"
+        )
+
+    def test_the_legend_explains_the_word(self) -> None:
+        assert "人に聞いた答えによる" in squash(by_id(page(), "legend").text())
+
+
 class TestDecisions:
     def test_a_decision_shows_its_kind_node_and_reason(self) -> None:
         root = page()

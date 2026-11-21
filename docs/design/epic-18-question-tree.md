@@ -826,6 +826,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - 答えを記録し直してから写すと、新しい出来事が足される。前の出来事は消えない。
   - 写した出来事は `evidence_refs` と `parent_event_id` を持たない。
   - 論点ツリーの側が元である。journal の出来事を手で直しても、論点ツリーの答えは変わらない。
+  - ツリーの検査は `hearing` の数を記録にある数として通す。答えを本当に人から聞いたかは、コードでは確かめない。図は、引用した出来事がすべて `hearing` の文に「人に聞いた答えによる」と添える（人間の判断、2026-11-21。[ADR-0028](../adr/0028-hearing-is-its-own-journal-event.md) の Negative）。
 
 ### Decision: decision-carries-the-last-round-and-is-tied-to-its-node
 
@@ -869,6 +870,18 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - 印が付くのは古い違反に限らない。正本に直接書いた答えの違反にも付く。
   - `tree_render` は違反を引数で受け取り、検査はしない。`tree_io render` が `tree_check` を読み込む。`tree_io answer` と同じく、関数の中で読み込む。
   - `/analysis-reflection` の「Stale answers」の扱いは変えていない。直せない答えは示さず、ほかの論点を届ける。
+
+### Decision: an-empty-get-says-where-it-looked
+
+- What: `tree_io get` は、論点ツリーが見つからないとき、今までどおり `{}` を終了コード 0 で返す。あわせて、見た正本の絶対パスを stderr に1行出す（`tree_io: no tree at {path}`）。`/analysis-framing` の Step 4a と `/analysis-reflection` の Step T1 は、そのパスがプロジェクトの `.insight` の下かを確かめ、`tree_io` の前に `cd` しない（人間の判断、2026-11-21、Story 18.5 のセッション）。
+- Why: Story 18.5 の手動確認で、モデルが plugin のルートへ `cd` してから `tree_io get` を呼んだ。ラッパーは `CLAUDE_PROJECT_DIR` が無ければ `$PWD` をプロジェクトとして扱うので、plugin の中の `.insight/` を読み、`{}` を返した。skill は、あるツリーを「無い」と答えて終わった。「まだ無い」と「見ている場所が違う」が同じ出力だった（[#88 のコメント](https://github.com/etoyama/insight-blueprint-skills/issues/88#issuecomment-7054224892)）。
+- Criteria: Must は「新しいテーマで framing がツリーを作れる」（US-1 AC 1）。Want は「無いと場所が違うを出力から見分けられる」（高、Claude の推測）、「間違った場所への書き込みが止まる」（中、Claude の推測）、「直す手順とテストの量、ほかの `*_io` との揃い方」（中、Claude の推測）。決め手は1つめと3つめ。人間が推奨を採った。
+- Affected modules: `skills/_shared/tree_io.py`（`get`）、`/analysis-framing`、`/analysis-reflection`。
+- Alternatives considered: 見つからなければ終了コード 1 にする（「無い」と「場所が違う」はやはり同じ結果になる。手順2つを書き換え、`design_io`・`catalog_io` の `get` と揃わなくなる）。触らずに #88 に任せる（それまで同じ取り違えが起きる）。
+- Consequences:
+  - 原因はラッパーにある。この決定は見分ける手がかりを足すだけで、間違った場所への書き込み（plugin の中の `.insight/` への `tree_io create`）は止めない。#88 で扱う。
+  - stderr の1行をモデルが読み飛ばせば、気づかない。止めるのは手順で、コードではない。
+  - `design_io get` と `catalog_io get` は変えていない。同じ取り違えは、そちらでも起きうる。
 
 ### Decision: tree-upload-is-its-own-skill
 
@@ -935,3 +948,4 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - 2026-11-21 — Story 18.5 completed: `/analysis-reflection` は現時点の答えの後に、次の候補（根を除き、自分にも下の論点にも分析設計を結んでいない論点）を示し、人に聞く問い、その答えで変わる判断、分かっていることを添える。分析者が聞いてきた答えは、誰に聞いたかと日付を添えて残す。KEEP ゲートで、深める・親に戻る・区切ると理由、次に調べる論点を聞き、ツリーの決定として残す。`/analysis-design` は分析設計を論点に結んだ後、聞いてきた答えを journal の `hearing` として写す。再実行した `/analysis-framing` は、次に設計する論点を必ず聞く。図には次の候補、決定の回、記録と合わない答えの印が出る。人間がこのセッションで4つを決めた（`hearing` の種類、決定の回、再実行の framing、古い違反の扱い）。
 - 2026-11-21 — Story 18.5 のレビュー（thermos）の指摘を直した。`tree_io copy-hearing` は、最上位が mapping でない journal を空と読んで上書きし、出来事を消していた。`events` が list でない journal では traceback を出していた。どちらも書かずにエラーにする。journal への追記は `design_io.append_journal_event` に移した。「論点かその下に結んだ分析設計」の計算は、次の候補とツリーの検査で別々に持っていたので、モデルの1か所に寄せた。図は、振り返りの前の決定に「回 0 の答えを見て」と出していたので、「振り返りの前」に直した。`deepen` と `return` を論点から導く案は採らなかった（種類は分析者が選ぶ）。
 - 2026-11-21 — Story 18.5 を手動で確認した。合成データのプロジェクト（論点4つ、分析設計1つ、`connection` を持つデータソース1つ）にプラグインを読み込み、headless の Claude Code（sonnet）で5回実行した。(1) 答えを渡さない `/analysis-reflection LIB` は、回 1 の答えを書き、次の候補を2つ示して、聞いてきた答えと決定の2つを聞いて止まった。決定は書かなかった。人に聞く問いは、データで答えられない論点にだけ付いた。`connection` のパスは正本にも HTML にも入らなかった。(2) 答えを渡した2回目は、聞いてきた答えを誰に・いつと一緒に残し、`return` の決定を回 1 で書いた。(3) 答えを渡さない `/analysis-framing LIB` の再実行は、最新の決定の論点と次の候補を並べて聞き、Framing Brief も決定も出さずに止まった。(4) `/analysis-design` は分析設計を論点に結び、聞いてきた答えを journal の `hearing` として1字も変えずに写した。(5) 再実行で別の論点を答えると、理由つきの `return` を残し、その論点の `node_id` で Framing Brief を出した。図には次の候補、決定と回、聞いてきた答えが出た。journal の数を書き換えて `tree_io render` を通すと、その論点に「記録と合わない答え」の印が出て、答えの文は畳まれた（skill は通していない）。最初の1回は、headless のセッションが `.insight` を見つけられずに終わった。同じ場所でやり直すと読めたので、原因は分かっていない。`deepen` と `close` の決定、結び済みの論点を選んだときの確認、`tree_io` が決定を拒んだときの聞き直しは、skill を通しては確かめていない。
+- 2026-11-21 — 手動確認の最初の1回の原因を確かめた。モデルが plugin のルートへ `cd` してから `tree_io get` を呼び、ラッパーが `$PWD` をプロジェクトとして plugin の中の `.insight/` を読んでいた。再現の手順と原因は #88 に書いた。ラッパーは直していない。`tree_io get` は、見つからないときに見た正本のパスを stderr に出すようにした（人間の判断）。push の自動セキュリティレビューが、`hear` で書いた答えを写して引用すれば数の検査を通せると指摘した。人間の判断で、検査は変えず、引用がすべて `hearing` の文に図で「人に聞いた答えによる」と添えるようにした。残る穴は ADR-0028 の Negative に書いた。
