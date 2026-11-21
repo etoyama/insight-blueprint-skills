@@ -20,6 +20,12 @@ class DesignStatus(StrEnum):
     inconclusive = "inconclusive"
 
 
+# The statuses VALID_TRANSITIONS (validate.py) lets nothing follow.
+TERMINAL_STATUSES = frozenset(
+    {DesignStatus.supported, DesignStatus.rejected, DesignStatus.inconclusive}
+)
+
+
 class AnalysisIntent(StrEnum):
     """Intent of an analysis design: exploratory, confirmatory, or mixed."""
 

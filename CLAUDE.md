@@ -28,6 +28,7 @@ skills と YAML と埋め込みの検証ライブラリで組み直した軽量�
 | skill の一覧と使い方 | [README.md](README.md) |
 | 環境構築・コマンド・テスト | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | リリース手順 | [docs/RELEASE.md](docs/RELEASE.md) |
+| 引き継ぎの試行の手順と記録の型 | [docs/HANDOFF_TRIAL.md](docs/HANDOFF_TRIAL.md) |
 
 ## 3. Tech Stack
 

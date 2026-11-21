@@ -33,6 +33,7 @@ from insight_blueprint.models.catalog import (
 )
 from insight_blueprint.models.common import now_jst
 from skills._shared._atomic import atomic_write_yaml
+from skills._shared._stdin import read_payload
 from skills._shared.ids import SAFE_ID_PATTERN
 
 DEFAULT_BASE_DIR = Path(os.environ.get("INSIGHT_BASE_DIR", ".insight"))
@@ -456,6 +457,9 @@ def _without_connection(source: dict) -> dict:
 _PRINTS_SOURCES = frozenset({"create", "update", "get", "list"})
 
 
+_TAKES_PAYLOAD = frozenset({"create", "update", "add-knowledge"})
+
+
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="catalog_io")
     parser.add_argument(
@@ -492,11 +496,7 @@ def _main(argv: list[str] | None = None) -> int:
         parser.error("describe never prints a connection; use get --with-connection")
     base = _resolve_base_dir(Path(args.base_dir))
 
-    payload: dict = {}
-    if not sys.stdin.isatty():
-        raw = sys.stdin.read().strip()
-        if raw:
-            payload = json.loads(raw)
+    payload = read_payload() if args.command in _TAKES_PAYLOAD else {}
 
     tags = [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else None
 
@@ -519,7 +519,7 @@ def _main(argv: list[str] | None = None) -> int:
         result = add_knowledge(args.id, payload.get("entries", []), base_dir=base)
     elif args.command == "search":
         result = search(
-            args.query or payload.get("query", ""),
+            args.query or "",
             source_type=args.type,
             tags=tags,
             base_dir=base,

@@ -369,8 +369,8 @@ class TestReportAndUploadDocs:
             for line in sequence.splitlines()
             if "【KEEP】" in line and ("送る" in line or "アップロード" in line)
         ]
-        assert len(asks) == 1, asks
-        assert asks[0].startswith("P->>U:"), "the gate belongs to /report-upload"
+        # Story 18.9 adds the gate of /tree-upload; each send is asked once, by its skill.
+        assert [line.split(":")[0] for line in asks] == ["P->>U", "TU->>U"], asks
 
     def test_architecture_epic_mapping_covers_every_roadmap_epic(self) -> None:
         roadmap = _first_cells(words.section(_read("docs/PRD.md"), "ロードマップ"))
@@ -502,3 +502,143 @@ class TestQuestionTreeDocs:
         in_scope = scope.split("- Epic 範囲外:")[0]
         assert "/analysis-auto" in in_scope
         assert "/analysis-auto" not in scope.split("- Epic 範囲外:")[1]
+
+    def test_design_doc_records_the_two_decisions_made_after_the_first_edition(
+        self,
+    ) -> None:
+        decisions = section(_read(self.DESIGN_DOC), "## Decisions")
+        assert "### Decision: inquiry-answer-copied-to-journal" in decisions
+        assert "### Decision: ask-once-for-treeless-design" in decisions
+
+    def test_design_doc_uses_the_type_names_the_human_chose(self) -> None:
+        """Story 18.1: NextCandidate, Answer and Aim replace the first proposal."""
+        model = section(_read(self.DESIGN_DOC), "## Domain Model")
+        for name in ("NextCandidate", "Answer", "Aim"):
+            assert f"class {name} {{" in model, name
+        for name in ("Inquiry", "CurrentAnswer", "Destination"):
+            assert name not in model, name
+
+    def test_ubiquitous_language_names_the_tree_classes_that_exist(self) -> None:
+        rows = {
+            r[words.TERM]: r[words.CODE_NAME]
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        expected = {
+            "論点ツリー": "QuestionTree",
+            "論点": "QuestionNode",
+            "到達点": "Aim",
+            "根の版": "RootRevision",
+            "寄与": "contribution",
+            "発見元": "origin_event_id",
+            "進捗": "Progress",
+            "ツリーの決定": "TreeDecision",
+        }
+        for term, name in expected.items():
+            assert f"`{name}`" in rows[term], term
+
+    def test_design_doc_records_the_decisions_of_story_18_2(self) -> None:
+        decisions = section(_read(self.DESIGN_DOC), "## Decisions")
+        for slug in (
+            "start-is-the-only-decision-kind-for-now",
+            "decisions-are-append-only",
+            "framing-brief-carries-node-id",
+            "meaning-change-raises-the-root-revision",
+        ):
+            assert f"### Decision: {slug}" in decisions, slug
+
+    def test_architecture_workflow_shows_the_tree_being_written_and_linked(
+        self,
+    ) -> None:
+        """Story 18.2: framing writes the tree and design links itself to a node."""
+        sequence = section(_read("docs/ARCHITECTURE.md"), "### 分析ワークフロー全体")
+        assert "tree_io create / add-node / decide" in sequence
+        assert "tree_io link" in sequence
+
+    def test_architecture_workflow_shows_the_answers_being_checked_and_written(
+        self,
+    ) -> None:
+        """Story 18.4: the theme reflection writes answers only through the check."""
+        sequence = section(_read("docs/ARCHITECTURE.md"), "### 分析ワークフロー全体")
+        assert "tree_io answer" in sequence
+        assert "tree_check" in sequence
+
+    def test_design_doc_records_how_answers_are_written(self) -> None:
+        decisions = section(
+            _read("docs/design/epic-18-question-tree.md"), "## Decisions"
+        )
+        for slug in (
+            "answers-are-checked-before-they-land",
+            "one-answer-call-is-one-round",
+        ):
+            assert f"### Decision: {slug}" in decisions, slug
+
+    AUTOPILOT = "### guided autopilot（`/analysis-auto`）"
+
+    def test_architecture_autopilot_reads_the_position_and_walks_node_by_node(
+        self,
+    ) -> None:
+        """Story 18.9 (US-8 AC 1, AC 2, AC 5): resume from the position, loop over nodes."""
+        sequence = section(_read("docs/ARCHITECTURE.md"), self.AUTOPILOT)
+        assert "tree_io position" in sequence
+        for state in ("no_tree", "not_started", "in_progress", "concluded", "closed"):
+            assert state in sequence, state
+        assert "loop 論点ごとの巡回" in sequence
+        assert "/rq-problematization" in sequence
+
+    def test_architecture_autopilot_shows_the_five_new_gates(self) -> None:
+        """US-8 AC 3."""
+        sequence = section(_read("docs/ARCHITECTURE.md"), self.AUTOPILOT)
+        keeps = [line for line in sequence.splitlines() if "【KEEP" in line]
+        for gate in (
+            "ツリーを作って巡回に入るか",
+            "根の問い",
+            "最初に調べる論点",
+            "ツリーの決定",
+            "根の版",
+        ):
+            assert any(gate in line for line in keeps), gate
+
+    def test_architecture_autopilot_writes_the_report_without_asking(self) -> None:
+        """US-8 AC 4: the report is AUTO and comes before the tree decision."""
+        sequence = section(_read("docs/ARCHITECTURE.md"), self.AUTOPILOT)
+        report = next(
+            line for line in sequence.splitlines() if "/analysis-report" in line
+        )
+        assert "AUTO" in report and "【KEEP" not in report
+        assert sequence.index(report) < sequence.index("ツリーの決定（深める")
+        assert "レポートのパスと論点ツリーの HTML のパス" in sequence
+
+    def test_architecture_invocation_model_lists_the_gates_of_the_walk(self) -> None:
+        model = section(_read("docs/ARCHITECTURE.md"), "### Skill invocation model")
+        assert "adr/0026-analysis-auto-walks-the-question-tree.md" in model
+        assert "ツリーの決定" in model
+        assert "レポートの生成 /" not in model
+
+    def test_architecture_workflow_names_the_autopilot_as_the_entry(self) -> None:
+        sequence = section(_read("docs/ARCHITECTURE.md"), "### 分析ワークフロー全体")
+        assert "入口" in sequence
+        assert "巡回" in sequence
+        report = sequence.index("/analysis-report")
+        assert report < sequence.index("/analysis-reflection {theme_id}")
+
+    def test_design_doc_records_the_decisions_of_the_walk(self) -> None:
+        decisions = section(
+            _read("docs/design/epic-18-question-tree.md"), "## Decisions"
+        )
+        for slug in (
+            "position-is-derived-by-tree-io",
+            "auto-does-not-ask-twice-for-a-decided-node",
+            "framing-places-existing-designs",
+        ):
+            assert f"### Decision: {slug}" in decisions, slug
+
+    def test_architecture_carries_the_tree_file_and_its_guard(self) -> None:
+        """ADR-0024: the .insight layout and the hook target change with Story 18.1."""
+        doc = _read("docs/ARCHITECTURE.md")
+        layout = section(doc, "### 2. plugin 利用者視点の構成")
+        assert "themes/" in layout
+        assert "{theme_id}_tree.yaml" in layout
+        components = section(doc, "## コンポーネントと責務")
+        assert "*_tree.yaml" in components
+        assert "validate_tree" in components
+        assert "tree_io" in section(doc, "### パス解決機構")

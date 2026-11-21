@@ -13,8 +13,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   numpy, marimo or insight_blueprint: the default allowlist is always allowed. The packages the
   file already lists stay allowed, so nothing that ran before stops.
 
+### Added
+
+- `/analysis-reflection {theme_id}` now goes on after the current answers: it lists the next
+  candidates (the nodes of the question tree with no design on them or below them), can attach a
+  question to ask a person, keeps the answer you bring back with who answered and when, and asks
+  whether you deepen the same node, return to its parent, or close. Your choice and its reason are
+  kept in the tree as a decision.
+- A new journal event type, `hearing`, holds what a person answered. `/analysis-design` copies an
+  answer kept on a question node into the journal of the design it links to that node, so a later
+  answer can cite it. `/analysis-journal` records one too.
+- `tree_io get` says on stderr which file it looked for when a theme has no question tree, so
+  a tree that exists elsewhere is not taken for a missing one.
+- The HTML view of the question tree marks a statement whose every cited event is a `hearing`
+  with "人に聞いた答えによる".
+- The HTML view of the question tree lists the next candidates, shows the round each decision was
+  taken at, and marks an answer that no longer matches the record instead of showing it as the
+  current answer.
+- `/analysis-framing` makes the HTML view of the question tree with `tree_io render` after it
+  writes the tree, and tells you its path.
+- `/tree-upload` uploads the HTML view of a theme's question tree to the host's Artifact as a new
+  page that only you can see. It lists the file and waits for your approval; without the host's
+  Artifact feature nothing is sent and the HTML stays on your machine.
+
 ### Changed
 
+- A rerun of `/analysis-framing` on a theme that has a question tree now always asks which node to
+  design next. When you pick a node other than the one the latest decision names, it asks for your
+  reason and keeps the change as a decision.
 - **A project's `.insight/rules/package_allowlist.yaml` now adds packages to the default
   allowlist instead of replacing it.** The default allowlist (pandas, matplotlib, numpy, marimo,
   insight_blueprint) is what every contract notebook imports, so it is always allowed and
@@ -27,6 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`premortem` showed `unknown` in the INTENT column for every design** (#109). It read an
   `intent` key, but `design_io get` returns the field as `analysis_intent`. The risk level was
   not affected; only the table display was wrong.
+- **`design_io`, `catalog_io` and `tree_io` commands without a payload hung when stdin never closed** (#129),
+  as in the Bash of the desktop app's Code tab. `get`, `list`, `link`, `progress` and the other
+  commands that take no payload no longer read stdin. `catalog_io search` takes its query from
+  `--query` only, as `/catalog-register` documents; a query in the stdin payload is no longer read.
 
 ## [0.12.0] - 2026-11-20
 

@@ -151,7 +151,7 @@ This skill uses `catalog_io` read-only. It registers and updates nothing.
 | From | To | When |
 |------|-----|------|
 | /analysis-reflection | → /analysis-report | Conclusion reached (terminal status); build a distributable report |
-| /analysis-auto | → /analysis-report | autopilot reached the conclusion; offer the report at the end (KEEP gate) |
+| /analysis-auto | → /analysis-report | The design reached a terminal status; the autopilot writes the report without asking (AUTO) |
 | /analysis-report | → /report-upload | The report is written and readers should comment on it or export it |
 
 ## Language Rules

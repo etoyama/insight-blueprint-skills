@@ -1,0 +1,47 @@
+date: '2026-11-21'
+scenario: lib
+stage: round-2
+reader:
+  kind: claude
+  name: sonnet (Claude Code 2.1.227)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: LIB-Q01の現時点の答えには「未判別：延長の試行をするかは、来館できる日の少なさを確かめるまで決められない」という文が含まれており、まだ結論（claim）には至っていない。
+    verdict: undetermined
+  q2:
+    note: LIB-Q02は分析済みだが答えは言えること（claim）のみで未判別ではないため、どちらにも含めない。
+    not_started:
+    - LIB-Q04
+    - LIB-Q05
+    - LIB-Q06
+    analyzed_undetermined:
+    - LIB-Q03
+  q3:
+    note: LIB-Q01の『言えること』はLIB-H02-E01（supports）、『弱める証拠と留保』はLIB-H02-E02（contradicts）に基づく。
+    supports:
+    - event_id: LIB-H02-E01
+      design_id: LIB-H02
+    weakens:
+    - event_id: LIB-H02-E02
+      design_id: LIB-H02
+  q4:
+    note: LIB-Q01は回2で前回（回1）の『期限切れは152件、延長で減るかは未判別』から、通知の遅れに関する新たな証拠（LIB-H02-E01, LIB-H02-E02）により答えが書き換わった。LIB-Q03は『回2で初めて答えた』なので変わった扱いにしない。
+    changed_nodes:
+    - LIB-Q01
+    evidence:
+    - LIB-H02-E01
+    - LIB-H02-E02
+  q5:
+    note: ツリーの決定欄で回2の振り返り後に『親に戻る』としてLIB-Q06（通知から期限まで何日開館していたか）が選ばれており、その発見元はLIB-H02-E03とされている。
+    node_id: LIB-Q06
+    reason_events:
+    - LIB-H02-E03
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: false

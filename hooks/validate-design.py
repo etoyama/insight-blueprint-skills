@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pre-write hook: validate analysis design documents before they are written.
+"""Pre-write hook: validate design documents and question trees before a write.
 
 Registered as a Claude Code PreToolUse hook for Write/Edit/MultiEdit. It is the
 only enforcement point for design-document integrity once the MCP server is gone
@@ -9,14 +9,14 @@ pure functions in ``insight_blueprint.validate``.
 
 Contract:
 - Reads a PreToolUse JSON payload on stdin (``tool_name`` + ``tool_input``).
-- Only acts on writes to ``.insight/designs/*_hypothesis.yaml``; anything else
-  exits 0 (allow).
+- Only acts on writes to ``.insight/designs/*_hypothesis.yaml`` and
+  ``.insight/themes/*_tree.yaml`` (ADR-0024); anything else exits 0 (allow).
 - On a schema or state-transition violation: prints details to stderr and exits
   2 (block the write).
-- On an unexpected internal error: if the target is a design document, exits 2
-  (fail CLOSED — an unvalidated design write is the one thing this hook exists to
-  prevent). For any other file it exits 0 (fail open) so a hook bug cannot brick
-  unrelated writes.
+- On an unexpected internal error: if the target is one of the guarded files,
+  exits 2 (fail CLOSED — an unvalidated write is the one thing this hook exists
+  to prevent). For any other file it exits 0 (fail open) so a hook bug cannot
+  brick unrelated writes.
 """
 
 from __future__ import annotations
@@ -39,6 +39,7 @@ EXIT_ALLOW = 0
 EXIT_BLOCK = 2
 
 DESIGN_SUFFIX = "_hypothesis.yaml"
+TREE_SUFFIX = "_tree.yaml"
 
 
 def _yaml():  # returns a ruamel YAML instance
@@ -59,6 +60,24 @@ def is_design_file(file_path: str | None) -> bool:
         and path.parent.name == "designs"
         and path.parent.parent.name == ".insight"
     )
+
+
+def tree_theme_id(file_path: str | None) -> str | None:
+    """The theme a ``.insight/themes/{theme_id}_tree.yaml`` path names, else None."""
+    if not file_path:
+        return None
+    path = Path(file_path)
+    if (
+        path.name.endswith(TREE_SUFFIX)
+        and path.parent.name == "themes"
+        and path.parent.parent.name == ".insight"
+    ):
+        return path.name.removesuffix(TREE_SUFFIX)
+    return None
+
+
+def is_guarded_file(file_path: str | None) -> bool:
+    return is_design_file(file_path) or tree_theme_id(file_path) is not None
 
 
 def extract_target_path(tool_input: dict) -> str | None:
@@ -113,7 +132,7 @@ def parse_yaml(text: str) -> dict:
     if result is None:
         return {}
     if not isinstance(result, dict):
-        raise ValueError("design document must be a YAML mapping")
+        raise ValueError("document must be a YAML mapping")
     return dict(result)
 
 
@@ -122,10 +141,10 @@ def evaluate(tool_name: str, tool_input: dict) -> list[str]:
 
     Performs the file I/O, then delegates to the pure validation library.
     """
-    from insight_blueprint.validate import validate_design_change
+    from insight_blueprint.validate import validate_design_change, validate_tree
 
     file_path = extract_target_path(tool_input)
-    if not is_design_file(file_path):
+    if not is_guarded_file(file_path):
         return []
 
     path = Path(file_path)  # type: ignore[arg-type]
@@ -141,9 +160,12 @@ def evaluate(tool_name: str, tool_input: dict) -> list[str]:
     if current_text is not None:
         try:
             current_data = parse_yaml(current_text)
-        except Exception:  # pre-existing corruption: skip the transition check
+        except Exception:  # pre-existing corruption: skip the comparison
             current_data = None
 
+    theme_id = tree_theme_id(file_path)
+    if theme_id is not None:
+        return validate_tree(new_data, expected_theme_id=theme_id, current=current_data)
     return validate_design_change(new_data, current_data)
 
 
@@ -160,15 +182,15 @@ def main() -> int:
     try:
         errors = evaluate(tool_name, tool_input)
     except Exception as exc:
-        # Fail CLOSED for design documents: an internal error means we could not
-        # validate the pending write, and letting an unvalidated design through
+        # Fail CLOSED for the guarded files: an internal error means we could not
+        # validate the pending write, and letting an unvalidated one through
         # defeats the hook's only purpose (Epic 09 security review M2). For any
         # other file, fail open so a hook bug cannot brick unrelated writes.
         target = extract_target_path(tool_input)
-        if is_design_file(target):
+        if is_guarded_file(target):
             print(
                 f"validate-design hook: internal error validating {target}; "
-                f"blocking to preserve design integrity ({exc})",
+                f"blocking to preserve its integrity ({exc})",
                 file=sys.stderr,
             )
             return EXIT_BLOCK
@@ -180,7 +202,7 @@ def main() -> int:
     if errors:
         target = extract_target_path(tool_input) or "(unknown)"
         print(
-            f"Design validation failed for {target}:\n"
+            f"Validation failed for {target}:\n"
             + "\n".join(f"  - {e}" for e in errors),
             file=sys.stderr,
         )

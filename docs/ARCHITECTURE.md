@@ -55,13 +55,13 @@ flowchart TD
         hook["pre-write hook<br/>hooks/validate-design.py（plugin 同梱）"]
         marimo["marimo + lineage<br/>notebook 契約・加工透明性"]
     end
-    yaml["(.insight/) designs / journals / catalog / knowledge — YAML"]
+    yaml["(.insight/) designs / journals / themes / catalog / knowledge — YAML"]
 
     user --> cc --> skills
     skills -->|read/write| yaml
     cc -->|Write/Edit/MultiEdit| hook
     hook -->|検証| validate
-    hook -->|"対象: *_hypothesis.yaml"| yaml
+    hook -->|"対象: *_hypothesis.yaml、*_tree.yaml"| yaml
     skills --> marimo
 ```
 
@@ -71,11 +71,19 @@ flowchart TD
   状態遷移ガード（`VALID_TRANSITIONS`。例: `analyzing` から進めるのは `in_review` だけで、`analyzing → supported` は拒む。terminal status からはどこへも遷移しない）。分析設計の整合性の単一正本。
   `design_io` 経由で書く skill も、書く前に Python 側で同じ検証を通す。tool の書き込み（hook）と
   helper の書き込み（`design_io`）の両方が守られる。
+  論点ツリーの形も同じ場所で検証する（`validate_tree`。[ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md)）。
+  根の問いがちょうど1つあること、論点の親が同じツリーにあって循環しないこと、根の版が1から1ずつ増えること、ツリーの決定が指す論点がツリーにあることを確かめ、モデルに無い項目を拒む。
+  書き込む前の正本があれば、根の版が減っていないことと、今の版より前の版が変わっていないことも確かめる。ツリーの決定と現時点の答えは足すことだけができる。
+  現時点の答えの引用先が実在するか、文の数が引用先の本文にあるかは、ここでは確かめない。journal を読む必要があるので、ツリーの検査（`tree_check`。[ADR-0025](adr/0025-cited-answers-checked-after-writing.md)）が確かめる。
+  現時点の答えは `tree_io answer` で書く。`tree_io answer` は書く前にツリーの検査を呼び、違反があれば何も書かない。
+  進捗は項目に無いので、保存できない。`tree_io` は結んだ分析設計の状態から進捗を導く。
 - **pre-write hook（`hooks/validate-design.py`, plugin 同梱 `hooks/hooks.json`）** —
-  `.insight/designs/*_hypothesis.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
-  にかけ、違反を `exit 2` でブロックする I/O 殻。利用者の install 先プロジェクトでも効く
+  `.insight/designs/*_hypothesis.yaml` と `.insight/themes/*_tree.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
+  にかけ、違反を `exit 2` でブロックする I/O 殻。論点ツリーでは、ファイル名のテーマと中身の `theme_id` が同じことも確かめる。利用者の install 先プロジェクトでも効く
   （この repo の `.claude/settings.json` は dev 用に同スクリプトを配線）。
-- **Skill-managed YAML（`.insight/`）** — designs / journals / catalog / knowledge。skill が直接管理する。
+- **Skill-managed YAML（`.insight/`）** — designs / journals / themes / catalog / knowledge。skill が直接管理する。
+  論点ツリー（`themes/{theme_id}_tree.yaml`）は `tree_io` を通して書く。
+  表示（`themes/{theme_id}_tree.html`）は `tree_io render` が正本から作る生成物で、手では書かない。script を持たず、外部を読まない。
 - **marimo + lineage（`src/insight_blueprint/lineage/`）** — 分析 notebook は同梱テンプレートでなく、
   **`/analysis-notebook` skill が分析設計の `methodology` から 8-cell 契約に沿って生成・実行**する
   （`skills/analysis-notebook/references/notebook-contract.md`）。`lineage`（`tracked_pipe` / Mermaid export）は
@@ -88,10 +96,20 @@ flowchart TD
 
 **selective autonomy（`/analysis-auto`）**: driver スキル `/analysis-auto` を起動したときに限り、Claude が
 既存 skill を順に駆動し、**本物の判断（KEEP ゲート）でだけ停止**する guided autopilot になる。invocation フラグは
-大域変更しない（自律性はこの run に限定）。KEEP ゲート = design の4ビート（① 仮説 / ② 手法・指標・explanatory の
-因果役割・intent / ③ データ取得プラン（SQL クエリ or データソースの id + columns + filter, premortem の前。パスは見せない、[ADR-0022](adr/0022-connection-reaches-only-the-notebook.md)） / ④ chart 仕様）/
-データソース登録 / premortem `HARD_BLOCK`・`HIGH` / notebook の非 allowlist・宣言 source 以外の外部通信 / 結論 /
-レポートの生成 / アップロードで送るファイルの承認（`/report-upload` が聞く）。
+大域変更しない（自律性はこの run に限定）。`/analysis-auto` は分析者の入口で、テーマを受けて論点ツリーを作り、
+論点ごとに巡回する（[ADR-0026](adr/0026-analysis-auto-walks-the-question-tree.md)）。再開する所は `tree_io position` が正本から導く。
+
+KEEP ゲートは次のとおり。
+
+- 着手: 論点ツリーの無いテーマの `design_id` を渡されたときに、ツリーを作るかどうか / `theme_id`・根の問い・到達点 /
+  第一階層の論点と最初に調べる論点 / 根の版を上げるかどうか。
+- 分析設計の4ビート: ① 仮説 / ② 手法・指標・explanatory の因果役割・intent /
+  ③ データ取得プラン（SQL クエリ or データソースの id + columns + filter, premortem の前。パスは見せない、[ADR-0022](adr/0022-connection-reaches-only-the-notebook.md)） / ④ chart 仕様。
+- 実行: データソース登録 / premortem `HARD_BLOCK`・`HIGH` / notebook の非 allowlist・宣言 source 以外の外部通信 / 結論。
+- 巡回の終わり: ツリーの決定（深める・親に戻る・区切る、次に調べる論点、理由）と、人に聞いてきた答え。
+- 外部へ送る前: アップロードで送るファイルの承認（`/report-upload` と `/tree-upload` が聞く）。
+
+レポートは、分析設計の結論が出たら聞かずに書く（AUTO）。結論が出ていない回は書かない。
 notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定のときのみ。詳細は
 [ADR-0005](adr/0005-selective-autonomous-chaining.md)（selective autonomy）と
 [ADR-0007](adr/0007-upstream-judgment-gates.md)（上流の判断ゲートを design ビートに分割 + data-extraction 新設）。
@@ -99,7 +117,7 @@ notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定�
 
 **外部へ送る前の KEEP ゲート**: skill が `.insight/` の中身を外部へ送るときは、送るファイルを列挙して KEEP ゲートで承認を待つ。
 `/analysis-auto` の中でも自動にしない。承認は1回の実行に限り、覚えない
-（[ADR-0016](adr/0016-approval-before-external-send.md)）。今これに当たる skill は `/report-upload` だけである。
+（[ADR-0016](adr/0016-approval-before-external-send.md)）。今これに当たる skill は `/report-upload` と `/tree-upload` である。
 
 ## ディレクトリ構成（開発時 vs plugin 利用時）
 
@@ -117,9 +135,9 @@ notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定�
 ```
 insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配布物の中身）
 ├── .claude-plugin/                # plugin マニフェスト（plugin.json / marketplace.json）
-├── bin/                           # plugin 有効時に PATH に載る: design_io / catalog_io / premortem / report_check ラッパー
+├── bin/                           # plugin 有効時に PATH に載る: design_io / catalog_io / tree_io / premortem / report_check / tree_check ラッパー
 ├── hooks/                         # plugin 同梱 hook: hooks.json + validate-design.py
-├── skills/                        # 全 skill + _shared/（design_io.py / catalog_io.py / report_check.py / ids.py / config_loader.py / models.py）+ premortem/
+├── skills/                        # 全 skill + _shared/（design_io.py / catalog_io.py / tree_io.py / tree_render.py / report_check.py / tree_check.py / ids.py / config_loader.py / models.py）+ premortem/
 ├── src/insight_blueprint/         # PyPI パッケージ insight-blueprint-lineage: models/ · validate.py · lineage/
 ├── tests/  docs/  scripts/
 ├── pyproject.toml · uv.lock       # ← この uv プロジェクトが「plugin の実行環境」を供給する
@@ -154,6 +172,9 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 │   ├── {id}_journal.yaml           # journal イベント
 │   ├── {id}_reviews.yaml           # review バッチ
 │   └── {id}_revision.yaml          # /analysis-revision の修正追跡
+├── themes/
+│   ├── {theme_id}_tree.yaml        # 論点ツリーの正本。tree_io が書く（pre-write hook が検証）
+│   └── {theme_id}_tree.html        # 論点ツリーの表示。tree_io render が正本から作る生成物
 ├── catalog/
 │   ├── sources/{id}.yaml           # /catalog-register
 │   └── knowledge/{id}.yaml         # /knowledge-extract
@@ -186,7 +207,7 @@ plugin の env に最初から入っている既定の許可リストは、フ�
 
 | 経路 | cwd | パス解決 | 出力先 |
 |---|---|---|---|
-| `design_io` / `catalog_io` / `premortem`（bin ラッパー） | plugin のルートに**移動する**（`${CLAUDE_PLUGIN_ROOT}`。無ければラッパー自身の場所から求める） | 絶対パス env `INSIGHT_BASE_DIR=${CLAUDE_PROJECT_DIR}/.insight` で解決（`CLAUDE_PROJECT_DIR` が無ければ cwd） | 利用者 `.insight/` |
+| `design_io` / `catalog_io` / `tree_io` / `premortem`（bin ラッパー） | plugin のルートに**移動する**（`${CLAUDE_PLUGIN_ROOT}`。無ければラッパー自身の場所から求める） | 絶対パス env `INSIGHT_BASE_DIR=${CLAUDE_PROJECT_DIR}/.insight` で解決（`CLAUDE_PROJECT_DIR` が無ければ cwd） | 利用者 `.insight/` |
 | `/analysis-notebook`（marimo 実行） | **利用者プロジェクトのまま**（移動しない） | 相対パス `.insight/notebooks/…`（cwd 基準） | 利用者 `.insight/` |
 
 ポイントは notebook 経路の `uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook …`:
@@ -234,25 +255,31 @@ sequenceDiagram
 
 ### 分析ワークフロー全体（対話型・明示起動）
 
-end-to-end の代表フロー。既定では**各 `/skill` はユーザーが明示的に起動する**が、`/analysis-auto`
-（guided autopilot）を使うと driver がこの同じ経路を駆動し KEEP ゲートでだけ停止する（上記 «Skill invocation model» /
-[ADR-0005](adr/0005-selective-autonomous-chaining.md)）。**notebook の生成・実行は `/analysis-notebook` が design の
+end-to-end の代表フロー。分析者の入口は `/analysis-auto`（guided autopilot）で、driver がこの同じ経路を
+論点ごとの巡回として駆動し、KEEP ゲートでだけ停止する（上記 «Skill invocation model» /
+[ADR-0005](adr/0005-selective-autonomous-chaining.md) / [ADR-0026](adr/0026-analysis-auto-walks-the-question-tree.md)）。
+下の図は、**各 `/skill` を分析者が明示的に起動する**ときの同じ経路を示す。並びは1回の巡回の順である。**notebook の生成・実行は `/analysis-notebook` が design の
 `methodology` から 8-cell 契約に沿って行う**（`skills/analysis-notebook/references/notebook-contract.md`）。
-`/analysis-review`・`/premortem`・`/data-lineage`・`/analysis-report`・`/report-upload` は任意ステップ。
-Claude Docs はホストが持つコネクタで、plugin の外にある（[ADR-0015](adr/0015-host-connectors-for-optional-features.md)）。
+`/analysis-review`・`/premortem`・`/data-lineage`・`/analysis-report`・`/report-upload`・`/tree-upload` は任意ステップ。
+Claude Docs のコネクタと Artifact はホストが持つ機能で、plugin の外にある（[ADR-0015](adr/0015-host-connectors-for-optional-features.md)）。
 
 ```mermaid
 sequenceDiagram
     actor U as 分析者
     participant CC as Claude Code
-    participant IO as design_io / catalog_io
+    participant IO as design_io / catalog_io / tree_io
     participant MO as marimo + lineage
     participant FS as .insight/（YAML）
     participant DC as Claude Docs
 
     Note over U,FS: 各ステップは /command で明示起動（対話型・human-in-the-loop）
-    U->>CC: /analysis-framing → /analysis-design
-    CC->>IO: create（hypothesis.yaml, status=in_review）
+    U->>CC: /analysis-framing
+    CC->>IO: tree_io create / add-node / decide（論点ツリー、最初に調べる論点と理由）
+    IO->>FS: atomic write
+    U->>CC: /analysis-design
+    CC->>IO: design_io create（hypothesis.yaml, status=in_review）
+    IO->>FS: atomic write
+    CC->>IO: tree_io link（分析設計を論点に結ぶ）→ tree_io copy-hearing（聞いてきた答えを journal に写す）
     IO->>FS: atomic write
 
     opt 任意: レビュー / 事前リスク評価
@@ -286,6 +313,16 @@ sequenceDiagram
             DC-->>CC: Doc の URL
         end
     end
+    opt テーマを横断した振り返り（論点ツリーがあるとき）
+        U->>CC: /analysis-reflection {theme_id}
+        CC->>IO: tree_io answer（論点ごとの現時点の答え。検査を通るまで書かない）
+        IO->>FS: atomic write
+        CC->>IO: tree_check（書いた後の検査）→ tree_io render
+        CC->>IO: tree_io candidates / candidate / hear / decide（次の候補、聞いてきた答え、ツリーの決定）
+        opt 次の論点へ進む
+            U->>CC: /analysis-framing {theme_id}（次に設計する論点を聞き、Framing Brief を出す）
+        end
+    end
     opt 任意: 知見の永続化
         U->>CC: /knowledge-extract（source-scoped 知見を catalog へ）
     end
@@ -293,52 +330,79 @@ sequenceDiagram
 
 ### guided autopilot（`/analysis-auto`）の詳細シーケンス
 
-初学者が最初に使う想定の入口。driver `/analysis-auto` が各 skill を駆動し、**KEEP ゲート**（太字の
-`U に確認`）でだけ停止する。個々の skill・CLI・premortem・notebook 実行との詳細インタラクションを示す
-（[ADR-0005](adr/0005-selective-autonomous-chaining.md)）。
+分析者の入口。driver `/analysis-auto` がテーマを受けて論点ツリーを作り、論点ごとに巡回する
+（[ADR-0026](adr/0026-analysis-auto-walks-the-question-tree.md)）。各 skill を駆動し、**KEEP ゲート**（`【KEEP】`）でだけ停止する
+（[ADR-0005](adr/0005-selective-autonomous-chaining.md)）。個々の skill・CLI・premortem・notebook 実行とのやり取りを示す。
+
+図の読み方: 上から下へ時間が進む。矢印は呼び出しと応答で、`【KEEP】` の付いた矢印だけが分析者に聞く。
+`alt` は場合分け、`opt` は条件が合うときだけ、`loop` は巡回の繰り返しを表す。
 
 ```mermaid
 sequenceDiagram
     actor U as 分析者
     participant D as /analysis-auto (driver)
-    participant IO as design_io / catalog_io
+    participant IO as design_io / catalog_io / tree_io
     participant H as pre-write hook + validate.py
     participant PM as /premortem
     participant NB as /analysis-notebook + marimo
     participant P as /report-upload
+    participant TU as /tree-upload
     participant FS as .insight/
-    participant DC as Claude Docs
+    participant DC as Claude Docs / Artifact
 
-    U->>D: /analysis-auto {theme|design id}
-    D->>IO: get / list（現在地を判定）
-    IO-->>D: design（無 / in_review / analyzing / results）
+    U->>D: /analysis-auto {theme_id | design_id}
+    D->>IO: tree_io position（現在地を読む。何も書かない）
+    IO-->>D: state（no_tree / no_decision / not_started / in_progress / concluded / closed）
 
-    Note over D,FS: framing（仮説が無ければ）
-    D->>IO: catalog_io list（connection なし）+ 既存 design / 知識の探索
-    D->>U: 【KEEP】Data Map 提示 + Direction Dialogue（方向を一緒に決める）
-    U-->>D: 方向を合意 → Framing Brief
-    Note over D,FS: design（AUTO: Framing Brief から各フィールドを自動ドラフト → KEEP: ①〜④を順に確認）
-    D->>U: 【KEEP①】仮説（statement + background）と決定の文脈（任意）を確認
-    D->>U: 【KEEP②】手法 + metrics + explanatory の因果役割 + intent を確認
-    D->>U: 【KEEP③】データ取得プラン（SQL クエリ / データソースの id + columns + filter + 想定行数）を確認
-    D->>U: 【KEEP④】chart[] 仕様（intent/type/x/y）を確認
-    U-->>D: 各ビートで確定（or 修正）
-    D->>IO: design_io create（*_hypothesis.yaml, status=in_review）
-    IO->>H: PreToolUse 検証
-    H-->>FS: 合格→書込（exit 0）
-
-    opt 任意: レビュー
-        D->>IO: design_io review-batch
-        D->>U: 【KEEP】可否（revision_requested なら /analysis-revision へ）
+    alt no_tree か no_decision（論点ツリーを作る）
+        opt design_id を渡され、そのテーマにツリーが無い
+            D->>U: 【KEEP】ツリーを作って巡回に入るか、この分析設計だけを流すか
+            Note over D,FS: 分析設計だけを流すなら、下の巡回を1回、ツリーの手順なしで進めて終わる
+        end
+        opt 研究で、RQ がまだ無い
+            D->>D: /rq-problematization → RQ Brief（前提の一覧を確認するかは skill が聞く）
+        end
+        Note over D,FS: /analysis-framing
+        D->>IO: catalog_io list（connection なし）+ 既存 design / 知識の探索
+        D->>U: 【KEEP】Data Map を示し、theme_id・根の問い・到達点を決める
+        D->>U: 【KEEP】第一階層の論点、最初に調べる論点と理由、既にある分析設計を結ぶ論点を決める
+        D->>IO: tree_io create / add-node / link / decide（start）/ render
+        IO->>FS: {theme_id}_tree.yaml、{theme_id}_tree.html
+    else not_started / in_progress / concluded / closed（最新のツリーの決定が指す論点から再開する）
+        Note over D,FS: in_progress は続きの手順へ、concluded はレポートと横断の振り返りへ入る
     end
 
-    Note over D,PM: pre-flight ゲート（高コストデータアクセス前）
-    D->>IO: design_io get + catalog_io get-schema + package_allowlist.yaml
-    D->>PM: source_checks_map を渡して premortem 実行
-    alt HARD_BLOCK / HIGH（未登録/allowlist違反/location/高コスト）
-        PM-->>D: risk
-        D->>U: 【KEEP】停止しリスク提示（/catalog-register or コスト判断）
-    else LOW / MEDIUM
+    loop 論点ごとの巡回（分析者が区切るか、止めると言うまで）
+        opt 2巡目以降と再開（not_started か closed）
+            D->>IO: /analysis-framing {theme_id}（探索と Framing Brief。not_started なら決定の論点を聞き直さない）
+            opt closed
+                D->>U: 【KEEP】次に設計する論点（再開する論点）
+            end
+        end
+
+        Note over D,FS: design（AUTO: Framing Brief から各フィールドを自動ドラフト → KEEP: ①〜④を順に確認）
+        D->>U: 【KEEP①】仮説（statement + background）と決定の文脈（任意）を確認
+        D->>U: 【KEEP②】手法 + metrics + explanatory の因果役割 + intent を確認
+        D->>U: 【KEEP③】データ取得プラン（SQL クエリ / データソースの id + columns + filter + 想定行数）を確認
+        D->>U: 【KEEP④】chart[] 仕様（intent/type/x/y）を確認
+        U-->>D: 各ビートで確定（or 修正）
+        D->>IO: design_io create（*_hypothesis.yaml, status=in_review）
+        IO->>H: PreToolUse 検証
+        H-->>FS: 合格→書込（exit 0）
+        D->>IO: tree_io link（分析設計を論点に結ぶ）→ tree_io copy-hearing（聞いてきた答えを journal に写す）
+
+        opt 任意: レビュー
+            D->>IO: design_io review-batch
+            D->>U: 【KEEP】可否（revision_requested なら /analysis-revision へ）
+        end
+
+        Note over D,PM: pre-flight ゲート（高コストデータアクセス前）
+        D->>IO: design_io get + catalog_io get-schema + package_allowlist.yaml
+        D->>PM: source_checks_map を渡して premortem 実行
+        opt HARD_BLOCK / HIGH（未登録/allowlist違反/location/高コスト）
+            PM-->>D: risk
+            D->>U: 【KEEP】停止しリスク提示（/catalog-register or コスト判断）
+        end
         D->>IO: design_io transition（in_review→analyzing, AUTO）
         D->>NB: 8-cell notebook 生成（.insight/notebooks/{id}.py）
         alt 宣言 source + allowlist + ローカル計算
@@ -348,32 +412,51 @@ sequenceDiagram
         else 非allowlist / 宣言 source 以外の外部通信 / 副作用
             D->>U: 【KEEP】実行前に承認要求
         end
-        D->>U: 【KEEP】/analysis-reflection で結論（conclude/refine/branch）+ terminal 遷移
-        opt terminal 後（任意）
-            D->>U: 【KEEP】/analysis-report で配布用 APA レポートを生成するか確認
-            D->>FS: .insight/reports/{id}.md（承認時のみ書込）
-            opt レポートを書いたとき
-                D->>P: /report-upload を起動（AUTO。driver は自分では聞かない）
-                alt Claude Docs のコネクタが無い
-                    P-->>D: 何も送らず「コネクタが無い」を返す
-                else 送れる
-                    P->>U: 【KEEP】送るファイル（レポートと図）を列挙して承認を待つ
-                    alt 承認する
-                        P->>DC: 新しい Doc を作り、本文と図を送る
-                        DC-->>P: Doc の URL
-                        P-->>D: Doc の URL
-                    else 承認しない
-                        P-->>D: 何も送らず「承認されなかった」を返す
-                    end
+
+        D->>U: 【KEEP】/analysis-reflection {design_id} で結論（conclude/refine/branch）+ terminal 遷移
+        alt 結論が出た（terminal status）
+            D->>FS: /analysis-report でレポートを書く（AUTO。.insight/reports/{id}.md）
+            D->>P: /report-upload を起動（AUTO。driver は自分では聞かない）
+            alt Claude Docs のコネクタが無い
+                P-->>D: 何も送らず「コネクタが無い」を返す
+            else 送れる
+                P->>U: 【KEEP】送るファイル（レポートと図）を列挙して承認を待つ
+                alt 承認する
+                    P->>DC: 新しい Doc を作り、本文と図を送る
+                    DC-->>P: Doc の URL
+                    P-->>D: Doc の URL
+                else 承認しない
+                    P-->>D: 何も送らず「承認されなかった」を返す
                 end
             end
+        else refine か branch
+            Note over D,FS: レポートは書かない
+        end
+
+        Note over D,FS: /analysis-reflection {theme_id}（テーマを横断した振り返り）
+        D->>IO: tree_io answer（検査を通るまで書かない）→ tree_check → candidates / candidate → render
+        D->>U: 【KEEP】レポートのパスと論点ツリーの HTML のパスを示し、ツリーの決定（深める・親に戻る・区切る、次の論点、理由）と聞いてきた答えを聞く
+        D->>IO: tree_io hear / decide / render
+        D->>IO: tree_io position（次の巡回の現在地）
+
+        opt 分析者が、根の問いか到達点を変えると言った
+            D->>U: 【KEEP】根の版を上げるかと、その理由（/analysis-framing の再実行）
+            D->>IO: tree_io revise-root / render
+        end
+        opt 分析者が、図を URL で渡したいと言った
+            D->>TU: /tree-upload を起動（driver は自分では聞かない）
+            TU->>U: 【KEEP】Artifact で送るファイル（論点ツリーの HTML）を列挙して承認を待つ
+            TU->>DC: 承認の後に、新しい Artifact を作る
         end
     end
-    D-->>U: 実行サマリ（自動進行した所 / 停止した所 / 最終状態 / レポートのパスとアップロードの結果）
+    D-->>U: 実行サマリ（自動進行した所 / 停止した所 / 通った論点とツリーの決定 / ツリーの HTML のパス / 次に再開する論点 / レポートのパスとアップロードの結果）
 ```
 
-アップロードで分析者に聞くのは、`/report-upload` の KEEP ゲートの1回だけである。driver は「アップロードするか」を別に聞かない
-（[ADR-0016](adr/0016-approval-before-external-send.md)）。
+外部へ送ることで分析者に聞くのは、`/report-upload` と `/tree-upload` の KEEP ゲートのそれぞれ1回だけである。driver は「送るか」を別に聞かない
+（[ADR-0016](adr/0016-approval-before-external-send.md)）。`/tree-upload` は、分析者が頼んだときにだけ起動する。
+
+再開する所は `tree_io position` が導く。最新のツリーの決定が指す論点に、終わっていない分析設計があれば `in_progress`、
+決定より後に作った分析設計がすべて終わっていれば `concluded`、どちらも無ければ `not_started` になる。最後の決定が区切るで、その後に分析設計を起こしていなければ `closed` になる。
 
 ## Domain Model
 
@@ -536,6 +619,91 @@ classDiagram
         LOW
         SKIP
     }
+    class QuestionTree {
+        <<Aggregate Root>>
+        theme_id
+        root_revisions
+        nodes
+        decisions
+    }
+    class RootRevision {
+        <<Value Object>>
+        revision
+        question
+        aim
+        reason
+    }
+    class Aim {
+        <<Value Object>>
+        kind
+        decision_maker
+        decision
+        audience
+        claim_scope
+    }
+    class QuestionNode {
+        <<Entity>>
+        id
+        question
+        parent_question_id
+        contribution
+        origin_event_id
+        design_ids
+        answers
+        next_candidate
+    }
+    class NextCandidate {
+        <<Value Object>>
+        ask
+        changes_if
+        known
+        answer
+        answered_by
+        answered_at
+    }
+    class Answer {
+        <<Value Object>>
+        round
+        root_revision
+        statements
+    }
+    class AnswerStatement {
+        <<Value Object>>
+        kind
+        text
+        cites
+    }
+    class StatementKind {
+        <<enumeration>>
+        claim
+        undetermined
+        weakening
+    }
+    class AimKind {
+        <<enumeration>>
+        business
+        research
+    }
+    class TreeDecision {
+        <<Value Object>>
+        round
+        kind
+        node_id
+        reason
+    }
+    class TreeDecisionKind {
+        <<enumeration>>
+        start
+        deepen
+        return_
+        close
+    }
+    class Progress {
+        <<enumeration>>
+        not_started
+        investigating
+        analyzed
+    }
 
     AnalysisDesign "1" *-- "0..1" Methodology
     AnalysisDesign "1" *-- "0..1" DecisionContext
@@ -560,6 +728,20 @@ classDiagram
     DomainKnowledgeEntry --> KnowledgeImportance
     SourceChecks ..> DataSource : 事前確認の対象
     RiskDecision --> RiskLevel
+    QuestionTree "1" *-- "1..*" RootRevision
+    QuestionTree "1" *-- "1..*" QuestionNode
+    RootRevision "1" *-- "1" Aim
+    Aim --> AimKind
+    QuestionNode ..> QuestionNode : parent_question_id
+    QuestionNode ..> AnalysisDesign : design_ids
+    QuestionNode ..> Progress : 導く（保存しない）
+    QuestionNode "1" *-- "*" Answer
+    QuestionNode "1" *-- "0..1" NextCandidate
+    Answer "1" *-- "1..*" AnswerStatement
+    AnswerStatement --> StatementKind
+    QuestionTree "1" *-- "*" TreeDecision
+    TreeDecision --> TreeDecisionKind
+    TreeDecision ..> QuestionNode : node_id
 ```
 
 図の読み方: 箱は1つのクラスで、上段がクラス名と種類（`<<Aggregate Root>>` など）、下段が主なフィールドか enum の値を表す。
@@ -567,6 +749,7 @@ classDiagram
 実線の黒いひし形（`*--`）は「親が子を持つ」で、両端の数字は個数を表す。
 実線の矢印（`-->`）は「その enum の値を持つ」を表す。破線の矢印（`..>`）は型で結ばれていない参照で、ラベルが参照に使うフィールドを表す（ID のほか、`schema_info` のように dict に入れた形もある）。
 `RiskDecision`・`SourceChecks`・`PremortemConfig` は `/premortem` の入出力で、ファイルには保存しない。
+`Progress` も保存しない。論点に結んだ分析設計の `status` から導く。
 
 | 型 | 種類 | 不変条件 |
 |---|---|---|
@@ -574,6 +757,7 @@ classDiagram
 | `ReviewBatch` | 集約ルート | `comments` は1件以上。1つのバッチは `status_after` への遷移を1回だけ起こす |
 | `DataSource` | 集約ルート | `type` は空でない open string（[ADR-0004](adr/0004-open-string-catalog-taxonomy.md)） |
 | `DomainKnowledge` | 集約ルート | 1つの `source_id` に属する。`category` は空でない open string |
+| `QuestionTree` | 集約ルート | 1テーマに1つ。根の問い（親を持たない論点）はちょうど1つで、その文は今の根の版の問いと同じ。論点の親は同じツリーにあり、循環しない。根の版は1から1ずつ増え、今の版より前の版は書き換えも削除もできない。結ぶ分析設計と発見元は同じテーマのもの。ツリーの決定は追記だけで、最初の決定は `start`、`deepen` は直前の決定の論点かその下、`return` はその外、`close` は同じ論点を指す。モデルに無い項目を持てない（[epic-18](design/epic-18-question-tree.md)） |
 
 ### Python のクラスを持たないファイルの契約
 
@@ -581,7 +765,7 @@ classDiagram
 
 | ファイル | 中身 | 形の正本 |
 |---|---|---|
-| `designs/{id}_journal.yaml` | journal（観察・証拠・決定・問い） | [skills/analysis-journal/SKILL.md](../skills/analysis-journal/SKILL.md) |
+| `designs/{id}_journal.yaml` | journal（観察・証拠・人に聞いた答え・決定・問い） | [skills/analysis-journal/SKILL.md](../skills/analysis-journal/SKILL.md) |
 | `designs/{id}_revision.yaml` | review コメントへの対応の追跡 | [skills/analysis-revision/SKILL.md](../skills/analysis-revision/SKILL.md) |
 | `notebooks/{id}_verdict.json` | notebook の verdict と figures manifest（`figures[]`）。指標は任意で効果量・信頼区間・標本サイズを持つ | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md)、[ADR-0008](adr/0008-notebook-figure-manifest.md)、[ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | `reports/{id}.md` | レポート。データ由来の文はエスケープして載る | [apa-template.md](../skills/analysis-report/references/apa-template.md) |
@@ -614,7 +798,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 15 | Skill layer（`/analysis-design`・`/analysis-report`・`/analysis-notebook`・`/premortem`・`/analysis-auto` がデータソースを読む場所）+ `catalog_io describe` |
 | Epic 16 | Skill layer（`/premortem`・`/analysis-auto` がパッケージ許可リストの無いときに使う既定の許可リスト）+ `risk_evaluator` の `HARD_BLOCK` の理由 |
 | Epic 17 | Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-notebook`・`/analysis-auto`・`/catalog-register` が `connection` を読む場所）+ `catalog_io create`・`update` の認証情報の検査 |
-| Epic 18 | Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-reflection` の論点ツリー、`/analysis-auto` の論点ごとの巡回）+ 論点ツリーのモデルと `validate.py` の検証 + `tree_io`・`tree_check`（計画中。構成図とシーケンス図への反映は実装の Story で行う） |
+| Epic 18 | Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-reflection` の論点ツリー、`/analysis-auto` の論点ごとの巡回）+ 論点ツリーのモデルと `validate.py` の検証 + `tree_io`・`tree_check`（Story 18.1 で正本・`tree_io`・hook の対象を、Story 18.2 で `/analysis-framing` と `/analysis-design` の論点ツリーを、Story 18.3 で現時点の答えの型と `tree_check` を実装した。残りは計画中で、シーケンス図への反映は実装の Story で行う） |
 
 
 ## 参照

@@ -239,6 +239,7 @@ After the RQ Brief, suggest:
 |------|-----|------|
 | /development-partner* | → /rq-problematization | 研究テーマがあり先行研究の前提を問い直したい: "前提を疑うなら /rq-problematization" |
 | /analysis-reflection | → /rq-problematization | 仮説が棄却/不確定で前提から問い直したい: "前提から問い直すなら /rq-problematization" |
+| /analysis-auto | → /rq-problematization | guided autopilot が研究テーマを受け、RQ がまだ無い |
 | /rq-problematization | → /analysis-framing | RQ が出てデータ接地が必要: "データに接地して検証枠組みにするなら /analysis-framing" |
 
 \* = 外部スキル（development-deck）。存在時のみ表示する。存在しない場合この行は Chaining セクションに含めない。
