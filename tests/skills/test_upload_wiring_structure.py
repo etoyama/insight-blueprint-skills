@@ -81,22 +81,24 @@ class TestAutopilotStartsTheUpload:
     def test_no_report_means_no_upload(self) -> None:
         assert "when no report was written" in _drive_item("upload").lower()
 
-    def test_a_missing_connector_goes_on_to_the_summary(self) -> None:
+    def test_a_missing_connector_goes_on_with_the_round(self) -> None:
         item = _drive_item("upload")
         assert "connector" in item
-        assert "summary" in item.lower()
+        assert "theme reflection" in item
 
-    def test_the_run_ends_at_the_upload_not_at_the_report(self) -> None:
+    def test_the_round_goes_on_after_the_upload(self) -> None:
+        # Story 18.9: the round ends at the tree decision, not at the upload.
         assert "where the run ends" not in _drive_item("report")
-        assert "where the run ends" in _drive_item("upload")
+        assert "where the run ends" not in _drive_item("upload")
+        assert "go on to the theme reflection" in _drive_item("upload")
 
     def test_the_summary_carries_the_report_path_and_the_upload_outcome(self) -> None:
-        summary = _h3("analysis-auto", "### Step 3:")
+        summary = _h3("analysis-auto", "### Step 4:")
         assert "report's path" in summary
         assert "Doc URL" in summary
 
     def test_the_summary_can_say_the_upload_failed(self) -> None:
-        assert "アップロードに失敗した" in _h3("analysis-auto", "### Step 3:")
+        assert "アップロードに失敗した" in _h3("analysis-auto", "### Step 4:")
 
     def test_delegated_skills_name_the_report_and_the_upload(self) -> None:
         delegated = split_sections(_auto())["Delegated skills"]
