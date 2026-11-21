@@ -8,6 +8,8 @@ source YAML itself (US-1), and a design carrying `connection` values in
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from tests.skills._markdown import section, unwrap
@@ -128,6 +130,38 @@ class TestCatalogRegisterKeepsCredentialsOut:
     def test_a_password_inside_a_url_is_named_as_unchecked(self) -> None:
         step = unwrap(section(_read_skill("catalog-register"), "### Step 3: "))
         assert "`user:password@`" in step
+
+
+class TestCatalogRegisterNeverCallsTheApi:
+    """Issue #136: the analysis repository's fetch script calls the API, not Claude."""
+
+    def _api_workflow(self) -> str:
+        return unwrap(
+            section(_read_skill("catalog-register"), "## API Source Workflow")
+        )
+
+    def test_no_skill_builds_a_url_with_a_credential_variable(self) -> None:
+        files = _prose_files()
+        assert files
+        builds = [
+            path.relative_to(SKILLS_DIR).as_posix()
+            for path in files
+            if re.search(r"[?&][A-Za-z_]+=\$\{?[A-Z_]", path.read_text())
+        ]
+        assert builds == []
+
+    def test_the_api_workflow_says_claude_never_calls_the_api(self) -> None:
+        workflow = self._api_workflow()
+        assert "Claude never calls the API" in workflow
+        assert "fetch script" in workflow
+
+    def test_the_api_workflow_reads_a_saved_response_or_a_pasted_sample(
+        self,
+    ) -> None:
+        workflow = self._api_workflow()
+        assert "getMetaInfo" not in workflow
+        assert "Fetch the response" not in workflow
+        assert "paste" in workflow
 
 
 class TestArchitectureFollowsTheBoundary:

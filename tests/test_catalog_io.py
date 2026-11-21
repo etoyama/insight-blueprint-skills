@@ -577,6 +577,12 @@ class TestConnectionHoldsNoCredentials:
             ({"api.key": "abc123"}, "connection.api.key"),
             ({"ssh_passphrase": "s3"}, "connection.ssh_passphrase"),
             ({"bearer": "t0k"}, "connection.bearer"),
+            # e-Stat names its API key appId (issue #135).
+            ({"app_id": "abc123"}, "connection.app_id"),
+            ({"appId": "abc123"}, "connection.appId"),
+            ({"app_key": "abc123"}, "connection.app_key"),
+            ({"subscription_key": "abc123"}, "connection.subscription_key"),
+            ({"app_id_env": "abc123"}, "connection.app_id_env"),
             ({"password_env": "hunter2"}, "connection.password_env"),
             ({"token_env": "export X=t0k"}, "connection.token_env"),
             # The exemption needs the literal `_env` suffix; camelCase is a plain key.
@@ -597,6 +603,12 @@ class TestConnectionHoldsNoCredentials:
         self, insight: Path
     ) -> None:
         connection = {"password_env": "PG_PASSWORD", "auth": "api_key"}
+        assert _create(insight, connection=connection)["connection"] == connection
+
+    def test_create_accepts_the_app_id_as_an_environment_variable_name(
+        self, insight: Path
+    ) -> None:
+        connection = {"provider": "e-stat", "app_id_env": "ESTAT_APP_ID"}
         assert _create(insight, connection=connection)["connection"] == connection
 
     def test_an_env_key_unrelated_to_credentials_keeps_any_value(
