@@ -962,6 +962,17 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - G4 の問いが1つ増える。ゲートは増えない。
   - 再実行で、聞いてきた答えのある論点に、終わっていない既存の分析設計を結ぶと、答えは journal に写らない。新しいツリーでは答えがまだ無いので起きない。この Story では塞いでいない。
 
+### Decision: driver-reads-the-skill-files
+
+- What: `/analysis-auto` は、動かす skill を Skill ツールで起動しない。その skill の `SKILL.md` を Read で読み、書いてあるとおりに進める。分析者に `/command` を打つよう頼まない。読む場所（`../{skill-name}/SKILL.md`）と、`*_io` を名前で呼ぶことを SKILL.md に書いた。
+- Why: Story 18.9 の手動確認（Claude Code 2.1.227）で、driver が Skill ツールで `/analysis-framing` を呼んだ。ホストは `disable-model-invocation: true` の skill を拒み、driver は分析者に `/command` を1つずつ打つよう頼んで止まった。これでは入口がひとつにならない（US-8）。
+- Criteria: Must は「個々の skill の `disable-model-invocation` を変えない」（[ADR-0005](../adr/0005-selective-autonomous-chaining.md)、[ADR-0026](../adr/0026-analysis-auto-walks-the-question-tree.md) の M1）。満たす案はこれだけなので、比べていない。ADR-0005 は「driver が pipeline を駆動する」と決めており、SKILL.md はもともと「その skill の SKILL.md に従う」と書いていた。読み方を明記しただけで、決定は変えていない。
+- Affected modules: `/analysis-auto`。
+- Alternatives considered: 動かす skill の `disable-model-invocation` を外す（ADR-0005 が却下した案。notebook の無レビュー実行を招く）。
+- Consequences:
+  - ホストは、拒むときに「ほかの手段でこの skill の手順を再現しない」と返す。driver が Skill ツールを呼ばなければ、この文は出ない。`/analysis-auto` を分析者が起動したことが、その実行での明示の起動にあたる（ADR-0005 の selective autonomy）。
+  - 守るのは SKILL.md の文で、コードではない。ホストの挙動が変われば、同じ止まり方が戻りうる。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0024: 論点ツリーの正本は YAML に置き、表示は正本から生成する HTML にする](../adr/0024-question-tree-yaml-and-generated-html.md): 判断2・2'。Artifact は承認の後の任意の手順。
