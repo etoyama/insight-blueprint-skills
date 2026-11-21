@@ -154,6 +154,15 @@ class TestSkillPointsAtTheTemplate:
         assert "Never copy `connection` or any part of it" in assemble
         assert "absolute path" in assemble
 
+    def test_a_ratio_between_stated_numbers_counts_as_computed(self) -> None:
+        # #105: "Never compute" alone did not stop a ratio of two stated numbers.
+        assemble = unwrap(_section(_skill(), "### Step 3: "))
+        assert (
+            "Unless an input states it, a ratio, a difference, or a percent change "
+            "between two stated numbers is a computed number, and so is a word that "
+            "states one"
+        ) in assemble
+
 
 class TestReportSkill:
     """SKILL.md wires the read-only consumer with a terminal-status guard."""
