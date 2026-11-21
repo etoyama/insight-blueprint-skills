@@ -589,6 +589,27 @@ class TestConnectionHoldsNoCredentials:
             ({"token_env": "export X=t0k"}, "connection.token_env"),
             # The exemption needs the literal `_env` suffix; camelCase is a plain key.
             ({"apiKeyEnv": "API_KEY"}, "connection.apiKeyEnv"),
+            # More names for a key or password (issue #149).
+            ({"db_pass": "hunter2"}, "connection.db_pass"),
+            ({"consumer_key": "abc123"}, "connection.consumer_key"),
+            # These two are refused only as the whole key name (ADR-0034).
+            ({"authorization": "Bearer t0k"}, "connection.authorization"),
+            (
+                {"headers": {"Authorization": "Basic abc123"}},
+                "connection.headers.Authorization",
+            ),
+            ({"SAS": "abc123"}, "connection.SAS"),
+            ({"sas_env": "abc123"}, "connection.sas_env"),
+            # A key nested under its parents is judged as the joined name (ADR-0034).
+            ({"api": {"key": "abc123"}}, "connection.api.key"),
+            ({"app": {"id": "abc123"}}, "connection.app.id"),
+            ({"private": {"key": "-----BEGIN"}}, "connection.private.key"),
+            ({"api": [{"key": "abc123"}]}, "connection.api[0].key"),
+            ({"a": {"pi": {"key": "abc123"}}}, "connection.a.pi.key"),
+            ({"db": {"pass": "hunter2"}}, "connection.db.pass"),
+            ({"api": {"key_env": "abc123"}}, "connection.api.key_env"),
+            # A nested key that only resembles a credential is refused like its flat form.
+            ({"api": {"keyword": "abc123"}}, "connection.api.keyword"),
         ],
     )
     def test_create_refuses_a_credential_key_and_writes_nothing(
@@ -611,6 +632,34 @@ class TestConnectionHoldsNoCredentials:
         self, insight: Path
     ) -> None:
         connection = {"provider": "e-stat", "app_id_env": "ESTAT_API_KEY"}
+        assert _create(insight, connection=connection)["connection"] == connection
+
+    def test_a_nested_env_key_accepts_the_name_of_an_environment_variable(
+        self, insight: Path
+    ) -> None:
+        connection = {"api": {"key_env": "ESTAT_API_KEY"}}
+        assert _create(insight, connection=connection)["connection"] == connection
+
+    def test_a_whole_name_credential_accepts_the_name_of_an_environment_variable(
+        self, insight: Path
+    ) -> None:
+        connection = {"authorization_env": "API_AUTH_HEADER"}
+        assert _create(insight, connection=connection)["connection"] == connection
+
+    @pytest.mark.parametrize(
+        "connection",
+        [
+            # Only the whole key name `authorization` is a credential.
+            {"authorization_url": "https://example.com/oauth/authorize"},
+            {"oauth": {"authorization_endpoint": "https://example.com/authorize"}},
+            {"sas_region": "japaneast"},
+            # A bare `key` under a parent that completes no credential name.
+            {"s3": {"bucket": "b", "key": "data/pop.csv"}},
+        ],
+    )
+    def test_create_accepts_a_key_that_only_resembles_a_credential(
+        self, insight: Path, connection: dict
+    ) -> None:
         assert _create(insight, connection=connection)["connection"] == connection
 
     def test_an_env_key_unrelated_to_credentials_keeps_any_value(
@@ -641,6 +690,15 @@ class TestConnectionHoldsNoCredentials:
         with pytest.raises(ValueError, match="connection.token"):
             catalog_io.update_source(
                 "jp-pop", {"connection": {"token": "t0k"}}, base_dir=insight
+            )
+        stored = catalog_io.load_source("jp-pop", base_dir=insight)
+        assert stored["connection"] == {"path": "data/pop.csv"}
+
+    def test_update_refuses_a_nested_credential_key(self, insight: Path) -> None:
+        _create(insight)
+        with pytest.raises(ValueError, match=re.escape("connection.api.key")):
+            catalog_io.update_source(
+                "jp-pop", {"connection": {"api": {"key": "abc123"}}}, base_dir=insight
             )
         stored = catalog_io.load_source("jp-pop", base_dir=insight)
         assert stored["connection"] == {"path": "data/pop.csv"}

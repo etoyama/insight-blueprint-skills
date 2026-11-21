@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`/analysis-reflection` shows what to read before it asks for a conclusion.** Step 2 now
+  lists the figures, the verdict and the notebook (`.py` and `.html`) of the design that
+  exist under `.insight/notebooks/`, each figure with the title, axes and how-to-read of its
+  manifest entry, and every metric of the design as written. Nothing new is written or
+  embedded; the analyst opens the files (#140).
+
 ### Changed
 
 - **An analyzed design can be concluded directly.** `design_io transition` (and the pre-write
@@ -35,10 +43,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/catalog-register` no longer calls an API with the key in the URL to learn a table's
   structure. It reads a response that your project's fetch script saved, or a sample you paste
   with the key removed.
+- `catalog_io create` and `update` now judge a nested `connection` key joined to its parent
+  keys, so `{"api": {"key": …}}` is refused like `api_key`. They also refuse `consumer_key`,
+  `db_pass`, and a key named exactly `authorization` or `sas` (`authorization_url` still
+  passes). A nested key that only resembles a credential, such as `api.keyword`, is refused
+  too: rename it. A source already stored with such a key can no longer be updated until you
+  fix its YAML by hand ([ADR-0034](docs/adr/0034-credential-check-joins-nested-keys.md), #149).
+- `/catalog-register` no longer runs a schema query against your database. You run the query
+  and paste the results (#149).
 - **`/analysis-report` wrote a ratio no input states in Implications** (#105), such as
   「約1.9倍」 when the hypothesis compared two numbers. A ratio, a difference, or a percent change
   between two stated numbers now counts as a computed number, so the report no longer writes one
   unless an input states it.
+- **`/report-upload` left out every figure even where the host could upload them** (#103). The
+  skill now names the route: upload the PNG into the Doc with the host's asset upload, then link
+  it from the Doc. Where the host has no asset upload (such as Claude Code in the terminal at this
+  release), the approval list says before you approve that the figures are not sent.
 - A design branched off in `/analysis-journal` is now linked to the question nodes of its
   source (`tree_io link-derived`), so it shows in the progress, in the position of the walk and
   in the theme reflection. Nobody is asked for the node

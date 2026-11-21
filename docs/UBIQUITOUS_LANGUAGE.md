@@ -43,6 +43,7 @@
 | journal の出来事 | `observe`、`hypothesize`、`evidence`、`hearing`、`question`、`decide`、`reflect`、`conclude`、`branch` | journal の1件。種類は観察・仮説・証拠・人に聞いた答え・問い・決定・振り返り・結論・派生 | — | fork 前、[ADR-0028](adr/0028-hearing-is-its-own-journal-event.md) |
 | 未解決の問い | `metadata.resolves` | journal の `question` のうち、どの `conclude` の `metadata.resolves` にも id が挙がっていないもの | オープンクエスチョン | [epic-14](design/epic-14-report-template-gaps.md) |
 | reflection | `/analysis-reflection` | journal を振り返り、結論を出すか、仮説を直すか、派生するかを決めること | — | fork 前 |
+| 読むもの | — | reflection が結論を聞く前に出す、分析設計の図・verdict・notebook のパスと指標の定義。実在するファイルだけを並べ、書かれたとおりに出す | 判断材料 | [epic-26](design/epic-26-reflection-materials.md) |
 | 論点ツリー | `QuestionTree` | 1つのテーマ（`theme_id`）の問いの論理の構造。根の問いを1つ持ち、論点を親子でつなぐ。分析設計の派生とは別に辿る。正本は YAML で、表示は正本から生成する | イシューツリー、ロジックツリー | [ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md) |
 | 論点 | `QuestionNode` | 論点ツリーの1つのノード。問いの文と、親の論点への寄与を持ち、答えるための分析設計を結べる。journal の `question` とは別に持つ | 子の問い、サブクエスチョン | [epic-18](design/epic-18-question-tree.md) |
 | 根の問い | — | 論点ツリーの、親を持たない論点。ツリーに1つだけあり、到達点を持つ | — | [epic-18](design/epic-18-question-tree.md) |
@@ -78,7 +79,7 @@
 | lineage | `/data-lineage`、`tracked_pipe` | notebook の中のデータ加工の履歴と、その Mermaid 図 | 系譜 | fork 前 |
 | データソース | `DataSource`、`source_ids` | catalog に登録した分析の入力データ。種類は open string。分析設計は使うデータソースの id を `source_ids` に宣言する | データ源 | [ADR-0020](adr/0020-design-declares-sources-in-source-ids.md) |
 | 接続情報 | `connection` | データソースのデータの置き場所と読み方。ファイルのパス・ホスト・project id・クエリなど。モデルの文脈に入れるのは notebook だけ | 接続設定 | [ADR-0022](adr/0022-connection-reaches-only-the-notebook.md) |
-| 認証情報 | `_CREDENTIAL_KEY_PARTS` | パスワード・トークン・API キーなど、データソースに入るための秘密の値。catalog は持たず、環境変数に置く。接続情報には環境変数の名前だけを `*_env` のキーで書く | クレデンシャル、秘密情報 | [ADR-0023](adr/0023-catalog-holds-no-credentials.md) |
+| 認証情報 | `_CREDENTIAL_KEY_PARTS`、`_CREDENTIAL_KEY_NAMES` | パスワード・トークン・API キーなど、データソースに入るための秘密の値。catalog は持たず、環境変数に置く。接続情報には環境変数の名前だけを `*_env` のキーで書く | クレデンシャル、秘密情報 | [ADR-0023](adr/0023-catalog-holds-no-credentials.md)、[ADR-0034](adr/0034-credential-check-joins-nested-keys.md) |
 | 取得スクリプト | — | 分析を行うプロジェクトが持つ、データソースからデータを取ってファイルに保存するスクリプト。認証情報は環境変数から読む。plugin は持たず、Claude は API を呼ばない | — | [#136](https://github.com/etoyama/insight-blueprint-skills/issues/136) |
 | データソースの参照 | `{source:ID}` | 分析設計の `methodology.steps` でデータソースを指す書き方。notebook が接続情報の値で置き換える | — | [ADR-0022](adr/0022-connection-reaches-only-the-notebook.md) |
 | 列のスキーマ | `ColumnSchema` | データソースの1列の名前・型・説明 | — | fork 前 |

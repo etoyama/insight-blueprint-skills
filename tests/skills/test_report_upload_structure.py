@@ -109,8 +109,12 @@ class TestConnectorIsOptional:
         assert "Markdown" in _step(2)
 
     def test_names_no_tool(self) -> None:
-        # Tool names carry a prefix that differs per environment (spike-constraints).
-        assert "mcp__" not in _skill()
+        # Connector tool names carry a prefix that differs per environment
+        # (spike-constraints), and the upload's arguments and id formats are the
+        # connector guide's to name (ADR-0015, #103).
+        text = _skill()
+        for name in ("mcp__", "asset: true", "upload_asset", "blob/"):
+            assert name not in text, f"SKILL.md must not name {name!r}"
 
     def test_never_installs_or_configures_a_connector(self) -> None:
         assert "never install or configure" in _skill().lower()
@@ -201,3 +205,28 @@ class TestFigures:
 
     def test_the_body_stays_the_report_whatever_the_connector_suggests(self) -> None:
         assert "no skeleton" in _step(4)
+
+
+class TestFigureRoute:
+    """#103: the route for a figure is named, by what each part does (ADR-0015)."""
+
+    def test_names_the_route_from_asset_upload_into_the_doc_to_image_link(self) -> None:
+        # A run that read the connector's guide still found no way in; naming the
+        # route by function makes it findable without tying the skill to one host.
+        # The PNG goes into that Doc: anywhere else is a destination Step 3 never listed.
+        step = _step(4)
+        assert "asset upload into that Doc" in step
+        assert "the connector's object for that upload" in step
+        assert "image link to that object" in step
+
+    def test_looks_for_the_asset_upload_before_the_approval(self) -> None:
+        step = _step(2)
+        assert "look for the host's asset upload" in step
+        # A tool shown by name only would otherwise read as missing, and drop every figure.
+        assert "load its schema" in step
+
+    def test_lists_figures_as_not_sent_when_the_host_has_no_asset_upload(self) -> None:
+        # ADR-0016 lists what leaves the machine; a figure that cannot leave is not on it.
+        step = _step(3)
+        assert "no asset upload" in step
+        assert "図: 送らない" in step
