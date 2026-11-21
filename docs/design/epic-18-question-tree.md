@@ -231,7 +231,7 @@ classDiagram
         +decisions: list~TreeDecision~
         +current_revision()
         +current_round()
-        +current_node_id()
+        +designs_by_branch()
         +untouched_nodes()
     }
     class RootRevision {
@@ -802,7 +802,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 
 ### Decision: next-candidates-are-untouched-nodes
 
-- What: 次の候補は保存せず、正本から導く。根を除き、自分にも子孫の論点にも分析設計を結んでいない論点が次の候補である（`QuestionTree.untouched_nodes()`、`tree_io candidates`）。`next_candidate` が持つのは、候補に添えるメモ（人に聞く問い、その答えで変わる判断、分かっていること）と、聞いてきた答えだけである。メモは `tree_io candidate` で、答えは `tree_io hear` で書く。
+- What: 次の候補は保存せず、正本から導く。根を除き、自分にも子孫の論点にも分析設計を結んでいない論点が次の候補である（`QuestionTree.untouched_nodes()`、`tree_io candidates`）。「論点かその下に結んだ分析設計」は `QuestionTree.designs_by_branch()` が1か所で導き、ツリーの検査も同じものを使う。`next_candidate` が持つのは、候補に添えるメモ（人に聞く問い、その答えで変わる判断、分かっていること）と、聞いてきた答えだけである。メモは `tree_io candidate` で、答えは `tree_io hear` で書く。
 - Why: US-3 AC 4 は「未着手の論点を示す」としている。進捗の未着手は「分析設計を結んでいない」ことなので、根と、下の論点を調べている途中の親も未着手と出る。それらを次の候補に並べると、分析者は調べている枝をもう一度選ぶことになる。
 - Criteria: US-3 AC 4、Decision `progress-is-derived`（導ける状態を保存しない）。決め手は、候補かどうかを正本1つから導けること。
 - Affected modules: `src/insight_blueprint/models/tree.py`、`skills/_shared/tree_io.py`、`skills/_shared/tree_render.py`、`/analysis-reflection`、`/analysis-framing`。
@@ -821,7 +821,8 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - Affected modules: `skills/_shared/tree_io.py`、`/analysis-design`、`/analysis-journal`。
 - Alternatives considered: `/analysis-design` が journal に直接書く（文が変わりうる）。`tree_io link` の中で写す（結ぶことと journal を書くことが1つのコマンドに混ざり、結ぶだけの呼び出しが journal を作る）。
 - Consequences:
-  - `tree_io` が journal を書く。これまで journal を書くのは skill だけだった。journal が無ければ、`/analysis-journal` と同じ見出しで作る。
+  - コードが journal を書く。これまで journal を書くのは skill だけだった。出来事の id の採番と追記は `design_io.append_journal_event` が持ち、journal が無ければ `/analysis-journal` と同じ見出しで作る。最上位が mapping でない journal と、`events` が list でない journal には書かず、エラーにする（レビューの指摘。読めたふりをして上書きすると、出来事が消える）。
+  - 写すのは、答えを持つ論点そのものに結んだ分析設計の journal だけである。親の論点で答えを聞き、その子の論点に分析設計を起こすと、答えは journal に写らず、引用できない。この Story では塞いでいない。
   - 答えを記録し直してから写すと、新しい出来事が足される。前の出来事は消えない。
   - 写した出来事は `evidence_refs` と `parent_event_id` を持たない。
   - 論点ツリーの側が元である。journal の出来事を手で直しても、論点ツリーの答えは変わらない。
@@ -839,7 +840,8 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - `start` の無いツリーには、ほかの決定を書けない。`/analysis-reflection` は `/analysis-framing` を案内する。
   - `close` の後も決定を足せる。次の決定は、区切った論点を今の論点として検証する。
   - 別の枝へ移るのも、親に戻るのも `return` である。2つを分けていない。
-  - Story 18.9 の「最新のツリーの決定が指す論点から再開する」は、`QuestionTree.current_node_id()` で読める。
+  - Story 18.9 の「最新のツリーの決定が指す論点から再開する」は、`decisions` の最後の要素の `node_id` で読める。
+  - 図は、決定に「回 N の振り返りの後」と添える。振り返りの前の決定（回 0）には「振り返りの前」と添える。`/analysis-framing` が残した決定も、その時点の最後の回を持つ。
 
 ### Decision: framing-rerun-asks-for-the-next-node
 
