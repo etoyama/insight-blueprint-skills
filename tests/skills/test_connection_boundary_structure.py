@@ -172,6 +172,40 @@ class TestCatalogRegisterNeverCallsTheApi:
         assert "read a JSON response in full" in workflow
 
 
+class TestCatalogRegisterNeverRunsTheQuery:
+    """Issue #149: the analyst runs the schema query, not Claude."""
+
+    def _sql_workflow(self) -> str:
+        return unwrap(
+            section(_read_skill("catalog-register"), "## SQL Source Workflow")
+        )
+
+    def test_the_sql_workflow_says_not_to_run_the_query(self) -> None:
+        assert "Do not run the query yourself" in self._sql_workflow()
+
+    def test_the_sql_workflow_reads_pasted_results(self) -> None:
+        workflow = self._sql_workflow()
+        assert "Ask the user to run the query and paste the results" in workflow
+
+
+class TestCatalogRegisterExplainsTheCredentialCheck:
+    """ADR-0034: the reference states how a nested key and `authorization` are judged."""
+
+    def _reference(self) -> str:
+        return unwrap(
+            section(_read_skill("catalog-register"), "## catalog_io Reference")
+        )
+
+    def test_a_nested_key_is_judged_joined_to_its_parents(self) -> None:
+        reference = self._reference()
+        assert "joined to its parent keys" in reference
+        assert '`{"api": {"key": …}}`' in reference
+        assert "ADR-0034" in reference
+
+    def test_authorization_is_refused_as_a_whole_key_name(self) -> None:
+        assert "`authorization`" in self._reference()
+
+
 class TestArchitectureFollowsTheBoundary:
     """ADR-0022 in the canonical architecture: the auto sequence matches the skills."""
 

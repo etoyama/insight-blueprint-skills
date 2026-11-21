@@ -589,6 +589,24 @@ class TestConnectionHoldsNoCredentials:
             ({"token_env": "export X=t0k"}, "connection.token_env"),
             # The exemption needs the literal `_env` suffix; camelCase is a plain key.
             ({"apiKeyEnv": "API_KEY"}, "connection.apiKeyEnv"),
+            # More names for a key or password (issue #149).
+            ({"db_pass": "hunter2"}, "connection.db_pass"),
+            ({"consumer_key": "abc123"}, "connection.consumer_key"),
+            # These two are refused only as the whole key name (ADR-0034).
+            ({"authorization": "Bearer t0k"}, "connection.authorization"),
+            (
+                {"headers": {"Authorization": "Basic abc123"}},
+                "connection.headers.Authorization",
+            ),
+            ({"SAS": "abc123"}, "connection.SAS"),
+            # A key nested under its parents is judged as the joined name (ADR-0034).
+            ({"api": {"key": "abc123"}}, "connection.api.key"),
+            ({"app": {"id": "abc123"}}, "connection.app.id"),
+            ({"private": {"key": "-----BEGIN"}}, "connection.private.key"),
+            ({"api": [{"key": "abc123"}]}, "connection.api[0].key"),
+            ({"a": {"pi": {"key": "abc123"}}}, "connection.a.pi.key"),
+            ({"db": {"pass": "hunter2"}}, "connection.db.pass"),
+            ({"api": {"key_env": "abc123"}}, "connection.api.key_env"),
         ],
     )
     def test_create_refuses_a_credential_key_and_writes_nothing(
@@ -611,6 +629,28 @@ class TestConnectionHoldsNoCredentials:
         self, insight: Path
     ) -> None:
         connection = {"provider": "e-stat", "app_id_env": "ESTAT_API_KEY"}
+        assert _create(insight, connection=connection)["connection"] == connection
+
+    def test_a_nested_env_key_accepts_the_name_of_an_environment_variable(
+        self, insight: Path
+    ) -> None:
+        connection = {"api": {"key_env": "ESTAT_API_KEY"}}
+        assert _create(insight, connection=connection)["connection"] == connection
+
+    @pytest.mark.parametrize(
+        "connection",
+        [
+            # Only the whole key name `authorization` is a credential.
+            {"authorization_url": "https://example.com/oauth/authorize"},
+            {"oauth": {"authorization_endpoint": "https://example.com/authorize"}},
+            {"sas_region": "japaneast"},
+            # A bare `key` under a parent that completes no credential name.
+            {"s3": {"bucket": "b", "key": "data/pop.csv"}},
+        ],
+    )
+    def test_create_accepts_a_key_that_only_resembles_a_credential(
+        self, insight: Path, connection: dict
+    ) -> None:
         assert _create(insight, connection=connection)["connection"] == connection
 
     def test_an_env_key_unrelated_to_credentials_keeps_any_value(
