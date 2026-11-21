@@ -589,6 +589,16 @@ classDiagram
         origin_event_id
         design_ids
         answers
+        next_candidate
+    }
+    class NextCandidate {
+        <<Value Object>>
+        ask
+        changes_if
+        known
+        answer
+        answered_by
+        answered_at
     }
     class Answer {
         <<Value Object>>
@@ -623,6 +633,9 @@ classDiagram
     class TreeDecisionKind {
         <<enumeration>>
         start
+        deepen
+        return_
+        close
     }
     class Progress {
         <<enumeration>>
@@ -662,6 +675,7 @@ classDiagram
     QuestionNode ..> AnalysisDesign : design_ids
     QuestionNode ..> Progress : 導く（保存しない）
     QuestionNode "1" *-- "*" Answer
+    QuestionNode "1" *-- "0..1" NextCandidate
     Answer "1" *-- "1..*" AnswerStatement
     AnswerStatement --> StatementKind
     QuestionTree "1" *-- "*" TreeDecision

@@ -149,7 +149,8 @@ If user chooses to refine:
 
 ## Theme Reflection
 
-Writes the current answer of each node of the theme's question tree. An answer is a list
+Writes the current answer of each node of the theme's question tree, then shows the next
+candidates and records the decision the analyst takes. An answer is a list
 of statements, and each statement cites the journal events it rests on. The analyst sees
 an answer only after the tree check has passed (ADR-0025).
 
@@ -303,10 +304,114 @@ Root question: {root question}
 - Show the `path` that `tree_io render` printed: the analyst reads the tree there.
   To hand it over by URL, the analyst runs `/tree-upload {theme_id}`, which asks before
   sending. Say so in one line; do not start it.
-- Suggest what to do next:
-  - "未着手の論点に分析設計を起こすなら /analysis-design"
-  - "根の問いか到達点を変えるなら /analysis-framing {theme_id}"
-  - "分析設計の結論を出すなら /analysis-reflection {design_id}"
+- Go on to Step T6. The reflection is not finished until the analyst has seen the next
+  candidates and has been asked for a decision (Step T7).
+
+### Step T6: Show the next candidates
+
+`tree_io candidates --theme {theme_id}` lists the next candidates: every node other than
+the root that has no design linked to it or to a node below it. `[]` means every node is
+started: say so and go to Step T7.
+
+A candidate can carry three notes. Draft them where they help the analyst choose:
+
+| Note | What it holds |
+|---|---|
+| `ask` | 人に聞く問い — one question to put to a person who knows what the data cannot tell (how a status is entered, when a rule changed, who decides) |
+| `changes_if` | その答えで変わる判断 — what the analyst does next under each answer. Needs an `ask` |
+| `known` | 分かっていること — what the catalog and the domain knowledge already tell about the node |
+
+```bash
+echo '{"ask": "本を確保してから実際に通知するまで、曜日によって手順は変わりますか",
+  "changes_if": "変わるなら通知の時点を調べる論点に進み、変わらないなら開館日数の論点を深める",
+  "known": "今の抽出表に送信日時の列は無い"}' | tree_io candidate --theme LIB --node LIB-Q03
+```
+
+- For `known`, read the data sources with `catalog_io list` (names, `schema_info`, tags) and
+  the domain knowledge in `.insight/rules/`. `catalog_io list` leaves `connection` out, and
+  the source YAML files are never opened instead
+  ([ADR-0022](../../docs/adr/0022-connection-reaches-only-the-notebook.md)).
+  Never write a value of `connection` (a path, a host, a project id, a table location, a
+  credential) into a note: the tree is read by every skill and shown in the HTML.
+- Never put into `known` what you did not read in the catalog, the domain knowledge or a
+  journal. The notes are not checked against the record, so a guess written there reads as a fact.
+- A candidate needs no note. Write an `ask` only when a person, not the data, holds the
+  answer. Do not invent a question to fill the field.
+- `tree_io candidate` replaces the three notes of the node and keeps an answer that was
+  already heard. It rejects a changed `ask` once an answer is recorded, because the answer
+  answers the old question: leave such a node as it is.
+- If the command exits non-zero, show stderr. Nothing was written.
+
+Present the candidates:
+
+```
+── Next candidates ──
+{node_id}  {question}
+  寄与: {contribution}
+  人に聞く問い: {ask}
+  その答えで変わる判断: {changes_if}
+  分かっていること: {known}
+  聞いてきた答え: {answer}（{answered_by}、{answered_at}）
+```
+
+Leave out a line whose note is empty.
+
+### Step T7: Record what the analyst heard and decided (KEEP gate)
+
+This is a KEEP gate. Ask the analyst two things and wait for their answer.
+
+**1. What they heard.** Ask whether they bring an answer to any `ask`, from this round or
+an earlier one. For each answer, take the answer in the analyst's words, who answered, and
+the date:
+
+```bash
+echo '{"answer": "金曜の夕方に確保した本は、月曜の朝にまとめて通知している",
+  "answered_by": "予約担当の図書館員",
+  "answered_at": "2026-11-20"}' | tree_io hear --theme LIB --node LIB-Q03
+```
+
+- Never fill `answered_by` or `answered_at` yourself, and never guess today's date for
+  them. If the analyst leaves one out, ask for it; `tree_io` rejects an answer without both.
+- The node must already have an `ask` (Step T6). Recording again replaces the answer.
+- The answer stays on the candidate. It cannot be cited in a current answer until it is in
+  a journal: when a design is made on that node, `/analysis-design` copies it into the
+  design's journal as a `hearing` event.
+
+**2. The decision.** Show the node the investigation is at: the `node_id` of the last entry
+of `decisions` in `tree_io get --theme {theme_id}`. Then ask which of the three the analyst
+chooses, which node comes next, and why:
+
+| `kind` | What the analyst chooses | `node_id` |
+|---|---|---|
+| `deepen` | 深める — keep investigating the current node or a node below it | the current node, or a node below it |
+| `return` | 親に戻る — leave the current node for its parent or another branch | a node that is neither the current node nor below it |
+| `close` | 区切る — stop here for now | the current node |
+
+```bash
+echo '{"kind": "return", "node_id": "LIB-Q03",
+  "reason": "数え方は定まった。次は通知が期限に間に合っているかを確かめる"}' | tree_io decide --theme LIB
+```
+
+- Never choose the kind, the node or the reason yourself. Keep the reason in the analyst's
+  words. You may lay out what each choice would lead to; the choice is the analyst's.
+- Decisions are append-only: one that is written cannot be changed or removed. Before you
+  send it, read the decision back to the analyst (kind, node, reason) in one line.
+- Never send a `round`. `tree_io` sets it to the last reflection round, the one whose
+  answers the analyst saw.
+- If `tree_io decide` exits non-zero, nothing was written. stderr says which rule the kind
+  and the node broke (for example a `deepen` that leaves the current node): show it and ask again.
+- If the tree has no decision yet, there is no current node: say "最初に調べる論点がまだ
+  決まっていない。/analysis-framing {theme_id} で決めよう" and write no decision here.
+- The analyst may leave the decision open. Then write nothing and say that the tree keeps
+  its last decision.
+
+After a `hear` or a `decide`, run `tree_io render --theme {theme_id}` again and show its
+`path`. Then suggest what to do next:
+
+- After `deepen` or `return`: "次の論点の Framing Brief を出すなら /analysis-framing {theme_id}"
+- After `close`: "区切った。再開するときは /analysis-framing {theme_id}"
+- "根の問いか到達点を変えるなら /analysis-framing {theme_id}"
+- "分析設計の結論を出すなら /analysis-reflection {design_id}"
 
 ## design_io Reference
 
@@ -329,6 +434,10 @@ Both are on PATH via the plugin. JSON on stdout.
 | `tree_io progress --theme T` | Progress of each node, derived from its designs |
 | `tree_io answer --theme T` (stdin JSON) | Check and append the answers of one reflection round |
 | `tree_check --theme T` | Check the current answers after writing (read-only) |
+| `tree_io candidates --theme T` | The next candidates: nodes with no design on them or below them |
+| `tree_io candidate --theme T --node N` (stdin JSON) | Write the notes of a candidate (`ask`, `changes_if`, `known`) |
+| `tree_io hear --theme T --node N` (stdin JSON) | Keep the answer a person gave, with who and when |
+| `tree_io decide --theme T` (stdin JSON) | Append the analyst's decision (`deepen`, `return`, `close`) |
 | `tree_io render --theme T` | Rebuild the HTML of the tree from the canonical file |
 
 ## Chaining

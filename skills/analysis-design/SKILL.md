@@ -244,6 +244,24 @@ tree_io link --theme FP --node FP-Q02 --design FP-H01
   create it again.
 - Never run `tree_io add-node` or write the tree file here. Nodes are made by `/analysis-framing`.
 
+#### Copy what the analyst heard
+
+The node may carry an answer the analyst heard from a person (`/analysis-reflection` keeps
+it on the node). Run this every time `tree_io link` succeeded, with the same three ids:
+
+```bash
+tree_io copy-hearing --theme FP --node FP-Q02 --design FP-H01
+```
+
+- It copies the answer into the design's journal as one `hearing` event, with who answered
+  and when, so that a later answer can cite it. `"copied": true` comes with the event:
+  tell the analyst its id.
+- `"copied": false` means the node has no answer, or the same answer is already in the
+  journal. Both are fine; go on.
+- Never retype the answer into the journal yourself, and never write a `hearing` event for
+  it by hand: `tree_io` copies the text as the analyst gave it.
+- If it exits non-zero, show the error. The design and its link stay as written.
+
 ### Step 3b: Update an Existing Design (optional)
 
 To add or modify fields, pipe a partial-changes JSON to `design_io update`. Only the

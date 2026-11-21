@@ -172,12 +172,6 @@ class TestFramingAsksBeforeTheRootChanges:
         assert unfinished, "no sentence covers a tree without a decision"
         assert "4b" in unfinished.group(0)
 
-    def test_a_tree_with_a_decision_gets_no_second_start(self) -> None:
-        rerun = unwrap(_framing("#### 4c: "))
-        assert re.search(
-            r"already has a decision[^.]*do not run `tree_io decide`", rerun
-        )
-
     def test_the_revision_payload_is_complete(self) -> None:
         rerun = unwrap(_framing("#### 4c: "))
         assert "the whole `aim`" in rerun

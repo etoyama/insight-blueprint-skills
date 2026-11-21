@@ -197,9 +197,9 @@ show it (root question, aim, nodes, decisions) and ask what this run changes.
 
 - **An unfinished tree** — an earlier run stopped halfway. If the tree has no decision yet, go back through 4b: confirm the nodes it has, draft the missing ones, and take the first node and the reason from the analyst.
 - **New nodes** — draft and confirm them as in 4b, then add them with `tree_io add-node` (5a).
-- **The node to design next** — the analyst picks it; it goes into the Framing Brief (5b).
-  If the tree already has a decision, do not run `tree_io decide`: `start` is the first
-  choice, and `tree_io` rejects a second one.
+- **The node to design next** — the analyst picks it at the gate in 4d; it goes into the
+  Framing Brief (5b). If the tree already has a decision, never send a second `start`:
+  `start` is the first choice, and `tree_io` rejects another one.
 - **The root question or the aim** — this skill is the only place they change, and it is a
   KEEP gate. Show the old and the new root question and aim side by side, and ask whether
   the root revision goes up. Put both answers in the question, with what each one does:
@@ -227,6 +227,36 @@ the audience or the claim scope moves. If the analyst answers "no bump" to a cha
 as one of these, only then tell them which part changed and that earlier answers would silently read
 as answers to the new root, and ask once more. Their second answer stands.
 
+#### 4d: The node to design next (KEEP gate)
+
+Every rerun on a tree that has a decision passes this KEEP gate before 5b. A rerun never
+names a node the analyst has not just chosen.
+
+1. Run `tree_io progress --theme {theme_id}` and `tree_io candidates --theme {theme_id}`.
+2. Show the node the latest decision names (the last entry of `decisions`), with its
+   progress and the designs linked to it. Show the next candidates that `candidates` printed,
+   with their notes.
+3. Ask which node to design next, and wait. Do not output the Framing Brief, and do not
+   suggest `/analysis-design`, until the analyst has answered.
+4. If the chosen node already has a design linked to it, say which designs and their
+   status, and ask whether the analyst wants another design on the same node. Go on only
+   after an explicit yes.
+5. If the analyst chose the same node the latest decision names, write no decision: the
+   tree already says so. This holds after a `close` too; designing on that node resumes it.
+6. If the analyst chose another node, ask for the reason and record the change, in the
+   analyst's words:
+
+```bash
+echo '{"kind": "return", "node_id": "LIB-Q03",
+  "reason": "数え方は定まったので、通知が期限に間に合っているかを先に確かめる"}' | tree_io decide --theme LIB
+```
+
+`kind` is `deepen` when the chosen node is below the node of the latest decision, and
+`return` otherwise. Never write a `close` here: stopping is decided in
+`/analysis-reflection {theme_id}`, after the analyst has seen the current answers.
+`tree_io` sets the round. If `decide` exits non-zero, show stderr and ask again; do not
+output the Framing Brief for a node the tree does not name.
+
 ### Step 5: Output Framing Brief
 
 #### 5a: Write the question tree
@@ -234,7 +264,7 @@ as answers to the new root, and ask once more. Their second answer stands.
 Write the tree with `tree_io` (on PATH; JSON on stdin, JSON on stdout; it validates before
 every write). Never create or change `.insight/themes/*_tree.yaml` with the Write or Edit tool.
 For a new tree, run the commands in this order, one `add-node` per first-level node.
-Coming from 4c, skip `create`, run `add-node` only for the new nodes, and run `decide` only if the tree has no decision:
+Coming from 4c, skip `create`, run `add-node` only for the new nodes, and run `decide` here only if the tree has no decision (a later decision is written in 4d):
 
 ```bash
 echo '{"theme_id": "LIB",
