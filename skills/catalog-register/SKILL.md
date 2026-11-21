@@ -193,7 +193,9 @@ echo '{
    WHERE table_name = '{table}'
    ORDER BY ordinal_position
    ```
-4. Ask the user to run the query and paste results, or run it if credentials are available
+4. Ask the user to run the query and paste the results. Do not run the query yourself: the
+   project's own tools reach the database, and this plugin does not handle credentials
+   ([ADR-0023](../../docs/adr/0023-catalog-holds-no-credentials.md)).
 
 ### Step 2b: Gather Metadata
 
@@ -243,7 +245,10 @@ echo '{
 `create` and `update` also print the source without `connection`; the stored source keeps it.
 `create` and `update` refuse a `connection` key that names a credential (`password`, `token`,
 `api_key`, `secret`, `credential`, `private_key`, …) and exit non-zero, naming the key but not its
-value; a key ending in `_env` passes when its value is a variable name (`^[A-Z_][A-Z0-9_]*$`) (ADR-0023). A source stored before that rule with such a key
+value; a key ending in `_env` passes when its value is a variable name (`^[A-Z_][A-Z0-9_]*$`) (ADR-0023).
+A nested key is judged joined to its parent keys, so `{"api": {"key": …}}` is refused like `api_key`;
+`authorization` and `sas` are refused as a whole key name, so `authorization_url` passes (ADR-0034).
+A source stored before these rules with such a key
 is still read, but `update` refuses it. To fix it, the analyst edits its YAML by hand: never read it with
 `--with-connection` or open the file, since that puts the secret in the model's context.
 For an id that is not registered, `get` prints `{}` and exits 0; a non-empty result means registered.

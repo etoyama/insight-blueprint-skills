@@ -30,6 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/catalog-register` no longer calls an API with the key in the URL to learn a table's
   structure. It reads a response that your project's fetch script saved, or a sample you paste
   with the key removed.
+- `catalog_io create` and `update` now judge a nested `connection` key joined to its parent
+  keys, so `{"api": {"key": …}}` is refused like `api_key`. They also refuse `consumer_key`,
+  `db_pass`, and a key named exactly `authorization` or `sas` (`authorization_url` still
+  passes). A nested key that only resembles a credential, such as `api.keyword`, is refused
+  too: rename it. A source already stored with such a key can no longer be updated until you
+  fix its YAML by hand ([ADR-0034](docs/adr/0034-credential-check-joins-nested-keys.md), #149).
+- `/catalog-register` no longer runs a schema query against your database. You run the query
+  and paste the results (#149).
 - **`/analysis-report` wrote a ratio no input states in Implications** (#105), such as
   「約1.9倍」 when the hypothesis compared two numbers. A ratio, a difference, or a percent change
   between two stated numbers now counts as a computed number, so the report no longer writes one

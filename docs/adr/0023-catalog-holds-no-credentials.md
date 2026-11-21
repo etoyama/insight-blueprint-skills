@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted（入れ子のキーの判定と、拒む語の一覧は [ADR-0034](0034-credential-check-joins-nested-keys.md) が改めた）
 
 ## Context
 

@@ -78,7 +78,7 @@
 | lineage | `/data-lineage`、`tracked_pipe` | notebook の中のデータ加工の履歴と、その Mermaid 図 | 系譜 | fork 前 |
 | データソース | `DataSource`、`source_ids` | catalog に登録した分析の入力データ。種類は open string。分析設計は使うデータソースの id を `source_ids` に宣言する | データ源 | [ADR-0020](adr/0020-design-declares-sources-in-source-ids.md) |
 | 接続情報 | `connection` | データソースのデータの置き場所と読み方。ファイルのパス・ホスト・project id・クエリなど。モデルの文脈に入れるのは notebook だけ | 接続設定 | [ADR-0022](adr/0022-connection-reaches-only-the-notebook.md) |
-| 認証情報 | `_CREDENTIAL_KEY_PARTS` | パスワード・トークン・API キーなど、データソースに入るための秘密の値。catalog は持たず、環境変数に置く。接続情報には環境変数の名前だけを `*_env` のキーで書く | クレデンシャル、秘密情報 | [ADR-0023](adr/0023-catalog-holds-no-credentials.md) |
+| 認証情報 | `_CREDENTIAL_KEY_PARTS`、`_CREDENTIAL_KEY_NAMES` | パスワード・トークン・API キーなど、データソースに入るための秘密の値。catalog は持たず、環境変数に置く。接続情報には環境変数の名前だけを `*_env` のキーで書く | クレデンシャル、秘密情報 | [ADR-0023](adr/0023-catalog-holds-no-credentials.md)、[ADR-0034](adr/0034-credential-check-joins-nested-keys.md) |
 | 取得スクリプト | — | 分析を行うプロジェクトが持つ、データソースからデータを取ってファイルに保存するスクリプト。認証情報は環境変数から読む。plugin は持たず、Claude は API を呼ばない | — | [#136](https://github.com/etoyama/insight-blueprint-skills/issues/136) |
 | データソースの参照 | `{source:ID}` | 分析設計の `methodology.steps` でデータソースを指す書き方。notebook が接続情報の値で置き換える | — | [ADR-0022](adr/0022-connection-reaches-only-the-notebook.md) |
 | 列のスキーマ | `ColumnSchema` | データソースの1列の名前・型・説明 | — | fork 前 |
