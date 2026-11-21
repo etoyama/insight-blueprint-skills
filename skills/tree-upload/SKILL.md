@@ -29,6 +29,7 @@ The skill never updates an existing Artifact and never shares one.
 ## When to Use
 - The theme has a question tree and someone should see it by URL
 - `/analysis-framing` or `/analysis-reflection` wrote the tree and printed the path of its HTML
+- The analyst asked `/analysis-auto` to hand the tree over
 
 ## When NOT to Use
 - The theme has no question tree yet (→ /analysis-framing)
@@ -121,6 +122,7 @@ When another skill started this one, return the outcome in one line: the URL,
 |------|-----|------|
 | /analysis-framing | → /tree-upload | The tree was written and its HTML made: "論点ツリーの図を URL で渡すなら /tree-upload" |
 | /analysis-reflection | → /tree-upload | The current answers were written and the HTML remade: "論点ツリーの図を URL で渡すなら /tree-upload" |
+| /analysis-auto | → /tree-upload | The analyst asked the autopilot to hand the tree over; the approval gate of this skill is the only question |
 
 ## Language Rules
 - Follow project CLAUDE.md language settings. Default to Japanese if no setting.

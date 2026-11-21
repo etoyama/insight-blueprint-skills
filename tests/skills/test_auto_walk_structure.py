@@ -326,7 +326,7 @@ class TestFramingTakesTheDecisionAsTheAnswerInsideAuto:
     def test_the_exception_needs_the_position_from_the_driver(self) -> None:
         gate = self._gate()
         assert "/analysis-auto" in gate
-        assert "`tree_io position`" in gate
+        assert "`tree_io position --theme {theme_id}`" in gate
         assert "`not_started`" in gate
 
     def test_the_decision_is_the_answer_and_nothing_is_written(self) -> None:

@@ -193,6 +193,11 @@ the gaps. Present the nodes with a recommended order and the reason for it. This
 gate, so ask the analyst two things and wait: whether the nodes are right (add, drop, reword), and which node
 to investigate first, with their reason. Keep the reason in the analyst's words.
 
+If the Data Map lists designs of this theme that no node of the tree holds, ask a third
+thing at the same gate: which node each of them belongs to. Show each design with its title
+and status. A design may stay unlinked, and one design may go under more than one node.
+Never place a design yourself.
+
 The second level may stay empty. Deeper nodes are added when the analysis raises them.
 
 #### 4c: When the theme already has a tree
@@ -202,6 +207,7 @@ show it (root question, aim, nodes, decisions) and ask what this run changes.
 
 - **An unfinished tree** — an earlier run stopped halfway. If the tree has no decision yet, go back through 4b: confirm the nodes it has, draft the missing ones, and take the first node and the reason from the analyst.
 - **New nodes** — draft and confirm them as in 4b, then add them with `tree_io add-node` (5a).
+- **Designs no node holds** — ask where they belong as in 4b, then link them (5a).
 - **The node to design next** — the analyst picks it at the gate in 4d; it goes into the
   Framing Brief (5b). If the tree already has a decision, never send a second `start`:
   `start` is the first choice, and `tree_io` rejects another one.
@@ -235,7 +241,8 @@ as answers to the new root, and ask once more. Their second answer stands.
 #### 4d: The node to design next (KEEP gate)
 
 Every rerun on a tree that has a decision passes this KEEP gate before 5b. A rerun never
-names a node the analyst has not just chosen.
+names a node the analyst has not just chosen. The one exception is inside `/analysis-auto`
+(at the end of this step).
 
 1. Run `tree_io progress --theme {theme_id}` and `tree_io candidates --theme {theme_id}`.
 2. Show the node the latest decision names (the last entry of `decisions`), with its
@@ -261,6 +268,13 @@ echo '{"kind": "return", "node_id": "LIB-Q03",
 `/analysis-reflection {theme_id}`, after the analyst has seen the current answers.
 `tree_io` sets the round. If `decide` exits non-zero, show stderr and ask again; do not
 output the Framing Brief for a node the tree does not name.
+
+**Inside `/analysis-auto`.** The driver hands over the output of
+`tree_io position --theme {theme_id}`. When its `state` is `not_started`, the latest decision
+names a node the analyst chose, and nothing has been designed on it since: take its `node_id`
+as the answer, do not ask again and write no decision, and skip the question of 4c about what
+this run changes. Go to 5b with that node. In any other state the gate stands: ask. A run
+that was started on its own always asks, whatever the tree says.
 
 ### Step 5: Output Framing Brief
 
@@ -288,6 +302,15 @@ echo '{"kind": "start", "node_id": "LIB-Q02",
   A research aim is `{"kind": "research", "audience": "...", "claim_scope": "..."}`.
 - `add-node` prints the node it wrote. Its `id` (`{theme_id}-Q{nn}`) is the id to use from here on.
 - `decide` records the first node to investigate and the analyst's reason (4b).
+
+For each design the analyst placed in 4b, link it to its node:
+
+```bash
+tree_io link --theme LIB --node LIB-Q02 --design LIB-H01
+```
+
+`link` only ties the design to the node, and running it twice changes nothing. It copies no
+heard answer into a journal; `/analysis-design` does that for the designs it creates.
 
 A command that exits non-zero wrote nothing: read stderr, fix the payload and run that
 command again. Do not output the Framing Brief until the tree has a `start` decision
@@ -360,6 +383,7 @@ Then end with the next step:
 | /analysis-design | → /analysis-framing | データ不足で仮説の方向を再検討: "データを探し直すなら /analysis-framing" |
 | /analysis-reflection | → /analysis-framing | 新仮説が必要だがデータ・方向の探索が先: "新しい角度を探すなら /analysis-framing" |
 | /catalog-register | → /analysis-framing | データ登録完了、フレーミングに戻る: "フレーミングに戻るなら /analysis-framing" |
+| /analysis-auto | → /analysis-framing | guided autopilot が論点ツリーを作る、次の論点の Framing Brief を得る、根の問いを変える |
 | /analysis-framing | → /analysis-design | 仮説の方向性が定まった（Framing Brief 付き）: "仮説を設計するなら /analysis-design" |
 | /analysis-framing | → /tree-upload | 論点ツリーを書き、図（HTML）を作った: "論点ツリーの図を URL で渡すなら /tree-upload" |
 | /analysis-framing | → /catalog-register | 必要なデータが未登録: "データを登録するなら /catalog-register" |
