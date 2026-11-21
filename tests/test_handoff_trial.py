@@ -8,7 +8,6 @@ Synthetic data only (public-library holds, theme LIB).
 
 from __future__ import annotations
 
-import copy
 import json
 import subprocess
 import sys
@@ -21,6 +20,7 @@ from pydantic import ValidationError
 from insight_blueprint.models.tree import Progress, QuestionTree, StatementKind
 from scripts import handoff_trial
 from scripts.handoff_trial import (
+    QUESTIONS,
     Answers,
     Record,
     build,
@@ -30,7 +30,7 @@ from scripts.handoff_trial import (
     prompt_for,
     score,
 )
-from skills._shared import design_io, tree_io
+from skills._shared import tree_io
 from skills._shared.tree_check import check_theme
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -114,6 +114,24 @@ class TestStages:
         with pytest.raises(ValueError, match="no-such-stage"):
             build(scenario, tmp_path, through="no-such-stage")
 
+    def test_a_wrong_argument_names_the_stage_and_the_step(
+        self, tmp_path: Path
+    ) -> None:
+        scenario = handoff_trial.Scenario.model_validate(
+            {
+                "theme_id": "LIB",
+                "stages": [
+                    {
+                        "id": "start",
+                        "summary": "x",
+                        "steps": [{"create_tree": {"q": 1}}],
+                    }
+                ],
+            }
+        )
+        with pytest.raises(ValueError, match="start.*create_tree"):
+            build(scenario, tmp_path)
+
     def test_an_unknown_step_is_refused_before_anything_is_written(
         self, tmp_path: Path
     ) -> None:
@@ -140,6 +158,19 @@ class TestTheBuiltTree:
         first = build(scenario, tmp_path / "a").read_bytes()
         second = build(scenario, tmp_path / "b").read_bytes()
         assert first == second
+
+    def test_a_directory_it_did_not_build_is_never_removed(
+        self, tmp_path: Path, scenario: handoff_trial.Scenario
+    ) -> None:
+        (tmp_path / "keep.txt").write_text("x", encoding="utf-8")
+        with pytest.raises(ValueError, match="not built by"):
+            build(scenario, tmp_path)
+        assert (tmp_path / "keep.txt").exists()
+
+    def test_an_empty_directory_may_be_built_into(
+        self, tmp_path: Path, scenario: handoff_trial.Scenario
+    ) -> None:
+        assert build(scenario, tmp_path).exists()
 
     def test_building_again_into_the_same_directory_starts_over(
         self, tmp_path: Path, scenario: handoff_trial.Scenario
@@ -192,12 +223,9 @@ class TestTheKeyHoldsForTheTree:
         assert answer is not None
         cited = {e for s in answer.statements for e in s.cites}
         by_direction: dict[str, set[tuple[str, str]]] = {}
-        for event_id in cited:
-            design_id = event_id.rsplit("-E", 1)[0]
-            events = design_io.load_journal(design_id, built)["events"]
-            event = next(e for e in events if e["id"] == event_id)
-            direction = event["metadata"]["direction"]
-            by_direction.setdefault(direction, set()).add((event_id, design_id))
+        for event in tree_io.cited_journal_events(cited, built):
+            pair = (event["id"], tree_io.design_id_of(event["id"]))
+            by_direction.setdefault(event["metadata"]["direction"], set()).add(pair)
         q3 = key.answers.q3
         assert {(r.event_id, r.design_id) for r in q3.supports} == by_direction[
             "supports"
@@ -242,13 +270,23 @@ class TestTheKeyHoldsForTheTree:
         assert key.answers.q5.reason_events
 
 
+class TestTheKey:
+    def test_a_key_that_leaves_a_question_out_is_refused_when_read(
+        self, key: handoff_trial.Key
+    ) -> None:
+        partial = key.model_dump(mode="json")
+        del partial["answers"]["q5"]
+        with pytest.raises(ValidationError, match="q5"):
+            handoff_trial.Key.model_validate(partial)
+
+
 class TestScore:
     """AC 2: scored by the judgment, never by the wording."""
 
     def test_the_key_itself_is_right_on_every_question(
         self, key: handoff_trial.Key
     ) -> None:
-        assert score(key.answers, key) == {f"q{i}": True for i in range(1, 6)}
+        assert score(key.answers, key) == dict.fromkeys(QUESTIONS, True)
 
     def test_one_wrong_judgment_marks_only_its_question(
         self, key: handoff_trial.Key
@@ -293,7 +331,17 @@ class TestScore:
 class TestParseAnswers:
     def test_a_fenced_json_reply_is_read(self, key: handoff_trial.Key) -> None:
         text = "```json\n" + json.dumps(_key_answers(key), ensure_ascii=False) + "\n```"
-        assert parse_answers(text) == key.answers
+        assert parse_answers(text).model_dump() == key.answers.model_dump()
+
+    @pytest.mark.parametrize("fence", ["```", "```JSON", "```jsonc"])
+    def test_any_fence_label_is_read(self, key: handoff_trial.Key, fence: str) -> None:
+        text = fence + "\n" + json.dumps(_key_answers(key)) + "\n```"
+        assert parse_answers(text).model_dump() == key.answers.model_dump()
+
+    def test_prose_around_the_fence_is_ignored(self, key: handoff_trial.Key) -> None:
+        body = json.dumps(_key_answers(key))
+        text = f"答えは次のとおり。\n```json\n{body}\n```\n以上。"
+        assert parse_answers(text).model_dump() == key.answers.model_dump()
 
     def test_a_reply_that_is_not_json_is_refused(self) -> None:
         with pytest.raises(ValueError):
@@ -308,7 +356,12 @@ class TestPrompt:
         head = prompt[: -len(html)]
         for n in range(1, 6):
             assert f"\n{n}. " in head
-        for field in Answers.model_fields:
+        for question, info in handoff_trial.KeyAnswers.model_fields.items():
+            assert f'"{question}"' in head
+            assert info.annotation is not None
+            for field in info.annotation.model_fields:
+                assert f'"{field}"' in head, f"{question}.{field}"
+        for field in handoff_trial.EventRef.model_fields:
             assert f'"{field}"' in head
 
 
@@ -323,7 +376,7 @@ class TestRecord:
             "reader": {"kind": "human", "name": "開発者"},
             "minutes": {"confirm": 4, "reconstruct": 6},
             "answers": _key_answers(key),
-            "score": {f"q{i}": True for i in range(1, 6)},
+            "score": dict.fromkeys(QUESTIONS, True),
         } | over
 
     def test_a_human_record_needs_both_times(self, key: handoff_trial.Key) -> None:
@@ -341,6 +394,14 @@ class TestRecord:
             )
         )
         assert record.minutes.confirm is None
+
+    def test_a_claude_record_with_a_time_is_refused(
+        self, key: handoff_trial.Key
+    ) -> None:
+        with pytest.raises(ValidationError, match="minutes"):
+            Record.model_validate(
+                self._record(key, reader={"kind": "claude", "name": "sonnet"})
+            )
 
     def test_an_unknown_field_is_refused(self, key: handoff_trial.Key) -> None:
         with pytest.raises(ValidationError):
@@ -362,14 +423,31 @@ class TestRecord:
         assert RECORDS
 
 
-def _cli(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
+def _cli(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, str(REPO_ROOT / "scripts/handoff_trial.py"), *args],
-        input=stdin,
+        [sys.executable, "-m", "scripts.handoff_trial", *args],
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
         check=False,
+    )
+
+
+def _record_cli(reply: Path, out: Path) -> subprocess.CompletedProcess[str]:
+    return _cli(
+        "record",
+        "--scenario",
+        SCENARIO,
+        "--answers",
+        str(reply),
+        "--reader-kind",
+        "claude",
+        "--reader-name",
+        "sonnet",
+        "--date",
+        "2026-11-21",
+        "--out",
+        str(out),
     )
 
 
@@ -383,6 +461,15 @@ class TestCli:
             .startswith("<!doctype html>")
         )
 
+    def test_a_missing_scenario_is_an_error_not_a_traceback(
+        self, tmp_path: Path
+    ) -> None:
+        done = _cli(
+            "build", "--scenario", "../../tmp/none", "--out", str(tmp_path / "o")
+        )
+        assert done.returncode == 1
+        assert "Traceback" not in done.stderr
+
     def test_prompt_prints_the_prompt_for_a_file(self, tmp_path: Path) -> None:
         page = tmp_path / "t.html"
         page.write_text("<!doctype html><p>x</p>", encoding="utf-8")
@@ -394,25 +481,11 @@ class TestCli:
         self, tmp_path: Path, key: handoff_trial.Key
     ) -> None:
         reply = tmp_path / "reply.txt"
-        wrong = copy.deepcopy(_key_answers(key))
+        wrong = _key_answers(key)
         wrong["q1"]["verdict"] = "claim"
         reply.write_text("```json\n" + json.dumps(wrong) + "\n```", encoding="utf-8")
         out = tmp_path / "record.yaml"
-        done = _cli(
-            "record",
-            "--scenario",
-            SCENARIO,
-            "--answers",
-            str(reply),
-            "--reader-kind",
-            "claude",
-            "--reader-name",
-            "sonnet",
-            "--date",
-            "2026-11-21",
-            "--out",
-            str(out),
-        )
+        done = _record_cli(reply, out)
         assert done.returncode == 0, done.stderr
         record = Record.model_validate(yaml.safe_load(out.read_text(encoding="utf-8")))
         assert record.score["q1"] is False
@@ -423,20 +496,6 @@ class TestCli:
         reply = tmp_path / "reply.txt"
         reply.write_text("分かりません", encoding="utf-8")
         out = tmp_path / "record.yaml"
-        done = _cli(
-            "record",
-            "--scenario",
-            SCENARIO,
-            "--answers",
-            str(reply),
-            "--reader-kind",
-            "claude",
-            "--reader-name",
-            "sonnet",
-            "--date",
-            "2026-11-21",
-            "--out",
-            str(out),
-        )
+        done = _record_cli(reply, out)
         assert done.returncode == 1
         assert not out.exists()

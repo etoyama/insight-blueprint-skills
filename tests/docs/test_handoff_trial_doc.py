@@ -16,7 +16,7 @@ from tests.skills._markdown import section, unwrap
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOC = "docs/HANDOFF_TRIAL.md"
-_SCRIPT_CALL = re.compile(r"scripts/handoff_trial\.py ([a-z]+)")
+_SCRIPT_CALL = re.compile(r"-m scripts\.handoff_trial ([a-z]+)")
 
 
 def _doc() -> str:
@@ -58,10 +58,13 @@ class TestTheReaderGetsOnlyTheHtml:
     def test_it_runs_from_an_empty_directory(self) -> None:
         assert "空のディレクトリ" in unwrap(section(_doc(), "## Step 2"))
 
-    def test_nothing_is_sent_outside(self) -> None:
+    def test_nothing_but_the_model_api_receives_the_page(self) -> None:
         body = unwrap(section(_doc(), "## Step 2"))
+        assert "モデルの API 以外には送らない" in body
         assert "Artifact" in body
-        assert "送らない" in body
+
+    def test_what_the_flags_cannot_turn_off_is_said(self) -> None:
+        assert "managed" in unwrap(section(_doc(), "## Step 2"))
 
 
 class TestScoring:
