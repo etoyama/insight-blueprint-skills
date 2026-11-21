@@ -139,6 +139,12 @@ _CREDENTIAL_KEY_PARTS = (
     "credential",
     "privatekey",
     "accesskey",
+    # e-Stat takes its key as appId. A public app id (Firebase, Facebook) is refused
+    # too; its name goes in app_id_env.
+    "appid",
+    "appkey",
+    "subscriptionkey",
+    "pwd",
 )
 _ENV_VAR_NAME = re.compile(r"[A-Z_][A-Z0-9_]*")
 
