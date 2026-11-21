@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `catalog_io create` and `update` now refuse a `connection` key named `app_id` (or `appId`),
+  `app_key` or `subscription_key`, as they already refuse `api_key`. e-Stat takes its API key
+  as `appId`. Put the key in an environment variable and its name in `app_id_env`.
+- `/catalog-register` no longer calls an API with the key in the URL to learn a table's
+  structure. It reads a response that the analysis repository's fetch script saved, or a sample
+  you paste with the key removed.
+
 ## [0.13.0] - 2026-11-22
 
 ### Upgrade note
