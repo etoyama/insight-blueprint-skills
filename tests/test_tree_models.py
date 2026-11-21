@@ -230,7 +230,7 @@ class TestDecisionKinds:
         tree = QuestionTree.model_validate(
             branching_tree(decision("deepen", "LIB-Q02"), decision("deepen", "LIB-Q03"))
         )
-        assert tree.current_node_id() == "LIB-Q03"
+        assert tree.decisions[-1].node_id == "LIB-Q03"
 
     def test_deepen_to_a_node_outside_the_branch_is_rejected(self) -> None:
         data = branching_tree(decision("deepen", "LIB-Q04"))
@@ -240,7 +240,7 @@ class TestDecisionKinds:
         tree = QuestionTree.model_validate(
             branching_tree(decision("return", "LIB-Q04"))
         )
-        assert tree.current_node_id() == "LIB-Q04"
+        assert tree.decisions[-1].node_id == "LIB-Q04"
 
     def test_return_to_the_same_node_or_below_it_is_rejected(self) -> None:
         for target in ("LIB-Q02", "LIB-Q03"):
@@ -251,11 +251,11 @@ class TestDecisionKinds:
         tree = QuestionTree.model_validate(
             branching_tree(decision("return", "LIB-Q01"))
         )
-        assert tree.current_node_id() == "LIB-Q01"
+        assert tree.decisions[-1].node_id == "LIB-Q01"
 
     def test_close_stops_at_the_node_it_was_investigating(self) -> None:
         tree = QuestionTree.model_validate(branching_tree(decision("close", "LIB-Q02")))
-        assert tree.current_node_id() == "LIB-Q02"
+        assert tree.decisions[-1].node_id == "LIB-Q02"
 
     def test_close_on_another_node_is_rejected(self) -> None:
         data = branching_tree(decision("close", "LIB-Q04"))
@@ -271,11 +271,6 @@ class TestDecisionKinds:
             decision("deepen", "LIB-Q02", round=0),
         )
         assert "rounds must not decrease" in errors_of(data)
-
-    def test_the_current_node_of_a_tree_without_decisions_is_none(self) -> None:
-        data = tree_dict()
-        del data["decisions"]
-        assert QuestionTree.model_validate(data).current_node_id() is None
 
 
 class TestUntouchedNodes:

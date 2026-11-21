@@ -90,7 +90,7 @@ def find_violations(tree: QuestionTree, events: Mapping[str, str]) -> list[Viola
     *events* maps the id of each journal event that exists to its content text.
     Earlier rounds are history that cannot be rewritten, so they are not checked.
     """
-    designs = _designs_by_branch(tree)
+    designs = tree.designs_by_branch()
     violations: list[Violation] = []
     for node in tree.nodes:
         answer = node.current_answer()
@@ -125,20 +125,6 @@ def _statement_problems(
             seen.add(number)
             problems.append(("number-not-cited", number.token))
     return problems
-
-
-def _designs_by_branch(tree: QuestionTree) -> dict[str, set[str]]:
-    """For each node, the designs linked to it or to any node below it."""
-    children: dict[str, list[str]] = {}
-    for node in tree.nodes:
-        if node.parent_question_id is not None:
-            children.setdefault(node.parent_question_id, []).append(node.id)
-    own = {n.id: set(n.design_ids) for n in tree.nodes}
-
-    def branch(node_id: str) -> set[str]:
-        return own[node_id].union(*(branch(c) for c in children.get(node_id, [])))
-
-    return {n.id: branch(n.id) for n in tree.nodes}
 
 
 def check_theme(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> list[Violation]:

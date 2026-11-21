@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from datetime import date, datetime
 from enum import StrEnum
 from typing import Self
@@ -206,12 +206,24 @@ class QuestionNode(BaseModel):
 
 
 class TreeDecisionKind(StrEnum):
-    """What a tree decision decided; ``node_id`` is the node to investigate next."""
+    """What a tree decision decided.
+
+    ``node_id`` is the node to investigate next, and for ``close`` the node
+    where the investigation stopped.
+    """
 
     start = "start"
     deepen = "deepen"
     return_ = "return"
     close = "close"
+
+
+def _ancestors(parents: dict[str, str | None], node_id: str) -> Iterator[str]:
+    """The parents of *node_id*, nearest first. Needs a tree without cycles."""
+    parent = parents[node_id]
+    while parent is not None:
+        yield parent
+        parent = parents[parent]
 
 
 class TreeDecision(BaseModel):
@@ -252,33 +264,31 @@ class QuestionTree(BaseModel):
     def root(self) -> QuestionNode:
         return next(n for n in self.nodes if n.parent_question_id is None)
 
-    def current_node_id(self) -> str | None:
-        """The node of the last decision: where the investigation is now."""
-        return self.decisions[-1].node_id if self.decisions else None
+    def designs_by_branch(self) -> dict[str, set[str]]:
+        """For each node, the designs linked to it or to any node below it."""
+        parents = self._parent_map()
+        branch = {n.id: set(n.design_ids) for n in self.nodes}
+        for node in self.nodes:
+            for ancestor in _ancestors(parents, node.id):
+                branch[ancestor].update(node.design_ids)
+        return branch
 
     def untouched_nodes(self) -> list[QuestionNode]:
         """The next candidates: no design is linked to the node or anything below it."""
-        touched = {n.id for n in self.nodes if n.design_ids}
-        parents = {n.id: n.parent_question_id for n in self.nodes}
-        for node_id in list(touched):
-            parent = parents[node_id]
-            while parent is not None:
-                touched.add(parent)
-                parent = parents[parent]
+        branch = self.designs_by_branch()
         return [
             n
             for n in self.nodes
-            if n.parent_question_id is not None and n.id not in touched
+            if n.parent_question_id is not None and not branch[n.id]
         ]
 
+    def _parent_map(self) -> dict[str, str | None]:
+        return {n.id: n.parent_question_id for n in self.nodes}
+
     def _is_within(self, node_id: str, branch_id: str) -> bool:
-        parents = {n.id: n.parent_question_id for n in self.nodes}
-        found: str | None = node_id
-        while found is not None:
-            if found == branch_id:
-                return True
-            found = parents[found]
-        return False
+        return node_id == branch_id or branch_id in _ancestors(
+            self._parent_map(), node_id
+        )
 
     @model_validator(mode="after")
     def _check_tree(self) -> Self:
@@ -287,6 +297,8 @@ class QuestionTree(BaseModel):
         self._check_references()
         self._check_answer_revisions()
         self._check_parents()
+        # The decision checks walk parents, so they need _check_parents to have
+        # ruled out cycles and missing parents first.
         self._check_decisions()
         if self.root().question != self.current_revision().question:
             raise ValueError(
