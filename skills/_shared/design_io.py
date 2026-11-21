@@ -33,6 +33,7 @@ from insight_blueprint.validate import (
     validate_transition,
 )
 from skills._shared._atomic import atomic_write_yaml
+from skills._shared._stdin import read_payload
 from skills._shared.ids import SAFE_ID_PATTERN
 
 DEFAULT_BASE_DIR = Path(os.environ.get("INSIGHT_BASE_DIR", ".insight"))
@@ -420,6 +421,9 @@ def list_review_batches(
 # ---------------------------------------------------------------------------
 
 
+_TAKES_PAYLOAD = frozenset({"create", "update", "review-batch"})
+
+
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="design_io")
     parser.add_argument(
@@ -441,11 +445,7 @@ def _main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     base = _resolve_base_dir(Path(args.base_dir))
 
-    payload: dict = {}
-    if not sys.stdin.isatty():
-        raw = sys.stdin.read().strip()
-        if raw:
-            payload = json.loads(raw)
+    payload = read_payload() if args.command in _TAKES_PAYLOAD else {}
 
     if args.command == "create":
         result: Any = create_design(base_dir=base, **payload)

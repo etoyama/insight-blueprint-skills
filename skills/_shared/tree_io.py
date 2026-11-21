@@ -44,6 +44,7 @@ from insight_blueprint.models.tree import (
 )
 from insight_blueprint.validate import validate_tree_schema
 from skills._shared._atomic import atomic_write_text, atomic_write_yaml
+from skills._shared._stdin import read_payload
 from skills._shared.design_io import (
     DEFAULT_BASE_DIR,
     _designs_dir,
@@ -657,6 +658,11 @@ def _required(args: argparse.Namespace, name: str) -> str:
     return value
 
 
+_TAKES_PAYLOAD = frozenset(
+    {"create", "add-node", "decide", "candidate", "hear", "revise-root", "answer"}
+)
+
+
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="tree_io")
     parser.add_argument(
@@ -686,11 +692,7 @@ def _main(argv: list[str] | None = None) -> int:
 
     exit_code = 0
     try:
-        payload: dict = {}
-        if not sys.stdin.isatty():
-            raw = sys.stdin.read().strip()
-            if raw:
-                payload = json.loads(raw)
+        payload = read_payload() if args.command in _TAKES_PAYLOAD else {}
         if args.command != "create" and args.theme is None:
             raise ValueError(f"--theme is required for {args.command}")
         if args.command == "create":

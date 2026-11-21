@@ -53,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`premortem` showed `unknown` in the INTENT column for every design** (#109). It read an
   `intent` key, but `design_io get` returns the field as `analysis_intent`. The risk level was
   not affected; only the table display was wrong.
+- **`design_io`, `catalog_io` and `tree_io` commands without a payload hung when stdin never closed** (#129),
+  as in the Bash of the desktop app's Code tab. `get`, `list`, `link`, `progress` and the other
+  commands that take no payload no longer read stdin.
 
 ## [0.12.0] - 2026-11-20
 
