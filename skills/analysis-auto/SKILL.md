@@ -221,10 +221,12 @@ the round until the analyst closes the walk or says stop.
     outcome (when this round wrote a report) next to the path of the tree's HTML, so the analyst
     decides with both in view. Never choose the kind, the node or the reason for them, and never
     fill in an answer they heard.
-11. **next round**: after a `deepen` or a `return`, read `tree_io position` again and start the
-    next round at item 1. After a `close`, go to Step 4. When the analyst leaves the decision open
-    or says stop, go to Step 4 as well: the tree keeps its last decision, and the next run
-    resumes from it.
+11. **next round**: after a `deepen` or a `return` the walk goes on: read `tree_io position`
+    again and start the next round at item 1, in the same turn. Do not summarize in between, and
+    never tell the analyst to run `/analysis-auto` again to continue: a decision that names the
+    next node is the go-ahead for it. After a `close`, go to Step 4. When the analyst leaves the
+    decision open or says stop, go to Step 4 as well: the tree keeps its last decision, and the
+    next run resumes from it.
 
 Two things happen only when the analyst asks for them, at any point of the walk:
 

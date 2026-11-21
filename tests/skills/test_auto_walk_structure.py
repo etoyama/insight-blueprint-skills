@@ -243,6 +243,13 @@ class TestTheWalkGoesOnUntilTheAnalystStops:
         item = _round_item("next round")
         assert re.search(r"`deepen` or (a )?`return`[^.]*item 1", item)
 
+    def test_the_next_round_starts_without_a_summary_in_between(self) -> None:
+        # Manual check, 2026-11-21: after a `return` the driver summarized and stopped.
+        item = _round_item("next round")
+        assert "in the same turn" in item
+        assert re.search(r"[Dd]o not summarize", item)
+        assert re.search(r"never tell the analyst to run `/analysis-auto` again", item)
+
     def test_close_and_stop_end_the_walk(self) -> None:
         item = _round_item("next round")
         assert re.search(r"`close`[^.]*Step 4", item)
