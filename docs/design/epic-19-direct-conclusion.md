@@ -24,10 +24,10 @@ AC の正本はここ。
 
 分析者として、分析を終えた分析設計に reflection で結論を出したら、レビューを挟まずに結論の status へ閉じたい。結果を見てもらいたいときだけ `/analysis-review` を使えればよい。
 
-- [ ] AC 1: `design_io transition` は、`analyzing` から `supported` / `rejected` / `inconclusive` への遷移を受け付ける。`analyzing → in_review` も引き続き受け付ける。`analyzing → revision_requested` は引き続き拒む。
-- [ ] AC 2: pre-write hook も `*_hypothesis.yaml` を直接書き換えて `analyzing` から結論の status にする書き込みを受け付ける（遷移表は1つ）。
-- [ ] AC 3: `/analysis-design` の Status Flow と [docs/ARCHITECTURE.md](../ARCHITECTURE.md) の状態遷移ガードの記述が、`analyzing` から行ける status として遷移表と同じものを示す。
-- [ ] AC 4: `/analysis-reflection` の結論の手順は `analyzing` から結論の status へ直接遷移できること、結果を見た後の `/analysis-review` は任意であることを書く。どの skill も結論の前に `in_review` へ戻す手順を求めない。
+- [x] AC 1: `design_io transition` は、`analyzing` から `supported` / `rejected` / `inconclusive` への遷移を受け付ける。`analyzing → in_review` も引き続き受け付ける。`analyzing → revision_requested` は引き続き拒む。
+- [x] AC 2: pre-write hook も `*_hypothesis.yaml` を直接書き換えて `analyzing` から結論の status にする書き込みを受け付ける（遷移表は1つ）。
+- [x] AC 3: `/analysis-design` の Status Flow と [docs/ARCHITECTURE.md](../ARCHITECTURE.md) の状態遷移ガードの記述が、`analyzing` から行ける status として遷移表と同じものを示す。
+- [x] AC 4: `/analysis-reflection` の結論の手順は `analyzing` から結論の status へ直接遷移できること、結果を見た後の `/analysis-review` は任意であることを書く。どの skill も結論の前に `in_review` へ戻す手順を求めない。
 
 ## Stories
 
@@ -148,7 +148,7 @@ sequenceDiagram
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| US-1 analyzing から結論へ | ☐ | ☐ | ☐ |
+| US-1 analyzing から結論へ | ✓（`tests/test_validate.py`: `test_analyzing_reaches_each_conclusion_directly`、`test_analyzing_can_still_go_back_to_in_review`、`test_message_lists_sorted_valid_targets`。`tests/skills/test_direct_conclusion_structure.py`: `TestAnalysisDesignStatusFlow`、`TestArchitectureStateGuard`、`TestReflectionConcludesFromAnalyzing`） | ✓（`tests/test_design_io.py`: `test_analyzed_design_concludes_without_a_review`。`tests/test_validate_hook.py`: `test_conclusion_from_analyzing_via_inplace_edit_passes`。hook を subprocess で動かす） | —（headless 実行の E2E は ADR-0010 で必須にしていない。`bin/design_io` を通した手動確認を Story Timeline に残す） |
 
 完了時に ✓ を付ける。自動テストがない層には「—（理由）」を書く（[ADR-0010](../adr/0010-skill-tdd-structure-tests.md)）。
 
@@ -156,3 +156,8 @@ sequenceDiagram
 
 - 2026-11-22 — 人間が decision-analysis で案 B（`analyzing` から結論の status への辺を足す）に決めた。判断は ADR-0029 に残す。
 - 2026-11-22 — DesignDoc 初版。Epic #146 と Story #147 を起票し、#138 の原因の記述を訂正した。
+- 2026-11-22 — Story #147 completed: `VALID_TRANSITIONS` の `analyzing` の行に結論の status を足し、`/analysis-design` の Status Flow、`/analysis-reflection` の結論の手順の注記、ARCHITECTURE の状態遷移ガードを表に合わせた。
+  `analyzing → supported` を拒むことを前提にしたテスト（`tests/test_validate.py` に3本、`tests/test_design_io.py` と `tests/test_validate_hook.py` に1本ずつ）は、拒む例を `analyzing → revision_requested` に替えた。仕様の変更として、新しいテストとは別のコミットにした。
+  構造テストは、prose が述べる遷移を遷移表と照らす形にした。`/analysis-review`（`analyzing` なら `in_review` に戻してから記録する）と `/analysis-auto`（分析の後に `in_review` へ戻す手順は無い）は、表と食い違わないので直していない。
+- 2026-11-22 — 手動確認（US-1 AC 1）: 空のプロジェクトで `bin/design_io` を使い、`create` → `transition --target analyzing` → `transition --target supported` を実行した。`*_hypothesis.yaml` は `status: supported` になった。
+  確かめていないこと: `/analysis-auto` を通した巡回。

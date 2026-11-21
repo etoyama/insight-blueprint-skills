@@ -367,18 +367,19 @@ Designs use the `DesignStatus` model. A new design starts `in_review`.
 
 ```
 in_review ─┬→ revision_requested → (back to in_review / analyzing / terminal)
-           ├→ analyzing → in_review
+           ├→ analyzing → in_review | supported | rejected | inconclusive
            └→ supported | rejected | inconclusive   (terminal — no exit)
 ```
 
 - **in_review**: Created, under review.
 - **revision_requested**: Review asked for changes.
-- **analyzing**: Hypothesis is being tested.
+- **analyzing**: Hypothesis is being tested. `/analysis-reflection` concludes it directly;
+  going back to `in_review` is an optional review of the result.
 - **supported / rejected / inconclusive**: Terminal disposition.
 
 Status transitions MUST go through `design_io transition` (or `append_review_batch`),
 which validates the move against `VALID_TRANSITIONS` in `validate.py`. Illegal moves
-(e.g. `analyzing → supported`, or any exit from a terminal state) are rejected.
+(e.g. `analyzing → revision_requested`, or any exit from a terminal state) are rejected.
 
 ### Theme ID Rules
 

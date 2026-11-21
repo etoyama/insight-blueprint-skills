@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **An analyzed design can be concluded directly.** `design_io transition` (and the pre-write
+  hook) now accepts `analyzing` → `supported` / `rejected` / `inconclusive`, so
+  `/analysis-reflection` closes a design right after its analysis and the default
+  `/analysis-auto` walk no longer stops there. Moving back to `in_review` to review the result
+  stays available and is optional ([ADR-0029](docs/adr/0029-analyzing-reaches-conclusion-directly.md), #138).
+
 ## [0.13.0] - 2026-11-22
 
 ### Upgrade note

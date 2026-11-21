@@ -126,9 +126,10 @@ If user chooses to conclude:
    - rejected: `... --target rejected`
    - inconclusive: `... --target inconclusive`
 
-   Note: Current status must be "analyzing" for terminal transition (design_io
-   validates this via VALID_TRANSITIONS). If status is "in_review", go through the
-   review process first.
+   Note: `design_io transition` accepts a terminal status from `analyzing`, `in_review`
+   or `revision_requested` (VALID_TRANSITIONS), so a design closes right after its analysis.
+   A review of the result with /analysis-review is optional: it moves the design back to
+   `in_review` first, and the analyst decides whether to ask for one.
 
 3. Show final summary and suggest:
    - "周囲に説明・配布できる形にするなら /analysis-report（APAレポート化）"

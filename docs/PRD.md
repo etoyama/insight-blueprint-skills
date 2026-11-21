@@ -101,7 +101,7 @@ Epic 06 からは軽量版の上に分析の能力を足していく。
 | Epic 16 | [epic-16](design/epic-16-default-allowlist.md) | パッケージ許可リストが無いプロジェクトでは既定の許可リストを使う | 完了 |
 | Epic 17 | [epic-17](design/epic-17-connection-boundary.md) | 接続情報を notebook の外に出さず、認証情報を catalog に入れない | 完了 |
 | Epic 18 | [epic-18](design/epic-18-question-tree.md) | テーマごとの論点ツリー | 完了 |
-| Epic 19 | [epic-19](design/epic-19-direct-conclusion.md) | analyzing から結論の status へ直接遷移する | 進行中 |
+| Epic 19 | [epic-19](design/epic-19-direct-conclusion.md) | analyzing から結論の status へ直接遷移する | 完了 |
 
 各 Epic の DesignDoc は `## Scope` 節で、本書のどの要件と
 ARCHITECTURE のどのコンポーネントを前進させるかを示す。
