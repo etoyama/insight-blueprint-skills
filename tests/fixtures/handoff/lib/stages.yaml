@@ -44,19 +44,21 @@ stages:
           hypothesis_statement: 状態の履歴から取消を除けば、期限切れを一貫して数えられる
           hypothesis_background: 取消と期限切れが同じ状態で記録されている
       - link_design: {node_id: LIB-Q02, design_id: LIB-H01}
-      - journal:
+      - append_journal_event:
           design_id: LIB-H01
-          type: evidence
-          content: 状態の履歴から取消を除くと、期限切れは152件だった
-          metadata: {direction: supports}
+          event_fields:
+              type: evidence
+              content: 状態の履歴から取消を除くと、期限切れは152件だった
+              metadata: {direction: supports}
       - transition_status: {design_id: LIB-H01, target: supported}
       - answer:
-          - node_id: LIB-Q02
-            statements:
-              - {kind: claim, text: 状態の履歴から取消を除くと、期限切れは152件と数えられた, cites: [LIB-H01-E01]}
-          - node_id: LIB-Q01
-            statements:
-              - {kind: undetermined, text: 期限切れは152件と数えられたが、延長で減るかはまだ分からない, cites: [LIB-H01-E01]}
+          answers:
+            - node_id: LIB-Q02
+              statements:
+                - {kind: claim, text: 状態の履歴から取消を除くと、期限切れは152件と数えられた, cites: [LIB-H01-E01]}
+            - node_id: LIB-Q01
+              statements:
+                - {kind: undetermined, text: 期限切れは152件と数えられたが、延長で減るかはまだ分からない, cites: [LIB-H01-E01]}
       - decide:
           kind: return
           node_id: LIB-Q03
@@ -74,20 +76,23 @@ stages:
           hypothesis_statement: 通知が翌日以降になった予約は期限切れが多い
           hypothesis_background: 本を確保してから通知するまでの日数が予約ごとに違う
       - link_design: {node_id: LIB-Q03, design_id: LIB-H02}
-      - journal:
+      - append_journal_event:
           design_id: LIB-H02
-          type: evidence
-          content: 通知が翌日以降になった予約の期限切れは18%で、当日に通知した予約の9%より多かった
-          metadata: {direction: supports}
-      - journal:
+          event_fields:
+              type: evidence
+              content: 通知が翌日以降になった予約の期限切れは18%で、当日に通知した予約の9%より多かった
+              metadata: {direction: supports}
+      - append_journal_event:
           design_id: LIB-H02
-          type: evidence
-          content: 通知の日を揃えても、金曜に確保した本の期限切れは16%のままだった
-          metadata: {direction: contradicts}
-      - journal:
+          event_fields:
+              type: evidence
+              content: 通知の日を揃えても、金曜に確保した本の期限切れは16%のままだった
+              metadata: {direction: contradicts}
+      - append_journal_event:
           design_id: LIB-H02
-          type: question
-          content: 通知から期限まで何日開館していたか
+          event_fields:
+              type: question
+              content: 通知から期限まで何日開館していたか
       - transition_status: {design_id: LIB-H02, target: inconclusive}
       - add_node:
           question: 通知から期限まで何日開館していたか
@@ -95,16 +100,17 @@ stages:
           contribution: 通知の遅れと、来館できる日の少なさを見分ける
           origin_event_id: LIB-H02-E03
       - answer:
-          - node_id: LIB-Q03
-            statements:
-              - {kind: claim, text: 通知が翌日以降になった予約の期限切れは18%で、当日の9%より多かった, cites: [LIB-H02-E01]}
-              - {kind: weakening, text: 通知の日を揃えても、金曜に確保した本の期限切れは16%のままだった, cites: [LIB-H02-E02]}
-              - {kind: undetermined, text: 期限切れが通知の遅れで増えているかは、まだ見分けられない, cites: [LIB-H02-E01, LIB-H02-E02]}
-          - node_id: LIB-Q01
-            statements:
-              - {kind: claim, text: 通知が翌日以降になった予約は、期限切れが18%と多かった, cites: [LIB-H02-E01]}
-              - {kind: weakening, text: 通知の日を揃えても、金曜に確保した本の期限切れは16%のままだった, cites: [LIB-H02-E02]}
-              - {kind: undetermined, text: 延長の試行をするかは、来館できる日の少なさを確かめるまで決められない, cites: [LIB-H02-E02]}
+          answers:
+            - node_id: LIB-Q03
+              statements:
+                - {kind: claim, text: 通知が翌日以降になった予約の期限切れは18%で、当日の9%より多かった, cites: [LIB-H02-E01]}
+                - {kind: weakening, text: 通知の日を揃えても、金曜に確保した本の期限切れは16%のままだった, cites: [LIB-H02-E02]}
+                - {kind: undetermined, text: 期限切れが通知の遅れで増えているかは、まだ見分けられない, cites: [LIB-H02-E01, LIB-H02-E02]}
+            - node_id: LIB-Q01
+              statements:
+                - {kind: claim, text: 通知が翌日以降になった予約は、期限切れが18%と多かった, cites: [LIB-H02-E01]}
+                - {kind: weakening, text: 通知の日を揃えても、金曜に確保した本の期限切れは16%のままだった, cites: [LIB-H02-E02]}
+                - {kind: undetermined, text: 延長の試行をするかは、来館できる日の少なさを確かめるまで決められない, cites: [LIB-H02-E02]}
       - candidate:
           node_id: LIB-Q06
           ask: 本を確保してから実際に通知するまで、曜日によって手順は変わりますか

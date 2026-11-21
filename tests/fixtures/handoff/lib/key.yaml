@@ -1,5 +1,7 @@
 # The judgments a reader of the round-2 tree HTML should reach. tests/test_handoff_trial.py
 # derives each of them from the built tree, so the key cannot drift from stages.yaml.
+# The one exception is q5.reason_events: a decision's reason is free text that cites no
+# event, so whoever writes the key picks them.
 stage: round-2
 answers:
   q1:

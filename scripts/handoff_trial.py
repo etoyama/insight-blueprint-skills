@@ -4,10 +4,10 @@ A reader with no other context gets the tree HTML of a synthetic scenario and
 answers the five questions of the PRD success criteria. The answers name
 judgments by id, so scoring compares judgments and never wording.
 
-Usage:
-    python scripts/handoff_trial.py build --scenario lib --out DIR [--through STAGE]
-    python scripts/handoff_trial.py prompt --html PATH
-    python scripts/handoff_trial.py record --scenario lib --answers PATH \\
+Usage, from the repository root:
+    python -m scripts.handoff_trial build --scenario lib --out DIR [--through STAGE]
+    python -m scripts.handoff_trial prompt --html PATH
+    python -m scripts.handoff_trial record --scenario lib --answers PATH \\
         --reader-kind claude|human --reader-name NAME --date YYYY-MM-DD \\
         [--minutes-confirm N --minutes-reconstruct N] --out PATH
 """
@@ -24,62 +24,36 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Literal, Self
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-# Run as a file, Python puts scripts/ on the path, not the root that holds skills/.
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+import yaml
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-import yaml  # noqa: E402
-from pydantic import (  # noqa: E402
-    BaseModel,
-    ConfigDict,
-    Field,
-    field_validator,
-    model_validator,
-)
+from skills._shared import design_io, tree_io
 
-from skills._shared import design_io, tree_io  # noqa: E402
-
-FIXTURES = REPO_ROOT / "tests" / "fixtures" / "handoff"
+FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "handoff"
 QUESTIONS = ("q1", "q2", "q3", "q4", "q5")
-
-_Step = Callable[[str, Path, Any], object]
-
-
-def _without(args: dict, name: str) -> dict:
-    return {k: v for k, v in args.items() if k != name}
+# Written into every directory build fills, so build never removes one it did not make.
+BUILT_MARK = ".handoff-trial"
 
 
-def _answer(theme: str, out: Path, answers: list[dict]) -> object:
-    result = tree_io.answer(theme, answers=answers, base_dir=out)
+def _answer(*, theme_id: str, answers: list[dict], base_dir: Path) -> dict:
+    result = tree_io.answer(theme_id, answers=answers, base_dir=base_dir)
     if result["violations"]:
         raise ValueError(f"the scenario's answers fail the tree check: {result}")
     return result
 
 
-STEPS: dict[str, _Step] = {
-    "create_tree": lambda t, out, a: tree_io.create_tree(theme_id=t, base_dir=out, **a),
-    "add_node": lambda t, out, a: tree_io.add_node(t, base_dir=out, **a),
-    "decide": lambda t, out, a: tree_io.decide(t, base_dir=out, **a),
-    "create_design": lambda t, out, a: design_io.create_design(
-        theme_id=t, base_dir=out, **a
-    ),
-    "link_design": lambda t, out, a: tree_io.link_design(
-        t, a["node_id"], a["design_id"], base_dir=out
-    ),
-    "journal": lambda t, out, a: design_io.append_journal_event(
-        a["design_id"], _without(a, "design_id"), out
-    ),
-    "transition_status": lambda t, out, a: design_io.transition_status(
-        a["design_id"], a["target"], out
-    ),
-    "answer": _answer,
-    "candidate": lambda t, out, a: tree_io.candidate(
-        t, a["node_id"], base_dir=out, **_without(a, "node_id")
-    ),
-    "hear": lambda t, out, a: tree_io.hear(
-        t, a["node_id"], base_dir=out, **_without(a, "node_id")
-    ),
+# Step name -> (function, whether it takes the theme). The YAML names the function.
+STEPS: dict[str, tuple[Callable[..., object], bool]] = {
+    "create_tree": (tree_io.create_tree, True),
+    "add_node": (tree_io.add_node, True),
+    "decide": (tree_io.decide, True),
+    "link_design": (tree_io.link_design, True),
+    "answer": (_answer, True),
+    "candidate": (tree_io.candidate, True),
+    "hear": (tree_io.hear, True),
+    "create_design": (design_io.create_design, True),
+    "append_journal_event": (design_io.append_journal_event, False),
+    "transition_status": (design_io.transition_status, False),
 }
 
 
@@ -88,7 +62,7 @@ class Stage(BaseModel):
 
     id: str
     summary: str
-    steps: list[dict[str, Any]]
+    steps: list[dict[str, dict[str, Any]]]
 
     @field_validator("steps")
     @classmethod
@@ -106,10 +80,25 @@ class Scenario(BaseModel):
     stages: list[Stage] = Field(min_length=1)
 
 
+def _same(a: object, b: object) -> bool:
+    """Lists are compared as sets, so their order never counts."""
+    if isinstance(a, list) and isinstance(b, list):
+        return set(a) == set(b)
+    return a == b
+
+
 class _Question(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     note: str = ""
+
+    def matches(self, key: Self) -> bool:
+        """Every field but the note equals the key's."""
+        return all(
+            _same(getattr(self, f), getattr(key, f))
+            for f in type(self).model_fields
+            if f != "note"
+        )
 
 
 class Q1(_Question):
@@ -142,6 +131,13 @@ class Q5(_Question):
     node_id: str
     reason_events: list[str]
 
+    def matches(self, key: Self) -> bool:
+        # The reason is free text on the page and cites nothing, so a reader may
+        # rightly name more of the events behind it; the key's must all be there.
+        return self.node_id == key.node_id and set(key.reason_events) <= set(
+            self.reason_events
+        )
+
 
 class Answers(BaseModel):
     """The reader's answers. A question left out is scored wrong, not refused."""
@@ -155,11 +151,21 @@ class Answers(BaseModel):
     q5: Q5 | None = None
 
 
+class KeyAnswers(Answers):
+    """The key answers every question."""
+
+    q1: Q1
+    q2: Q2
+    q3: Q3
+    q4: Q4
+    q5: Q5
+
+
 class Key(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     stage: str
-    answers: Answers
+    answers: KeyAnswers
 
 
 class Reader(BaseModel):
@@ -192,14 +198,12 @@ class Record(BaseModel):
     score: dict[str, bool]
 
     @model_validator(mode="after")
-    def _a_human_is_timed(self) -> Self:
-        timed = (
-            self.minutes.confirm is not None and self.minutes.reconstruct is not None
-        )
-        if self.reader.kind == "human" and not timed:
-            raise ValueError(
-                "minutes: a human trial records both confirm and reconstruct"
-            )
+    def _only_a_human_is_timed(self) -> Self:
+        times = (self.minutes.confirm, self.minutes.reconstruct)
+        if self.reader.kind == "human" and None in times:
+            raise ValueError("minutes: a human trial records confirm and reconstruct")
+        if self.reader.kind == "claude" and times != (None, None):
+            raise ValueError("minutes: a Claude trial is not timed; leave both empty")
         return self
 
 
@@ -215,6 +219,15 @@ def load_key(name: str) -> Key:
     return Key.model_validate(_read_yaml(FIXTURES / name / "key.yaml"))
 
 
+def _start_over(out: Path) -> None:
+    if out.exists() and any(out.iterdir()):
+        if not (out / BUILT_MARK).exists():
+            raise ValueError(f"{out} is not empty and was not built by handoff_trial")
+        shutil.rmtree(out)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / BUILT_MARK).touch()
+
+
 def build(scenario: Scenario, out: Path, through: str | None = None) -> Path:
     """Write the scenario's ``.insight/`` into *out* up to stage *through*; return the HTML."""
     stages = scenario.stages
@@ -223,13 +236,16 @@ def build(scenario: Scenario, out: Path, through: str | None = None) -> Path:
         if through not in ids:
             raise ValueError(f"no stage '{through}' in the scenario; stages are {ids}")
         stages = stages[: ids.index(through) + 1]
-    if out.exists():
-        shutil.rmtree(out)
-    out.mkdir(parents=True)
+    _start_over(out)
     for stage in stages:
         for step in stage.steps:
             ((name, args),) = step.items()
-            STEPS[name](scenario.theme_id, out, args)
+            function, themed = STEPS[name]
+            theme = {"theme_id": scenario.theme_id} if themed else {}
+            try:
+                function(**theme, **args, base_dir=out)
+            except TypeError as e:
+                raise ValueError(f"stage '{stage.id}', step '{name}': {e}") from e
     return Path(tree_io.render(scenario.theme_id, base_dir=out)["path"])
 
 
@@ -237,7 +253,7 @@ def prompt_for(html: str) -> str:
     return (FIXTURES / "prompt.md").read_text(encoding="utf-8") + html
 
 
-_FENCED = re.compile(r"```(?:json)?\s*(\{.*\})\s*```", re.S)
+_FENCED = re.compile(r"```[A-Za-z]*[ \t]*\n(\{.*?\})\s*```", re.S)
 
 
 def parse_answers(text: str) -> Answers:
@@ -250,32 +266,13 @@ def parse_answers(text: str) -> Answers:
         raise ValueError(f"the reply is not the answer JSON: {e}") from e
 
 
-def _same(a: list[Any], b: list[Any]) -> bool:
-    return set(a) == set(b)
-
-
 def score(answers: Answers, key: Key) -> dict[str, bool]:
     """Right or wrong per question, by the ids the answers name."""
-    k = key.answers
-    assert k.q1 and k.q2 and k.q3 and k.q4 and k.q5, "the key answers every question"
-    a = answers
-    return {
-        "q1": a.q1 is not None and a.q1.verdict == k.q1.verdict,
-        "q2": a.q2 is not None
-        and _same(a.q2.not_started, k.q2.not_started)
-        and _same(a.q2.analyzed_undetermined, k.q2.analyzed_undetermined),
-        "q3": a.q3 is not None
-        and _same(a.q3.supports, k.q3.supports)
-        and _same(a.q3.weakens, k.q3.weakens),
-        "q4": a.q4 is not None
-        and _same(a.q4.changed_nodes, k.q4.changed_nodes)
-        and _same(a.q4.evidence, k.q4.evidence),
-        # The reason is free text on the page and cites nothing, so a reader may
-        # rightly name more of the events behind it; the key's must all be there.
-        "q5": a.q5 is not None
-        and a.q5.node_id == k.q5.node_id
-        and set(k.q5.reason_events) <= set(a.q5.reason_events),
-    }
+    result = {}
+    for q in QUESTIONS:
+        given = getattr(answers, q)
+        result[q] = given is not None and given.matches(getattr(key.answers, q))
+    return result
 
 
 def rescore(record: Record) -> dict[str, bool]:
@@ -313,9 +310,7 @@ def _record(args: argparse.Namespace) -> int:
     )
     Path(args.out).write_text(
         yaml.safe_dump(
-            record.model_dump(mode="json", exclude_none=False),
-            allow_unicode=True,
-            sort_keys=False,
+            record.model_dump(mode="json"), allow_unicode=True, sort_keys=False
         ),
         encoding="utf-8",
     )
@@ -352,7 +347,7 @@ def _main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         return COMMANDS[args.command](args)
-    except ValueError as e:
+    except (ValueError, OSError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
 

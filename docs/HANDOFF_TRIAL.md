@@ -26,18 +26,21 @@
   `round-1` と `round-2` は、その後の観察（分析設計、journal の出来事、振り返りの答え、聞いてきた答え、ツリーの決定）を順に足す。
   各段階の `summary` は、その段階で何が分かったかを人向けに書いたものである。
 - `key.yaml`: `round-2` の HTML を読んだ人が出すべき判断（正解の鍵）。
-  鍵の各答えは `tests/test_handoff_trial.py` が作ったツリーから導き直して確かめるので、`stages.yaml` とずれない。
+  鍵の答えは、q5 の理由の出来事を除いて、`tests/test_handoff_trial.py` が作ったツリーから導き直して確かめる。そのため `stages.yaml` とずれない。
+  ツリーの決定の理由は文で、出来事を引用しない。そのため q5 の理由の出来事だけは機械で導けず、鍵を書く人が決める。
 
 読み手に渡す問いと答えの形は `tests/fixtures/handoff/prompt.md` にある。人にも Claude にも同じものを渡す。
 
 ## Step 1: Build the HTML
 
 `build` は、段階の操作を `tree_io` と `design_io` に通して `.insight/` を作り、`tree_io render` で HTML を書く。
+`stages.yaml` の step 名は、呼ぶ関数の名前と同じである。
+`--out` に空でないディレクトリを渡すと、`build` が前に作ったもの（目印の `.handoff-trial` がある）でない限り、何も消さずに止まる。
 skill が書くのと同じ道を通るので、正本や表示が変われば、HTML も今の形でできる。
 
 ```bash
 TRIAL=$(mktemp -d)
-uv run python scripts/handoff_trial.py build --scenario lib --out "$TRIAL/insight"
+uv run python -m scripts.handoff_trial build --scenario lib --out "$TRIAL/insight"
 ```
 
 出力は HTML のパスである。`--through round-1` のように段階を渡すと、その段階までで止める。
@@ -51,16 +54,19 @@ headless の `claude -p` に、問いと HTML だけを標準入力で渡す。
 CLAUDE.md を拾わないように、空のディレクトリで実行する。
 
 ```bash
-uv run python scripts/handoff_trial.py prompt --html "$TRIAL/insight/themes/LIB_tree.html" > "$TRIAL/input.txt"
+uv run python -m scripts.handoff_trial prompt --html "$TRIAL/insight/themes/LIB_tree.html" > "$TRIAL/input.txt"
 mkdir "$TRIAL/empty" && cd "$TRIAL/empty"
 CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 claude -p --tools "" --strict-mcp-config --setting-sources "" --disable-slash-commands --no-session-persistence --model sonnet --system-prompt "Answer only from the text the user gives you." < "$TRIAL/input.txt" > "$TRIAL/reply.txt"
 ```
 
-手元で実行するだけで、HTML も答えも外には送らない。
-Artifact や Claude Docs には何も送らない。
+問いと HTML はモデルの API に届く。モデルの API 以外には送らない。Artifact や Claude Docs には何も送らない。
+合成データだけなので、API に届いて困るものは無い。
 
-隔離が効いているかは、同じフラグで「呼べるツール、CLAUDE.md の中身、作業ディレクトリ」を聞いて確かめられる。
-2026-11-21 の確認では、ツールは空で、CLAUDE.md と memory は見えず、作業ディレクトリは分からないと答えた。
+これらのフラグでも、managed（組織の管理者が置く）設定と、その hook は外せない。
+`--bare` なら hook と CLAUDE.md の探索まで切れるが、認証が API キーに限られる。
+
+隔離が効いているかは、同じフラグに `--output-format json` を足して確かめる。`num_turns` が 1 なら、ツールは一度も呼ばれていない。
+2026-11-21 の確認では `num_turns` は 1 だった。あわせて「呼べるツール、CLAUDE.md の中身、作業ディレクトリ」を聞くと、ツールは空、CLAUDE.md と memory は見えない、作業ディレクトリは分からない、と答えた。この答えはモデルの自己申告なので、証拠としては `num_turns` より弱い。
 
 ## Step 3: Hand it to a person
 
@@ -97,7 +103,7 @@ q5 の理由だけを「含む」で採点する。HTML ではツリーの決定
 リポジトリのルートに戻ってから実行する。
 
 ```bash
-uv run python scripts/handoff_trial.py record --scenario lib --answers "$TRIAL/reply.txt" --reader-kind claude --reader-name "sonnet (Claude Code 2.1.227)" --date 2026-11-21 --out docs/handoff-trials/2026-11-21-claude-sonnet.yaml
+uv run python -m scripts.handoff_trial record --scenario lib --answers "$TRIAL/reply.txt" --reader-kind claude --reader-name "sonnet (Claude Code 2.1.227)" --date 2026-11-21 --out docs/handoff-trials/2026-11-21-claude-sonnet.yaml
 ```
 
 記録は1回の試行を1ファイルにし、`docs/handoff-trials/` にコミットする。合成データだけなので公開してよい。
