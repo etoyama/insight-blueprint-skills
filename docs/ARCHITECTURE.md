@@ -415,12 +415,12 @@ sequenceDiagram
 
         D->>U: 【KEEP】/analysis-reflection {design_id} で結論（conclude/refine/branch）+ terminal 遷移
         alt 結論が出た（terminal status）
-            D->>FS: /analysis-report でレポートを書く（AUTO。.insight/reports/{id}.md）
-            D->>P: /report-upload を起動（AUTO。driver は自分では聞かない）
+            D->>FS: /analysis-report でレポートを書く（AUTO。.insight/reports/{id}.md。前に書いたレポートがあれば書き直さない）
+            D->>P: /report-upload を起動（AUTO。前に書いたレポートでも起動する。driver は自分では聞かない）
             alt Claude Docs のコネクタが無い
                 P-->>D: 何も送らず「コネクタが無い」を返す
             else 送れる
-                P->>U: 【KEEP】送るファイル（レポートと図）を列挙して承認を待つ
+                P->>U: 【KEEP】送るファイル（レポートと図）を列挙して承認を待つ（前に書いたレポートなら「前に送っていれば送らなくてよい」を添える）
                 alt 承認する
                     P->>DC: 新しい Doc を作り、本文と図を送る
                     DC-->>P: Doc の URL

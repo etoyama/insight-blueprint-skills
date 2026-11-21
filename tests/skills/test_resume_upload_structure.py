@@ -1,93 +1,95 @@
 """Structure tests for the upload after a resumed run (Epic 27 US-1).
 
-When `/analysis-auto` resumes a round whose report an earlier run wrote, the driver still
-takes the analyst to the approval gate of `/report-upload`, so a report that was never sent
-is not silently skipped. The driver keeps no record of what was sent, so it tells the analyst
-that a report sent before needs no second upload, and asks nothing of its own (ADR-0016).
+When `/analysis-auto` resumes a round whose report was written before this run, the driver
+still takes the analyst to the approval gate of `/report-upload`, so a report that was never
+sent is not silently skipped. The driver keeps no record of what was sent, so the gate's
+message says that a report sent before needs no second upload, and asks nothing more
+(ADR-0016).
+
+The kept report going on to the upload, and the upload skipped only without a report, are
+guarded in test_auto_walk_structure.py and test_upload_wiring_structure.py.
 """
 
 from __future__ import annotations
 
-from tests.skills._markdown import unwrap
-from tests.skills.test_skill_structure import _read_skill, split_sections
-from tests.skills.test_upload_wiring_structure import _drive_item, _gate_row
+import re
+
+from tests.skills._auto import auto, gate_row, round_item
+from tests.skills._markdown import section, table_rows, unwrap
+from tests.skills.test_skill_structure import split_sections
+
+NOTE = "このレポートは前に書いた。前に送っていれば送らなくてよい。送ると Doc がもう1つできる"
 
 
-class TestAnExistingReportGoesToTheUpload:
-    """AC 1: a report already there is not rewritten, and the round goes on to the upload."""
+class TestAReportFromBeforeGoesToTheUpload:
+    """AC 1: the upload runs for any report of the round, also one written before this run."""
 
-    def test_the_report_item_hands_an_existing_report_to_the_upload(self) -> None:
-        item = _drive_item("report")
-        assert "not written again" in item
-        assert "go on to item 9" in item
-
-    def test_the_report_item_no_longer_leaves_the_upload_to_the_analyst(self) -> None:
-        assert "is theirs to run" not in _drive_item("report")
-
-    def test_the_upload_runs_for_a_report_an_earlier_run_wrote(self) -> None:
-        item = _drive_item("upload")
-        assert "when the round has a report" in item.lower()
-        assert "an earlier run" in item
-
-    def test_the_upload_is_skipped_only_without_a_report(self) -> None:
-        assert (
-            "skip this item when the round has no report"
-            in _drive_item("upload").lower()
+    def test_the_upload_runs_for_a_report_that_was_there_before(self) -> None:
+        assert re.search(
+            r"when the round has a report, run `/report-upload \{design_id\}`[^.]*"
+            r"also for a report that was there before this run",
+            round_item("upload"),
         )
 
     def test_gate_policy_starts_the_upload_for_any_report_of_the_round(self) -> None:
-        _, _, auto = _gate_row("upload")
-        assert "once the round has a report" in auto
+        _, _, auto_cell = gate_row("upload")
+        assert (
+            "once the round has a report, written by this run or before it" in auto_cell
+        )
 
 
 class TestTheGateSaysASentReportNeedsNoUpload:
-    """AC 2: for a report an earlier run wrote, the gate comes with the note that it may be sent already."""
+    """AC 2: for a report from before this run, the gate's message carries the note."""
 
-    def test_the_driver_adds_the_note_before_the_gate(self) -> None:
-        item = _drive_item("upload")
-        assert "前に送っていれば送らなくてよい" in item
-        assert "Doc がもう1つできる" in item
-
-    def test_the_note_is_only_for_a_report_an_earlier_run_wrote(self) -> None:
-        item = _drive_item("upload")
-        note_at = item.index("前に送っていれば")
-        assert "an earlier run wrote" in item[:note_at]
+    def test_the_note_goes_in_the_gate_message_only_for_a_report_from_before(
+        self,
+    ) -> None:
+        assert re.search(
+            r"when the report was there before this run, write this line in the gate's message, "
+            r"right before \"送ってよい？\": \"" + re.escape(NOTE) + '"',
+            round_item("upload"),
+        )
 
     def test_the_note_is_not_a_question(self) -> None:
-        item = _drive_item("upload")
-        assert "the note asks nothing" in item.lower()
-        _, keep, _ = _gate_row("upload")
-        assert "no question of its own" in keep
+        assert "The note asks nothing: the gate stays the one question" in round_item(
+            "upload"
+        )
 
 
 class TestNothingIsCarriedOver:
     """AC 3: no record of the upload is kept, and no approval carries over (ADR-0016)."""
 
     def test_the_driver_keeps_no_record_of_the_upload(self) -> None:
-        assert "keeps no record of what was sent" in _drive_item("upload")
+        assert "The driver keeps no record of what was sent" in round_item("upload")
 
-    def test_an_earlier_approval_is_not_an_approval(self) -> None:
-        item = _drive_item("upload")
-        assert "an earlier run" in item
-        assert "never treat an earlier" in item.lower()
-        assert "ADR-0016" in item
+    def test_an_approval_from_an_earlier_run_is_not_an_approval(self) -> None:
+        assert re.search(
+            r"never treat an earlier \"yes\" as a \"yes\" to the upload, "
+            r"an approval given in an earlier run included \(\[ADR-0016\]",
+            round_item("upload"),
+        )
 
 
 class TestTheRestOfTheSkillAgrees:
-    """AC 4: the chaining row and the summary name the upload for any report of the round."""
+    """AC 4: the plan, the theme reflection, the summary and the chaining row agree."""
+
+    def test_the_plan_says_a_report_from_before_is_asked_about_too(self) -> None:
+        assert "前に書いたレポートも、送るかを聞く" in unwrap(
+            section(auto(), "### Step 1:")
+        )
+
+    def test_the_theme_reflection_always_adds_the_upload_outcome(self) -> None:
+        item = round_item("theme reflection")
+        assert "add the upload outcome." in item
+        assert "when this run has one" not in item
+
+    def test_the_summary_covers_any_report_of_the_round(self) -> None:
+        summary = unwrap(section(auto(), "### Step 4:"))
+        assert "When the round has a report, add the report's path" in summary
 
     def test_the_chaining_row_starts_the_upload_for_any_report(self) -> None:
-        chaining = split_sections(_read_skill("analysis-auto"))["Chaining"]
-        row = next(ln for ln in chaining.splitlines() if "→ /report-upload" in ln)
-        assert "The round has a report" in row
-
-    def test_the_summary_covers_a_report_an_earlier_run_wrote(self) -> None:
-        summary = unwrap(split_sections(_read_skill("analysis-auto"))["Workflow"])
-        step4 = summary[summary.index("### Step 4:") :]
-        assert "When the round has a report" in step4
-        assert "When a report was written" not in step4
-
-    def test_the_plan_says_the_upload_is_asked_on_resume_too(self) -> None:
-        workflow = unwrap(split_sections(_read_skill("analysis-auto"))["Workflow"])
-        step1 = workflow[: workflow.index("### Step 2:")]
-        assert "再開したときも" in step1
+        rows = table_rows(split_sections(auto())["Chaining"])
+        when = next(row[2] for row in rows if row[1] == "→ /report-upload")
+        assert when.startswith(
+            "The round has a report, written by this run or before it"
+        )

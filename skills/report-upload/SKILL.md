@@ -28,7 +28,7 @@ never shares one. It must never install or configure a connector on the analyst'
 
 ## When to Use
 - A report exists and readers should comment on it or get it as Word / PDF
-- `/analysis-auto` built a report and hands over for the upload
+- `/analysis-auto` reached a report, written by its run or before it, and hands over for the upload
 
 ## When NOT to Use
 - There is no report yet (→ /analysis-report)
@@ -136,7 +136,7 @@ When `/analysis-auto` started this skill, return the outcome to the driver in on
 | From | To | When |
 |------|-----|------|
 | /analysis-report | → /report-upload | The report is written and readers should comment on it or export it |
-| /analysis-auto | → /report-upload | The autopilot built the report; the approval gate of this skill is the only question |
+| /analysis-auto | → /report-upload | The round has a report, written by the autopilot's run or before it; the approval gate of this skill is the only question |
 
 ## Language Rules
 - Follow project CLAUDE.md language settings. Default to Japanese if no setting.

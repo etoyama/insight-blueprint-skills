@@ -22,9 +22,9 @@ AC の正本はここ。
 分析者として、中断した `/analysis-auto` を再開したときも、レポートを送るかを聞かれたい。前に送っていたかを自分で思い出せれば、二度送らずに済ませたい。
 
 - [x] AC 1: 巡回にレポートがあれば、前の実行で書いたものでも、item 8 は書き直さずに item 9 へ進み、item 9 は `/report-upload` を起動して KEEP ゲートまで進む。巡回にレポートが無いときだけ item 9 を飛ばす。
-- [x] AC 2: 前の実行で書いたレポートのときは、ゲートと同じメッセージに「前に送っていれば送らなくてよい。送ると Doc がもう1つできる」と添える。この一文は問いではなく、ゲートが upload についての唯一の問いのまま残る。
+- [x] AC 2: レポートがこの実行より前からあったときは、ゲートのメッセージの「送ってよい？」の直前に「このレポートは前に書いた。前に送っていれば送らなくてよい。送ると Doc がもう1つできる」と添える。この一文は問いではなく、ゲートが upload についての唯一の問いのまま残る。
 - [x] AC 3: driver は送った記録を持たない。前の実行で出した承認は今回の承認の代わりにならない（ADR-0016）。
-- [x] AC 4: Gate policy の upload の行、Chaining の行、Step 1 の計画の知らせ、Step 4 の要約が、前の実行で書いたレポートも upload の対象にすることと食い違わない。
+- [x] AC 4: `/analysis-auto` の Gate policy の upload の行、Chaining の行、Step 1 の計画の知らせ、item 10 の upload の結果、Step 4 の要約と、`/report-upload` の When to Use と Chaining、README、[docs/ARCHITECTURE.md](../ARCHITECTURE.md) のシーケンス図が、前に書いたレポートも upload の対象にすることと食い違わない。
 
 ## Stories
 
@@ -34,18 +34,20 @@ AC の正本はここ。
 
 ## Ubiquitous Language
 
-語は増やさない。「巡回」「巡回の現在地」「KEEP ゲート」の定義は変わらない。
+- 追加: なし
+- 変更: なし（「巡回」「巡回の現在地」「KEEP ゲート」の定義は変わらない）
 
 ## Scope
 
 [docs/PRD.md](../PRD.md) の guided autopilot と、[docs/ARCHITECTURE.md](../ARCHITECTURE.md) の Skill layer（`/analysis-auto`）を前進させる。
 
 - Epic 範囲内:
-  - `skills/analysis-auto/SKILL.md` の Gate policy の upload の行、Step 1 の計画の知らせ、Step 3 の item 8・9、Step 4 の要約、Chaining。
+  - `skills/analysis-auto/SKILL.md` の Gate policy の upload の行、Step 1 の計画の知らせ、Step 3 の item 8・9・10、Step 4 の要約、Chaining。
+  - `skills/report-upload/SKILL.md` の When to Use と Chaining の行（ゲートの文言は変えない）、README、ARCHITECTURE のシーケンス図。
 - Epic 範囲外:
   - 送った記録を持つこと（Decisions `keep-no-record-of-the-upload` で落とした）。
   - `/report-upload` の KEEP ゲートの文言。添える一文は driver が出す。`/report-upload` を単独で打ったときは、分析者が自分で送ると決めているので添えない。
-  - 送ったレポートを再び承認したときに Doc が2つできること。文言で抑えるだけにする。
+  - `concluded` の巡回に分析設計が複数あるとき、どのレポートを回すか（[#161](https://github.com/etoyama/insight-blueprint-skills/issues/161)。この Epic より前からある）。
 
 ## Architecture
 
@@ -62,7 +64,7 @@ flowchart TD
     report -->|無ければ書く| file
     report -->|あれば書き直さない| file
     file --> upload
-    note -.->|前の実行で書いたレポートのときだけ| upload
+    note -.->|この実行より前からあったレポートのときだけ| upload
     upload --> theme
 ```
 
@@ -88,6 +90,15 @@ classDiagram
 |---|---|---|
 | `Report` | エンティティ（ファイル） | 一度書いたら guided autopilot は書き直さない。送ったかどうかはどこにも残さない |
 
+## Module Responsibilities
+
+| モジュール / 関数 | 責務（する） | 境界（しない → 委譲先） |
+|---|---|---|
+| `skills/analysis-auto/SKILL.md` item 8（report） | 結論の status ならレポートを書く。既にあれば書き直さず upload へ進む | レポートの中身を決めない → `/analysis-report` |
+| `skills/analysis-auto/SKILL.md` item 9（upload） | 巡回にレポートがあれば `/report-upload` に従う。前からあったレポートなら、ゲートのメッセージに一文を添える | 自分では送るかを聞かない。送った記録を持たない。承認を持ち越さない → `/report-upload` の KEEP ゲート |
+| `skills/analysis-auto/SKILL.md` item 10（theme reflection） | レポートのパスと upload の結果を、ツリーの決定の前に示す | ツリーの決定をしない → `/analysis-reflection {theme_id}` |
+| `skills/report-upload/SKILL.md` | 送るファイルを列挙し、承認の後にだけ Doc を作る | レポートがいつ書かれたかを知らない。一文を添えない → driver |
+
 ## Sequence Diagram
 
 ```mermaid
@@ -104,8 +115,7 @@ sequenceDiagram
     D->>FS: {design_id}.md はあるか
     FS-->>D: ある（前の実行で書いた）
     D->>U: /report-upload {design_id}
-    U->>A: 送るファイルの一覧と「送ってよい？」
-    D->>A: 前の実行で書いた。前に送っていれば送らなくてよい。送ると Doc がもう1つできる
+    U->>A: 送るファイルの一覧、driver が添える一文（このレポートは前に書いた。前に送っていれば送らなくてよい。送ると Doc がもう1つできる）、「送ってよい？」
     alt 送る
         A-->>U: はい
         U-->>D: Doc の URL
@@ -116,13 +126,13 @@ sequenceDiagram
     D->>A: item 10: テーマを横断した振り返り
 ```
 
-driver の一文と `/report-upload` の一覧は同じメッセージに並ぶ。図では別の矢印にしたが、分析者が答えるのはゲートの1回だけである。
+driver は `/report-upload` の SKILL.md を読んでそのとおりに進めるので、ゲートのメッセージを書くのも driver である。一文はそのメッセージの「送ってよい？」の直前に入り、分析者が答えるのはゲートの1回だけである。
 
 ## Decisions
 
 ### Decision: keep-no-record-of-the-upload
 
-- What: 再開したときにレポートがあれば、毎回 `/report-upload` の KEEP ゲートまで進め、送るかを聞く。ゲートと同じメッセージに「前に送っていれば送らなくてよい」と添える。送った記録は持たない（案 C）。
+- What: 再開したときにレポートがあれば、毎回 `/report-upload` の KEEP ゲートまで進め、送るかを聞く。ゲートのメッセージに「前に送っていれば送らなくてよい」と添える。送った記録は持たない（案 C）。
 - Why: 課題1（再開すると送り漏れに気づけない）を、新しい状態を増やさずに解く。
 - Criteria: 人間が decision-analysis で決めた（2026-11-22、issue #139 のコメント）。
 
@@ -146,12 +156,12 @@ driver の一文と `/report-upload` の一覧は同じメッセージに並ぶ�
 
 ### Decision: the-note-comes-from-the-driver
 
-- What: 「前に送っていれば送らなくてよい」の一文は、`/report-upload` のゲートの文言ではなく、driver が同じメッセージに添える。
-- Why: 一文が要るのは、前の実行で書いたレポートを driver が upload に回すときだけである。`/report-upload` は、レポートがいつ書かれたかを知らない。
+- What: 「前に送っていれば送らなくてよい」の一文は `/report-upload` の SKILL.md に書かず、driver が `/report-upload` に従ってゲートのメッセージを書くときに「送ってよい？」の直前へ添える。
+- Why: 一文が要るのは、この実行より前からあったレポートを driver が upload に回すときだけである。`/report-upload` は、レポートがいつ書かれたかを知らない。問いを最後に置くため、一文は「送ってよい？」の前に入れる。
 - Criteria: 単独で打ったときに不要な一文を出さないこと。並行する #103（PR #154）が `skills/report-upload/SKILL.md` を直していて、同じ文言を触ると衝突すること。
 - Affected modules: `skills/analysis-auto/SKILL.md`
 - Alternatives considered: `/report-upload` の Step 3 の文言に常に一文を足す案。単独で打った分析者にも毎回出るうえ、#154 と衝突する。
-- Consequences: 一文は driver の問いではなく、ゲートの補足である。Gate policy の「driver adds no question of its own」は変わらない。
+- Consequences: 一文はゲートの補足で、driver の問いは増えない。Gate policy の「driver adds no question of its own」は変わらない。手で `/analysis-report` を打って作ったレポートも「前に書いた」になる。
 
 ### Decision: make-issue-139-a-small-epic
 
@@ -170,7 +180,7 @@ driver の一文と `/report-upload` の一覧は同じメッセージに並ぶ�
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| US-1 再開でも upload の段へ | ✓（`tests/skills/test_resume_upload_structure.py`: `TestAnExistingReportGoesToTheUpload`、`TestTheGateSaysASentReportNeedsNoUpload`、`TestNothingIsCarriedOver`、`TestTheRestOfTheSkillAgrees`。仕様の変更として `tests/skills/test_upload_wiring_structure.py::test_no_report_means_no_upload` と `tests/skills/test_auto_walk_structure.py::test_a_report_from_an_earlier_run_is_kept_and_goes_to_the_upload` を直した） | —（Python のテストからは driver を動かせない。SKILL.md の文だけが対象で、結合する層が無い） | —（headless 実行の E2E は ADR-0010 で必須にしていない） |
+| US-1 再開でも upload の段へ | ✓（`tests/skills/test_resume_upload_structure.py`: `TestAReportFromBeforeGoesToTheUpload`、`TestTheGateSaysASentReportNeedsNoUpload`、`TestNothingIsCarriedOver`、`TestTheRestOfTheSkillAgrees`。仕様の変更として `tests/skills/test_upload_wiring_structure.py::test_no_report_means_no_upload` と `tests/skills/test_auto_walk_structure.py::test_a_report_from_an_earlier_run_is_kept_and_goes_to_the_upload` を直した） | —（Python のテストからは driver を動かせない。SKILL.md の文だけが対象で、結合する層が無い） | —（headless 実行の E2E は ADR-0010 で必須にしていない） |
 
 完了時に ✓ を付ける。自動テストがない層には「—（理由）」を書く（[ADR-0010](../adr/0010-skill-tdd-structure-tests.md)）。
 
@@ -181,3 +191,8 @@ driver の一文と `/report-upload` の一覧は同じメッセージに並ぶ�
 - 2026-11-22 — Story #158 completed: `/analysis-auto` の item 8 は既にあるレポートを item 9 へ回し、item 9 は巡回にレポートがあれば `/report-upload` を起動する。前の実行で書いたレポートのときは、ゲートと同じメッセージに一文を添える。
   旧仕様を固めていた構造テスト2本は、仕様の変更として新しいテストとは別のコミットで直した。
   確かめていないこと: 実際に `/analysis-auto` を中断・再開した巡回。
+- 2026-11-22 — レビュー（`pstack:thermos`）: バグ・セキュリティとコード品質の2観点で Epic ブランチを見た。Critical と High の指摘は無かった。
+  直したもの: 条件を消しても通っていた構造テストを、条件と一文を同じ文で確かめる形にした。SKILL.md の句を1つずつ消して、テストが落ちることを確かめた。古いテストと同じことを確かめていたテストは消した。
+  item 10 に残っていた「この実行に upload の結果があれば」の限定を外した。item 8 と item 9 で「前に書いた」を2回言っていたので、item 9 の一文だけにした。一文の置き場所を「送ってよい？」の直前と決めた。
+  `/report-upload` の When to Use と Chaining、README、ARCHITECTURE のシーケンス図を合わせた。3つのテストが使う SKILL.md の読み取りを `tests/skills/_auto.py` にまとめた。
+  直していないもの: `concluded` の巡回に分析設計が複数あるときの扱い（#161 に切った）。
