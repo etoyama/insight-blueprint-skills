@@ -35,6 +35,7 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0027](0027-default-allowlist-always-allowed.md) | 既定の許可リストは常に許し、パッケージ許可リストのファイルはそこにパッケージを足す | Accepted |
 | [0028](0028-hearing-is-its-own-journal-event.md) | 人に聞いた答えは、journal の出来事 `hearing` として残す | Accepted |
 | [0029](0029-analyzing-reaches-conclusion-directly.md) | analyzing から結論の status へ直接遷移できるようにする | Accepted |
+| [0032](0032-marketplace-serves-the-release-tag.md) | marketplace は plugin をリリースのタグから配る | Accepted |
 
 - ADR-0001〜0008 は旧形式のまま残す。ADR-0009 からは新形式（Problem と Decision Analysis の節を持つ）で書く。
 - 開発フローの決定の出典は [flow/](flow/README.md) にある。repo-template の ADR のコピーで、`FLOW-000N` と表記する。
