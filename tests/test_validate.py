@@ -54,7 +54,7 @@ class TestValidateTransition:
     def test_disallowed_transition_raises(self) -> None:
         """A transition not in the allow-set raises ValueError."""
         with pytest.raises(ValueError, match="Cannot transition from 'analyzing'"):
-            validate_transition(DesignStatus.analyzing, DesignStatus.supported)
+            validate_transition(DesignStatus.analyzing, DesignStatus.revision_requested)
 
     def test_terminal_status_has_no_targets(self) -> None:
         """Terminal statuses (supported/rejected/inconclusive) allow no transition."""
@@ -64,9 +64,10 @@ class TestValidateTransition:
     def test_message_lists_sorted_valid_targets(self) -> None:
         """Error message enumerates the sorted valid targets."""
         with pytest.raises(ValueError) as exc:
-            validate_transition(DesignStatus.analyzing, DesignStatus.rejected)
-        # analyzing only allows in_review
-        assert "in_review" in str(exc.value)
+            validate_transition(DesignStatus.analyzing, DesignStatus.revision_requested)
+        assert str(exc.value).endswith(
+            "Valid targets: inconclusive, in_review, rejected, supported"
+        )
 
 
 # ---------------------------------------------------------------------------
