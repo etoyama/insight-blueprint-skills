@@ -142,7 +142,7 @@ AC の正本はここ。
 この Epic で追加・変更した語。定義の正本は
 [docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md)。
 
-- 追加: 論点ツリー、論点、根の問い、到達点、根の版、寄与、発見元、進捗、現時点の答え、振り返りの回、ツリーの決定、次の候補、ツリーの検査、Artifact、合成シナリオ、引き継ぎの試行、巡回、巡回の現在地
+- 追加: 論点ツリー、論点、根の問い、到達点、根の版、寄与、発見元、進捗、現時点の答え、振り返りの回、ツリーの決定、次の候補、ツリーの検査、Artifact、合成シナリオ、引き継ぎの試行、正解の鍵、試行の記録、巡回、巡回の現在地
 - 変更: アップロード（Story 18.7。`/tree-upload` も指す）、journal の出来事（[ADR-0028](../adr/0028-hearing-is-its-own-journal-event.md)。`hearing` を足した）、違反（[ADR-0025](../adr/0025-cited-answers-checked-after-writing.md)。ツリーの検査も挙げる）
 
 ## Scope
@@ -395,6 +395,7 @@ decisions:
 | `/tree-upload`（新設） | 分析者が頼んだときに、`tree_io render` が書いた HTML を列挙して KEEP ゲートで承認を待ち、承認の後に新しい Artifact として送る。Artifact が無いホストでは手元のパスを伝える | HTML を書かない → `tree_io render`。いつ渡すかは決めない → 分析者。framing と reflection は案内するだけで起動しない |
 | `/analysis-report`・`/report-upload` | （変えない）結論の出た分析設計のレポートを書き、承認の後に Claude Docs へ送る | いつ書くかは決めない → `/analysis-auto` |
 | `/analysis-journal` | `question` の出来事を残す。人に聞いた答えを `hearing` として残せる（[ADR-0028](../adr/0028-hearing-is-its-own-journal-event.md)） | 論点への昇格は `tree_io`。次の候補の答えを写すのは `tree_io copy-hearing` |
+| `scripts/handoff_trial.py`（新設）と `tests/fixtures/handoff/` | 合成シナリオの段階を `tree_io` と `design_io` に通して `.insight/` と HTML を作る。読み手に渡す問いを出す。読み手の答えを正解の鍵と id で比べ、試行の記録を書く | 表示を作らない → `tree_io render`。読み手を起動しない（`claude -p` は開発者が [docs/HANDOFF_TRIAL.md](../HANDOFF_TRIAL.md) の手順で回す）。plugin として配らない |
 
 ## Sequence Diagram
 
@@ -983,6 +984,27 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - `/analysis-auto` の本文は、2つの変数を名前で指す。そのまま書くと、ホストがその文の中の変数も置き換えるためである。`$ARGUMENTS` を本文に書くと、ホストが分析者の引数を本文の末尾に添える動きも止まる。
   - 指示がファイルの中身として入るぶん、skill として読み込まれた指示より守られにくくなりうる。実データの試行で、各ゲートで止まるかを見て確かめる（Story 18.8）。
 
+### Decision: handoff-trial-scores-judgments-by-id
+
+- What: 引き継ぎの試行（US-7）を次の形にする。手順と記録の型は [docs/HANDOFF_TRIAL.md](../HANDOFF_TRIAL.md) に置く。
+  - 合成シナリオの fixture は、段階（`start`、`round-1`、`round-2`）ごとの操作の列として `tests/fixtures/handoff/lib/stages.yaml` に持つ。`scripts/handoff_trial.py build` がそれを `tree_io` と `design_io` に通して `.insight/` を作り、`tree_io render` で HTML を書く。
+  - 読み手は、決まった形の JSON で答える。判断を論点・出来事・分析設計の id と答えの種類で書き、説明の文は `note` に入れる。`record` が正解の鍵（`key.yaml`）と比べて問いごとに正誤を出し、`note` は採点しない。q5 の理由の出来事だけは、鍵の出来事をすべて含めば正とする。
+  - 正解の鍵の各答えは、テストが作ったツリーから導き直して確かめる。
+  - 試行の記録は1回1ファイルで `docs/handoff-trials/` にコミットする。人の試行では、確認と再構成にかかった分を必須にする。
+  - 文脈を持たない Claude の読み手は、headless の `claude -p` に、ツールなし（`--tools ""`）、`--strict-mcp-config`、`--setting-sources ""`、既定のシステムプロンプトの置き換え、auto-memory を切った状態、空のディレクトリで、問いと HTML だけを標準入力で渡す。
+- Why: US-7 は、試行を繰り返すこと（本文）、判断の一致で採点すること（AC 2）、人の記録を残すこと（AC 3）を求めている。fixture、採点、置き場所の形は決めていない。
+- Criteria: 人間が 2026-11-21 にこのセッションで、3つの判断の推奨（A1・B1・C1）を選んだ。決め手は次のとおり。A は「`tree_io` が変わっても今の出力で HTML ができる」（課題: 古い HTML で試さない）。B は「人と Claude を同じ基準で採点できる」（PRD の成功基準）。C は「記録が Epic を閉じた後も並べて比べられる」（閉じた DesignDoc には追記しないため）。headless の隔離のフラグは、prototype で実行して確かめた事実である。
+- Affected modules: `scripts/handoff_trial.py`、`tests/fixtures/handoff/`、`docs/HANDOFF_TRIAL.md`、`docs/handoff-trials/`、CLAUDE.md の正本の表。
+- Alternatives considered:
+  - 段階ごとの `.insight/` を、出来上がったファイルのまま持つ。正本の形が変わっても古いファイルが残り、気づけない。
+  - 読み手は自由文で答え、人が鍵を見て採点する。言い換えは拾えるが、採点者によって基準がぶれる。
+  - 置き場所を `tests/handoff/` 1つにまとめ、記録は Story Timeline に要約だけを書く。Epic 18 の後の記録を残す場所が無い。
+  - 読み手に Read ツールを与え、HTML のファイルを読ませる。ほかのファイルを読める道が残る。標準入力で渡せば、ツールは要らない。
+- Consequences:
+  - id に落ちない判断（理由の中身）は採点に出ない。`note` を人が読むことで補う。
+  - 鍵は `round-2` の1つだけなので、採点する試行は最後の段階に限る。
+  - Claude の読み手のモデルとバージョンで結果は変わりうる。記録の `reader.name` に残す。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0024: 論点ツリーの正本は YAML に置き、表示は正本から生成する HTML にする](../adr/0024-question-tree-yaml-and-generated-html.md): 判断2・2'。Artifact は承認の後の任意の手順。
@@ -1001,7 +1023,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 | Story 18.5 | ✓（`tests/test_tree_models.py` の `TestNextCandidate`・`TestUntouchedNodes`・`TestDecisionKinds`。`tests/test_tree_io.py` の `TestNextCandidates`・`TestHear`・`TestCopyHearing`・`TestDecideAfterTheStart`。`tests/test_tree_render.py` の `TestNextCandidates`・`TestDecisionRounds`・`TestViolatingAnswers`・`TestCheckCouldNotRun`。US-3 AC 4 は次の候補、聞いてきた答え、journal への写しのテスト、AC 5 は決定の種類と回のテスト） | ✓（`tests/skills/test_next_candidate_structure.py`。SKILL.md に書いた `tree_io candidate`・`hear`・`decide`・`copy-hearing` を、合成の正本に通す。US-3 AC 4 は `TestReflectionShowsTheNextCandidates`・`TestReflectionKeepsWhatTheAnalystHeard`・`TestDesignCopiesWhatTheAnalystHeard`、AC 5 は `TestReflectionRecordsTheDecision`。再実行の framing は `TestFramingAsksWhichNodeComesNext`。`tests/test_tree_io.py` の `TestRender` は古い違反の答えに印が付くことを、`tests/integration/test_bin_wrappers.py` は `bin/tree_io candidates` を別の cwd から確かめる） | —（headless 実行の E2E は [ADR-0010](../adr/0010-skill-tdd-structure-tests.md) で必須にしていない。skill を通した手動確認は Story Timeline の 2026-11-21 に記録した） |
 | Story 18.6 | ✓（`tests/test_tree_render.py`。AC 1 は `TestSelfContained`、AC 2 は `TestProgress`・`TestCurrentAnswer`、AC 3 は `TestEvidence`、AC 4 は `TestMarks`・`TestHeader`、AC 5 は `TestStructure`。エスケープは `TestEscaping`） | ✓（`tests/test_tree_io.py` の `TestRender` は正本、分析設計、journal のファイルを読ませて HTML を書かせる。`tests/integration/test_bin_wrappers.py` は `bin/tree_io render` を別の cwd から通す） | —（CLI だけ。ブラウザで開いた手動確認は Story Timeline の 2026-11-21 に記録した） |
 | Story 18.7 | —（SKILL.md だけ。構造テストは Integration に置く） | ✓（`tests/skills/test_tree_upload_structure.py`。AC 1 は `TestApprovalGate`、AC 2 は `TestArtifactIsOptional`、AC 3 は `TestTheRenderedFileIsTheOnlySource`。framing の render は `tests/skills/test_question_tree_structure.py` の `TestFramingRendersTheTree` が、SKILL.md に書いたコマンドを `tree_io` に通す） | —（headless 実行の E2E は [ADR-0010](../adr/0010-skill-tdd-structure-tests.md) で必須にしていない。Artifact へ送った手動確認は Story Timeline の 2026-11-21 に記録した） |
-| Story 18.8 | — （試行の手順） | ☐ | ☐ |
+| Story 18.8 | ✓（`tests/test_handoff_trial.py`。AC 1 は `TestStages`・`TestTheBuiltTree`、AC 2 は `TestTheKeyHoldsForTheTree`・`TestScore`・`TestParseAnswers`・`TestPrompt`、AC 3 は `TestRecord`） | ✓（`tests/test_handoff_trial.py` の `TestCli` は `build`・`prompt`・`record` を別プロセスで通す。`tests/docs/test_handoff_trial_doc.py` は手順の文書を確かめる。AC 2 は `TestTheReaderGetsOnlyTheHtml`・`TestScoring`、AC 3 は `TestRecord`。`TestRecord` は `docs/handoff-trials/` の記録を採点し直す） | —（headless の `claude -p` での試行は ADR-0010 で必須にしていない。3回回した結果は Story Timeline の 2026-11-21 に記録した） |
 | Story 18.9 | ✓（`tests/test_tree_io.py` の `TestPosition`。US-8 AC 1 の「最新のツリーの決定が指す論点から再開する」を、6つの状態で確かめる。`TestCopyHearing` は、終わった分析設計の journal に写さないことを確かめる） | ✓（`tests/skills/test_auto_walk_structure.py`。AC 1 は `TestTheThemeIsTheEntry`・`TestFramingPlacesExistingDesigns`、AC 2 は `TestOneRound`、AC 3 は `TestGates`・`TestFramingTakesTheDecisionAsTheAnswerInsideAuto`、AC 4 は `TestTheReportIsWrittenWithoutAsking`、AC 5 は `TestTheWalkGoesOnUntilTheAnalystStops`。SKILL.md に書いた `tree_io position` と `tree_io link` を `tree_io` に通す。`tests/skills/test_upload_wiring_structure.py` は、アップロードの後も巡回が続くことを確かめる。`tests/docs/test_canonical_docs.py` は ARCHITECTURE の図を確かめる。`tests/test_cli_stdin.py` は `position` が stdin を読まないことを確かめる） | —（headless 実行の E2E は [ADR-0010](../adr/0010-skill-tdd-structure-tests.md) で必須にしていない。skill を通した手動確認は Story Timeline の 2026-11-21 に記録した） |
 
 完了時に ✓ を付ける。このマトリクスが Epic PR のレビューゲート。
@@ -1040,3 +1062,9 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - 2026-11-21 — レビューの直しの後、手動確認の (A) をもう一度通した。新しいセッションの `/analysis-auto LIB` は、現在地（`not_started`、`LIB-Q03`）を読み、次の論点を聞き直さずに `LIB-Q03` の Framing Brief を出した。直した経路のうち、ツリーを作った直後の読み直し、区切った後の再開、比べられない日時のエラーは、unit test と構造テストで確かめ、skill を通しては確かめていない。
 - 2026-11-21 — 人間が、Story 18.9 の小さい判断3つを承認した（親セッションで直接答えた。[PR #128 のコメント](https://github.com/etoyama/insight-blueprint-skills/pull/128#issuecomment-7058039332)と[次のコメント](https://github.com/etoyama/insight-blueprint-skills/pull/128#issuecomment-7058056034)）。残した穴（branch で起こした派生の分析設計が論点に結ばれない）は [#134](https://github.com/etoyama/insight-blueprint-skills/issues/134) になった。driver が SKILL.md を読んで進める判断には、読んだファイルの中の変数を値に読み替える1文を足した（Decision `driver-reads-the-skill-files`）。
 - 2026-11-21 — 読み替えを手動で確かめた。ツリーと `start` の決定を先に入れた合成のプロジェクトで、headless の Claude Code 2.1.227（sonnet）に `/analysis-auto LIB` を渡し、1巡を区切るまで通した。transcript で見たことは次のとおり。driver は Skill ツールを1度も呼ばず、ディスクも探さず、7つの skill の SKILL.md と参照ファイル2つを plugin の絶対パスで読んだ。`${CLAUDE_PLUGIN_ROOT}` を持つ `/analysis-notebook` のコマンドは、2本がパスそのものを書き、1本が `${CLAUDE_PLUGIN_ROOT:-<plugin のパス>}` と書いた。どれも plugin の環境で走った。`$ARGUMENTS` がそのまま残ったコマンドは無く、`design_io`・`tree_io`・`report_check` には `LIB` と `LIB-H01` が渡った。`*_io` の前の `cd` も無かった。最初の手動確認の transcript では、モデルが変数が空だと気づき、自分で `export CLAUDE_PLUGIN_ROOT=<plugin のパス>` を付けて回していた。この実行では、ゲートの答えを先にまとめて渡したので、ゲートで止まるかは確かめていない。
+- 2026-11-21 — Story 18.8 completed: 引き継ぎの試行の道具と手順を入れた（Decision `handoff-trial-scores-judgments-by-id`）。合成シナリオ（公共図書館の予約本）は `tests/fixtures/handoff/lib/` に、着手時（`start`）と2回の振り返り（`round-1`・`round-2`）の段階で持つ。`scripts/handoff_trial.py` は、段階を `tree_io` に通して HTML を作り（`build`）、読み手に渡す問いを出し（`prompt`）、答えを正解の鍵と id で比べて試行の記録を書く（`record`）。手順と記録の型は [docs/HANDOFF_TRIAL.md](../HANDOFF_TRIAL.md) にある。
+- 2026-11-21 — 文脈を持たない Claude セッションで、引き継ぎの試行を3回回した。headless の Claude Code 2.1.227（sonnet）に、`round-2` の HTML と問いだけを標準入力で渡した。ツールは持たせず、MCP、plugin、設定ファイル、既定のシステムプロンプト、auto-memory は読み込ませていない。空のディレクトリで実行し、外部には何も送っていない。記録は `docs/handoff-trials/2026-11-21-claude-sonnet-{1,2,3}.yaml` にある。
+  - q1〜q4 は3回とも正だった。根の答えを「まだ決められない」と読み、未着手（`LIB-Q04`・`LIB-Q05`・`LIB-Q06`）と、分析済みで未判別（`LIB-Q03`）を分けた。根の答えを支える証拠（`LIB-H02-E01`）と弱める証拠（`LIB-H02-E02`）を、出所の分析設計 `LIB-H02` と一緒に挙げた。回 2 で変わった答えを `LIB-Q01` だけとし、回 2 で初めて答えた `LIB-Q03` は含めなかった。
+  - q5 は1回だけ正だった。次の論点は3回とも `LIB-Q06` で合っていた。誤った2回は、理由の出来事に発見元の `LIB-H02-E03` だけを挙げた。そのうち1回は、`note` に決定の理由として `LIB-H02-E02` の内容（金曜に確保した本の期限切れが多いまま）を書いている。ツリーの決定の理由は文で、出来事を引用しないので、読み手はページ上の「発見元」に引かれたと見ている（推測）。採点の規則は試行の後に変えていない。
+  - 根の進捗が「未着手」と出る表示（Decision `tree-html-is-static-and-marks-are-derived` の Consequences）は、誤読されなかった。1回目の `note` は「根の進捗は未着手だが、答えに未判別が含まれる」と読んでいる。
+  - 試行で確かめていないこと: 人による試行（記録の型と手順だけを用意した）、sonnet 以外の読み手、`round-1` の段階での試行。
