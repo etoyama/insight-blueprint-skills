@@ -129,18 +129,19 @@ echo '{
 
 ### Step 2a: Identify API Structure
 
-1. Ask the user for the API base URL and provider
-2. For **e-Stat** APIs:
-   - Use `getMetaInfo` endpoint to discover table structure:
-     ```
-     GET {base_url}/app/json/getMetaInfo?appId=$ESTAT_API_KEY&statsDataId={table_id}
-     ```
-   - **Security**: API keys must come from environment variables. Never hardcode keys in YAML or catalog entries.
-   - Parse CLASS_INF to extract column definitions
-3. For **custom APIs**:
-   - Ask the user for a sample endpoint
-   - Fetch the response (or ask user to paste a sample)
-   - Analyze JSON structure to extract field names and types
+Do not call the API yourself. Fetching data is the job of the project's fetch script, which
+reads the API key from an environment variable; this plugin does not handle credentials
+([ADR-0023](../../docs/adr/0023-catalog-holds-no-credentials.md)).
+
+1. Ask the user for the API base URL, the provider, and the table or endpoint id
+2. Find the structure in what the fetch script already saved:
+   - Ask for the path of a saved response (e.g. an e-Stat meta-info JSON, or the CSV the
+     script wrote). Read a CSV as in Step 2a of the CSV workflow; read a JSON response in full
+   - If the file holds the key or a URL with the key in it, stop reading and ask for a copy
+     with the key removed
+   - If nothing is saved yet, ask the user to run the fetch script, or to paste a sample
+     response with the key removed
+3. Extract the field names and types (for e-Stat, the column definitions in `CLASS_INF`)
 
 ### Step 2b: Gather Metadata
 
