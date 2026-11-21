@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   「約1.9倍」 when the hypothesis compared two numbers. A ratio, a difference, or a percent change
   between two stated numbers now counts as a computed number, so the report no longer writes one
   unless an input states it.
+- **`/report-upload` left out every figure even where the host could upload them** (#103). The
+  skill now names the route: upload the PNG into the Doc with the host's asset upload, then link
+  it from the Doc. Where the host has no asset upload (such as Claude Code in the terminal at this
+  release), the approval list says before you approve that the figures are not sent.
 - A design branched off in `/analysis-journal` is now linked to the question nodes of its
   source (`tree_io link-derived`), so it shows in the progress, in the position of the walk and
   in the theme reflection. Nobody is asked for the node
