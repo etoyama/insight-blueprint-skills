@@ -83,6 +83,12 @@ is intended: outside this run the skills stay explicit. Inside this run, the ana
 - To run a skill, Read its file — `${CLAUDE_PLUGIN_ROOT}/skills/{skill-name}/SKILL.md`, the
   sibling of this skill's own directory — and follow it as written, under the gate policy
   above. Never search the disk for it.
+- A file you Read is not loaded as a skill, so the host fills in neither of its two variables.
+  Read the variable `CLAUDE_PLUGIN_ROOT` (written with `${` and `}` around it) as the plugin
+  root, which is the part before `/skills/` in the path above. Read the variable `ARGUMENTS`
+  (written with a `$` in front) as the value you hand that skill: the `design_id`, the
+  `theme_id`, or nothing. In a shell command, write the path itself in its place: the shell
+  does not have the variable.
 - Never call the Skill tool for a delegated skill, and never ask the analyst to type its
   `/command`: carrying the steps is what this run is for.
 - `design_io`, `catalog_io`, `tree_io`, `tree_check` and `report_check` are on PATH: call them

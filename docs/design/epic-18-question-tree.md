@@ -971,7 +971,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 
 ### Decision: driver-reads-the-skill-files
 
-- What: `/analysis-auto` は、動かす skill を Skill ツールで起動しない。その skill の `SKILL.md` を Read で読み、書いてあるとおりに進める。分析者に `/command` を打つよう頼まない。読む場所（`${CLAUDE_PLUGIN_ROOT}/skills/{skill-name}/SKILL.md`）と、`*_io` を名前で呼ぶことを SKILL.md に書いた。
+- What: `/analysis-auto` は、動かす skill を Skill ツールで起動しない。その skill の `SKILL.md` を Read で読み、書いてあるとおりに進める。分析者に `/command` を打つよう頼まない。読む場所（`${CLAUDE_PLUGIN_ROOT}/skills/{skill-name}/SKILL.md`）と、`*_io` を名前で呼ぶことを SKILL.md に書いた。読んだ SKILL.md の中の `${CLAUDE_PLUGIN_ROOT}` は、auto の本文で置き換わったパス（plugin のルート）に、`$ARGUMENTS` は渡す値に読み替える（人間の承認、2026-11-21、[PR #128 のコメント](https://github.com/etoyama/insight-blueprint-skills/pull/128#issuecomment-7058056034)。人間は親セッションで「承認して足す」と答えた）。
 - Why: Story 18.9 の手動確認（Claude Code 2.1.227）で、driver が Skill ツールで `/analysis-framing` を呼んだ。ホストは `disable-model-invocation: true` の skill を拒み、driver は分析者に `/command` を1つずつ打つよう頼んで止まった。これでは入口がひとつにならない（US-8）。
 - Criteria: Must は「個々の skill の `disable-model-invocation` を変えない」（[ADR-0005](../adr/0005-selective-autonomous-chaining.md)、[ADR-0026](../adr/0026-analysis-auto-walks-the-question-tree.md) の M1）。満たす案はこれだけなので、比べていない。ADR-0005 は「driver が pipeline を駆動する」と決めており、SKILL.md はもともと「その skill の SKILL.md に従う」と書いていた。読み方を明記しただけで、決定は変えていない。
 - Affected modules: `/analysis-auto`。
@@ -979,6 +979,9 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - Consequences:
   - ホストは、拒むときに「ほかの手段でこの skill の手順を再現しない」と返す。driver が Skill ツールを呼ばなければ、この文は出ない。`/analysis-auto` を分析者が起動したことが、その実行での明示の起動にあたる（ADR-0005 の selective autonomy）。
   - 守るのは SKILL.md の文で、コードではない。ホストの挙動が変われば、同じ止まり方が戻りうる。
+  - `${CLAUDE_PLUGIN_ROOT}` と `$ARGUMENTS` は、skill として読み込まれた本文の中でしか置き換わらない。Read で読んだファイルの中では置き換わらない（Claude Code の公式ドキュメントの skills の頁）。この2つを持つ SKILL.md は9個ある。最初の手動確認では、モデルが `/analysis-notebook` の手順で変数が空だと気づき、自分で plugin のパスを `export` して回していた（transcript で確かめた）。推測に頼っていたので、読み替えを文で書いた。
+  - `/analysis-auto` の本文は、2つの変数を名前で指す。そのまま書くと、ホストがその文の中の変数も置き換えるためである。`$ARGUMENTS` を本文に書くと、ホストが分析者の引数を本文の末尾に添える動きも止まる。
+  - 指示がファイルの中身として入るぶん、skill として読み込まれた指示より守られにくくなりうる。実データの試行で、各ゲートで止まるかを見て確かめる（Story 18.8）。
 
 ### Cross-epic decisions (links to ADR)
 
