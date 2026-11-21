@@ -457,7 +457,7 @@ def _without_connection(source: dict) -> dict:
 _PRINTS_SOURCES = frozenset({"create", "update", "get", "list"})
 
 
-_TAKES_PAYLOAD = frozenset({"create", "update", "add-knowledge", "search"})
+_TAKES_PAYLOAD = frozenset({"create", "update", "add-knowledge"})
 
 
 def _main(argv: list[str] | None = None) -> int:
@@ -519,7 +519,7 @@ def _main(argv: list[str] | None = None) -> int:
         result = add_knowledge(args.id, payload.get("entries", []), base_dir=base)
     elif args.command == "search":
         result = search(
-            args.query or payload.get("query", ""),
+            args.query or "",
             source_type=args.type,
             tags=tags,
             base_dir=base,

@@ -55,7 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not affected; only the table display was wrong.
 - **`design_io`, `catalog_io` and `tree_io` commands without a payload hung when stdin never closed** (#129),
   as in the Bash of the desktop app's Code tab. `get`, `list`, `link`, `progress` and the other
-  commands that take no payload no longer read stdin.
+  commands that take no payload no longer read stdin. `catalog_io search` takes its query from
+  `--query` only, as `/catalog-register` documents; a query in the stdin payload is no longer read.
 
 ## [0.12.0] - 2026-11-20
 
