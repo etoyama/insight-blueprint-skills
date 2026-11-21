@@ -38,7 +38,14 @@ VALID_TRANSITIONS: dict[DesignStatus, set[DesignStatus]] = {
         DesignStatus.rejected,
         DesignStatus.inconclusive,
     },
-    DesignStatus.analyzing: {DesignStatus.in_review},
+    # A reflection concludes an analyzed design directly; in_review stays for an
+    # optional review of the result (ADR-0029).
+    DesignStatus.analyzing: {
+        DesignStatus.in_review,
+        DesignStatus.supported,
+        DesignStatus.rejected,
+        DesignStatus.inconclusive,
+    },
     DesignStatus.supported: set(),
     DesignStatus.rejected: set(),
     DesignStatus.inconclusive: set(),
