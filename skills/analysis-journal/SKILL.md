@@ -106,7 +106,23 @@ When user wants to branch to an alternative hypothesis:
      "methodology": {"method": "<carry over or ask>"}
    }' | design_io create
    ```
-3. Record `branch` event in source journal:
+3. Link the derived design to the question tree, with the `id` that `design_io create`
+   returned:
+   ```bash
+   tree_io link-derived --theme LIB --design LIB-H02
+   ```
+   - `--theme` is the source's `theme_id`.
+   - It links the design to every node its source is linked to: a derived design is another
+     hypothesis for the same question. `node_ids` in the output are those nodes. Tell the
+     analyst which nodes the design now sits on. Do not ask which node to link.
+   - An empty `node_ids` means the source is on no node, or the theme has no tree. Nothing
+     was linked; go on. Say that the design is on no node of a question tree and that
+     `/analysis-framing {theme_id}` can place it.
+   - If it exits non-zero, show the error. The design stays as written; do not create it
+     again, and go on with step 4.
+   - Never run `tree_io link` or `tree_io add-node` here, and never write the tree file. A
+     derived design that answers another question is placed by `/analysis-framing`.
+4. Record `branch` event in source journal:
    ```yaml
    - id: "{source_id}-E{nn}"
      type: branch
@@ -115,7 +131,7 @@ When user wants to branch to an alternative hypothesis:
        new_design_id: "{new_design_id}"
        reason: "{why branching}"
    ```
-4. Initialize new journal with `hypothesize` event:
+5. Initialize new journal with `hypothesize` event:
    ```yaml
    metadata:
      design_id: "{new_design_id}"
@@ -129,7 +145,7 @@ When user wants to branch to an alternative hypothesis:
          forked_from: "{source_design_id}"
        created_at: "{now}"
    ```
-5. Show: "分岐完了。{new_design_id} のジャーナルを開始した。/analysis-journal {new_design_id} で続けられる"
+6. Show: "分岐完了。{new_design_id} のジャーナルを開始した。/analysis-journal {new_design_id} で続けられる"
 
 ### Step 5: Show Summary on Exit
 
@@ -220,6 +236,14 @@ open_questions = [q for q in questions if q.id not in resolved_ids]
 | `get --id ID` | Load target design |
 | `list [--status S]` | Find designs for tree/sibling queries (filter by parent_id/theme_id in the JSON) |
 | `create` (stdin JSON) | Branch workflow (create child design) |
+
+## tree_io Reference
+
+`tree_io <command>` (available on PATH via the plugin):
+
+| Command | Used for |
+|---------|----------|
+| `tree_io link-derived --theme T --design ID` | Branch workflow (link the child design to the nodes of its source) |
 
 ## Error Handling
 
