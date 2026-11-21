@@ -64,6 +64,30 @@ class TestPluginJson:
         assert "repository" in data
 
 
+class TestMarketplaceJson:
+    """The marketplace hands out the release tag, so one version has one content (ADR-0032)."""
+
+    @staticmethod
+    def _manifest(name: str) -> dict:
+        return json.loads((REPO_ROOT / ".claude-plugin" / name).read_text())
+
+    def _plugin_source(self) -> dict[str, str]:
+        (entry,) = self._manifest("marketplace.json")["plugins"]
+        return entry["source"]
+
+    def test_plugin_source_is_this_repository_on_github(self) -> None:
+        """A relative path would hand out the tip of the default branch."""
+        source = self._plugin_source()
+        assert source["source"] == "github"
+        repository = self._manifest("plugin.json")["repository"]
+        assert repository == f"https://github.com/{source['repo']}"
+
+    def test_plugin_source_ref_is_the_tag_of_the_manifest_version(self) -> None:
+        """A release bumps the ref together with the version."""
+        version = self._manifest("plugin.json")["version"]
+        assert self._plugin_source()["ref"] == f"v{version}"
+
+
 # ===========================================================================
 # Unit-02: no MCP server configuration
 # ===========================================================================

@@ -54,7 +54,21 @@ class TestValidateTransition:
     def test_disallowed_transition_raises(self) -> None:
         """A transition not in the allow-set raises ValueError."""
         with pytest.raises(ValueError, match="Cannot transition from 'analyzing'"):
-            validate_transition(DesignStatus.analyzing, DesignStatus.supported)
+            validate_transition(DesignStatus.analyzing, DesignStatus.revision_requested)
+
+    @pytest.mark.parametrize(
+        "conclusion",
+        [DesignStatus.supported, DesignStatus.rejected, DesignStatus.inconclusive],
+    )
+    def test_analyzing_reaches_each_conclusion_directly(
+        self, conclusion: DesignStatus
+    ) -> None:
+        """A reflection closes an analyzed design without a review in between (ADR-0029)."""
+        validate_transition(DesignStatus.analyzing, conclusion)
+
+    def test_analyzing_can_still_go_back_to_in_review(self) -> None:
+        """Reviewing the result after the analysis stays available, as an option."""
+        validate_transition(DesignStatus.analyzing, DesignStatus.in_review)
 
     def test_terminal_status_has_no_targets(self) -> None:
         """Terminal statuses (supported/rejected/inconclusive) allow no transition."""
@@ -64,9 +78,10 @@ class TestValidateTransition:
     def test_message_lists_sorted_valid_targets(self) -> None:
         """Error message enumerates the sorted valid targets."""
         with pytest.raises(ValueError) as exc:
-            validate_transition(DesignStatus.analyzing, DesignStatus.rejected)
-        # analyzing only allows in_review
-        assert "in_review" in str(exc.value)
+            validate_transition(DesignStatus.analyzing, DesignStatus.revision_requested)
+        assert str(exc.value).endswith(
+            "Valid targets: in_review, inconclusive, rejected, supported"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +189,7 @@ class TestValidateDesignChange:
 
     def test_existing_invalid_transition_returns_errors(self) -> None:
         current = make_design(status="analyzing")
-        new = make_design(status="supported")
+        new = make_design(status="revision_requested")
         errors = validate_design_change(new, current)
         assert errors
         assert any("transition" in e.lower() for e in errors)

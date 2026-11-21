@@ -221,7 +221,7 @@ class TestHookSubprocessBlock:
                 "tool_name": "Write",
                 "tool_input": {
                     "file_path": str(path),
-                    "content": dump_yaml(design_dict(status="supported")),
+                    "content": dump_yaml(design_dict(status="revision_requested")),
                 },
             }
         )
@@ -229,7 +229,7 @@ class TestHookSubprocessBlock:
         assert "transition" in result.stderr.lower()
 
     def test_invalid_transition_via_inplace_edit_blocks(self, tmp_path: Path) -> None:
-        """The headline guard: editing status: in place on a terminal design."""
+        """The headline guard: editing status: in place to a move the table refuses."""
         path = write_design(tmp_path, "FP-H01", design_dict(status="analyzing"))
         result = run_hook(
             {
@@ -237,12 +237,28 @@ class TestHookSubprocessBlock:
                 "tool_input": {
                     "file_path": str(path),
                     "old_string": "status: analyzing",
-                    "new_string": "status: supported",
+                    "new_string": "status: revision_requested",
                 },
             }
         )
         assert result.returncode == 2
         assert "transition" in result.stderr.lower()
+
+    def test_conclusion_from_analyzing_via_inplace_edit_passes(
+        self, tmp_path: Path
+    ) -> None:
+        path = write_design(tmp_path, "FP-H01", design_dict(status="analyzing"))
+        result = run_hook(
+            {
+                "tool_name": "Edit",
+                "tool_input": {
+                    "file_path": str(path),
+                    "old_string": "status: analyzing",
+                    "new_string": "status: inconclusive",
+                },
+            }
+        )
+        assert result.returncode == 0, result.stderr
 
     def test_malformed_yaml_blocks(self, tmp_path: Path) -> None:
         path = tmp_path / ".insight" / "designs" / "FP-H01_hypothesis.yaml"
