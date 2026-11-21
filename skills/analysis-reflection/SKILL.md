@@ -76,6 +76,21 @@ Contradicting: {count} items
 
 ── Branches ──
   - {child_design_id}: {child_title} ({child_status})
+
+── 読むもの ──
+Figures:
+  - .insight/notebooks/{design_id}_fig{NN}.png  {figure.title}
+      軸: {figure.axes}
+      読み方: {figure.how_to_read}
+Verdict: .insight/notebooks/{design_id}_verdict.json
+Notebook: .insight/notebooks/{design_id}.py
+HTML: .insight/notebooks/{design_id}.html
+Metrics:
+  - {metric.target} ({metric.tier})
+      grouping: {metric.grouping}
+      filter: {metric.filter}
+      aggregation: {metric.aggregation}
+      comparison: {metric.comparison}
 ```
 
 To find branches, list designs and filter by parent_id:
@@ -83,6 +98,24 @@ To find branches, list designs and filter by parent_id:
 designs = json(`design_io list`)
 children = [d for d in designs if d["parent_id"] == design_id]
 ```
+
+The 読むもの block gives the analyst what to read before Step 3 asks for a conclusion:
+the figures, the verdict and the notebook that `/analysis-notebook` wrote, and the
+definition of each metric.
+
+- List only the files that exist. Check `.insight/notebooks/{design_id}_fig*.png`,
+  `{design_id}_verdict.json`, `{design_id}.py` and `{design_id}.html` with the Glob tool,
+  and leave out the line of a file that is not there. When none of them exists, write
+  "notebook の出力がまだ無い" under the header instead.
+- For each figure, read its entry in the `figures` of the verdict (the entry whose `file`
+  is the figure's basename) and show its `title`, `axes` and `how_to_read` as written.
+  If the verdict is missing or the figure is not in the manifest, show its path only.
+- Show every metric of the design, each field as the design writes it: do not reword
+  or summarize a definition. Leave out a field that is empty. The note on where a value
+  comes from is not shown: the notebook shows how the data was read.
+- Do not copy the values of the verdict into the chat; the analyst reads them in the file.
+- Write no file for this block, and never embed a figure in the chat or in any HTML.
+  The analyst opens the files.
 
 ### Step 3: Guided Reflection (3 Questions)
 
