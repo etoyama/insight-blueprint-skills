@@ -730,6 +730,11 @@ def _main(argv: list[str] | None = None) -> int:
             exit_code = 3 if result["violations"] else 0
         elif args.command == "get":
             result = load_tree(args.theme, base_dir=base)
+            if not result:
+                # "{}" also comes back when the caller stands in another
+                # directory, so say which file was looked for.
+                looked = _tree_path(args.theme, base).resolve()
+                print(f"tree_io: no tree at {looked}", file=sys.stderr)
         elif args.command == "render":
             result = render(args.theme, base_dir=base)
         else:

@@ -159,6 +159,11 @@ an answer only after the tree check has passed (ADR-0025).
 1. `tree_io get --theme {theme_id}` — load the question tree (JSON). If it prints `{}`,
    the theme has no tree: "このテーマには論点ツリーがない。/analysis-framing {theme_id} で
    根の問いと論点を決めよう" → exit.
+   When `get` prints `{}` it also writes `tree_io: no tree at {path}` on stderr. `{}` comes
+   back as well when `tree_io` looked in another directory, so check that `{path}` is under
+   this project's `.insight`. Never `cd` anywhere before a `tree_io` command: it reads the
+   `.insight` of the directory it is run from. If the path is elsewhere, run it again from
+   the project directory.
 2. `tree_io progress --theme {theme_id}` — the progress of each node, derived from its
    linked designs.
 3. For every design id in the `design_ids` of any node, read

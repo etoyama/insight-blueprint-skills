@@ -341,3 +341,22 @@ class TestJournalKnowsTheHearingEvent:
     def test_the_phase_is_inferred_for_a_hearing_event(self) -> None:
         phases = section(_read_skill("analysis-journal"), "## Phase Inference")
         assert "`hearing`" in phases
+
+
+class TestAnEmptyGetIsCheckedAgainstTheProject:
+    """Story 18.5: `{}` also comes back when tree_io looked in another directory."""
+
+    @pytest.mark.parametrize(
+        ("skill", "heading"),
+        [
+            ("analysis-reflection", "### Step T1: "),
+            ("analysis-framing", "#### 4a: "),
+        ],
+    )
+    def test_the_path_on_stderr_is_compared_with_the_project(
+        self, skill: str, heading: str
+    ) -> None:
+        step = unwrap(section(_read_skill(skill), heading))
+        assert "`tree_io: no tree at {path}`" in step
+        assert re.search(r"(?i)never `cd`[^.]*before", step)
+        assert "this project's `.insight`" in step

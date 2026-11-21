@@ -1172,6 +1172,28 @@ class TestCli:
     def _run(self, insight: Path, *args: str, payload: dict | None = None):
         return _run_cli(insight, *args, payload=payload)
 
+    def test_get_says_where_it_looked_when_the_theme_has_no_tree(
+        self, insight: Path
+    ) -> None:
+        missing = self._run(insight, "get", "--theme", "LIB")
+
+        assert missing.returncode == 0
+        assert json.loads(missing.stdout) == {}
+        looked = str(insight.resolve() / "themes" / "LIB_tree.yaml")
+        assert missing.stderr.strip() == f"tree_io: no tree at {looked}"
+
+    def test_get_is_silent_when_the_tree_is_there(self, insight: Path) -> None:
+        self._run(
+            insight,
+            "create",
+            payload={"theme_id": "LIB", "question": ROOT_QUESTION, "aim": AIM},
+        )
+
+        found = self._run(insight, "get", "--theme", "LIB")
+
+        assert json.loads(found.stdout)["theme_id"] == "LIB"
+        assert found.stderr == ""
+
     def test_create_add_link_and_progress_round_trip(self, insight: Path) -> None:
         created = self._run(
             insight,
