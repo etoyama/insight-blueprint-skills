@@ -284,6 +284,42 @@ class TestTheWalkGoesOnUntilTheAnalystStops:
         assert edge in _extract_chaining_edges(target)
 
 
+class TestTheDriverReadsTheSkillsItDrives:
+    """ADR-0005: the skills stay explicit, so the driver follows their files itself.
+
+    The Skill tool refuses a ``disable-model-invocation`` skill. A driver that
+    tries it stops and asks the analyst to type every command (manual check,
+    2026-11-21).
+    """
+
+    def _how(self) -> str:
+        return unwrap(split_sections(_auto())["How the driver runs a skill"])
+
+    def test_it_reads_the_skill_file_instead_of_calling_the_skill_tool(self) -> None:
+        how = self._how()
+        assert "`../{skill-name}/SKILL.md`" in how
+        assert re.search(r"[Nn]ever call the Skill tool", how)
+
+    def test_it_does_not_hand_the_command_back_to_the_analyst(self) -> None:
+        assert re.search(r"never ask the analyst to type", self._how())
+
+    def test_the_run_is_the_explicit_invocation(self) -> None:
+        how = self._how()
+        assert "disable-model-invocation: true" in how
+        assert "ADR-0005" in how
+
+    def test_the_io_commands_are_called_by_name(self) -> None:
+        assert re.search(r"on PATH[^.]*by name", self._how())
+
+    def test_every_driven_skill_has_its_file(self) -> None:
+        delegated = split_sections(_auto())["Delegated skills"]
+        names = re.findall(r"`/([a-z-]+)`", delegated)
+        assert len(names) >= 12
+        root = Path(__file__).resolve().parents[2] / "skills"
+        for name in names:
+            assert (root / name / "SKILL.md").is_file(), name
+
+
 class TestFramingPlacesExistingDesigns:
     """US-8 AC 1: the analyst decides which node each existing design belongs to."""
 

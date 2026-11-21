@@ -77,6 +77,20 @@ gets a seat, so premortem then estimates cost against the **confirmed** query.
 Ask the analyst nothing outside the KEEP column. If in doubt whether something is a genuine
 decision, **stop and ask** — bias toward the KEEP column.
 
+## How the driver runs a skill
+
+Every delegated skill is `disable-model-invocation: true`, so the Skill tool refuses it. That
+is intended: outside this run the skills stay explicit. Inside this run, the analyst's
+`/analysis-auto` is the explicit invocation that covers them
+([ADR-0005](../../docs/adr/0005-selective-autonomous-chaining.md)).
+
+- To run a skill, Read its file — `../{skill-name}/SKILL.md` from this skill's base directory —
+  and follow it as written, under the gate policy above.
+- Never call the Skill tool for a delegated skill, and never ask the analyst to type its
+  `/command`: carrying the steps is what this run is for.
+- `design_io`, `catalog_io`, `tree_io`, `tree_check` and `report_check` are on PATH: call them
+  by name, from the project directory.
+
 ## Workflow
 
 ### Step 1: Locate the position
