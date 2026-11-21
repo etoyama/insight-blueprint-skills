@@ -224,6 +224,37 @@ def link_design(
     return _node(_write_tree(tree, theme_id, base_dir), node_id)
 
 
+def link_derived_design(
+    theme_id: str, design_id: str, base_dir: Path = DEFAULT_BASE_DIR
+) -> dict:
+    """Link a derived design to every node its parent is linked to. Idempotent.
+
+    A derived design is another hypothesis for the question its parent answers,
+    so nobody is asked for the node. ``node_ids`` is empty when the parent is
+    on no node or the theme has no tree: nothing is written then.
+    """
+    design = _require_design(design_id, base_dir)
+    parent_id = design.get("parent_id")
+    if not parent_id:
+        raise ValueError(f"design '{design_id}' has no parent_id")
+    design_theme = design.get("theme_id")
+    if design_theme != theme_id:
+        raise ValueError(
+            f"design '{design_id}' belongs to theme '{design_theme}', not '{theme_id}'"
+        )
+    result = {"design_id": design_id, "parent_id": parent_id, "node_ids": []}
+    if not load_tree(theme_id, base_dir):
+        return result
+    tree = _require_tree(theme_id, base_dir)
+    shared = [n for n in tree["nodes"] if parent_id in n.get("design_ids", [])]
+    missing = [node for node in shared if design_id not in node["design_ids"]]
+    for node in missing:
+        node["design_ids"].append(design_id)
+    if missing:
+        _write_tree(tree, theme_id, base_dir)
+    return {**result, "node_ids": [node["id"] for node in shared]}
+
+
 def revise_root(
     theme_id: str,
     *,
@@ -776,6 +807,7 @@ def _main(argv: list[str] | None = None) -> int:
             "create",
             "add-node",
             "link",
+            "link-derived",
             "decide",
             "candidates",
             "candidate",
@@ -811,6 +843,10 @@ def _main(argv: list[str] | None = None) -> int:
                 _required(args, "node"),
                 _required(args, "design"),
                 base_dir=base,
+            )
+        elif args.command == "link-derived":
+            result = link_derived_design(
+                args.theme, _required(args, "design"), base_dir=base
             )
         elif args.command == "decide":
             result = decide(args.theme, base_dir=base, **payload)
