@@ -34,7 +34,7 @@ def run_shown_line(
     prose: str, command: str, insight: Path, monkeypatch: pytest.MonkeyPatch
 ) -> int:
     """Run the one-line ``tree_io <command> ...`` shown in *prose* with empty stdin."""
-    shown = re.search(rf"^tree_io ({re.escape(command)} [^\n]+)$", prose, re.M)
+    shown = re.search(rf"^[ \t]*tree_io ({re.escape(command)} [^\n]+)$", prose, re.M)
     assert shown, f"no tree_io {command} command is shown"
     args = shown[1].split()
     monkeypatch.setattr("sys.stdin", io.StringIO(""))
