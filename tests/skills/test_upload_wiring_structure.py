@@ -79,7 +79,8 @@ class TestAutopilotStartsTheUpload:
         assert "ADR-0016" in item
 
     def test_no_report_means_no_upload(self) -> None:
-        assert "when no report was written" in _drive_item("upload").lower()
+        # Epic 27: a report an earlier run wrote counts too, so the item names the round.
+        assert "when the round has no report" in _drive_item("upload").lower()
 
     def test_a_missing_connector_goes_on_with_the_round(self) -> None:
         item = _drive_item("upload")
