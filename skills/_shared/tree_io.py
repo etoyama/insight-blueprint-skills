@@ -27,6 +27,7 @@ import re
 import sys
 from collections.abc import Iterator
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -537,6 +538,59 @@ def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]
     }
 
 
+def _made_after(design: dict, decision_time: datetime | None) -> bool:
+    """Whether *design* was created after the decision.
+
+    Without two comparable times the answer is yes: the caller then goes on to
+    the theme reflection, where the analyst is asked, instead of designing the
+    node a second time unasked.
+    """
+    try:
+        created = datetime.fromisoformat(str(design.get("created_at")))
+        return decision_time is None or created > decision_time
+    except (TypeError, ValueError):
+        return True
+
+
+def position(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
+    """Where the walk of the theme stands, derived from the last decision. Writes nothing.
+
+    ``state`` is one of:
+
+    - ``no_tree`` / ``no_decision``: nothing names a node yet.
+    - ``closed``: the last decision closed the walk at ``node_id``.
+    - ``in_progress``: ``design_ids`` are the unfinished designs on the node.
+    - ``concluded``: ``design_ids`` were made after the decision and are all
+      finished; the round still lacks its theme reflection and its decision.
+    - ``not_started``: no design was made on the node since the decision.
+    """
+    if not load_tree(theme_id, base_dir):
+        return {"state": "no_tree"}
+    tree = load_tree_model(theme_id, base_dir)
+    if not tree.decisions:
+        return {"state": "no_decision"}
+    decision = tree.decisions[-1]
+    found: dict[str, Any] = {
+        "node_id": decision.node_id,
+        "decision": decision.model_dump(mode="json"),
+    }
+    if decision.kind is TreeDecisionKind.close:
+        return {"state": "closed", **found}
+
+    node = next(n for n in tree.nodes if n.id == decision.node_id)
+    designs = {d: _require_design(d, base_dir) for d in node.design_ids}
+    unfinished = [
+        d
+        for d, design in designs.items()
+        if DesignStatus(design["status"]) not in TERMINAL_STATUSES
+    ]
+    if unfinished:
+        return {"state": "in_progress", **found, "design_ids": unfinished}
+    later = [d for d, v in designs.items() if _made_after(v, decision.created_at)]
+    state = "concluded" if later else "not_started"
+    return {"state": state, **found, "design_ids": later}
+
+
 def cited_journal_events(cited: set[str], base_dir: Path) -> Iterator[dict]:
     """The journal events whose id is in *cited*.
 
@@ -667,6 +721,13 @@ def _required(args: argparse.Namespace, name: str) -> str:
     return value
 
 
+def _say_where_it_looked(theme_id: str, base_dir: Path) -> None:
+    # "No tree" also comes back when the caller stands in another directory,
+    # so say which file was looked for.
+    looked = _tree_path(theme_id, base_dir).resolve()
+    print(f"tree_io: no tree at {looked}", file=sys.stderr)
+
+
 _TAKES_PAYLOAD = frozenset(
     {"create", "add-node", "decide", "candidate", "hear", "revise-root", "answer"}
 )
@@ -688,6 +749,7 @@ def _main(argv: list[str] | None = None) -> int:
             "revise-root",
             "answer",
             "get",
+            "position",
             "progress",
             "render",
         ],
@@ -742,10 +804,11 @@ def _main(argv: list[str] | None = None) -> int:
         elif args.command == "get":
             result = load_tree(args.theme, base_dir=base)
             if not result:
-                # "{}" also comes back when the caller stands in another
-                # directory, so say which file was looked for.
-                looked = _tree_path(args.theme, base).resolve()
-                print(f"tree_io: no tree at {looked}", file=sys.stderr)
+                _say_where_it_looked(args.theme, base)
+        elif args.command == "position":
+            result = position(args.theme, base_dir=base)
+            if result["state"] == "no_tree":
+                _say_where_it_looked(args.theme, base)
         elif args.command == "render":
             result = render(args.theme, base_dir=base)
         else:
