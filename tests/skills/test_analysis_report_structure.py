@@ -154,6 +154,17 @@ class TestSkillPointsAtTheTemplate:
         assert "Never copy `connection` or any part of it" in assemble
         assert "absolute path" in assemble
 
+    def test_a_ratio_between_stated_numbers_counts_as_computed(self) -> None:
+        # #105: with "Never compute" alone, opus wrote 「約1.9倍」 in Implications
+        # in 6 of 6 runs when the hypothesis compared two stated numbers.
+        assemble = unwrap(_section(_skill(), "### Step 3: "))
+        assert (
+            "A ratio, a difference, or a percent change between two stated numbers "
+            "is a computed number"
+        ) in assemble
+        assert "a word that states one (「約2倍」「半分」)" in assemble
+        assert "unless an input states it" in assemble
+
 
 class TestReportSkill:
     """SKILL.md wires the read-only consumer with a terminal-status guard."""
