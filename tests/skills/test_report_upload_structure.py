@@ -230,3 +230,39 @@ class TestFigureRoute:
         step = _step(3)
         assert "no asset upload" in step
         assert "図: 送らない" in step
+
+
+class TestDeclinedFigureUpload:
+    """#155: a declined figure upload ends the turn, so the URL must come first.
+
+    The host's asset upload can show the analyst an approval card, and a decline
+    ends the turn (the connector's guide on uploads). Step 5 never runs then, so
+    the Doc's URL and what happens to the figures are shown before the first upload.
+    """
+
+    def test_shows_the_url_before_the_first_figure_upload(self) -> None:
+        step = _step(4)
+        assert "before the first figure upload" in step
+        assert step.index("before the first figure upload") < step.index(
+            "upload the PNG"
+        )
+
+    def test_says_the_upload_may_ask_and_a_decline_ends_the_turn(self) -> None:
+        step = _step(4)
+        assert "図ごとに承認を求められることがある" in step
+        assert "断るとこのターンはそこで終わる" in step
+
+    def test_says_a_declined_figure_and_the_later_ones_stay_notes(self) -> None:
+        assert "断った図とそれより後の図は Doc に載らず、注記のまま残る" in _step(4)
+
+    def test_a_decline_stops_the_remaining_uploads(self) -> None:
+        # Approving the list at Step 3 does not outrank a "no" on the host's card.
+        step = _step(4)
+        assert "If the analyst declines an upload" in step
+        assert "upload no further figures" in step
+
+    def test_a_failed_figure_still_moves_on_to_the_next(self) -> None:
+        step = _step(4)
+        assert "If an upload or embed fails" in step
+        assert "Go on to the next one" in step
+        assert "fails or is declined" not in step
