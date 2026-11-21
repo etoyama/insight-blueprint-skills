@@ -54,9 +54,7 @@ class TestAnalysisDesignStatusFlow:
         return section(_read_skill("analysis-design"), "### Status Flow")
 
     def test_the_analyzing_line_lists_every_status_the_table_allows(self) -> None:
-        line = next(
-            line for line in self._flow().splitlines() if "analyzing →" in line
-        )
+        line = next(line for line in self._flow().splitlines() if "analyzing →" in line)
         after = line.split("analyzing →", 1)[1]
         targets = {DesignStatus(word) for word in re.findall(_STATUS, after)}
         assert targets == VALID_TRANSITIONS[DesignStatus.analyzing]
