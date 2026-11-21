@@ -16,15 +16,16 @@ import json
 import re
 import sys
 import unicodedata
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
 from insight_blueprint.models.tree import AnswerStatement, QuestionTree, design_id_of
-from skills._shared.design_io import DEFAULT_BASE_DIR, _resolve_base_dir
-from skills._shared.tree_io import _tree_path, cited_journal_events, load_tree_model
+from skills._shared.design_io import DEFAULT_BASE_DIR, resolve_base_dir
+from skills._shared.tree_io import cited_events, load_tree_model, tree_path
+from skills._shared.tree_render import CitedEvent
 
 # The dashes and triangles writers use for "down" all read as one minus: a
 # glyph left out passes as an unsigned number. The wave dash is left out
@@ -139,30 +140,35 @@ def check_theme(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> list[Violat
 
 def check_tree(tree: QuestionTree, base_dir: Path) -> list[Violation]:
     """Check a tree already in memory against the journals under *base_dir*."""
-    return find_violations(tree, _cited_events(tree, base_dir))
+    return check_cited(tree, *cited_events(_current_cites(tree), base_dir))
 
 
-def _cited_events(tree: QuestionTree, base_dir: Path) -> dict[str, str]:
-    """Content text of each cited event that exists in its design's journal."""
-    cited = {
+def check_cited(
+    tree: QuestionTree, events: Mapping[str, CitedEvent], duplicated: Iterable[str]
+) -> list[Violation]:
+    """Check *tree* against cited events already read (``tree_io.cited_events``).
+
+    *events* may hold more than the current answers cite. A cited id that two
+    events share raises ValueError: which of them backs the answer is unknown.
+    """
+    current = _current_cites(tree)
+    for event_id in duplicated:
+        if event_id in current:
+            raise ValueError(
+                f"journal event '{event_id}' appears twice in the journal "
+                f"of {design_id_of(event_id)}"
+            )
+    return find_violations(tree, {i: e.content for i, e in events.items()})
+
+
+def _current_cites(tree: QuestionTree) -> set[str]:
+    return {
         cite
         for node in tree.nodes
         if (answer := node.current_answer()) is not None
         for statement in answer.statements
         for cite in statement.cites
     }
-    events: dict[str, str] = {}
-    for event in cited_journal_events(cited, base_dir):
-        event_id = event["id"]
-        if event_id in events:
-            raise ValueError(
-                f"journal event '{event_id}' appears twice in the journal "
-                f"of {design_id_of(event_id)}"
-            )
-        content = event.get("content")
-        # A hand-written "content: 34.6" loads as a float, not as text.
-        events[event_id] = "" if content is None else str(content)
-    return events
 
 
 def _main(argv: list[str] | None = None) -> int:
@@ -173,9 +179,9 @@ def _main(argv: list[str] | None = None) -> int:
 
     # Exit 2, not 1: for this command 1 means "violations found".
     try:
-        base = _resolve_base_dir(Path(args.base_dir))
+        base = resolve_base_dir(Path(args.base_dir))
         violations = check_theme(args.theme, base)
-        tree_path = _tree_path(args.theme, base)
+        path = tree_path(args.theme, base)
     except Exception as exc:
         # Python would end an uncaught error with exit 1, which a caller reads
         # as "violations found" and tries to fix by rewriting the answer.
@@ -183,7 +189,7 @@ def _main(argv: list[str] | None = None) -> int:
         return 2
 
     json.dump(
-        {"tree": str(tree_path), "violations": [asdict(v) for v in violations]},
+        {"tree": str(path), "violations": [asdict(v) for v in violations]},
         sys.stdout,
         ensure_ascii=False,
     )

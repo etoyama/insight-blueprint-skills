@@ -66,24 +66,24 @@ class TestBaseDirEnv:
 
 
 class TestResolveBaseDir:
-    """_resolve_base_dir rejects an absurd anchor (defense in depth for M1, ADR-0006)."""
+    """resolve_base_dir rejects an absurd anchor (defense in depth for M1, ADR-0006)."""
 
     def test_tmp_base_passes(self, tmp_path: Path) -> None:
         base = tmp_path / ".insight"
-        assert design_io._resolve_base_dir(base) == base.resolve()
+        assert design_io.resolve_base_dir(base) == base.resolve()
 
     def test_non_insight_leaf_passes(self, tmp_path: Path) -> None:
         # The .insight suffix is enforced by the wrapper, not here (back-compat / tests).
         base = tmp_path / "workdir"
-        assert design_io._resolve_base_dir(base) == base.resolve()
+        assert design_io.resolve_base_dir(base) == base.resolve()
 
     def test_filesystem_root_rejected(self) -> None:
         with pytest.raises(ValueError, match="filesystem root"):
-            design_io._resolve_base_dir(Path("/"))
+            design_io.resolve_base_dir(Path("/"))
 
     def test_home_dir_rejected(self) -> None:
         with pytest.raises(ValueError, match="home directory"):
-            design_io._resolve_base_dir(Path.home())
+            design_io.resolve_base_dir(Path.home())
 
 
 class TestIdValidation:

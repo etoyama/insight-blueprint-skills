@@ -44,14 +44,14 @@ def _validate_id(design_id: str) -> None:
         raise ValueError(f"Invalid design_id '{design_id}': must match [a-zA-Z0-9_-]+")
 
 
-def _resolve_base_dir(base_dir: Path) -> Path:
+def resolve_base_dir(base_dir: Path) -> Path:
     """Normalize the I/O base and reject an absurd anchor (defense in depth).
 
     ``INSIGHT_BASE_DIR`` / ``--base-dir`` flow verbatim into every read/write path, so an
     attacker-influenceable value should not be trusted as-is. We only reject genuinely
     absurd anchors (the filesystem root or the bare home dir) rather than enforcing a
     ``.insight`` suffix — the bin wrapper owns that stricter check, and tests / --base-dir
-    back-compat legitimately use tmp dirs. Mirrors catalog_io._resolve_base_dir.
+    back-compat legitimately use tmp dirs.
     See docs/adr/0006-plugin-execution-model.md and review-security-epic09.md (M1).
     """
     resolved = base_dir.expanduser().resolve()
@@ -134,6 +134,23 @@ def list_designs(
         if status is None or data.get("status") == status:
             out.append(data)
     return out
+
+
+def designs_of_theme(
+    theme_id: str, base_dir: Path = DEFAULT_BASE_DIR
+) -> dict[str, dict]:
+    """The designs of *theme_id*, keyed by the id in their file name as ``load_design`` knows them.
+
+    A copied design file still carries the id of its source, so the id inside
+    the file is not read. Only files of this theme are opened: a broken design
+    of another theme must not stop a reader of this one.
+    """
+    name = re.compile(rf"({re.escape(theme_id)}-H\d+)_hypothesis\.yaml")
+    found: dict[str, dict] = {}
+    for path in sorted(_designs_dir(base_dir).glob(f"{theme_id}-H*_hypothesis.yaml")):
+        if matched := name.fullmatch(path.name):
+            found[matched[1]] = read_yaml(path)
+    return found
 
 
 def next_design_id(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> str:
@@ -288,6 +305,18 @@ def load_journal(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
     """
     _validate_id(design_id)
     return _read_journal(_designs_dir(base_dir) / f"{design_id}_journal.yaml")
+
+
+def journal_events(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> list[dict]:
+    """The events of the journal of *design_id*; [] without a journal.
+
+    A hand-edited journal may hold anything under ``events``: only mappings are
+    events, so a reader never trips over the rest.
+    """
+    events = load_journal(design_id, base_dir).get("events")
+    return (
+        [e for e in events if isinstance(e, dict)] if isinstance(events, list) else []
+    )
 
 
 def write_journal(
@@ -448,7 +477,7 @@ def _main(argv: list[str] | None = None) -> int:
     parser.add_argument("--target", default=None)
     parser.add_argument("--status", default=None)
     args = parser.parse_args(argv)
-    base = _resolve_base_dir(Path(args.base_dir))
+    base = resolve_base_dir(Path(args.base_dir))
 
     payload = read_payload() if args.command in _TAKES_PAYLOAD else {}
 

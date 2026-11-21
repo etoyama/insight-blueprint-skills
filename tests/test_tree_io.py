@@ -1066,7 +1066,7 @@ class TestAnswer:
         next(n for n in stored["nodes"] if n["id"] == "LIB-Q03")["answers"] = [
             {"round": 1, "root_revision": 1, "statements": stale["statements"]}
         ]
-        tree_io._write_tree(stored, "LIB", world)
+        atomic_write_yaml(world / "themes" / "LIB_tree.yaml", stored)
 
         result = tree_io.answer(
             "LIB", answers=[_entry("LIB-Q02", "期限切れは152件")], base_dir=world
