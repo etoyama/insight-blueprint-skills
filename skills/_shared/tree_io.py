@@ -47,10 +47,10 @@ from skills._shared.design_io import (
     DEFAULT_BASE_DIR,
     _designs_dir,
     _resolve_base_dir,
+    append_journal_event,
     load_design,
     load_journal,
     read_yaml,
-    write_journal,
 )
 from skills._shared.tree_render import (
     CheckFailed,
@@ -390,23 +390,22 @@ def copy_hearing(
     if note is None or not note.answer:
         return {"copied": False, "reason": f"{node_id} has no answer to copy"}
 
+    assert note.answered_at is not None  # the model requires it with an answer
     metadata = {
         "node_id": node_id,
         "ask": note.ask,
         "answered_by": note.answered_by,
-        "answered_at": note.answered_at.isoformat() if note.answered_at else "",
+        "answered_at": note.answered_at.isoformat(),
     }
-    now = now_jst().isoformat()
-    journal: dict[str, Any] = load_journal(design_id, base_dir)
-    if not journal:
-        journal = {
-            "metadata": {"design_id": design_id, "created_at": now},
-            "events": [],
-        }
-    events: list[dict[str, Any]] = journal.get("events") or []
+    journal = load_journal(design_id, base_dir)
+    events = journal.get("events")
     same = {k: metadata[k] for k in ("node_id", "answered_by", "answered_at")}
-    for existing in events:
-        old = existing.get("metadata") or {}
+    for existing in events if isinstance(events, list) else []:
+        if not isinstance(existing, dict):
+            continue
+        old = existing.get("metadata")
+        old = old if isinstance(old, dict) else {}
+        # YAML reads an unquoted date back as a date, not the string we wrote.
         if (
             existing.get("type") == "hearing"
             and existing.get("content") == note.answer
@@ -414,21 +413,11 @@ def copy_hearing(
         ):
             return {"copied": False, "reason": "the answer is already in the journal"}
 
-    taken = [
-        int(m[1])
-        for e in events
-        if (m := re.fullmatch(rf"{re.escape(design_id)}-E(\d+)", str(e.get("id"))))
-    ]
-    event = {
-        "id": f"{design_id}-E{max(taken, default=0) + 1:02d}",
-        "type": "hearing",
-        "content": note.answer,
-        "metadata": metadata,
-        "created_at": now,
-    }
-    journal["events"] = [*events, event]
-    journal.setdefault("metadata", {})["updated_at"] = now
-    write_journal(design_id, journal, base_dir)
+    event = append_journal_event(
+        design_id,
+        {"type": "hearing", "content": note.answer, "metadata": metadata},
+        base_dir,
+    )
     return {"copied": True, "event": event}
 
 

@@ -6,6 +6,7 @@ write goes through ``insight_blueprint.validate.validate_tree`` first.
 
 from __future__ import annotations
 
+import io
 import json
 import subprocess
 import sys
@@ -1072,6 +1073,87 @@ class TestCopyHearing:
         other = _design(heard)
         with pytest.raises(ValueError, match="not linked"):
             tree_io.copy_hearing("LIB", "LIB-Q03", other, base_dir=heard)
+
+    def _journal_path(self, heard: Path) -> Path:
+        return heard / "designs" / f"{self._design_of(heard)}_journal.yaml"
+
+    def test_a_journal_whose_top_level_is_a_list_is_refused_and_left_as_it_is(
+        self, heard: Path
+    ) -> None:
+        path = self._journal_path(heard)
+        path.write_text("- id: X-E01\n  type: observe\n", encoding="utf-8")
+        before = path.read_bytes()
+
+        with pytest.raises(ValueError, match=path.name):
+            tree_io.copy_hearing(
+                "LIB", "LIB-Q03", self._design_of(heard), base_dir=heard
+            )
+        assert path.read_bytes() == before
+
+    @pytest.mark.parametrize("events", ["{a: 1}", "hello"])
+    def test_events_that_are_not_a_list_are_refused_and_left_as_they_are(
+        self, heard: Path, events: str
+    ) -> None:
+        path = self._journal_path(heard)
+        path.write_text(f"events: {events}\n", encoding="utf-8")
+        before = path.read_bytes()
+
+        with pytest.raises(ValueError, match="events"):
+            tree_io.copy_hearing(
+                "LIB", "LIB-Q03", self._design_of(heard), base_dir=heard
+            )
+        assert path.read_bytes() == before
+
+    def test_the_cli_exits_1_with_a_message_when_the_events_are_not_a_list(
+        self,
+        heard: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture,
+    ) -> None:
+        path = self._journal_path(heard)
+        path.write_text("events: hello\n", encoding="utf-8")
+        monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+
+        code = tree_io._main(
+            [
+                "copy-hearing",
+                "--theme",
+                "LIB",
+                "--node",
+                "LIB-Q03",
+                "--design",
+                self._design_of(heard),
+                "--base-dir",
+                str(heard),
+            ]
+        )
+
+        assert code == 1
+        err = capsys.readouterr().err
+        assert err.startswith("tree_io: ")
+        assert "Traceback" not in err
+
+    def test_events_that_are_not_mappings_are_skipped_and_the_hearing_is_appended(
+        self, heard: Path
+    ) -> None:
+        design_id = self._design_of(heard)
+        path = self._journal_path(heard)
+        path.write_text(
+            "events:\n"
+            "  - just text\n"
+            f"  - id: {design_id}-E01\n"
+            "    type: hearing\n"
+            f"    content: {self.ANSWER}\n"
+            "    metadata: not a mapping\n",
+            encoding="utf-8",
+        )
+
+        result = tree_io.copy_hearing("LIB", "LIB-Q03", design_id, base_dir=heard)
+
+        assert result["copied"] is True
+        assert result["event"]["id"] == f"{design_id}-E02"
+        events = design_io.load_journal(design_id, base_dir=heard)["events"]
+        assert len(events) == 3
 
     def test_a_copied_hearing_can_back_an_answer_as_a_journal_event(
         self, heard: Path

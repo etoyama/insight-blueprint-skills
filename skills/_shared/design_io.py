@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import uuid
 from pathlib import Path
@@ -288,6 +289,60 @@ def write_journal(
 ) -> None:
     _validate_id(design_id)
     atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_journal.yaml", data)
+
+
+def append_journal_event(
+    design_id: str, event_fields: dict, base_dir: Path = DEFAULT_BASE_DIR
+) -> dict:
+    """Append an event to the journal of *design_id* and return it as written.
+
+    The id is one past the highest ``{design_id}-E{nn}`` and ``created_at`` is
+    set here. A journal that does not exist yet gets the header
+    ``/analysis-journal`` writes. A journal that is not a mapping with a list of
+    events is refused and left untouched: reading it as empty would overwrite it.
+    """
+    _validate_id(design_id)
+    path = _designs_dir(base_dir) / f"{design_id}_journal.yaml"
+    now = now_jst().isoformat()
+    journal = _read_journal_for_append(path)
+    if not journal:
+        journal = {
+            "metadata": {"design_id": design_id, "created_at": now},
+            "events": [],
+        }
+    events = journal.get("events") or []
+    if not isinstance(events, list):
+        raise ValueError(f"'events' in {path.name} is not a list")
+    taken = [
+        int(m[1])
+        for e in events
+        if isinstance(e, dict)
+        and (m := re.fullmatch(rf"{re.escape(design_id)}-E(\d+)", str(e.get("id"))))
+    ]
+    event = {
+        "id": f"{design_id}-E{max(taken, default=0) + 1:02d}",
+        **event_fields,
+        "created_at": now,
+    }
+    journal["events"] = [*events, event]
+    metadata = journal.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = journal["metadata"] = {}
+    metadata["updated_at"] = now
+    write_journal(design_id, journal, base_dir)
+    return event
+
+
+def _read_journal_for_append(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    with path.open("r", encoding="utf-8") as f:
+        data = _yaml().load(f)
+    if data is None:
+        return {}
+    if not isinstance(data, dict):
+        raise ValueError(f"{path.name} is not a mapping; it was not changed")
+    return data
 
 
 # ---------------------------------------------------------------------------
