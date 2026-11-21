@@ -349,6 +349,20 @@ class TestTheDriverReadsTheSkillsItDrives:
     def test_the_io_commands_are_called_by_name(self) -> None:
         assert re.search(r"on PATH[^.]*by name", self._how())
 
+    def test_variables_in_a_read_file_are_read_as_their_values(self) -> None:
+        # A file that is Read is not loaded as a skill: the host fills in neither variable.
+        how = self._how()
+        assert re.search(r"`CLAUDE_PLUGIN_ROOT`[^.]*plugin root", how)
+        assert "before `/skills/`" in how
+        assert re.search(r"`ARGUMENTS`[^.]*value you hand", how)
+        assert "the shell does not have the variable" in how
+
+    def test_the_driver_names_the_variables_without_writing_them(self) -> None:
+        # Written out, the host would replace them in this very sentence.
+        text = _auto()
+        assert "$ARGUMENTS" not in text
+        assert text.count("${CLAUDE_PLUGIN_ROOT}") == 1
+
     def test_every_driven_skill_has_its_file(self) -> None:
         delegated = split_sections(_auto())["Delegated skills"]
         names = set(re.findall(r"`/([a-z-]+)`", delegated))
