@@ -265,7 +265,7 @@ class TestViolationsAreFixedBeforeTheAnalystSeesThem:
 
     def test_the_html_is_rendered_again_once_the_check_passes(self) -> None:
         check = _step("### Step T4: ")
-        assert "`tree_io render --theme {theme_id}`" in check
+        assert check.count("`tree_io render --theme {theme_id}`") == 1
         assert "path" in _step("### Step T5: ")
 
     def test_nothing_is_shown_before_the_check_passes(self) -> None:

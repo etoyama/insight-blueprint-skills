@@ -70,8 +70,8 @@ class TestTheRenderedFileIsTheOnlySource:
 
     def test_renders_the_tree_first_and_takes_the_printed_path(self) -> None:
         step = _step(1)
-        # Without the redirect the command waits on an unclosed stdin (#129).
-        assert "tree_io render --theme {theme_id} </dev/null" in step
+        # render takes no payload and reads no stdin since #129: no redirect.
+        assert "`tree_io render --theme {theme_id}`" in step
         assert "`path`" in step
 
     def test_a_theme_without_a_tree_points_at_framing_and_stops(self) -> None:

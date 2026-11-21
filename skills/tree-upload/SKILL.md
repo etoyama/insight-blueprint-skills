@@ -46,7 +46,7 @@ The skill never updates an existing Artifact and never shares one.
    send nothing: the path built from it must stay inside `.insight/themes/`.
 2. If `.insight/themes/{theme_id}_tree.yaml` does not exist, stop:
    "このテーマには論点ツリーがない。/analysis-framing {theme_id} で作ろう" → exit.
-3. Run `tree_io render --theme {theme_id} </dev/null`. It writes the HTML from the canonical
+3. Run `tree_io render --theme {theme_id}`. It writes the HTML from the canonical
    tree and prints its `path`; that path is the only file this skill sends. If it exits
    non-zero (for example, a linked design is gone), show stderr, send nothing, and exit.
 

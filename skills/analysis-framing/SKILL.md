@@ -357,7 +357,7 @@ Run this once, after the last `tree_io` write of this run (5a, or a `revise-root
 Run it even when this run wrote nothing, so the view matches the tree:
 
 ```bash
-tree_io render --theme LIB </dev/null
+tree_io render --theme LIB
 ```
 
 It writes the HTML view next to the tree (`.insight/themes/{theme_id}_tree.html`) and prints

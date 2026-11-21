@@ -252,8 +252,7 @@ every statement of a node is removed, send no answer for that node in this round
 
 Run `tree_check --theme {theme_id}`. It reads the tree and the journals and writes nothing.
 
-- Exit code 0: no violation. Run `tree_io render --theme {theme_id}` so that the HTML of the
-  tree shows the new answers, then go to Step T5.
+- Exit code 0: no violation.
 - Exit code 1: the current answer of some node violates. `tree_io answer` already stopped
   the answers of this round, so this is an answer from an earlier round whose journal has
   changed since. Write a new answer for that node (Steps T2 and T3) and check again, once.

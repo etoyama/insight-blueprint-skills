@@ -308,7 +308,7 @@ class TestFramingRendersTheTree:
         insight = tmp_path / ".insight"
         run_shown_commands(_framing("#### 5a: "), insight, monkeypatch)
         step = _framing("#### 5c: ")
-        assert re.search(r"^tree_io render --theme LIB </dev/null$", step, re.M), (
+        assert re.search(r"^tree_io render --theme LIB$", step, re.M), (
             "5c shows no render command for the example theme"
         )
         code = run_shown_line(step, "render", insight, monkeypatch)

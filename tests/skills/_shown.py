@@ -33,12 +33,9 @@ def run_shown_commands(
 def run_shown_line(
     prose: str, command: str, insight: Path, monkeypatch: pytest.MonkeyPatch
 ) -> int:
-    """Run the one-line ``tree_io <command> ...`` shown in *prose* with empty stdin.
-
-    A trailing ``</dev/null`` is the shell's way to say the same thing.
-    """
+    """Run the one-line ``tree_io <command> ...`` shown in *prose* with empty stdin."""
     shown = re.search(rf"^tree_io ({re.escape(command)} [^\n]+)$", prose, re.M)
     assert shown, f"no tree_io {command} command is shown"
-    args = shown[1].removesuffix("</dev/null").split()
+    args = shown[1].split()
     monkeypatch.setattr("sys.stdin", io.StringIO(""))
     return tree_io._main([*args, "--base-dir", str(insight)])
