@@ -68,6 +68,11 @@ If it is not there, send nothing and stop:
 Markdown のレポートは `.insight/reports/{design_id}.md` にそのままある" → exit.
 Do not ask for approval first, and do not try another destination.
 
+If the connector is there, also look for the host's asset upload: a tool that uploads a local
+file and returns an id the connector can refer to (the connector's guide on uploads, if it has
+one, names it). Some hosts have it and some do not. Without it, the figures cannot reach the Doc;
+Step 3 says so before the approval.
+
 ### Step 3: List the files and wait for approval (KEEP gate)
 
 Show the list of everything that would leave the machine, the destination, and how the Doc
@@ -87,6 +92,10 @@ Doc は自分だけに見える状態で作られる。ほかの人に見せる�
 
 送ってよい？
 ```
+
+When Step 2 found no asset upload and the report has figures, replace the figure lines with this
+one line, so the list holds only what leaves the machine:
+`- 図: 送らない（この環境には図を上げる手段が無い。図は Markdown のレポートに残る）`.
 
 Then wait for the analyst's answer. Until the analyst approves, make no call that creates or
 writes a Doc — not a skeleton, not a title. The connector's own guidance may say to create the
@@ -112,10 +121,11 @@ no byline or date line added.
    number. Captions stay. No local path of an image may reach the Doc.
 2. Create a new Doc with the report's title (its first `#` heading) and that body. Always a new
    Doc — never overwrite, update, or reuse one, even when the same report was uploaded before.
-3. Then, for each figure in report order: upload the PNG with the host's file upload for that
-   Doc, and replace the note with that figure's number with the image. Do this after the body is
-   in place, one figure at a time.
-   - If the host has no way to upload a file, or an upload or embed fails or is declined: omit
+3. Then, for each figure in report order, one figure at a time after the body is in place:
+   upload the PNG with the host's asset upload, make the connector's object for that upload in
+   the Doc, and replace the note with that figure's number with an image link to that object.
+   Take the call shapes from the connector's guide on uploads.
+   - If the host has no asset upload, or an upload or embed fails or is declined: omit
      that figure and leave its one-line note. Go on to the next one. A figure that could not be
      embedded must never fail the upload as a whole.
    - Upload only the figures listed in Step 3.

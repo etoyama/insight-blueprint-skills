@@ -201,3 +201,29 @@ class TestFigures:
 
     def test_the_body_stays_the_report_whatever_the_connector_suggests(self) -> None:
         assert "no skeleton" in _step(4)
+
+
+class TestFigureRoute:
+    """#103: the route for a figure is named, by what each part does (ADR-0015)."""
+
+    def test_names_the_route_from_asset_upload_to_image_link(self) -> None:
+        # A run that read the connector's guide still found no way in; naming the
+        # route by function makes it findable without tying the skill to one host.
+        step = _step(4)
+        assert "asset upload" in step
+        assert "the connector's object for that upload" in step
+        assert "image link to that object" in step
+
+    def test_checks_for_the_asset_upload_before_the_approval(self) -> None:
+        assert "asset upload" in _step(2)
+
+    def test_lists_figures_as_not_sent_when_the_host_cannot_upload(self) -> None:
+        # ADR-0016 lists what leaves the machine; a figure that cannot leave is not on it.
+        step = _step(3)
+        assert "- 図: 送らない（この環境には図を上げる手段が無い。" in step
+
+    def test_names_no_host_tool_or_argument(self) -> None:
+        # The upload tool and its arguments differ per host (CLI vs desktop app).
+        text = _skill()
+        for name in ("`Artifact`", "asset: true", "blob/"):
+            assert name not in text, f"SKILL.md must not name {name!r}"

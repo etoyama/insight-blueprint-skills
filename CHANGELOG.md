@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   「約1.9倍」 when the hypothesis compared two numbers. A ratio, a difference, or a percent change
   between two stated numbers now counts as a computed number, so the report no longer writes one
   unless an input states it.
+- **`/report-upload` now finds the way to put figures in the Doc** (#103). The skill names the
+  route: upload the PNG with the host's asset upload, then link it from the Doc. Where the host
+  has no asset upload (Claude Code in the terminal today), the approval list says before you
+  approve that the figures stay out of the Doc.
 
 ## [0.13.0] - 2026-11-22
 
