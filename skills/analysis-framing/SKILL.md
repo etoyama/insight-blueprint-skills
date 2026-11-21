@@ -273,7 +273,7 @@ output the Framing Brief for a node the tree does not name.
 `tree_io position --theme {theme_id}`. When its `state` is `not_started`, the latest decision
 names a node the analyst chose, and nothing has been designed on it since: take its `node_id`
 as the answer, do not ask again and write no decision, and skip the question of 4c about what
-this run changes. Go to 5b with that node. In any other state the gate stands: ask. A run
+this run changes. Designs no node holds are still placed (4c). Go to 5b with that node. In any other state the gate stands: ask. A run
 that was started on its own always asks, whatever the tree says.
 
 ### Step 5: Output Framing Brief

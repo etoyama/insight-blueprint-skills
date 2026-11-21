@@ -71,6 +71,16 @@ def _round_item(name: str) -> str:
     return unwrap(found.group(0))
 
 
+def _on_request(about: str) -> str:
+    """The bullet under the round that the driver acts on only when the analyst asks."""
+    walk = _step("### Step 3:")
+    asked = walk[walk.index("only when the analyst asks") :]
+    for bullet in re.split(r"^- ", asked, flags=re.MULTILINE)[1:]:
+        if about in bullet:
+            return unwrap(bullet)
+    raise AssertionError(f"no on-request bullet about {about!r}")
+
+
 def _framing(heading: str) -> str:
     return section(_read_skill("analysis-framing"), heading)
 
@@ -129,7 +139,7 @@ class TestTheThemeIsTheEntry:
 
     def test_a_design_of_a_theme_without_a_tree_is_asked_once(self) -> None:
         build = unwrap(_step("### Step 2:"))
-        assert "ツリーを作って巡回に入るか、この分析設計だけを流すか" in build
+        assert "ツリーを作って巡回に入るか" in build
         assert re.search(r"theme that has a tree[^.]*never asked", build)
         assert "not stored" in build
 
@@ -140,6 +150,24 @@ class TestTheThemeIsTheEntry:
     def test_framing_places_the_designs_that_already_exist(self) -> None:
         build = unwrap(_step("### Step 2:"))
         assert re.search(r"existing designs[^.]*4b", build)
+
+    def test_the_position_is_read_again_once_the_tree_is_built(self) -> None:
+        # Review: a design placed in 4b was skipped and its node designed anew.
+        build = unwrap(_step("### Step 2:"))
+        assert re.search(r"read `tree_io position` again[^.]*its `state`", build)
+        item = _round_item("framing brief")
+        assert "`not_started`" in item and "`closed`" in item
+        assert "Right after Step 2" not in item
+
+    def test_a_position_that_cannot_be_read_stops_the_run(self) -> None:
+        locate = unwrap(_step("### Step 1:"))
+        assert re.search(r"exits non-zero[^.]*stop", locate)
+
+    def test_a_design_no_node_holds_is_placed_before_it_is_carried(self) -> None:
+        locate = unwrap(_step("### Step 1:"))
+        assert re.search(
+            r"no node of the tree holds it[^.]*Designs no node holds", locate
+        )
 
     def test_never_cd_before_an_io_command(self) -> None:
         locate = unwrap(_step("### Step 1:"))
@@ -177,10 +205,6 @@ class TestGates:
         _, keep, _auto_cell = table_row(_gates(), step)
         assert keep.startswith("**"), keep
         assert NEW_GATES[step] in keep
-
-    def test_the_text_names_the_five(self) -> None:
-        gates = unwrap(_gates())
-        assert "Five gates are new with the question tree" in gates
 
     def test_the_framing_gates_point_at_their_steps(self) -> None:
         for step, where in (
@@ -222,6 +246,11 @@ class TestTheReportIsWrittenWithoutAsking:
         assert "without asking" in item
         assert "offer" not in item.lower()
 
+    def test_a_report_from_an_earlier_run_is_kept_and_its_upload_is_named(self) -> None:
+        item = _round_item("report")
+        assert "not written again" in item
+        assert re.search(r"`/report-upload \{design_id\}`[^.]*theirs to run", item)
+
     def test_a_round_without_a_conclusion_writes_no_report(self) -> None:
         item = _round_item("report")
         assert re.search(r"not in a terminal status[^.]*no report", item)
@@ -261,15 +290,16 @@ class TestTheWalkGoesOnUntilTheAnalystStops:
         assert "resumes" in summary
 
     def test_the_tree_is_handed_over_only_when_the_analyst_asks(self) -> None:
-        walk = unwrap(_step("### Step 3:"))
-        asked = walk[walk.index("/tree-upload {theme_id}") - 300 :]
-        assert "asks" in asked
+        asked = _on_request("hand the tree over")
+        assert "/tree-upload {theme_id}" in asked
         assert "do not ask whether to send" in asked.lower()
+        assert "Never start it unasked" in asked
         assert "ADR-0016" in asked
 
     def test_a_changed_root_goes_back_to_framing(self) -> None:
-        walk = unwrap(_step("### Step 3:"))
-        assert re.search(r"root question or the aim[^.]*/analysis-framing", walk)
+        asked = _on_request("root question or the aim")
+        assert "/analysis-framing {theme_id}" in asked
+        assert "The root question or the aim" in asked
 
     def test_the_driver_never_writes_the_tree(self) -> None:
         text = _auto()
@@ -321,8 +351,9 @@ class TestTheDriverReadsTheSkillsItDrives:
 
     def test_every_driven_skill_has_its_file(self) -> None:
         delegated = split_sections(_auto())["Delegated skills"]
-        names = re.findall(r"`/([a-z-]+)`", delegated)
-        assert len(names) >= 12
+        names = set(re.findall(r"`/([a-z-]+)`", delegated))
+        chained = {to for _, to in _extract_chaining_edges("analysis-auto")}
+        assert chained <= names
         root = Path(__file__).resolve().parents[2] / "skills"
         for name in names:
             assert (root / name / "SKILL.md").is_file(), name
@@ -376,6 +407,11 @@ class TestFramingTakesTheDecisionAsTheAnswerInsideAuto:
     def test_the_decision_is_the_answer_and_nothing_is_written(self) -> None:
         gate = self._gate()
         assert re.search(r"do not ask again[^.]*write no decision", gate)
+
+    def test_the_exception_covers_only_the_question_about_the_node(self) -> None:
+        # Review: skipping all of 4c also skipped placing a design no node holds.
+        gate = self._gate()
+        assert re.search(r"[Dd]esigns no node holds are still placed", gate)
 
     def test_every_other_case_still_asks(self) -> None:
         gate = self._gate()

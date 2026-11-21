@@ -456,7 +456,7 @@ sequenceDiagram
 （[ADR-0016](adr/0016-approval-before-external-send.md)）。`/tree-upload` は、分析者が頼んだときにだけ起動する。
 
 再開する所は `tree_io position` が導く。最新のツリーの決定が指す論点に、終わっていない分析設計があれば `in_progress`、
-決定より後に作った分析設計がすべて終わっていれば `concluded`、どちらも無ければ `not_started`、最後の決定が区切るなら `closed` になる。
+決定より後に作った分析設計がすべて終わっていれば `concluded`、どちらも無ければ `not_started` になる。最後の決定が区切るで、その後に分析設計を起こしていなければ `closed` になる。
 
 ## Domain Model
 

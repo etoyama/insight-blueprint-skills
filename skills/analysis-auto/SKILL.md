@@ -64,10 +64,6 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | tree-upload | **the file to send as an Artifact** — asked by `/tree-upload` itself, at its approval gate; the driver adds no question of its own | starting `/tree-upload` when the analyst asks to hand the tree over |
 | catalog-register | **registering a data source** (external-data side-effect); unregistered source → stop | — |
 
-Five gates are new with the question tree: the entry, framing ①, ②, ③ and the theme
-reflection. `rq-problematization`, framing ④ and `tree-upload` are gates those skills
-already hold; the driver passes them through.
-
 The four `design ①–④` beats are **ordered confirmation gates** run before `design_io create`
 (and therefore before premortem): each is presented as its own AskUserQuestion so the user can
 adjust it, rather than collapsing the whole design into a single "looks good?". Beat ③
@@ -111,15 +107,17 @@ tree_io position --theme LIB
 
    It prints a `state`, and with a decision the `node_id` it names and the `design_ids` in
    play. Never work the position out yourself from the tree file, the dates or the journals.
+   If it exits non-zero, show stderr and stop: a linked design is missing or unreadable, and
+   the analyst has to fix it before the walk can go on.
 
 | `state` | What it means | Enter at |
 |---|---|---|
 | `no_tree` | The theme has no question tree. stderr names the file it looked for: check that it is under this project's `.insight` | Step 2 |
-| `no_decision` | A tree without a first node to investigate: an earlier framing stopped halfway | Step 2, item 3 (`/analysis-framing` finishes it in 4c) |
+| `no_decision` | A tree without a first node to investigate: an earlier framing stopped halfway | Step 2, item 3 (`/analysis-framing` finishes it: 4c, "An unfinished tree") |
 | `not_started` | The latest decision names `node_id`, and no design was made on it since | Step 3, item 1 |
 | `in_progress` | `design_ids` are the unfinished designs on `node_id` | Step 3, at the item the first of them calls for |
 | `concluded` | `design_ids` were made after the decision and are all finished; the round lacks its theme reflection | Step 3, item 8 |
-| `closed` | The analyst closed the walk at `node_id` | Step 3, item 1 (`/analysis-framing` asks which node to resume, 4d) |
+| `closed` | The analyst closed the walk at `node_id`, and no design was made on it since | Step 3, item 1 (`/analysis-framing` asks which node to resume, 4d) |
 
    For `in_progress`, read the design with `design_io get --id {design_id}`:
    `in_review` / `revision_requested` → item 3 or 4; `analyzing` without results → item 4;
@@ -127,7 +125,7 @@ tree_io position --theme LIB
    and tell the analyst which ones wait.
 3. A `design_id` of a theme that has a tree is never asked about: carry that design, entering
    Step 3 at the item its status calls for. If no node of the tree holds it, say so and run
-   `/analysis-framing {theme_id}` first, which asks where it belongs (4c).
+   `/analysis-framing {theme_id}` first, which asks where it belongs (4c, "Designs no node holds").
 4. Tell the analyst the plan ("論点ツリーの {node_id} から、design→premortem→notebook→journal→
    reflection→レポート→テーマを横断した振り返り の順に進める。仮説の確定・コスト判定・結論・ツリーの決定では
    止まる。結論が出たらレポートは聞かずに書く。外へ送る前には、送るファイルを見せて承認を待つ").
@@ -153,8 +151,10 @@ tree_io position --theme LIB
    4b also asks which node each of them belongs to. Do not silently pick any of these — this
    is where the analyst's intent gets elicited. The skill writes the tree, records the first node
    as the `start` decision, outputs the Framing Brief and renders the HTML.
-   When the run started from a `design_id`, the round that follows carries that design: enter
-   Step 3 at the item its status calls for.
+4. Then read `tree_io position` again and enter Step 3 by its `state`, as in Step 1: an
+   unfinished design that 4b placed on the first node makes it `in_progress`, and that design is
+   carried instead of a new one. When the run started from a `design_id`, the round carries
+   that design: enter Step 3 at the item its status calls for.
 
 ### Step 3: Walk the tree, one node per round
 
@@ -162,10 +162,12 @@ A round takes one node from its design to the tree decision. For each item, **fo
 skill's SKILL.md** (do not duplicate its logic here) and apply the gate policy above. Repeat
 the round until the analyst closes the walk or says stop.
 
-1. **framing brief**: the round needs the Framing Brief of its node. Right after Step 2 it is
-   already in the conversation: skip this item. Otherwise run `/analysis-framing {theme_id}`
-   and hand it the output of `tree_io position`. For `not_started` the skill takes the node of
-   the latest decision without asking again; for `closed` it asks which node to resume (4d).
+1. **framing brief**: a design is made from the Framing Brief of its node. When the position
+   is `not_started` or `closed` and that Brief is not in the conversation yet, run
+   `/analysis-framing {theme_id}` and hand it the output of `tree_io position`. For
+   `not_started` the skill takes the node of the latest decision without asking again; for
+   `closed` it asks which node to resume (4d). Skip this item when Step 2 has just output the
+   Brief of that node.
 2. **design**: run `/analysis-design`, auto-drafting fields from the agreed Framing Brief. Then **walk
    the four ordered confirmation beats — one AskUserQuestion each — before `design_io create`**, letting
    the user adjust at every beat. Do not collapse them into a single "looks good?"; don't silently commit
@@ -207,7 +209,8 @@ the round until the analyst closes the walk or says stop.
 8. **report**: when the design is in a terminal status (`supported` / `rejected` /
    `inconclusive`), run `/analysis-report {design_id}` without asking; the report is a file on
    this machine. A report that is already there (`.insight/reports/{design_id}.md`) is not
-   written again. When the design is not in a terminal status (refine or branch), write no report
+   written again: say so, and that `/report-upload {design_id}` is theirs to run if it was
+   never sent. When the design is not in a terminal status (refine or branch), write no report
    and go to item 10.
 9. **upload**: when item 8 wrote the report, run `/report-upload {design_id}` right after it.
    **Do not ask whether to upload**, before or after starting the skill. The skill lists the files it
@@ -233,7 +236,8 @@ the round until the analyst closes the walk or says stop.
 Two things happen only when the analyst asks for them, at any point of the walk:
 
 - **The root question or the aim changes** → run `/analysis-framing {theme_id}`. Whether the
-  root revision goes up is its KEEP gate (4c). Then read `tree_io position` again.
+  root revision goes up is its KEEP gate (4c, "The root question or the aim"). Then read
+  `tree_io position` again.
 - **The analyst asks to hand the tree over by URL** → run `/tree-upload {theme_id}`. Do not
   ask whether to send: the skill lists the file and waits at its own KEEP gate, the only
   question about it. Never answer it for them
