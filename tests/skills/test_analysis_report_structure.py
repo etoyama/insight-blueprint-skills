@@ -155,15 +155,13 @@ class TestSkillPointsAtTheTemplate:
         assert "absolute path" in assemble
 
     def test_a_ratio_between_stated_numbers_counts_as_computed(self) -> None:
-        # #105: with "Never compute" alone, opus wrote 「約1.9倍」 in Implications
-        # in 6 of 6 runs when the hypothesis compared two stated numbers.
+        # #105: "Never compute" alone did not stop a ratio of two stated numbers.
         assemble = unwrap(_section(_skill(), "### Step 3: "))
         assert (
-            "A ratio, a difference, or a percent change between two stated numbers "
-            "is a computed number"
+            "Unless an input states it, a ratio, a difference, or a percent change "
+            "between two stated numbers is a computed number, and so is a word that "
+            "states one"
         ) in assemble
-        assert "a word that states one (「約2倍」「半分」)" in assemble
-        assert "unless an input states it" in assemble
 
 
 class TestReportSkill:
