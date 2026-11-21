@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`/analysis-report` wrote a ratio no input states in Implications** (#105), such as
+  「約1.9倍」 when the hypothesis compared two numbers. A ratio, a difference, or a percent change
+  between two stated numbers now counts as a computed number, so the report gives both numbers
+  and says which is larger instead.
+
 ## [0.13.0] - 2026-11-22
 
 ### Upgrade note
