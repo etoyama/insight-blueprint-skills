@@ -369,8 +369,8 @@ class TestReportAndUploadDocs:
             for line in sequence.splitlines()
             if "【KEEP】" in line and ("送る" in line or "アップロード" in line)
         ]
-        assert len(asks) == 1, asks
-        assert asks[0].startswith("P->>U:"), "the gate belongs to /report-upload"
+        # Story 18.9 adds the gate of /tree-upload; each send is asked once, by its skill.
+        assert [line.split(":")[0] for line in asks] == ["P->>U", "TU->>U"], asks
 
     def test_architecture_epic_mapping_covers_every_roadmap_epic(self) -> None:
         roadmap = _first_cells(words.section(_read("docs/PRD.md"), "ロードマップ"))
@@ -569,6 +569,66 @@ class TestQuestionTreeDocs:
         for slug in (
             "answers-are-checked-before-they-land",
             "one-answer-call-is-one-round",
+        ):
+            assert f"### Decision: {slug}" in decisions, slug
+
+    AUTOPILOT = "### guided autopilot（`/analysis-auto`）"
+
+    def test_architecture_autopilot_reads_the_position_and_walks_node_by_node(
+        self,
+    ) -> None:
+        """Story 18.9 (US-8 AC 1, AC 2, AC 5): resume from the position, loop over nodes."""
+        sequence = section(_read("docs/ARCHITECTURE.md"), self.AUTOPILOT)
+        assert "tree_io position" in sequence
+        for state in ("no_tree", "not_started", "in_progress", "concluded", "closed"):
+            assert state in sequence, state
+        assert "loop 論点ごとの巡回" in sequence
+        assert "/rq-problematization" in sequence
+
+    def test_architecture_autopilot_shows_the_five_new_gates(self) -> None:
+        """US-8 AC 3."""
+        sequence = section(_read("docs/ARCHITECTURE.md"), self.AUTOPILOT)
+        keeps = [line for line in sequence.splitlines() if "【KEEP" in line]
+        for gate in (
+            "ツリーを作って巡回に入るか",
+            "根の問い",
+            "最初に調べる論点",
+            "ツリーの決定",
+            "根の版",
+        ):
+            assert any(gate in line for line in keeps), gate
+
+    def test_architecture_autopilot_writes_the_report_without_asking(self) -> None:
+        """US-8 AC 4: the report is AUTO and comes before the tree decision."""
+        sequence = section(_read("docs/ARCHITECTURE.md"), self.AUTOPILOT)
+        report = next(
+            line for line in sequence.splitlines() if "/analysis-report" in line
+        )
+        assert "AUTO" in report and "【KEEP" not in report
+        assert sequence.index(report) < sequence.index("ツリーの決定")
+        assert "レポートのパスと論点ツリーの HTML のパス" in sequence
+
+    def test_architecture_invocation_model_lists_the_gates_of_the_walk(self) -> None:
+        model = section(_read("docs/ARCHITECTURE.md"), "### Skill invocation model")
+        assert "adr/0026-analysis-auto-walks-the-question-tree.md" in model
+        assert "ツリーの決定" in model
+        assert "レポートの生成 /" not in model
+
+    def test_architecture_workflow_names_the_autopilot_as_the_entry(self) -> None:
+        sequence = section(_read("docs/ARCHITECTURE.md"), "### 分析ワークフロー全体")
+        assert "入口" in sequence
+        assert "巡回" in sequence
+        report = sequence.index("/analysis-report")
+        assert report < sequence.index("/analysis-reflection {theme_id}")
+
+    def test_design_doc_records_the_decisions_of_the_walk(self) -> None:
+        decisions = section(
+            _read("docs/design/epic-18-question-tree.md"), "## Decisions"
+        )
+        for slug in (
+            "position-is-derived-by-tree-io",
+            "auto-does-not-ask-twice-for-a-decided-node",
+            "framing-places-existing-designs",
         ):
             assert f"### Decision: {slug}" in decisions, slug
 
