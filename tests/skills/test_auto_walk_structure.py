@@ -255,10 +255,11 @@ class TestTheReportIsWrittenWithoutAsking:
         assert "without asking" in item
         assert "offer" not in item.lower()
 
-    def test_a_report_from_an_earlier_run_is_kept_and_its_upload_is_named(self) -> None:
+    def test_a_report_from_an_earlier_run_is_kept_and_goes_to_the_upload(self) -> None:
+        # Epic 27: the round takes the kept report on to the upload, not to the analyst.
         item = _round_item("report")
         assert "not written again" in item
-        assert re.search(r"`/report-upload \{design_id\}`[^.]*theirs to run", item)
+        assert "go on to item 9" in item
 
     def test_a_round_without_a_conclusion_writes_no_report(self) -> None:
         item = _round_item("report")
