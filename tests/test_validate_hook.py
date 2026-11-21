@@ -244,6 +244,22 @@ class TestHookSubprocessBlock:
         assert result.returncode == 2
         assert "transition" in result.stderr.lower()
 
+    def test_conclusion_from_analyzing_via_inplace_edit_passes(
+        self, tmp_path: Path
+    ) -> None:
+        path = write_design(tmp_path, "FP-H01", design_dict(status="analyzing"))
+        result = run_hook(
+            {
+                "tool_name": "Edit",
+                "tool_input": {
+                    "file_path": str(path),
+                    "old_string": "status: analyzing",
+                    "new_string": "status: inconclusive",
+                },
+            }
+        )
+        assert result.returncode == 0, result.stderr
+
     def test_malformed_yaml_blocks(self, tmp_path: Path) -> None:
         path = tmp_path / ".insight" / "designs" / "FP-H01_hypothesis.yaml"
         result = run_hook(

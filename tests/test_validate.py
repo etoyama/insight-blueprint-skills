@@ -56,6 +56,20 @@ class TestValidateTransition:
         with pytest.raises(ValueError, match="Cannot transition from 'analyzing'"):
             validate_transition(DesignStatus.analyzing, DesignStatus.revision_requested)
 
+    @pytest.mark.parametrize(
+        "conclusion",
+        [DesignStatus.supported, DesignStatus.rejected, DesignStatus.inconclusive],
+    )
+    def test_analyzing_reaches_each_conclusion_directly(
+        self, conclusion: DesignStatus
+    ) -> None:
+        """A reflection closes an analyzed design without a review in between (ADR-0029)."""
+        validate_transition(DesignStatus.analyzing, conclusion)
+
+    def test_analyzing_can_still_go_back_to_in_review(self) -> None:
+        """Reviewing the result after the analysis stays available, as an option."""
+        validate_transition(DesignStatus.analyzing, DesignStatus.in_review)
+
     def test_terminal_status_has_no_targets(self) -> None:
         """Terminal statuses (supported/rejected/inconclusive) allow no transition."""
         with pytest.raises(ValueError, match="Valid targets: none"):
