@@ -50,6 +50,7 @@ In Claude Code, add this repository as a plugin marketplace and install from it:
 
 Here `insight-blueprint` is the plugin name and `insight-blueprint-marketplace` is the
 marketplace defined in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json).
+The marketplace installs the latest release tag, not the tip of `main`.
 
 ### Local clone (for development)
 

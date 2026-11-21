@@ -8,6 +8,8 @@ source YAML itself (US-1), and a design carrying `connection` values in
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from tests.skills._markdown import section, unwrap
@@ -128,6 +130,46 @@ class TestCatalogRegisterKeepsCredentialsOut:
     def test_a_password_inside_a_url_is_named_as_unchecked(self) -> None:
         step = unwrap(section(_read_skill("catalog-register"), "### Step 3: "))
         assert "`user:password@`" in step
+
+
+class TestCatalogRegisterNeverCallsTheApi:
+    """Issue #136: the analysis repository's fetch script calls the API, not Claude."""
+
+    def _api_workflow(self) -> str:
+        return unwrap(
+            section(_read_skill("catalog-register"), "## API Source Workflow")
+        )
+
+    def test_no_skill_puts_an_environment_variable_in_a_url_query(self) -> None:
+        # Catches the `?appId=$ESTAT_API_KEY` form; the wording tests below carry the rule.
+        files = _prose_files()
+        assert files
+        builds = [
+            path.relative_to(SKILLS_DIR).as_posix()
+            for path in files
+            if re.search(r"[?&][A-Za-z_]+=\$\{?[A-Z_]", path.read_text())
+        ]
+        assert builds == []
+
+    def test_the_api_workflow_says_not_to_call_the_api(self) -> None:
+        workflow = self._api_workflow()
+        assert "Do not call the API yourself" in workflow
+        assert "fetch script" in workflow
+
+    def test_the_api_workflow_reads_a_saved_response_or_a_pasted_sample(
+        self,
+    ) -> None:
+        workflow = self._api_workflow()
+        assert "a saved response" in workflow
+        assert "paste a sample response with the key removed" in workflow
+
+    def test_a_saved_response_holding_the_key_is_not_read(self) -> None:
+        workflow = self._api_workflow()
+        assert "stop reading" in workflow
+
+    def test_a_json_response_is_read_in_full_not_by_its_first_rows(self) -> None:
+        workflow = self._api_workflow()
+        assert "read a JSON response in full" in workflow
 
 
 class TestArchitectureFollowsTheBoundary:

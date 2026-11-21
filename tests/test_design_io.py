@@ -267,11 +267,18 @@ class TestTransition:
         out = design_io.transition_status(d["id"], "analyzing", base_dir=insight)
         assert out["status"] == "analyzing"
 
+    def test_analyzed_design_concludes_without_a_review(self, insight: Path) -> None:
+        d = _create(insight)
+        design_io.transition_status(d["id"], "analyzing", base_dir=insight)
+        out = design_io.transition_status(d["id"], "supported", base_dir=insight)
+        assert out["status"] == "supported"
+        assert design_io.load_design(d["id"], base_dir=insight)["status"] == "supported"
+
     def test_invalid_transition_raises_and_not_persisted(self, insight: Path) -> None:
         d = _create(insight)
         design_io.transition_status(d["id"], "analyzing", base_dir=insight)
         with pytest.raises(ValueError, match="transition"):
-            design_io.transition_status(d["id"], "supported", base_dir=insight)
+            design_io.transition_status(d["id"], "revision_requested", base_dir=insight)
         assert design_io.load_design(d["id"], base_dir=insight)["status"] == "analyzing"
 
 
