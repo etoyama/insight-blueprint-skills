@@ -50,13 +50,14 @@ def _add(insight: Path, **over: object) -> dict:
     return tree_io.add_node("LIB", **kwargs)
 
 
-def _design(insight: Path, theme_id: str = "LIB") -> str:
+def _design(insight: Path, theme_id: str = "LIB", parent_id: str | None = None) -> str:
     design = design_io.create_design(
         theme_id=theme_id,
         title="Test",
         hypothesis_statement="X improves Y",
         hypothesis_background="because Z",
         methodology={"method": "OLS"},
+        parent_id=parent_id,
         base_dir=insight,
     )
     return design["id"]
@@ -239,16 +240,7 @@ class TestLinkDesign:
 
 
 def _derived(insight: Path, parent_id: str) -> str:
-    design = design_io.create_design(
-        theme_id="LIB",
-        title="Alternative",
-        hypothesis_statement="W improves Y",
-        hypothesis_background="because Z",
-        methodology={"method": "OLS"},
-        parent_id=parent_id,
-        base_dir=insight,
-    )
-    return design["id"]
+    return _design(insight, parent_id=parent_id)
 
 
 def _linked(insight: Path) -> dict[str, list[str]]:
@@ -343,17 +335,46 @@ class TestLinkDerivedDesign:
 
     def test_a_design_of_another_theme_is_refused(self, tree: Path) -> None:
         parent = _design(tree, theme_id="FP")
-        other = design_io.create_design(
-            theme_id="FP",
-            title="Alternative",
-            hypothesis_statement="W improves Y",
-            hypothesis_background="because Z",
-            methodology={"method": "OLS"},
-            parent_id=parent,
-            base_dir=tree,
-        )["id"]
+        other = _design(tree, theme_id="FP", parent_id=parent)
         with pytest.raises(ValueError, match="belongs to theme 'FP'"):
             tree_io.link_derived_design("LIB", other, base_dir=tree)
+
+    def test_a_tree_named_for_another_theme_is_refused_with_nothing_to_write(
+        self, tree: Path
+    ) -> None:
+        node_id = _add(tree)["id"]
+        parent = _design(tree)
+        tree_io.link_design("LIB", node_id, parent, base_dir=tree)
+        derived = _derived(tree, parent)
+        tree_io.link_derived_design("LIB", derived, base_dir=tree)
+        path = tree / "themes" / "LIB_tree.yaml"
+        path.write_text(
+            path.read_text("utf-8").replace("theme_id: LIB", "theme_id: FP"), "utf-8"
+        )
+
+        with pytest.raises(ValueError, match="FP"):
+            tree_io.link_derived_design("LIB", derived, base_dir=tree)
+
+    def test_the_cli_exits_1_without_a_traceback_on_a_tree_written_by_hand(
+        self, tree: Path
+    ) -> None:
+        node_id = _add(tree)["id"]
+        parent = _design(tree)
+        tree_io.link_design("LIB", node_id, parent, base_dir=tree)
+        derived = _derived(tree, parent)
+        path = tree / "themes" / "LIB_tree.yaml"
+        text = path.read_text("utf-8")
+        assert f"design_ids:\n  - {parent}" in text
+        path.write_text(
+            text.replace(f"design_ids:\n  - {parent}", f"design_ids: {parent}"),
+            "utf-8",
+        )
+
+        done = _run_cli(tree, "link-derived", "--theme", "LIB", "--design", derived)
+
+        assert done.returncode == 1
+        assert done.stderr.startswith("tree_io: ")
+        assert "Traceback" not in done.stderr
 
     def test_the_derived_design_shows_in_the_progress_and_the_position(
         self, tree: Path

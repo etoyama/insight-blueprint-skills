@@ -13,8 +13,8 @@ Epic 18 は閉じているので、DesignDoc には追記せず、この ADR に
 
 比較の前提にした事実と、確かめた方法は次のとおり。
 
-- 派生の分析設計を作るのは `/analysis-journal` の Branch Workflow だけである。`design_io create` に `parent_id` を付けて呼び、`tree_io link` は呼ばない（`skills/analysis-journal/SKILL.md` を読んだ）。
-- `/analysis-design` が分析設計を論点に結ぶのは、Framing Brief に `node_id` があるときだけである（`skills/analysis-design/SKILL.md` を読んだ）。
+- branch を選んだときに派生の分析設計を作るのは `/analysis-journal` の Branch Workflow である。`design_io create` に `parent_id` を付けて呼び、`tree_io link` は呼ばない（`skills/analysis-journal/SKILL.md` を読んだ）。
+- `/analysis-design` も `parent_id` を付けた分析設計を作れる。`/analysis-reflection` は結論の後に、派生仮説を立てる道としてこれを案内する。`/analysis-design` が分析設計を論点に結ぶのは、Framing Brief に `node_id` があるときだけである（`skills/analysis-design/SKILL.md` と `skills/analysis-reflection/SKILL.md` を読んだ）。
 - 合成のプロジェクトで再現した。論点 LIB-Q02 に LIB-H01 を結んで `rejected` にし、`parent_id: LIB-H01` の LIB-H02 を作った。LIB-H02 は終わっていないのに、`tree_io progress` は LIB-Q02 を `analyzed` と返し、論点の `design_ids` は LIB-H01 だけだった（`bin/tree_io` を実行した）。
 - 1つの分析設計は複数の論点に結べる（[Epic 18 の DesignDoc](../design/epic-18-question-tree.md) の US-2 AC 3）。
 - `/analysis-auto` が分析者に聞くのは、列挙した KEEP ゲートだけである（同 US-8 AC 3）。
@@ -26,7 +26,7 @@ Epic 18 は閉じているので、DesignDoc には追記せず、この ADR に
 - 課題1: 分析者は派生の分析設計を論点ツリーの上で追えない。進捗は終わっていない分析設計を数えず、巡回の現在地は派生を進める対象に出さない。テーマを横断した振り返りは、派生の journal の出来事を引用できない（ツリーの検査が `unlinked-design` の違反にする）。
 - 課題2: 派生の分析設計を結ぶ先の決め方が定まっていない。派生元が複数の論点に結ばれているときと、どこにも結ばれていないときがある。
 
-扱わない範囲: Framing Brief を持たずに `/analysis-design` を単独で起動して作った分析設計。「結ばずに作る」と定めてあり、変えない。結んだ分析設計を論点から外す手段。
+扱わない範囲: Framing Brief を持たずに `/analysis-design` を起動して作った分析設計（`parent_id` を付けたものを含む）。「結ばずに作る」と定めてあり、変えない。結んだ分析設計を論点から外す手段。論点にある人に聞いた答えを、派生の journal に写すこと（`tree_io copy-hearing`）。
 
 ## Decision Analysis
 
@@ -63,7 +63,7 @@ A を採る。決め手は W3（人間の判断、2026-11-22）。
 
 - 派生の分析設計は、派生元が結ばれている論点すべてに結ぶ。派生は同じ問いへの別の仮説なので、派生元と同じ論点に答えるものとして扱う。分析者には聞かず、結んだ論点を伝える。
 - 結ぶのは `tree_io link-derived --theme T --design ID` である。派生元は分析設計の `parent_id` から読むので、呼ぶ側は渡さない。何度呼んでも結果は同じになる。
-- 派生元がどの論点にも結ばれていないときと、テーマに論点ツリーが無いときは、何も結ばず、何も書かない。ツリーがあるテーマでは、`/analysis-framing` で論点に置けることを分析者に伝える。
+- 派生元がどの論点にも結ばれていないときと、テーマに論点ツリーが無いときは、何も結ばず、何も書かない。どちらのときも、`/analysis-framing` で論点に置けることを分析者に伝える。2つを見分ける手順は skill に置かない。
 - 呼ぶのは `/analysis-journal` の Branch Workflow で、分析設計を作った直後である。
 - 単発の PR で入れる（[ADR-0012](0012-single-pr-scope.md)）。巡回は論点に起こした分析設計を進め（US-8 AC 2）、横断の振り返りは論点に結んだ分析設計を読む（US-3 AC 1）。派生がそこから外れていたので、定めた振る舞いに戻す fix である。
 
@@ -80,6 +80,7 @@ A を採る。決め手は W3（人間の判断、2026-11-22）。
 - 派生元と違う問いに答える派生は、誤った論点に結ばれる。journal の `question` を論点に昇格し、`/analysis-framing` で置くのが本来の道である。
 - Epic 18 の DesignDoc の Decision `position-is-derived-by-tree-io` にある「どの skill も論点に結ばない」という記述は、この ADR で古くなる。DesignDoc は凍結しているので直さない。
 - `tree_io` のコマンドが1つ増える。
+- 区切った（`close`）後に `/analysis-journal` で派生を起こすと、現在地は `in_progress` に戻る。区切った後に作った分析設計として数えるためで、framing で後から結んだ分析設計と同じ扱いである。
 
 ## Alternatives considered
 

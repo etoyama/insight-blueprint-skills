@@ -237,27 +237,22 @@ def link_derived_design(
     parent_id = design.get("parent_id")
     if not parent_id:
         raise ValueError(f"design '{design_id}' has no parent_id")
-    if design.get("theme_id") != theme_id:
+    design_theme = design.get("theme_id")
+    if design_theme != theme_id:
         raise ValueError(
-            f"design '{design_id}' belongs to theme '{design.get('theme_id')}', "
-            f"not '{theme_id}'"
+            f"design '{design_id}' belongs to theme '{design_theme}', not '{theme_id}'"
         )
-    tree = load_tree(theme_id, base_dir)
-    shared = [
-        node
-        for node in tree.get("nodes") or []
-        if parent_id in (node.get("design_ids") or [])
-    ]
+    result = {"design_id": design_id, "parent_id": parent_id, "node_ids": []}
+    if not load_tree(theme_id, base_dir):
+        return result
+    tree = _require_tree(theme_id, base_dir)
+    shared = [n for n in tree["nodes"] if parent_id in n.get("design_ids", [])]
     missing = [node for node in shared if design_id not in node["design_ids"]]
     for node in missing:
         node["design_ids"].append(design_id)
     if missing:
         _write_tree(tree, theme_id, base_dir)
-    return {
-        "design_id": design_id,
-        "parent_id": parent_id,
-        "node_ids": [node["id"] for node in shared],
-    }
+    return {**result, "node_ids": [node["id"] for node in shared]}
 
 
 def revise_root(

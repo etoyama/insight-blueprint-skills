@@ -8,6 +8,7 @@ outcome instead of being asked.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -79,15 +80,22 @@ class TestBranchWorkflowLinksTheDerivedDesign:
         assert "`node_ids`" in workflow
         assert "Do not ask which node" in workflow
 
+    def test_the_theme_is_the_one_of_the_source(self) -> None:
+        assert "`--theme` is the source's `theme_id`" in unwrap(_branch_workflow())
+
     def test_an_empty_result_is_not_an_error(self) -> None:
         workflow = unwrap(_branch_workflow())
-        assert "empty `node_ids`" in workflow
-        assert "/analysis-framing" in workflow
+        empty = re.search(r"An empty `node_ids`[^.]*\.[^.]*\.[^.]*\.", workflow)
+        assert empty, "no sentence covers an empty node_ids"
+        assert "/analysis-framing" in empty.group(0)
+        assert "If the theme has a tree" not in workflow
 
-    def test_a_failed_link_does_not_create_the_design_again(self) -> None:
+    def test_a_failed_link_does_not_stop_the_branch(self) -> None:
         workflow = unwrap(_branch_workflow())
-        assert "non-zero" in workflow
-        assert "do not create it again" in workflow
+        failed = re.search(r"If it exits non-zero[^.]*\.[^.]*\.", workflow)
+        assert failed, "no sentence covers a failed link"
+        assert "do not create it again" in failed.group(0)
+        assert "go on with step 4" in failed.group(0)
 
     def test_the_tree_is_written_only_through_this_command(self) -> None:
         workflow = unwrap(_branch_workflow())

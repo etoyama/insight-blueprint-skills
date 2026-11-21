@@ -34,7 +34,7 @@
 | 説明変数 | `ExplanatoryVariable` | 結果を説明するために使う変数 | — | fork 前 |
 | 因果の役割 | `VariableRole` | 説明変数が処置・交絡・共変量・操作変数・媒介のどれか | — | fork 前 |
 | 図の仕様 | `ChartSpec`、`ChartIntent` | 分析設計で描くと決めた図と、その図で見たいこと（分布・相関・推移・比較） | — | fork 前 |
-| 派生 | `parent_id`、`branch` | 既存の分析設計から別の仮説の分析設計を作ること。子は親を `parent_id` で指す | — | fork 前 |
+| 派生 | `parent_id`、`branch`、`link-derived` | 既存の分析設計から別の仮説の分析設計を作ること。子は親を `parent_id` で指す | — | fork 前 |
 | review | `/analysis-review`、`ReviewBatch` | 分析設計を読み、コメントと状態の遷移を1つの review batch として記録すること | — | [epic-06](design/epic-06-analysis-review.md) |
 | review batch | `ReviewBatch`、`{id}_reviews.yaml` | 1回の review のコメントの束。状態の遷移を1回だけ起こす | — | fork 前 |
 | review コメント | `BatchComment` | review batch の中の1件の指摘。分析設計の節を指せる | — | fork 前 |

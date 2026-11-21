@@ -111,14 +111,15 @@ When user wants to branch to an alternative hypothesis:
    ```bash
    tree_io link-derived --theme LIB --design LIB-H02
    ```
+   - `--theme` is the source's `theme_id`.
    - It links the design to every node its source is linked to: a derived design is another
      hypothesis for the same question. `node_ids` in the output are those nodes. Tell the
      analyst which nodes the design now sits on. Do not ask which node to link.
    - An empty `node_ids` means the source is on no node, or the theme has no tree. Nothing
-     was linked; go on. If the theme has a tree, say that the design is not on it and that
+     was linked; go on. Say that the design is on no node of a question tree and that
      `/analysis-framing {theme_id}` can place it.
    - If it exits non-zero, show the error. The design stays as written; do not create it
-     again.
+     again, and go on with step 4.
    - Never run `tree_io link` or `tree_io add-node` here, and never write the tree file. A
      derived design that answers another question is placed by `/analysis-framing`.
 4. Record `branch` event in source journal:
