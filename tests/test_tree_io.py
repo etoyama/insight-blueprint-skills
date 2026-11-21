@@ -238,6 +238,160 @@ class TestLinkDesign:
             tree_io.link_design("LIB", "LIB-Q09", design_id, base_dir=tree)
 
 
+def _derived(insight: Path, parent_id: str) -> str:
+    design = design_io.create_design(
+        theme_id="LIB",
+        title="Alternative",
+        hypothesis_statement="W improves Y",
+        hypothesis_background="because Z",
+        methodology={"method": "OLS"},
+        parent_id=parent_id,
+        base_dir=insight,
+    )
+    return design["id"]
+
+
+def _linked(insight: Path) -> dict[str, list[str]]:
+    nodes = tree_io.load_tree("LIB", base_dir=insight)["nodes"]
+    return {n["id"]: n.get("design_ids") or [] for n in nodes}
+
+
+class TestLinkDerivedDesign:
+    """#134: a derived design answers the questions its parent answers."""
+
+    def test_links_the_derived_design_to_the_node_of_its_parent(
+        self, tree: Path
+    ) -> None:
+        node_id = _add(tree)["id"]
+        parent = _design(tree)
+        tree_io.link_design("LIB", node_id, parent, base_dir=tree)
+        derived = _derived(tree, parent)
+
+        result = tree_io.link_derived_design("LIB", derived, base_dir=tree)
+
+        assert result == {
+            "design_id": derived,
+            "parent_id": parent,
+            "node_ids": [node_id],
+        }
+        assert _linked(tree)[node_id] == [parent, derived]
+
+    def test_links_it_to_every_node_of_its_parent(self, tree: Path) -> None:
+        first = _add(tree)["id"]
+        second = _add(tree, question="通知は期限の何日前に届くか")["id"]
+        parent = _design(tree)
+        tree_io.link_design("LIB", first, parent, base_dir=tree)
+        tree_io.link_design("LIB", second, parent, base_dir=tree)
+        derived = _derived(tree, parent)
+
+        result = tree_io.link_derived_design("LIB", derived, base_dir=tree)
+
+        assert result["node_ids"] == [first, second]
+        linked = _linked(tree)
+        assert linked[first] == linked[second] == [parent, derived]
+
+    def test_a_node_without_the_parent_is_left_alone(self, tree: Path) -> None:
+        with_parent = _add(tree)["id"]
+        other = _add(tree, question="通知は期限の何日前に届くか")["id"]
+        parent = _design(tree)
+        tree_io.link_design("LIB", with_parent, parent, base_dir=tree)
+        tree_io.link_design("LIB", other, _design(tree), base_dir=tree)
+        derived = _derived(tree, parent)
+
+        tree_io.link_derived_design("LIB", derived, base_dir=tree)
+
+        assert derived not in _linked(tree)[other]
+
+    def test_linking_twice_keeps_one_link(self, tree: Path) -> None:
+        node_id = _add(tree)["id"]
+        parent = _design(tree)
+        tree_io.link_design("LIB", node_id, parent, base_dir=tree)
+        derived = _derived(tree, parent)
+
+        tree_io.link_derived_design("LIB", derived, base_dir=tree)
+        result = tree_io.link_derived_design("LIB", derived, base_dir=tree)
+
+        assert result["node_ids"] == [node_id]
+        assert _linked(tree)[node_id] == [parent, derived]
+
+    def test_a_parent_on_no_node_links_nothing(self, tree: Path) -> None:
+        _add(tree)
+        derived = _derived(tree, _design(tree))
+        before = tree_io.load_tree("LIB", base_dir=tree)
+
+        result = tree_io.link_derived_design("LIB", derived, base_dir=tree)
+
+        assert result["node_ids"] == []
+        assert tree_io.load_tree("LIB", base_dir=tree) == before
+
+    def test_a_theme_without_a_tree_links_nothing(self, insight: Path) -> None:
+        derived = _derived(insight, _design(insight))
+
+        result = tree_io.link_derived_design("LIB", derived, base_dir=insight)
+
+        assert result["node_ids"] == []
+        assert tree_io.load_tree("LIB", base_dir=insight) == {}
+
+    def test_a_design_without_a_parent_is_refused(self, tree: Path) -> None:
+        design_id = _design(tree)
+        with pytest.raises(ValueError, match=f"design '{design_id}' has no parent_id"):
+            tree_io.link_derived_design("LIB", design_id, base_dir=tree)
+
+    def test_a_design_that_does_not_exist_is_refused(self, tree: Path) -> None:
+        with pytest.raises(ValueError, match="design 'LIB-H09' not found"):
+            tree_io.link_derived_design("LIB", "LIB-H09", base_dir=tree)
+
+    def test_a_design_of_another_theme_is_refused(self, tree: Path) -> None:
+        parent = _design(tree, theme_id="FP")
+        other = design_io.create_design(
+            theme_id="FP",
+            title="Alternative",
+            hypothesis_statement="W improves Y",
+            hypothesis_background="because Z",
+            methodology={"method": "OLS"},
+            parent_id=parent,
+            base_dir=tree,
+        )["id"]
+        with pytest.raises(ValueError, match="belongs to theme 'FP'"):
+            tree_io.link_derived_design("LIB", other, base_dir=tree)
+
+    def test_the_derived_design_shows_in_the_progress_and_the_position(
+        self, tree: Path
+    ) -> None:
+        node_id = _add(tree)["id"]
+        tree_io.decide(
+            "LIB", kind="start", node_id=node_id, reason="first", base_dir=tree
+        )
+        parent = _design(tree)
+        tree_io.link_design("LIB", node_id, parent, base_dir=tree)
+        _finish(tree, parent)
+        derived = _derived(tree, parent)
+        assert tree_io.progress("LIB", base_dir=tree)[node_id] == "analyzed"
+
+        tree_io.link_derived_design("LIB", derived, base_dir=tree)
+
+        assert tree_io.progress("LIB", base_dir=tree)[node_id] == "investigating"
+        where = tree_io.position("LIB", base_dir=tree)
+        assert (where["state"], where["design_ids"]) == ("in_progress", [derived])
+
+    def test_the_cli_prints_the_nodes_it_linked(self, tree: Path) -> None:
+        node_id = _add(tree)["id"]
+        parent = _design(tree)
+        tree_io.link_design("LIB", node_id, parent, base_dir=tree)
+        derived = _derived(tree, parent)
+
+        done = _run_cli(tree, "link-derived", "--theme", "LIB", "--design", derived)
+
+        assert done.returncode == 0, done.stderr
+        assert json.loads(done.stdout)["node_ids"] == [node_id]
+
+    def test_the_cli_exits_1_with_a_message_without_a_design(self, tree: Path) -> None:
+        done = _run_cli(tree, "link-derived", "--theme", "LIB")
+
+        assert done.returncode == 1
+        assert done.stderr.strip() == "tree_io: --design is required for link-derived"
+
+
 class TestReviseRoot:
     """US-1 AC 5: the root changes only here, and a bump keeps the version and reason."""
 
