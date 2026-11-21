@@ -21,6 +21,7 @@ journal
 journal の出来事
 未解決の問い
 reflection
+読むもの
 論点ツリー
 論点
 根の問い
