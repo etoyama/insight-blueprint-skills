@@ -38,6 +38,7 @@ Artifact
 合成シナリオ
 引き継ぎの試行
 巡回
+巡回の現在地
 framing
 notebook
 verdict

@@ -109,7 +109,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 - `/knowledge-extract` — Extract reusable, source-scoped domain knowledge from a concluded analysis
 - `/data-lineage` — Track data transformations and export lineage diagrams (Mermaid)
 - `/premortem` — Report-only pre-flight cost/risk evaluation of designs before expensive data access
-- `/analysis-auto` — Guided autopilot: drives the pipeline, pausing only at genuine decisions
+- `/analysis-auto` — Guided autopilot and single entry: walks the theme's question tree node by node, pausing only at genuine decisions
 
 Skills support both English and Japanese trigger phrases.
 
@@ -139,11 +139,14 @@ actual analysis is run by `/analysis-notebook`, which generates a marimo noteboo
 design's `methodology`, executes it, and records the results to the journal
 (`uv add "insight-blueprint-lineage[notebook]"` for the runtime deps).
 
-**Guided autopilot.** `/analysis-auto` drives the whole pipeline for you — auto-advancing the
-low-friction steps and **pausing only at genuine decisions**: confirming the hypothesis,
-registering a data source, a `HARD_BLOCK`/`HIGH` premortem, a notebook that would need
-out-of-allowlist packages or external communication beyond the declared source, the
-conclusion, and — after a terminal conclusion — offering the distributable report. Once the
+**Guided autopilot.** `/analysis-auto` is the single entry: give it a theme and it builds the
+theme's question tree, then investigates the tree one node per round, resuming where the tree
+stands on the next run. It auto-advances the low-friction steps and **pauses only at genuine
+decisions**: the root question and its aim, the node to investigate first, confirming the
+hypothesis, registering a data source, a `HARD_BLOCK`/`HIGH` premortem, a notebook that would
+need out-of-allowlist packages or external communication beyond the declared source, the
+conclusion, and the tree decision (deepen, return or close) that ends each round. When a design
+is concluded it writes the distributable report without asking. Once the
 report is written it starts `/report-upload`, which lists the files it would send to Claude Docs
 and waits for your approval; nothing leaves your machine without it. It is
 opt-in and still interactive — not an unattended pipeline. The individual

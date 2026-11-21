@@ -142,7 +142,7 @@ AC の正本はここ。
 この Epic で追加・変更した語。定義の正本は
 [docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md)。
 
-- 追加: 論点ツリー、論点、根の問い、到達点、根の版、寄与、発見元、進捗、現時点の答え、振り返りの回、ツリーの決定、次の候補、ツリーの検査、Artifact、合成シナリオ、引き継ぎの試行、巡回
+- 追加: 論点ツリー、論点、根の問い、到達点、根の版、寄与、発見元、進捗、現時点の答え、振り返りの回、ツリーの決定、次の候補、ツリーの検査、Artifact、合成シナリオ、引き継ぎの試行、巡回、巡回の現在地
 - 変更: アップロード（Story 18.7。`/tree-upload` も指す）、journal の出来事（[ADR-0028](../adr/0028-hearing-is-its-own-journal-event.md)。`hearing` を足した）、違反（[ADR-0025](../adr/0025-cited-answers-checked-after-writing.md)。ツリーの検査も挙げる）
 
 ## Scope
@@ -185,13 +185,14 @@ flowchart TD
     U -->|入口| AUTO
     AUTO -->|研究で RQ が無いとき| RQ
     RQ -->|RQ Brief| FR
-    AUTO -->|着手、根の変更| FR
+    AUTO -->|position（現在地を読む）| TIO
+    AUTO -->|着手、次の論点の Framing Brief、根の変更| FR
     AUTO -->|論点ごと| DS
     AUTO -->|論点ごと| RF
     AUTO -->|結論が出たら| RP
     U -.->|単独でも起動できる| FR
     U -.->|単独でも起動できる| RF
-    FR -->|create / add-node / decide / revise-root| TIO
+    FR -->|create / add-node / link / decide / revise-root| TIO
     DS -->|link| TIO
     RF -->|answer / decide| TIO
     RF -->|書いた後に検査| TC
@@ -206,6 +207,7 @@ flowchart TD
     FR -->|render| TIO
     RF -->|render| TIO
     U -.->|図を渡したいとき| TU
+    AUTO -->|分析者が頼んだとき| TU
     TU -->|render| TIO
     TU -->|KEEP ゲートの後| ART
     HTML -.->|同じファイルを送る| ART
@@ -382,12 +384,12 @@ decisions:
 | `src/insight_blueprint/models/`（論点ツリーのモデル） | 論点ツリーの形と、ファイル1つで判定できる不変条件を型で表す | ファイルをまたぐ参照は確かめない → `tree_check` |
 | `src/insight_blueprint/validate.py` | 論点ツリーの YAML を検証する純関数を足す | I/O をしない → `tree_io`・hook |
 | `hooks/validate-design.py` | `*_tree.yaml` への直接の書き込みも検証する | 何を書くかは決めない |
-| `skills/_shared/tree_io.py`（新設） | ツリーの作成、論点の追加と昇格、分析設計を結ぶ、答えの追記、ツリーの決定、次の候補の列挙とメモ、聞いてきた答えの記録と journal への写し、根の版の更新、HTML の生成 | 答えの中身を考えない → `/analysis-reflection`。引用先と数を自分では判定しない → `tree_check`（`answer` は書く前に `tree_check` の検査を呼び、違反があれば書かない） |
+| `skills/_shared/tree_io.py`（新設） | ツリーの作成、論点の追加と昇格、分析設計を結ぶ、答えの追記、ツリーの決定、次の候補の列挙とメモ、聞いてきた答えの記録と journal への写し、根の版の更新、HTML の生成、巡回の現在地の導出（`position`。書かない） | 答えの中身を考えない → `/analysis-reflection`。引用先と数を自分では判定しない → `tree_check`（`answer` は書く前に `tree_check` の検査を呼び、違反があれば書かない） |
 | `skills/_shared/tree_render.py`（新設） | 論点ツリー、テーマの分析設計、引用した出来事を受け取り、HTML の文字列を返す純関数。進捗と、答えに付ける印を導く。ページに入る文字をすべてエスケープする | ファイルを読まない、書かない → `tree_io render`。引用の正しさは確かめない → `tree_check`（`tree_io render` が検査を回し、違反を渡す） |
 | `skills/_shared/tree_check.py`（新設） | 現時点の答えの引用の実在、引用先と論点の対応、文の数が引用先の本文にあるかを確かめ、違反を挙げる | ツリーを書き換えない |
-| `/analysis-auto` | 分析者の入口。論点ツリーの有無で着手か再開かを決め、論点ごとの巡回を進め、KEEP ゲートでだけ止まる。結論が出たらレポートを書かせる | skill の中身を持たない → 各 skill。ツリーを直接書かない → `tree_io` を使う各 skill |
+| `/analysis-auto` | 分析者の入口。`tree_io position` で巡回の現在地を読み、着手か再開かを決め、論点ごとの巡回を進め、KEEP ゲートでだけ止まる。結論が出たらレポートを書かせる | skill の中身を持たない → 各 skill。ツリーを直接書かない → `tree_io` を使う各 skill。現在地を自分で導かない → `tree_io position` |
 | `/rq-problematization` | （変えない）先行研究を集め、前提を問い直し、RQ Brief を出す | 論点ツリーを作らない → `/analysis-framing` |
-| `/analysis-framing` | 根の問い・到達点・第一階層・最初の論点と理由を分析者と決め、`tree_io` で残す。再実行では次に設計する論点を分析者に聞き、最新の決定と違えば決定を残す。Framing Brief に `theme_id` と論点の id を載せる | データの探索のやり方は変えない（Step 2 は Epic 17 の領分）。仮説の文を作らない → `/analysis-design` |
+| `/analysis-framing` | 根の問い・到達点・第一階層・最初の論点と理由を分析者と決め、`tree_io` で残す。既にある分析設計を結ぶ論点を分析者と決め、`tree_io link` で結ぶ。再実行では次に設計する論点を分析者に聞き、最新の決定と違えば決定を残す（`/analysis-auto` の中で現在地が `not_started` のときは、最新の決定を答えとして聞き直さない）。Framing Brief に `theme_id` と論点の id を載せる | データの探索のやり方は変えない（Step 2 は Epic 17 の領分）。仮説の文を作らない → `/analysis-design` |
 | `/analysis-design` | 作った分析設計を、Framing Brief の論点に結ぶ。結んだ後に `tree_io copy-hearing` を呼ぶ | 論点を作らない → `/analysis-framing`。聞いてきた答えを打ち直さない → `tree_io copy-hearing` |
 | `/analysis-reflection` | テーマを横断して現時点の答えを書き、ツリーの検査を通し、次の候補とツリーの決定を残す | 分析設計1つの振り返りは今のまま。HTML を書かない → `tree_io render` |
 | `/tree-upload`（新設） | 分析者が頼んだときに、`tree_io render` が書いた HTML を列挙して KEEP ゲートで承認を待ち、承認の後に新しい Artifact として送る。Artifact が無いホストでは手元のパスを伝える | HTML を書かない → `tree_io render`。いつ渡すかは決めない → 分析者。framing と reflection は案内するだけで起動しない |
@@ -400,7 +402,7 @@ decisions:
 auto は論点ツリーを作り、論点を1つずつ巡回する。研究で RQ がまだ無いときは、ツリーを作る前に `/rq-problematization` で先行研究を集め、前提を問い直して RQ を立てる。
 1回の巡回は分析設計、premortem、notebook、journal、分析設計の振り返り、レポート、テーマを横断した振り返り、ツリーの決定の順に進む。
 分析者は、レポートと論点ツリーの両方を見てからツリーの決定をする（人間の発言、2026-11-20）。
-分析者とのやり取りは KEEP ゲートだけで起きる。図では、分析者が答えるメッセージに G1〜G14 の番号を振った。G14 は後から足したゲートで、位置は図の上の方にある。
+分析者とのやり取りは KEEP ゲートだけで起きる。図では、分析者が答えるメッセージに G1〜G14 の番号を振った。G14 は後から足したゲートで、位置は図の上の方にある。区切った後に再開する論点を聞くゲート（`/analysis-framing` の Step 4d、Story 18.5）には番号を振っていない。
 各 skill は今までどおり単独でも起動できる（[ADR-0005](../adr/0005-selective-autonomous-chaining.md)）。
 
 ```mermaid
@@ -417,7 +419,7 @@ sequenceDiagram
     participant O as /analysis-report・/report-upload・/tree-upload
 
     U->>A: テーマ（theme_id）と、顧客が決めたいこと、または研究テーマ
-    A->>T: ツリーを読む
+    A->>T: position（巡回の現在地を読む。何も書かない）
     alt ツリーが無い
         opt design_id を渡された
             A-->>U: ツリーを作って巡回に入るか、この分析設計だけを流すか
@@ -445,15 +447,24 @@ sequenceDiagram
         F-->>U: Data Map、根の問いと到達点の案
         U->>F: G3 根の問いと到達点を決める（研究では、検証する RQ、想定読者、主張の範囲）
         F-->>U: 暫定の第一階層、各論点の寄与と優先の理由
-        U->>F: G4 最初に調べる論点を選ぶ（理由つき）
-        F->>T: create、decide start、render
+        U->>F: G4 最初に調べる論点を選ぶ（理由つき）。既にある分析設計があれば、結ぶ論点も決める
+        F->>T: create、add-node、link、decide start、render
         F-->>A: Framing Brief（theme_id、論点の id）
     else ツリーがある
-        T-->>A: 最新のツリーの決定と、次に調べる論点
+        T-->>A: 現在地（最新のツリーの決定が指す論点と、その論点の分析設計の状態）
+        Note over A,O: 終わっていない分析設計があれば続きから、結論の後で止まっていれば横断の振り返りから入る
     end
 
     loop 論点ごとの巡回（区切るまで）
         Note over U,O: 工程2 分析・収集の設計
+        opt 2巡目以降と再開（その論点に、決定の後に起こした分析設計が無い）
+            A->>F: 次の論点の Framing Brief を出す（探索は AUTO。G11 で決めた論点は聞き直さない）
+            opt 最後の決定が区切る
+                F-->>U: 最新の決定の論点と、次の候補
+                U->>F: 再開する論点
+            end
+            F-->>A: Framing Brief（theme_id、論点の id）
+        end
         A->>D: 論点から分析設計を起こす（AUTO で下書き）
         D-->>U: 仮説、手法、データの取り方、図の案
         U->>D: G5 4つの確認（仮説と決定の文脈、手法、データの取り方、図）
@@ -503,6 +514,7 @@ sequenceDiagram
         R-->>U: レポートのパスと Doc の URL、ツリーの HTML のパス、変わった答え、未判別の論点、次の候補（人に聞く問いと、その答えで変わる判断）
         U->>R: G11 深める・親に戻る・区切る と理由、次に調べる論点、人に聞いてきた答え
         R->>T: hear（聞いてきた答え）、decide、render
+        A->>T: position（次の巡回の現在地）
 
         opt 根の問いか到達点を変える（工程1へ戻る。研究では前提の問い直しへ戻ることもある）
             A->>F: framing を再実行する
@@ -511,7 +523,8 @@ sequenceDiagram
             F->>T: revise-root、render
         end
         opt 図を渡したい（定例報告やレビュー）
-            U->>O: /tree-upload
+            U->>A: 図を URL で渡したい
+            A->>O: /tree-upload（auto は送るかを別に聞かない）
             O->>T: render
             O-->>U: Artifact で送るファイルの一覧と、誰に見えるか
             U->>O: G13 送るかどうか
@@ -906,6 +919,49 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - 送った後でツリーが変わっても、Artifact は変わらない。新しい図を渡すには、もう一度 `/tree-upload` を打つ。
   - 生成した HTML は `<!doctype html>` から始まる完全な文書である。ホストの Artifact がそれをどう包むかは、ホストの側で決まる。
 
+### Decision: position-is-derived-by-tree-io
+
+- What: 巡回を再開する所（巡回の現在地）は保存せず、`tree_io position` が正本と分析設計から導く。`/analysis-auto` はその出力の `state` で入る手順を決め、自分では導かない。`state` は次の6つである（人間の判断、2026-11-21、Story 18.9 のセッション）。
+  - `no_tree`: 論点ツリーが無い。
+  - `no_decision`: ツリーはあるが、決定が無い。
+  - `closed`: 最後の決定が `close`。
+  - `in_progress`: 最後の決定が指す論点に、terminal status でない分析設計がある。
+  - `concluded`: 終わっていない分析設計は無く、決定より後に作った分析設計がある。巡回は、横断の振り返りとツリーの決定を残している。
+  - `not_started`: どちらも無い。その論点に分析設計を起こす。
+- Why: 最後の決定が指す論点に terminal status の分析設計しか無いとき、2つの状態が同じに見える。結論の後、横断の振り返りの前で中断した状態と、「同じ論点を深める」と決めた直後の状態である。取り違えると、巡回の順（US-8 AC 2）が崩れるか、同じ決定を繰り返し聞く。見分けるには、決定と分析設計の `created_at` を比べる。
+- Criteria: Must は「auto はツリーを書かない」（Module Responsibilities）。Want は「再開の位置を取り違えない」（高、Claude の推測。US-8 AC 1・AC 2）と「足すコードと公開するコマンドの量」（中、Claude の推測。YAGNI）。決め手は前者。Story 18.2 と 18.5 の手動確認で、文だけの手順はモデルが取り違えた。人間が推奨を採った。
+- Affected modules: `skills/_shared/tree_io.py`（`position`）、`/analysis-auto`、`/analysis-framing`（Step 4d）。
+- Alternatives considered: SKILL.md の文で、モデルに日時を比べさせる（読み違えうる。テストで確かめられない）。粗い規則にする（終わっていない分析設計があれば続け、無ければ framing で聞く。中断の後に再開すると、横断の振り返りを飛ばす）。
+- Consequences:
+  - `tree_io` のコマンドが1つ増える。読むだけで、何も書かない。
+  - 決定に `created_at` が無いとき（正本を手で書いたとき）と、日時を比べられないときは、結んだ分析設計をすべて決定より後のものとして扱う。`concluded` になり、横断の振り返りで分析者に聞く。聞かずに同じ論点へ分析設計をもう1本起こす側には倒さない。
+  - 終わっていない分析設計が2つ以上あれば、`design_ids` に並ぶ。`/analysis-auto` は最初の1つを進め、残りを分析者に伝える。
+  - ツリーを作る前からあった分析設計を、最初の決定の論点に結んだときは `not_started` になる（決定より前に作ったため）。`design_id` を渡された実行では、auto は現在地でなく、渡された分析設計を進める。
+  - 分析設計が refine で終わった回の後は `in_progress` になり、同じ分析設計の続きに入る。
+
+### Decision: auto-does-not-ask-twice-for-a-decided-node
+
+- What: `/analysis-auto` は、2巡目以降と再開で、`/analysis-framing {theme_id}` を通して次の論点の Framing Brief を得る。現在地が `not_started` のとき、framing の Step 4d は最新の決定の論点を答えとして受け取り、聞き直さず、決定も書かない。現在地が `closed` のときと、framing を単独で起動したときは、今までどおり必ず聞く（人間の判断、2026-11-21、Story 18.9 のセッション）。
+- Why: 分析者は G11（`/analysis-reflection` の Step T7）で次に調べる論点を答える。その直後に Step 4d が同じことを聞くと、巡回のたびに二度聞きになる。framing を通さないと、Framing Brief に `node_id` が載らず、`/analysis-design` は分析設計を論点に結ばない。
+- Criteria: Must は「分析者が選んでいない論点を、聞かずに出さない」（人間の判断、#126）。Want は「同じことを二度聞かない」（高、Claude の推測。US-8 AC 3）、「`node_id` の出どころが1つ」（高、Decision `framing-rerun-asks-for-the-next-node`）、「人間が決めた手順を変える量」（中、Claude の推測）。決め手は1つめの Want。`not_started` は、決定が分析者の選択で、その後に分析設計を起こしていない状態なので、Must を満たす。人間が推奨を採った。
+- Affected modules: `/analysis-framing`（Step 4d）、`/analysis-auto`。
+- Alternatives considered: Step 4d で毎回聞く（巡回ごとに二度聞く）。framing を通さず、auto が `/analysis-design` に `theme_id` と `node_id` を渡す（`node_id` の出どころが2つになり、データの探索も無い）。
+- Consequences:
+  - Decision `framing-rerun-asks-for-the-next-node` の「必ず KEEP ゲートを通る」に、例外が1つ付く。Story 18.2 の取り違え（分析設計を結び済みの論点を、聞かずに出す）は、その状態が `in_progress` か `concluded` になり、例外に当たらないので戻らない。
+  - 例外の条件は `tree_io position` の出力である。駆動するのは SKILL.md の文で、コードは framing を止めない。
+  - 同じ論点を深めると決めた後（その論点に終わった分析設計がある）も `not_started` なので、「もう1本起こすか」の確認（Step 4d の 4）は auto の中では出ない。決定がその答えである。
+
+### Decision: framing-places-existing-designs
+
+- What: テーマに、どの論点にも結んでいない分析設計があるとき、`/analysis-framing` は Step 4b のゲート（G4）で、それぞれをどの論点に結ぶかを分析者に聞き、Step 5a で `tree_io link` する。再実行（Step 4c）でも同じである。結ばないままにもでき、1つを複数の論点にも結べる。framing は `tree_io copy-hearing` を呼ばない（人間の判断、2026-11-21、Story 18.9 のセッション）。
+- Why: US-8 AC 1 は、ツリーを作るときに、既にある分析設計を結ぶ論点を framing で分析者と決めるよう求める。framing にその手順が無かった。
+- Criteria: Must は「結ぶ先は分析者が決める」（US-8 AC 1）。Want は「ゲートを増やさない」（中、Claude の推測。US-8 AC 3）と「聞いてきた答えが写らない穴を増やさない」（低、Claude の推測）。差がつくのは後者だけ。人間が推奨を採った。
+- Affected modules: `/analysis-framing`（Step 4b・4c・5a）。
+- Alternatives considered: 結ぶたびに `copy-hearing` も呼ぶ（終わった分析設計ではエラーになり、それを想定内として扱う文が要る。本当の失敗を見落としうる）。
+- Consequences:
+  - G4 の問いが1つ増える。ゲートは増えない。
+  - 再実行で、聞いてきた答えのある論点に、終わっていない既存の分析設計を結ぶと、答えは journal に写らない。新しいツリーでは答えがまだ無いので起きない。この Story では塞いでいない。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0024: 論点ツリーの正本は YAML に置き、表示は正本から生成する HTML にする](../adr/0024-question-tree-yaml-and-generated-html.md): 判断2・2'。Artifact は承認の後の任意の手順。
@@ -925,7 +981,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 | Story 18.6 | ✓（`tests/test_tree_render.py`。AC 1 は `TestSelfContained`、AC 2 は `TestProgress`・`TestCurrentAnswer`、AC 3 は `TestEvidence`、AC 4 は `TestMarks`・`TestHeader`、AC 5 は `TestStructure`。エスケープは `TestEscaping`） | ✓（`tests/test_tree_io.py` の `TestRender` は正本、分析設計、journal のファイルを読ませて HTML を書かせる。`tests/integration/test_bin_wrappers.py` は `bin/tree_io render` を別の cwd から通す） | —（CLI だけ。ブラウザで開いた手動確認は Story Timeline の 2026-11-21 に記録した） |
 | Story 18.7 | —（SKILL.md だけ。構造テストは Integration に置く） | ✓（`tests/skills/test_tree_upload_structure.py`。AC 1 は `TestApprovalGate`、AC 2 は `TestArtifactIsOptional`、AC 3 は `TestTheRenderedFileIsTheOnlySource`。framing の render は `tests/skills/test_question_tree_structure.py` の `TestFramingRendersTheTree` が、SKILL.md に書いたコマンドを `tree_io` に通す） | —（headless 実行の E2E は [ADR-0010](../adr/0010-skill-tdd-structure-tests.md) で必須にしていない。Artifact へ送った手動確認は Story Timeline の 2026-11-21 に記録した） |
 | Story 18.8 | — （試行の手順） | ☐ | ☐ |
-| Story 18.9 | — （SKILL.md だけ。構造テストは Integration に置く） | ☐ | ☐ |
+| Story 18.9 | ✓（`tests/test_tree_io.py` の `TestPosition`。US-8 AC 1 の「最新のツリーの決定が指す論点から再開する」を、6つの状態で確かめる。`TestCopyHearing` は、終わった分析設計の journal に写さないことを確かめる） | ✓（`tests/skills/test_auto_walk_structure.py`。AC 1 は `TestTheThemeIsTheEntry`・`TestFramingPlacesExistingDesigns`、AC 2 は `TestOneRound`、AC 3 は `TestGates`・`TestFramingTakesTheDecisionAsTheAnswerInsideAuto`、AC 4 は `TestTheReportIsWrittenWithoutAsking`、AC 5 は `TestTheWalkGoesOnUntilTheAnalystStops`。SKILL.md に書いた `tree_io position` と `tree_io link` を `tree_io` に通す。`tests/skills/test_upload_wiring_structure.py` は、アップロードの後も巡回が続くことを確かめる。`tests/docs/test_canonical_docs.py` は ARCHITECTURE の図を確かめる。`tests/test_cli_stdin.py` は `position` が stdin を読まないことを確かめる） | —（headless 実行の E2E は [ADR-0010](../adr/0010-skill-tdd-structure-tests.md) で必須にしていない。skill を通した手動確認は Story Timeline の 2026-11-21 に記録した） |
 
 完了時に ✓ を付ける。このマトリクスが Epic PR のレビューゲート。
 

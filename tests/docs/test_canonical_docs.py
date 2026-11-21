@@ -605,7 +605,7 @@ class TestQuestionTreeDocs:
             line for line in sequence.splitlines() if "/analysis-report" in line
         )
         assert "AUTO" in report and "【KEEP" not in report
-        assert sequence.index(report) < sequence.index("ツリーの決定")
+        assert sequence.index(report) < sequence.index("ツリーの決定（深める")
         assert "レポートのパスと論点ツリーの HTML のパス" in sequence
 
     def test_architecture_invocation_model_lists_the_gates_of_the_walk(self) -> None:
