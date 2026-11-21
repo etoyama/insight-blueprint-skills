@@ -1,0 +1,49 @@
+date: '2026-11-21'
+scenario: lib
+stage: round-2
+reader:
+  kind: claude
+  name: sonnet (Claude Code 2.1.227)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: LIB-Q01（根）の現時点の答えには「未判別　延長の試行をするかは、来館できる日の少なさを確かめるまで決められない」という文が明記されており、言える/弱める証拠はあるが最終的な決定はまだ下せないとされている。
+    verdict: undetermined
+  q2:
+    note: LIB-Q02は分析済みで『言えること』のみ（152件と数えられた）で未判別は無いため対象外。LIB-Q03は分析設計LIB-H02がinconclusiveで、統計上は分析済みだが『未判別　期限切れが通知の遅れで増えているかは、まだ見分けられない』を含むため分析済み・未判別に該当。LIB-Q04,05,06は分析設計を結んでおらず未着手。
+    not_started:
+    - LIB-Q04
+    - LIB-Q05
+    - LIB-Q06
+    analyzed_undetermined:
+    - LIB-Q03
+  q3:
+    note: 根の『言えること』はLIB-H02-E01（通知が翌日以降の予約は期限切れ18%、当日9%）に支えられ、『弱める証拠と留保』『未判別』はいずれもLIB-H02-E02（通知日を揃えても金曜確保分は16%のまま）に基づく。
+    supports:
+    - event_id: LIB-H02-E01
+      design_id: LIB-H02
+    weakens:
+    - event_id: LIB-H02-E02
+      design_id: LIB-H02
+  q4:
+    note: LIB-Q01には『回2で変わった』の印があり、回1の答え（LIB-H01-E01に基づく未判別）から回2の答え（LIB-H02-E01, LIB-H02-E02に基づく言えること/弱める証拠/未判別）に変化した。LIB-Q03は『回2で初めて答えた』であり、今回初めて答えた論点なので変わったに含めない。
+    changed_nodes:
+    - LIB-Q01
+    evidence:
+    - LIB-H02-E01
+    - LIB-H02-E02
+  q5:
+    note: 'ツリーの決定欄に『親に戻る（回2の振り返りの後）: LIB-Q06 通知の日を揃えても金曜に確保した本の期限切れが多いままなので、通知から期限まで何日開館していたかを先に確かめる』とあり、これはLIB-H02-E02の内容と一致する。またLIB-Q06の寄与欄に『発見元:
+      LIB-H02-E03』と明記されており、この出来事がLIB-Q06という論点を生んだ根拠になっている。'
+    node_id: LIB-Q06
+    reason_events:
+    - LIB-H02-E02
+    - LIB-H02-E03
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: true

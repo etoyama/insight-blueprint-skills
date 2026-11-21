@@ -1,0 +1,25 @@
+# The judgments a reader of the round-2 tree HTML should reach. tests/test_handoff_trial.py
+# derives each of them from the built tree, so the key cannot drift from stages.yaml.
+stage: round-2
+answers:
+  q1:
+    verdict: undetermined
+    note: 根の答えは、通知の遅れでは説明しきれず、来館できる日の少なさを確かめるまで延長の試行を決められない、である。
+  q2:
+    not_started: [LIB-Q04, LIB-Q05, LIB-Q06]
+    analyzed_undetermined: [LIB-Q03]
+    note: LIB-Q02 は分析済みで答えが言えることだけなので、どちらにも入らない。
+  q3:
+    supports:
+      - {event_id: LIB-H02-E01, design_id: LIB-H02}
+    weakens:
+      - {event_id: LIB-H02-E02, design_id: LIB-H02}
+    note: 根の今の答えが引用する出来事を、journal の direction で分ける。
+  q4:
+    changed_nodes: [LIB-Q01]
+    evidence: [LIB-H02-E01, LIB-H02-E02]
+    note: LIB-Q03 は回 2 で初めて答えたので、変わったに入れない。
+  q5:
+    node_id: LIB-Q06
+    reason_events: [LIB-H02-E02]
+    note: 通知の日を揃えても金曜の期限切れが多いままだったので、開館日数を先に確かめる。

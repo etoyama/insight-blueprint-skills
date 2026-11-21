@@ -1,0 +1,121 @@
+# Synthetic scenario of the handoff trial (Epic 18, Story 18.8): public-library holds.
+# Each stage adds what became known after the one before it. scripts/handoff_trial.py
+# build passes every step through tree_io and design_io, so the tree is written the
+# way the skills write it. Every name and number here is made up.
+theme_id: LIB
+stages:
+  - id: start
+    summary: >-
+      着手時に分かっていたこと。図書館員は、取り置き期限を延ばす試行を始めるかを決めたい。
+      期限切れの原因の候補は、通知の遅れと、来館できる日の少なさの2つ。延長の費用は、次の予約者の待ちが延びること。
+      取消と期限切れが同じ状態で記録されているので、まず数え方を定める。
+    steps:
+      - create_tree:
+          question: 取り置き期限を延ばす試行をするか
+          aim: {kind: business, decision_maker: 図書館員, decision: 取り置き期限を延ばす試行を始めるか}
+      - add_node:
+          question: 期限切れを一貫して数えられるか
+          parent_question_id: LIB-Q01
+          contribution: 予約取消が混ざると、延長で改善しうる件数が変わる
+      - add_node:
+          question: 期限切れは通知の遅れで増えているか
+          parent_question_id: LIB-Q01
+          contribution: 通知が遅れて来館の日が減るなら、延長より通知を早める方が効く
+      - add_node:
+          question: 期限切れは来館できる日の少なさで増えているか
+          parent_question_id: LIB-Q01
+          contribution: 開館日が少ない期間に期限が来るなら、延長で救える
+      - add_node:
+          question: 期限を延ばすと次の予約者の待ちはどれだけ延びるか
+          parent_question_id: LIB-Q01
+          contribution: 待ちが大きく延びるなら、延長の試行は割に合わない
+      - decide:
+          kind: start
+          node_id: LIB-Q02
+          reason: 取消が混ざると延長で改善しうる件数が変わるため、まず数え方を定める
+
+  - id: round-1
+    summary: >-
+      1つ目の分析設計で分かったこと。状態の履歴から取消を除くと、期限切れを一貫して数えられた。
+      振り返りの回 1 で答えを書き、原因の候補のうち通知の遅れを先に調べると決めた。
+    steps:
+      - create_design:
+          title: 期限切れの数え方
+          hypothesis_statement: 状態の履歴から取消を除けば、期限切れを一貫して数えられる
+          hypothesis_background: 取消と期限切れが同じ状態で記録されている
+      - link_design: {node_id: LIB-Q02, design_id: LIB-H01}
+      - journal:
+          design_id: LIB-H01
+          type: evidence
+          content: 状態の履歴から取消を除くと、期限切れは152件だった
+          metadata: {direction: supports}
+      - transition_status: {design_id: LIB-H01, target: supported}
+      - answer:
+          - node_id: LIB-Q02
+            statements:
+              - {kind: claim, text: 状態の履歴から取消を除くと、期限切れは152件と数えられた, cites: [LIB-H01-E01]}
+          - node_id: LIB-Q01
+            statements:
+              - {kind: undetermined, text: 期限切れは152件と数えられたが、延長で減るかはまだ分からない, cites: [LIB-H01-E01]}
+      - decide:
+          kind: return
+          node_id: LIB-Q03
+          reason: 数え方は定まった。期限切れの原因として、まず通知の遅れを確かめる
+
+  - id: round-2
+    summary: >-
+      2つ目の分析設計で分かったこと。通知が遅れた予約は期限切れが多いが、通知の日を揃えても
+      金曜に確保した本は期限切れが多いままだった。通知の遅れだけでは決められず、分析設計は inconclusive で終わった。
+      journal の問いから、開館日数の論点を足した。予約担当の図書館員に、曜日で通知の手順が変わるかを聞いた。
+      振り返りの回 2 で根の答えを書き換え、開館日数の論点を次に調べると決めた。
+    steps:
+      - create_design:
+          title: 通知の遅れと期限切れ
+          hypothesis_statement: 通知が翌日以降になった予約は期限切れが多い
+          hypothesis_background: 本を確保してから通知するまでの日数が予約ごとに違う
+      - link_design: {node_id: LIB-Q03, design_id: LIB-H02}
+      - journal:
+          design_id: LIB-H02
+          type: evidence
+          content: 通知が翌日以降になった予約の期限切れは18%で、当日に通知した予約の9%より多かった
+          metadata: {direction: supports}
+      - journal:
+          design_id: LIB-H02
+          type: evidence
+          content: 通知の日を揃えても、金曜に確保した本の期限切れは16%のままだった
+          metadata: {direction: contradicts}
+      - journal:
+          design_id: LIB-H02
+          type: question
+          content: 通知から期限まで何日開館していたか
+      - transition_status: {design_id: LIB-H02, target: inconclusive}
+      - add_node:
+          question: 通知から期限まで何日開館していたか
+          parent_question_id: LIB-Q04
+          contribution: 通知の遅れと、来館できる日の少なさを見分ける
+          origin_event_id: LIB-H02-E03
+      - answer:
+          - node_id: LIB-Q03
+            statements:
+              - {kind: claim, text: 通知が翌日以降になった予約の期限切れは18%で、当日の9%より多かった, cites: [LIB-H02-E01]}
+              - {kind: weakening, text: 通知の日を揃えても、金曜に確保した本の期限切れは16%のままだった, cites: [LIB-H02-E02]}
+              - {kind: undetermined, text: 期限切れが通知の遅れで増えているかは、まだ見分けられない, cites: [LIB-H02-E01, LIB-H02-E02]}
+          - node_id: LIB-Q01
+            statements:
+              - {kind: claim, text: 通知が翌日以降になった予約は、期限切れが18%と多かった, cites: [LIB-H02-E01]}
+              - {kind: weakening, text: 通知の日を揃えても、金曜に確保した本の期限切れは16%のままだった, cites: [LIB-H02-E02]}
+              - {kind: undetermined, text: 延長の試行をするかは、来館できる日の少なさを確かめるまで決められない, cites: [LIB-H02-E02]}
+      - candidate:
+          node_id: LIB-Q06
+          ask: 本を確保してから実際に通知するまで、曜日によって手順は変わりますか
+          changes_if: 変わるなら通知の時点を調べる論点に進み、変わらないなら開館日数の論点を深める
+          known: 今の抽出表に送信日時は無い
+      - hear:
+          node_id: LIB-Q06
+          answer: 金曜の夕方に確保した本は、月曜の朝にまとめて通知している
+          answered_by: 予約担当の図書館員
+          answered_at: "2026-11-20"
+      - decide:
+          kind: return
+          node_id: LIB-Q06
+          reason: 通知の日を揃えても金曜に確保した本の期限切れが多いままなので、通知から期限まで何日開館していたかを先に確かめる
