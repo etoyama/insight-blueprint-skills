@@ -92,11 +92,11 @@ class _Question(BaseModel):
 
     note: str = ""
 
-    def matches(self, key: Self) -> bool:
-        """Every field but the note equals the key's."""
+    def accepts(self, answer: _Question) -> bool:
+        """As the key: every field of *answer* but the note equals this one's."""
         return all(
-            _same(getattr(self, f), getattr(key, f))
-            for f in type(self).model_fields
+            _same(getattr(answer, f), getattr(self, f))
+            for f in type(answer).model_fields
             if f != "note"
         )
 
@@ -131,11 +131,21 @@ class Q5(_Question):
     node_id: str
     reason_events: list[str]
 
-    def matches(self, key: Self) -> bool:
-        # The reason is free text on the page and cites nothing, so a reader may
-        # rightly name more of the events behind it; the key's must all be there.
-        return self.node_id == key.node_id and set(key.reason_events) <= set(
-            self.reason_events
+
+class KeyQ5(Q5):
+    """The q5 key. A decision's reason is free text that cites no event, so a
+    reader may rightly name an event next to it, such as the node's origin."""
+
+    also_allowed: list[str] = []
+
+    def accepts(self, answer: _Question) -> bool:
+        if not isinstance(answer, Q5):
+            return False
+        named = set(answer.reason_events)
+        return (
+            answer.node_id == self.node_id
+            and set(self.reason_events) <= named
+            and named <= set(self.reason_events) | set(self.also_allowed)
         )
 
 
@@ -158,7 +168,7 @@ class KeyAnswers(Answers):
     q2: Q2
     q3: Q3
     q4: Q4
-    q5: Q5
+    q5: KeyQ5
 
 
 class Key(BaseModel):
@@ -271,7 +281,7 @@ def score(answers: Answers, key: Key) -> dict[str, bool]:
     result = {}
     for q in QUESTIONS:
         given = getattr(answers, q)
-        result[q] = given is not None and given.matches(getattr(key.answers, q))
+        result[q] = given is not None and getattr(key.answers, q).accepts(given)
     return result
 
 

@@ -24,4 +24,7 @@ answers:
   q5:
     node_id: LIB-Q06
     reason_events: [LIB-H02-E02]
+    # LIB-H02-E03 is the question LIB-Q06 was promoted from. Naming it next to the
+    # reason is fine; naming it instead of the reason misses why the node comes now.
+    also_allowed: [LIB-H02-E03]
     note: 通知の日を揃えても金曜の期限切れが多いままだったので、開館日数を先に確かめる。
