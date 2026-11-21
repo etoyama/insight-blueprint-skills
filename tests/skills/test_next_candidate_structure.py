@@ -11,7 +11,6 @@ tree_io, and the analyst is asked where the Story says so.
 
 from __future__ import annotations
 
-import io
 import re
 from pathlib import Path
 
@@ -19,9 +18,8 @@ import pytest
 
 from skills._shared import design_io, tree_io
 from tests.skills._markdown import section, table_row, unwrap
+from tests.skills._shown import run_shown_commands, run_shown_line
 from tests.skills.test_skill_structure import _read_skill
-
-_PIPED = re.compile(r"echo '(?P<payload>\{.*?\})' \| tree_io (?P<args>[^\n]+)", re.S)
 
 
 def _reflection(heading: str) -> str:
@@ -30,18 +28,6 @@ def _reflection(heading: str) -> str:
 
 def _framing(heading: str) -> str:
     return section(_read_skill("analysis-framing"), heading)
-
-
-def _run_shown_commands(
-    prose: str, insight: Path, monkeypatch: pytest.MonkeyPatch
-) -> list[str]:
-    ran: list[str] = []
-    for shown in _PIPED.finditer(prose):
-        args = shown["args"].split()
-        monkeypatch.setattr("sys.stdin", io.StringIO(shown["payload"]))
-        assert tree_io._main([*args, "--base-dir", str(insight)]) == 0, shown[0]
-        ran.append(args[0])
-    return ran
 
 
 def _library(insight: Path) -> None:
@@ -104,7 +90,7 @@ class TestReflectionShowsTheNextCandidates:
         insight = tmp_path / ".insight"
         _library(insight)
 
-        ran = _run_shown_commands(_reflection("### Step T6: "), insight, monkeypatch)
+        ran = run_shown_commands(_reflection("### Step T6: "), insight, monkeypatch)
 
         assert ran == ["candidate"]
         notes = _node(insight, "LIB-Q03")["next_candidate"]
@@ -133,9 +119,9 @@ class TestReflectionKeepsWhatTheAnalystHeard:
     ) -> None:
         insight = tmp_path / ".insight"
         _library(insight)
-        _run_shown_commands(_reflection("### Step T6: "), insight, monkeypatch)
+        run_shown_commands(_reflection("### Step T6: "), insight, monkeypatch)
 
-        ran = _run_shown_commands(_reflection("### Step T7: "), insight, monkeypatch)
+        ran = run_shown_commands(_reflection("### Step T7: "), insight, monkeypatch)
 
         assert ran[0] == "hear"
         notes = _node(insight, "LIB-Q03")["next_candidate"]
@@ -172,9 +158,9 @@ class TestReflectionRecordsTheDecision:
     ) -> None:
         insight = tmp_path / ".insight"
         _library(insight)
-        _run_shown_commands(_reflection("### Step T6: "), insight, monkeypatch)
+        run_shown_commands(_reflection("### Step T6: "), insight, monkeypatch)
 
-        ran = _run_shown_commands(_reflection("### Step T7: "), insight, monkeypatch)
+        ran = run_shown_commands(_reflection("### Step T7: "), insight, monkeypatch)
 
         assert ran == ["hear", "decide"]
         decision = tree_io.load_tree("LIB", base_dir=insight)["decisions"][-1]
@@ -243,7 +229,7 @@ class TestFramingAsksWhichNodeComesNext:
         insight = tmp_path / ".insight"
         _library(insight)
 
-        ran = _run_shown_commands(_framing("#### 4d: "), insight, monkeypatch)
+        ran = run_shown_commands(_framing("#### 4d: "), insight, monkeypatch)
 
         assert ran == ["decide"]
         decision = tree_io.load_tree("LIB", base_dir=insight)["decisions"][-1]
@@ -312,11 +298,7 @@ class TestDesignCopiesWhatTheAnalystHeard:
             base_dir=insight,
         )
         tree_io.link_design("FP", "FP-Q02", "FP-H01", base_dir=insight)
-        shown = re.search(r"^tree_io (copy-hearing [^\n]+)$", self._copying(), re.M)
-        assert shown, "no tree_io copy-hearing command is shown"
-        monkeypatch.setattr("sys.stdin", io.StringIO(""))
-
-        code = tree_io._main([*shown.group(1).split(), "--base-dir", str(insight)])
+        code = run_shown_line(self._copying(), "copy-hearing", insight, monkeypatch)
 
         assert code == 0
         (event,) = design_io.load_journal("FP-H01", insight)["events"]

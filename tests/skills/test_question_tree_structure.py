@@ -8,7 +8,6 @@ by the real tree_io, where the analyst is asked, and what the Framing Brief carr
 
 from __future__ import annotations
 
-import io
 import re
 from pathlib import Path
 
@@ -16,27 +15,14 @@ import pytest
 
 from skills._shared import design_io, tree_io
 from tests.skills._markdown import section, table_row, unwrap
+from tests.skills._shown import run_shown_commands, run_shown_line
 from tests.skills.test_skill_structure import _read_skill
 
-_PIPED = re.compile(r"echo '(?P<payload>\{.*?\})' \| tree_io (?P<args>[^\n]+)", re.S)
 _COMMAND = re.compile(r"(?<![\w/])tree_io ([a-z][a-z-]*)")
 
 
 def _framing(heading: str) -> str:
     return section(_read_skill("analysis-framing"), heading)
-
-
-def _run_shown_commands(
-    prose: str, insight: Path, monkeypatch: pytest.MonkeyPatch
-) -> list[str]:
-    """Run every ``echo '<json>' | tree_io ...`` shown in *prose* against *insight*."""
-    ran: list[str] = []
-    for shown in _PIPED.finditer(prose):
-        args = shown["args"].split()
-        monkeypatch.setattr("sys.stdin", io.StringIO(shown["payload"]))
-        assert tree_io._main([*args, "--base-dir", str(insight)]) == 0, shown[0]
-        ran.append(args[0])
-    return ran
 
 
 class TestFramingSettlesTheRootQuestionAndTheAim:
@@ -104,7 +90,7 @@ class TestFramingWritesTheTreeThroughTreeIo:
     ) -> None:
         insight = tmp_path / ".insight"
 
-        ran = _run_shown_commands(_framing("#### 5a: "), insight, monkeypatch)
+        ran = run_shown_commands(_framing("#### 5a: "), insight, monkeypatch)
 
         assert ran == ["create", "add-node", "decide"]
         tree = tree_io.load_tree("LIB", base_dir=insight)
@@ -152,9 +138,9 @@ class TestFramingAsksBeforeTheRootChanges:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         insight = tmp_path / ".insight"
-        _run_shown_commands(_framing("#### 5a: "), insight, monkeypatch)
+        run_shown_commands(_framing("#### 5a: "), insight, monkeypatch)
 
-        ran = _run_shown_commands(_framing("#### 4c: "), insight, monkeypatch)
+        ran = run_shown_commands(_framing("#### 4c: "), insight, monkeypatch)
 
         assert ran == ["revise-root"]
         revisions = tree_io.load_tree("LIB", base_dir=insight)["root_revisions"]
@@ -263,11 +249,7 @@ class TestDesignLinksItselfToTheNode:
             base_dir=insight,
         )
         linking = section(_read_skill("analysis-design"), "#### Link the design")
-        shown = re.search(r"^tree_io (link [^\n]+)$", linking, re.M)
-        assert shown, "no tree_io link command is shown"
-        monkeypatch.setattr("sys.stdin", io.StringIO(""))
-
-        code = tree_io._main([*shown.group(1).split(), "--base-dir", str(insight)])
+        code = run_shown_line(linking, "link", insight, monkeypatch)
 
         assert code == 0
         nodes = {n["id"]: n for n in tree_io.load_tree("FP", base_dir=insight)["nodes"]}
@@ -324,14 +306,12 @@ class TestFramingRendersTheTree:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         insight = tmp_path / ".insight"
-        _run_shown_commands(_framing("#### 5a: "), insight, monkeypatch)
-        shown = re.search(
-            r"^tree_io (render --theme LIB) </dev/null$", _framing("#### 5c: "), re.M
+        run_shown_commands(_framing("#### 5a: "), insight, monkeypatch)
+        step = _framing("#### 5c: ")
+        assert re.search(r"^tree_io render --theme LIB </dev/null$", step, re.M), (
+            "5c shows no render command for the example theme"
         )
-        assert shown, "5c shows no render command for the example theme"
-        monkeypatch.setattr("sys.stdin", io.StringIO(""))
-
-        code = tree_io._main([*shown[1].split(), "--base-dir", str(insight)])
+        code = run_shown_line(step, "render", insight, monkeypatch)
 
         assert code == 0
         assert (

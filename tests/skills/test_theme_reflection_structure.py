@@ -19,9 +19,9 @@ import pytest
 from skills._shared import design_io, tree_check, tree_io
 from skills._shared._atomic import atomic_write_yaml
 from tests.skills._markdown import section, table_row, unwrap
+from tests.skills._shown import PIPED
 from tests.skills.test_skill_structure import _read_skill
 
-_PIPED = re.compile(r"echo '(?P<payload>\{.*?\})' \| tree_io (?P<args>[^\n]+)", re.S)
 _COMMAND = re.compile(r"(?<![\w/])tree_(io|check) ([a-z][a-z-]*|--theme)")
 
 
@@ -157,7 +157,7 @@ class TestAnswersGoThroughTreeIo:
     ) -> None:
         insight = tmp_path / ".insight"
         _library(insight)
-        (shown,) = _PIPED.finditer(section(_skill(), "### Step T3: "))
+        (shown,) = PIPED.finditer(section(_skill(), "### Step T3: "))
         monkeypatch.setattr("sys.stdin", io.StringIO(shown["payload"]))
 
         code = tree_io._main([*shown["args"].split(), "--base-dir", str(insight)])
