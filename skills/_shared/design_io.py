@@ -145,6 +145,9 @@ def designs_of_theme(
     the file is not read. Only files of this theme are opened: a broken design
     of another theme must not stop a reader of this one.
     """
+    # theme_id goes into a glob and a pattern, so it is checked before any I/O.
+    if not THEME_ID_PATTERN.fullmatch(theme_id):
+        raise ValueError(f"Invalid theme_id '{theme_id}': must match [A-Z][A-Z0-9]*")
     name = re.compile(rf"({re.escape(theme_id)}-H\d+)_hypothesis\.yaml")
     found: dict[str, dict] = {}
     for path in sorted(_designs_dir(base_dir).glob(f"{theme_id}-H*_hypothesis.yaml")):
