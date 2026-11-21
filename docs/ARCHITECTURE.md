@@ -109,7 +109,7 @@ KEEP ゲートは次のとおり。
 - 巡回の終わり: ツリーの決定（深める・親に戻る・区切る、次に調べる論点、理由）と、人に聞いてきた答え。
 - 外部へ送る前: アップロードで送るファイルの承認（`/report-upload` と `/tree-upload` が聞く）。
 
-レポートは、分析設計の結論が出たら聞かずに書く（AUTO）。結論が出ていない回は書かない。
+レポートは分析設計の結論が出たら聞かずに書く（AUTO）。結論が出ていない回は書かない。
 notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定のときのみ。詳細は
 [ADR-0005](adr/0005-selective-autonomous-chaining.md)（selective autonomy）と
 [ADR-0007](adr/0007-upstream-judgment-gates.md)（上流の判断ゲートを design ビートに分割 + data-extraction 新設）。

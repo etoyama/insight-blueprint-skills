@@ -123,7 +123,7 @@ AC の正本はここ。
 
 ## Stories
 
-初版に合意した Story から起票した（人間の判断、2026-11-20）。18.5 と 18.9 は、形に効く未決事項を決めてから起票した（Decisions の判断A・B）。1つの Story が扱う AC は5個以下。
+初版に合意した Story から起票した（人間の判断、2026-11-20）。18.5 と 18.9 は形に効く未決事項を決めてから起票した（Decisions の判断A・B）。1つの Story が扱う AC は5個以下。
 
 | Story issue | User Story | 扱う AC |
 |---|---|---|
@@ -601,7 +601,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 ### Decision: ask-once-for-treeless-design
 
 - What: 論点ツリーが無いテーマの `design_id` を `/analysis-auto` に渡されたら、ツリーを作って巡回に入るか、その分析設計だけを流すかを KEEP ゲートで聞く。ツリーがあるテーマでは聞かない（判断B、2026-11-20）。
-- Why: 既にある利用者は、論点ツリーの無い分析設計を持っている。聞かずに動きを分けると、入口をひとつにした auto が、渡した引数で別物になる。
+- Why: 既にある利用者は論点ツリーの無い分析設計を持っている。聞かずに動きを分けると、入口をひとつにした auto が、渡した引数で別物になる。
 - Criteria: Must は「既にある分析設計を途中から再開できる」（[ADR-0005](../adr/0005-selective-autonomous-chaining.md)）。Want は「auto の動きが引数で黙って変わらない」（高、Claude の推測）と「今の使い方をしている人が余計な手順を踏まない」（中、Claude の推測）。決め手は前者。人間が推奨を採った。
 - Affected modules: `/analysis-auto`、`/analysis-framing`。
 - Alternatives considered: ツリーを作らず今までどおり流す（動きが黙って分かれる）。必ず framing でツリーを作る（再開したいだけの人も根の問いと到達点を決めることになる）。
@@ -618,16 +618,16 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 
 ### Decision: tree-schema-rejects-unknown-fields
 
-- What: 論点ツリーのモデルは、モデルに無い項目を拒む（pydantic の `extra="forbid"`）。分析設計のモデル（`extra="allow"`）とは逆にする。
+- What: 論点ツリーのモデルはモデルに無い項目を拒む（pydantic の `extra="forbid"`）。分析設計のモデル（`extra="allow"`）とは逆にする。
 - Why: 進捗を保存しないこと（US-2 AC 1）を、モデルの形で守る。`progress` や `status` を論点に書いた正本は、`tree_io` でも pre-write hook でも通らない。
-- Criteria: US-2 AC 1、principle「Type System Discipline」（不正な状態を表せなくする）。決め手は、直接の書き込みでも進捗を保存できないこと。
+- Criteria: US-2 AC 1、principle「Type System Discipline」（不正な状態を表せなくする）。決め手は直接の書き込みでも進捗を保存できないこと。
 - Affected modules: `src/insight_blueprint/models/tree.py`、`validate.py`、pre-write hook。
 - Alternatives considered: `extra="allow"` にして `progress` だけを名指しで拒む（拒む名前の一覧が増えていく）。
-- Consequences: 後の Story は、項目を正本に書く前にモデルへ足す必要がある。項目名の打ち間違いも止まる。
+- Consequences: 後の Story は項目を正本に書く前にモデルへ足す必要がある。項目名の打ち間違いも止まる。
 
 ### Decision: root-question-is-held-twice-and-kept-equal
 
-- What: 根の問いの文は、根の版（`root_revisions[].question`）と根の論点（`nodes[].question`）の両方にある。検証で、根の論点の文が今の根の版の文と同じことを求める。書き換えは `tree_io revise-root` が両方を一度に行う。
+- What: 根の問いの文は根の版（`root_revisions[].question`）と根の論点（`nodes[].question`）の両方にある。検証で、根の論点の文が今の根の版の文と同じことを求める。書き換えは `tree_io revise-root` が両方を一度に行う。
 - Why: 初版の「正本の形」が両方に文を持つ。片方だけを直接書き換えると、表示と履歴がずれる。
 - Criteria: US-1 AC 5（根を変える手段を1つにする）。決め手は、ずれた正本が書き込めないこと。
 - Affected modules: 論点ツリーのモデル、`tree_io`。
@@ -637,11 +637,11 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 ### Decision: revise-root-rewords-in-place-without-a-bump
 
 - What: `tree_io revise-root` は `bump` を必ず受け取る。`true` なら新しい根の版を理由つきで足す。`false` なら今の版の問いと到達点をその場で書き換え、版は上げない。
-- Why: US-1 AC 5 は、版を上げるかを分析者に聞くとしている。上げないと答えたときの書き込み先が要る。
+- Why: US-1 AC 5 は版を上げるかを分析者に聞くとしている。上げないと答えたときの書き込み先が要る。
 - Criteria: US-1 AC 5、Decision `root-revision-marks-stale-answers` の Consequences（言い換え程度で全論点を「変更前」にしない）。
 - Affected modules: `tree_io`、`/analysis-framing`（Story 18.2）。
 - Alternatives considered: 常に版を上げる（AC 5 と合わない）。版を上げない変更を禁じる（言い換えを直せない）。
-- Consequences: 版を上げない書き換えは、元の文を正本に残さない。残るのは git の差分だけになる。意味が変わる変更を `bump: false` で書けてしまう点は、`tree_io` では止めない。版を上げるかを聞くのは `/analysis-framing` の KEEP ゲートである。
+- Consequences: 版を上げない書き換えは元の文を正本に残さない。残るのは git の差分だけになる。意味が変わる変更を `bump: false` で書けてしまう点は、`tree_io` では止めない。版を上げるかを聞くのは `/analysis-framing` の KEEP ゲートである。
 
 ### Decision: link-and-promotion-check-the-other-file
 
@@ -654,12 +654,12 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 
 ### Decision: earlier-root-revisions-are-history
 
-- What: 検証は、書き込む前の正本と比べて、根の版が減っていないことと、今の版より前の版が変わっていないことを確かめる。今の版だけは書き換えられる（`bump: false` の言い換え）。版を足す書き込みでは、それまでの版をすべて変えられない。書き込む前の正本と比べるのは pre-write hook である。`tree_io` は形だけを検証し、`revise-root` は版を足すか今の版を書き換えるだけである（Story 18.2 のレビューで訂正。初めは `tree_io` にも効くと書いていた）。
+- What: 検証は、書き込む前の正本と比べて、根の版が減っていないことと、今の版より前の版が変わっていないことを確かめる。今の版だけは書き換えられる（`bump: false` の言い換え）。版を足す書き込みではそれまでの版をすべて変えられない。書き込む前の正本と比べるのは pre-write hook である。`tree_io` は形だけを検証し、`revise-root` は版を足すか今の版を書き換えるだけである（Story 18.2 のレビューで訂正。初めは `tree_io` にも効くと書いていた）。
 - Why: 根の版は、どの答えがどの根に対するものかを示す（Decision `root-revision-marks-stale-answers`）。直接の書き込みで版を減らせると、Story 18.4 で入る答えの `root_revision` が指す版が無くなる。
 - Criteria: US-1 AC 5（上げた版と理由を残す）。分析設計の検証が、書き込む前の状態と比べて遷移を確かめている前例（`validate_design_change`）。決め手は、残した版と理由が直接の書き込みでも消えないこと。レビュー（thermos）の指摘で足した。
 - Affected modules: `validate.py`（`validate_tree` の `current`）、pre-write hook。
 - Alternatives considered: 形だけを見る（版を減らす書き込みが通る）。今の版の書き換えも禁じる（言い換えができなくなる）。
-- Consequences: 今の版の問いと到達点は、直接の書き込みでも書き換えられる。根を変えるのを `/analysis-framing` に限ることは、hook では守れない。書き込む前の正本が検証に通らない形なら、比べずに通す。壊れた正本を直す書き込みを止めないためで、分析設計の検証（`validate_design_change`）と同じ扱いである。Bash からの書き込みは hook を通らない（分析設計と同じ）。
+- Consequences: 今の版の問いと到達点は直接の書き込みでも書き換えられる。根を変えるのを `/analysis-framing` に限ることは、hook では守れない。書き込む前の正本が検証に通らない形なら、比べずに通す。壊れた正本を直す書き込みを止めないためで、分析設計の検証（`validate_design_change`）と同じ扱いである。Bash からの書き込みは hook を通らない（分析設計と同じ）。
 
 ### Decision: start-is-the-only-decision-kind-for-now
 
@@ -711,7 +711,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - What: ツリーの検査（`tree_check`）の細部を次のように決める。
   - 検査するのは、各論点の最後の答え（今の答え）だけである。
   - 数は値で比べる。全角と半角、桁区切り、`1.90` と `1.9` は同じ数として扱う。単位は見ない。`34.6％`・`34.6%`・`34.6パーセント` は同じ数である。
-  - はっきりした符号は、数の一部として比べる（Story 18.4 で改めた。人間の承認、2026-11-21、[PR #128 のコメント](https://github.com/etoyama/insight-blueprint-skills/pull/128#issuecomment-7050086010)）。符号とみなすのは、直前が半角の英数字でない `+` と、負の記号である。負の記号は、ハイフンとダッシュ（`-`・`‐`・`‒`・`–`・`—`・`―`・`−`）と三角（`▲`・`△`・`▼`・`▽`）で、どれも同じ負の符号として扱う。全角の `－` と `＋` も同じである。符号と数字の間に空白があってもよい（`- 3.2`）。範囲や日付や id のハイフン（`10-20`、`2026-11-21`、`LIB-H01`、`A-3`）は符号にしない。記号と空白の扱いは、コミットの自動レビューの指摘を受けて、人間が同じ日にこのセッションで広げた。
+  - はっきりした符号は数の一部として比べる（Story 18.4 で改めた。人間の承認、2026-11-21、[PR #128 のコメント](https://github.com/etoyama/insight-blueprint-skills/pull/128#issuecomment-7050086010)）。符号とみなすのは、直前が半角の英数字でない `+` と、負の記号である。負の記号はハイフンとダッシュ（`-`・`‐`・`‒`・`–`・`—`・`―`・`−`）と三角（`▲`・`△`・`▼`・`▽`）で、どれも同じ負の符号として扱う。全角の `－` と `＋` も同じである。符号と数字の間に空白があってもよい（`- 3.2`）。範囲や日付や id のハイフン（`10-20`、`2026-11-21`、`LIB-H01`、`A-3`）は符号にしない。記号と空白の扱いは、コミットの自動レビューの指摘を受けて、人間が同じ日にこのセッションで広げた。
   - 換算した値と丸めた値は別の数である。記録が `34.6%` のとき、`0.346` と `35` は違反になる。
   - id や日付に見える数にも例外を置かない。文に出てくる数字の並びは、すべて数として拾う。
   - 引用先の分析設計が論点か子孫に結んであるかは、モデルでなくツリーの検査が確かめる。引用の id の形と、テーマが同じことは、モデルが確かめる。
@@ -729,7 +729,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - 引用先と論点の対応をモデルで拒む。正本1つで判定できるが、US-4 AC 1 がツリーの検査の違反として挙げると決めている。モデルで拒むと、その正本は検査まで届かず、他の違反と一緒に挙げられない。
 - Consequences:
   - 記録の数と値が同じなら、単位の意味が違っても通る（記録が「35件」で、答えが「35%」）。数を含まない言い過ぎと同じ種類の穴で、この Epic では塞がない（未決事項）。
-  - 数は、記録と同じ符号で書いたときだけ通る。記録が「3.2ポイント減った」と言葉で向きを書いていると、答えの「−3.2ポイント」は違反になる。記録が「−3.2」なら、答えの「3.2」も「+3.2」も違反になる。記録が符号なしの「3.2」なら、答えの「+3.2」は違反になる。違反を受けたら、記録の書き方に合わせて書き直す。Story 18.4 の手順にこのことを書く。
+  - 数は記録と同じ符号で書いたときだけ通る。記録が「3.2ポイント減った」と言葉で向きを書いていると、答えの「−3.2ポイント」は違反になる。記録が「−3.2」なら、答えの「3.2」も「+3.2」も違反になる。記録が符号なしの「3.2」なら、答えの「+3.2」は違反になる。違反を受けたら、記録の書き方に合わせて書き直す。Story 18.4 の手順にこのことを書く。
   - 言葉で書いた向き（「減った」「増えた」）は見ない。記録が「−3.2」で、答えが「−3.2 増えた」でも通る。数を含まない言い過ぎと同じ穴である。
   - 空白をはさんだ範囲（`10 - 20`）と、箇条書きの先頭のハイフン（`- 3件`）は、負の数として読む。記録と答えが同じ書き方なら通り、片方だけなら違反になる。
   - 波ダッシュ（`〜`）は範囲にしか使わないので、符号にしない。括弧で書いた負の数（`(3.2)`）と `±` も符号として読まない。長音記号（`ー`）、絵文字の `➖`、下向きの矢印（`↓`）も符号として読まない。記録が「3.2」で、答えが「ー3.2」なら通る（レビューの指摘）。
@@ -765,7 +765,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 
 ### Decision: one-answer-call-is-one-round
 
-- What: 1回の `tree_io answer` が、その振り返りで答える全論点の答えを受け取り、1つの振り返りの回にする。回は「ツリーの中で最大の回 + 1」（`QuestionTree.current_round()` + 1）を、根の版は今の版を、`tree_io` が振る。呼ぶ側は回も根の版も渡さない。今の答えと文が同じで、今の答えが今の根の版のものである論点は、書かない。文が同じでも、今の答えが前の根の版のものなら書く。
+- What: 1回の `tree_io answer` がその振り返りで答える全論点の答えを受け取り、1つの振り返りの回にする。回は「ツリーの中で最大の回 + 1」（`QuestionTree.current_round()` + 1）を、根の版は今の版を、`tree_io` が振る。呼ぶ側は回も根の版も渡さない。今の答えと文が同じで、今の答えが今の根の版のものである論点は、書かない。文が同じでも、今の答えが前の根の版のものなら書く。
 - Why: US-3 AC 3 は、答えが振り返りの回を持ち、前の回と答えが変わった論点を示すとしている。回を呼ぶ側に決めさせると、同じ振り返りの答えが別の回になりうる。
 - Criteria: US-3 AC 3、用語表の「振り返りの回」（テーマを横断する振り返りの通し番号）。決め手は「その回の答えを持つ論点」がそのまま「その回で変わった論点」になること。表示（Story 18.6）は答えの回の最大値で「この回で変わった」を決めていて、同じ読みになる。
 - Affected modules: `skills/_shared/tree_io.py`（`answer`）、`src/insight_blueprint/models/tree.py`（`current_round`）、`/analysis-reflection`。
@@ -773,11 +773,11 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - Consequences:
   - 論点の答えの回は連番とは限らない（回 1 の次が回 3 になりうる）。
   - すべての論点が変わらなければ、何も書かず、回も進まない。
-  - 「変わった」は文の並びが1字でも違うことである。言い換えただけの答えも、変わった答えとして回を持つ。
+  - 「変わった」は文の並びが1字でも違うことである。言い換えただけの答えも変わった答えとして回を持つ。
   - `tree_io answer` は、書いた論点（`written`）に、それまでの答えの回（`previous_round`。初めての答えなら無い）と、文が前と同じか（`restated`）を添えて返す。`/analysis-reflection` はこれで「初めての答え」「変わった答え」「根の版が上がり、同じ文で書き直した答え」を分けて示す。表示（Story 18.6）は、文が前と違うときだけ「この回で変わった」の印を付けるので、書き直した答えには印が付かない。両方とも、文が同じ答えを「変わった」とは呼ばない。
-  - 結果の `round` は、呼び出しの後にツリーが持つ最後の回である。違反で止まったときは前の回のままで、違反のほうが、書こうとした回を持つ。
+  - 結果の `round` は、呼び出しの後にツリーが持つ最後の回である。違反で止まったときは前の回のままで、違反のほうが書こうとした回を持つ。
   - 違反で止まった呼び出しは何も書かないので、回を使わない。
-  - Story 18.5 は、ツリーの決定の回を `current_round()` から決められる。
+  - Story 18.5 はツリーの決定の回を `current_round()` から決められる。
 
 ### Decision: tree-html-is-static-and-marks-are-derived
 
@@ -787,12 +787,12 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - HTML を作る純関数は `skills/_shared/tree_render.py` に置く。`tree_io render` はファイルを読んで渡し、結果を書く。
   - 「この回で変わった」の印は、今の答えの回がツリーで最も新しい回で、1つ前の答えと文（種類・本文・引用）が違う論点に付ける。最も新しい回で初めて答えた論点には「この回で初めて答えた」を付ける。
   - 「根の変更前の答え」の印は、今の答えの `root_revision` が今の根の版より小さい論点に付ける。根の版が2つ以上あれば、版ごとの問い・到達点・理由を履歴として出す。
-  - 論点ごとの開閉の中に、今の答えの各文と引用した出来事（id、分析設計の id、種類、`direction`、本文）、前の回の答え、結んだ分析設計を出す。引用した出来事は、すべての回の答えについて読む。
+  - 論点ごとの開閉の中に、今の答えの各文と引用した出来事（id、分析設計の id、種類、`direction`、本文）、前の回の答え、結んだ分析設計を出す。引用した出来事はすべての回の答えについて読む。
   - 引用した出来事が journal に無ければ「journal に見つからない出来事」と出し、同じ id が2つあれば先のものを出す。どちらも表示は止めない。
   - 結んだ分析設計が無くなっていたらエラーにして、何も書かない（`tree_io progress` と同じ）。結んだ分析設計の状態が既知の値でないときも、その id を添えてエラーにする。
   - 分析設計はファイル名の id で引き、ファイルの中の `id` は読まない（`tree_io progress` と同じ）。読むのはそのテーマのファイル（`{theme_id}-H{nn}_hypothesis.yaml`）だけである。
-  - 最も新しい回は、答えの回の最大値である。ツリーの決定の回は数えない。
-  - 分析設計の派生は、論点ツリーとは別の節に、テーマの分析設計を `parent_id` で入れ子にして出す。論点に結んでいない分析設計も出す。親がテーマの中に無ければ最上位に置き、派生元の id を添える。
+  - 最も新しい回は答えの回の最大値である。ツリーの決定の回は数えない。
+  - 分析設計の派生は論点ツリーとは別の節に、テーマの分析設計を `parent_id` で入れ子にして出す。論点に結んでいない分析設計も出す。親がテーマの中に無ければ最上位に置き、派生元の id を添える。
   - ページに入る文字（問い、寄与、理由、答えの文、出来事の本文、分析設計の題と状態、id）は、すべてエスケープする。
 - Why: US-5 と [ADR-0024](../adr/0024-question-tree-yaml-and-generated-html.md) は、何を出すかと、外部を読まないことを決めている。開閉の手段、「変わった」の判定、検査が違反にする正本をどう表示するかは決めていない。
 - Criteria: 外部の script と stylesheet を読まず、同じ正本から同じ HTML ができること（US-5 AC 1）。色だけで区別しないこと（AC 2）。正本の文は分析者とモデルが書くので信頼しないこと（Story 18.6 の指示）。検査が違反にする正本でも図は読めること（違反を直す人が図を見るため）。決め手は最初の1つで、script を書かなければ決定的であることと自己完結であることが同時に満たせる。
@@ -818,7 +818,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 
 - What: 次の候補は保存せず、正本から導く。根を除き、自分にも子孫の論点にも分析設計を結んでいない論点が次の候補である（`QuestionTree.untouched_nodes()`、`tree_io candidates`）。「論点かその下に結んだ分析設計」は `QuestionTree.designs_by_branch()` が1か所で導き、ツリーの検査も同じものを使う。`next_candidate` が持つのは、候補に添えるメモ（人に聞く問い、その答えで変わる判断、分かっていること）と、聞いてきた答えだけである。メモは `tree_io candidate` で、答えは `tree_io hear` で書く。
 - Why: US-3 AC 4 は「未着手の論点を示す」としている。進捗の未着手は「分析設計を結んでいない」ことなので、根と、下の論点を調べている途中の親も未着手と出る。それらを次の候補に並べると、分析者は調べている枝をもう一度選ぶことになる。
-- Criteria: US-3 AC 4、Decision `progress-is-derived`（導ける状態を保存しない）。決め手は、候補かどうかを正本1つから導けること。
+- Criteria: US-3 AC 4、Decision `progress-is-derived`（導ける状態を保存しない）。決め手は候補かどうかを正本1つから導けること。
 - Affected modules: `src/insight_blueprint/models/tree.py`、`skills/_shared/tree_io.py`、`skills/_shared/tree_render.py`、`/analysis-reflection`、`/analysis-framing`。
 - Alternatives considered: 候補かどうかの印を論点に保存する（分析設計を結ぶたびに直す手順が要る）。進捗が未着手の論点をそのまま並べる（根と、調べている枝の親が並ぶ）。
 - Consequences:
@@ -853,11 +853,11 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - Consequences:
   - 同じ回に決定が2つ以上並びうる。並びの順が時系列である。
   - 印は回を名指して出す（「回 N で変わった」「回 N で初めて答えた」）。答えが1つも変わらない振り返りの後も、印は前の回のまま残るが、どの回のことかは読める。
-  - `start` の無いツリーには、ほかの決定を書けない。`/analysis-reflection` は `/analysis-framing` を案内する。
-  - `close` の後も決定を足せる。次の決定は、区切った論点を今の論点として検証する。
+  - `start` の無いツリーにはほかの決定を書けない。`/analysis-reflection` は `/analysis-framing` を案内する。
+  - `close` の後も決定を足せる。次の決定は区切った論点を今の論点として検証する。
   - 別の枝へ移るのも、親に戻るのも `return` である。2つを分けていない。
   - Story 18.9 の「最新のツリーの決定が指す論点から再開する」は、`decisions` の最後の要素の `node_id` で読める。
-  - 図は、決定に「回 N の振り返りの後」と添える。振り返りの前の決定（回 0）には「振り返りの前」と添える。`/analysis-framing` が残した決定も、その時点の最後の回を持つ。
+  - 図は決定に「回 N の振り返りの後」と添える。振り返りの前の決定（回 0）には「振り返りの前」と添える。`/analysis-framing` が残した決定もその時点の最後の回を持つ。
 
 ### Decision: framing-rerun-asks-for-the-next-node
 
@@ -867,13 +867,13 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - Affected modules: `/analysis-framing`（Step 4c・4d・5a）。
 - Alternatives considered: 聞くが決定は残さない（最新の決定とずれる）。framing では選ばせず、`/analysis-reflection` で決定を残すよう案内する（論点を変えるだけのために横断の振り返りを回す）。
 - Consequences:
-  - 決定を書く skill が、`/analysis-reflection` と `/analysis-framing` の2つになる。書く道は `tree_io decide` ひとつで、種類と論点の関係はモデルが確かめる。
+  - 決定を書く skill が `/analysis-reflection` と `/analysis-framing` の2つになる。書く道は `tree_io decide` ひとつで、種類と論点の関係はモデルが確かめる。
   - Step 4c の「既に決定があれば `tree_io decide` を呼ばない」という手順は、「2つめの `start` を送らない」に改めた。
   - 止めるのは手順で、コードではない。`/analysis-design` は、Framing Brief の `node_id` が最新の決定の論点かどうかを確かめない。
 
 ### Decision: stale-violations-are-marked-on-the-page
 
-- What: 後から違反になった答えは、取り下げとして保存しない。`tree_io render` がツリーの検査を回し、今の答えに違反がある論点に「記録と合わない答え」の印を出す。その論点では、答えの文を今の答えとして出さず、違反の中身を出して、文は閉じた開閉の中に畳む。検査ができないとき（同じ id の出来事が2つある、など）は、図を作ったうえで、答えを記録と照らせなかったことを図の上に出す（人間の判断、2026-11-21、Story 18.5 のセッション）。
+- What: 後から違反になった答えは、取り下げとして保存しない。`tree_io render` がツリーの検査を回し、今の答えに違反がある論点に「記録と合わない答え」の印を出す。その論点では答えの文を今の答えとして出さず、違反の中身を出して、文は閉じた開閉の中に畳む。検査ができないとき（同じ id の出来事が2つある、など）は、図を作ったうえで、答えを記録と照らせなかったことを図の上に出す（人間の判断、2026-11-21、Story 18.5 のセッション）。
 - Why: Decision `answers-are-checked-before-they-land` は、直せない古い違反の答えが今の答えとして正本と HTML に残る穴を残した。HTML だけを渡された人は、記録と合わない答えを今の答えとして読む。
 - Criteria: Must は「既にある答えを書き換えない」（US-3 AC 3）。Want は「HTML を読む人に、違反の答えが今の答えとして届かない」（高、Claude の推測）、「正本の形と不変条件を増やさない」（中、Decision `progress-is-derived`）、「この Story に足す量」（中、Claude の推測）。決め手は2つめ。違反は正本と journal から導けるので、進捗と同じく保存しない。人間が推奨を採った。
 - Affected modules: `skills/_shared/tree_io.py`（`render`）、`skills/_shared/tree_render.py`。
@@ -889,14 +889,14 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 ### Decision: an-empty-get-says-where-it-looked
 
 - What: `tree_io get` は、論点ツリーが見つからないとき、今までどおり `{}` を終了コード 0 で返す。あわせて、見た正本の絶対パスを stderr に1行出す（`tree_io: no tree at {path}`）。`/analysis-framing` の Step 4a と `/analysis-reflection` の Step T1 は、そのパスがプロジェクトの `.insight` の下かを確かめ、`tree_io` の前に `cd` しない（人間の判断、2026-11-21、Story 18.5 のセッション）。
-- Why: Story 18.5 の手動確認で、モデルが plugin のルートへ `cd` してから `tree_io get` を呼んだ。ラッパーは `CLAUDE_PROJECT_DIR` が無ければ `$PWD` をプロジェクトとして扱うので、plugin の中の `.insight/` を読み、`{}` を返した。skill は、あるツリーを「無い」と答えて終わった。「まだ無い」と「見ている場所が違う」が同じ出力だった（[#88 のコメント](https://github.com/etoyama/insight-blueprint-skills/issues/88#issuecomment-7054224892)）。
+- Why: Story 18.5 の手動確認で、モデルが plugin のルートへ `cd` してから `tree_io get` を呼んだ。ラッパーは `CLAUDE_PROJECT_DIR` が無ければ `$PWD` をプロジェクトとして扱うので、plugin の中の `.insight/` を読み、`{}` を返した。skill はあるツリーを「無い」と答えて終わった。「まだ無い」と「見ている場所が違う」が同じ出力だった（[#88 のコメント](https://github.com/etoyama/insight-blueprint-skills/issues/88#issuecomment-7054224892)）。
 - Criteria: Must は「新しいテーマで framing がツリーを作れる」（US-1 AC 1）。Want は「無いと場所が違うを出力から見分けられる」（高、Claude の推測）、「間違った場所への書き込みが止まる」（中、Claude の推測）、「直す手順とテストの量、ほかの `*_io` との揃い方」（中、Claude の推測）。決め手は1つめと3つめ。人間が推奨を採った。
 - Affected modules: `skills/_shared/tree_io.py`（`get`）、`/analysis-framing`、`/analysis-reflection`。
 - Alternatives considered: 見つからなければ終了コード 1 にする（「無い」と「場所が違う」はやはり同じ結果になる。手順2つを書き換え、`design_io`・`catalog_io` の `get` と揃わなくなる）。触らずに #88 に任せる（それまで同じ取り違えが起きる）。
 - Consequences:
   - 原因はラッパーにある。この決定は見分ける手がかりを足すだけで、間違った場所への書き込み（plugin の中の `.insight/` への `tree_io create`）は止めない。#88 で扱う。
   - stderr の1行をモデルが読み飛ばせば、気づかない。止めるのは手順で、コードではない。
-  - `design_io get` と `catalog_io get` は変えていない。同じ取り違えは、そちらでも起きうる。
+  - `design_io get` と `catalog_io get` は変えていない。同じ取り違えはそちらでも起きうる。
 
 ### Decision: tree-upload-is-its-own-skill
 
@@ -926,8 +926,8 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - `no_tree`: 論点ツリーが無い。
   - `no_decision`: ツリーはあるが、決定が無い。
   - `closed`: 最後の決定が `close` で、その後にその論点へ分析設計を起こしていない。
-  - `in_progress`: 最後の決定が指す論点に、terminal status でない分析設計がある。`close` の後では、区切った後に作ったものだけを数える。
-  - `concluded`: 終わっていない分析設計は無く、決定より後に作った分析設計がある。巡回は、横断の振り返りとツリーの決定を残している。
+  - `in_progress`: 最後の決定が指す論点に、terminal status でない分析設計がある。`close` の後では区切った後に作ったものだけを数える。
+  - `concluded`: 終わっていない分析設計は無く、決定より後に作った分析設計がある。巡回は横断の振り返りとツリーの決定を残している。
   - `not_started`: どちらも無い。その論点に分析設計を起こす。
 - Why: 最後の決定が指す論点に terminal status の分析設計しか無いとき、2つの状態が同じに見える。結論の後、横断の振り返りの前で中断した状態と、「同じ論点を深める」と決めた直後の状態である。取り違えると、巡回の順（US-8 AC 2）が崩れるか、同じ決定を繰り返し聞く。見分けるには、決定と分析設計の `created_at` を比べる。
 - Criteria: Must は「auto はツリーを書かない」（Module Responsibilities）。Want は「再開の位置を取り違えない」（高、Claude の推測。US-8 AC 1・AC 2）と「足すコードと公開するコマンドの量」（中、Claude の推測。YAGNI）。決め手は前者。Story 18.2 と 18.5 の手動確認で、文だけの手順はモデルが取り違えた。人間が推奨を採った。
@@ -956,7 +956,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - Decision `framing-rerun-asks-for-the-next-node` の「必ず KEEP ゲートを通る」に、例外が1つ付く。Story 18.2 の取り違え（分析設計を結び済みの論点を、聞かずに出す）は、その状態が `in_progress` か `concluded` になり、例外に当たらないので戻らない。
   - 例外の条件は `tree_io position` の出力である。駆動するのは SKILL.md の文で、コードは framing を止めない。
   - 例外が飛ばすのは、次の論点の問いと「この実行で何を変えるか」の問いだけである。どの論点にも結んでいない分析設計を置く問い（Step 4c）は残る（レビューの指摘）。
-  - レビューは、framing に `/analysis-auto` と現在地の状態名を持たせず、「渡された論点を答えとして使う」入口にする案を出した。誰が渡しても聞かずに進む入口になり、Must を守る条件が framing から消えるので、採らなかった。
+  - レビューは framing に `/analysis-auto` と現在地の状態名を持たせず、「渡された論点を答えとして使う」入口にする案を出した。誰が渡しても聞かずに進む入口になり、Must を守る条件が framing から消えるので、採らなかった。
   - 同じ論点を深めると決めた後（その論点に終わった分析設計がある）も `not_started` なので、「もう1本起こすか」の確認（Step 4d の 4）は auto の中では出ない。決定がその答えである。
 
 ### Decision: framing-places-existing-designs
@@ -972,28 +972,28 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 
 ### Decision: driver-reads-the-skill-files
 
-- What: `/analysis-auto` は、動かす skill を Skill ツールで起動しない。その skill の `SKILL.md` を Read で読み、書いてあるとおりに進める。分析者に `/command` を打つよう頼まない。読む場所（`${CLAUDE_PLUGIN_ROOT}/skills/{skill-name}/SKILL.md`）と、`*_io` を名前で呼ぶことを SKILL.md に書いた。読んだ SKILL.md の中の `${CLAUDE_PLUGIN_ROOT}` は、auto の本文で置き換わったパス（plugin のルート）に、`$ARGUMENTS` は渡す値に読み替える（人間の承認、2026-11-21、[PR #128 のコメント](https://github.com/etoyama/insight-blueprint-skills/pull/128#issuecomment-7058056034)。人間は親セッションで「承認して足す」と答えた）。
+- What: `/analysis-auto` は動かす skill を Skill ツールで起動しない。その skill の `SKILL.md` を Read で読み、書いてあるとおりに進める。分析者に `/command` を打つよう頼まない。読む場所（`${CLAUDE_PLUGIN_ROOT}/skills/{skill-name}/SKILL.md`）と、`*_io` を名前で呼ぶことを SKILL.md に書いた。読んだ SKILL.md の中の `${CLAUDE_PLUGIN_ROOT}` は、auto の本文で置き換わったパス（plugin のルート）に、`$ARGUMENTS` は渡す値に読み替える（人間の承認、2026-11-21、[PR #128 のコメント](https://github.com/etoyama/insight-blueprint-skills/pull/128#issuecomment-7058056034)。人間は親セッションで「承認して足す」と答えた）。
 - Why: Story 18.9 の手動確認（Claude Code 2.1.227）で、driver が Skill ツールで `/analysis-framing` を呼んだ。ホストは `disable-model-invocation: true` の skill を拒み、driver は分析者に `/command` を1つずつ打つよう頼んで止まった。これでは入口がひとつにならない（US-8）。
 - Criteria: Must は「個々の skill の `disable-model-invocation` を変えない」（[ADR-0005](../adr/0005-selective-autonomous-chaining.md)、[ADR-0026](../adr/0026-analysis-auto-walks-the-question-tree.md) の M1）。満たす案はこれだけなので、比べていない。ADR-0005 は「driver が pipeline を駆動する」と決めており、SKILL.md はもともと「その skill の SKILL.md に従う」と書いていた。読み方を明記しただけで、決定は変えていない。
 - Affected modules: `/analysis-auto`。
 - Alternatives considered: 動かす skill の `disable-model-invocation` を外す（ADR-0005 が却下した案。notebook の無レビュー実行を招く）。
 - Consequences:
-  - ホストは、拒むときに「ほかの手段でこの skill の手順を再現しない」と返す。driver が Skill ツールを呼ばなければ、この文は出ない。`/analysis-auto` を分析者が起動したことが、その実行での明示の起動にあたる（ADR-0005 の selective autonomy）。
+  - ホストは拒むときに「ほかの手段でこの skill の手順を再現しない」と返す。driver が Skill ツールを呼ばなければ、この文は出ない。`/analysis-auto` を分析者が起動したことが、その実行での明示の起動にあたる（ADR-0005 の selective autonomy）。
   - 守るのは SKILL.md の文で、コードではない。ホストの挙動が変われば、同じ止まり方が戻りうる。
   - `${CLAUDE_PLUGIN_ROOT}` と `$ARGUMENTS` は、skill として読み込まれた本文の中でしか置き換わらない。Read で読んだファイルの中では置き換わらない（Claude Code の公式ドキュメントの skills の頁）。この2つを持つ SKILL.md は9個ある。最初の手動確認では、モデルが `/analysis-notebook` の手順で変数が空だと気づき、自分で plugin のパスを `export` して回していた（transcript で確かめた）。推測に頼っていたので、読み替えを文で書いた。
-  - `/analysis-auto` の本文は、2つの変数を名前で指す。そのまま書くと、ホストがその文の中の変数も置き換えるためである。`$ARGUMENTS` を本文に書くと、ホストが分析者の引数を本文の末尾に添える動きも止まる。
+  - `/analysis-auto` の本文は2つの変数を名前で指す。そのまま書くと、ホストがその文の中の変数も置き換えるためである。`$ARGUMENTS` を本文に書くと、ホストが分析者の引数を本文の末尾に添える動きも止まる。
   - 指示がファイルの中身として入るぶん、skill として読み込まれた指示より守られにくくなりうる。実データの試行で、各ゲートで止まるかを見て確かめる（Story 18.8）。
 
 ### Decision: handoff-trial-scores-judgments-by-id
 
 - What: 引き継ぎの試行（US-7）を次の形にする。手順と記録の型は [docs/HANDOFF_TRIAL.md](../HANDOFF_TRIAL.md) に置く。
-  - 合成シナリオの fixture は、段階（`start`、`round-1`、`round-2`）ごとの操作の列として `tests/fixtures/handoff/lib/stages.yaml` に持つ。`scripts/handoff_trial.py build` がそれを `tree_io` と `design_io` に通して `.insight/` を作り、`tree_io render` で HTML を書く。
-  - 読み手は、決まった形の JSON で答える。判断を論点・出来事・分析設計の id と答えの種類で書き、説明の文は `note` に入れる。`record` が正解の鍵（`key.yaml`）と比べて問いごとに正誤を出し、`note` は採点しない。q5 の理由の出来事だけは集合の一致で採点しない。鍵の出来事をすべて含み、鍵が挙げてもよいとした出来事（`also_allowed`）の外を含まなければ正とする。
+  - 合成シナリオの fixture は段階（`start`、`round-1`、`round-2`）ごとの操作の列として `tests/fixtures/handoff/lib/stages.yaml` に持つ。`scripts/handoff_trial.py build` がそれを `tree_io` と `design_io` に通して `.insight/` を作り、`tree_io render` で HTML を書く。
+  - 読み手は決まった形の JSON で答える。判断を論点・出来事・分析設計の id と答えの種類で書き、説明の文は `note` に入れる。`record` が正解の鍵（`key.yaml`）と比べて問いごとに正誤を出し、`note` は採点しない。q5 の理由の出来事だけは集合の一致で採点しない。鍵の出来事をすべて含み、鍵が挙げてもよいとした出来事（`also_allowed`）の外を含まなければ正とする。
   - 正解の鍵の答えは、テストが作ったツリーから導き直して確かめる。ただし q5 の理由の出来事は、決定の理由が出来事を引用しないので導けず、鍵を書く人が決める。
-  - 試行の記録は1回1ファイルで `docs/handoff-trials/` にコミットする。人の試行では、確認と再構成にかかった分を必須にする。
+  - 試行の記録は1回1ファイルで `docs/handoff-trials/` にコミットする。人の試行では確認と再構成にかかった分を必須にする。
   - 文脈を持たない Claude の読み手は、headless の `claude -p` に、ツールなし（`--tools ""`）、`--strict-mcp-config`、`--setting-sources ""`、既定のシステムプロンプトの置き換え、auto-memory を切った状態、空のディレクトリで、問いと HTML だけを標準入力で渡す。
 - Why: US-7 は、試行を繰り返すこと（本文）、判断の一致で採点すること（AC 2）、人の記録を残すこと（AC 3）を求めている。fixture、採点、置き場所の形は決めていない。
-- Criteria: 人間が 2026-11-21 にこのセッションで、3つの判断の推奨（A1・B1・C1）を選んだ。決め手は次のとおり。A は「`tree_io` が変わっても今の出力で HTML ができる」（課題: 古い HTML で試さない）。B は「人と Claude を同じ基準で採点できる」（PRD の成功基準）。C は「記録が Epic を閉じた後も並べて比べられる」（閉じた DesignDoc には追記しないため）。headless の隔離のフラグは、prototype で実行して確かめた事実である。
+- Criteria: 人間が 2026-11-21 にこのセッションで、3つの判断の推奨（A1・B1・C1）を選んだ。決め手は次のとおり。A は「`tree_io` が変わっても今の出力で HTML ができる」（課題: 古い HTML で試さない）。B は「人と Claude を同じ基準で採点できる」（PRD の成功基準）。C は「記録が Epic を閉じた後も並べて比べられる」（閉じた DesignDoc には追記しないため）。headless の隔離のフラグは prototype で実行して確かめた事実である。
 - Affected modules: `scripts/handoff_trial.py`、`tests/fixtures/handoff/`、`docs/HANDOFF_TRIAL.md`、`docs/handoff-trials/`、CLAUDE.md の正本の表。
 - Alternatives considered:
   - 段階ごとの `.insight/` を、出来上がったファイルのまま持つ。正本の形が変わっても古いファイルが残り、気づけない。
@@ -1036,23 +1036,23 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 - 2026-11-20 — PR #117 を main にマージ。未決事項2つを決め（判断A・B）、Story 18.5 と 18.9 を起票（#126、#127）。
 - 2026-11-20 — Story 18.1 completed: 型名を決め（`NextCandidate`・`Answer`・`Aim`）、論点ツリーのモデル、`validate_tree`、`tree_io`（create・add-node・link・revise-root・get・progress）、`*_tree.yaml` を検証する pre-write hook、`bin/tree_io` を入れた。
 - 2026-11-20 — Story 18.2 completed: `/analysis-framing` の Step 4・5 が根の問い、到達点、第一階層の論点を分析者と決めて `tree_io` で書き、最初に調べる論点と理由をツリーの決定（`start`）として残す。Framing Brief に `theme_id` と `node_id` を載せ、`/analysis-design` が `tree_io link` で結ぶ。`TreeDecision` と `tree_io decide` を足した。レビュー（thermos）の指摘で、2つめの `start` をモデルで拒むようにし、再実行の手順の食い違いを直した。`tree_io render` は Story 18.6 で入るので、framing はまだ HTML を作らない。
-- 2026-11-21 — Story 18.2 を手動で確認した。合成データのプロジェクトにプラグインを読み込み、headless の Claude Code（sonnet）で `/analysis-framing` と `/analysis-design` を実行した。新しいテーマでは、論点ツリーの正本に根の版 1 と `start` の決定が1件書かれた。`/analysis-design` は `tree_io link` で分析設計を論点に結び、`node_id` の無い Framing Brief では結ばずに作った。根の変更では、意味の変わる変更に「上げない」と答えると1回だけ聞き直し、2回目の答えに従った。言い換えは1回の確認で済んだ。pre-write hook は、決定を消す Edit と前の根の版を変える Edit を拒んだ。意味の変わる変更に「上げる」と答える経路は、skill を通しては確かめていない。
+- 2026-11-21 — Story 18.2 を手動で確認した。合成データのプロジェクトにプラグインを読み込み、headless の Claude Code（sonnet）で `/analysis-framing` と `/analysis-design` を実行した。新しいテーマでは、論点ツリーの正本に根の版 1 と `start` の決定が1件書かれた。`/analysis-design` は `tree_io link` で分析設計を論点に結び、`node_id` の無い Framing Brief では結ばずに作った。根の変更では、意味の変わる変更に「上げない」と答えると1回だけ聞き直し、2回目の答えに従った。言い換えは1回の確認で済んだ。pre-write hook は決定を消す Edit と前の根の版を変える Edit を拒んだ。意味の変わる変更に「上げる」と答える経路は、skill を通しては確かめていない。
 - 2026-11-21 — 手動確認で、根の変更の聞き方が分析者の答えを誘導していると分かった。`/analysis-framing` の Step 4c を直し、版を上げるかは両方の答えとその結果を並べて聞き、skill の読みは分析者が答えるまで出さないようにした。同じやり方で、意味の変わる変更と言い換えの2本を再実行して確かめた。
 - 2026-11-21 — Story 18.3 completed: 現時点の答えの型（`Answer`・`AnswerStatement`・`StatementKind`）と `answers` を入れ、答えを追記だけにした。追記だけの比較（根の版、ツリーの決定、現時点の答え）は1つにまとめた。ツリーの検査（`tree_check`、`bin/tree_check`）は、引用した出来事が無い、引用先の分析設計が論点か子孫に結んでいない、文の数が引用した出来事の本文に無い、の3つを違反として挙げる。#105 と同じ型（2つの出来事の数から作った比）を合成シナリオで違反にした。合成のプロジェクトに `bin/tree_check` を通して、違反の出力と終了コード 1、正本が変わらないことを確かめた。レビュー（thermos）の指摘で、別の分析設計の journal に書いた出来事を引用の根拠に数えないようにし、検査できない場合は必ず終了コード 2 にした。18.3 を先にする決定は人間がした（PR #128 のコメント、2026-11-21）。
 - 2026-11-21 — Story 18.6 completed: `tree_io render` が、正本から自己完結の HTML（`.insight/themes/{theme_id}_tree.html`）を作る。HTML を作る純関数は `skills/_shared/tree_render.py` に置いた。script は書かず、開閉は `<details>` で行う。各論点に進捗と現時点の答えを文字で出し、開くと答えの各文、引用した出来事、前の回の答え、結んだ分析設計が出る。最も新しい回で変わった答えと、根の変更前の答えに印を付ける。分析設計の派生は別の節に出す。合成のプロジェクトで `bin/tree_io render` を2回通し、同じバイト列になることを確かめた。built-in browser で開き、script・画像・外部への要求が0件であること、論点の開閉、出来事の本文に入れた `<script>` が文字として出ること、幅 375px で横にはみ出さないこと、暗い配色でも読めることを確かめた。答えを書く手段はまだ無いので、答えは合成の正本に直接書いた。
 - 2026-11-21 — Story 18.6 のレビュー（thermos）の指摘を直した。分析設計をファイルの中の `id` で引いていたので、写して作った分析設計があると進捗と題が `tree_io progress` と食い違った。ファイル名の id で引くようにした。別のテーマの壊れた分析設計で表示が止まらないようにし、読めない YAML では traceback でなくメッセージを出す。引用した出来事を読む手順と正本を読む手順は、ツリーの検査と共有した。表示の言葉と読み方の説明は1つの表から出すようにした。HTML に文字がエスケープされずに入る経路と、外部を読む経路は見つからなかった。
-- 2026-11-21 — Story 18.4 completed: `/analysis-reflection` はテーマの id を渡されると、論点ごとに、結んだ分析設計の journal を読んで現時点の答えを書く。文はそれぞれ種類と引用を持ち、親の論点は子孫の分析設計の出来事を引用する。答えを書く道は `tree_io answer` だけで、検査を通るまで正本に書かない。1回の呼び出しが1つの振り返りの回になり、変わらない答えは書かない。書いた後に `tree_check` を回し、`tree_io render` で HTML を作り直す。ツリーの検査は、はっきりした符号を数の一部として比べるようにした。追記だけの比較は、答えを回で名指す。人間がこのセッションで3つを決めた（検査を通るまで書かない、答えは回で名指す、符号の線引きを広げる）。レビュー（thermos）の指摘で、`tree_io answer` の入力を型で受け、読めないファイルを終了コード 1 の文で返し、直せない古い違反を「Stale answers」として示す出口を足した。分析設計1つの振り返りは変えていない。
-- 2026-11-21 — Story 18.4 を手動で確認した。合成データのプロジェクト（論点4つ、分析設計2つ）にプラグインを読み込み、headless の Claude Code（sonnet）で `/analysis-reflection LIB` を4回実行した。1回目は、3つの論点に回 1 の答えが書かれ、根の問いの答えは子の分析設計の出来事を引用し、分析設計の無い論点は答えを持たなかった。2回目は、割合と倍率を答えに入れるよう頼んだが、計算せず「記録されていない」と未判別の文で書いた。3回目は、journal に出来事を1つ足すと、その論点と根だけが回 3 になり、変わらない論点は回 2 のまま変化なしと示された。4回目は、最初の呼び出しに計算した割合（65.5%）をわざと入れさせた。`tree_io answer` は終了コード 3 で違反を返して何も書かず、skill はその文を除いて送り直し、除いた文と違反を分析者に示した。正本に 65.5 は残らなかった。4回目だけがレビューの指摘を直した後の手順で、1〜3回目はその前の手順で実行した。根の版が上がった後の書き直し（`restated`）と、古い違反（Stale answers）の経路は、skill を通しては確かめていない。長い payload をシェルの文字列で渡すとホストが拒むことがあったので、一時ファイルから渡す書き方を手順に足した。
+- 2026-11-21 — Story 18.4 completed: `/analysis-reflection` はテーマの id を渡されると、論点ごとに、結んだ分析設計の journal を読んで現時点の答えを書く。文はそれぞれ種類と引用を持ち、親の論点は子孫の分析設計の出来事を引用する。答えを書く道は `tree_io answer` だけで、検査を通るまで正本に書かない。1回の呼び出しが1つの振り返りの回になり、変わらない答えは書かない。書いた後に `tree_check` を回し、`tree_io render` で HTML を作り直す。ツリーの検査は、はっきりした符号を数の一部として比べるようにした。追記だけの比較は答えを回で名指す。人間がこのセッションで3つを決めた（検査を通るまで書かない、答えは回で名指す、符号の線引きを広げる）。レビュー（thermos）の指摘で、`tree_io answer` の入力を型で受け、読めないファイルを終了コード 1 の文で返し、直せない古い違反を「Stale answers」として示す出口を足した。分析設計1つの振り返りは変えていない。
+- 2026-11-21 — Story 18.4 を手動で確認した。合成データのプロジェクト（論点4つ、分析設計2つ）にプラグインを読み込み、headless の Claude Code（sonnet）で `/analysis-reflection LIB` を4回実行した。1回目は3つの論点に回 1 の答えが書かれ、根の問いの答えは子の分析設計の出来事を引用し、分析設計の無い論点は答えを持たなかった。2回目は割合と倍率を答えに入れるよう頼んだが、計算せず「記録されていない」と未判別の文で書いた。3回目は journal に出来事を1つ足すと、その論点と根だけが回 3 になり、変わらない論点は回 2 のまま変化なしと示された。4回目は最初の呼び出しに計算した割合（65.5%）をわざと入れさせた。`tree_io answer` は終了コード 3 で違反を返して何も書かず、skill はその文を除いて送り直し、除いた文と違反を分析者に示した。正本に 65.5 は残らなかった。4回目だけがレビューの指摘を直した後の手順で、1〜3回目はその前の手順で実行した。根の版が上がった後の書き直し（`restated`）と、古い違反（Stale answers）の経路は、skill を通しては確かめていない。長い payload をシェルの文字列で渡すとホストが拒むことがあったので、一時ファイルから渡す書き方を手順に足した。
 - 2026-11-21 — Story 18.7 completed: 論点ツリーの HTML を Artifact で渡す手順を、新しい skill `/tree-upload` に置いた（置き場所と名前は人間の判断）。`tree_io render` が書いたファイルだけを列挙し、KEEP ゲートで承認を待ち、承認は覚えない。Artifact が無いホストでは何も送らず、手元のパスを伝える。`/analysis-framing` は、ツリーを書いた実行の最後に `render` を呼んでパスを伝える（Step 5c）。レビュー（thermos）の指摘で、ツリーの有無を stderr の文言でなく正本のファイルで分け、framing の `render` に `</dev/null` を付けた（#129）。
 - 2026-11-21 — Story 18.7 を手動で確かめた。合成のプロジェクトで framing の 5a・5c のコマンドを `bin/tree_io` に通し、`render` を2回通して同じバイト列になること、問いに入れた `<script>` が文字として出ること、ツリーの無いテーマと `../x` が終了コード 1 で何も書かないことを確かめた。人間の承認を得て、生成した HTML を手を加えずに Artifact へ送った。ホストはページを自分の雛形で包み、完全な文書が入れ子になる。包んだ後の HTML を手元で開くと、ページのスタイルと題が効き、script は0件で、論点の開閉と幅 375px の表示も崩れなかった。claude.ai の上で直接開く確認と、暗い配色の確認はしていない（組み込みブラウザが claude.ai にサインインしていない）。
-- 2026-11-21 — Story 18.5 completed: `/analysis-reflection` は現時点の答えの後に、次の候補（根を除き、自分にも下の論点にも分析設計を結んでいない論点）を示し、人に聞く問い、その答えで変わる判断、分かっていることを添える。分析者が聞いてきた答えは、誰に聞いたかと日付を添えて残す。KEEP ゲートで、深める・親に戻る・区切ると理由、次に調べる論点を聞き、ツリーの決定として残す。`/analysis-design` は分析設計を論点に結んだ後、聞いてきた答えを journal の `hearing` として写す。再実行した `/analysis-framing` は、次に設計する論点を必ず聞く。図には次の候補、決定の回、記録と合わない答えの印が出る。人間がこのセッションで4つを決めた（`hearing` の種類、決定の回、再実行の framing、古い違反の扱い）。
-- 2026-11-21 — Story 18.5 のレビュー（thermos）の指摘を直した。`tree_io copy-hearing` は、最上位が mapping でない journal を空と読んで上書きし、出来事を消していた。`events` が list でない journal では traceback を出していた。どちらも書かずにエラーにする。journal への追記は `design_io.append_journal_event` に移した。「論点かその下に結んだ分析設計」の計算は、次の候補とツリーの検査で別々に持っていたので、モデルの1か所に寄せた。図は、振り返りの前の決定に「回 0 の答えを見て」と出していたので、「振り返りの前」に直した。`deepen` と `return` を論点から導く案は採らなかった（種類は分析者が選ぶ）。
-- 2026-11-21 — Story 18.5 を手動で確認した。合成データのプロジェクト（論点4つ、分析設計1つ、`connection` を持つデータソース1つ）にプラグインを読み込み、headless の Claude Code（sonnet）で5回実行した。(1) 答えを渡さない `/analysis-reflection LIB` は、回 1 の答えを書き、次の候補を2つ示して、聞いてきた答えと決定の2つを聞いて止まった。決定は書かなかった。人に聞く問いは、データで答えられない論点にだけ付いた。`connection` のパスは正本にも HTML にも入らなかった。(2) 答えを渡した2回目は、聞いてきた答えを誰に・いつと一緒に残し、`return` の決定を回 1 で書いた。(3) 答えを渡さない `/analysis-framing LIB` の再実行は、最新の決定の論点と次の候補を並べて聞き、Framing Brief も決定も出さずに止まった。(4) `/analysis-design` は分析設計を論点に結び、聞いてきた答えを journal の `hearing` として1字も変えずに写した。(5) 再実行で別の論点を答えると、理由つきの `return` を残し、その論点の `node_id` で Framing Brief を出した。図には次の候補、決定と回、聞いてきた答えが出た。journal の数を書き換えて `tree_io render` を通すと、その論点に「記録と合わない答え」の印が出て、答えの文は畳まれた（skill は通していない）。最初の1回は、headless のセッションが `.insight` を見つけられずに終わった。同じ場所でやり直すと読めたので、原因は分かっていない。`deepen` と `close` の決定、結び済みの論点を選んだときの確認、`tree_io` が決定を拒んだときの聞き直しは、skill を通しては確かめていない。
+- 2026-11-21 — Story 18.5 completed: `/analysis-reflection` は現時点の答えの後に、次の候補（根を除き、自分にも下の論点にも分析設計を結んでいない論点）を示し、人に聞く問い、その答えで変わる判断、分かっていることを添える。分析者が聞いてきた答えは、誰に聞いたかと日付を添えて残す。KEEP ゲートで、深める・親に戻る・区切ると理由、次に調べる論点を聞き、ツリーの決定として残す。`/analysis-design` は分析設計を論点に結んだ後、聞いてきた答えを journal の `hearing` として写す。再実行した `/analysis-framing` は次に設計する論点を必ず聞く。図には次の候補、決定の回、記録と合わない答えの印が出る。人間がこのセッションで4つを決めた（`hearing` の種類、決定の回、再実行の framing、古い違反の扱い）。
+- 2026-11-21 — Story 18.5 のレビュー（thermos）の指摘を直した。`tree_io copy-hearing` は最上位が mapping でない journal を空と読んで上書きし、出来事を消していた。`events` が list でない journal では traceback を出していた。どちらも書かずにエラーにする。journal への追記は `design_io.append_journal_event` に移した。「論点かその下に結んだ分析設計」の計算は、次の候補とツリーの検査で別々に持っていたので、モデルの1か所に寄せた。図は振り返りの前の決定に「回 0 の答えを見て」と出していたので、「振り返りの前」に直した。`deepen` と `return` を論点から導く案は採らなかった（種類は分析者が選ぶ）。
+- 2026-11-21 — Story 18.5 を手動で確認した。合成データのプロジェクト（論点4つ、分析設計1つ、`connection` を持つデータソース1つ）にプラグインを読み込み、headless の Claude Code（sonnet）で5回実行した。(1) 答えを渡さない `/analysis-reflection LIB` は、回 1 の答えを書き、次の候補を2つ示して、聞いてきた答えと決定の2つを聞いて止まった。決定は書かなかった。人に聞く問いはデータで答えられない論点にだけ付いた。`connection` のパスは正本にも HTML にも入らなかった。(2) 答えを渡した2回目は、聞いてきた答えを誰に・いつと一緒に残し、`return` の決定を回 1 で書いた。(3) 答えを渡さない `/analysis-framing LIB` の再実行は、最新の決定の論点と次の候補を並べて聞き、Framing Brief も決定も出さずに止まった。(4) `/analysis-design` は分析設計を論点に結び、聞いてきた答えを journal の `hearing` として1字も変えずに写した。(5) 再実行で別の論点を答えると、理由つきの `return` を残し、その論点の `node_id` で Framing Brief を出した。図には次の候補、決定と回、聞いてきた答えが出た。journal の数を書き換えて `tree_io render` を通すと、その論点に「記録と合わない答え」の印が出て、答えの文は畳まれた（skill は通していない）。最初の1回は、headless のセッションが `.insight` を見つけられずに終わった。同じ場所でやり直すと読めたので、原因は分かっていない。`deepen` と `close` の決定、結び済みの論点を選んだときの確認、`tree_io` が決定を拒んだときの聞き直しは、skill を通しては確かめていない。
 - 2026-11-21 — 手動確認の最初の1回の原因を確かめた。モデルが plugin のルートへ `cd` してから `tree_io get` を呼び、ラッパーが `$PWD` をプロジェクトとして plugin の中の `.insight/` を読んでいた。再現の手順と原因は #88 に書いた。ラッパーは直していない。`tree_io get` は、見つからないときに見た正本のパスを stderr に出すようにした（人間の判断）。push の自動セキュリティレビューが、`hear` で書いた答えを写して引用すれば数の検査を通せると指摘した。人間の判断で、検査は変えず、引用がすべて `hearing` の文に図で「人に聞いた答えによる」と添えるようにした。残る穴は ADR-0028 の Negative に書いた。
-- 2026-11-21 — Story 18.9 completed: `/analysis-auto` が分析者の入口になり、論点ツリーに沿って論点ごとに巡回する。テーマを受けると `tree_io position` で巡回の現在地を読み、ツリーが無ければ `/analysis-framing` で作り、あれば最新のツリーの決定が指す論点から再開する。1回の巡回は、分析設計、premortem、notebook、journal、分析設計の振り返り、レポート、アップロード、テーマを横断した振り返り、ツリーの決定の順に進む。結論が出たら聞かずにレポートを書く。KEEP ゲートを5つ足した。`/analysis-framing` は、既にある分析設計を結ぶ論点を Step 4b で聞く。`tree_io copy-hearing` は、終わった分析設計の journal に写さずにエラーにする（人間の判断、PR #128 のコメント）。人間がこのセッションで3つを決めた（現在地は `tree_io position` が導く、auto の中では決めた論点を聞き直さない、既にある分析設計は 4b で結び `copy-hearing` は呼ばない）。ARCHITECTURE の Skill invocation model、分析ワークフロー全体、guided autopilot の詳細シーケンスを直した。
+- 2026-11-21 — Story 18.9 completed: `/analysis-auto` が分析者の入口になり、論点ツリーに沿って論点ごとに巡回する。テーマを受けると `tree_io position` で巡回の現在地を読み、ツリーが無ければ `/analysis-framing` で作り、あれば最新のツリーの決定が指す論点から再開する。1回の巡回は、分析設計、premortem、notebook、journal、分析設計の振り返り、レポート、アップロード、テーマを横断した振り返り、ツリーの決定の順に進む。結論が出たら聞かずにレポートを書く。KEEP ゲートを5つ足した。`/analysis-framing` は既にある分析設計を結ぶ論点を Step 4b で聞く。`tree_io copy-hearing` は終わった分析設計の journal に写さずにエラーにする（人間の判断、PR #128 のコメント）。人間がこのセッションで3つを決めた（現在地は `tree_io position` が導く、auto の中では決めた論点を聞き直さない、既にある分析設計は 4b で結び `copy-hearing` は呼ばない）。ARCHITECTURE の Skill invocation model、分析ワークフロー全体、guided autopilot の詳細シーケンスを直した。
 - 2026-11-21 — Story 18.9 を手動で確認した。合成データのプロジェクト（公共図書館の予約本 600 件、データソース1つ）にプラグインを読み込み、headless の Claude Code 2.1.227（sonnet）で `/analysis-auto` を実行した。MCP は読み込まず、外部には何も送っていない。
   - 最初の実行は、driver が Skill ツールで `/analysis-framing` を呼んで拒まれ、分析者に `/command` を打つよう頼んで止まった。SKILL.md に、動かす skill のファイルを読んで進めることを書いて直した（Decision `driver-reads-the-skill-files`）。
-  - 直した後の1巡目は、次の順に止まった。G3（`theme_id`・根の問い・到達点）、G4（第一階層の論点と最初の論点）、分析設計の4つの確認、premortem の HARD_BLOCK（許可リスト外の scipy）、結論。ツリーには `start` の決定が書かれ、分析設計は `LIB-Q02` に結ばれた（現在地は `in_progress`）。
+  - 直した後の1巡目は次の順に止まった。G3（`theme_id`・根の問い・到達点）、G4（第一階層の論点と最初の論点）、分析設計の4つの確認、premortem の HARD_BLOCK（許可リスト外の scipy）、結論。ツリーには `start` の決定が書かれ、分析設計は `LIB-Q02` に結ばれた（現在地は `in_progress`）。
   - 結論（`supported`）の後、レポートは聞かれずに書かれた。Claude Docs のコネクタが無いので、何も送らずに先へ進んだ。横断の振り返りは回 1 の答えを書き、レポートのパスとツリーの HTML のパスを並べて、聞いてきた答えとツリーの決定を聞いて止まった（現在地は `concluded`）。
   - `return` の決定と聞いてきた答えを渡すと、どちらも残した。ただし driver は要約を出して止まり、2巡目に入らなかった。SKILL.md の「next round」を、要約を挟まず同じターンで次の巡回へ進むように直した。
   - 直した後、2つを新しいセッションで確かめた。(A) 現在地が `not_started` のプロジェクトで `/analysis-auto LIB` を実行すると、次の論点を聞き直さず、`LIB-Q03` の Framing Brief を出して、2巡目の仮説の確認で止まった。決定は増えなかった。(B) 決定を1つ戻して現在地を `concluded` にした写しでは、横断の振り返りから入り、`return` の決定を渡すと、同じターンで `LIB-Q03` の2巡目の仮説の確認まで進んだ。
@@ -1060,15 +1060,15 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - 気づいたこと: 最初のセッションで、モデルは `/analysis-framing` の Step 4a の答えを受けた時点でツリーを作った（手順は 5a で書くとしている）。現在地は `no_decision` になり、続きには響かなかった。モデルは catalog のデータソースの YAML を直接読んだ（#102 と同じ型）。
 - 2026-11-21 — Story 18.9 のレビュー（thermos）の指摘を直した。外へ送る経路と、KEEP ゲートを飛ばす経路は見つからなかった。直したのは次のとおり。(1) ツリーを作った直後に現在地を読み直さず、Step 4b で結んだ終わっていない分析設計を置いて、同じ論点に新しい分析設計を起こしていた。(2) 区切った後に再開した論点で、途中の分析設計があっても現在地が `closed` のままだった。(3) auto の中の Step 4d の例外が、結んでいない分析設計を置く問いまで飛ばしていた。(4) 分析設計の日時を比べられないとき、黙って `concluded` に倒し、同じゲートを聞き続けうる。エラーにした。(5) 以前の実行が書いたレポートがあるとき、アップロードを起動していないことを分析者に伝える。状態は `WalkState` に置き、状態を読む処理を1つにまとめた。文言に貼り付いた構造テストを、項目を取り出して確かめる形に直した。採らなかった指摘と残した穴は、Decisions の Consequences に書いた。
 - 2026-11-21 — レビューの直しの後、手動確認の (A) をもう一度通した。新しいセッションの `/analysis-auto LIB` は、現在地（`not_started`、`LIB-Q03`）を読み、次の論点を聞き直さずに `LIB-Q03` の Framing Brief を出した。直した経路のうち、ツリーを作った直後の読み直し、区切った後の再開、比べられない日時のエラーは、unit test と構造テストで確かめ、skill を通しては確かめていない。
-- 2026-11-21 — 人間が、Story 18.9 の小さい判断3つを承認した（親セッションで直接答えた。[PR #128 のコメント](https://github.com/etoyama/insight-blueprint-skills/pull/128#issuecomment-7058039332)と[次のコメント](https://github.com/etoyama/insight-blueprint-skills/pull/128#issuecomment-7058056034)）。残した穴（branch で起こした派生の分析設計が論点に結ばれない）は [#134](https://github.com/etoyama/insight-blueprint-skills/issues/134) になった。driver が SKILL.md を読んで進める判断には、読んだファイルの中の変数を値に読み替える1文を足した（Decision `driver-reads-the-skill-files`）。
+- 2026-11-21 — 人間が Story 18.9 の小さい判断3つを承認した（親セッションで直接答えた。[PR #128 のコメント](https://github.com/etoyama/insight-blueprint-skills/pull/128#issuecomment-7058039332)と[次のコメント](https://github.com/etoyama/insight-blueprint-skills/pull/128#issuecomment-7058056034)）。残した穴（branch で起こした派生の分析設計が論点に結ばれない）は [#134](https://github.com/etoyama/insight-blueprint-skills/issues/134) になった。driver が SKILL.md を読んで進める判断には、読んだファイルの中の変数を値に読み替える1文を足した（Decision `driver-reads-the-skill-files`）。
 - 2026-11-21 — 読み替えを手動で確かめた。ツリーと `start` の決定を先に入れた合成のプロジェクトで、headless の Claude Code 2.1.227（sonnet）に `/analysis-auto LIB` を渡し、1巡を区切るまで通した。transcript で見たことは次のとおり。driver は Skill ツールを1度も呼ばず、ディスクも探さず、7つの skill の SKILL.md と参照ファイル2つを plugin の絶対パスで読んだ。`${CLAUDE_PLUGIN_ROOT}` を持つ `/analysis-notebook` のコマンドは、2本がパスそのものを書き、1本が `${CLAUDE_PLUGIN_ROOT:-<plugin のパス>}` と書いた。どれも plugin の環境で走った。`$ARGUMENTS` がそのまま残ったコマンドは無く、`design_io`・`tree_io`・`report_check` には `LIB` と `LIB-H01` が渡った。`*_io` の前の `cd` も無かった。最初の手動確認の transcript では、モデルが変数が空だと気づき、自分で `export CLAUDE_PLUGIN_ROOT=<plugin のパス>` を付けて回していた。この実行では、ゲートの答えを先にまとめて渡したので、ゲートで止まるかは確かめていない。
 - 2026-11-21 — Story 18.8 completed: 引き継ぎの試行の道具と手順を入れた（Decision `handoff-trial-scores-judgments-by-id`）。合成シナリオ（公共図書館の予約本）は `tests/fixtures/handoff/lib/` に、着手時（`start`）と2回の振り返り（`round-1`・`round-2`）の段階で持つ。`scripts/handoff_trial.py` は、段階を `tree_io` に通して HTML を作り（`build`）、読み手に渡す問いを出し（`prompt`）、答えを正解の鍵と id で比べて試行の記録を書く（`record`）。手順と記録の型は [docs/HANDOFF_TRIAL.md](../HANDOFF_TRIAL.md) にある。
 - 2026-11-21 — 文脈を持たない Claude セッションで、引き継ぎの試行を3回回した。headless の Claude Code 2.1.227（sonnet）に、`round-2` の HTML と問いだけを標準入力で渡した。ツールは持たせず、MCP、plugin、設定ファイル、既定のシステムプロンプト、auto-memory は読み込ませていない。空のディレクトリで実行した。問いと HTML はモデルの API に届くが、それ以外には何も送っていない。記録は `docs/handoff-trials/2026-11-21-claude-sonnet-{1,2,3}.yaml` にある。
   - q1〜q4 は3回とも正だった。根の答えを「まだ決められない」と読み、未着手（`LIB-Q04`・`LIB-Q05`・`LIB-Q06`）と、分析済みで未判別（`LIB-Q03`）を分けた。根の答えを支える証拠（`LIB-H02-E01`）と弱める証拠（`LIB-H02-E02`）を、出所の分析設計 `LIB-H02` と一緒に挙げた。回 2 で変わった答えを `LIB-Q01` だけとし、回 2 で初めて答えた `LIB-Q03` は含めなかった。
-  - q5 は1回だけ正だった。次の論点は3回とも `LIB-Q06` で合っていた。誤った2回は、理由の出来事に発見元の `LIB-H02-E03` だけを挙げた。そのうち1回は、`note` に決定の理由として `LIB-H02-E02` の内容（金曜に確保した本の期限切れが多いまま）を書いている。ツリーの決定の理由は文で、出来事を引用しないので、読み手はページ上の「発見元」に引かれたと見ている（推測）。採点の規則は試行の後に変えていない。
+  - q5 は1回だけ正だった。次の論点は3回とも `LIB-Q06` で合っていた。誤った2回は理由の出来事に発見元の `LIB-H02-E03` だけを挙げた。そのうち1回は `note` に決定の理由として `LIB-H02-E02` の内容（金曜に確保した本の期限切れが多いまま）を書いている。ツリーの決定の理由は文で、出来事を引用しないので、読み手はページ上の「発見元」に引かれたと見ている（推測）。採点の規則は試行の後に変えていない。
   - 根の進捗が「未着手」と出る表示（Decision `tree-html-is-static-and-marks-are-derived` の Consequences）は、誤読されなかった。1回目の `note` は「根の進捗は未着手だが、答えに未判別が含まれる」と読んでいる。
   - 試行で確かめていないこと: 人による試行（記録の型と手順だけを用意した）、sonnet 以外の読み手、`round-1` の段階での試行。
-- 2026-11-21 — Story 18.8 のレビュー（thermos）の指摘を直した。外へ送る経路は、モデルの API のほかに見つからなかった。直したのは次のとおり。(1) `build` は、`--out` に渡したディレクトリを確かめずに消していた。`build` が作った目印の無い、空でないディレクトリは消さずに止まる。(2) 鍵は問いを欠いても読めて、採点のときに `assert` で止まっていた。鍵を必須の型にした。(3) Claude の試行の記録に時間を入れても通っていた。(4) 「外には何も送らない」と書いていたが、問いと HTML はモデルの API に届く。文を正確にした。あわせて、`-m` で実行して `sys.path` の差し込みを消し、step 名を関数名にそろえ、比べ方を鍵の型に持たせた。fixture を `scripts/` へ移す指摘は、人間が選んだ置き場所（C1）を変えるので採っていない。
-- 2026-11-21 — q5 の理由の採点を、人間が DA で選んだ（このセッションで直接答えた）。それまでの「鍵の出来事を含めば正」は、出来事を全部挙げれば必ず正になった。選んだ案は、鍵を「必ず挙げる出来事」（`LIB-H02-E02`）と「挙げてもよい出来事」（`also_allowed`、`LIB-H02-E03`）に分けることである。必ず挙げる出来事をすべて含み、その2つの外を挙げなければ正とする。3回の試行の正誤は変わらない（誤、誤、正）。比べたのは、問いの文を絞って試行をやり直す案と、E03 だけでも正とする案である。
+- 2026-11-21 — Story 18.8 のレビュー（thermos）の指摘を直した。外へ送る経路はモデルの API のほかに見つからなかった。直したのは次のとおり。(1) `build` は `--out` に渡したディレクトリを確かめずに消していた。`build` が作った目印の無い、空でないディレクトリは消さずに止まる。(2) 鍵は問いを欠いても読めて、採点のときに `assert` で止まっていた。鍵を必須の型にした。(3) Claude の試行の記録に時間を入れても通っていた。(4) 「外には何も送らない」と書いていたが、問いと HTML はモデルの API に届く。文を正確にした。あわせて、`-m` で実行して `sys.path` の差し込みを消し、step 名を関数名にそろえ、比べ方を鍵の型に持たせた。fixture を `scripts/` へ移す指摘は、人間が選んだ置き場所（C1）を変えるので採っていない。
+- 2026-11-21 — q5 の理由の採点を、人間が DA で選んだ（このセッションで直接答えた）。それまでの「鍵の出来事を含めば正」は、出来事を全部挙げれば必ず正になった。選んだ案は鍵を「必ず挙げる出来事」（`LIB-H02-E02`）と「挙げてもよい出来事」（`also_allowed`、`LIB-H02-E03`）に分けることである。必ず挙げる出来事をすべて含み、その2つの外を挙げなければ正とする。3回の試行の正誤は変わらない（誤、誤、正）。比べたのは、問いの文を絞って試行をやり直す案と、E03 だけでも正とする案である。
 - 2026-11-21 — 実データの試行（ib-notebook、e-Stat の被保護者調査と国勢調査）を1巡目から2巡目の入口まで回した。ツリーの巡回と中断からの再開を確かめた。見つけた不具合と不足は #138・#139・#140 にした（どれも main からあるか、Epic の範囲の外）。
 - 2026-11-21 — Epic のゲート: User Stories の AC 33件を、Test Design Matrix に書いたテストと照らして確かめ、チェックを付けた。Matrix に書いたテストのクラスと関数がすべて実在することを確かめた。
