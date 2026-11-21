@@ -120,13 +120,21 @@ no byline or date line added.
    number. Captions stay. No local path of an image may reach the Doc.
 2. Create a new Doc with the report's title (its first `#` heading) and that body. Always a new
    Doc — never overwrite, update, or reuse one, even when the same report was uploaded before.
-3. Then, for each figure in report order, one figure at a time after the body is in place:
+3. If there are figures to upload, show the Doc's URL before the first figure upload, in one
+   message:
+   "Doc を作った: {URL}。図 {n} 枚をこれから1枚ずつ載せる。図ごとに承認を求められることがある。
+   断るとこのターンはそこで終わる。断った図とそれより後の図は Doc に載らず、注記のまま残る。
+   Doc は自分だけに見える状態"。
+   The host's asset upload can show the analyst an approval card, and a decline ends the turn,
+   so Step 5 may never run. This message is what the analyst keeps then.
+4. Then, for each figure in report order, one figure at a time after the body is in place:
    upload the PNG with the host's asset upload into that Doc, make the connector's object for
    that upload in the Doc, and replace the note with that figure's number with an image link to
    that object.
-   - If an upload or embed fails or is declined: omit
-     that figure and leave its one-line note. Go on to the next one. A figure that could not be
-     embedded must never fail the upload as a whole.
+   - If an upload or embed fails: omit that figure and leave its one-line note. Go on to the
+     next one. A figure that could not be embedded must never fail the upload as a whole.
+   - If the analyst declines an upload and the turn goes on: upload no further figures, leave
+     their notes, and go to Step 5. The approval at Step 3 does not outrank that "no".
    - Upload only the figures listed in Step 3.
 
 If creating the Doc itself fails, report the error and exit; nothing else is sent. The outcome
