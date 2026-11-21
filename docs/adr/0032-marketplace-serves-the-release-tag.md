@@ -27,7 +27,12 @@ v0.10.0 の実機確認（2026-11-20）で、同じ版番号 `0.10.0` の中身�
   cache は `0.12.0` になり、記録の commit はタグ `v0.12.0` の `e1b98db` だった。
   `ref` を `v0.13.0` に変えて `claude plugin update` すると `0.13.0` に上がり、cache の中身は `git archive v0.13.0` と一致した（`diff -rq` で差なし）。
 - `ref` が無いタグ（`v9.9.9`）を指すと、install も update も `Remote branch v9.9.9 not found` で失敗した。入れてあった `0.12.0` はそのまま残った。
-- 同じリポジトリの marketplace が自分自身をタグで指す形は、公式ドキュメントに書かれていない。上の観察はローカルのディレクトリに置いた marketplace で行った。
+- 同じリポジトリの marketplace が自分自身をタグで指す形は、公式ドキュメントに書かれていない。上の2つの観察はローカルのディレクトリに置いた marketplace で行った。
+- git から足した marketplace でも同じだった。この決定のブランチを
+  `claude plugin marketplace add "etoyama/insight-blueprint-skills#claude/marketplace-version-955437"` で足して install すると、
+  marketplace の clone はブランチの先端（`bc2522f`）で、入った plugin は `0.13.0`、記録の commit はタグ `v0.13.0` の `cc7ad2b` だった。
+  cache の中身は `git archive v0.13.0` と一致した（`.git` を除いて `diff -rq` で差なし）。
+- `claude plugin update` で版が上がっても、`installed_plugins.json` の `gitCommitSha` は前の版のままだった。中身の確認には使えない。
 
 ## Problem
 
@@ -63,14 +68,14 @@ v0.10.0 の実機確認（2026-11-20）で、同じ版番号 `0.10.0` の中身�
 | W1 | 増えるのは `marketplace.json` の3行だけ。利用者の手順は変わらず、すでに marketplace を足した人にも効く | ブランチが1本増える。README の手順が変わり、すでに足した人は足し直さないと `main` を追い続ける |
 | W2 | 版を上げる箇所が2つから3つになる。上げ忘れは構造テストが落とす。マージからタグまでの間は install が失敗する（黙って別の中身が入ることはない） | リリースのたびに `stable` を進める手順が増える。進め忘れても何も落ちず、古い中身が配られ続ける |
 
-- 差がつく基準: W1 と W2 の両方。どちらも A が勝つ。
-- 感度: どの重みを動かしても変わらない。マージからタグまでの失敗を許せないなら、B に変わる。
+- 差がつく基準: W1 と W2 の両方。どちらも A が勝つ。重みの高い W1 が決め手になる。
+- 感度: W1 の重みを下げても W2 で A が勝つので、結論は変わらない。「マージからタグまでの間も install が失敗しない」を Must に足すと、A が落ちて B に変わる。
 
 | 案 | 起きうる悪い結果 | 抑え方 |
 |---|---|---|
 | A | 版を上げる PR をマージしてからタグを push するまで、新しい install と update が失敗する | RELEASE.md に、マージの直後にタグを push すると書く。失敗は `Remote branch vX.Y.Z not found` と出るので、原因が読める |
-| A | push したタグを消すか動かすと、install が失敗するか、同じ版の中身がまた2つになる | RELEASE.md の Troubleshooting に書く |
-| A | 自分自身をタグで指す形は公式ドキュメントに無く、Claude Code の更新で動きが変わりうる | リリースの確認（RELEASE.md の Step 4 の前後）で、marketplace から入る版を見る |
+| A | push したタグを消すか動かすと、install が失敗するか、同じ版の中身がまた2つになる | PyPI への publish が失敗してタグを打ち直すときは、間に publish を直す変更だけを挟む。RELEASE.md の Troubleshooting に書く |
+| A | 自分自身をタグで指す形は公式ドキュメントに無く、Claude Code の更新で動きが変わりうる | リリースの確認（RELEASE.md の Step 4）で、marketplace から入る版を見る |
 | B | `stable` の進め忘れで、古い中身が配られ続ける | 手順に書くしかない |
 | C | 利用者が古い版に留まり、直した不具合が届かない | なし |
 | 何もしない | 課題1と課題2が残る | マージとリリースを続けて行う（v0.11.0 でやった。仕組みでは塞がない） |
@@ -83,7 +88,7 @@ A を採る。決め手は W1（リポジトリに増えるものが最も少な
   `{"source": "github", "repo": "etoyama/insight-blueprint-skills", "ref": "vX.Y.Z"}` にする。
 - `ref` は `plugin.json` の `version` に `v` を付けたものにする。`tests/test_plugin_structure.py` が、ずれを落とす。
 - リリースでは版を上げる PR で `ref` も上げ、マージの直後にタグを push する。タグを打つのは人間のままである。
-- push したタグは動かさない。
+- push したタグは、plugin の中身が違う commit へ動かさない。PyPI への publish が失敗してタグを打ち直すときは、間に publish を直す変更だけを挟む。
 
 ## Consequences
 
@@ -98,7 +103,7 @@ A を採る。決め手は W1（リポジトリに増えるものが最も少な
 - 版を上げる PR をマージしてからタグを push するまで、新しい install と update が失敗する。入れてある plugin は動き続ける。
 - この checkout をローカルの marketplace として足しても、入るのはタグの中身である。手元の変更を試すときは `--plugin-dir` を使う。
 - すでに `0.13.0` を `main` の途中の commit から入れた cache は、次の版まで入れ替わらない。
-- 自分自身をタグで指す形は公式ドキュメントに無い。git から足した marketplace での動きは、この PR のブランチを marketplace として足して確かめた（PR 説明に書く）。
+- 自分自身をタグで指す形は公式ドキュメントに無い。Claude Code の更新で動かなくなったら、リリースの確認（RELEASE.md の Step 4）で気づく。
 
 ## Alternatives considered
 

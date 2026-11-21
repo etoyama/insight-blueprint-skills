@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The marketplace now hands out the release tag instead of the tip of `main`, so a version
   number names one content. Changes merged after a release reach you with the next version,
-  not on a fresh install in between (#106).
+  not on a fresh install in between. This holds from the day the fix is merged, for 0.13.0
+  too (#106).
 
 ## [0.13.0] - 2026-11-22
 
