@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   「約1.9倍」 when the hypothesis compared two numbers. A ratio, a difference, or a percent change
   between two stated numbers now counts as a computed number, so the report no longer writes one
   unless an input states it.
+- A design branched off in `/analysis-journal` is now linked to the question nodes of its
+  source (`tree_io link-derived`), so it shows in the progress, in the position of the walk and
+  in the theme reflection. Nobody is asked for the node
+  ([ADR-0033](docs/adr/0033-derived-design-inherits-the-nodes-of-its-source.md), #134).
 
 ## [0.13.0] - 2026-11-22
 
