@@ -414,6 +414,16 @@ class TestReleaseProcedure:
         assert "pyproject.toml" in step
         assert ".claude-plugin/plugin.json" in step
 
+    def test_version_bump_names_the_marketplace_ref(self) -> None:
+        step = section(_read("docs/RELEASE.md"), "## Step 1")
+        assert ".claude-plugin/marketplace.json" in step
+        assert "adr/0032-" in step
+
+    def test_tag_step_says_installs_wait_for_the_tag(self) -> None:
+        """Between the merge and the tag, the marketplace points at a tag that does not exist."""
+        step = section(_read("docs/RELEASE.md"), "## Step 3")
+        assert "marketplace" in step
+
     def test_preflight_covers_the_publish_action(self) -> None:
         """A local twine check does not run the twine bundled in the publish action."""
         step = section(_read("docs/RELEASE.md"), "## Step 2")
