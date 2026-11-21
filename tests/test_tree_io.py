@@ -417,6 +417,149 @@ def _rendered(insight: Path) -> str:
     return Path(tree_io.render("LIB", base_dir=insight)["path"]).read_text("utf-8")
 
 
+class TestPosition:
+    """US-8 AC 1: where a run resumes comes from the last decision and its designs."""
+
+    @pytest.fixture
+    def started(self, tree: Path) -> Path:
+        """LIB-Q02 under the root, named by the start decision."""
+        _add(tree)
+        tree_io.decide(
+            "LIB", kind="start", node_id="LIB-Q02", reason="最初に", base_dir=tree
+        )
+        return tree
+
+    @staticmethod
+    def _designed(base: Path, node_id: str = "LIB-Q02") -> str:
+        design_id = _design(base)
+        tree_io.link_design("LIB", node_id, design_id, base_dir=base)
+        return design_id
+
+    def test_a_theme_without_a_tree_has_no_tree(self, insight: Path) -> None:
+        assert tree_io.position("LIB", base_dir=insight) == {"state": "no_tree"}
+
+    def test_a_tree_without_a_decision_has_no_decision(self, tree: Path) -> None:
+        assert tree_io.position("LIB", base_dir=tree) == {"state": "no_decision"}
+
+    def test_a_decided_node_without_a_design_is_not_started(
+        self, started: Path
+    ) -> None:
+        position = tree_io.position("LIB", base_dir=started)
+
+        assert position["state"] == "not_started"
+        assert position["node_id"] == "LIB-Q02"
+        assert position["design_ids"] == []
+        assert position["decision"]["kind"] == "start"
+
+    def test_an_unfinished_design_on_the_node_is_in_progress(
+        self, started: Path
+    ) -> None:
+        design_id = self._designed(started)
+
+        position = tree_io.position("LIB", base_dir=started)
+        assert (position["state"], position["design_ids"]) == (
+            "in_progress",
+            [design_id],
+        )
+
+    def test_a_design_made_and_finished_after_the_decision_is_concluded(
+        self, started: Path
+    ) -> None:
+        design_id = self._designed(started)
+        _finish(started, design_id)
+
+        position = tree_io.position("LIB", base_dir=started)
+        assert (position["state"], position["design_ids"]) == ("concluded", [design_id])
+
+    def test_deciding_to_deepen_the_same_node_makes_it_not_started_again(
+        self, started: Path
+    ) -> None:
+        _finish(started, self._designed(started))
+        tree_io.decide(
+            "LIB", kind="deepen", node_id="LIB-Q02", reason="もう一本", base_dir=started
+        )
+
+        position = tree_io.position("LIB", base_dir=started)
+        assert (position["state"], position["design_ids"]) == ("not_started", [])
+
+    def test_an_unfinished_design_older_than_the_decision_is_still_in_progress(
+        self, started: Path
+    ) -> None:
+        design_id = self._designed(started)
+        tree_io.decide(
+            "LIB",
+            kind="deepen",
+            node_id="LIB-Q02",
+            reason="仮説を直す",
+            base_dir=started,
+        )
+
+        position = tree_io.position("LIB", base_dir=started)
+        assert (position["state"], position["design_ids"]) == (
+            "in_progress",
+            [design_id],
+        )
+
+    def test_in_progress_names_only_the_unfinished_designs(self, started: Path) -> None:
+        _finish(started, self._designed(started))
+        unfinished = self._designed(started)
+
+        assert tree_io.position("LIB", base_dir=started)["design_ids"] == [unfinished]
+
+    def test_a_design_on_another_node_does_not_count(self, started: Path) -> None:
+        _add(started, question="別の論点")
+        self._designed(started, "LIB-Q03")
+
+        assert tree_io.position("LIB", base_dir=started)["state"] == "not_started"
+
+    def test_a_close_is_closed_at_its_node(self, started: Path) -> None:
+        _finish(started, self._designed(started))
+        tree_io.decide(
+            "LIB", kind="close", node_id="LIB-Q02", reason="ここまで", base_dir=started
+        )
+
+        position = tree_io.position("LIB", base_dir=started)
+        assert (position["state"], position["node_id"]) == ("closed", "LIB-Q02")
+
+    def test_a_decision_without_a_time_counts_every_finished_design_as_later(
+        self, started: Path
+    ) -> None:
+        design_id = self._designed(started)
+        _finish(started, design_id)
+        saved = tree_io.load_tree("LIB", started)
+        del saved["decisions"][0]["created_at"]
+        atomic_write_yaml(started / "themes" / "LIB_tree.yaml", saved)
+
+        position = tree_io.position("LIB", base_dir=started)
+        assert (position["state"], position["design_ids"]) == ("concluded", [design_id])
+
+    def test_it_writes_nothing(self, started: Path) -> None:
+        self._designed(started)
+        path = started / "themes" / "LIB_tree.yaml"
+        before = path.read_bytes()
+
+        tree_io.position("LIB", base_dir=started)
+        assert path.read_bytes() == before
+
+    def test_the_cli_prints_the_position(
+        self, started: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        code = tree_io._main(["position", "--theme", "LIB", "--base-dir", str(started)])
+
+        assert code == 0
+        assert json.loads(capsys.readouterr().out)["state"] == "not_started"
+
+    def test_the_cli_says_where_it_looked_when_there_is_no_tree(
+        self, insight: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        code = tree_io._main(["position", "--theme", "LIB", "--base-dir", str(insight)])
+
+        captured = capsys.readouterr()
+        assert code == 0
+        assert json.loads(captured.out) == {"state": "no_tree"}
+        assert str((insight / "themes" / "LIB_tree.yaml").resolve()) in captured.err
+
+
 @pytest.fixture
 def world(tree: Path) -> Path:
     """LIB-Q02 and LIB-Q03 under the root, each with a design and a journal."""

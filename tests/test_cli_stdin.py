@@ -33,6 +33,7 @@ NO_PAYLOAD = [
     ("tree_io", "copy-hearing", "--theme", "LIB", "--node", "LIB-Q01")
     + ("--design", "LIB-H01"),
     ("tree_io", "get", "--theme", "LIB"),
+    ("tree_io", "position", "--theme", "LIB"),
     ("tree_io", "progress", "--theme", "LIB"),
     ("tree_io", "render", "--theme", "LIB"),
 ]
