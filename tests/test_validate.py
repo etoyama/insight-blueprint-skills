@@ -80,7 +80,7 @@ class TestValidateTransition:
         with pytest.raises(ValueError) as exc:
             validate_transition(DesignStatus.analyzing, DesignStatus.revision_requested)
         assert str(exc.value).endswith(
-            "Valid targets: inconclusive, in_review, rejected, supported"
+            "Valid targets: in_review, inconclusive, rejected, supported"
         )
 
 
@@ -189,7 +189,7 @@ class TestValidateDesignChange:
 
     def test_existing_invalid_transition_returns_errors(self) -> None:
         current = make_design(status="analyzing")
-        new = make_design(status="supported")
+        new = make_design(status="revision_requested")
         errors = validate_design_change(new, current)
         assert errors
         assert any("transition" in e.lower() for e in errors)
