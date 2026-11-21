@@ -51,75 +51,75 @@ AC の正本はここ。
 
 分析者として、最初に AI に委ねる論点を納得して選ぶために、着手のときに根の問いと到達点、暫定の第一階層、最初の論点とそれを選んだ理由を論点ツリーに残したい。
 
-- [ ] AC 1: `/analysis-framing` は、合意した方向から論点ツリーを作る。ツリーは根の問い、到達点、第一階層の論点を持ち、各論点は問いの文と寄与を持つ。
+- [x] AC 1: `/analysis-framing` は、合意した方向から論点ツリーを作る。ツリーは根の問い、到達点、第一階層の論点を持ち、各論点は問いの文と寄与を持つ。
   到達点は業務なら `decision_maker` と `decision`、研究なら想定読者と主張の範囲である。
-- [ ] AC 2: `/analysis-framing` は、最初に調べる論点と選んだ理由をツリーの決定（種類 `start`）として残す。第二階層が空でもツリーを作れる。
-- [ ] AC 3: Framing Brief に `theme_id` と最初の論点の id を載せる。`/analysis-design` は、その論点に作った分析設計を結ぶ。
-- [ ] AC 4: 研究で RQ Brief から来たとき、RQ Brief に想定読者が無ければ、`/analysis-framing` が分析者に聞いて到達点に入れる。
-- [ ] AC 5: 根の問いか到達点を変えられるのは `/analysis-framing` の再実行だけである。変えるときは根の版を上げるかを分析者に聞き、上げたら版と理由を残す。
+- [x] AC 2: `/analysis-framing` は、最初に調べる論点と選んだ理由をツリーの決定（種類 `start`）として残す。第二階層が空でもツリーを作れる。
+- [x] AC 3: Framing Brief に `theme_id` と最初の論点の id を載せる。`/analysis-design` は、その論点に作った分析設計を結ぶ。
+- [x] AC 4: 研究で RQ Brief から来たとき、RQ Brief に想定読者が無ければ、`/analysis-framing` が分析者に聞いて到達点に入れる。
+- [x] AC 5: 根の問いか到達点を変えられるのは `/analysis-framing` の再実行だけである。変えるときは根の版を上げるかを分析者に聞き、上げたら版と理由を残す。
 
 ### US-2: 分析者が、論点から分析設計と証拠へ辿れる
 
 分析者として、どこを調べていて何が未判別かを把握するために、各論点の進捗と、ひもづく分析設計を見たい。
 
-- [ ] AC 1: 進捗は保存しない。ひもづく分析設計の状態から導く。分析設計が無ければ未着手、terminal status でないものが1つでもあれば検証中、すべて terminal status なら分析済み。unit test で確かめる。
-- [ ] AC 2: journal の `question` を論点に昇格できる。昇格した論点は発見元としてその出来事の id を持つ。着手のときに置いた論点は発見元を持たない。
-- [ ] AC 3: 1つの分析設計を複数の論点に結べる。
-- [ ] AC 4: 論点ツリーの書き込みは `tree_io` を通す。`validate.py` が形を検証し、pre-write hook は `*_tree.yaml` への直接の書き込みも検証する。
+- [x] AC 1: 進捗は保存しない。ひもづく分析設計の状態から導く。分析設計が無ければ未着手、terminal status でないものが1つでもあれば検証中、すべて terminal status なら分析済み。unit test で確かめる。
+- [x] AC 2: journal の `question` を論点に昇格できる。昇格した論点は発見元としてその出来事の id を持つ。着手のときに置いた論点は発見元を持たない。
+- [x] AC 3: 1つの分析設計を複数の論点に結べる。
+- [x] AC 4: 論点ツリーの書き込みは `tree_io` を通す。`validate.py` が形を検証し、pre-write hook は `*_tree.yaml` への直接の書き込みも検証する。
 
 ### US-3: 分析者が、テーマを横断して現時点の答えと次の一手を把握できる
 
 分析者として、同じ論点を深めるか、親に戻るか、区切るかを決めるために、テーマに属する分析設計を横断した現時点の答えと次の候補を見たい。
 
-- [ ] AC 1: `/analysis-reflection` はテーマを渡されると、論点ごとに、ひもづく分析設計とその journal を読んで現時点の答えを書く。答えの文はそれぞれ、種類（言えること・未判別・弱める証拠と留保）と、引用する journal の出来事の id を1つ以上持つ。
-- [ ] AC 2: 親の論点の答えは子の論点の進捗の数から推定しない。子孫の論点にひもづく分析設計の出来事を引用して書く。
-- [ ] AC 3: 現時点の答えは追記だけで、振り返りの回と根の版を持つ。前の回と答えが変わった論点を分析者に示す。
-- [ ] AC 4: 次の候補として、未着手の論点を示す。候補には、人に聞く問い、その答えで変わる判断、catalog とドメイン知識から分かっていることを添えられる。分析者が聞いてきた答えは、誰に聞いたかと日付を添えて次の候補に残せる。その論点に分析設計を起こすとき、答えを journal に写す。データソースは `catalog_io list` で読み、`connection` の値を論点ツリーに書かない（[ADR-0022](../adr/0022-connection-reaches-only-the-notebook.md)）。
-- [ ] AC 5: 分析者が選んだ決定（`deepen`・`return`・`close`）と理由を、ツリーの決定として残す。
+- [x] AC 1: `/analysis-reflection` はテーマを渡されると、論点ごとに、ひもづく分析設計とその journal を読んで現時点の答えを書く。答えの文はそれぞれ、種類（言えること・未判別・弱める証拠と留保）と、引用する journal の出来事の id を1つ以上持つ。
+- [x] AC 2: 親の論点の答えは子の論点の進捗の数から推定しない。子孫の論点にひもづく分析設計の出来事を引用して書く。
+- [x] AC 3: 現時点の答えは追記だけで、振り返りの回と根の版を持つ。前の回と答えが変わった論点を分析者に示す。
+- [x] AC 4: 次の候補として、未着手の論点を示す。候補には、人に聞く問い、その答えで変わる判断、catalog とドメイン知識から分かっていることを添えられる。分析者が聞いてきた答えは、誰に聞いたかと日付を添えて次の候補に残せる。その論点に分析設計を起こすとき、答えを journal に写す。データソースは `catalog_io list` で読み、`connection` の値を論点ツリーに書かない（[ADR-0022](../adr/0022-connection-reaches-only-the-notebook.md)）。
+- [x] AC 5: 分析者が選んだ決定（`deepen`・`return`・`close`）と理由を、ツリーの決定として残す。
 
 ### US-4: 分析者に届く答えに、記録に無い数と参照が混ざらない
 
 分析者として、答えを信じて次の判断をするために、現時点の答えに記録に無い数や存在しない参照が混ざっていたら、届く前に止まってほしい。
 
-- [ ] AC 1: ツリーの検査（`tree_check`）は次を違反として挙げる。引用した出来事が無い。引用先の分析設計が、その論点か子孫の論点にひもづいていない。文に出てくる数が、引用した出来事の本文に無い。unit test で確かめる。
-- [ ] AC 2: `/analysis-reflection` は答えを書いた後にツリーの検査を回す。違反があれば分析者に届ける前に直し、直せなければその文を除いて、除いたことを伝える。
-- [ ] AC 3: #105 と同じ型の再現を持つ。合成シナリオで、引用した2つの出来事の数から作った比を含む文を、ツリーの検査が違反にする。
+- [x] AC 1: ツリーの検査（`tree_check`）は次を違反として挙げる。引用した出来事が無い。引用先の分析設計が、その論点か子孫の論点にひもづいていない。文に出てくる数が、引用した出来事の本文に無い。unit test で確かめる。
+- [x] AC 2: `/analysis-reflection` は答えを書いた後にツリーの検査を回す。違反があれば分析者に届ける前に直し、直せなければその文を除いて、除いたことを伝える。
+- [x] AC 3: #105 と同じ型の再現を持つ。合成シナリオで、引用した2つの出来事の数から作った比を含む文を、ツリーの検査が違反にする。
 
 ### US-5: 分析者と引き継いだ人が、ツリーを図で読める
 
 分析者として、全体像と現在地をひと目でつかむために、論点ツリーを手元の図で読みたい。
 
-- [ ] AC 1: `tree_io render` は、正本から自己完結の HTML（`.insight/themes/{theme_id}_tree.html`）を作る。外部の script や stylesheet を読まず、同じ正本からは同じ HTML ができる。
-- [ ] AC 2: 各論点に、進捗と現時点の答えを文字で出す。色だけで区別しない。
-- [ ] AC 3: 論点を選ぶと、答えの各文と、引用した出来事（本文、分析設計の id、`direction`）が開く。
-- [ ] AC 4: 最新の振り返りの回で変わった答えと、根の版が古い答え（根の変更前の答え）を、それと分かるように出す。
-- [ ] AC 5: 論点の親子（寄与）と、分析設計の派生（`parent_id`）を別々に辿れる。
+- [x] AC 1: `tree_io render` は、正本から自己完結の HTML（`.insight/themes/{theme_id}_tree.html`）を作る。外部の script や stylesheet を読まず、同じ正本からは同じ HTML ができる。
+- [x] AC 2: 各論点に、進捗と現時点の答えを文字で出す。色だけで区別しない。
+- [x] AC 3: 論点を選ぶと、答えの各文と、引用した出来事（本文、分析設計の id、`direction`）が開く。
+- [x] AC 4: 最新の振り返りの回で変わった答えと、根の版が古い答え（根の変更前の答え）を、それと分かるように出す。
+- [x] AC 5: 論点の親子（寄与）と、分析設計の派生（`parent_id`）を別々に辿れる。
 
 ### US-6: 分析者が、承認した後に限りツリーを Artifact で渡せる
 
 分析者として、定例報告やレビューで現在地を見せるために、論点ツリーの図を URL で渡したい。
 
-- [ ] AC 1: Artifact として渡す手順は、送るファイルを列挙して KEEP ゲートで承認を待つ。承認は覚えない（[ADR-0016](../adr/0016-approval-before-external-send.md)）。
-- [ ] AC 2: Artifact が使えないホストでは、何も送らず、手元の HTML のパスを案内して終わる（[ADR-0015](../adr/0015-host-connectors-for-optional-features.md)）。
-- [ ] AC 3: 送るのは、手元で生成した HTML と同じファイルである。モデルに HTML を書かせない。
+- [x] AC 1: Artifact として渡す手順は、送るファイルを列挙して KEEP ゲートで承認を待つ。承認は覚えない（[ADR-0016](../adr/0016-approval-before-external-send.md)）。
+- [x] AC 2: Artifact が使えないホストでは、何も送らず、手元の HTML のパスを案内して終わる（[ADR-0015](../adr/0015-host-connectors-for-optional-features.md)）。
+- [x] AC 3: 送るのは、手元で生成した HTML と同じファイルである。モデルに HTML を書かせない。
 
 ### US-7: 開発者が、引き継ぎで判断が伝わるかを試せる
 
 開発者として、論点ツリーが判断の質を上げたかを確かめるために、合成シナリオで引き継ぎの試行を繰り返したい。
 
-- [ ] AC 1: 合成シナリオ（公共図書館の予約本）の fixture を持つ。着手時に分かっていた情報と、その後の観察を順に足す段階に分けてある。
-- [ ] AC 2: 文脈を持たない別の Claude セッションに HTML だけを渡し、[docs/PRD.md](../PRD.md) の成功基準の5つの問いに答えさせる手順がある。採点は文言でなく判断の一致で行う。
-- [ ] AC 3: 人による試行の記録の型がある。5つの問いへの答え、正誤、確認と再構成にかかった時間を残す。
+- [x] AC 1: 合成シナリオ（公共図書館の予約本）の fixture を持つ。着手時に分かっていた情報と、その後の観察を順に足す段階に分けてある。
+- [x] AC 2: 文脈を持たない別の Claude セッションに HTML だけを渡し、[docs/PRD.md](../PRD.md) の成功基準の5つの問いに答えさせる手順がある。採点は文言でなく判断の一致で行う。
+- [x] AC 3: 人による試行の記録の型がある。5つの問いへの答え、正誤、確認と再構成にかかった時間を残す。
 
 ### US-8: 分析者が、`/analysis-auto` ひとつから論点を順に調べられる
 
 分析者として、skill の名前と順番を覚えずに問いを委ねるために、`/analysis-auto` ひとつから着手し、論点を1つずつ調べて、次の論点を選ぶところまで進めたい。
 
-- [ ] AC 1: `/analysis-auto` はテーマを受けると、論点ツリーが無ければ `/analysis-framing` で作り、あれば最新のツリーの決定が指す論点から再開する。研究で RQ がまだ無ければ、framing の前に `/rq-problematization` を呼ぶ。論点ツリーが無いテーマの `design_id` を渡されたら、ツリーを作って巡回に入るか、その分析設計だけを流すかを聞く。ツリーを作るときは、既にある分析設計をどの論点に結ぶかを framing で分析者と決める。
-- [ ] AC 2: 1回の巡回は、論点に分析設計を起こし、premortem、notebook、journal、分析設計の振り返り、レポート、テーマを横断した振り返りを経て、ツリーの決定を残すまでである。
-- [ ] AC 3: 分析者に聞くのは KEEP ゲートだけである。guided autopilot の今のゲートに、根の問いと到達点、最初に調べる論点、ツリーの決定、根の版を上げるかどうか、ツリーの無いテーマでツリーを作るかどうかの5つを足す。
-- [ ] AC 4: 分析設計の結論が出たら（terminal status）、聞かずにレポートを書いて `/report-upload` を始める。ツリーの決定を聞くときは、レポートのパスと論点ツリーの HTML のパスを一緒に示す。結論が出ていない回はレポートを書かない。
-- [ ] AC 5: 分析者がツリーの決定で区切るを選ぶか、止めると言うまで巡回を続ける。巡回に使う skill は、それぞれ単独でも起動できる。
+- [x] AC 1: `/analysis-auto` はテーマを受けると、論点ツリーが無ければ `/analysis-framing` で作り、あれば最新のツリーの決定が指す論点から再開する。研究で RQ がまだ無ければ、framing の前に `/rq-problematization` を呼ぶ。論点ツリーが無いテーマの `design_id` を渡されたら、ツリーを作って巡回に入るか、その分析設計だけを流すかを聞く。ツリーを作るときは、既にある分析設計をどの論点に結ぶかを framing で分析者と決める。
+- [x] AC 2: 1回の巡回は、論点に分析設計を起こし、premortem、notebook、journal、分析設計の振り返り、レポート、テーマを横断した振り返りを経て、ツリーの決定を残すまでである。
+- [x] AC 3: 分析者に聞くのは KEEP ゲートだけである。guided autopilot の今のゲートに、根の問いと到達点、最初に調べる論点、ツリーの決定、根の版を上げるかどうか、ツリーの無いテーマでツリーを作るかどうかの5つを足す。
+- [x] AC 4: 分析設計の結論が出たら（terminal status）、聞かずにレポートを書いて `/report-upload` を始める。ツリーの決定を聞くときは、レポートのパスと論点ツリーの HTML のパスを一緒に示す。結論が出ていない回はレポートを書かない。
+- [x] AC 5: 分析者がツリーの決定で区切るを選ぶか、止めると言うまで巡回を続ける。巡回に使う skill は、それぞれ単独でも起動できる。
 
 ## Stories
 
@@ -1016,7 +1016,7 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| Story 18.1 | ✓ | ✓ | — （skill を通らない） |
+| Story 18.1 | ✓（`tests/test_tree_models.py`。US-1 AC 5 は `TestRootRevision`、US-2 AC 1 は `TestProgress`、AC 2 は `test_a_promoted_node_keeps_its_origin`・`test_an_origin_in_another_theme_is_rejected`） | ✓（`tests/test_tree_io.py`。US-1 AC 5 は `TestReviseRoot`、US-2 AC 1 は `TestProgress`、AC 2 は `TestPromoteJournalQuestion`、AC 3 は `test_one_design_can_be_linked_to_several_nodes`。US-2 AC 4 は `tests/test_validate_hook.py` の `test_an_edit_that_breaks_the_tree_is_blocked`・`test_a_tree_that_stores_progress_is_blocked` が、`*_tree.yaml` への直接の書き込みを hook が止めることを確かめる） | —（skill を通らない） |
 | Story 18.2 | ✓（`tests/test_tree_models.py` の `TestTreeDecision`、`tests/test_tree_io.py` の `TestDecide`） | ✓（`tests/skills/test_question_tree_structure.py`。SKILL.md に書いたコマンドを `tree_io` に通す。`tests/test_validate_hook.py` は決定を消す書き込みを hook が止めることを確かめる） | —（headless 実行の E2E は [ADR-0010](../adr/0010-skill-tdd-structure-tests.md) で必須にしていない。skill を通した手動確認は Story Timeline の 2026-11-21 に記録した） |
 | Story 18.3 | ✓（`tests/test_tree_models.py` の `TestAnswer`、`TestValidateTree`。`tests/test_tree_check.py` の `TestNumbersIn`、`TestFindViolations`、`TestTheNumberThatWasNeverRecorded`） | ✓（`tests/test_tree_check.py` の `TestCheckTheme`・`TestMain` は正本と journal のファイルを読ませる。`tests/integration/test_bin_wrappers.py` は `bin/tree_check` を別の cwd から通す。`tests/test_validate_hook.py` は答えを書き換える Edit を hook が止めることを確かめる） | — （CLI だけ） |
 | Story 18.4 | ✓（`tests/test_tree_io.py` の `TestAnswer`。US-3 AC 2 は `test_a_parent_may_cite_an_event_of_a_design_linked_below_it` と `test_citing_a_design_linked_only_to_a_sibling_branch_writes_nothing`、AC 3 は回と根の版と変わらない答えのテスト、US-4 AC 2 は違反があれば何も書かないテスト。`tests/test_tree_models.py` の `TestCurrentRound`。`tests/test_tree_check.py` の `TestCheckTree` と、符号の `TestNumbersIn`・`TestFindViolations`。`tests/test_tree_models.py` の `TestValidateTree` は答えを回で名指す） | ✓（`tests/skills/test_theme_reflection_structure.py`。SKILL.md に書いた `tree_io answer` を、合成の正本と journal に通す。US-3 AC 1 は `TestThemeReflectionWritesCitedAnswers`、AC 2 は `TestParentAnswersCiteDescendants`、AC 3 は `TestAnswersGoThroughTreeIo`、US-4 AC 2 は `TestViolationsAreFixedBeforeTheAnalystSeesThem`。`tests/test_tree_io.py` の `TestCli` は終了コード 0・1・3 を別プロセスで確かめる） | —（headless 実行の E2E は [ADR-0010](../adr/0010-skill-tdd-structure-tests.md) で必須にしていない。skill を通した手動確認は Story Timeline の 2026-11-21 に記録した） |
@@ -1070,3 +1070,5 @@ Artifact はホストの機能で、plugin は持たない。使えるかどう�
   - 試行で確かめていないこと: 人による試行（記録の型と手順だけを用意した）、sonnet 以外の読み手、`round-1` の段階での試行。
 - 2026-11-21 — Story 18.8 のレビュー（thermos）の指摘を直した。外へ送る経路は、モデルの API のほかに見つからなかった。直したのは次のとおり。(1) `build` は、`--out` に渡したディレクトリを確かめずに消していた。`build` が作った目印の無い、空でないディレクトリは消さずに止まる。(2) 鍵は問いを欠いても読めて、採点のときに `assert` で止まっていた。鍵を必須の型にした。(3) Claude の試行の記録に時間を入れても通っていた。(4) 「外には何も送らない」と書いていたが、問いと HTML はモデルの API に届く。文を正確にした。あわせて、`-m` で実行して `sys.path` の差し込みを消し、step 名を関数名にそろえ、比べ方を鍵の型に持たせた。fixture を `scripts/` へ移す指摘は、人間が選んだ置き場所（C1）を変えるので採っていない。
 - 2026-11-21 — q5 の理由の採点を、人間が DA で選んだ（このセッションで直接答えた）。それまでの「鍵の出来事を含めば正」は、出来事を全部挙げれば必ず正になった。選んだ案は、鍵を「必ず挙げる出来事」（`LIB-H02-E02`）と「挙げてもよい出来事」（`also_allowed`、`LIB-H02-E03`）に分けることである。必ず挙げる出来事をすべて含み、その2つの外を挙げなければ正とする。3回の試行の正誤は変わらない（誤、誤、正）。比べたのは、問いの文を絞って試行をやり直す案と、E03 だけでも正とする案である。
+- 2026-11-21 — 実データの試行（ib-notebook、e-Stat の被保護者調査と国勢調査）を1巡目から2巡目の入口まで回した。ツリーの巡回と中断からの再開を確かめた。見つけた不具合と不足は #138・#139・#140 にした（どれも main からあるか、Epic の範囲の外）。
+- 2026-11-21 — Epic のゲート: User Stories の AC 33件を、Test Design Matrix に書いたテストと照らして確かめ、チェックを付けた。Matrix に書いたテストのクラスと関数がすべて実在することを確かめた。
