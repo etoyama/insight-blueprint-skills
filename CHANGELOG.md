@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`/analysis-reflection` shows what to read before it asks for a conclusion.** Step 2 now
+  lists the figures, the verdict and the notebook (`.py` and `.html`) of the design that
+  exist under `.insight/notebooks/`, each figure with the title, axes and how-to-read of its
+  manifest entry, and every metric of the design as written. Nothing new is written or
+  embedded; the analyst opens the files (#140).
+
 ### Changed
 
 - **An analyzed design can be concluded directly.** `design_io transition` (and the pre-write
