@@ -6,11 +6,14 @@ as stdin, so a command that reads it waits forever.
 
 from __future__ import annotations
 
+import io
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
+
+from skills._shared import catalog_io, design_io, tree_io
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -46,7 +49,7 @@ def test_a_command_without_payload_returns_while_stdin_stays_open(
         + ["--base-dir", str(insight)],
         stdin=subprocess.PIPE,
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
         cwd=REPO,
     )
     try:
@@ -57,3 +60,31 @@ def test_a_command_without_payload_returns_while_stdin_stays_open(
     finally:
         assert proc.stdin is not None
         proc.stdin.close()
+    assert proc.stderr is not None
+    err = proc.stderr.read().decode()
+    # An exit that never reached the command would pass the wait as well.
+    assert "usage:" not in err
+    assert "ImportError" not in err
+    assert "ModuleNotFoundError" not in err
+
+
+@pytest.mark.parametrize(
+    "module, command",
+    [
+        (m, c)
+        for m in (design_io, catalog_io, tree_io)
+        for c in sorted(m._TAKES_PAYLOAD)
+    ],
+    ids=lambda v: v if isinstance(v, str) else v.__name__.rsplit(".", 1)[-1],
+)
+def test_a_command_with_payload_reads_stdin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, module, command: str
+) -> None:
+    stdin = io.StringIO("{}")
+    monkeypatch.setattr(sys, "stdin", stdin)
+    try:
+        theme = ["--theme", "LIB"] if module is tree_io else []
+        module._main([command, *theme, "--base-dir", str(tmp_path)])
+    except Exception:  # an empty payload is not a valid call; only the read matters
+        pass
+    assert stdin.tell() == 2
