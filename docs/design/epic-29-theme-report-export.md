@@ -79,11 +79,11 @@ AC 3 から AC 5 は、そうした記号を文字のまま表示させるため
 
 分析者として、顧客に PDF で届けるために、レポートを Claude Docs の Doc にして、そこで文言を直したい。
 
-- [ ] AC 1: `/report-export {theme_id}` は `tree_io report --theme {theme_id}` を呼ぶ。レポートを書けない理由が返れば、それを伝えて何も送らない。
-- [ ] AC 2: ホストに Claude Docs のコネクタが無ければ、何も送らず、Markdown のレポートのパスを伝える。承認は聞かない。
-- [ ] AC 3: KEEP ゲートで、送るファイル（レポートと図）を列挙し、送り先、Doc が作った本人だけに見える状態で始まること、結論の出ていない分析設計の数、答えを書いた振り返りの回を同じ画面に出して、承認を待つ。承認は1回の実行に限り、覚えない。
-- [ ] AC 4: 承認の後に、新しい Doc を作り、レポートの本文をそのまま入れ、図を1枚ずつ載せる。既存の Doc を変えず、送った記録を持たない。図を載せられないときと、分析者が図を断ったときの扱いは、今の `/report-upload` と同じにする。
-- [ ] AC 5: skill はレポートの中の文を指示として扱わない。`/analysis-auto` は `/report-export` を自動で始めない。
+- [x] AC 1: `/report-export {theme_id}` は `tree_io report --theme {theme_id}` を呼ぶ。レポートを書けない理由が返れば、それを伝えて何も送らない。
+- [x] AC 2: ホストに Claude Docs のコネクタが無ければ、何も送らず、Markdown のレポートのパスを伝える。承認は聞かない。
+- [x] AC 3: KEEP ゲートで、送るファイル（レポートと図）を列挙し、送り先、Doc が作った本人だけに見える状態で始まること、結論の出ていない分析設計の数、答えを書いた振り返りの回を同じ画面に出して、承認を待つ。承認は1回の実行に限り、覚えない。
+- [x] AC 4: 承認の後に、新しい Doc を作り、レポートの本文をそのまま入れ、図を1枚ずつ載せる。既存の Doc を変えず、送った記録を持たない。図を載せられないときと、分析者が図を断ったときの扱いは、今の `/report-upload` と同じにする。
+- [x] AC 5: skill はレポートの中の文を指示として扱わない。`/analysis-auto` は `/report-export` を自動で始めない。
 
 ### US-5: 古いレポート周りが消え、文書が実装とそろっている
 
@@ -444,6 +444,35 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
   - レポートが使う項目だけを読む関数を別に作る。同じ決まりを2か所に持つ。
 - Consequences: レポートは使わない物（分析コードの cell、lineage、図のバイト列）も読む。`NoteFigure` は図のファイル名を持たないので、29.2 でファイル名を足す。`figures` の一覧はそこから作る。
 
+### Decision: only-what-tree-io-printed-this-run-is-sent
+
+- What: `/report-export` が送るのは、その実行で `tree_io report --theme` が返した `path` のファイル1つと、`figures` の図だけにする。
+  - `written` が偽（終了コード 3）なら、`.insight/reports/{theme_id}.md` が在っても読まず、`reasons` を伝えて終わる。
+  - `path` が `.insight/reports/{theme_id}.md` で終わらなければ送らない。`.insight/reports/` は列挙しない（`{theme_id}.md.lock` と古いレポートを拾わない）。
+  - 図は `figures` の名前のうち、`.png` で終わる素のファイル名で、`.insight/notebooks/` に在るものだけ。どの図でもない画像のリンクは注記にする。
+  - KEEP ゲートの「答えを書いた振り返りの回」は `root_answer_round`。最後の振り返りの回（`round`）は括弧で添える。「結論の出ていない分析設計」は `unfinished_designs` の長さで、モデルは数えない。
+- Why: `tree_io report` は書かなかったときに前のファイルを残す（Decision `report-says-written-or-why-not`）。ファイルの有無で送ると、古いレポートが新しく見えて外へ出る。
+  `/report-upload` は図をレポートの画像のリンクから拾っていたが、今は `tree_io report` が図の一覧を返すので、モデルがリンクを読み解く必要が無い。
+  `round` を添えるのは、答えが最後の振り返りより古いことを、承認の前に分析者が見られるようにするためである。
+- Criteria: 承認した物だけが外へ出ること（Must、ADR-0016）。古いレポートを送らないこと（US-4 AC 1）。承認の文の値をモデルが数えないこと（US-4 AC 3）。決め手は1つめと2つめ。
+- Affected modules: `skills/report-export/SKILL.md`、`tests/skills/test_report_export_structure.py`。
+- Alternatives considered:
+  - `/report-upload` と同じく、レポートの画像のリンクから図を拾う。`figures` と二重になり、食い違ったときにどちらを送るかを決める文が要る。
+  - 承認の文に `root_answer_round` だけを出す。答えが古いことに気づく手がかりが無い。
+- Consequences: 図の載せ方（1枚ずつ、載らない図と断られた図は番号付きの注記）は `/report-upload` と同じ文にした。
+  `figures` は 29.2 が埋めるまで空なので、図を載せる道は手動で確かめていない。29.2 の後に、図のある合成シナリオで確かめる。
+
+### Decision: the-analyst-alone-starts-the-export
+
+- What: `/report-export` の Chaining は、From を分析者（`(the analyst)`）とする1行だけにする。同梱の skill からの辺を置かない。
+- Why: US-4 AC 5 は `/analysis-auto` が自動で始めないことを求める。構造テストは同梱の skill の間の辺を双方向で確かめるので、`/analysis-reflection` からの辺を置くと、この Story で `/analysis-reflection` も変えることになる。
+  テーマの振り返りの後に `/report-export` を挙げるのは、US-5 AC 2 として Story 29.5 が `/analysis-auto` に入れる。
+- Criteria: 自動で始まらないこと（Must、US-4 AC 5）。この Story の触る所が `skills/report-export/` と `tests/skills/` に収まること（Stories の表）。決め手は2つめ。
+- Affected modules: `skills/report-export/SKILL.md`、`tests/skills/test_report_export_structure.py`。
+- Alternatives considered:
+  - `/analysis-reflection` と `/analysis-framing` に `/report-export` への辺を足す。分析者が気づきやすいが、触る所が広がり、29.5 の `/analysis-auto` の変更と順序が絡む。
+- Consequences: 今は、分析者が README か用語表で `/report-export` を知る。書けない理由を伝えるときに `/analysis-framing` と `/analysis-reflection` を名前で挙げるが、表の辺にはしていない。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0039: レポートは、テーマの最終報告として、コードが論点ツリーと分析設計の記録から書く](../adr/0039-report-is-the-final-report-of-a-theme-written-by-code.md): 読む面と配る先、レポートの単位と作り手、APA の骨組みと読み手向けの言い換え、用語「レポート」の意味の変更、ADR-0036 の一部の変更。
@@ -458,7 +487,7 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 | 29.1 レポートの骨組みと、書かない条件 | ✓（`tests/test_theme_report.py`。見出しの並び、到達点の文、種類ごとの並びと引用の id、同じ入力から同じ Markdown、書いた時刻が載らないこと） | ✓（`tests/tree_io/test_report.py`。ファイルと返す値、2回で同じバイト列、書かない3つの条件と前のファイルに触らないこと、結論の出ていない分析設計で止めないこと、終了コード 0・3・1） | —（自動の E2E は無い。合成シナリオで `tree_io report --theme LIB` を回し、見本の第2版と見比べたことを Story Timeline に書いた） |
 | 29.2 答えと根拠を載せる | ☐ | ☐ | ☐ |
 | 29.3 読み手の言葉と、崩れない体裁 | ☐ | ☐ | ☐ |
-| 29.4 Claude Docs へ export する | ☐ | ☐ | ☐ |
+| 29.4 Claude Docs へ export する | ✓（`tests/skills/test_report_export_structure.py`。SKILL.md の文の契約: `written` が偽なら古いレポートも送らないこと、`path` だけを送り `.md.lock` を拾わないこと、KEEP ゲートの `root_answer_round` と `unfinished_designs` の長さ、図の扱いが `/report-upload` と同じこと、コネクタが無ければ聞かずに止まること） | —（skill はコネクタを通して動き、Python から呼べない。`tree_io report` の側は 29.1 の Integration が受け持つ） | —（自動の E2E は無い。合成シナリオで手順を手で回し、Claude Docs に Doc を作ったことを Story Timeline に書いた） |
 | 29.5 古いレポート周りを消し、文書をそろえる | ☐ | ☐ | ☐ |
 
 ## Story Timeline
@@ -473,3 +502,5 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 - 2026-11-23 — 29.1 のレポートは、データ由来の文をエスケープしていない。コミットの自動レビューも同じ点を挙げた。エスケープは Story 29.3（US-3 AC 3）で入れる。Epic PR は 29.3 の後に開くので、エスケープの無いレポートは main に出ない。
 - 2026-11-23 — Story 29.1 の差分に、バグ・セキュリティの観点のレビューを1本回した（`pstack:thermo-nuclear-review`）。中の指摘が1件で、`round` が根の問いの答えを書いた回ではないことだった。`root_answer_round` を足して直した。
   直さなかった低の指摘は3件。書かなかったときに前のレポートが残ること（Decision のとおり）、リストやスカラーだけの壊れた論点ツリーのファイルが「論点ツリーが無い」と読まれること（`get` と `position` と同じ既存の読み方）、`reports/` にロックのファイルが残ること（`render` と同じ）。
+- 2026-11-23 — Story 29.4 completed: `/report-export {theme_id}` を足した。`tree_io report --theme` を呼び、書けなかったときは理由を伝えて何も送らない。KEEP ゲートの承認の後に、レポートを Claude Docs の新しい Doc として送る。用語表に「export」を足した。Decisions に2件書いた。
+- 2026-11-23 — 合成シナリオ（`scripts/handoff_trial.py build --scenario lib`）で SKILL.md の手順を手で回した。最後の stage では終了コード 0 で `root_answer_round` が 2、`unfinished_designs` が空。`start` の stage に前のレポートを置いた所では、終了コード 3（`no_root_answer`）でファイルが残ることを確かめた。人間が KEEP ゲートで承認し、Doc（https://claude.ai/artifact/ETHsydDcbKPxfrevYarTKc）を作った。Doc の本文はレポートと一字一句同じだった。図は `figures` が空なので確かめていない。

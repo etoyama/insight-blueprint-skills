@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   answer under the current root revision, or when the tree check finds a violation. The sections
   after the Abstract are still empty headings
   ([ADR-0039](docs/adr/0039-report-is-the-final-report-of-a-theme-written-by-code.md), #177).
+- **`/report-export {theme_id}` exports the final report of a theme to Claude Docs.** It has
+  `tree_io report` write the report, lists the report and its figures with the round that wrote
+  the root's answer and the number of unconcluded designs, and creates a new Doc only after you
+  approve. When the report cannot be written, it tells you why and sends nothing, even if an older
+  report is on disk. Without the host's Claude Docs connector nothing is sent
+  ([ADR-0040](docs/adr/0040-report-export-sends-the-report-to-claude-docs.md), #177).
 
 ## [0.15.0] - 2026-11-23
 
