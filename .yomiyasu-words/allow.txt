@@ -45,6 +45,7 @@ Artifact
 巡回の現在地
 framing
 notebook
+データ取得の cell
 verdict
 figures manifest
 効果量

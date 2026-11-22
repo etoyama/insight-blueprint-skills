@@ -71,11 +71,11 @@ AC の正本はここ。
 
 分析者として、結果がどう作られたかを確かめるために、分析ノートの中で分析コードと分析の経過を読みたい。
 
-- [ ] AC 1: notebook の `.py` を cell ごとに切り出し、開閉できる形で出す。
-- [ ] AC 2: データ取得の cell は載せず、手元の `.py` で読むことを書く。notebook が契約の形でなく、データ取得の cell を特定できないときは、コードを1つも載せない。
-- [ ] AC 3: 「分析の経過」の節に、verdict の `conclusion` と journal のすべての出来事を、時刻の順に、種類の言葉を付けて畳んで出す。節の冒頭に、分析中の判断と解釈の記録であることを書く。
-- [ ] AC 4: lineage の Mermaid の文字を、畳んで出す。図としては描かない。
-- [ ] AC 5: 「手元のファイル」の節に、notebook の `.py`・verdict・lineage・notebook の HTML・レポートのうち、在るものへの相対リンクを出す。節の冒頭に、手元で開いたときだけ開けることを書く。
+- [x] AC 1: notebook の `.py` を cell ごとに切り出し、開閉できる形で出す。
+- [x] AC 2: データ取得の cell は載せず、手元の `.py` で読むことを書く。notebook が契約の形でなく、データ取得の cell を特定できないときは、コードを1つも載せない。
+- [x] AC 3: 「分析の経過」の節に、verdict の `conclusion` と journal のすべての出来事を、時刻の順に、種類の言葉を付けて畳んで出す。節の冒頭に、分析中の判断と解釈の記録であることを書く。
+- [x] AC 4: lineage の Mermaid の文字を、畳んで出す。図としては描かない。
+- [x] AC 5: 「手元のファイル」の節に、notebook の `.py`・verdict・lineage・notebook の HTML・レポートのうち、在るものへの相対リンクを出す。節の冒頭に、手元で開いたときだけ開けることを書く。
 
 ### US-3: 分析者と読み手が、結論の後は同じ分析ノートで結論まで読める
 
@@ -141,6 +141,7 @@ Story は親のセッションが起票した（2026-11-22）。「触る所」�
 この Epic で追加・変更した語。定義の正本は [docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md)。
 
 - 追加: 分析ノート（[ADR-0036](../adr/0036-design-note-is-a-generated-page-per-design.md)。コード上の名前 `design_note` は、28.1 で実装と同じコミットで用語表に足す）
+- 追加: データ取得の cell（28.2 で用語表に足した。コード上の名前は `raw_df`）
 - 変更: 読むもの（ADR-0036。28.5 で用語表を改める）
 - 変更: アップロード（[ADR-0037](../adr/0037-tree-upload-sends-the-design-notes.md)。28.6 で用語表を改める）
 
@@ -227,7 +228,7 @@ flowchart TD
 
 `src/insight_blueprint/models/` のクラスは変えない。分析ノートは既存の型と notebook の出力から読んだ値を並べた生成物である。
 下の図の `DesignNote`・`NoteSource`・`NoteEvent`・`NoteVerdict`・`VerdictMetric`・`NoteFigure`・`CodeCell`・`Conclusion` は `skills/_shared/` に置く表示のための型で、保存しない。
-名前は 28.1 で確定した（Decision `note-types-are-parsed-at-the-reader`）。`CodeCell` は 28.2、`Conclusion` は 28.3 で実装する。
+名前は 28.1 で確定した（Decision `note-types-are-parsed-at-the-reader`）。`CodeCell` は 28.2 で実装した。`Conclusion` は 28.3 で実装する。
 
 ```mermaid
 classDiagram
@@ -287,6 +288,7 @@ classDiagram
     class NoteVerdict {
         <<Value Object>>
         +metrics
+        +conclusion
     }
     class VerdictMetric {
         <<Value Object>>
@@ -338,13 +340,13 @@ classDiagram
 | `QuestionTree`、`QuestionNode` | 集約ルート、エンティティ | 変えない。分析ノートへのアンカーは保存せず、`design_ids` から導く |
 | `AnalysisDesign` | 集約ルート | 変えない |
 | `DesignSummary` | 値オブジェクト（表示の入力） | `created_at` を足す。並びは状態と `created_at` と id だけで決まる |
-| `DesignNote` | 値オブジェクト（表示の入力） | 保存しない。同じ入力からは同じ HTML ができる。接続情報を持たない。`verdict` が無い（`None`）ことが、notebook をまだ実行していないことを表す。`cells`・`lineage`・`conclusion`・`local_files` は 28.2 と 28.3 で足す |
+| `DesignNote` | 値オブジェクト（表示の入力） | 保存しない。同じ入力からは同じ HTML ができる。接続情報を持たない。`verdict` が無い（`None`）ことが、notebook をまだ実行していないことを表す。`cells` が無い（`None`）ことは、notebook の `.py` が無いか、データ取得の cell を特定できないことを表す。`lineage` は lineage の Mermaid の文字で、無ければ `None`。`local_files` は在るファイルの `.insight/` からのパス。`conclusion` は 28.3 で足す |
 | `NoteSource` | 値オブジェクト | データソースの名前・種類・説明だけを持つ。接続情報を入れる所が無い |
 | `NoteEvent` | 値オブジェクト | journal の出来事の1件。本文と時刻は書かれたとおりの文字 |
-| `NoteVerdict` | 値オブジェクト | verdict のファイルのうち、分析ノートが出す分。verdict のファイルが在るときにだけ在る。28.2 は verdict の `conclusion` をここに足す |
+| `NoteVerdict` | 値オブジェクト | verdict のファイルのうち、分析ノートが出す分。verdict のファイルが在るときにだけ在る。`conclusion` は verdict に書かれた文字のままで、文字列でなければ無い（`None`） |
 | `VerdictMetric` | 値オブジェクト | verdict の指標の1件。数は verdict の JSON に書かれた文字のまま持つ。`effect_size` と `confidence_interval` は、項目が欠けていれば無いものとする（ADR-0013） |
 | `NoteFigure` | 値オブジェクト | figures manifest の1件。`file` がファイル名だけで、`.insight/notebooks/` に実在する PNG に限る。シンボリックリンクは載せない |
-| `CodeCell` | 値オブジェクト | notebook の cell の1つ。データ取得の cell は含めない。契約の形でない notebook からは1つも作らない |
+| `CodeCell` | 値オブジェクト | notebook の cell の1つ。`position` はファイルの中の cell の順番（1から）、`source` はデコレータを含む書かれたとおりの文字。データ取得の cell は含めない。データ取得の cell を特定できない notebook からは1つも作らない |
 | `Conclusion` | 値オブジェクト | terminal status の分析設計にだけ在る。中身は記録の写しで、生成した文を持たない |
 
 ## Sequence Diagram
@@ -553,6 +555,51 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
   28.1 の時点では、論点ツリーのあるテーマでも単独のページを書く。28.4 で論点ツリーの HTML に切り替えた後、前に書いた `notes/{design_id}.html` が残ることがある。
   US-1 AC 3 の「実在する図」は、PNG の署名で始まる、リンクでないファイルと読んだ。
 
+### Decision: the-data-load-cell-is-the-one-that-binds-raw-df
+
+- What: データ取得の cell は、`raw_df` を束縛する cell とする（Story 28.2）。notebook の `.py` を `ast` で読み、トップレベルの `@app.cell` か `@app.cell(...)` の関数を cell とする。
+  `raw_df` を束縛する cell がちょうど1つのときだけ、それを除いた cell を `CodeCell` にする。読めない、cell が無い、`raw_df` を束縛する cell が0か2つ以上のときは、コードを1つも載せない。
+  `CodeCell` は `position`（ファイルの中の cell の順番、1から）と `source`（デコレータからの書かれたとおりの文字）を持つ。抜けた番号が、載せなかった cell を表す。
+  notebook の `.py` と lineage は、シンボリックリンクなら読まない。
+- Why: データ取得の cell には接続情報の値が入る（ADR-0022）。分析ノートは Artifact で外に出る（ADR-0037）ので、取り違えれば接続情報が漏れる。
+- Criteria: データ取得の cell を載せないこと（Must、US-2 AC 2、ADR-0036）。特定できなければ何も載せないこと（Must、US-2 AC 2）。
+  契約どおりの notebook を取りこぼさないこと（高、Claude の推測。参照用の notebook `tests/integration/fixtures/sample_notebook.py` は、データ取得の cell が2番目にある）。決め手は最後の1つ。
+- Affected modules: `skills/_shared/design_note_read.py`（`notebook_cells`）、`skills/_shared/design_note.py`（`CodeCell`）。
+- Alternatives considered:
+  - 3番目の cell（契約の cell 2）をデータ取得の cell とする。参照用の notebook の並びでは、データ取得の cell を載せてしまう。marimo はファイルの並びと実行の順を結ばない。
+  - `import marimo as mo` を持つ cell とする。契約の目印だが、どのデータを読むかとは関係が無い。`raw_df` は契約で cell 2 だけが作る名前で、marimo は1つの名前を2つの cell で作れない（契約の marimo rules 8）。
+  - 8つの cell の署名をすべて照らす。参照用の notebook も引数の順が契約と違い、何も載らなくなる。
+- Consequences: データ取得の cell のほかの cell に分析者が接続情報を書き足しても、検査しない（ADR-0036 の Negative と同じ）。
+  marimo のファイルの形（`@app.cell`）が変わると、コードが載らなくなる。載らなくなるだけで、漏れる向きには倒れない。
+
+### Decision: the-verdict-conclusion-is-text-or-absent
+
+- What: verdict の `conclusion` は `NoteVerdict.conclusion: str | None` に持つ（Story 28.2）。JSON の文字列なら書かれたとおり、無いか文字列でなければ `None` にする。
+  「分析の経過」の節は、verdict が無ければ notebook をまだ実行していないこと、`conclusion` が無ければ無いことを書く。
+- Why: 28.1 が `NoteVerdict` に足すと決めた（Decision `note-types-are-parsed-at-the-reader`）。契約は `conclusion` を1行の文字列と決めている（notebook-contract.md）。
+- Criteria: 書かれたとおりに出すこと（Must、US-1 AC 2）。無いことと空であることを読む人が区別できること（中、Claude の推測）。決め手は最初の1つ。
+- Affected modules: `skills/_shared/design_note.py`、`skills/_shared/design_note_read.py`。
+- Alternatives considered: 文字列でない値を `str()` で出す。リストや辞書が Python の表記で載り、書かれたとおりにならない。
+- Consequences: Domain Model 図の `NoteVerdict` に `conclusion` を足した。
+
+### Decision: local-links-are-relative-to-insight-and-the-journal-order-is-the-time-order
+
+- What: 「手元のファイル」の節のリンクは `../` に `.insight/` からのパスをつないだ相対リンクにする（Story 28.2）。
+  単独のページ（`.insight/notes/`）も論点ツリーの HTML（`.insight/themes/`）も `.insight/` の1段下なので、同じリンクで通る。
+  候補と並びは `design_note.LOCAL_FILES`（notebook の `.py`、verdict、lineage、notebook の HTML、レポート）で、在るものだけを出す。
+  「分析の経過」の節は、journal の出来事を journal に書いた順に出し、それを時刻の順とする。
+- Why: 28.4 は同じ `render_note` を論点ツリーの HTML に置くので、置き場所でリンクを変えずに済む。
+  journal に足す道（`append_journal_event`）は、足す時点の時刻を `created_at` に書いて末尾に積むので、書いた順が時刻の順になる。
+- Criteria: 単独のページと論点ツリーの HTML の両方で開けること（Must、US-2 AC 5、US-4 AC 1）。時刻の順に出すこと（Must、US-2 AC 3）。
+  冒頭の「最後の出来事の時刻」と並びが食い違わないこと（高、Claude の推測。28.1 は journal の最後の出来事を出す）。決め手はそれぞれ最初の1つと最後の1つ。
+- Affected modules: `skills/_shared/design_note.py`、`skills/_shared/design_note_read.py`。
+- Alternatives considered:
+  - 出来事を `created_at` で並べ替える。手で書いた journal では時差の書き方が混ざり、文字の順では時刻の順にならない。時刻の無い出来事の置き場も要る。
+  - リンクの起点を `render_note` の引数で受ける。呼ぶ側が1つ増え、28.4 の `tree_read.py` を触ることになる。
+- Consequences: US-4 AC 2 の「別の HTML へのリンクは出さない」は、論点ツリーと分析ノートの間の行き来のことと読む。
+  「手元のファイル」の節は notebook の HTML へのリンクを持ちうる（US-2 AC 5）。節の冒頭に、手元で開いたときだけ開けることを書いた。28.4 に共有ノートで伝えた。
+  `.insight/` の構成を変えるときは、`LOCAL_FILES` と相対リンクの起点を直す。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0036: 分析ノートは、分析設計ごとにコードが生成し、論点ツリーの HTML の中に並べる](../adr/0036-design-note-is-a-generated-page-per-design.md): 分析ノートの中身と決まり、置き方、結論の後の節、Epic 18 の US-5 AC 1 の文言の変更、読むものの意味の変更。
@@ -565,7 +612,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
 | 28.1 分析ノートを作る | ✓（`tests/test_design_note.py`。表示の純関数。エスケープ、決定性、無い節） | ✓（`tests/tree_io/test_render_design.py`。合成シナリオの fixture で `tree_io render --design` を回す） | —（自動の E2E は無い。built-in browser の手動確認を Story Timeline に書いた） |
-| 28.2 コードと経過を載せる | ☐（cell の切り出し、データ取得の cell を載せない、契約の形でない notebook） | ☐ | ☐ |
+| 28.2 コードと経過を載せる | ✓（`tests/test_design_note_read.py` の cell の切り出し、データ取得の cell を特定できない notebook。`tests/test_design_note.py` の分析コード・lineage・分析の経過・手元のファイルの節） | ✓（`tests/tree_io/test_render_design.py` の `TestCodeAndProgress`。接続情報が載らないこと、リンクのファイルを読まないこと、在るファイルだけへのリンク） | —（自動の E2E は無い。built-in browser の手動確認を Story Timeline に書いた） |
 | 28.3 結論の後の節を埋める | ☐（terminal status の有無、記録の写し。レポートのテンプレートとの突き合わせ） | ☐ | ☐ |
 | 28.4 論点ツリーの HTML に並べる | ☐（アンカー、並び、別の HTML へのリンクが無いこと） | ☐（`tree_io render --theme` が書いた HTML のアンカーの飛び先が、すべて同じファイルに在る） | ☐（built-in browser で、論点から分析ノートの図とコードまで行き来する手動確認） |
 | 28.5 結論の段で示す | ☐（SKILL.md の構造テスト） | ☐ | ☐ |
@@ -583,3 +630,8 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
   モジュールを `_html.py`・`design_note.py`・`design_note_read.py` に分け、表示の型に `NoteSource`・`NoteEvent`・`NoteVerdict`・`VerdictMetric` を足した（Domain Model 図の変更は人間が承認した）。
 - 2026-11-22 — 手動確認（28.1）: 合成のプロジェクト（分析設計、catalog、journal、verdict、図2枚）で `bin/tree_io render --design LIB-H01` を2回通し、同じバイト列になった。
   built-in browser で開き、script が0件、外部への要求が0件、図が2枚とも出ること、幅 375px でページが横にはみ出さないことを見た。列の多い表は、表の枠の中で横に送れる。
+- 2026-11-23 — Story 28.2 completed: 分析ノートに、分析コード（cell ごとに畳む。データ取得の cell は載せない）、lineage の Mermaid の文字、分析の経過（verdict の `conclusion` と journal のすべての出来事）、手元のファイルへの相対リンクを足した。US-2 の AC 1〜5。
+  `NoteVerdict` に `conclusion` を足した（Domain Model 図の変更）。用語表に「データ取得の cell」を足した。
+- 2026-11-23 — 手動確認（28.2）: 合成のプロジェクト（分析設計、catalog、journal、CSV のデータソース）で、契約の形の notebook を書いて実際に走らせ、verdict・図・lineage を書き出した。
+  `bin/tree_io render --design LIB-H01` を2回通し、同じバイト列になった。HTML に CSV のパスは0件で、データ取得の cell（3番目）は載らなかった。
+  built-in browser で開き、畳んだ9か所がすべて閉じた状態で始まり、開けること、script が0件、外部への要求が0件、幅 375px で開いても閉じてもページが横にはみ出さないこと（長いコードの行は枠の中で横に送れる）、相対リンクが `.insight/` のファイルを指すことを見た。
