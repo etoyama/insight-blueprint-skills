@@ -12,6 +12,7 @@ CLI here runs those commands too.
 Usage from a skill (CLI):
     echo '<json>' | python -m skills._shared.tree_io create --base-dir .insight
     echo '{"answers": [...]}' | python -m skills._shared.tree_io answer --theme LIB
+    python -m skills._shared.tree_io render --design LIB-H01   # the analysis note
 
 Exit 0: done. Exit 1: error (message on stderr). Exit 3 (answer only): the check
 found violations, so nothing was written; they are in the JSON on stdout.
@@ -61,6 +62,7 @@ from skills._shared.tree_read import (
     position,
     progress,
     render,
+    render_design,
     require_design,
     status_of,
     tree_path,
@@ -532,6 +534,14 @@ def _position(args: argparse.Namespace, base: Path, payload: dict) -> Any:
     return where
 
 
+def _render(args: argparse.Namespace, base: Path, payload: dict) -> dict[str, Any]:
+    if (args.theme is None) == (args.design is None):
+        raise ValueError("render takes exactly one of --theme and --design")
+    if args.design is not None:
+        return render_design(args.design, base_dir=base)
+    return render(args.theme, base_dir=base)
+
+
 _Handler = Callable[[argparse.Namespace, Path, dict], Any]
 
 # name -> (handler, whether the command reads a JSON payload from stdin)
@@ -571,7 +581,7 @@ _COMMANDS: dict[str, tuple[_Handler, bool]] = {
     "get": (_get, False),
     "position": (_position, False),
     "progress": (lambda a, base, p: progress(a.theme, base_dir=base), False),
-    "render": (lambda a, base, p: render(a.theme, base_dir=base), False),
+    "render": (_render, False),
 }
 
 
@@ -588,7 +598,7 @@ def _main(argv: list[str] | None = None) -> int:
 
     try:
         payload = read_payload() if takes_payload else {}
-        if args.command != "create" and args.theme is None:
+        if args.command not in ("create", "render") and args.theme is None:
             raise ValueError(f"--theme is required for {args.command}")
         result = handler(args, base, payload)
     # A payload or a file that cannot be read is the caller's to fix, not a crash.

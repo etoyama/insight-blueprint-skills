@@ -115,6 +115,25 @@ class TestIdValidation:
         assert design_io.load_design(d["id"], base_dir=insight)["id"] == d["id"]
 
 
+class TestDesignIdGrammar:
+    @pytest.mark.parametrize(
+        ("design_id", "theme", "number"),
+        [("LIB-H01", "LIB", 1), ("FP2-H10", "FP2", 10), ("LIB-H123", "LIB", 123)],
+    )
+    def test_a_design_id_names_its_theme_and_number(
+        self, design_id: str, theme: str, number: int
+    ) -> None:
+        assert design_io.theme_of(design_id) == theme
+        assert design_io.design_number(design_id) == number
+
+    @pytest.mark.parametrize(
+        "design_id", ["LIB-H", "LIB-01", "lib-H01", "LIB-H01x", "-H01", "LIB-H01-H02"]
+    )
+    def test_an_id_outside_the_grammar_has_neither(self, design_id: str) -> None:
+        assert design_io.theme_of(design_id) is None
+        assert design_io.design_number(design_id) is None
+
+
 # ---------------------------------------------------------------------------
 # create / id generation
 # ---------------------------------------------------------------------------

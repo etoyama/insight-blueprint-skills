@@ -12,6 +12,7 @@ import pytest
 
 from skills._shared import design_io, tree_io
 from skills._shared._atomic import atomic_write_yaml
+from tests.test_tree_render import by_id, parse
 from tests.tree_io._support import (
     ROOT_QUESTION,
     _add,
@@ -19,6 +20,12 @@ from tests.tree_io._support import (
     _rendered,
     _run_cli,
 )
+
+
+def _tree_text(insight: Path) -> str:
+    """The text of the question tree alone: the notes below it list whole journals."""
+    page = (insight / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
+    return by_id(parse(page), "question-tree").text()
 
 
 class TestRender:
@@ -182,7 +189,7 @@ class TestRender:
 
         tree_io.render("LIB", base_dir=tree)
 
-        text = (tree / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
+        text = _tree_text(tree)
         assert "別の journal に書いた同じ id" not in text
         assert "journal に見つからない出来事" in text
 
@@ -195,7 +202,7 @@ class TestRender:
 
         tree_io.render("LIB", base_dir=tree)
 
-        text = (tree / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
+        text = _tree_text(tree)
         assert "期限切れは取消除外で 346 件" in text
         assert "二つ目" not in text
 
@@ -279,18 +286,20 @@ class TestRender:
         assert "分析済み 0" in page
         assert "写した分析設計" in page
 
-    def test_a_linked_design_without_an_id_inside_is_still_shown(
+    def test_a_design_without_an_id_inside_stops_the_page_naming_the_design(
         self, tree: Path
     ) -> None:
+        """Spec change (Epic 28 US-4 AC 1): every design needs a note, and a note needs a valid design."""
         _add(tree)
         design_id = _design(tree)
         tree_io.link_design("LIB", "LIB-Q02", design_id, base_dir=tree)
         stored = dict(design_io.load_design(design_id, base_dir=tree))
         del stored["id"]
-        stored["title"] = "id の無い分析設計"
         atomic_write_yaml(tree / "designs" / f"{design_id}_hypothesis.yaml", stored)
 
-        assert "id の無い分析設計" in _rendered(tree)
+        with pytest.raises(ValueError, match=f"analysis note of '{design_id}'"):
+            tree_io.render("LIB", base_dir=tree)
+        assert not (tree / "themes" / "LIB_tree.html").exists()
 
     def test_a_linked_design_with_an_unknown_status_names_the_design(
         self, tree: Path

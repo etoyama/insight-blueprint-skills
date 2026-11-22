@@ -22,6 +22,7 @@ journal の出来事
 未解決の問い
 reflection
 読むもの
+分析ノート
 論点ツリー
 論点
 根の問い
@@ -44,6 +45,7 @@ Artifact
 巡回の現在地
 framing
 notebook
+データ取得の cell
 verdict
 figures manifest
 効果量

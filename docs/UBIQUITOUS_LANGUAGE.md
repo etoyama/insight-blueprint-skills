@@ -43,7 +43,8 @@
 | journal の出来事 | `observe`、`hypothesize`、`evidence`、`hearing`、`question`、`decide`、`reflect`、`conclude`、`branch` | journal の1件。種類は観察・仮説・証拠・人に聞いた答え・問い・決定・振り返り・結論・派生 | — | fork 前、[ADR-0028](adr/0028-hearing-is-its-own-journal-event.md) |
 | 未解決の問い | `metadata.resolves` | journal の `question` のうち、どの `conclude` の `metadata.resolves` にも id が挙がっていないもの | オープンクエスチョン | [epic-14](design/epic-14-report-template-gaps.md) |
 | reflection | `/analysis-reflection` | journal を振り返り、結論を出すか、仮説を直すか、派生するかを決めること | — | fork 前 |
-| 読むもの | — | reflection が結論を聞く前に出す、分析設計の図・verdict・notebook のパスと指標の定義。実在するファイルだけを並べ、書かれたとおりに出す | 判断材料 | [epic-26](design/epic-26-reflection-materials.md) |
+| 読むもの | — | reflection が結論を聞く前に出す、分析ノートへの入口。開くファイルのパス、分析ノートの場所、分析設計を結んだ論点の id の3つで、出す直前に分析ノートを作り直して得る。論点ツリーが無いか、どの論点にも結んでいなければ、分析ノートの場所だけを出す。図・verdict・notebook のパスと指標の定義は、チャットに並べず分析ノートが載せる | 判断材料 | [epic-28](design/epic-28-tree-entry-point.md)、[ADR-0036](adr/0036-design-note-is-a-generated-page-per-design.md) |
+| 分析ノート | `design_note`、`DesignNote` | 分析設計ごとにコードが生成する文書。仮説、手法、指標の定義、結果の値、図、分析コード、journal の出来事を、書かれたとおりに並べる。結論の後は結論の節も埋まる。解釈の文は生成しない。論点ツリーの HTML の中に分析設計ごとに並び、論点ツリーの無いテーマでは単独のページになる。notebook とは別のもので、分析設計・journal・notebook の出力から作る | デザインノート、ノート（分析ノートを指して単独で使うとき） | [ADR-0036](adr/0036-design-note-is-a-generated-page-per-design.md) |
 | 論点ツリー | `QuestionTree` | 1つのテーマ（`theme_id`）の問いの論理の構造。根の問いを1つ持ち、論点を親子でつなぐ。分析設計の派生とは別に辿る。正本は YAML で、表示は正本から生成する | イシューツリー、ロジックツリー | [ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md) |
 | 論点 | `QuestionNode` | 論点ツリーの1つのノード。問いの文と、親の論点への寄与を持ち、答えるための分析設計を結べる。journal の `question` とは別に持つ | 子の問い、サブクエスチョン | [epic-18](design/epic-18-question-tree.md) |
 | 根の問い | — | 論点ツリーの、親を持たない論点。ツリーに1つだけあり、到達点を持つ | — | [epic-18](design/epic-18-question-tree.md) |
@@ -66,13 +67,14 @@
 | 巡回の現在地 | `tree_io position`、`WalkState` | 巡回を再開する所。保存せず、最新のツリーの決定と、その論点に結んだ分析設計の状態から導く。状態の一覧は `tree_read` の `WalkState` にある | — | [epic-18](design/epic-18-question-tree.md) |
 | framing | `/analysis-framing`、`Framing Brief` | 使えるデータと既存の分析を見て、分析の方向を決めること。結果を Framing Brief にまとめる | — | fork 前 |
 | notebook | `/analysis-notebook` | 分析設計の手法から生成して実行する marimo notebook。8つの cell の契約に従う | ノートブック | [epic-07](design/epic-07-analysis-notebook.md) |
+| データ取得の cell | `raw_df` | notebook の cell のうち、データソースを読んで `raw_df` を作るもの。接続情報の値が入るので、分析ノートには載せない。`raw_df` を作る cell が1つに決まらない notebook からは、分析ノートにコードを1つも載せない | データロードのセル | [epic-28](design/epic-28-tree-entry-point.md) |
 | verdict | `{id}_verdict.json` | notebook が出す検証結果の要約。skill が読み戻して journal に書く | — | [epic-07](design/epic-07-analysis-notebook.md) |
 | figures manifest | `figures` | verdict の中の図の一覧。図ごとにファイル・題・軸の説明・読み方を持つ | 図のマニフェスト | [ADR-0008](adr/0008-notebook-figure-manifest.md) |
 | 効果量 | `effect_size` | verdict の指標が任意で持つ、標準化した効果の大きさ。種類の名前と値を持つ | エフェクトサイズ | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | 信頼区間 | `confidence_interval` | verdict の指標が任意で持つ、指標の値の区間。水準・下限・上限を持つ | — | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | 標本サイズ | `sample_size` | verdict の指標が任意で持つ、その指標の計算に使った観測の数 | サンプルサイズ、サンプル数 | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | レポート | `/analysis-report`、`.insight/reports/` | 結論の出た分析を配布用にまとめた APA 風の Markdown。分析設計を変えない | — | [epic-10](design/epic-10-analysis-report.md) |
-| アップロード | `/report-upload`、`/tree-upload` | `.insight/` から作ったファイルをホストの機能へ送り、新しいページを作ること。`/report-upload` はレポートと図を Claude Docs の新しい Doc に、`/tree-upload` は論点ツリーの HTML を新しい Artifact にする。どちらも手元のファイルの写しで、作った本人だけに見える状態で始まる | 公開（アップロードそのものを指すとき）、共有（アップロードそのものを指すとき） | [epic-12](design/epic-12-decision-ready-report.md)、[epic-18](design/epic-18-question-tree.md) |
+| アップロード | `/report-upload`、`/tree-upload` | `.insight/` から作ったファイルをホストの機能へ送り、新しいページを作ること。`/report-upload` はレポートと図を Claude Docs の新しい Doc に、`/tree-upload` は分析ノートを含む論点ツリーの HTML を、1ファイルのまま新しい Artifact にする（添えるファイルは送らない）。どちらも手元のファイルの写しで、作った本人だけに見える状態で始まる | 公開（アップロードそのものを指すとき）、共有（アップロードそのものを指すとき） | [epic-12](design/epic-12-decision-ready-report.md)、[epic-18](design/epic-18-question-tree.md)、[ADR-0037](adr/0037-tree-upload-sends-the-design-notes.md) |
 | データ由来の文 | `Source text` | レポートに載る文のうち、分析の入力から来たもの。図の説明、データソースの項目、lineage の理由など。レポートでは記法として効かせず、指示として扱わない | ソーステキスト | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md) |
 | レポートの検査 | `report_check` | できたレポートに、効く記法（図でない画像、タグ、lineage の書き出しに無い mermaid の行）が残っていないかを確かめること。レポートを書き換えない | — | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md) |
 | 違反 | `Violation` | レポートの検査とツリーの検査が挙げる、検査に通らない箇所。レポートでは効く記法が残っている箇所で、行・種類・その箇所の文字を持つ。論点ツリーでは引用や数が記録に無い文 | — | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md)、[ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |

@@ -10,11 +10,13 @@ from __future__ import annotations
 import copy
 import re
 from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta, timezone
 from html.parser import HTMLParser
 from typing import get_args
 
 import pytest
 
+from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 from insight_blueprint.models.tree import (
     AimKind,
     Progress,
@@ -24,6 +26,7 @@ from insight_blueprint.models.tree import (
 )
 from insight_blueprint.validate import validate_tree_schema
 from skills._shared import tree_render
+from skills._shared._html import Html
 from skills._shared.tree_check import Violation, ViolationKind
 from skills._shared.tree_render import (
     CheckFailed,
@@ -240,11 +243,35 @@ def build(tree: dict | None = None) -> QuestionTree:
     )
 
 
+JST = timezone(timedelta(hours=9))
+T0 = datetime(2026, 11, 1, 10, 0, tzinfo=JST)
+
+
+def summary(
+    id: str,
+    title: str,
+    status: str,
+    parent_id: str | None,
+    created_at: datetime = T0,
+) -> DesignSummary:
+    return DesignSummary(id, title, DesignStatus(status), parent_id, created_at)
+
+
+def stub_design_notes(designs: dict[str, DesignSummary]) -> dict[str, Html]:
+    """What render_note returns, reduced to the section the page needs."""
+    return {
+        d: Html(
+            f'<section class="design-note" id="note-{d}"><h2>分析ノート {d}</h2></section>'
+        )
+        for d in designs
+    }
+
+
 def make_designs() -> dict[str, DesignSummary]:
     return {
-        "LIB-H01": DesignSummary("LIB-H01", "取消を除く数え方", "supported", None),
-        "LIB-H02": DesignSummary("LIB-H02", "通知の遅れを測る", "analyzing", "LIB-H01"),
-        "LIB-H04": DesignSummary("LIB-H04", "貸出の季節差", "in_review", "LIB-H99"),
+        "LIB-H01": summary("LIB-H01", "取消を除く数え方", "supported", None),
+        "LIB-H02": summary("LIB-H02", "通知の遅れを測る", "analyzing", "LIB-H01"),
+        "LIB-H04": summary("LIB-H04", "貸出の季節差", "in_review", "LIB-H99"),
     }
 
 
@@ -264,12 +291,15 @@ def render(
     designs: dict[str, DesignSummary] | None = None,
     events: dict[str, CitedEvent] | None = None,
     violations: list[Violation] | CheckFailed | None = None,
+    design_notes: dict[str, Html] | None = None,
 ) -> str:
+    shown = make_designs() if designs is None else designs
     return render_tree_html(
         build(tree),
-        make_designs() if designs is None else designs,
+        shown,
         make_events() if events is None else events,
         [] if violations is None else violations,
+        stub_design_notes(shown) if design_notes is None else design_notes,
     )
 
 
@@ -278,8 +308,9 @@ def page(
     designs: dict[str, DesignSummary] | None = None,
     events: dict[str, CitedEvent] | None = None,
     violations: list[Violation] | CheckFailed | None = None,
+    design_notes: dict[str, Html] | None = None,
 ) -> Element:
-    return parse(render(tree, designs, events, violations))
+    return parse(render(tree, designs, events, violations, design_notes))
 
 
 class TestSelfContained:
@@ -388,6 +419,15 @@ class TestLegend:
         assert "根拠を開く" in legend
         assert "論点の親子" in legend
         assert "分析設計の派生" in legend
+
+    def test_the_legend_explains_the_jump_to_a_note_and_the_way_back(self) -> None:
+        paragraphs = [
+            squash(e.text()) for e in by_id(page(), "legend").walk() if e.tag == "p"
+        ]
+
+        (explained,) = [p for p in paragraphs if "分析ノートを開く" in p]
+        assert "このページの下" in explained
+        assert "論点ツリーへ戻る" in explained
 
 
 def node_text(root: Element, node_id: str) -> str:
@@ -898,8 +938,8 @@ class TestStructure:
         self,
     ) -> None:
         designs = {
-            "LIB-H01": DesignSummary("LIB-H01", "a", "analyzing", "LIB-H02"),
-            "LIB-H02": DesignSummary("LIB-H02", "b", "analyzing", "LIB-H01"),
+            "LIB-H01": summary("LIB-H01", "a", "analyzing", "LIB-H02"),
+            "LIB-H02": summary("LIB-H02", "b", "analyzing", "LIB-H01"),
         }
         tree = make_tree()
         tree["nodes"][1]["answers"] = []
@@ -911,6 +951,241 @@ class TestStructure:
 
         assert by_id(root, "design-LIB-H01") is not None
         assert by_id(root, "design-LIB-H02") is not None
+
+
+def linking(design_ids: list[str]) -> dict:
+    """The tree where only LIB-Q03 links designs, so a test names every design it uses."""
+    tree = make_tree()
+    for node in tree["nodes"]:
+        node.pop("design_ids", None)
+    tree["nodes"][2]["design_ids"] = design_ids
+    return tree
+
+
+class TestOrderOfLinkedDesigns:
+    """The card puts the designs still being worked on first, then the finished ones."""
+
+    DAY = timedelta(days=1)
+
+    def _shown(self, specs: list[tuple[str, str, datetime]]) -> list[str]:
+        """The ids on the card of LIB-Q03, in the order the card lists them."""
+        designs = {i: summary(i, "t", status, None, at) for i, status, at in specs}
+        root = page(tree=linking([i for i, _, _ in specs]), designs=designs)
+        (card,) = [e for e in by_id(root, "LIB-Q03").children if e.tag == "div"]
+        return [
+            e.attrs["href"].removeprefix("#design-")  # type: ignore[union-attr]
+            for e in card.walk()
+            if e.tag == "a" and str(e.attrs["href"]).startswith("#design-")
+        ]
+
+    def test_an_unfinished_design_comes_before_a_finished_one_whatever_the_date(
+        self,
+    ) -> None:
+        shown = self._shown(
+            [
+                ("LIB-H01", "analyzing", T0),
+                ("LIB-H02", "supported", T0 + self.DAY),
+                ("LIB-H03", "analyzing", T0 - self.DAY),
+            ]
+        )
+
+        assert shown == ["LIB-H01", "LIB-H03", "LIB-H02"]
+
+    @pytest.mark.parametrize("status", list(DesignStatus))
+    def test_a_status_is_finished_exactly_when_it_is_terminal(
+        self, status: DesignStatus
+    ) -> None:
+        shown = self._shown(
+            [("LIB-H01", status.value, T0 + self.DAY), ("LIB-H02", "analyzing", T0)]
+        )
+
+        finished = status in TERMINAL_STATUSES
+        assert shown == (["LIB-H02", "LIB-H01"] if finished else ["LIB-H01", "LIB-H02"])
+
+    def test_inside_a_group_the_newer_design_comes_first(self) -> None:
+        shown = self._shown(
+            [
+                ("LIB-H03", "analyzing", T0),
+                ("LIB-H01", "analyzing", T0 + self.DAY),
+                ("LIB-H02", "supported", T0),
+                ("LIB-H04", "rejected", T0 + self.DAY),
+            ]
+        )
+
+        assert shown == ["LIB-H01", "LIB-H03", "LIB-H04", "LIB-H02"]
+
+    def test_the_same_time_puts_the_larger_id_first(self) -> None:
+        shown = self._shown([(f"LIB-H0{n}", "analyzing", T0) for n in (1, 3, 2)])
+
+        assert shown == ["LIB-H03", "LIB-H02", "LIB-H01"]
+
+    def test_ids_are_compared_by_their_number_not_as_strings(self) -> None:
+        shown = self._shown([("LIB-H9", "analyzing", T0), ("LIB-H10", "analyzing", T0)])
+
+        assert shown == ["LIB-H10", "LIB-H9"]
+
+    def test_times_are_compared_as_times_not_as_text(self) -> None:
+        later_in_utc = datetime(2026, 11, 1, 2, 0, tzinfo=UTC)  # 11:00 JST
+        shown = self._shown(
+            [("LIB-H01", "analyzing", later_in_utc), ("LIB-H02", "analyzing", T0)]
+        )
+
+        assert shown == ["LIB-H01", "LIB-H02"]
+
+    def test_a_time_without_a_zone_next_to_one_with_a_zone_is_an_error_naming_both(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError, match=r"LIB-H01.*LIB-H02|LIB-H02.*LIB-H01"):
+            self._shown(
+                [
+                    ("LIB-H01", "analyzing", T0.replace(tzinfo=None)),
+                    ("LIB-H02", "analyzing", T0),
+                ]
+            )
+
+    def test_the_derivation_and_the_design_notes_stay_in_id_order(self) -> None:
+        designs = {
+            "LIB-H10": summary("LIB-H10", "t", "analyzing", None, T0 + self.DAY),
+            "LIB-H9": summary("LIB-H9", "t", "supported", None, T0),
+        }
+
+        root = page(tree=linking([]), designs=designs)
+
+        derivation = [
+            e.attrs["id"]
+            for e in by_id(root, "derivation").walk()
+            if str(e.attrs.get("id", "")).startswith("design-")
+        ]
+        design_notes = [
+            e.attrs["id"]
+            for e in by_id(root, "design-notes").children
+            if e.tag == "section"
+        ]
+        assert derivation == ["design-LIB-H9", "design-LIB-H10"]
+        assert design_notes == ["note-LIB-H9", "note-LIB-H10"]
+
+
+class TestAnchorsToTheNotes:
+    OPEN = "分析ノートを開く"
+
+    def _card(self, root: Element, node_id: str) -> Element:
+        (card,) = [e for e in by_id(root, node_id).children if e.tag == "div"]
+        return card
+
+    def _hrefs(self, element: Element) -> list[str]:
+        return [e.attrs["href"] for e in element.walk() if e.tag == "a"]  # type: ignore[misc]
+
+    def test_each_linked_design_on_a_card_keeps_its_link_and_gains_one_to_its_note(
+        self,
+    ) -> None:
+        card = self._card(page(), "LIB-Q02")
+
+        (item,) = [
+            e for e in card.walk() if e.tag == "li" and e.text().startswith("LIB-H01 ")
+        ]
+        assert self._hrefs(item) == ["#design-LIB-H01", "#note-LIB-H01"]
+        open_link = [e for e in item.walk() if e.tag == "a"][1]
+        assert open_link.text() == self.OPEN
+
+    def test_each_design_in_the_derivation_has_a_link_to_its_note(self) -> None:
+        root = page()
+
+        for design_id in ("LIB-H01", "LIB-H02", "LIB-H04"):
+            (design,) = [
+                e for e in by_id(root, f"design-{design_id}").children if e.tag == "div"
+            ]
+            assert f"#note-{design_id}" in self._hrefs(design)
+            assert self.OPEN in design.text()
+
+    def test_the_tree_side_names_no_link_that_leaves_the_page(self) -> None:
+        root = page()
+
+        hrefs = [e.attrs["href"] for e in root.walk() if e.tag == "a"]
+        assert hrefs
+        assert all(h.startswith("#") for h in hrefs)
+        ids = {e.attrs["id"] for e in root.walk() if "id" in e.attrs}
+        assert {h[1:] for h in hrefs} <= ids
+
+
+class TestDesignNotes:
+    def _sections(self) -> list[Element]:
+        return [e for e in by_id(page(), "design-notes").children]
+
+    def test_the_design_notes_come_after_the_derivation_in_one_section(self) -> None:
+        html = render()
+
+        assert html.index('id="derivation"') < html.index('id="design-notes"')
+        section = by_id(parse(html), "design-notes")
+        assert section.children[0].tag == "h2"
+        assert section.children[0].text() == "分析設計ごとの分析ノート"
+
+    def test_each_design_has_a_back_link_a_note_and_a_back_link_in_id_order(
+        self,
+    ) -> None:
+        children = self._sections()[1:]
+
+        shapes = [(c.tag, c.attrs.get("id")) for c in children]
+        assert shapes == [
+            ("p", None), ("section", "note-LIB-H01"), ("p", None),
+            ("p", None), ("section", "note-LIB-H02"), ("p", None),
+            ("p", None), ("section", "note-LIB-H04"), ("p", None),
+        ]  # fmt: skip
+
+    def test_the_back_link_returns_to_the_tree_and_names_the_nodes_that_link_the_design(
+        self,
+    ) -> None:
+        before, _, after = self._sections()[1:4]
+
+        for paragraph in (before, after):
+            links = [e.attrs["href"] for e in paragraph.walk() if e.tag == "a"]
+            assert links == ["#question-tree", "#LIB-Q02"]
+            assert squash(paragraph.text()) == "論点ツリーへ戻る 結んだ論点: LIB-Q02"
+
+    def test_a_design_no_node_links_has_only_the_link_back_to_the_tree(self) -> None:
+        before, _, after = self._sections()[7:10]
+
+        for paragraph in (before, after):
+            assert [e.attrs["href"] for e in paragraph.walk() if e.tag == "a"] == [
+                "#question-tree"
+            ]
+            assert "結んだ論点" not in paragraph.text()
+
+    def test_note_markup_is_placed_as_markup_not_escaped_again(self) -> None:
+        designs = make_designs()
+        design_notes = stub_design_notes(designs)
+        design_notes["LIB-H01"] = Html(
+            '<section id="note-LIB-H01"><b>太い</b> &amp; 本文</section>'
+        )
+
+        root = page(designs=designs, design_notes=design_notes)
+
+        note = by_id(root, "note-LIB-H01")
+        assert [e.tag for e in note.children] == ["b"]
+        assert squash(note.text()) == "太い & 本文"
+
+    def test_a_design_without_a_note_is_an_error_naming_it(self) -> None:
+        designs = make_designs()
+        design_notes = stub_design_notes(designs)
+        del design_notes["LIB-H02"]
+
+        with pytest.raises(ValueError, match="LIB-H02"):
+            render(designs=designs, design_notes=design_notes)
+
+    def test_a_page_without_designs_says_there_is_no_note(self) -> None:
+        tree = make_tree()
+        for node in tree["nodes"]:
+            node.pop("design_ids", None)
+            node["answers"] = []
+            node.pop("origin_event_id", None)
+
+        root = page(tree=tree, designs={})
+
+        assert "分析ノートはまだ無い。" in by_id(root, "design-notes").text()
+
+    def test_the_page_carries_the_css_of_the_note(self) -> None:
+        from skills._shared.design_note import NOTE_CSS
+
+        assert NOTE_CSS in render()
 
 
 class TestEscaping:
@@ -929,10 +1204,9 @@ class TestEscaping:
         tree["decisions"][0]["reason"] = "決定" + HOSTILE
         with_note(tree, "LIB-Q05", **{**HEARD, "ask": "問い" + HOSTILE})
         designs = make_designs()
-        designs["LIB-H01"] = DesignSummary("LIB-H01", "題" + HOSTILE, "supported", None)
-        designs["LIB-H04"] = DesignSummary(
-            "LIB-H04", "t", "in_review" + HOSTILE, "LIB-H99" + HOSTILE
-        )
+        designs["LIB-H01"] = summary("LIB-H01", "題" + HOSTILE, "supported", None)
+        # The status is a DesignStatus, so no text of the analyst reaches it.
+        designs["LIB-H04"] = summary("LIB-H04", "t", "in_review", "LIB-H99" + HOSTILE)
         events = make_events()
         events["LIB-H01-E01"] = CitedEvent(
             "LIB-H01-E01", "evidence" + HOSTILE, "supports" + HOSTILE, "本文" + HOSTILE

@@ -107,7 +107,7 @@ KEEP ゲートは次のとおり。
   ③ データ取得プラン（SQL クエリ or データソースの id + columns + filter, premortem の前。パスは見せない、[ADR-0022](adr/0022-connection-reaches-only-the-notebook.md)） / ④ chart 仕様。
 - 実行: データソース登録 / premortem `HARD_BLOCK`・`HIGH` / notebook の非 allowlist・宣言 source 以外の外部通信 / 結論。
 - 巡回の終わり: ツリーの決定（深める・親に戻る・区切る、次に調べる論点、理由）と、人に聞いてきた答え。
-- 外部へ送る前: アップロードで送るファイルの承認（`/report-upload` と `/tree-upload` が聞く）。
+- 外部へ送る前: アップロードで送るファイルの承認（`/report-upload` と `/tree-upload` が聞く）。`/tree-upload` が送るのは分析ノートを含む論点ツリーの HTML の1ファイルで、承認の文にページに載る中身を書く。Artifact の上限（16MB）を超えるときは、承認を聞く前に止めて何も送らない（[ADR-0037](adr/0037-tree-upload-sends-the-design-notes.md)）。
 
 レポートは分析設計の結論が出たら聞かずに書く（AUTO）。結論が出ていない回は書かない。
 notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定のときのみ。詳細は
@@ -175,7 +175,9 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 │   └── {id}_revision.yaml          # /analysis-revision の修正追跡
 ├── themes/
 │   ├── {theme_id}_tree.yaml        # 論点ツリーの正本。tree_io が書く（pre-write hook が検証）
-│   └── {theme_id}_tree.html        # 論点ツリーの表示。tree_io render が正本から作る生成物
+│   └── {theme_id}_tree.html        # 論点ツリーの表示。下にテーマの分析設計ごとの分析ノートを並べた1ファイル。tree_io render が作る生成物
+├── notes/
+│   └── {design_id}.html            # 論点ツリーの無いテーマの分析ノート（単独のページ）。tree_io render --design が作る生成物
 ├── catalog/
 │   ├── sources/{id}.yaml           # /catalog-register
 │   └── knowledge/{id}.yaml         # /knowledge-extract
@@ -446,8 +448,12 @@ sequenceDiagram
         end
         opt 分析者が、図を URL で渡したいと言った
             D->>TU: /tree-upload を起動（driver は自分では聞かない）
-            TU->>U: 【KEEP】Artifact で送るファイル（論点ツリーの HTML）を列挙して承認を待つ
-            TU->>DC: 承認の後に、新しい Artifact を作る
+            alt 論点ツリーの HTML が Artifact の上限（16MB）を超える
+                TU-->>U: 上限を超えるので送れない。何も送っていない（承認は聞かない）
+            else 上限に収まる
+                TU->>U: 【KEEP】Artifact で送るファイル（分析ノートを含む論点ツリーの HTML）と、ページに載る中身を示して承認を待つ
+                TU->>DC: 承認の後に、同じ1ファイルで新しい Artifact を作る（添えるファイルは送らない）
+            end
         end
     end
     D-->>U: 実行サマリ（自動進行した所 / 停止した所 / 通った論点とツリーの決定 / ツリーの HTML のパス / 次に再開する論点 / レポートのパスとアップロードの結果）
@@ -803,6 +809,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 19 | Validation library（`VALID_TRANSITIONS` の `analyzing` の行）+ Skill layer（`/analysis-design` の Status Flow、`/analysis-reflection` の結論の手順） |
 | Epic 26 | Skill layer（`/analysis-reflection` の Step 2 の読むもの） |
 | Epic 27 | Skill layer（`/analysis-auto` の report と upload の段。前の実行で書いたレポートも `/report-upload` の KEEP ゲートへ回す） |
+| Epic 28 | Skill layer（`/analysis-reflection`・`/analysis-notebook`・`/analysis-auto`・`/tree-upload` が分析ノートを作って示し、送る段）+ `tree_io render` の表示（論点ツリーの HTML の中に並べる分析ノートと、論点ツリーの無いテーマの単独のページ `notes/{design_id}.html`） |
 
 
 ## 参照

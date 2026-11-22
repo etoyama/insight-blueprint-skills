@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import NoneType
 from typing import get_args
@@ -155,8 +156,15 @@ class TestTheBuiltTree:
         assert check_theme(scenario.theme_id, built) == []
 
     def test_the_html_is_the_same_bytes_every_time(
-        self, tmp_path: Path, scenario: handoff_trial.Scenario
+        self,
+        tmp_path: Path,
+        scenario: handoff_trial.Scenario,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        # The page shows when the last journal event was written, so the time
+        # is an input of the page (ADR-0036): two builds agree once it is fixed.
+        fixed = datetime(2026, 11, 1, 10, 0, tzinfo=timezone(timedelta(hours=9)))
+        monkeypatch.setattr("skills._shared.design_io.now_jst", lambda: fixed)
         first = build(scenario, tmp_path / "a").read_bytes()
         second = build(scenario, tmp_path / "b").read_bytes()
         assert first == second
