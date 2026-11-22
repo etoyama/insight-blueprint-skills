@@ -580,7 +580,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 - Criteria: 書かれたとおりに出すこと（Must、US-1 AC 2）。無いことと空であることを読む人が区別できること（中、Claude の推測）。決め手は最初の1つ。
 - Affected modules: `skills/_shared/design_note.py`、`skills/_shared/design_note_read.py`。
 - Alternatives considered: 文字列でない値を `str()` で出す。リストや辞書が Python の表記で載り、書かれたとおりにならない。
-- Consequences: Domain Model 図の `NoteVerdict` に `conclusion` を足した。
+- Consequences: Domain Model 図の `NoteVerdict` に `conclusion` を足した。図の変更は人間が承認した（2026-11-23、Story 28.2 のセッション）。
 
 ### Decision: local-links-are-relative-to-insight-and-the-journal-order-is-the-time-order
 
