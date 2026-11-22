@@ -1,0 +1,47 @@
+date: '2026-11-22'
+scenario: lib
+stage: round-2
+reader:
+  kind: claude
+  name: haiku (Claude Code 2.1.227)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 根の答えに「未判別」の文が含まれている。現在のところ通知の遅れと金曜の現象についての証拠があるが、来館できる日の少なさの影響を確かめるまで、延長試行の判断は保留の状態。
+    verdict: undetermined
+  q2:
+    note: LIB-Q02は分析済みで確定した答えを持つ。LIB-Q03は分析済みだが答えに「未判別」の文を含む。LIB-Q04、Q05、Q06は分析設計を結んでいない。
+    not_started:
+    - LIB-Q04
+    - LIB-Q05
+    - LIB-Q06
+    analyzed_undetermined:
+    - LIB-Q03
+  q3:
+    note: 支える証拠：通知が翌日以降になった予約は期限切れが18%と高い。弱める証拠：通知の日を揃えても、金曜に確保した本の期限切れが16%のままだった。
+    supports:
+    - event_id: LIB-H02-E01
+      design_id: LIB-H02
+    weakens:
+    - event_id: LIB-H02-E02
+      design_id: LIB-H02
+  q4:
+    note: 回2で根の答えが変わった。回1は期限切れ152件と数えられたことのみで判断保留。回2は通知の遅れと金曜現象についての新分析LIB-H02から得られた2つの証拠により、言えることと弱める証拠が追加された。
+    changed_nodes:
+    - LIB-Q01
+    evidence:
+    - LIB-H02-E01
+    - LIB-H02-E02
+  q5:
+    note: 通知の日を揃えても金曜の本の期限切れが16%のままという発見が、通知の遅れと来館できる日の少なさを区別するため、次に通知から期限までの開館日数を調べる必要があると判断させた。
+    node_id: LIB-Q06
+    reason_events:
+    - LIB-H02-E02
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: true

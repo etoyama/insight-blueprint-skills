@@ -1,0 +1,53 @@
+date: '2026-11-22'
+scenario: lib
+stage: round-2
+reader:
+  kind: claude
+  name: opus (Claude Code 2.1.227)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 根 LIB-Q01（回2・根の版1）の答えには「通知が翌日以降になった予約は期限切れ18%」という言えることがあるが、決めることである『延長の試行を始めるか』については「来館できる日の少なさを確かめるまで決められない」という未判別が残り、さらに金曜確保分が16%のままという弱める証拠も付いている。進捗も未着手で、結論は保留に近い。
+    verdict: undetermined
+  q2:
+    note: LIB-Q04/Q05/Q06 は分析設計を結んでおらず進捗『未着手』で「まだ答えていない」。LIB-Q03 は進捗『分析済み』（LIB-H02
+      の状態 inconclusive）で「期限切れが通知の遅れで増えているかは、まだ見分けられない」という未判別が残る。LIB-Q02 は分析済みかつ言えることのみで未判別が無いため、どちらにも挙げない。
+    not_started:
+    - LIB-Q04
+    - LIB-Q05
+    - LIB-Q06
+    analyzed_undetermined:
+    - LIB-Q03
+  q3:
+    note: '根の現時点の答えは『まだ決められない』。これを支える（通知の遅れという別経路の効き目を示し、延長以外の手が残ることを示す）のは LIB-H02-E01（通知翌日以降18%
+      vs 当日9%、direction: supports）。保留を強める／主張を弱めるのは LIB-H02-E02（通知の日を揃えても金曜確保分は16%のまま、direction:
+      contradicts）。どちらも結んだ分析設計は LIB-H02。なお LIB-H01-E01（LIB-H01）は回1の答えの引用で、現在の根の答えには引かれていない。'
+    supports:
+    - event_id: LIB-H02-E01
+      design_id: LIB-H02
+    weakens:
+    - event_id: LIB-H02-E02
+      design_id: LIB-H02
+  q4:
+    note: LIB-Q01 に「回 2 で変わった」の印があり、回1の『期限切れは152件と数えられたが延長で減るかは分からない（LIB-H01-E01）』から、通知の遅れに関する3文へ書き換わった。書き換えの根拠として引かれているのは
+      LIB-H02-E01 と LIB-H02-E02。LIB-Q03 は「回 2 で初めて答えた」なので変わったには含めない。
+    changed_nodes:
+    - LIB-Q01
+    evidence:
+    - LIB-H02-E01
+    - LIB-H02-E02
+  q5:
+    note: 「ツリーの決定」の最新項（回2の振り返りの後、親に戻る）が LIB-Q06 を選び、理由は『通知の日を揃えても金曜に確保した本の期限切れが多いままなので、通知から期限まで何日開館していたかを先に確かめる』。その元になった出来事は
+      LIB-H02-E02（金曜16%のまま）と、LIB-Q06 の発見元として記された LIB-H02-E03。聞き取りでも金曜夕方確保分は月曜朝に通知とあり、通知時点と開館日数の切り分けが必要。
+    node_id: LIB-Q06
+    reason_events:
+    - LIB-H02-E02
+    - LIB-H02-E03
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: true
