@@ -73,6 +73,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the journal is not a list, or holds an entry that is not a mapping. It reads only the
   mappings, like every other reader of the journal, and says the event is not found when no
   real event has that id (#141).
+- **A resumed `/analysis-auto` carried only the first design of a concluded round** (#161).
+  When more than one design was finished since the last tree decision, the report and the
+  upload named one `design_id`. The driver now carries each design in turn, writing its report
+  when missing and starting its upload, so every report reaches its own approval gate. The
+  theme reflection and the summary show each report with its upload outcome.
 
 ## [0.13.0] - 2026-11-22
 

@@ -452,7 +452,7 @@ sequenceDiagram
     D-->>U: 実行サマリ（自動進行した所 / 停止した所 / 通った論点とツリーの決定 / ツリーの HTML のパス / 次に再開する論点 / レポートのパスとアップロードの結果）
 ```
 
-外部へ送ることで分析者に聞くのは、`/report-upload` と `/tree-upload` の KEEP ゲートのそれぞれ1回だけである。driver は「送るか」を別に聞かない
+外部へ送ることで分析者に聞くのは、`/report-upload` の KEEP ゲート（レポートごとに1回）と `/tree-upload` の KEEP ゲート（1回）だけである。driver は「送るか」を別に聞かない
 （[ADR-0016](adr/0016-approval-before-external-send.md)）。`/tree-upload` は、分析者が頼んだときにだけ起動する。
 
 再開する所は `tree_io position` が導く。最新のツリーの決定が指す論点に、終わっていない分析設計があれば `in_progress`、
