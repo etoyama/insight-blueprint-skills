@@ -1,0 +1,47 @@
+date: '2026-11-22'
+scenario: lib
+stage: round-2
+reader:
+  kind: claude
+  name: haiku (Claude Code 2.1.227)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 根の問いの答えに「未判別」が含まれており、「延長の試行をするかは、来館できる日の少なさを確かめるまで決められない」と明記されている。子論点LIB-Q04の調査が必要な状態。
+    verdict: undetermined
+  q2:
+    note: LIB-Q02は分析済みで、答えが「言えること」と確定しているため、「分析済みだが未判別」には含めない。LIB-Q03は分析済みだが、答えに「未判別」を含むため該当。
+    not_started:
+    - LIB-Q04
+    - LIB-Q05
+    - LIB-Q06
+    analyzed_undetermined:
+    - LIB-Q03
+  q3:
+    note: 根の問い（LIB-Q01）の根拠から抽出。E01は「通知が翌日以降になった予約の期限切れは18%」という支持証拠、E02は「通知の日を揃えても金曜に確保した本の期限切れは16%」という弱める証拠。
+    supports:
+    - event_id: LIB-H02-E01
+      design_id: LIB-H02
+    weakens:
+    - event_id: LIB-H02-E02
+      design_id: LIB-H02
+  q4:
+    note: LIB-Q01は回1で「未判別」だったが、回2で新たな分析設計LIB-H02の証拠が追加され、「言えること」と「弱める証拠」が含まれるようになった。LIB-Q03は回2で初めて答えたため除外。
+    changed_nodes:
+    - LIB-Q01
+    evidence:
+    - LIB-H02-E01
+    - LIB-H02-E02
+  q5:
+    note: 「ツリーの決定」セクションで「回2の振り返りの後」LIB-Q06を選ぶと明記。理由は「通知の日を揃えても金曜に確保した本の期限切れが多いままなので」（LIB-H02-E02）、通知の遅れと来館できる日の少なさを見分けるため。
+    node_id: LIB-Q06
+    reason_events:
+    - LIB-H02-E02
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: true
