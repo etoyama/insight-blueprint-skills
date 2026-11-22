@@ -226,7 +226,7 @@ flowchart TD
 ## Domain Model
 
 `src/insight_blueprint/models/` のクラスは変えない。分析ノートは既存の型と notebook の出力から読んだ値を並べた生成物である。
-下の図の `DesignNote`・`NoteSource`・`NoteEvent`・`VerdictMetric`・`NoteFigure`・`CodeCell`・`Conclusion` は `skills/_shared/` に置く表示のための型で、保存しない。
+下の図の `DesignNote`・`NoteSource`・`NoteEvent`・`NoteVerdict`・`VerdictMetric`・`NoteFigure`・`CodeCell`・`Conclusion` は `skills/_shared/` に置く表示のための型で、保存しない。
 名前は 28.1 で確定した（Decision `note-types-are-parsed-at-the-reader`）。`CodeCell` は 28.2、`Conclusion` は 28.3 で実装する。
 
 ```mermaid
@@ -263,7 +263,7 @@ classDiagram
         +design
         +sources
         +events
-        +metrics
+        +verdict
         +figures
         +cells
         +lineage
@@ -283,6 +283,10 @@ classDiagram
         +direction
         +content
         +created_at
+    }
+    class NoteVerdict {
+        <<Value Object>>
+        +metrics
     }
     class VerdictMetric {
         <<Value Object>>
@@ -322,7 +326,8 @@ classDiagram
     DesignNote "1" --> "1" AnalysisDesign : 読んだ値
     DesignNote "1" *-- "0..*" NoteSource
     DesignNote "1" *-- "0..*" NoteEvent
-    DesignNote "1" *-- "0..*" VerdictMetric
+    DesignNote "1" *-- "0..1" NoteVerdict
+    NoteVerdict "1" *-- "0..*" VerdictMetric
     DesignNote "1" *-- "0..*" NoteFigure
     DesignNote "1" *-- "0..*" CodeCell
     DesignNote "1" *-- "0..1" Conclusion
@@ -333,9 +338,10 @@ classDiagram
 | `QuestionTree`、`QuestionNode` | 集約ルート、エンティティ | 変えない。分析ノートへのアンカーは保存せず、`design_ids` から導く |
 | `AnalysisDesign` | 集約ルート | 変えない |
 | `DesignSummary` | 値オブジェクト（表示の入力） | `created_at` を足す。並びは状態と `created_at` と id だけで決まる |
-| `DesignNote` | 値オブジェクト（表示の入力） | 保存しない。同じ入力からは同じ HTML ができる。接続情報を持たない。`metrics` が無い（`None`）ことが、notebook をまだ実行していないことを表す。`cells`・`lineage`・`conclusion`・`local_files` は 28.2 と 28.3 で足す |
+| `DesignNote` | 値オブジェクト（表示の入力） | 保存しない。同じ入力からは同じ HTML ができる。接続情報を持たない。`verdict` が無い（`None`）ことが、notebook をまだ実行していないことを表す。`cells`・`lineage`・`conclusion`・`local_files` は 28.2 と 28.3 で足す |
 | `NoteSource` | 値オブジェクト | データソースの名前・種類・説明だけを持つ。接続情報を入れる所が無い |
 | `NoteEvent` | 値オブジェクト | journal の出来事の1件。本文と時刻は書かれたとおりの文字 |
+| `NoteVerdict` | 値オブジェクト | verdict のファイルのうち、分析ノートが出す分。verdict のファイルが在るときにだけ在る。28.2 は verdict の `conclusion` をここに足す |
 | `VerdictMetric` | 値オブジェクト | verdict の指標の1件。数は verdict の JSON に書かれた文字のまま持つ。`effect_size` と `confidence_interval` は、項目が欠けていれば無いものとする（ADR-0013） |
 | `NoteFigure` | 値オブジェクト | figures manifest の1件。`file` がファイル名だけで、`.insight/notebooks/` に実在する PNG に限る。シンボリックリンクは載せない |
 | `CodeCell` | 値オブジェクト | notebook の cell の1つ。データ取得の cell は含めない。契約の形でない notebook からは1つも作らない |
@@ -513,18 +519,21 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 
 ### Decision: note-types-are-parsed-at-the-reader
 
-- What: 表示の型の名前を確定する（Story 28.1）。`DesignNote`・`NoteFigure`・`CodeCell`・`Conclusion` は初版のままにし、`NoteSource`・`NoteEvent`・`VerdictMetric` を足す。
-  `DesignNote` の `verdict` は `metrics` に改める。verdict のファイルが無いときは `None`、在って指標が無いときは空である。
+- What: 表示の型の名前を確定する（Story 28.1）。`DesignNote`・`NoteFigure`・`CodeCell`・`Conclusion` は初版のままにし、`NoteSource`・`NoteEvent`・`NoteVerdict`・`VerdictMetric` を足す。
+  `DesignNote` の `verdict` は項目名を残し、中身を `NoteVerdict` にする。verdict のファイルが無いときは `None` である。`DesignNote` に `sources` を足す。
   verdict の数は、JSON に書かれた文字のまま読む（`json.loads` の `parse_float=str` と `parse_int=str`）。
 - Why: 「値は書かれたとおりに出し、計算しない」（US-1 AC 2）を、表示の関数の注意ではなく型で守る。数を float で持つと、`0.00010` が `0.0001` に、`0.00001` が `1e-05` に変わる。
   データソースを辞書のまま渡すと、接続情報が表示まで届きうる。
-- Criteria: 値が書かれたとおりに出ること（Must、US-1 AC 2）。接続情報が表示に届かないこと（Must、US-1 AC 2、ADR-0022）。未実行を表す方法が1つであること（中、Claude の推測、US-1 AC 4）。
-  今要らない型と項目を作らないこと（高、YAGNI）。決め手は最初の2つ。
+  28.2 は verdict の `conclusion` を載せる（US-2 AC 3）。`DesignNote` に直に置くと、28.3 の `conclusion`（結論の節）と名前が当たる。
+- Criteria: 図の型と項目がコードと食い違わないこと（Must、design-doc-template）。「書かれたとおり」と「接続情報なし」を型で守れること（高、Claude の推測、US-1 AC 2、ADR-0022）。
+  28.2 と 28.3 が項目を足すときに、置き場と名前が決まっていること（高、Claude の推測、US-2 AC 3）。図の変更と人間が読む量（中、Claude の推測）。いま直す手間（中、Claude の推測）。
+  決め手は3つめ。人間が Decision Analysis の提示から、この形を選んだ（2026-11-22、Story 28.1 のセッション）。
 - Affected modules: `skills/_shared/design_note.py`、`skills/_shared/design_note_read.py`。
 - Alternatives considered:
   - verdict を辞書のまま `DesignNote` に持たせる。表示の関数が、形の崩れた verdict を毎回確かめることになる。
+  - `DesignNote` の `verdict` を `metrics` に改める（最初の実装）。verdict の `conclusion` の置き場が無く、28.2 が図をもう一度変えることになる。
   - `Conclusion` を `NoteConclusion` に改める。verdict の `conclusion` と紛れるが、Domain Model 図の変更が増える。28.3 が実装するときに決められる。
-- Consequences: Domain Model 図に型を3つ足し、`DesignNote` の項目を変えた。図の変更は人間の承認を待っている。
+- Consequences: Domain Model 図に型を4つ足し、`DesignNote` に `sources` を足した。図の変更は人間が承認した（2026-11-22）。
   信頼区間の水準は `0.95` のように書かれたとおりに出し、レポートのように `95%` には直さない。
   分析設計が `source_ids` に挙げたデータソースが catalog に無いとき、分析ノートには出ず、無いことも書かない。
 
@@ -571,6 +580,6 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 - 2026-11-22 — 見本を受けて初版を改めた。分析ノートを論点ツリーの HTML の中に並べる。`/tree-upload` は同じ1ファイルを送る。分析ノートは結論の後の節も記録から埋める（人間の判断）。
   Markdown のレポートの一本化を #177 に起こした。Story の分割の案は5本から6本になった。
 - 2026-11-22 — Story 28.1 completed: `tree_io render --design` が分析ノートの単独のページ（`.insight/notes/{design_id}.html`）を書く。US-1 の AC 1〜5。
-  モジュールを `_html.py`・`design_note.py`・`design_note_read.py` に分け、表示の型に `NoteSource`・`NoteEvent`・`VerdictMetric` を足した（Domain Model 図の変更は人間の承認待ち）。
+  モジュールを `_html.py`・`design_note.py`・`design_note_read.py` に分け、表示の型に `NoteSource`・`NoteEvent`・`NoteVerdict`・`VerdictMetric` を足した（Domain Model 図の変更は人間が承認した）。
 - 2026-11-22 — 手動確認（28.1）: 合成のプロジェクト（分析設計、catalog、journal、verdict、図2枚）で `bin/tree_io render --design LIB-H01` を2回通し、同じバイト列になった。
   built-in browser で開き、script が0件、外部への要求が0件、図が2枚とも出ること、幅 375px でページが横にはみ出さないことを見た。列の多い表は、表の枠の中で横に送れる。

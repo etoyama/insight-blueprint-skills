@@ -25,6 +25,7 @@ from skills._shared.design_note import (
     NoteEvent,
     NoteFigure,
     NoteSource,
+    NoteVerdict,
     VerdictMetric,
     render_note_page,
 )
@@ -155,7 +156,7 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
 
     Raises ValueError for a design that does not exist or fails its schema, and
     for a verdict file that is not a JSON object. A design whose notebook has
-    not run has no verdict: ``metrics`` is None then, and there are no figures.
+    not run has no verdict: ``verdict`` is None then, and there are no figures.
     """
     data = load_design(design_id, base_dir)
     if not data:
@@ -172,13 +173,13 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
     notebooks = Path(base_dir) / "notebooks"
     verdict_path = notebooks / f"{design_id}_verdict.json"
     if not verdict_path.is_file():
-        return DesignNote(design, sources, events, metrics=None, figures=())
+        return DesignNote(design, sources, events, verdict=None, figures=())
     verdict = _read_verdict(verdict_path)
     return DesignNote(
         design,
         sources,
         events,
-        metrics=_verdict_metrics(verdict),
+        verdict=NoteVerdict(metrics=_verdict_metrics(verdict)),
         figures=_verdict_figures(verdict, notebooks),
     )
 

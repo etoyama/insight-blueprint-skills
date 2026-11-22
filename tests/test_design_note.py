@@ -11,6 +11,7 @@ from skills._shared.design_note import (
     NoteEvent,
     NoteFigure,
     NoteSource,
+    NoteVerdict,
     VerdictMetric,
     note_anchor,
     render_note,
@@ -41,13 +42,16 @@ def _design(**over: object) -> AnalysisDesign:
 
 
 def _note(**over: object) -> DesignNote:
+    """A note; ``metrics`` stands for a verdict that holds those metric values."""
     fields: dict = {
         "design": _design(),
         "sources": (),
         "events": (),
-        "metrics": None,
+        "verdict": None,
         "figures": (),
     }
+    if "metrics" in over:
+        fields["verdict"] = NoteVerdict(metrics=over.pop("metrics"))  # type: ignore[arg-type]
     fields.update(over)
     return DesignNote(**fields)
 

@@ -56,6 +56,13 @@ class VerdictMetric:
 
 
 @dataclass(frozen=True)
+class NoteVerdict:
+    """What the note shows of ``{id}_verdict.json``, besides its figures."""
+
+    metrics: tuple[VerdictMetric, ...]
+
+
+@dataclass(frozen=True)
 class NoteFigure:
     title: str
     axes: str
@@ -68,9 +75,7 @@ class DesignNote:
     design: AnalysisDesign
     sources: tuple[NoteSource, ...]
     events: tuple[NoteEvent, ...]  # journal order
-    # None: no verdict file, so the notebook has not run. (): a verdict that
-    # holds no metric values.
-    metrics: tuple[VerdictMetric, ...] | None
+    verdict: NoteVerdict | None  # None: no verdict file, so the notebook has not run
     figures: tuple[NoteFigure, ...]
 
 
@@ -145,7 +150,7 @@ def _status(note: DesignNote, anchor: str) -> Html:
         journal = "journal にまだ出来事が無い。"
     else:
         journal = f"載せた journal の最後の出来事の時刻: {last.created_at or '（時刻の記載なし）'}"
-    verdict = "あり" if note.metrics is not None else "まだ無い"
+    verdict = "あり" if note.verdict is not None else "まだ無い"
     return el(
         "div",
         el("p", f"状態: {note.design.status.value}"),
@@ -356,10 +361,12 @@ def _results(note: DesignNote, anchor: str) -> Html:
         "results",
         "結果",
         el("p", "notebook をまだ実行していない（verdict が無い）。")
-        if note.metrics is None
+        if note.verdict is None
         else None,
         join(_events(note)),
-        join(_metric_values(note.metrics)) if note.metrics is not None else None,
+        join(_metric_values(note.verdict.metrics))
+        if note.verdict is not None
+        else None,
         _figures(note, anchor),
     )
 
