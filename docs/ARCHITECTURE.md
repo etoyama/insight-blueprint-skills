@@ -136,6 +136,7 @@ notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定�
 insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配布物の中身）
 ├── .claude-plugin/                # plugin マニフェスト（plugin.json / marketplace.json）
 ├── bin/                           # plugin 有効時に PATH に載る: design_io / catalog_io / tree_io / premortem / report_check / tree_check ラッパー
+│                                  #   + _prelude.sh（6本が読み込む共通部分。実行ビットを付けないので、コマンドにはならない）
 ├── hooks/                         # plugin 同梱 hook: hooks.json + validate-design.py
 ├── skills/                        # 全 skill + _shared/（design_io.py / catalog_io.py / tree_io.py / tree_render.py / report_check.py / tree_check.py / ids.py / config_loader.py / models.py）+ premortem/
 ├── src/insight_blueprint/         # PyPI パッケージ insight-blueprint-lineage: models/ · validate.py · lineage/
