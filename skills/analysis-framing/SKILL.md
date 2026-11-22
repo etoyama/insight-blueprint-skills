@@ -144,6 +144,7 @@ Discuss with the user to narrow the hypothesis direction:
 The agreed direction is kept as the theme's **question tree**
 (`.insight/themes/{theme_id}_tree.yaml`): the root question, its aim, and the first-level
 nodes under it. The analyst settles them at two KEEP gates (4a, 4b). You draft, the analyst decides.
+A run handed the position of the theme reads the end of 4d before it asks anything in 4a or 4c.
 
 Do NOT create a hypothesis statement (`hypothesis_statement`).
 The framing skill's responsibility ends at "proceed to analysis-design on this node."
@@ -156,11 +157,9 @@ This is a KEEP gate. Settle three things with the analyst and wait for their ans
    `[A-Z][A-Z0-9]*`. Propose the theme of the related designs in the Data Map, or a new one.
    Then run `tree_io get --theme {theme_id}`. If it prints `{}`, the theme has no tree yet:
    continue with 2 and 3. Otherwise the theme already has a tree: go to 4c now, without 2 and 3.
-   When `get` prints `{}` it also writes `tree_io: no tree at {path}` on stderr. `{}` comes
-   back as well when `tree_io` looked in another directory, so check that `{path}` is under
-   this project's `.insight`. Never `cd` anywhere before a `tree_io` command: it reads the
-   `.insight` of the directory it is run from. If the path is elsewhere, run it again from
-   the project directory.
+   If `{path}` in `tree_io: no tree at {path}` on stderr is not under this project's
+   `.insight`, run it again from the project directory: never `cd` before, since `tree_io`
+   reads the `.insight` of the directory it is run from.
 2. **Root question** — the one question the whole theme answers, as a single sentence.
 3. **Aim** — what the root question is for. It has one of two kinds:
 
@@ -241,8 +240,8 @@ as answers to the new root, and ask once more. Their second answer stands.
 #### 4d: The node to design next (KEEP gate)
 
 Every rerun on a tree that has a decision passes this KEEP gate before 5b. A rerun never
-names a node the analyst has not just chosen. The one exception is inside `/analysis-auto`
-(at the end of this step).
+names a node the analyst has not just chosen. The one exception is a run handed the position of
+the theme (at the end of this step).
 
 1. Run `tree_io progress --theme {theme_id}` and `tree_io candidates --theme {theme_id}`.
 2. Show the node the latest decision names (the last entry of `decisions`), with its
@@ -269,12 +268,12 @@ echo '{"kind": "return", "node_id": "LIB-Q03",
 `tree_io` sets the round. If `decide` exits non-zero, show stderr and ask again; do not
 output the Framing Brief for a node the tree does not name.
 
-**Inside `/analysis-auto`.** The driver hands over the output of
+**When handed the position.** A run may be handed the output of
 `tree_io position --theme {theme_id}`. When its `state` is `not_started`, the latest decision
 names a node the analyst chose, and nothing has been designed on it since: take its `node_id`
 as the answer, do not ask again and write no decision, and skip the question of 4c about what
 this run changes. Designs no node holds are still placed (4c). Go to 5b with that node. In any other state the gate stands: ask. A run
-that was started on its own always asks, whatever the tree says.
+that was not handed the position always asks, whatever the tree says.
 
 ### Step 5: Output Framing Brief
 

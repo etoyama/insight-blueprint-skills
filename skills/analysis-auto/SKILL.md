@@ -45,10 +45,10 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 |------|---------------------------|-------------------------------|
 | entry: a design without a tree | **whether to build a tree for the theme and walk it, or to carry only this design** — asked once, and only for a `design_id` whose theme has no tree | reading the position (`tree_io position`) |
 | rq-problematization | **whether to review the list of assumptions, and the review when chosen** — asked by `/rq-problematization` itself | collecting prior research, extracting and testing assumptions, the RQ Brief |
-| framing ① root question and aim | **`theme_id`, the root question and the aim** (`/analysis-framing` 4a) | agentic exploration of `.insight/`; the Data Map; drafting the root question |
-| framing ② first node | **the first-level nodes, the first node to investigate with the reason, and the node each existing design belongs to** (4b) | drafting the nodes; writing the tree, the Framing Brief and the HTML once the analyst has answered |
-| framing ③ root revision | **whether a changed root question or aim raises the root revision, and the reason** (4c) | — |
-| framing ④ next node | **the node to design next, when the position is `closed`** (4d) | when the position is `not_started`: the latest decision is the answer, so the Framing Brief of its node |
+| framing ① root question and aim | **`/analysis-framing` 4a** | — |
+| framing ② first node | **`/analysis-framing` 4b** | — |
+| framing ③ root revision | **`/analysis-framing` 4c** | — |
+| framing ④ next node | **`/analysis-framing` 4d** | — |
 | design ① hypothesis | **confirm the hypothesis statement + background, and the decision context (who decides what; skippable)** | drafting them from the Framing Brief |
 | design ② methodology | **confirm the method + metrics + explanatory roles (treatment/confounder/…) + intent** | auto-drafting these fields from the Framing Brief |
 | design ③ data-extraction | **confirm the data-acquisition plan** — the actual query text (`methodology.steps`, with each table as `{source:ID}`) for SQL sources, or the data source id + columns + filter for CSV/others, plus expected grain & rough row scale | auto-drafting the query / column selection from the catalog schema |
@@ -60,9 +60,13 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | reflection | **the conclusion (conclude/refine/branch) + terminal transition** | presenting the evidence summary |
 | report | — | writing the report with `/analysis-report` once the design is in a terminal status |
 | upload | **the files to send to Claude Docs** — asked by `/report-upload` itself, at its approval gate; the driver adds no question of its own | starting `/report-upload` once the round has a report, written by this run or before it |
-| theme reflection | **the tree decision (deepen / return / close, the next node, the reason) and any answer the analyst heard** (`/analysis-reflection {theme_id}` T7) | writing the current answers, the tree check, the next candidates, the HTML |
+| theme reflection | **`/analysis-reflection {theme_id}` T7** | — |
 | tree-upload | **the file to send as an Artifact** — asked by `/tree-upload` itself, at its approval gate; the driver adds no question of its own | starting `/tree-upload` when the analyst asks to hand the tree over |
 | catalog-register | **registering a data source** (external-data side-effect); unregistered source → stop | — |
+
+A KEEP cell that names a step of a delegated skill is that skill's own gate. That skill says what
+the step asks, and also when it does not ask (4d, for a `not_started` position). The rest of that
+skill follows it as written.
 
 The four `design ①–④` beats are **ordered confirmation gates** run before `design_io create`
 (and therefore before premortem): each is presented as its own AskUserQuestion so the user can
@@ -123,7 +127,7 @@ tree_io position --theme LIB
 | `not_started` | The latest decision names `node_id`, and no design was made on it since | Step 3, item 1 |
 | `in_progress` | `design_ids` are the unfinished designs on `node_id` | Step 3, at the item the first of them calls for |
 | `concluded` | `design_ids` were made after the decision and are all finished; the round lacks its theme reflection | Step 3, item 8, for each of the `design_ids` in turn |
-| `closed` | The analyst closed the walk at `node_id`, and no design was made on it since | Step 3, item 1 (`/analysis-framing` asks which node to resume, 4d) |
+| `closed` | The analyst closed the walk at `node_id`, and no design was made on it since | Step 3, item 1 |
 
    For `in_progress`, read the design with `design_io get --id {design_id}`:
    `in_review` / `revision_requested` → item 3 or 4. For `analyzing`, read the journal: no event
@@ -133,7 +137,7 @@ tree_io position --theme LIB
    and tell the analyst which ones wait.
 3. A `design_id` of a theme that has a tree is never asked about: carry that design, entering
    Step 3 at the item its status calls for. If no node of the tree holds it, say so and run
-   `/analysis-framing {theme_id}` first, which asks where it belongs (4c, "Designs no node holds").
+   `/analysis-framing {theme_id}` first (4c, "Designs no node holds").
 4. Tell the analyst the plan ("論点ツリーの {node_id} から、design→premortem→notebook→journal→
    reflection→レポート→テーマを横断した振り返り の順に進める。仮説の確定・コスト判定・結論・ツリーの決定では
    止まる。結論が出たらレポートは聞かずに書く。外へ送る前には、送るファイルを見せて承認を待つ。
@@ -154,12 +158,9 @@ tree_io position --theme LIB
    Brief, which `/analysis-framing` picks up. Skip this item for a business theme and for a
    theme that already has its research question. When it is unclear whether the theme is
    research, do not ask: go to framing, whose 4a gate settles the kind of the aim.
-3. **framing**: run `/analysis-framing` in full — explore `.insight/`, present the **Data Map**,
-   and hold its two KEEP gates: the `theme_id`, the root question and the aim (4a), then the
-   first-level nodes and the first node to investigate (4b). When the theme has existing designs,
-   4b also asks which node each of them belongs to. Do not silently pick any of these — this
-   is where the analyst's intent gets elicited. The skill writes the tree, records the first node
-   as the `start` decision, outputs the Framing Brief and renders the HTML.
+3. **framing**: run `/analysis-framing` in full. Its KEEP gates are 4a and 4b. The skill writes
+   the tree, records the first node as the `start` decision, outputs the Framing Brief and
+   renders the HTML.
 4. Then read `tree_io position` again and enter Step 3 by its `state`, as in Step 1: an
    unfinished design that 4b placed on the first node makes it `in_progress`, and that design is
    carried instead of a new one. When the run started from a `design_id`, the round carries
@@ -180,10 +181,8 @@ turn. Any other round carries the one design it worked on.
 
 1. **framing brief**: a design is made from the Framing Brief of its node. When the position
    is `not_started` or `closed` and that Brief is not in the conversation yet, run
-   `/analysis-framing {theme_id}` and hand it the output of `tree_io position`. For
-   `not_started` the skill takes the node of the latest decision without asking again; for
-   `closed` it asks which node to resume (4d). Skip this item when Step 2 has just output the
-   Brief of that node.
+   `/analysis-framing {theme_id}` and hand it the output of `tree_io position`, which its 4d
+   reads. Skip this item when Step 2 has just output the Brief of that node.
 2. **design**: run `/analysis-design`, auto-drafting fields from the agreed Framing Brief. Then **walk
    the four ordered confirmation beats — one AskUserQuestion each — before `design_io create`**, letting
    the user adjust at every beat. Do not collapse them into a single "looks good?"; don't silently commit
@@ -240,13 +239,11 @@ turn. Any other round carries the one design it worked on.
    nothing and asks nothing; go on to the next design's report, or after the last one go on to
    the theme reflection. Skip this item when the round has no report. Keep the skill's
    one-line outcome for item 10 and the summary.
-10. **theme reflection**: run `/analysis-reflection {theme_id}`. It writes the current answer
-    of each node, checks them, shows the next candidates and renders the HTML without asking. Its
-    Step T7 is the KEEP gate of the round. Before that gate, show each report's path next to the
+10. **theme reflection**: run `/analysis-reflection {theme_id}`. Its Step T7 is the KEEP gate
+    of the round. Before that gate, show each report's path next to the
     path of the tree's HTML, so the analyst decides with both in view. The reports are those of
     the designs this round carried, also when an earlier run wrote them; for each, add the
-    upload outcome. A round without a conclusion has no report: say so. Never choose the kind,
-    the node or the reason for them, and never fill in an answer they heard.
+    upload outcome. A round without a conclusion has no report: say so.
 11. **next round**: after a `deepen` or a `return` the walk goes on: read `tree_io position`
     again and start the next round at item 1, in the same turn. Do not summarize in between, and
     never tell the analyst to run `/analysis-auto` again to continue: a decision that names the
@@ -256,9 +253,8 @@ turn. Any other round carries the one design it worked on.
 
 Two things happen only when the analyst asks for them, at any point of the walk:
 
-- **The root question or the aim changes** → run `/analysis-framing {theme_id}`. Whether the
-  root revision goes up is its KEEP gate (4c, "The root question or the aim"). Then read
-  `tree_io position` again.
+- **The root question or the aim changes** → run `/analysis-framing {theme_id}`, whose KEEP
+  gate is 4c, "The root question or the aim". Then read `tree_io position` again.
 - **The analyst asks to hand the tree over by URL** → run `/tree-upload {theme_id}`. Do not
   ask whether to send: the skill lists the file and waits at its own KEEP gate, the only
   question about it. Never answer it for them
