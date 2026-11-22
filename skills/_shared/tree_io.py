@@ -53,7 +53,6 @@ from skills._shared.design_io import (
     journal_events,
     resolve_base_dir,
 )
-from skills._shared.design_note_read import render_design_note
 from skills._shared.tree_check import check_tree
 from skills._shared.tree_read import (
     WalkState,
@@ -63,6 +62,7 @@ from skills._shared.tree_read import (
     position,
     progress,
     render,
+    render_design,
     require_design,
     status_of,
     tree_path,
@@ -534,11 +534,11 @@ def _position(args: argparse.Namespace, base: Path, payload: dict) -> Any:
     return where
 
 
-def _render(args: argparse.Namespace, base: Path, payload: dict) -> dict[str, str]:
+def _render(args: argparse.Namespace, base: Path, payload: dict) -> dict[str, Any]:
     if (args.theme is None) == (args.design is None):
         raise ValueError("render takes exactly one of --theme and --design")
     if args.design is not None:
-        return render_design_note(args.design, base_dir=base)
+        return render_design(args.design, base_dir=base)
     return render(args.theme, base_dir=base)
 
 

@@ -11,11 +11,13 @@ Writes go through ``tree_io``, which also carries the CLI for these reads.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Iterator
 from dataclasses import replace
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 from insight_blueprint.models.common import THEME_ID_PATTERN
 from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
@@ -34,8 +36,8 @@ from skills._shared.design_io import (
     load_design,
     read_yaml,
 )
-from skills._shared.design_note import DesignNote, render_note
-from skills._shared.design_note_read import load_design_note
+from skills._shared.design_note import DesignNote, note_anchor, render_note
+from skills._shared.design_note_read import load_design_note, render_design_note
 from skills._shared.tree_check import Violation, check_cited
 from skills._shared.tree_render import (
     CheckFailed,
@@ -312,3 +314,31 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     path = tree_path(theme_id, base_dir).with_suffix(".html")
     atomic_write_text(path, html)
     return {"path": str(path)}
+
+
+def render_design(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
+    """Write the page that holds the analysis note of *design_id* and say where the note is.
+
+    With a tree for the theme the note sits in ``{theme_id}_tree.html``, which
+    is rewritten: ``path``, ``anchor`` (the note in that page) and ``node_ids``
+    (the questions that link the design, in tree order, possibly none). Without
+    one it is ``render_design_note``'s standalone page and only ``path``.
+    A tree that exists but is invalid is an error, never a fallback.
+    """
+    require_design(design_id, base_dir)
+    # The theme is read from the file name, as designs_of_theme does for the page.
+    theme = re.fullmatch(r"(.+)-H\d+", design_id)
+    if not theme or not THEME_ID_PATTERN.fullmatch(theme[1]):
+        return render_design_note(design_id, base_dir)
+    theme_id = theme[1]
+    if not load_tree(theme_id, base_dir):
+        return render_design_note(design_id, base_dir)
+    tree = load_tree_model(theme_id, base_dir)
+    path = render(theme_id, base_dir)["path"]
+    # A standalone page left by an earlier run would be a second, older reading surface.
+    (Path(base_dir) / "notes" / f"{design_id}.html").unlink(missing_ok=True)
+    return {
+        "path": path,
+        "anchor": note_anchor(design_id),
+        "node_ids": [n.id for n in tree.nodes if design_id in n.design_ids],
+    }

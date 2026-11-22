@@ -102,15 +102,16 @@ class TestRenderDesignNote:
         assert text.startswith("<!doctype html>")
         assert f"分析ノート {design_id}" in text
 
-    def test_writes_the_same_standalone_page_for_a_theme_with_a_tree(
+    def test_the_standalone_writer_itself_ignores_the_tree_of_the_theme(
         self, world: Path
     ) -> None:
+        """The choice between the tree page and this page is made one level up, by ``tree_io render --design``."""
         design_id = "LIB-H01"
 
         result = render_design_note(design_id, base_dir=world)
 
         assert result == {"path": str(world / "notes" / f"{design_id}.html")}
-        assert (world / "notes" / f"{design_id}.html").is_file()
+        assert not (world / "themes" / "LIB_tree.html").exists()
 
     def test_an_unknown_design_is_an_error_and_writes_nothing(
         self, insight: Path
