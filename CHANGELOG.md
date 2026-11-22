@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-23
+
+### Added
+
+- **Each analysis design gets a design note, and the question tree's page holds them all.**
+  `tree_io render --design {design_id}` builds the note from the design, its journal and the
+  notebook's output. The note shows the method, the metric definitions, the data sources, the
+  results with the figures embedded, the analysis code (never the data-load cell, which can hold
+  connection values), the lineage, every journal event, and the files kept under `.insight/`.
+  For a design in a terminal status it also shows the conclusion, copied from the records with
+  no text written by the model. `tree_io render --theme` now writes every note of the theme
+  below the tree on the same page, and each node links to the notes of its designs with an
+  anchor and back. A theme without a tree gets a standalone page under `.insight/notes/`
+  ([ADR-0036](docs/adr/0036-design-note-is-a-generated-page-per-design.md), #173).
+
+### Changed
+
+- **`/analysis-reflection` points to the design note before it asks for a conclusion.** Step 2
+  rebuilds the page and shows the file to open, where the note is and which nodes link the design,
+  instead of listing the figures, the verdict and the notebook in the chat. `/analysis-notebook`
+  rebuilds the note after it writes the results (#183).
+- **`/tree-upload` sends the tree with its design notes as one file.** The approval text lists
+  what the page holds, and a page over 16,000,000 bytes stops before the approval is asked.
+  No other file is attached ([ADR-0037](docs/adr/0037-tree-upload-sends-the-design-notes.md), #184).
+- **One design that cannot be built stops its theme's page.** The tree page now reads every
+  design, verdict and catalog entry of the theme, so a design that does not match its schema, or a
+  broken verdict JSON, stops `render --theme` and `render --design` for the theme. The error names
+  the design to fix.
+
 ## [0.14.1] - 2026-11-22
 
 ### Fixed
@@ -607,6 +636,7 @@ Version bumps and maintenance releases. See git history for details:
 - SQLite FTS5 full-text search index
 
 [unreleased]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.14.1...HEAD
+[0.15.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.12.0...v0.13.0
