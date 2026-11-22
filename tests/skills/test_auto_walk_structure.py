@@ -29,9 +29,19 @@ from tests.skills.test_skill_structure import (
 NEW_GATES = {
     "entry: a design without a tree": "whether to build a tree",
     "framing ① root question and aim": "root question",
-    "framing ② first node": "first node to investigate",
+    "framing ② first node": "first node",
     "framing ③ root revision": "root revision",
-    "theme reflection": "tree decision",
+    "theme reflection": "T7",
+}
+
+# The rows of gates a delegated skill holds: the row names the gate and the
+# step that holds it, and copies none of that step's logic (#143).
+OWNED_GATES = {
+    "framing ① root question and aim": "`/analysis-framing` 4a",
+    "framing ② first node": "`/analysis-framing` 4b",
+    "framing ③ root revision": "`/analysis-framing` 4c",
+    "framing ④ next node": "`/analysis-framing` 4d",
+    "theme reflection": "`/analysis-reflection {theme_id}` T7",
 }
 
 ROUND = [
@@ -201,23 +211,24 @@ class TestGates:
 
     @pytest.mark.parametrize("step", NEW_GATES)
     def test_the_five_new_gates_are_keep_gates(self, step: str) -> None:
-        _, keep, _auto_cell = table_row(_gates(), step)
+        name, keep, _auto_cell = table_row(_gates(), step)
         assert keep.startswith("**"), keep
-        assert NEW_GATES[step] in keep
+        assert NEW_GATES[step] in name + keep
 
-    def test_the_framing_gates_point_at_their_steps(self) -> None:
-        for step, where in (
-            ("framing ① root question and aim", "4a"),
-            ("framing ② first node", "4b"),
-            ("framing ③ root revision", "4c"),
-            ("framing ④ next node", "4d"),
-        ):
-            assert where in table_row(_gates(), step)[1], step
+    @pytest.mark.parametrize("step", OWNED_GATES)
+    def test_a_gate_of_a_delegated_skill_points_at_its_step_only(
+        self, step: str
+    ) -> None:
+        _, keep, auto = table_row(_gates(), step)
+        assert keep == f"**{OWNED_GATES[step]}**"
+        assert auto == "—"
 
-    def test_the_decided_node_is_not_asked_again(self) -> None:
-        _, keep, auto = table_row(_gates(), "framing ④ next node")
-        assert "`closed`" in keep
-        assert "`not_started`" in auto
+    def test_the_decided_node_is_not_asked_again_inside_the_walk(self) -> None:
+        # The driver hands framing the position; 4d alone says what it skips.
+        assert "`/analysis-framing` 4d" in table_row(_gates(), "framing ④ next node")[1]
+        item = _round_item("framing brief")
+        assert "output of `tree_io position`" in item
+        assert "without asking again" not in item
 
     def test_the_skills_own_gates_are_listed_and_the_driver_adds_no_question(
         self,
