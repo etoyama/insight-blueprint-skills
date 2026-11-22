@@ -102,11 +102,11 @@ AC の正本はここ。
 
 分析者として、結論を決める前に最新の根拠を確かめるために、`/analysis-reflection` が結論を聞く前に、分析ノートと対象の論点を示してほしい。
 
-- [ ] AC 1: `/analysis-reflection {design_id}` の Step 2 は読むものを出す直前に `tree_io render --design {design_id}` を呼ぶ。手順は、テーマに論点ツリーがあるかどうかで分かれない。
-- [ ] AC 2: 読むものは開くファイルのパスと、分析ノートの場所と、分析設計を結んだ論点の id である。論点ツリーが無いか、どの論点にも結んでいなければ、分析ノートのパスだけを出す。図・verdict・notebook のパスと指標の定義は、チャットに並べない。
-- [ ] AC 3: `/analysis-notebook` は、結果を journal に書いた後に `tree_io render --design {design_id}` を呼び、分析ノートの場所を伝える。
-- [ ] AC 4: 読むものに、気づいたことをチャットで返せば journal に残せることを書く。残すのは既存の journal の出来事で、新しい種類は足さない。
-- [ ] AC 5: `/analysis-auto` の Gate policy と手順が reflection の段で分析ノートと論点を示すことと食い違わない。skill は分析ノートを読まず、正本を読む。テーマの振り返り（T7）は変えない。
+- [x] AC 1: `/analysis-reflection {design_id}` の Step 2 は読むものを出す直前に `tree_io render --design {design_id}` を呼ぶ。手順は、テーマに論点ツリーがあるかどうかで分かれない。
+- [x] AC 2: 読むものは開くファイルのパスと、分析ノートの場所と、分析設計を結んだ論点の id である。論点ツリーが無いか、どの論点にも結んでいなければ、分析ノートのパスだけを出す。図・verdict・notebook のパスと指標の定義は、チャットに並べない。
+- [x] AC 3: `/analysis-notebook` は、結果を journal に書いた後に `tree_io render --design {design_id}` を呼び、分析ノートの場所を伝える。
+- [x] AC 4: 読むものに、気づいたことをチャットで返せば journal に残せることを書く。残すのは既存の journal の出来事で、新しい種類は足さない。
+- [x] AC 5: `/analysis-auto` の Gate policy と手順が reflection の段で分析ノートと論点を示すことと食い違わない。skill は分析ノートを読まず、正本を読む。テーマの振り返り（T7）は変えない。
 
 ### US-6: 論点ツリーを受け取った人が、Artifact でも分析ノートまで読める
 
@@ -707,6 +707,23 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 - Alternatives considered: Limitations と同じく、結論に反する向きの証拠を出す。AC と図の名前と食い違い、`rejected` では `supports` の証拠が「仮説に反する証拠」の見出しの下に出る。
 - Consequences: 計画外の判断（2件目）。PR 説明に書く。`rejected` の分析設計では、結論を裏づける証拠がこの見出しの下に出る。どの証拠もすでに「結果」の節に向きごとに出ている。
 
+### Decision: the-entry-is-filled-from-what-render-returns
+
+- What: 読むもののブロックは、`tree_io render --design` の返した JSON だけから組む（Story 28.5）。
+  論点に結んでいれば `開くファイル: {path}`、`分析ノート: {path}#{anchor}`、`論点: {node_ids}` の3行を出す。`anchor` が無いか `node_ids` が空なら、`分析ノート:` の1行だけを出し、`anchor` が無ければ `#{anchor}` を省く。
+  ブロックの末尾に、気づいたことをチャットで返せば journal に残すことを書く。render が失敗したら stderr を出してパスを示さず、Step 3 には進む。
+  返った JSON の読み方は `/analysis-reflection` の `#### 読むもの` の1か所に書き、`/analysis-notebook` の Step 7 はそこを指す。`/analysis-auto` は reflection の行と item 7 に、Step 2 が分析ノートを示すことと、driver が分析ノートを読まないことだけを書く。
+- Why: US-5 AC 2 の3つを、呼ぶ側が正本を読み直さずに出せる（Decision `render-design-says-where-the-note-is`）。返った形の読み方を2か所に書くと、#143 で減らした書き写しが戻る。
+- Criteria: 示したパスとアンカーで分析ノートが開けること（Must、US-5 AC 2）。返った形の読み方が1か所にあること（高、人間、#143）。結論の段を止めないこと（中、Claude の推測）。決め手は最初の2つ。
+- Affected modules: `skills/analysis-reflection/SKILL.md`、`skills/analysis-notebook/SKILL.md`、`skills/analysis-auto/SKILL.md`、`tests/skills/test_reflection_materials_structure.py`、`docs/UBIQUITOUS_LANGUAGE.md`。
+- Alternatives considered:
+  - `分析ノート:` の行をアンカーだけ（`#{anchor}`）にする。開くファイルの行と組み合わせないと開けず、論点に結んでいないときの1行の形と揃わない。
+  - render が失敗したら Step 3 に進まない。分析者は正本と Step 2 の要約で結論を出せるので、止める理由が無い。古いページのパスは示さない。
+  - `/analysis-notebook` に、返った形の読み方を書き写す。#143 の書き写しになる。
+- Consequences: Epic 26 の US-1 の AC と構造テスト（読むものの図・verdict・notebook のパスと指標の定義）は、ADR-0036 のとおり置き換わった。テストのファイル名はそのままで、中身を US-5 の AC に書き直した。
+  Epic 26 の Decision（読むものの指標に `data_source` を出さない）は、指標をチャットに出さなくなったので当てはまる所が無くなった。Epic 26 の DesignDoc は凍結しているので直さない。
+  ブロックの差し込み口は `render --design` の返すキーと構造テストで照らすので、返す形を変えるとテストが落ちる。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0036: 分析ノートは、分析設計ごとにコードが生成し、論点ツリーの HTML の中に並べる](../adr/0036-design-note-is-a-generated-page-per-design.md): 分析ノートの中身と決まり、置き方、結論の後の節、Epic 18 の US-5 AC 1 の文言の変更、読むものの意味の変更。
@@ -722,7 +739,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 | 28.2 コードと経過を載せる | ✓（`tests/test_design_note_read.py` の cell の切り出し、データ取得の cell を特定できない notebook。`tests/test_design_note.py` の分析コード・lineage・分析の経過・手元のファイルの節） | ✓（`tests/tree_io/test_render_design.py` の `TestCodeAndProgress`。接続情報が載らないこと、リンクのファイルを読まないこと、在るファイルだけへのリンク） | —（自動の E2E は無い。built-in browser の手動確認を Story Timeline に書いた） |
 | 28.3 結論の後の節を埋める | ✓（`tests/test_design_note.py` の `TestConclusion`。決まった文、置き場、記録の写し、無いものを省くこと、記録と決まった見出しのほかの文字が無いこと、エスケープ。`tests/skills/test_design_note_report_structure.py`。決まった文・勧めの元・未解決の問いの定義をレポートのテンプレートと照らす） | ✓（`tests/tree_io/test_render_design.py` の `TestConclusion`。status ごとの枝、解決済みの問いを出さないこと、未結論の分析設計に節が無いこと、Markdown のレポートを読まないこと） | —（自動の E2E は無い。built-in browser の手動確認を Story Timeline に書いた） |
 | 28.4 論点ツリーの HTML に並べる | ✓（`tests/test_tree_render.py`。アンカー、戻るアンカー、並び、分析ノートを二重にエスケープしないこと、論点ツリーの側が別の HTML へのリンクを出さないこと） | ✓（`tests/tree_io/test_render_notes.py`、`tests/tree_io/test_render_design_in_tree.py`。アンカーの飛び先がすべて同じファイルに在ること、2回で同じバイト列、作れない分析ノートのエラー、`render --design` の返す形） | —（自動の E2E は無い。built-in browser の手動確認を Story Timeline に書いた） |
-| 28.5 結論の段で示す | ☐（SKILL.md の構造テスト） | ☐ | ☐ |
+| 28.5 結論の段で示す | ✓（`tests/skills/test_reflection_materials_structure.py`。render を1回だけ読むものの直前に呼ぶこと、ブロックの差し込み口が `render --design` の返すキーと一致すること、notebook の出力と指標を並べないこと、notebook が journal の後に render し読み方は reflection を指すこと、返信が既存の出来事になること、auto が食い違わないこと） | —（足したのは skill の prose で、`tree_io` の振る舞いは 28.4 の Integration が確かめている） | —（自動の E2E は無い。合成のプロジェクトでの手動確認を Story Timeline に書いた） |
 | 28.6 分析ノートを含めて送る | ☐（SKILL.md の構造テスト） | ☐ | ☐（Artifact で行き来できるかの手動確認。スマホのアプリとデスクトップ） |
 
 ## Story Timeline
@@ -754,3 +771,8 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 - 2026-11-23 — 手動確認（28.3）: 合成のプロジェクトに、`rejected` の分析設計（決定の文脈、`next_action` の両方の枝、向きの違う証拠、解決済みと未解決の問い、`conclude`、長い `reflect`）と、`in_review` の分析設計を作った。
   `bin/tree_io render --design` をそれぞれ2回通し、同じバイト列になった。built-in browser で開き、結論の節が「結果」の後に出て、`if_rejected` の `reason` と `pivot` だけが出ること、解決済みの問いが出ないこと、問いの中の `<b>` が文字のまま出ることを見た。
   `in_review` の分析設計には結論の節もアンカーも無く、冒頭に結論がまだ出ていないことが出た。どちらも script が0件で、幅 375px でページが横にはみ出さない。
+- 2026-11-23 — Story 28.5 completed: `/analysis-reflection {design_id}` の Step 2 が、読むものの直前に `tree_io render --design` を呼び、開くファイル・分析ノートの場所・論点の id を示す。図・verdict・notebook のパスと指標の定義はチャットに並べない。US-5 の AC 1〜5。
+  `/analysis-notebook` は journal に書いた後に render して分析ノートの場所を伝える。`/analysis-auto` の reflection の行と item 7 を揃えた。用語表の「読むもの」を改めた。
+- 2026-11-23 — 手動確認（28.5）: 合成のプロジェクト（論点ツリーのあるテーマ LIB に、論点に結んだ LIB-H01 と結んでいない LIB-H02、ツリーの無いテーマ CAT に CAT-H01）で、Step 2 に当たる `bin/tree_io render --design` を3つとも通した。
+  返った JSON は、LIB-H01 が `path`・`anchor`・`node_ids: ["LIB-Q02"]`、LIB-H02 が `node_ids: []`、CAT-H01 が `path`（`.insight/notes/CAT-H01.html`）だけで、読むものはそれぞれ3行、1行、1行になる。
+  built-in browser で `{path}#{anchor}` を開き、LIB-H01 と LIB-H02 は分析ノートの頭に止まり、上に「論点ツリーへ戻る」と「結んだ論点」が見えることを見た。CAT-H01 は単独のページとして開け、script は0件だった。
