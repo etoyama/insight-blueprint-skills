@@ -88,6 +88,7 @@ LIVING_DOCS = [
     "docs/design/epic-13-report-source-text.md",
     "docs/design/epic-14-report-template-gaps.md",
     "docs/design/epic-18-question-tree.md",
+    "docs/design/epic-28-tree-entry-point.md",
     *(str(p.relative_to(REPO_ROOT)) for p in _new_format_adrs()),
 ]
 
@@ -378,6 +379,48 @@ class TestReportAndUploadDocs:
             words.section(_read("docs/ARCHITECTURE.md"), "Epic マッピング")
         )
         assert [epic for epic in roadmap if epic not in mapped] == []
+
+
+class TestTreeEntryPointDocs:
+    """Epic 28, first edition: the DesignDoc has what WORKFLOW §4 asks for before any Story starts."""
+
+    DOC = "docs/design/epic-28-tree-entry-point.md"
+    FIRST_EDITION_DIAGRAMS = {
+        "Architecture": "flowchart",
+        "Domain Model": "classDiagram",
+        "Sequence Diagram": "sequenceDiagram",
+    }
+
+    @pytest.mark.parametrize("title", sorted(FIRST_EDITION_DIAGRAMS))
+    def test_first_edition_diagram_is_drawn_in_mermaid(self, title: str) -> None:
+        body = words.section(_read(self.DOC), title)
+        assert re.search(
+            rf"```mermaid\s*\n{self.FIRST_EDITION_DIAGRAMS[title]}\b", body
+        ), title
+
+    def test_every_story_handles_at_most_five_criteria(self) -> None:
+        rows = [
+            [cell.strip() for cell in line.strip("|").split("|")]
+            for line in words.section(_read(self.DOC), "Stories").splitlines()
+            if line.startswith("|")
+        ][2:]
+        assert rows, "the Stories table is empty"
+        for story, _user_story, criteria, *_ in rows:
+            assert len(re.findall(r"AC \d+", criteria)) <= 5, story
+
+    def test_design_note_is_a_term_from_its_adr(self) -> None:
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        assert "adr/0036-" in rows["分析ノート"]["初出"]
+        # 「ノートブック」 is the avoided word for notebook; the note must not be read as one.
+        assert "notebook" in rows["分析ノート"][words.DEFINITION]
+
+    def test_cross_epic_decisions_are_linked(self) -> None:
+        decisions = words.section(_read(self.DOC), "Decisions")
+        assert "../adr/0036-" in decisions
+        assert "../adr/0037-" in decisions
 
 
 class TestYomiyasuWords:

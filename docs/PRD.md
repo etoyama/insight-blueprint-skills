@@ -104,6 +104,7 @@ Epic 06 からは軽量版の上に分析の能力を足していく。
 | Epic 19 | [epic-19](design/epic-19-direct-conclusion.md) | analyzing から結論の status へ直接遷移する | 完了 |
 | Epic 26 | [epic-26](design/epic-26-reflection-materials.md) | reflection が結論の前に図・指標・notebook の場所を出す | 完了 |
 | Epic 27 | [epic-27](design/epic-27-resume-upload.md) | /analysis-auto を再開したときも、レポートを送るかを聞く | 完了 |
+| Epic 28 | [epic-28](design/epic-28-tree-entry-point.md) | 論点ツリーの HTML を、分析者と AI が分析を進める共通の入口にする | 計画中 |
 
 各 Epic の DesignDoc は `## Scope` 節で、本書のどの要件と
 ARCHITECTURE のどのコンポーネントを前進させるかを示す。
