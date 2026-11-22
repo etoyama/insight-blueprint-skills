@@ -279,18 +279,20 @@ class TestRender:
         assert "分析済み 0" in page
         assert "写した分析設計" in page
 
-    def test_a_linked_design_without_an_id_inside_is_still_shown(
+    def test_a_design_without_an_id_inside_stops_the_page_naming_the_design(
         self, tree: Path
     ) -> None:
+        """Spec change (Epic 28 US-4 AC 1): every design needs a note, and a note needs a valid design."""
         _add(tree)
         design_id = _design(tree)
         tree_io.link_design("LIB", "LIB-Q02", design_id, base_dir=tree)
         stored = dict(design_io.load_design(design_id, base_dir=tree))
         del stored["id"]
-        stored["title"] = "id の無い分析設計"
         atomic_write_yaml(tree / "designs" / f"{design_id}_hypothesis.yaml", stored)
 
-        assert "id の無い分析設計" in _rendered(tree)
+        with pytest.raises(ValueError, match=f"analysis note of '{design_id}'"):
+            tree_io.render("LIB", base_dir=tree)
+        assert not (tree / "themes" / "LIB_tree.html").exists()
 
     def test_a_linked_design_with_an_unknown_status_names_the_design(
         self, tree: Path
