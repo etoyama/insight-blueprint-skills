@@ -59,13 +59,13 @@ AC の正本はここ。
 
 分析者として、判断の前に根拠を確かめるために、分析設計の手法・指標の定義・結果の値・図を1つの文書で読みたい。
 
-- [ ] AC 1: `tree_io render --design {design_id}` は、その分析設計の分析ノートを作り、開くファイルのパスを返す。テーマに論点ツリーが無ければ、単独のページ（`.insight/notes/{design_id}.html`）を書く。
+- [x] AC 1: `tree_io render --design {design_id}` は、その分析設計の分析ノートを作り、開くファイルのパスを返す。テーマに論点ツリーが無ければ、単独のページ（`.insight/notes/{design_id}.html`）を書く。
   分析設計が無ければエラーにして、何も書かない。
-- [ ] AC 2: 分析ノートはレポートの前半と同じ並びで、仮説と背景、決定の文脈、手法、指標の定義、説明変数、データソースの名前・種類・説明、結果を出す。
+- [x] AC 2: 分析ノートはレポートの前半と同じ並びで、仮説と背景、決定の文脈、手法、指標の定義、説明変数、データソースの名前・種類・説明、結果を出す。
   結果は journal の `observe` と `evidence`（`direction` で分ける）と、verdict の指標の値である。値は書かれたとおりに出し、計算しない。接続情報は読まず、出さない。
-- [ ] AC 3: 図は verdict の figures manifest の順に、分析ノートに埋め込んで出し、題・軸の説明・読み方を添える。出すのは、`file` がファイル名だけで、`.insight/notebooks/` に実在する図に限る。
-- [ ] AC 4: notebook をまだ実行していない分析設計でも作る。無い節にはまだ無いことを書く。分析ノートの冒頭に、分析設計の状態、載せた journal の最後の出来事の時刻、verdict の有無を出す。
-- [ ] AC 5: 分析ノートは自己完結である。script を持たず、外部を読まず、生成した時刻と絶対パスを入れない。同じ入力（分析設計、journal、notebook の出力）からは同じ HTML ができる。分析ノートに入る文字はすべてエスケープする。
+- [x] AC 3: 図は verdict の figures manifest の順に、分析ノートに埋め込んで出し、題・軸の説明・読み方を添える。出すのは、`file` がファイル名だけで、`.insight/notebooks/` に実在する図に限る。
+- [x] AC 4: notebook をまだ実行していない分析設計でも作る。無い節にはまだ無いことを書く。分析ノートの冒頭に、分析設計の状態、載せた journal の最後の出来事の時刻、verdict の有無を出す。
+- [x] AC 5: 分析ノートは自己完結である。script を持たず、外部を読まず、生成した時刻と絶対パスを入れない。同じ入力（分析設計、journal、notebook の出力）からは同じ HTML ができる。分析ノートに入る文字はすべてエスケープする。
 
 ### US-2: 分析者が、分析ノートの中で分析コードと経過を確かめられる
 
@@ -181,9 +181,11 @@ flowchart TD
 
     subgraph shared["skills/_shared/"]
         io["tree_io<br/>render --theme / render --design"]
-        read["tree_read.py<br/>読んで渡し、書く"]
+        read["tree_read.py<br/>論点ツリーを読んで渡し、書く"]
+        nread["design_note_read.py（新設）<br/>分析ノートの入力を読んで渡し、書く"]
         trender["tree_render.py<br/>論点ツリーの節（純関数）"]
         note["design_note.py（新設）<br/>分析ノートの節（純関数）"]
+        html["_html.py（新設）<br/>エスケープとページの枠"]
     end
 
     subgraph views["生成物（.insight/）"]
@@ -201,9 +203,13 @@ flowchart TD
     notebook -->|render --design| io
     upload -->|render --theme| io
     io --> read
+    io --> nread
     read -->|読む| canonical
+    nread -->|読む| canonical
     read --> trender
-    read --> note
+    nread --> note
+    trender --> html
+    note --> html
     trender --> treehtml
     note -->|論点ツリーがあるとき| treehtml
     note -->|論点ツリーが無いとき| notehtml
@@ -215,12 +221,13 @@ flowchart TD
 
 - `tree_io render --theme` は、論点ツリーと、テーマの分析設計すべての分析ノートを、1ファイルに書く。
 - `tree_io render --design` は、テーマに論点ツリーがあればそのファイルを書き直し、無ければ単独のページを書く。どちらのときも、開くファイルのパスを返す。
-- モジュールの分け方（読む関数を `tree_read.py` に置くか、分析ノートの側に分けるか。エスケープの関数を2つの表示で共有するか）は、28.1 で決めて Decisions に残す。
+- モジュールの分け方は 28.1 で決めた（Decision `note-reads-live-apart-and-markup-is-shared`）。28.1 の時点では、`tree_io render --design` は論点ツリーの有無にかかわらず単独のページを書く。論点ツリーがあるときの分は 28.4 で作る。
 
 ## Domain Model
 
 `src/insight_blueprint/models/` のクラスは変えない。分析ノートは既存の型と notebook の出力から読んだ値を並べた生成物である。
-下の図の `DesignNote`・`NoteFigure`・`CodeCell`・`Conclusion` は `skills/_shared/` に置く表示のための型で、保存しない。名前は 28.1 で確定する。
+下の図の `DesignNote`・`NoteSource`・`NoteEvent`・`VerdictMetric`・`NoteFigure`・`CodeCell`・`Conclusion` は `skills/_shared/` に置く表示のための型で、保存しない。
+名前は 28.1 で確定した（Decision `note-types-are-parsed-at-the-reader`）。`CodeCell` は 28.2、`Conclusion` は 28.3 で実装する。
 
 ```mermaid
 classDiagram
@@ -254,13 +261,39 @@ classDiagram
     class DesignNote {
         <<Value Object>>
         +design
+        +sources
         +events
-        +verdict
+        +metrics
         +figures
         +cells
         +lineage
         +conclusion
         +local_files
+    }
+    class NoteSource {
+        <<Value Object>>
+        +name
+        +type
+        +description
+    }
+    class NoteEvent {
+        <<Value Object>>
+        +id
+        +type
+        +direction
+        +content
+        +created_at
+    }
+    class VerdictMetric {
+        <<Value Object>>
+        +name
+        +value
+        +threshold
+        +p
+        +passed
+        +effect_size
+        +confidence_interval
+        +sample_size
     }
     class NoteFigure {
         <<Value Object>>
@@ -287,6 +320,9 @@ classDiagram
     QuestionNode "0..*" --> "0..*" AnalysisDesign : design_ids
     DesignSummary ..> AnalysisDesign : 読んだ値
     DesignNote "1" --> "1" AnalysisDesign : 読んだ値
+    DesignNote "1" *-- "0..*" NoteSource
+    DesignNote "1" *-- "0..*" NoteEvent
+    DesignNote "1" *-- "0..*" VerdictMetric
     DesignNote "1" *-- "0..*" NoteFigure
     DesignNote "1" *-- "0..*" CodeCell
     DesignNote "1" *-- "0..1" Conclusion
@@ -297,8 +333,11 @@ classDiagram
 | `QuestionTree`、`QuestionNode` | 集約ルート、エンティティ | 変えない。分析ノートへのアンカーは保存せず、`design_ids` から導く |
 | `AnalysisDesign` | 集約ルート | 変えない |
 | `DesignSummary` | 値オブジェクト（表示の入力） | `created_at` を足す。並びは状態と `created_at` と id だけで決まる |
-| `DesignNote` | 値オブジェクト（表示の入力） | 保存しない。同じ入力からは同じ HTML ができる。接続情報を持たない |
-| `NoteFigure` | 値オブジェクト | figures manifest の1件。`file` がファイル名だけで、実在する図に限る |
+| `DesignNote` | 値オブジェクト（表示の入力） | 保存しない。同じ入力からは同じ HTML ができる。接続情報を持たない。`metrics` が無い（`None`）ことが、notebook をまだ実行していないことを表す。`cells`・`lineage`・`conclusion`・`local_files` は 28.2 と 28.3 で足す |
+| `NoteSource` | 値オブジェクト | データソースの名前・種類・説明だけを持つ。接続情報を入れる所が無い |
+| `NoteEvent` | 値オブジェクト | journal の出来事の1件。本文と時刻は書かれたとおりの文字 |
+| `VerdictMetric` | 値オブジェクト | verdict の指標の1件。数は verdict の JSON に書かれた文字のまま持つ。`effect_size` と `confidence_interval` は、項目が欠けていれば無いものとする（ADR-0013） |
+| `NoteFigure` | 値オブジェクト | figures manifest の1件。`file` がファイル名だけで、`.insight/notebooks/` に実在する PNG に限る。シンボリックリンクは載せない |
 | `CodeCell` | 値オブジェクト | notebook の cell の1つ。データ取得の cell は含めない。契約の形でない notebook からは1つも作らない |
 | `Conclusion` | 値オブジェクト | terminal status の分析設計にだけ在る。中身は記録の写しで、生成した文を持たない |
 
@@ -454,6 +493,57 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 - Consequences: 見本は notebook を契約どおりに書いて実際に走らせたので、図・verdict・lineage は本物の出力である。論点ツリーへのアンカーの差し込みと分析ノートの組み立ては、見本用のコードで行った。
   製品のコードは Story で TDD で書き、見本のコードは写さない。確かめたのは 2026-11-22 のスマホのアプリとデスクトップで、Artifact の作りが変われば結果も変わりうる。
 
+### Decision: note-reads-live-apart-and-markup-is-shared
+
+- What: 分析ノートのモジュールを3つに分ける（Story 28.1）。
+  - `skills/_shared/_html.py`: エスケープする `el`、信頼する markup の型 `Html`、`join`、土台の CSS（`BASE_CSS`）、ページの枠（`page`）。`tree_render.py` から移し、論点ツリーと分析ノートの2つの表示で共有する。
+  - `skills/_shared/design_note.py`: 表示の型と、分析ノートを組み立てる純関数。`render_note` は分析ノート1つ分の `<section>` を返し、`render_note_page` は単独のページを返す。
+  - `skills/_shared/design_note_read.py`: 分析設計・journal・catalog・verdict・図を読んで `DesignNote` を作る `load_design_note` と、単独のページを書く `render_design_note`。`tree_read.py` には置かない。
+- Why: 28.4 は分析ノートの markup を論点ツリーのページの中に置く。信頼する markup の型が表示ごとに別だと、論点ツリーの側の `el` が分析ノートの markup をもう一度エスケープする。
+  28.2 は分析ノートの読み取り（notebook の `.py`、lineage）を足し、28.4 は `tree_read.py` を触る。この2つは並行で走る。
+- Criteria: 分析ノートを論点ツリーのページに置けること（Must、US-4 AC 1）。28.2 と 28.4 が同じファイルを触らないこと（高、親のセッションの段取り、Stories 表）。
+  `tree_render.py` を膨らませないこと（高、親のセッションのブリーフ。746 行が 681 行になった）。エスケープの実装が1つであること（高、Claude の推測、US-1 AC 5）。決め手は最初の2つ。
+- Affected modules: `skills/_shared/_html.py`、`skills/_shared/design_note.py`、`skills/_shared/design_note_read.py`、`skills/_shared/tree_render.py`、`skills/_shared/tree_io.py`。
+- Alternatives considered:
+  - エスケープの関数を `design_note.py` に写す（Rule of Three では2回目は写す）。型が2つになり、28.4 で分析ノートを論点ツリーのページに置けない。
+  - 読む関数を `tree_read.py` に置く。28.2 と 28.4 が同じファイルを触る。
+  - 読む関数を `design_note.py` に置く。表示が純関数でなくなり、ファイル無しでテストできない。
+- Consequences: `tree_render.py` の出力は切り出しの前後で同じバイト列である（切り出しの前に書いたページと `cmp` で比べた）。28.2 が触るファイルに `design_note_read.py` が加わる。
+  28.4 は `load_design_note` と `render_note` を呼ぶ。`render_design_note` と `tree_read.render` のどちらを呼ぶかは、`tree_io.py` の `_render` が決める。
+
+### Decision: note-types-are-parsed-at-the-reader
+
+- What: 表示の型の名前を確定する（Story 28.1）。`DesignNote`・`NoteFigure`・`CodeCell`・`Conclusion` は初版のままにし、`NoteSource`・`NoteEvent`・`VerdictMetric` を足す。
+  `DesignNote` の `verdict` は `metrics` に改める。verdict のファイルが無いときは `None`、在って指標が無いときは空である。
+  verdict の数は、JSON に書かれた文字のまま読む（`json.loads` の `parse_float=str` と `parse_int=str`）。
+- Why: 「値は書かれたとおりに出し、計算しない」（US-1 AC 2）を、表示の関数の注意ではなく型で守る。数を float で持つと、`0.00010` が `0.0001` に、`0.00001` が `1e-05` に変わる。
+  データソースを辞書のまま渡すと、接続情報が表示まで届きうる。
+- Criteria: 値が書かれたとおりに出ること（Must、US-1 AC 2）。接続情報が表示に届かないこと（Must、US-1 AC 2、ADR-0022）。未実行を表す方法が1つであること（中、Claude の推測、US-1 AC 4）。
+  今要らない型と項目を作らないこと（高、YAGNI）。決め手は最初の2つ。
+- Affected modules: `skills/_shared/design_note.py`、`skills/_shared/design_note_read.py`。
+- Alternatives considered:
+  - verdict を辞書のまま `DesignNote` に持たせる。表示の関数が、形の崩れた verdict を毎回確かめることになる。
+  - `Conclusion` を `NoteConclusion` に改める。verdict の `conclusion` と紛れるが、Domain Model 図の変更が増える。28.3 が実装するときに決められる。
+- Consequences: Domain Model 図に型を3つ足し、`DesignNote` の項目を変えた。図の変更は人間の承認を待っている。
+  信頼区間の水準は `0.95` のように書かれたとおりに出し、レポートのように `95%` には直さない。
+  分析設計が `source_ids` に挙げたデータソースが catalog に無いとき、分析ノートには出ず、無いことも書かない。
+
+### Decision: the-standalone-page-returns-only-its-path
+
+- What: `tree_io render` は `--theme` か `--design` のどちらか1つを取る。`render --design {design_id}` は `.insight/notes/{design_id}.html` を書き、`{"path": "..."}` を返す（Story 28.1）。
+  キーは `render --theme` と同じ `path` だけである。分析設計が無ければ exit 1 で、`notes/` も作らない。
+  図として埋め込むのは、`file` が `[A-Za-z0-9_.-]+` に合い、`..` を含まず、`.insight/notebooks/` に実在し、シンボリックリンクでなく、PNG の署名で始まるファイルに限る。
+- Why: US-5 AC 2 は、論点ツリーが無いときは分析ノートのパスだけを出すと決めている。呼ぶ側が `path` を読む手順は、論点ツリーの有無で変わらない。
+  figures manifest は notebook が書いたデータである。ファイル名だけの検査では、manifest が notebook の `.py`（接続情報の値が入る）を指すと、その中身が分析ノートに埋まる。
+- Criteria: 呼ぶ側の手順が論点ツリーの有無で分かれないこと（高、US-5 AC 1）。分析ノートに接続情報が入らないこと（Must、US-1 AC 2、ADR-0022。コミットの後のセキュリティレビューの指摘）。決め手は後者。
+- Affected modules: `skills/_shared/tree_io.py`、`skills/_shared/design_note_read.py`。
+- Alternatives considered:
+  - 単独のページでもアンカー（`note-{design_id}`）を返す。US-5 AC 2 はパスだけを求めていて、使う所が無い。
+  - 図のファイル名を `{design_id}_fig{NN}.png` に限る。notebook の契約は名前を勧めているだけで、US-1 AC 3 はファイル名だけであることを求めている。
+- Consequences: 28.4 は、論点ツリーがあるときの返す形に `anchor` と `node_ids` を足す。アンカーは `design_note.note_anchor` が作る。
+  28.1 の時点では、論点ツリーのあるテーマでも単独のページを書く。28.4 で論点ツリーの HTML に切り替えた後、前に書いた `notes/{design_id}.html` が残ることがある。
+  US-1 AC 3 の「実在する図」は、PNG の署名で始まる、リンクでないファイルと読んだ。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0036: 分析ノートは、分析設計ごとにコードが生成し、論点ツリーの HTML の中に並べる](../adr/0036-design-note-is-a-generated-page-per-design.md): 分析ノートの中身と決まり、置き方、結論の後の節、Epic 18 の US-5 AC 1 の文言の変更、読むものの意味の変更。
@@ -465,7 +555,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| 28.1 分析ノートを作る | ☐（表示の純関数。エスケープ、決定性、無い節） | ☐（合成シナリオの fixture で `tree_io render --design` を回す） | ☐ |
+| 28.1 分析ノートを作る | ✓（`tests/test_design_note.py`。表示の純関数。エスケープ、決定性、無い節） | ✓（`tests/tree_io/test_render_design.py`。合成シナリオの fixture で `tree_io render --design` を回す） | —（自動の E2E は無い。built-in browser の手動確認を Story Timeline に書いた） |
 | 28.2 コードと経過を載せる | ☐（cell の切り出し、データ取得の cell を載せない、契約の形でない notebook） | ☐ | ☐ |
 | 28.3 結論の後の節を埋める | ☐（terminal status の有無、記録の写し。レポートのテンプレートとの突き合わせ） | ☐ | ☐ |
 | 28.4 論点ツリーの HTML に並べる | ☐（アンカー、並び、別の HTML へのリンクが無いこと） | ☐（`tree_io render --theme` が書いた HTML のアンカーの飛び先が、すべて同じファイルに在る） | ☐（built-in browser で、論点から分析ノートの図とコードまで行き来する手動確認） |
@@ -480,3 +570,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
   1ファイルにまとめた見本は、スマホのアプリとデスクトップで行き来でき、人間がイメージと合っていると答えた。
 - 2026-11-22 — 見本を受けて初版を改めた。分析ノートを論点ツリーの HTML の中に並べる。`/tree-upload` は同じ1ファイルを送る。分析ノートは結論の後の節も記録から埋める（人間の判断）。
   Markdown のレポートの一本化を #177 に起こした。Story の分割の案は5本から6本になった。
+- 2026-11-22 — Story 28.1 completed: `tree_io render --design` が分析ノートの単独のページ（`.insight/notes/{design_id}.html`）を書く。US-1 の AC 1〜5。
+  モジュールを `_html.py`・`design_note.py`・`design_note_read.py` に分け、表示の型に `NoteSource`・`NoteEvent`・`VerdictMetric` を足した（Domain Model 図の変更は人間の承認待ち）。
+- 2026-11-22 — 手動確認（28.1）: 合成のプロジェクト（分析設計、catalog、journal、verdict、図2枚）で `bin/tree_io render --design LIB-H01` を2回通し、同じバイト列になった。
+  built-in browser で開き、script が0件、外部への要求が0件、図が2枚とも出ること、幅 375px でページが横にはみ出さないことを見た。列の多い表は、表の枠の中で横に送れる。
