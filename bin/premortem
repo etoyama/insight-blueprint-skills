@@ -1,6 +1,5 @@
 #!/usr/bin/env sh
 # Wrapper so /premortem can run its risk engine from an INSTALLED plugin. See bin/_prelude.sh.
-# Read-only: unlike the writing wrappers it creates no directory.
 set -e
 
 name=premortem setup_exit=1

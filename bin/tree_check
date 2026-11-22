@@ -1,6 +1,5 @@
 #!/usr/bin/env sh
 # Wrapper so the question tree skills can call tree_check from an INSTALLED plugin. See bin/_prelude.sh.
-# Read-only: unlike the writing wrappers it creates no directory.
 # Setup fails with exit 2, not 1: for this command 1 means "violations found".
 set -e
 

@@ -8,12 +8,12 @@
 #
 # The wrapper sets before sourcing:
 #   name        its own name, for error messages
-#   setup_exit  exit code when setup fails (2 for the checkers, where 1 means "violations found")
+#   setup_exit  exit code when setup fails
 
 proj="${CLAUDE_PROJECT_DIR:-$PWD}"
 # Claude Code puts bin/ on the Bash tool's PATH but does not export CLAUDE_PLUGIN_ROOT
-# there, so fall back to the wrapper's own plugin (bin/ sits directly under the root).
-# ADR-0017.
+# there, so fall back to the wrapper's own plugin (bin/ sits directly under the root,
+# ADR-0017).
 cd "${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}"
 
 # Anchor the data base before it becomes a read/write root (defense in depth, ADR-0006 M1).
