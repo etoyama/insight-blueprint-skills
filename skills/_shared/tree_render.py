@@ -32,7 +32,7 @@ from insight_blueprint.models.tree import (
     design_id_of,
 )
 from skills._shared._html import BASE_CSS, Html, el, join, page
-from skills._shared.design_note import NOTE_CSS
+from skills._shared.design_note import NOTE_CSS, note_anchor
 
 if TYPE_CHECKING:  # tree_check imports this module (CitedEvent)
     from skills._shared.tree_check import Violation
@@ -334,6 +334,10 @@ def _link(target: str, label: str) -> Html:
     return el("a", label, href=f"#{target}")
 
 
+def _note_link(design_id: str) -> Html:
+    return _link(note_anchor(design_id), "分析ノートを開く")
+
+
 def _counts(context: _Context) -> Html:
     found = Counter(context.progress.values())
     return el(
@@ -567,7 +571,8 @@ def _evidence(
                     el(
                         "li",
                         _link(f"design-{design.id}", design.id),
-                        f" {design.title}　状態: {design.status}",
+                        f" {design.title}　状態: {design.status}　",
+                        _note_link(design.id),
                     )
                     for design in (context.designs[d] for d in node.design_ids)
                 ),
@@ -644,7 +649,11 @@ def _derivation(context: _Context) -> Html:
         shown.add(design_id)
         design = designs[design_id]
         nodes = context.linked_by.get(design_id, [])
-        facts: list[Html | str] = [f"状態: {design.status}　"]
+        facts: list[Html | str] = [
+            f"状態: {design.status}　",
+            _note_link(design_id),
+            "　",
+        ]
         facts += (
             ["結んだ論点: ", *(_join_links(nodes))] if nodes else ["論点に結んでいない"]
         )

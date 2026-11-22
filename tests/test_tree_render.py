@@ -943,6 +943,48 @@ class TestStructure:
         assert by_id(root, "design-LIB-H02") is not None
 
 
+class TestAnchorsToTheNotes:
+    OPEN = "分析ノートを開く"
+
+    def _card(self, root: Element, node_id: str) -> Element:
+        (card,) = [e for e in by_id(root, node_id).children if e.tag == "div"]
+        return card
+
+    def _hrefs(self, element: Element) -> list[str]:
+        return [e.attrs["href"] for e in element.walk() if e.tag == "a"]  # type: ignore[misc]
+
+    def test_each_linked_design_on_a_card_keeps_its_link_and_gains_one_to_its_note(
+        self,
+    ) -> None:
+        card = self._card(page(), "LIB-Q02")
+
+        (item,) = [
+            e for e in card.walk() if e.tag == "li" and e.text().startswith("LIB-H01 ")
+        ]
+        assert self._hrefs(item) == ["#design-LIB-H01", "#note-LIB-H01"]
+        open_link = [e for e in item.walk() if e.tag == "a"][1]
+        assert open_link.text() == self.OPEN
+
+    def test_each_design_in_the_derivation_has_a_link_to_its_note(self) -> None:
+        root = page()
+
+        for design_id in ("LIB-H01", "LIB-H02", "LIB-H04"):
+            (design,) = [
+                e for e in by_id(root, f"design-{design_id}").children if e.tag == "div"
+            ]
+            assert f"#note-{design_id}" in self._hrefs(design)
+            assert self.OPEN in design.text()
+
+    def test_the_tree_side_names_no_link_that_leaves_the_page(self) -> None:
+        root = page()
+
+        hrefs = [e.attrs["href"] for e in root.walk() if e.tag == "a"]
+        assert hrefs
+        assert all(h.startswith("#") for h in hrefs)
+        ids = {e.attrs["id"] for e in root.walk() if "id" in e.attrs}
+        assert {h[1:] for h in hrefs} <= ids
+
+
 class TestDesignNotes:
     def _sections(self) -> list[Element]:
         return [e for e in by_id(page(), "design-notes").children]
