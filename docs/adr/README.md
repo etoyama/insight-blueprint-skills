@@ -41,6 +41,7 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0035](0035-handoff-trial-records-keep-their-score.md) | 引き継ぎの試行の記録は、その時点の鍵での採点として残し、CI で採点し直さない | Accepted |
 | [0036](0036-design-note-is-a-generated-page-per-design.md) | 分析ノートは、分析設計ごとにコードが生成し、論点ツリーの HTML の中に並べる | Accepted |
 | [0037](0037-tree-upload-sends-the-design-notes.md) | `/tree-upload` は、分析ノートを含む論点ツリーの HTML を、1ファイルのまま Artifact に送る | Accepted |
+| [0038](0038-designdoc-draft-checks-whole-and-mockup.md) | DesignDoc 初版では、全体の整合を確かめ、成果物の見本を見せてから承認を求める | Superseded by FLOW-0005 |
 
 - ADR-0001〜0008 は旧形式のまま残す。ADR-0009 からは新形式（Problem と Decision Analysis の節を持つ）で書く。
 - 開発フローの決定の出典は [flow/](flow/README.md) にある。repo-template の ADR のコピーで、`FLOW-000N` と表記する。

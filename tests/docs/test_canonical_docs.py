@@ -712,3 +712,19 @@ class TestQuestionTreeDocs:
         assert "*_tree.yaml" in components
         assert "validate_tree" in components
         assert "tree_io" in section(doc, "### パス解決機構")
+
+
+class TestDesignDocFirstDraftChecks:
+    """FLOW-0005: the first draft is checked as a whole, then shown as a mock-up, before approval."""
+
+    @pytest.mark.parametrize(
+        "rel",
+        ["docs/WORKFLOW.md", ".claude/rules/design-doc-template.md"],
+    )
+    def test_the_first_draft_steps_name_both_checks(self, rel: str) -> None:
+        text = _read(rel)
+        body = section(text, "## 4.") if rel == "docs/WORKFLOW.md" else text
+        assert "全体の整合" in body
+        assert "見本" in body
+        assert "FLOW-0005" in body
+        assert "省いたら" in body

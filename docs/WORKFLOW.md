@@ -84,6 +84,14 @@ flowchart LR
    このフローの核になる。
    初版を出す前に、「この DesignDoc だけを読んだ人が、誰のどんな課題を解くのか説明できるか」を確かめ、
    §8 の推敲を行う。Epic issue に DesignDoc へのリンクを書く。
+   人間に初版の承認を求める前に、次の2段を行う（決定: [FLOW-0005](adr/flow/0005-designdoc-draft-checks-whole-and-mockup.md)）。
+   - **全体の整合**: 個別の判断がそろったら、全体を見渡して確かめる。判断どうしが矛盾していないか、
+     AC・Scope・既存の ADR とかみ合うかを見る。直す点があれば、人間に示して決め直す。
+   - **見本**: 利用者が触る成果物（画面、HTML、レポート、CLI の出力、API、生成されるファイルなど）の見本を作り、
+     人間とイメージを合わせる。置き場は問わない。成果物が実際に届く場所があればそこに置き、
+     そのホストの制約も確かめる。見本はコミットしない。分かった事実と、確かめていない前提を、
+     DesignDoc か ADR に書き戻す。利用者から見える変化がない Epic では省いてよい。
+     省いたら、その理由を Story Timeline に1行書く。
 3. Story 分割: ユーザーストーリーに沿って Story を起票し、DesignDoc の Stories 表に追記する。
 4. Story 実装: TDD（Red → Green → Refactor、
    [.claude/rules/coding-principles.md](../.claude/rules/coding-principles.md)）で実装する。

@@ -8,6 +8,9 @@
 初版で埋める節: Background / User Stories / Stories / Ubiquitous Language / Scope /
 Architecture / Domain Model / Sequence Diagram。それ以外の節は Story の実装に合わせて詳細化する。
 初版を出す前に、「この DesignDoc だけを読んだ人が、誰のどんな課題を解くのか説明できるか」を確かめる。
+人間に承認を求める前に、全体の整合を確かめ、利用者が触る成果物の見本を見せる
+（手順の正本: [docs/WORKFLOW.md §4](../../docs/WORKFLOW.md)、決定: FLOW-0005）。
+見本を省いたら、その理由を Story Timeline に1行書く。
 
 ---
 
