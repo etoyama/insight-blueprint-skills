@@ -12,6 +12,7 @@ import pytest
 
 from skills._shared import design_io, tree_io
 from skills._shared._atomic import atomic_write_yaml
+from tests.test_tree_render import by_id, parse
 from tests.tree_io._support import (
     ROOT_QUESTION,
     _add,
@@ -19,6 +20,12 @@ from tests.tree_io._support import (
     _rendered,
     _run_cli,
 )
+
+
+def _tree_text(insight: Path) -> str:
+    """The text of the question tree alone: the notes below it list whole journals."""
+    page = (insight / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
+    return by_id(parse(page), "question-tree").text()
 
 
 class TestRender:
@@ -182,7 +189,7 @@ class TestRender:
 
         tree_io.render("LIB", base_dir=tree)
 
-        text = (tree / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
+        text = _tree_text(tree)
         assert "別の journal に書いた同じ id" not in text
         assert "journal に見つからない出来事" in text
 
@@ -195,7 +202,7 @@ class TestRender:
 
         tree_io.render("LIB", base_dir=tree)
 
-        text = (tree / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
+        text = _tree_text(tree)
         assert "期限切れは取消除外で 346 件" in text
         assert "二つ目" not in text
 

@@ -12,6 +12,7 @@ Writes go through ``tree_io``, which also carries the CLI for these reads.
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
+from dataclasses import replace
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
@@ -33,6 +34,8 @@ from skills._shared.design_io import (
     load_design,
     read_yaml,
 )
+from skills._shared.design_note import DesignNote, render_note
+from skills._shared.design_note_read import load_design_note
 from skills._shared.tree_check import Violation, check_cited
 from skills._shared.tree_render import (
     CheckFailed,
@@ -232,33 +235,34 @@ def cited_events(
     return events, duplicated
 
 
-def _design_summaries(theme_id: str, base_dir: Path) -> dict[str, DesignSummary]:
-    summaries: dict[str, DesignSummary] = {}
-    for design_id, data in designs_of_theme(theme_id, base_dir).items():
-        parent_id = data.get("parent_id")
-        summaries[design_id] = DesignSummary(
-            id=design_id,
-            title=str(data.get("title") or ""),
-            status=str(data.get("status") or ""),
-            parent_id=None if parent_id is None else str(parent_id),
-        )
-    return summaries
+def _design_notes(theme_id: str, base_dir: Path) -> dict[str, DesignNote]:
+    """The note of every design of the theme, keyed by the id of its file name.
+
+    A copied design file still carries the id of its source, so the note takes
+    the file-name id: heading and anchor then name the design the tree links.
+    One design that cannot be built stops the whole page.
+    """
+    notes: dict[str, DesignNote] = {}
+    for design_id in designs_of_theme(theme_id, base_dir):
+        try:
+            note = load_design_note(design_id, base_dir)
+        except ValueError as exc:
+            reason = " ".join(str(exc).split())
+            raise ValueError(
+                f"analysis note of '{design_id}' cannot be built: {reason}"
+            ) from exc
+        design = note.design.model_copy(update={"id": design_id})
+        notes[design_id] = replace(note, design=design)
+    return notes
 
 
-def _require_usable_links(
-    tree: QuestionTree, designs: dict[str, DesignSummary]
-) -> None:
-    """Progress is derived from linked designs, so each must exist with a status."""
-    statuses = {status.value for status in DesignStatus}
+def _require_linked_designs_exist(tree: QuestionTree, designs: Iterable[str]) -> None:
+    """Progress is derived from linked designs, so each must exist."""
+    known = set(designs)
     for node in tree.nodes:
         for design_id in node.design_ids:
-            if design_id not in designs:
+            if design_id not in known:
                 raise ValueError(f"design '{design_id}' not found")
-            if designs[design_id].status not in statuses:
-                raise ValueError(
-                    f"design '{design_id}' has an unknown status "
-                    f"'{designs[design_id].status}'"
-                )
 
 
 def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
@@ -274,8 +278,18 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     told which file to fix.
     """
     tree = load_tree_model(theme_id, base_dir)
-    designs = _design_summaries(theme_id, base_dir)
-    _require_usable_links(tree, designs)
+    notes = _design_notes(theme_id, base_dir)
+    _require_linked_designs_exist(tree, notes)
+    designs = {
+        design_id: DesignSummary(
+            design_id,
+            note.design.title,
+            note.design.status.value,
+            note.design.parent_id,
+            note.design.created_at,
+        )
+        for design_id, note in notes.items()
+    }
     # Every round is read, since the page shows the history of each answer.
     events, duplicated = cited_events(
         (
@@ -292,7 +306,9 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
         checked = check_cited(tree, events, duplicated)
     except ValueError as exc:
         checked = CheckFailed(str(exc))
-    html = render_tree_html(tree, designs, events, checked)
+    html = render_tree_html(
+        tree, designs, events, checked, {d: render_note(n) for d, n in notes.items()}
+    )
     path = tree_path(theme_id, base_dir).with_suffix(".html")
     atomic_write_text(path, html)
     return {"path": str(path)}

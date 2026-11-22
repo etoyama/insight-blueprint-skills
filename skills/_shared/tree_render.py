@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -31,6 +32,7 @@ from insight_blueprint.models.tree import (
     design_id_of,
 )
 from skills._shared._html import BASE_CSS, Html, el, join, page
+from skills._shared.design_note import NOTE_CSS
 
 if TYPE_CHECKING:  # tree_check imports this module (CitedEvent)
     from skills._shared.tree_check import Violation
@@ -42,6 +44,7 @@ class DesignSummary:
     title: str
     status: str
     parent_id: str | None
+    created_at: datetime
 
 
 @dataclass(frozen=True)
@@ -171,8 +174,10 @@ def render_tree_html(
     designs: Mapping[str, DesignSummary],
     events: Mapping[str, CitedEvent],
     violations: Sequence[Violation] | CheckFailed,
+    notes: Mapping[str, Html],
 ) -> str:
-    context = _Context.of(tree, designs, events, violations)
+    """The page. *notes* maps a design id to the markup ``render_note`` returned."""
+    context = _Context.of(tree, designs, events, violations, notes)
     body = join(
         [
             _header(tree),
@@ -183,9 +188,10 @@ def render_tree_html(
             _next_candidates(context),
             _question_tree(context),
             _derivation(context),
+            _design_notes(context),
         ]
     )
-    return page(f"論点ツリー {tree.theme_id}", BASE_CSS + _TREE_CSS, body)
+    return page(f"論点ツリー {tree.theme_id}", BASE_CSS + _TREE_CSS + NOTE_CSS, body)
 
 
 def _header(tree: QuestionTree) -> Html:
@@ -268,8 +274,10 @@ class _Context:
     tree: QuestionTree
     designs: Mapping[str, DesignSummary]
     events: Mapping[str, CitedEvent]
+    notes: Mapping[str, Html]
     progress: Mapping[str, Progress]
     violations: Mapping[str, Sequence[Violation]]
+    linked_by: Mapping[str, list[str]]
 
     @classmethod
     def of(
@@ -278,6 +286,7 @@ class _Context:
         designs: Mapping[str, DesignSummary],
         events: Mapping[str, CitedEvent],
         checked: Sequence[Violation] | CheckFailed,
+        notes: Mapping[str, Html],
     ) -> _Context:
         for node in tree.nodes:
             for design_id in node.design_ids:
@@ -285,6 +294,10 @@ class _Context:
                     raise ValueError(
                         f"design '{design_id}' is linked to {node.id} but not given"
                     )
+        # Every anchor to a note needs its target, so a missing note stops the page.
+        for design_id in designs:
+            if design_id not in notes:
+                raise ValueError(f"design '{design_id}' has no analysis note")
         progress = {
             node.id: Progress.of(
                 DesignStatus(designs[d].status) for d in node.design_ids
@@ -294,7 +307,11 @@ class _Context:
         violations: dict[str, list[Violation]] = {}
         for violation in () if isinstance(checked, CheckFailed) else checked:
             violations.setdefault(violation.node_id, []).append(violation)
-        return cls(tree, designs, events, progress, violations)
+        linked_by: dict[str, list[str]] = {}
+        for node in tree.nodes:
+            for design_id in node.design_ids:
+                linked_by.setdefault(design_id, []).append(node.id)
+        return cls(tree, designs, events, notes, progress, violations, linked_by)
 
     def marks_of(self, node: QuestionNode) -> list[Mark]:
         answer = node.current_answer()
@@ -617,10 +634,6 @@ def _earlier_answer(answer: Answer) -> Html:
 
 def _derivation(context: _Context) -> Html:
     designs = context.designs
-    linked_by: dict[str, list[str]] = {}
-    for node in context.tree.nodes:
-        for design_id in node.design_ids:
-            linked_by.setdefault(design_id, []).append(node.id)
     children: dict[str, list[str]] = {}
     for design in designs.values():
         if design.parent_id in designs:
@@ -630,7 +643,7 @@ def _derivation(context: _Context) -> Html:
     def branch(design_id: str) -> Html:
         shown.add(design_id)
         design = designs[design_id]
-        nodes = linked_by.get(design_id, [])
+        nodes = context.linked_by.get(design_id, [])
         facts: list[Html | str] = [f"状態: {design.status}　"]
         facts += (
             ["結んだ論点: ", *(_join_links(nodes))] if nodes else ["論点に結んでいない"]
@@ -679,3 +692,32 @@ def _join_links(node_ids: list[str]) -> list[Html | str]:
             parts.append("、")
         parts.append(_link(node_id, node_id))
     return parts
+
+
+def _back_links(context: _Context, design_id: str) -> Html:
+    nodes = context.linked_by.get(design_id, [])
+    parts: list[Html | str] = [_link("question-tree", "論点ツリーへ戻る")]
+    if nodes:
+        parts += ["　結んだ論点: ", *_join_links(nodes)]
+    return el("p", *parts, class_="meta")
+
+
+def _design_notes(context: _Context) -> Html:
+    # The back link sits above and below a note: the note is long, so the way
+    # back must be in reach from both ends.
+    blocks = [
+        join(
+            [
+                _back_links(context, design_id),
+                context.notes[design_id],
+                _back_links(context, design_id),
+            ]
+        )
+        for design_id in sorted(context.designs)
+    ]
+    return el(
+        "section",
+        el("h2", "分析設計ごとの分析ノート"),
+        join(blocks) if blocks else el("p", "分析ノートはまだ無い。"),
+        id="design-notes",
+    )
