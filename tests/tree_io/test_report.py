@@ -279,6 +279,51 @@ class TestReportContents:
         assert "- 理由: 通知の遅れを先に確かめる" in future
 
 
+class TestReportRecordsOfTheDesigns:
+    def test_a_conclude_event_whose_id_names_another_design_is_shown_as_its_journal_holds_it(
+        self, answered: Path
+    ) -> None:
+        _concluded(answered)
+        journal = design_io.load_journal("LIB-H01", base_dir=answered)
+        journal["events"][3]["id"] = "LIB-H09-E05"
+        design_io.write_journal("LIB-H01", journal, base_dir=answered)
+        tree_io.answer(
+            "LIB", answers=[_entry("LIB-Q02", "期限切れは152件")], base_dir=answered
+        )
+
+        _, text = _written(answered)
+
+        assert "| LIB-H09-E05 | 結論 | 対象期間の期限切れは152件だった |" in text
+
+    def test_a_design_event_that_reuses_a_cited_id_for_another_text_is_an_error(
+        self, answered: Path
+    ) -> None:
+        _concluded(answered)
+        journal = design_io.load_journal("LIB-H02", base_dir=answered)
+        journal["events"].append(
+            {
+                "id": "LIB-H01-E01",
+                "type": "evidence",
+                "content": "別の本文",
+                "metadata": {"direction": "contradicts"},
+            }
+        )
+        design_io.write_journal("LIB-H02", journal, base_dir=answered)
+
+        with pytest.raises(ValueError, match="LIB-H01-E01"):
+            tree_io.report("LIB", base_dir=answered)
+
+        assert not _report_path(answered).exists()
+
+    def test_a_linked_design_whose_note_cannot_be_built_is_named(
+        self, answered: Path
+    ) -> None:
+        _write_verdict(answered, "LIB-H02", "{not json")
+
+        with pytest.raises(ValueError, match="analysis note of 'LIB-H02'"):
+            tree_io.report("LIB", base_dir=answered)
+
+
 class TestReportRefused:
     def test_a_theme_without_a_tree_is_not_written_and_says_so(
         self, insight: Path

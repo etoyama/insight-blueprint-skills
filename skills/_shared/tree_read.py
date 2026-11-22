@@ -253,16 +253,21 @@ def _design_notes(theme_id: str, base_dir: Path) -> dict[str, DesignNote]:
 
     One design that cannot be built stops the whole page.
     """
-    design_notes: dict[str, DesignNote] = {}
-    for design_id in designs_of_theme(theme_id, base_dir):
-        try:
-            design_notes[design_id] = load_design_note(design_id, base_dir)
-        except ValueError as exc:
-            reason = " ".join(str(exc).split())
-            raise ValueError(
-                f"analysis note of '{design_id}' cannot be built: {reason}"
-            ) from exc
-    return design_notes
+    return {
+        design_id: _note_of(design_id, base_dir)
+        for design_id in designs_of_theme(theme_id, base_dir)
+    }
+
+
+def _note_of(design_id: str, base_dir: Path) -> DesignNote:
+    """The note of *design_id*; an error names the design whose note failed."""
+    try:
+        return load_design_note(design_id, base_dir)
+    except ValueError as exc:
+        reason = " ".join(str(exc).split())
+        raise ValueError(
+            f"analysis note of '{design_id}' cannot be built: {reason}"
+        ) from exc
 
 
 def _require_linked_designs_exist(tree: QuestionTree, designs: Iterable[str]) -> None:
@@ -381,8 +386,28 @@ def _linked_notes(tree: QuestionTree, base_dir: Path) -> dict[str, DesignNote]:
     for node in tree.nodes:
         for design_id in node.design_ids:
             if design_id not in notes:
-                notes[design_id] = load_design_note(design_id, base_dir)
+                notes[design_id] = _note_of(design_id, base_dir)
     return notes
+
+
+def _add_design_records(
+    records: dict[str, CitedEvent], designs: Iterable[ReportDesign]
+) -> None:
+    """Add the events the report quotes from each design, as its own journal holds them.
+
+    Their ids are not checked like the cites of an answer, so the text comes
+    from the journal the report quotes, never from the journal an id names. An
+    id that already stands for another text would show two texts under one id.
+    """
+    for design in designs:
+        for event in (*design.conclude_events, *design.contradicting_evidence):
+            record = CitedEvent(event.id, event.type, event.direction, event.content)
+            known = records.setdefault(event.id, record)
+            if (known.type, known.content) != (record.type, record.content):
+                raise ValueError(
+                    f"journal of '{design.id}': event id '{event.id}' also stands "
+                    "for another event the report cites"
+                )
 
 
 def _report_node(node: QuestionNode, notes: dict[str, DesignNote]) -> ReportNode:
@@ -409,10 +434,10 @@ def _theme_report(
     # Two designs may read the same source; the report lists it once.
     sources = tuple(dict.fromkeys(s for note in notes.values() for s in note.sources))
     answers = [root_answer] + [n.answer for n in nodes if n.answer is not None]
-    cited = {c for a in answers for s in a.statements for c in s.cites} | {
-        e.id for d in designs for e in (*d.conclude_events, *d.contradicting_evidence)
-    }
-    records, _ = cited_events(cited, base_dir)
+    records, _ = cited_events(
+        {c for a in answers for s in a.statements for c in s.cites}, base_dir
+    )
+    _add_design_records(records, designs)
     revision = tree.current_revision()
     report = ThemeReport(
         theme_id=tree.theme_id,
