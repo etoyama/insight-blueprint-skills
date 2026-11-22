@@ -241,16 +241,16 @@ def _design_notes(theme_id: str, base_dir: Path) -> dict[str, DesignNote]:
 
     One design that cannot be built stops the whole page.
     """
-    notes: dict[str, DesignNote] = {}
+    design_notes: dict[str, DesignNote] = {}
     for design_id in designs_of_theme(theme_id, base_dir):
         try:
-            notes[design_id] = load_design_note(design_id, base_dir)
+            design_notes[design_id] = load_design_note(design_id, base_dir)
         except ValueError as exc:
             reason = " ".join(str(exc).split())
             raise ValueError(
                 f"analysis note of '{design_id}' cannot be built: {reason}"
             ) from exc
-    return notes
+    return design_notes
 
 
 def _require_linked_designs_exist(tree: QuestionTree, designs: Iterable[str]) -> None:
@@ -276,8 +276,8 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     told which file to fix.
     """
     tree = load_tree_model(theme_id, base_dir)
-    notes = _design_notes(theme_id, base_dir)
-    _require_linked_designs_exist(tree, notes)
+    design_notes = _design_notes(theme_id, base_dir)
+    _require_linked_designs_exist(tree, design_notes)
     designs = {
         design_id: DesignSummary(
             design_id,
@@ -286,7 +286,7 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
             note.design.parent_id,
             note.design.created_at,
         )
-        for design_id, note in notes.items()
+        for design_id, note in design_notes.items()
     }
     # Every round is read, since the page shows the history of each answer.
     events, duplicated = cited_events(
@@ -305,13 +305,17 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     except ValueError as exc:
         checked = CheckFailed(str(exc))
     html = render_tree_html(
-        tree, designs, events, checked, {d: render_note(n) for d, n in notes.items()}
+        tree,
+        designs,
+        events,
+        checked,
+        {d: render_note(n) for d, n in design_notes.items()},
     )
     path = tree_path(theme_id, base_dir).with_suffix(".html")
     atomic_write_text(path, html)
     # A standalone page left from before the theme had a tree would be a
     # second, older reading surface. Removed only once the tree page is written.
-    for design_id in notes:
+    for design_id in design_notes:
         (Path(base_dir) / "notes" / f"{design_id}.html").unlink(missing_ok=True)
     return {"path": str(path)}
 

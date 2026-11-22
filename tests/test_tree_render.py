@@ -257,7 +257,7 @@ def summary(
     return DesignSummary(id, title, status, parent_id, created_at)
 
 
-def stub_notes(designs: dict[str, DesignSummary]) -> dict[str, Html]:
+def stub_design_notes(designs: dict[str, DesignSummary]) -> dict[str, Html]:
     """What render_note returns, reduced to the section the page needs."""
     return {
         d: Html(
@@ -291,7 +291,7 @@ def render(
     designs: dict[str, DesignSummary] | None = None,
     events: dict[str, CitedEvent] | None = None,
     violations: list[Violation] | CheckFailed | None = None,
-    notes: dict[str, Html] | None = None,
+    design_notes: dict[str, Html] | None = None,
 ) -> str:
     shown = make_designs() if designs is None else designs
     return render_tree_html(
@@ -299,7 +299,7 @@ def render(
         shown,
         make_events() if events is None else events,
         [] if violations is None else violations,
-        stub_notes(shown) if notes is None else notes,
+        stub_design_notes(shown) if design_notes is None else design_notes,
     )
 
 
@@ -308,9 +308,9 @@ def page(
     designs: dict[str, DesignSummary] | None = None,
     events: dict[str, CitedEvent] | None = None,
     violations: list[Violation] | CheckFailed | None = None,
-    notes: dict[str, Html] | None = None,
+    design_notes: dict[str, Html] | None = None,
 ) -> Element:
-    return parse(render(tree, designs, events, violations, notes))
+    return parse(render(tree, designs, events, violations, design_notes))
 
 
 class TestSelfContained:
@@ -1043,7 +1043,7 @@ class TestOrderOfLinkedDesigns:
                 ]
             )
 
-    def test_the_derivation_and_the_notes_stay_in_id_order(self) -> None:
+    def test_the_derivation_and_the_design_notes_stay_in_id_order(self) -> None:
         designs = {
             "LIB-H10": summary("LIB-H10", "t", "analyzing", None, T0 + self.DAY),
             "LIB-H9": summary("LIB-H9", "t", "supported", None, T0),
@@ -1056,13 +1056,13 @@ class TestOrderOfLinkedDesigns:
             for e in by_id(root, "derivation").walk()
             if str(e.attrs.get("id", "")).startswith("design-")
         ]
-        notes = [
+        design_notes = [
             e.attrs["id"]
             for e in by_id(root, "design-notes").children
             if e.tag == "section"
         ]
         assert derivation == ["design-LIB-H9", "design-LIB-H10"]
-        assert notes == ["note-LIB-H9", "note-LIB-H10"]
+        assert design_notes == ["note-LIB-H9", "note-LIB-H10"]
 
 
 class TestAnchorsToTheNotes:
@@ -1111,7 +1111,7 @@ class TestDesignNotes:
     def _sections(self) -> list[Element]:
         return [e for e in by_id(page(), "design-notes").children]
 
-    def test_the_notes_come_after_the_derivation_in_one_section(self) -> None:
+    def test_the_design_notes_come_after_the_derivation_in_one_section(self) -> None:
         html = render()
 
         assert html.index('id="derivation"') < html.index('id="design-notes"')
@@ -1152,12 +1152,12 @@ class TestDesignNotes:
 
     def test_note_markup_is_placed_as_markup_not_escaped_again(self) -> None:
         designs = make_designs()
-        notes = stub_notes(designs)
-        notes["LIB-H01"] = Html(
+        design_notes = stub_design_notes(designs)
+        design_notes["LIB-H01"] = Html(
             '<section id="note-LIB-H01"><b>太い</b> &amp; 本文</section>'
         )
 
-        root = page(designs=designs, notes=notes)
+        root = page(designs=designs, design_notes=design_notes)
 
         note = by_id(root, "note-LIB-H01")
         assert [e.tag for e in note.children] == ["b"]
@@ -1165,11 +1165,11 @@ class TestDesignNotes:
 
     def test_a_design_without_a_note_is_an_error_naming_it(self) -> None:
         designs = make_designs()
-        notes = stub_notes(designs)
-        del notes["LIB-H02"]
+        design_notes = stub_design_notes(designs)
+        del design_notes["LIB-H02"]
 
         with pytest.raises(ValueError, match="LIB-H02"):
-            render(designs=designs, notes=notes)
+            render(designs=designs, design_notes=design_notes)
 
     def test_a_page_without_designs_says_there_is_no_note(self) -> None:
         tree = make_tree()

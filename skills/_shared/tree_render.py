@@ -176,10 +176,10 @@ def render_tree_html(
     designs: Mapping[str, DesignSummary],
     events: Mapping[str, CitedEvent],
     violations: Sequence[Violation] | CheckFailed,
-    notes: Mapping[str, Html],
+    design_notes: Mapping[str, Html],
 ) -> str:
-    """The page. *notes* maps a design id to the markup ``render_note`` returned."""
-    context = _Context.of(tree, designs, events, violations, notes)
+    """The page. *design_notes* maps a design id to the markup ``render_note`` returned."""
+    context = _Context.of(tree, designs, events, violations, design_notes)
     body = join(
         [
             _header(tree),
@@ -282,7 +282,7 @@ class _Context:
     tree: QuestionTree
     designs: Mapping[str, DesignSummary]
     events: Mapping[str, CitedEvent]
-    notes: Mapping[str, Html]
+    design_notes: Mapping[str, Html]
     progress: Mapping[str, Progress]
     violations: Mapping[str, Sequence[Violation]]
     linked_by: Mapping[str, list[str]]
@@ -294,7 +294,7 @@ class _Context:
         designs: Mapping[str, DesignSummary],
         events: Mapping[str, CitedEvent],
         checked: Sequence[Violation] | CheckFailed,
-        notes: Mapping[str, Html],
+        design_notes: Mapping[str, Html],
     ) -> _Context:
         for node in tree.nodes:
             for design_id in node.design_ids:
@@ -304,7 +304,7 @@ class _Context:
                     )
         # Every anchor to a note needs its target, so a missing note stops the page.
         for design_id in designs:
-            if design_id not in notes:
+            if design_id not in design_notes:
                 raise ValueError(f"design '{design_id}' has no analysis note")
         progress = {
             node.id: Progress.of(
@@ -319,7 +319,7 @@ class _Context:
         for node in tree.nodes:
             for design_id in node.design_ids:
                 linked_by.setdefault(design_id, []).append(node.id)
-        return cls(tree, designs, events, notes, progress, violations, linked_by)
+        return cls(tree, designs, events, design_notes, progress, violations, linked_by)
 
     def marks_of(self, node: QuestionNode) -> list[Mark]:
         answer = node.current_answer()
@@ -759,7 +759,7 @@ def _design_notes(context: _Context) -> Html:
         join(
             [
                 _back_links(context, design_id),
-                context.notes[design_id],
+                context.design_notes[design_id],
                 _back_links(context, design_id),
             ]
         )
