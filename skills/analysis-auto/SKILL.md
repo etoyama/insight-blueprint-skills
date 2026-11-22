@@ -220,10 +220,8 @@ turn. Any other round carries the one design it worked on.
    declared source, or another side-effect, **stop** and get the user's go-ahead first.
 6. **journal**: the notebook step already records observe/evidence/question — no pause.
 7. **reflection**: run `/analysis-reflection {design_id}`; **pause at the conclusion**
-   (conclude/refine/branch) and the terminal transition. Its Step 2 rebuilds the design note
-   and shows where it is and which questions link the design. The driver adds no list of
-   files of its own, and it never reads the design note: it reads the design, the journal
-   and the verdict.
+   (conclude/refine/branch) and the terminal transition. Its Step 2 読むもの says what
+   the analyst reads; the driver adds no list of files of its own.
 8. **report**: when the design is in a terminal status (`supported` / `rejected` /
    `inconclusive`), run `/analysis-report {design_id}` without asking; the report is a file on
    this machine. A report that is already there (`.insight/reports/{design_id}.md`) is not

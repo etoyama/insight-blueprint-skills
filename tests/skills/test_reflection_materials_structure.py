@@ -167,16 +167,28 @@ class TestAutoAgreesWithTheReflection:
         row = table_row(self._auto(), "reflection")
         assert "the place of the design note" in row[2]
 
-    def test_the_reflection_item_adds_no_file_list(self) -> None:
+    def _reflection_item(self) -> str:
         workflow = unwrap(section(self._auto(), "## Workflow"))
         item = re.search(r"7\. \*\*reflection\*\*.*?(?= 8\. )", workflow)
         assert item, "no reflection item in Step 3"
-        assert "Step 2" in item[0]
-        assert "adds no list of files" in item[0]
+        return item[0]
 
-    @pytest.mark.parametrize("skill", ["analysis-reflection", "analysis-auto"])
-    def test_the_skill_never_reads_the_design_note(self, skill: str) -> None:
-        text = unwrap(_read_skill(skill))
+    def test_the_reflection_item_follows_the_reads_of_step_2_and_adds_no_file_list(
+        self,
+    ) -> None:
+        item = self._reflection_item()
+        assert "Step 2" in item
+        assert "読むもの" in item
+        assert "adds no list of files" in item
+
+    def test_the_reflection_item_does_not_copy_what_step_2_reads(self) -> None:
+        """#143: the driver points at reflection Step 2 rather than restating it."""
+        item = self._reflection_item()
+        assert "the design, the journal and the verdict" not in item
+        assert not re.search(r"never reads? the design note", item)
+
+    def test_the_reflection_never_reads_the_design_note(self) -> None:
+        text = unwrap(_read_skill("analysis-reflection"))
         assert re.search(r"never reads? the design note", text)
         assert "the design, the journal and the verdict" in text
 
