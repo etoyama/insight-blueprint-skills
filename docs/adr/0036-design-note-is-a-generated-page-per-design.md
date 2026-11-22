@@ -1,4 +1,4 @@
-# ADR-0036: 分析ノートは、分析設計ごとにコードが生成する HTML にする
+# ADR-0036: 分析ノートは、分析設計ごとにコードが生成し、論点ツリーの HTML の中に並べる
 
 ## Status
 
@@ -8,21 +8,26 @@ Accepted
 
 [Epic 28](../design/epic-28-tree-entry-point.md)（[#173](https://github.com/etoyama/insight-blueprint-skills/issues/173)）は、論点ツリーの HTML を、分析者と AI が分析を進めるときの共通の入口にする。
 人間は入口からたどる成果物の1つに「分析ノート」を挙げた。何を指すかは決まっていなかった。
-2026-11-22 に、DesignDoc 初版のセッションで人間と決めた。
+2026-11-22 に、DesignDoc 初版のセッションで人間と決めた。途中で、合成シナリオ（公共図書館の予約本）の見本を Artifact に出し、人間が見て確かめた。
 
 比較の前提にした事実と、確かめた方法は次のとおり。
 
 - 分析の経過を積む記録は journal だけである。手法と指標は分析設計の YAML に、結果は verdict の JSON に、図は PNG に、コードは notebook の `.py` にある。
   人が1か所で読める形は無い（`skills/analysis-notebook/SKILL.md` と `skills/_shared/tree_render.py` を読んだ）。
 - レポートの節のうち、Introduction・Method・Results・Appendix は、分析設計・verdict・lineage と journal の `observe`・`evidence` だけから組み立てる。
-  `conclude` が要るのは Abstract と Discussion だけである（`skills/analysis-report/references/apa-template.md` を読んだ）。
-- `/analysis-report` は terminal status でないと止まる。書くのはモデルで、数を計算しない決まりは文で課している。`report_check` が見るのは効く記法だけで、数が入力にあるかは見ない。
-- `marimo export html` は notebook を全 cell 実行し直す。出た HTML は marimo の画面部品を `cdn.jsdelivr.net` から読む。DataFrame は並べ替えのできる表になるが、図は静止画のままである
+  Abstract と Discussion は `conclude` が要り、文章はモデルが書く。決まった文と、記録をそのまま並べれば済む部分もある（terminal status ごとの最初の文、勧め、仮説に反する証拠、未解決の問い）
+  （`skills/analysis-report/references/apa-template.md` を読んだ）。
+- `/analysis-report` は terminal status でないと止まる。数を計算しない決まりは文で課している。`report_check` が見るのは効く記法だけで、数が入力にあるかは見ない。
+- `marimo export html` は notebook を全 cell 実行し直す。出た HTML は marimo の画面部品を `cdn.jsdelivr.net` から読む。図は静止画のままである
   （scratchpad に小さい notebook を作り、plugin の env の marimo 0.21.1 で実行した）。
 - 図が静止画なのは、notebook の契約が matplotlib で描いて PNG に保存すると決めているためである（[ADR-0008](0008-notebook-figure-manifest.md)、`notebook-contract.md`）。
 - notebook の `.py` は標準ライブラリの `ast` で cell ごとに切り出せる（scratchpad で実行した）。契約の cell 2（データ取得）には、接続情報の値が入る（[ADR-0022](0022-connection-reaches-only-the-notebook.md)）。
 - lineage の書き出し（`src/insight_blueprint/lineage/exporter.py`）が出すのは、セッションの名前、加工の理由、行数である。接続情報は出さない。
-- Epic 18 の Decision `tree-html-is-static-and-marks-are-derived` は論点ツリーの HTML に「画像と外部への参照も出さない」と書いている。
+- Artifact の中で、別の HTML へ移る方法を5つ試した（試しのページを Artifact に出し、人間がスマホのアプリとデスクトップで開いた）。
+  スマホのアプリでは、別の HTML へのリンク、新しいタブで開くリンク、枠での埋め込み、script での読み込みは、どれも開けなかった。同じページの中のアンカーだけが通った。
+  デスクトップでは別の HTML へのリンクで移れたが、元のページに戻れなかった。
+- 論点ツリーと分析ノートを1ファイルにまとめ、アンカーで行き来する見本は、スマホのアプリとデスクトップの両方で行き来できた（人間が確かめた）。見本は 126KB だった。Artifact のページの上限は 16MB である（Artifact ツールの説明）。
+- Epic 18 の Decision `tree-html-is-static-and-marks-are-derived` は論点ツリーの HTML に「画像と外部への参照も出さない」と書いている。US-5 AC 1 は「同じ正本からは同じ HTML ができる」と書いている。
   Epic 26 は図を論点ツリーの HTML やチャットに埋め込まないと決めた（[epic-26](../design/epic-26-reflection-materials.md) の Scope）。どちらの DesignDoc も凍結している（[ADR-0009](0009-adopt-repo-template-flow.md)）。
 
 ## Problem
@@ -31,11 +36,15 @@ Accepted
 - 課題2: 判断の前に読む面に解釈が混ざると、分析者は AI の解釈を追認するだけになる（人間の発言「結果くらいまで事実情報として書き、解釈には踏み込まない」）。
 - 課題3: 分析をやり直した後や journal に出来事を足した後に、読む面が古くなる。
 - 課題4: 分析者はいざというときに分析コードを確かめたい（人間の発言。marimo に期待していたこと）。
+- 課題5: 論点ツリーを Artifact で受け取った人も、同じ入口から根拠へたどれる必要がある。受け取った人の環境によって開けないのでは、入口にならない。
+- 課題6: 読む人にとって、分析ノートとレポートは同じ分析設計の同じ文書である。2つに分かれていると、どちらを読めばよいか迷う（人間の発言「違いは分析の進捗次第で埋まってる部分が違う」）。
 
 扱わない範囲: 図を動かして確かめられる形で出すこと（[#175](https://github.com/etoyama/insight-blueprint-skills/issues/175)）。notebook を marimo で書くのをやめるか（[#176](https://github.com/etoyama/insight-blueprint-skills/issues/176)）。
-分析ノートを Artifact に送ること（[ADR-0037](0037-tree-upload-sends-the-design-notes.md)）。
+Markdown のレポートを分析ノートに一本化するか（[#177](https://github.com/etoyama/insight-blueprint-skills/issues/177)）。Artifact に送るときの承認（[ADR-0037](0037-tree-upload-sends-the-design-notes.md)）。
 
 ## Decision Analysis
+
+分析ノートを何から、誰が作るか。
 
 | # | 基準 | 区分 | 分類 | 重み（決めた人） | 出典 |
 |---|---|---|---|---|---|
@@ -59,31 +68,77 @@ Accepted
 - 差がつく基準: W1 は A だけ弱い。W2 と W3 は E が D と F に勝つ。W4 は F が最も重い。
 - 感度: データ取得がいつも軽く、表を動かすことを W3 より重く見るなら F になる。下書きがそのままレポートになる連続性を W2 より重く見るなら D になる。
 
+分析ノートをどこに置くか。E を採ったうえで比べた。
+
+| # | 基準 | 区分 | 分類 | 重み（決めた人） | 出典 |
+|---|---|---|---|---|---|
+| M2 | Artifact で、受け取った人の環境によらず、論点から分析ノートへ行き来できる | Must | - | - | 課題5 |
+| W5 | 手元と Artifact で同じファイルを読む | Want | 解決 | 高（人間） | 課題5、[ADR-0024](0024-question-tree-yaml-and-generated-html.md) |
+| W6 | 論点ツリーの HTML が軽い | Want | 解決 | 中（人間、issue #173。見本を見て1ファイルでよいとした） | issue #173 |
+
+| Must | 1ファイルにまとめ、アンカーで行き来する | 分析設計ごとの別ファイルにし、リンクでたどる | 何もしない |
+|---|---|---|---|
+| M2 | 満たす（スマホのアプリとデスクトップで確かめた） | 満たさない（スマホのアプリで開けない。デスクトップでは戻れない） | 満たさない |
+
+- Must で決まるので、Want は比べていない。W6 は、1ファイルにすると論点ツリーのファイルが分析ノートの分だけ大きくなる。ページの上の論点ツリーの表示は変わらない。
+
+結論の後の節をどう埋めるか（課題6）。
+
+| # | 基準 | 区分 | 分類 | 重み（決めた人） | 出典 |
+|---|---|---|---|---|---|
+| M3 | 結論の前のページに、解釈の文が生成されない | Must | - | - | 課題2 |
+| W7 | 読む文書が分析設計ごとに1つで、進むと埋まる | Want | 解決 | 高（人間） | 課題6 |
+| W2 | 記録に無い文が混ざらない | Want | 解決 | 高（人間） | 課題2 |
+| W4 | Epic に足す量と、既存の決まりを変える量 | Want | 費用 | 高（人間） | YAGNI |
+
+| Must | U1: コードが記録から埋める | U2: レポートの文章も取り込む | U3: レポートを分析ノートに一本化する | 何もしない |
+|---|---|---|---|---|
+| M3 | 満たす | 満たす | 満たす | 満たす |
+
+| Want | U1 | U2 | U3 |
+|---|---|---|---|
+| W7 | HTML の上では1つになる。Claude Docs に送る Markdown は別に残る。 | U1 と同じ。モデルが書いた含意の文章も載る。 | 文書が1つになる。 |
+| W2 | 混ざらない。全部が記録の写しである。 | 取り込む文章はモデルが書いたもので、`report_check` は記法しか見ない。 | 作り直し方しだい。 |
+| W4 | 節を足すだけ。依存は増えない。 | Markdown を HTML にするライブラリが要る。 | Epic 10・12・13・14 の決まりを作り直す。 |
+
+- 差がつく基準: W7 は U3、W2 と W4 は U1 が勝つ。
+- 感度: モデルが書く含意の文章が分析ノートに要るなら U2 になる。Markdown のレポートを無くすなら U3 で、別の Epic になる（#177）。
+
 | 案 | 起きうる悪い結果 | 抑え方 |
 |---|---|---|
 | E | レポートのテンプレートと、表の形がずれる | 項目を突き合わせる構造テストを書く（Epic 26 と同じやり方） |
 | F | journal に1件足すだけでデータを取り直す。オフラインで読めない。外すかもしれない marimo に入口が結びつく | 抑えにくい |
 | D | 判断の根拠を読む面に、記録に無い数が入る | 数の検査を新しく作る |
 | A | 読む面が散らばったままになる | 分析設計ごとのページを足す（E に近づく） |
-| 何もしない | 課題1 が残る | なし |
+| 1ファイルにまとめる | 分析設計と図が多いテーマで、ファイルが Artifact の上限を超える | 超えたら送らずに伝える（ADR-0037）。図の解像度は notebook の側で決まる |
+| 別ファイルにする | 受け取った人の環境によって、根拠が開けない | 抑えられない |
+| U1 | 結論の後の節が記録の写しで、読み物としては硬い。Markdown のレポートと別に見える | 節の冒頭に、何から写したかを書く。一本化は #177 で決める |
+| U2 | 同じ結論が、`conclude` の写しとレポートの文章の2通りで載る | 取り込む節を絞る |
+| U3 | Epic が倍になり、入口の課題が待たされる | 別の Epic にする |
+| 何もしない | 課題1 と課題6 が残る | なし |
 
 ## Decision
 
-E を採る（人間の判断、2026-11-22）。決め手は W2 と W3。
+E を1ファイルにまとめる形で採り、結論の後の節は U1 で埋める（人間の判断、2026-11-22）。決め手は作り方では W2 と W3、置き方では M2、結論の後の節では W2 と W4。
 
-- 分析ノートは、分析設計ごとにコードが生成する HTML のページである。置き場所は `.insight/notes/{design_id}.html`、コード上の名前は `design_note` とする。
-  「ノート」を単独で使うと notebook と紛れるので、用語は「分析ノート」と呼ぶ。
-- 並びはレポートの前半に合わせ、結果までの事実を出す。仮説と背景、手法と指標の定義、結果の値と図、分析コードである。値は書かれたとおりに出し、計算しない。解釈の文は生成しない。
+- 分析ノートは、分析設計ごとにコードが生成する文書である。コード上の名前は `design_note` とする。「ノート」を単独で使うと notebook と紛れるので、用語は「分析ノート」と呼ぶ。
+- テーマに論点ツリーがあるとき、分析ノートは論点ツリーの HTML（`.insight/themes/{theme_id}_tree.html`）の中に、論点ツリーの下に分析設計ごとの節として並べる。
+  論点のカードと「分析設計の派生」の節からは、同じページの中のアンカーで分析ノートへ飛ぶ。分析ノートには論点ツリーへ戻るアンカーを置く。別の HTML へのリンクは使わない。
+- テーマに論点ツリーが無いとき、分析ノートは単独のページ（`.insight/notes/{design_id}.html`）として作る。
+- 分析ノートは分析が進むと埋まる節が増える。結論の前は、仮説と背景、手法と指標の定義、結果の値と図、分析コード、分析の経過を出す。並びはレポートの前半に合わせる。
+  値は書かれたとおりに出し、計算しない。解釈の文は生成しない。
+- 結論の後（terminal status）は、結論の節を足す。terminal status ごとの決まった文、journal の `conclude` の本文、分析設計の `next_action` と決定の文脈、仮説に反する証拠、`reflect` の本文、未解決の問いを、書かれたとおりに出す。
+  モデルが書く文章は載せない。Markdown のレポートと Claude Docs へのアップロードは、今のまま残す。
 - journal の出来事のうち、結果の節に出すのは `observe` と `evidence` だけである。すべての出来事は「分析の経過」の節に、時刻の順に、種類の言葉を付けて畳んで出す。
   節の冒頭に、分析中の判断と解釈の記録であることを書く。verdict の `conclusion` もこの節に出す。
 - 分析コードは notebook の `.py` を cell ごとに切り出し、開閉できる形で出す。データ取得の cell は載せない。接続情報の値が入るためである（ADR-0022）。
   notebook が契約の形でなく、データ取得の cell を特定できないときは、コードを1つも載せない。
-- 図は分析ノートに埋め込む。論点ツリーの HTML とチャットには埋め込まない（Epic 26 の決定はそのまま）。
-- 分析ノートは自己完結にする。script を持たず、外部を読まない。生成した時刻と絶対パスを入れない。同じ入力（分析設計、journal、notebook の出力）からは同じ HTML ができる。ページに入る文字はすべてエスケープする。
-- 論点ツリーの HTML は分析設計ごとに分析ノートへの相対リンクを出す。Epic 18 の Decision `tree-html-is-static-and-marks-are-derived` の「外部への参照も出さない」は、このリンクについては当てはめない。
-  論点ツリーの HTML が正本だけで決まることと、script と stylesheet を読まないこと（Epic 18 の US-5 AC 1、[ADR-0024](0024-question-tree-yaml-and-generated-html.md)）は変えない。
-- 分析ノートから notebook の `.py`・verdict・レポートへは、在るファイルにだけ相対リンクを張る。
-- 「読むもの」は分析ノートのパスと、論点ツリーのパスと対象の論点を指す語に改める。図・verdict・notebook のパスと指標の定義は、分析ノートが載せる。
+- 図は分析ノートに埋め込む。論点ツリーの節（論点のカード）とチャットには埋め込まない。
+- 論点ツリーの HTML は自己完結のままにする。script を持たず、外部を読まない。生成した時刻と絶対パスを入れない。ページに入る文字はすべてエスケープする。
+- Epic 18 の US-5 AC 1 の「同じ正本からは同じ HTML ができる」は、「同じ入力（正本、分析設計、journal、notebook の出力）からは同じ HTML ができる」に改める。
+  Epic 18 の Decision `tree-html-is-static-and-marks-are-derived` の「画像と外部への参照も出さない」は、分析ノートの節に埋め込む図については当てはめない。外部への参照を出さないことは変えない。
+- 分析ノートから notebook の `.py`・verdict・レポートへは、在るファイルにだけ相対リンクを張る。このリンクは手元で開いたときだけ開ける。
+- 「読むもの」は分析ノートの場所と、論点ツリーの HTML のパスと対象の論点を指す語に改める。図・verdict・notebook のパスと指標の定義は、分析ノートが載せる。
   用語表は `/analysis-reflection` を直す Story で改める。
 - skill は分析ノートを読まない。読むのは分析者である。skill は正本（分析設計、journal、verdict）を読む。
 - notebook の HTML の書き出しは、任意のままにする。
@@ -93,29 +148,35 @@ E を採る（人間の判断、2026-11-22）。決め手は W2 と W3。
 
 ### Positive
 
-- 分析者は判断の前に、手法・結果・図・コード・経過を1つのページで読める。ページは作り直すだけで最新になり、データに触らない。
-- 解釈は「分析の経過」の節にだけ、記録として出る。結果の節と混ざらない。
+- 分析者は判断の前に、手法・結果・図・コード・経過を、論点ツリーと同じページで読める。ページは作り直すだけで最新になり、データに触らない。
+- 手元と Artifact で同じ1ファイルを読む。スマホのアプリでも、論点と分析ノートを行き来できる。
+- 分析設計ごとの文書が1つになり、結論の後は結論の節も埋まる。解釈は「分析の経過」と結論の節にだけ、記録として出る。
 - 分析ノートは marimo の HTML に頼らない。marimo を外すか（#176）は、この決定と別に決められる。
 
 ### Negative
 
+- 論点ツリーの HTML が分析ノートの分だけ大きくなる。図を埋め込むので、分析設計と図の多いテーマでは Artifact の上限（16MB）に近づく。大きさを抑える手段は決めていない。
+- 論点ツリーの HTML は notebook の出力でも変わる。notebook を実行した後に作り直さないと、古い結果が出る（作り直す時点は Epic 28 の Decision `render-right-before-showing`）。
 - 図は静止画のままで、表は動かせない（#175）。
 - 手法と結果の表の形を、レポートのテンプレートと Python の2か所に持つ。構造テストで項目を照らすが、文面の違いまでは見ない。
+- Markdown のレポートは別に残る。結論の後の節とレポートで、同じ結論が2つの形で在る（#177）。モデルが書く含意の文章は、分析ノートに載らない。
 - データ取得のコードは分析ノートで読めない。分析者は手元の `.py` を開く。
 - 分析コードの cell に、接続情報のほかの秘密や個人情報が書かれていても、検査しない。Artifact に送る前に分析者が確かめる（ADR-0037）。
 - 分析ノートは notebook の `.py` の形（`@app.cell`）を読む。marimo を外すときは、cell を切り出す関数を直す。
-- 図を埋め込むので、図の多い分析設計では分析ノートが大きくなる。大きさの上限は決めていない。
-- Epic 18 と Epic 26 の DesignDoc の記述のうち、論点ツリーの HTML の参照と、読むものの中身は、この ADR で古くなる。DesignDoc は凍結しているので直さない。
+- 論点ツリーの無いテーマの分析ノートは単独のページで、Artifact に送る手段が無い。
+- Epic 18 と Epic 26 の DesignDoc の記述のうち、US-5 AC 1 の文言、論点ツリーの HTML に画像を出さないこと、読むものの中身は、この ADR で古くなる。DesignDoc は凍結しているので直さない。
+- Artifact の中での移り方はホストの作りに依る。確かめたのは 2026-11-22 のスマホのアプリとデスクトップである。
 
 ## Alternatives considered
 
 - **Claude Docs に送ったレポートの Doc を分析ノートにする** — コネクタが無いと読めない（[ADR-0015](0015-host-connectors-for-optional-features.md)）。レポートは結論の後にしか無い。送った Doc の記録を持たないという [Epic 27](../design/epic-27-resume-upload.md) の決定とも当たる。
 - **自由な形式の分析ノートを新しい正本として作る** — journal と二重になり、モデルが書くので検査も新しく要る。
 - **コードが生成するページに加えて、notebook の HTML の書き出しを必須にする** — 表を動かせるが、実行が2回になり、外すかもしれない marimo に入口を結びつける。人間がコードの確認を分析ノートで足りるとしたので落とした。
+- **論点ツリーの HTML に script を足し、分析ノートを読み込んで出す** — スマホのアプリでは script からの読み込みも通らなかった。script を持たない決まり（ADR-0024）も変えることになる。
 
 ## Related
 
 - Epic: [#173](https://github.com/etoyama/insight-blueprint-skills/issues/173)、[epic-28](../design/epic-28-tree-entry-point.md)
 - 関係する ADR: [ADR-0008](0008-notebook-figure-manifest.md)、[ADR-0019](0019-report-source-text-escaped-and-checked.md)、[ADR-0022](0022-connection-reaches-only-the-notebook.md)、[ADR-0024](0024-question-tree-yaml-and-generated-html.md)、[ADR-0037](0037-tree-upload-sends-the-design-notes.md)
-- 範囲の外に回した issue: [#175](https://github.com/etoyama/insight-blueprint-skills/issues/175)、[#176](https://github.com/etoyama/insight-blueprint-skills/issues/176)
+- 範囲の外に回した issue: [#175](https://github.com/etoyama/insight-blueprint-skills/issues/175)、[#176](https://github.com/etoyama/insight-blueprint-skills/issues/176)、[#177](https://github.com/etoyama/insight-blueprint-skills/issues/177)
 - Supersedes: なし

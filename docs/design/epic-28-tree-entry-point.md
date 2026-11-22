@@ -12,6 +12,7 @@ Epic issue（[#173](https://github.com/etoyama/insight-blueprint-skills/issues/1
   - 課題3: 判断を求める段のうち、論点ツリーの HTML を示すのはテーマの振り返りだけである。結論を決める分析設計の振り返りは、ファイルのパスをチャットに並べる。
   - 課題4: 論点ツリーの HTML を作り直すのは、テーマの段だけである。notebook を実行した後や分析をやり直した後は、古いままになる。
   - 課題5: Artifact で論点ツリーを受け取った人は、根拠へたどれない。
+  - 課題6: 読む人にとって、結論の前に読む文書とレポートは、同じ分析設計の同じ文書である。2つに分かれていると迷う。
 - PRD の要件: [docs/PRD.md](../PRD.md) のコアバリュー「論点ツリー」と「journal / reflection」。分析者が証拠を見て結論を出せること。
   製品の成功基準（論点ツリーの表示を渡された読み手が、現在地と次の一手を説明できる）にもかかわる。
 - 既存手段が不十分な理由: `/analysis-reflection` の読むもの（[Epic 26](epic-26-reflection-materials.md)）は、図・verdict・notebook のパスをチャットに並べる。
@@ -21,9 +22,10 @@ Epic issue（[#173](https://github.com/etoyama/insight-blueprint-skills/issues/1
 
 - 論点ツリーの HTML を、人間と AI が分析を進めるための共通の入口にする。
 - 各論点から、その論点に対応する最新の成果物にたどれる。分析方法とデータの集計内容、分析結果・図表・集計表、分析ノート、分析過程と実装を確かめられるコードである。
-- 論点ツリーの HTML は全体像を見渡せる軽量なものに保つ。詳細はリンクで参照する。
+- 論点ツリーの HTML は全体像を見渡せる軽量なものに保つ。
 - AI が結論の確定や分析の修正について判断を求めるときは、最新の論点ツリーの HTML と対象の論点を示す。人間はそこから根拠を確かめ、判断や修正の指示を返す。
 - 分析をやり直した後も、同じ入口から最新の成果物にたどれる。
+- アップロードすれば他者に渡せる Artifact になり、途中の段階では手元で同じものを確かめられる（人間、2026-11-22、見本を見る前の発言）。
 
 ### 前提にした事実（main、2026-11-22）
 
@@ -45,7 +47,9 @@ Epic issue（[#173](https://github.com/etoyama/insight-blueprint-skills/issues/1
 
 - `/analysis-auto` の KEEP ゲートのうち、結果が在る段は「reflection（分析設計）」と「theme reflection T7」の2つである。
   framing・design・premortem は notebook の実行より前にある。
-- 分析ノートの形を決めるために確かめた事実（`marimo export html` の振る舞い、cell の切り出し、lineage の書き出しの中身）は、[ADR-0036](../adr/0036-design-note-is-a-generated-page-per-design.md) の Context にある。
+- Artifact の中で通る移り方は同じページの中のアンカーだけである。別の HTML へのリンクはスマホのアプリで開けず、デスクトップでは元のページに戻れなかった。
+  論点ツリーと分析ノートを1ファイルにまとめた見本は、どちらでも行き来できた（合成シナリオの見本を Artifact に出し、人間が確かめた）。
+- 分析ノートの形を決めるために確かめたほかの事実（`marimo export html` の振る舞い、cell の切り出し、lineage の書き出しの中身、レポートの節の元）は、[ADR-0036](../adr/0036-design-note-is-a-generated-page-per-design.md) の Context にある。
 
 ## User Stories
 
@@ -53,15 +57,15 @@ AC の正本はここ。
 
 ### US-1: 分析者が、分析設計ごとの分析ノートで、結果までの事実を1か所で読める
 
-分析者として、判断の前に根拠を確かめるために、分析設計の手法・指標の定義・結果の値・図を1つのページで読みたい。
+分析者として、判断の前に根拠を確かめるために、分析設計の手法・指標の定義・結果の値・図を1つの文書で読みたい。
 
-- [ ] AC 1: `tree_io render --design {design_id}` は、分析ノート（`.insight/notes/{design_id}.html`）を作り、そのパスを返す。論点ツリーの無いテーマの分析設計でも作る。
+- [ ] AC 1: `tree_io render --design {design_id}` は、その分析設計の分析ノートを作り、開くファイルのパスを返す。テーマに論点ツリーが無ければ、単独のページ（`.insight/notes/{design_id}.html`）を書く。
   分析設計が無ければエラーにして、何も書かない。
 - [ ] AC 2: 分析ノートはレポートの前半と同じ並びで、仮説と背景、決定の文脈、手法、指標の定義、説明変数、データソースの名前・種類・説明、結果を出す。
   結果は journal の `observe` と `evidence`（`direction` で分ける）と、verdict の指標の値である。値は書かれたとおりに出し、計算しない。接続情報は読まず、出さない。
-- [ ] AC 3: 図は verdict の figures manifest の順に、ページに埋め込んで出し、題・軸の説明・読み方を添える。出すのは、`file` がファイル名だけで、`.insight/notebooks/` に実在する図に限る。
-- [ ] AC 4: notebook をまだ実行していない分析設計でも作る。無い節にはまだ無いことを書く。ページの冒頭に、分析設計の状態、載せた journal の最後の出来事の時刻、verdict の有無を出す。
-- [ ] AC 5: 分析ノートは自己完結である。script を持たず、外部を読まず、生成した時刻と絶対パスを入れない。同じ入力（分析設計、journal、notebook の出力）からは同じ HTML ができる。ページに入る文字はすべてエスケープする。
+- [ ] AC 3: 図は verdict の figures manifest の順に、分析ノートに埋め込んで出し、題・軸の説明・読み方を添える。出すのは、`file` がファイル名だけで、`.insight/notebooks/` に実在する図に限る。
+- [ ] AC 4: notebook をまだ実行していない分析設計でも作る。無い節にはまだ無いことを書く。分析ノートの冒頭に、分析設計の状態、載せた journal の最後の出来事の時刻、verdict の有無を出す。
+- [ ] AC 5: 分析ノートは自己完結である。script を持たず、外部を読まず、生成した時刻と絶対パスを入れない。同じ入力（分析設計、journal、notebook の出力）からは同じ HTML ができる。分析ノートに入る文字はすべてエスケープする。
 
 ### US-2: 分析者が、分析ノートの中で分析コードと経過を確かめられる
 
@@ -73,37 +77,47 @@ AC の正本はここ。
 - [ ] AC 4: lineage の Mermaid の文字を、畳んで出す。図としては描かない。
 - [ ] AC 5: 「手元のファイル」の節に、notebook の `.py`・verdict・lineage・notebook の HTML・レポートのうち、在るものへの相対リンクを出す。節の冒頭に、手元で開いたときだけ開けることを書く。
 
-### US-3: 分析者が、論点ツリーの HTML から分析ノートへたどれる
+### US-3: 分析者と読み手が、結論の後は同じ分析ノートで結論まで読める
 
-分析者として、論点から根拠へ少ない手数でたどるために、論点のカードから、その論点に結んだ分析設計の分析ノートを開きたい。
+分析者として、結論の前に読む文書と結論の文書を行き来せずに済むように、分析ノートが分析の進みに合わせて埋まってほしい。
 
-- [ ] AC 1: 論点のカードの「結んだ分析設計」と、「分析設計の派生」の節の各分析設計に、分析ノートへの相対リンクを1つ出す。図・verdict・notebook へのリンクは、論点ツリーの HTML に出さない。
-- [ ] AC 2: `tree_io render --theme {theme_id}` は、論点ツリーの HTML と、テーマの分析設計すべての分析ノートを書き、それぞれのパスを返す。分析ノートを1つでも作れなければエラーにして、理由を出す。
+- [ ] AC 1: 分析設計が terminal status のとき、分析ノートに結論の節を出す。節の最初に、terminal status ごとの決まった文（レポートの Abstract の最初の文と同じ）を出す。
+- [ ] AC 2: 結論の節に、journal の `conclude` の本文を、書かれたとおりに出す。
+- [ ] AC 3: 結論の節に、分析設計の `next_action` と決定の文脈（勧め）、仮説に反する証拠、`reflect` の本文、未解決の問いを、書かれたとおりに出す。無いものは省く。
+- [ ] AC 4: terminal status でない分析設計の分析ノートには、結論の節を出さず、まだ結論が出ていないことを書く。モデルが書く文章は、どの節にも載せない。
+- [ ] AC 5: 結論の節の項目（決まった文、勧めの元、未解決の問いの定義）が、レポートのテンプレートと食い違わないことを、構造テストで照らす。
+
+### US-4: 分析者が、論点ツリーの HTML の中で、論点と分析ノートを行き来できる
+
+分析者として、論点から根拠へ少ない手数でたどるために、論点のカードから、その論点に結んだ分析設計の分析ノートへ飛びたい。
+
+- [ ] AC 1: `tree_io render --theme {theme_id}` は、論点ツリーの下に、テーマの分析設計すべての分析ノートを並べた1ファイル（`.insight/themes/{theme_id}_tree.html`）を書く。分析ノートを1つでも作れなければエラーにして、理由を出す。
+- [ ] AC 2: 論点のカードの「結んだ分析設計」と、「分析設計の派生」の節の各分析設計に、分析ノートへ飛ぶアンカーを出す。分析ノートの冒頭と末尾に、論点ツリーへ戻るアンカーを出す。別の HTML へのリンクは出さない。
 - [ ] AC 3: 論点のカードは結んだ分析設計を、終わっていないものを先に、終わったものを後に並べる。それぞれの中は `created_at` の新しい順で、同じなら id の大きい順である。
-- [ ] AC 4: 論点ツリーの HTML は正本・分析設計・journal だけで決まる。notebook の出力の有無では変わらない。script と stylesheet を読まない（Epic 18 の US-5 AC 1 のまま）。
-- [ ] AC 5: 読み方の節に、分析ノートへのリンクの説明を書く。分析ノートが同じ場所に無いと開けないことも書く。
+- [ ] AC 4: 論点ツリーの HTML は同じ入力（正本、分析設計、journal、notebook の出力）からは同じ HTML になる。script と stylesheet を読まない。
+  テーマに論点ツリーがあるとき、`tree_io render --design {design_id}` はこのファイルを書き直し、パスと、分析ノートのアンカーと、分析設計を結んだ論点の id を返す。
+- [ ] AC 5: 読み方の節に、「分析ノートを開く」の説明を書く。
 
-### US-4: 分析者が、結論を求められたときに入口を示される
+### US-5: 分析者が、結論を求められたときに入口を示される
 
 分析者として、結論を決める前に最新の根拠を確かめるために、`/analysis-reflection` が結論を聞く前に、分析ノートと対象の論点を示してほしい。
 
 - [ ] AC 1: `/analysis-reflection {design_id}` の Step 2 は読むものを出す直前に `tree_io render --design {design_id}` を呼ぶ。手順は、テーマに論点ツリーがあるかどうかで分かれない。
-- [ ] AC 2: 読むものは分析ノートのパスと、論点ツリーのパスと分析設計を結んだ論点の id である。論点ツリーが無いか、どの論点にも結んでいなければ、分析ノートのパスだけを出す。図・verdict・notebook のパスと指標の定義は、チャットに並べない。
-- [ ] AC 3: `/analysis-notebook` は、結果を journal に書いた後に `tree_io render --design {design_id}` を呼び、分析ノートのパスを伝える。
+- [ ] AC 2: 読むものは開くファイルのパスと、分析ノートの場所と、分析設計を結んだ論点の id である。論点ツリーが無いか、どの論点にも結んでいなければ、分析ノートのパスだけを出す。図・verdict・notebook のパスと指標の定義は、チャットに並べない。
+- [ ] AC 3: `/analysis-notebook` は、結果を journal に書いた後に `tree_io render --design {design_id}` を呼び、分析ノートの場所を伝える。
 - [ ] AC 4: 読むものに、気づいたことをチャットで返せば journal に残せることを書く。残すのは既存の journal の出来事で、新しい種類は足さない。
 - [ ] AC 5: `/analysis-auto` の Gate policy と手順が reflection の段で分析ノートと論点を示すことと食い違わない。skill は分析ノートを読まず、正本を読む。テーマの振り返り（T7）は変えない。
 
-### US-5: 論点ツリーを受け取った人が、Artifact でも分析ノートへたどれる
+### US-6: 論点ツリーを受け取った人が、Artifact でも分析ノートまで読める
 
-分析者として、定例報告やレビューで根拠まで見せるために、論点ツリーと一緒に分析ノートを Artifact で渡したい。
+分析者として、定例報告やレビューで根拠まで見せるために、分析ノートを含む論点ツリーの HTML を Artifact で渡したい。
 
-- [ ] AC 1: 論点ツリーの HTML をページ、分析ノートを添えるファイルとして Artifact に送ると、論点ツリーのリンクから分析ノートが開けることを、最初に確かめる。
-  開けなければ、この US の AC 2〜4 を落とし、論点ツリーの HTML だけを送る今の手順のまま、読み方に「分析ノートへのリンクは手元でだけ開ける」と書く（[ADR-0037](../adr/0037-tree-upload-sends-the-design-notes.md)）。
-- [ ] AC 2: `/tree-upload` は、`tree_io render --theme` が返した論点ツリーの HTML と分析ノートのパスを列挙し、KEEP ゲートで承認を待つ。
-  承認の文に、分析ノートに載る中身（図、指標の値、journal のすべての出来事、分析コード）を書く。分析者が「ツリーだけ送る」と答えたら、論点ツリーの HTML だけを送る。
-- [ ] AC 3: 送るのは `tree_io render` が書いたファイルそのものである。notebook の `.py`・verdict・レポート・notebook の HTML は送らない。
-- [ ] AC 4: Artifact が添えるファイルを受けないホストでは、承認を聞く前にそれを伝え、列挙を論点ツリーの HTML だけにする。
-- [ ] AC 5: README、[docs/ARCHITECTURE.md](../ARCHITECTURE.md)（`.insight/` の構成、KEEP ゲートの一覧、シーケンス図）、[docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md)（読むもの、アップロード、分析ノートのコード上の名前）、`/analysis-auto` の tree-upload の行が、実装と食い違わない。
+- [ ] AC 1: `/tree-upload` は、`tree_io render --theme` が書いた1ファイルを、今までどおり書き換えずに送る。添えるファイルは送らない。
+- [ ] AC 2: KEEP ゲートの承認の文に、ページに載る中身を書く。論点ツリーに加えて、分析設計ごとの分析ノート（手法、指標の値、図、journal のすべての出来事、分析コード、結論の後は結論と振り返りの本文）である。
+  分析ノートを含まない論点ツリーだけを送る手段が無いことも書く。
+- [ ] AC 3: ファイルが Artifact の上限（16MB）を超えるときは、承認を聞く前にそう伝え、何も送らない。
+- [ ] AC 4: notebook の `.py`・verdict・Markdown のレポート・notebook の HTML は送らない。
+- [ ] AC 5: README、[docs/ARCHITECTURE.md](../ARCHITECTURE.md)（`.insight/` の構成、KEEP ゲートの一覧、シーケンス図）、[docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md)（アップロード、分析ノートのコード上の名前）、`/analysis-auto` の tree-upload の行が、実装と食い違わない。
 
 ## Stories
 
@@ -113,21 +127,22 @@ Story は未起票で、分割の案である。起票は親のセッション�
 |---|---|---|---|---|
 | 未起票（28.1 分析ノートを作る） | US-1 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/design_note.py`（新設）、`skills/_shared/tree_read.py`、`skills/_shared/tree_io.py`、`tests/` | なし |
 | 未起票（28.2 コードと経過を載せる） | US-2 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/design_note.py` | 28.1 |
-| 未起票（28.3 論点ツリーからリンクする） | US-3 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`、`skills/_shared/tree_io.py` | 28.1 |
-| 未起票（28.4 結論の段で示す） | US-4 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/analysis-reflection/SKILL.md`、`skills/analysis-notebook/SKILL.md`、`skills/analysis-auto/SKILL.md`、`tests/skills/`、`docs/UBIQUITOUS_LANGUAGE.md` | 28.1 |
-| 未起票（28.5 分析ノートも送る） | US-5 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/tree-upload/SKILL.md`、`skills/analysis-auto/SKILL.md`、`README.md`、`docs/ARCHITECTURE.md`、`docs/UBIQUITOUS_LANGUAGE.md` | 28.3、28.4 |
+| 未起票（28.3 結論の後の節を埋める） | US-3 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/design_note.py`、`tests/skills/` | 28.2 |
+| 未起票（28.4 論点ツリーの HTML に並べる） | US-4 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`、`skills/_shared/tree_io.py` | 28.1 |
+| 未起票（28.5 結論の段で示す） | US-5 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/analysis-reflection/SKILL.md`、`skills/analysis-notebook/SKILL.md`、`skills/analysis-auto/SKILL.md`、`tests/skills/`、`docs/UBIQUITOUS_LANGUAGE.md` | 28.4 |
+| 未起票（28.6 分析ノートを含めて送る） | US-6 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/tree-upload/SKILL.md`、`skills/analysis-auto/SKILL.md`、`README.md`、`docs/ARCHITECTURE.md`、`docs/UBIQUITOUS_LANGUAGE.md` | 28.5 |
 
-- 28.2 と 28.3 は、触るファイルが重ならないので並行で進められる。28.4 は SKILL.md だけを触るので、28.2・28.3 と並行で進められる。
-- 28.1 と 28.3 は、どちらも `tree_read.py` と `tree_io.py` を触る。28.4 と 28.5 は、どちらも `skills/analysis-auto/SKILL.md` と `docs/UBIQUITOUS_LANGUAGE.md` を触る。この2組は直列にする。
-- US-5 AC 1 の確認は、分析ノートの配置（リンクの向き、図の埋め込み）が正しいかを決める。28.1 の後すぐに、合成シナリオの HTML で試すとよい。
+- 28.1 → 28.2 → 28.3 はどれも `design_note.py` を触るので直列にする。
+- 28.4 は 28.1 の後なら、28.2・28.3 と並行で進められる。触るファイルが重ならない。分析ノートの節が増えても、論点ツリーの側は分析ノートを作る関数を呼ぶだけである。
+- 28.1 と 28.4 はどちらも `tree_read.py` と `tree_io.py` を触る。28.5 と 28.6 はどちらも `skills/analysis-auto/SKILL.md` と `docs/UBIQUITOUS_LANGUAGE.md` を触る。この2組は直列にする。
 
 ## Ubiquitous Language
 
 この Epic で追加・変更した語。定義の正本は [docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md)。
 
 - 追加: 分析ノート（[ADR-0036](../adr/0036-design-note-is-a-generated-page-per-design.md)。コード上の名前 `design_note` は、28.1 で実装と同じコミットで用語表に足す）
-- 変更: 読むもの（ADR-0036。28.4 で用語表を改める）
-- 変更: アップロード（[ADR-0037](../adr/0037-tree-upload-sends-the-design-notes.md)。28.5 で用語表を改める）
+- 変更: 読むもの（ADR-0036。28.5 で用語表を改める）
+- 変更: アップロード（[ADR-0037](../adr/0037-tree-upload-sends-the-design-notes.md)。28.6 で用語表を改める）
 
 ## Scope
 
@@ -135,21 +150,23 @@ Story は未起票で、分割の案である。起票は親のセッション�
 [docs/ARCHITECTURE.md](../ARCHITECTURE.md) では、Skill layer（`/analysis-reflection`・`/analysis-notebook`・`/analysis-auto`・`/tree-upload`）と、`tree_io` の表示を前進させる。
 
 - Epic 範囲内:
-  - 分析ノートを作ること（`.insight/notes/{design_id}.html`）。
-  - 論点ツリーの HTML から分析ノートへのリンクと、結んだ分析設計の並び。
+  - 分析ノートを作ること。論点ツリーのあるテーマでは論点ツリーの HTML の中に並べ、無いテーマでは単独のページにする。
+  - 論点のカードから分析ノートへ飛ぶアンカーと、結んだ分析設計の並び。
+  - 結論の後に、分析ノートの結論の節を記録から埋めること。
   - 分析設計の振り返りと notebook の最後で、分析ノートを作り直して示すこと。
-  - `/tree-upload` が分析ノートも送ること。
+  - `/tree-upload` の承認の文と、大きさの上限の扱い。
 - Epic 範囲外:
   - 図を動かして確かめられる形で出すこと（[#175](https://github.com/etoyama/insight-blueprint-skills/issues/175)）。
   - notebook を marimo で書くのをやめるか（[#176](https://github.com/etoyama/insight-blueprint-skills/issues/176)）。notebook の HTML の書き出しは任意のままにする。
+  - Markdown のレポートを分析ノートに一本化するか（[#177](https://github.com/etoyama/insight-blueprint-skills/issues/177)）。`/analysis-report` と `/report-upload` は変えない。モデルが書く含意の文章は、分析ノートに載せない。
   - ツリーの決定の理由に出来事を引用させること（[#137](https://github.com/etoyama/insight-blueprint-skills/issues/137)）。同じ `tree_render.py` を触るが、モデルの変更で、引き継ぎの試行の証拠を待っている。
-  - 論点ツリーの HTML とチャットに、図や表を埋め込むこと（Epic 26 の決定のまま）。
+  - 論点のカードとチャットに、図や表を埋め込むこと（Epic 26 の決定のまま）。
   - journal に、返信のための新しい出来事の種類を足すこと。
   - framing・design・review・premortem の KEEP ゲートで、分析ノートを示すこと。
-  - lineage を図として描くこと。分析ノートは script を持たない。
-  - 分析ノートから論点ツリーへ戻るリンク。
+  - lineage を図として描くこと。論点ツリーの HTML は script を持たない。
+  - 分析ノートを含まない論点ツリーだけを Artifact に送ること。論点ツリーの無いテーマの分析ノートを送ること。
+  - 分析設計と図の多いテーマで、ファイルの大きさを抑える手段。
   - 引き継ぎの試行の型（[docs/HANDOFF_TRIAL.md](../HANDOFF_TRIAL.md)）に分析ノートを足すこと。
-  - レポートと分析ノートを同じコードで組み立てること。レポートは今までどおり `/analysis-report` が書く。
 
 ## Architecture
 
@@ -165,13 +182,13 @@ flowchart TD
     subgraph shared["skills/_shared/"]
         io["tree_io<br/>render --theme / render --design"]
         read["tree_read.py<br/>読んで渡し、書く"]
-        trender["tree_render.py<br/>論点ツリーの HTML（純関数）"]
-        note["design_note.py（新設）<br/>分析ノートの HTML（純関数）"]
+        trender["tree_render.py<br/>論点ツリーの節（純関数）"]
+        note["design_note.py（新設）<br/>分析ノートの節（純関数）"]
     end
 
     subgraph views["生成物（.insight/）"]
-        treehtml["themes/{theme_id}_tree.html"]
-        notehtml["notes/{id}.html（新設）"]
+        treehtml["themes/{theme_id}_tree.html<br/>論点ツリー + 分析設計ごとの分析ノート"]
+        notehtml["notes/{id}.html（新設）<br/>論点ツリーの無いテーマだけ"]
     end
 
     reflection["/analysis-reflection {design_id}<br/>Step 2 読むもの"]
@@ -188,22 +205,22 @@ flowchart TD
     read --> trender
     read --> note
     trender --> treehtml
-    note --> notehtml
-    treehtml -->|分析設計ごとの相対リンク| notehtml
-    notehtml -.->|手元のファイルへの相対リンク| outputs
-    reflection -->|分析ノートのパス、ツリーのパスと論点| analyst
-    analyst -->|開いて読む| treehtml
-    upload -->|承認の後、ツリーと分析ノート| artifact
+    note -->|論点ツリーがあるとき| treehtml
+    note -->|論点ツリーが無いとき| notehtml
+    treehtml -.->|手元のファイルへの相対リンク| outputs
+    reflection -->|開くファイル、分析ノートの場所、論点| analyst
+    analyst -->|開いて、論点と分析ノートを行き来する| treehtml
+    upload -->|承認の後、同じ1ファイル| artifact
 ```
 
-- `tree_io render --theme` は、論点ツリーの HTML とテーマの分析設計すべての分析ノートを書く。
-- `tree_io render --design` は、その分析設計の分析ノートを書く。テーマに論点ツリーがあれば、論点ツリーの HTML とテーマの分析ノートも書き直し、分析設計を結んだ論点の id を返す。
+- `tree_io render --theme` は、論点ツリーと、テーマの分析設計すべての分析ノートを、1ファイルに書く。
+- `tree_io render --design` は、テーマに論点ツリーがあればそのファイルを書き直し、無ければ単独のページを書く。どちらのときも、開くファイルのパスを返す。
 - モジュールの分け方（読む関数を `tree_read.py` に置くか、分析ノートの側に分けるか。エスケープの関数を2つの表示で共有するか）は、28.1 で決めて Decisions に残す。
 
 ## Domain Model
 
-`src/insight_blueprint/models/` のクラスは変えない。分析ノートは、既存の型と notebook の出力から読んだ値を並べた生成物である。
-下の図の `DesignNote`・`NoteFigure`・`CodeCell` は、`skills/_shared/` に置く表示のための型で、保存しない。名前は 28.1 で確定する。
+`src/insight_blueprint/models/` のクラスは変えない。分析ノートは既存の型と notebook の出力から読んだ値を並べた生成物である。
+下の図の `DesignNote`・`NoteFigure`・`CodeCell`・`Conclusion` は `skills/_shared/` に置く表示のための型で、保存しない。名前は 28.1 で確定する。
 
 ```mermaid
 classDiagram
@@ -223,6 +240,8 @@ classDiagram
         +created_at
         +methodology
         +metrics
+        +next_action
+        +decision_context
     }
     class DesignSummary {
         <<Value Object>>
@@ -240,6 +259,7 @@ classDiagram
         +figures
         +cells
         +lineage
+        +conclusion
         +local_files
     }
     class NoteFigure {
@@ -254,22 +274,33 @@ classDiagram
         +position
         +source
     }
+    class Conclusion {
+        <<Value Object>>
+        +status
+        +conclude_events
+        +next_action
+        +contradicting_evidence
+        +reflect_events
+        +open_questions
+    }
     QuestionTree "1" *-- "1..*" QuestionNode
     QuestionNode "0..*" --> "0..*" AnalysisDesign : design_ids
     DesignSummary ..> AnalysisDesign : 読んだ値
     DesignNote "1" --> "1" AnalysisDesign : 読んだ値
     DesignNote "1" *-- "0..*" NoteFigure
     DesignNote "1" *-- "0..*" CodeCell
+    DesignNote "1" *-- "0..1" Conclusion
 ```
 
 | 型 | 種類 | 不変条件 |
 |---|---|---|
-| `QuestionTree`、`QuestionNode` | 集約ルート、エンティティ | 変えない。分析ノートへのリンクは保存せず、`design_ids` から導く |
+| `QuestionTree`、`QuestionNode` | 集約ルート、エンティティ | 変えない。分析ノートへのアンカーは保存せず、`design_ids` から導く |
 | `AnalysisDesign` | 集約ルート | 変えない |
 | `DesignSummary` | 値オブジェクト（表示の入力） | `created_at` を足す。並びは状態と `created_at` と id だけで決まる |
 | `DesignNote` | 値オブジェクト（表示の入力） | 保存しない。同じ入力からは同じ HTML ができる。接続情報を持たない |
 | `NoteFigure` | 値オブジェクト | figures manifest の1件。`file` がファイル名だけで、実在する図に限る |
 | `CodeCell` | 値オブジェクト | notebook の cell の1つ。データ取得の cell は含めない。契約の形でない notebook からは1つも作らない |
+| `Conclusion` | 値オブジェクト | terminal status の分析設計にだけ在る。中身は記録の写しで、生成した文を持たない |
 
 ## Sequence Diagram
 
@@ -287,19 +318,21 @@ sequenceDiagram
     R->>FS: 分析設計と journal を読む
     R->>T: tree_io render --design {design_id}
     T->>FS: 分析設計、journal、verdict、図、lineage、notebook の .py を読む
-    T->>FS: notes/{design_id}.html を書く
-    opt テーマに論点ツリーがあるとき
-        T->>FS: themes/{theme_id}_tree.html とテーマの分析ノートを書く
+    alt テーマに論点ツリーがあるとき
+        T->>FS: themes/{theme_id}_tree.html を書く（論点ツリー + 分析ノート）
+        T-->>R: ファイルのパス、分析ノートのアンカー、結んだ論点の id
+    else 論点ツリーが無いとき
+        T->>FS: notes/{design_id}.html を書く
+        T-->>R: ファイルのパス
     end
-    T-->>R: 分析ノートのパス、ツリーのパス、結んだ論点の id
     R-->>A: Step 2 の要約と読むもの
-    A->>B: 論点ツリーの HTML を開き、対象の論点から分析ノートへたどる
+    A->>B: ファイルを開き、対象の論点から分析ノートへ飛ぶ
     B-->>A: 手法、結果の値、図、コード、分析の経過
     A->>R: 気づいたことと、Step 3 の問いへの答え
     R->>FS: journal に出来事を足す
 ```
 
-論点ツリーと分析ノートを Artifact で渡す。
+分析ノートを含む論点ツリーの HTML を、Artifact で渡す。
 
 ```mermaid
 sequenceDiagram
@@ -311,45 +344,45 @@ sequenceDiagram
 
     A->>U: /tree-upload {theme_id}
     U->>T: tree_io render --theme {theme_id}
-    T->>FS: themes/{theme_id}_tree.html と notes/{id}.html を書く
-    T-->>U: ツリーのパスと、分析ノートのパスの一覧
-    U->>A: 【KEEP】送るファイルの列挙と、分析ノートに載る中身
-    alt 承認した
-        A-->>U: 送ってよい
-        U->>H: ツリーの HTML をページ、分析ノートを添えるファイルとして送る
-        H-->>U: URL
-    else ツリーだけ送る
-        A-->>U: ツリーだけ
-        U->>H: ツリーの HTML だけを送る
-        H-->>U: URL
-    else 承認しない
-        A-->>U: 送らない
+    T->>FS: themes/{theme_id}_tree.html を書く（論点ツリー + 分析ノート）
+    T-->>U: ファイルのパス
+    alt ファイルが上限を超えるとき
+        U-->>A: 大きすぎて送れない。何も送っていない
+    else 上限に収まるとき
+        U->>A: 【KEEP】送るファイルと、ページに載る中身
+        alt 承認した
+            A-->>U: 送ってよい
+            U->>H: 同じ1ファイルを送る
+            H-->>U: URL
+        else 承認しない
+            A-->>U: 送らない
+        end
+        U-->>A: 結果
     end
-    U-->>A: 結果
 ```
 
 境界: `tree_io` が読むのは `.insight/` の中だけで、ネットワークには出ない。外へ出るのは `/tree-upload` の承認の後だけである（[ADR-0016](../adr/0016-approval-before-external-send.md)）。
 
 ## Decisions
 
-Epic-scoped な決定。人間の判断は、2026-11-22 の DesignDoc 初版のセッションで得た。
+Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセッションで得た。
 
-### Decision: the-card-links-only-to-the-design-note
+### Decision: the-card-jumps-only-to-the-design-note
 
-- What: 論点のカードには、結んだ分析設計ごとに分析ノートへのリンクを1つだけ出す。図・verdict・notebook・レポートへは、分析ノートからたどる。
-  分析ノートは、テーマの分析設計すべてに作る。notebook をまだ実行していない分析設計にも作る。
-- Why: 論点から根拠へたどる手数を減らしつつ、論点ツリーの HTML を軽く保つ（issue #173 の求める運用）。
-- Criteria: 論点ツリーの HTML のリンクが切れないこと（Must、課題1）。論点から根拠までの手数（高、人間）。論点ツリーの HTML が軽いこと（高、人間）。
-  論点ツリーの HTML が正本だけで決まること（中、Claude の推測、Epic 18 の US-5 AC 1）。決め手は最後の1つ。カードから成果物へ直接リンクすると、論点ツリーの HTML がファイルの有無で変わる。
+- What: 論点のカードには、結んだ分析設計ごとに、分析ノートへ飛ぶアンカーを1つだけ出す。図・verdict・notebook・レポートへは、分析ノートからたどる。
+  分析ノートはテーマの分析設計すべてに作る。notebook をまだ実行していない分析設計にも作る。
+- Why: 論点から根拠へたどる手数を減らしつつ、論点のカードを軽く保つ（issue #173 の求める運用）。
+- Criteria: 論点のカードから飛んだ先が必ず在ること（Must、課題1）。論点から根拠までの手数（高、人間）。論点のカードが軽いこと（高、人間）。決め手は後の2つ。
+  最初は「論点ツリーの HTML が正本だけで決まる」ことも基準にして、分析ノートを別ファイルにした。見本で、Artifact では別ファイルへ移れないと分かり、1ファイルにまとめる形に改めた（ADR-0036）。
 - Affected modules: `skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`。
-- Alternatives considered: カードから図・verdict・notebook・レポートへも直接リンクする。カードがリンクで埋まり、notebook を実行するたびに論点ツリーの HTML も作り直すことになる。
-- Consequences: Epic 18 の US-5 AC 1 は改めない。分析ノートが長くなると、根拠を探しにくい。節の見出しをページの中のリンクで並べて抑える。
+- Alternatives considered: カードから図・verdict・notebook・レポートへも直接リンクする。カードがリンクで埋まり、図だけを開いても題と読み方が無い。
+- Consequences: 論点ツリーの HTML は notebook の出力でも変わる。Epic 18 の US-5 AC 1 の文言は ADR-0036 で改める。ページが長くなるので、分析ノートの冒頭に節へ飛ぶアンカーを並べる。
 
 ### Decision: render-right-before-showing
 
-- What: 分析ノートと論点ツリーの HTML は、パスを示す直前に作り直す。作り直すのは、`/analysis-reflection {design_id}` の Step 2 と、`/analysis-notebook` の最後である。
+- What: 論点ツリーの HTML（分析ノートを含む）は、パスを示す直前に作り直す。作り直すのは、`/analysis-reflection {design_id}` の Step 2 と、`/analysis-notebook` の最後である。
   今ある3か所（framing、テーマの振り返り、`/tree-upload`）は、`tree_io render --theme` が分析ノートも書くので、手順を変えない。
-  分析ノートは分析設計だけで作れる。論点ツリーの無いテーマでも作る。
+  分析ノートは分析設計だけで作れる。論点ツリーの無いテーマでも、単独のページとして作る。
 - Why: 判断を求める時点で、示すページが最新であればよい（課題4）。render を呼ぶ SKILL.md を増やすと、同じ手順の書き写しが増える（[#143](https://github.com/etoyama/insight-blueprint-skills/issues/143) で減らしたばかり）。
 - Criteria: 判断を求める時点で最新であること（Must、課題4）。render を呼ぶ箇所の数（高、人間、#143）。分析者が自分で開いたときも新しいこと（中、Claude の推測）。
   論点ツリーの無い分析設計でも根拠を読めること（中、Claude の推測。Epic 18 の Decision `ask-once-for-treeless-design` が、ツリーを作らない道を残している）。決め手は呼ぶ箇所の数。
@@ -357,13 +390,13 @@ Epic-scoped な決定。人間の判断は、2026-11-22 の DesignDoc 初版の�
 - Alternatives considered:
   - 分析設計・journal・notebook の出力を書く skill すべてが、書いた後に作り直す。6つ以上の SKILL.md に同じ手順が入る。
   - 論点ツリーのあるテーマでだけ分析ノートを作る。SKILL.md に「ツリーが無いときは」の分岐が要り、モデルが取り違える（ADR-0033 の Risks に前例）。
-- Consequences: 示した段の間に journal を足すと、次に示すまで分析ノートは古い。ページの冒頭に、載せた journal の最後の出来事の時刻と verdict の有無を出して、読む人が古さに気づけるようにする。
+- Consequences: 示した段の間に journal を足すと、次に示すまで分析ノートは古い。分析ノートの冒頭に、載せた journal の最後の出来事の時刻と verdict の有無を出して、読む人が古さに気づけるようにする。
   時刻はデータから決まる値なので、同じ入力から同じ HTML ができる決まりと両立する。
 
 ### Decision: show-the-entry-at-the-conclusion-gate
 
-- What: 入口を示すのは、分析設計の振り返り（結論の段）である。テーマの振り返り（T7）は今のままにする。`/analysis-notebook` の最後は、作り直したパスを伝えるだけで、ゲートにはしない。
-  チャットの読むものは、分析ノートのパスと、論点ツリーのパスと対象の論点に置き換える。図と指標の列挙はやめる。
+- What: 入口を示すのは、分析設計の振り返り（結論の段）である。テーマの振り返り（T7）は今のままにする。`/analysis-notebook` の最後は作り直したパスを伝えるだけで、ゲートにはしない。
+  チャットの読むものは開くファイルのパスと、分析ノートの場所と、対象の論点に置き換える。図と指標の列挙はやめる。
 - Why: issue の「結論の確定や分析の修正」は、分析設計の振り返りにあたる（課題3）。読む面が2つあると、どちらが正か迷う（ADR-0024 のときの人間の判断）。
 - Criteria: 結論を決める段で、分析ノートと対象の論点が示されること（Must、課題3）。示したページに、その判断の根拠が載っていること（高、Claude の推測）。変える SKILL.md の数（高、人間、#143）。
   読む面が1つであること（高、人間）。決め手は、根拠が載っていることと、読む面が1つであること。framing・design・premortem は notebook の実行より前で、分析ノートには分析設計の中身しか出ない。
@@ -376,41 +409,55 @@ Epic-scoped な決定。人間の判断は、2026-11-22 の DesignDoc 初版の�
 
 ### Decision: unfinished-designs-come-first
 
-- What: 論点のカードは、結んだ分析設計を、終わっていないもの（terminal status でないもの）を先に、終わったものを後に並べる。それぞれの中は `created_at` の新しい順で、同じなら id の大きい順である。
+- What: 論点のカードは結んだ分析設計を、終わっていないもの（terminal status でないもの）を先に、終わったものを後に並べる。それぞれの中は `created_at` の新しい順で、同じなら id の大きい順である。
 - Why: 派生（ADR-0033）で1つの論点に分析設計が複数結ばれると、今の判断の対象がカードで分からない。issue の「最新」を、並びで表す。
-- Criteria: 今動いている分析設計が先に目に入ること（高、人間）。終わった分析設計の根拠も辿れること（中、Claude の推測）。並びが正本だけで決まること（中、Claude の推測）。決め手は最初の1つ。
+- Criteria: 今動いている分析設計が先に目に入ること（高、人間）。終わった分析設計の根拠も辿れること（中、Claude の推測）。並びが入力だけで決まること（中、Claude の推測）。決め手は最初の1つ。
 - Affected modules: `skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`。
 - Alternatives considered:
   - `created_at` の新しい順に並べる。古い分析設計を後から結んだときに、今のものが先頭に来ない。
-  - 最新の1つだけリンクし、残りは畳む。結論の根拠になった古い分析設計が隠れる。
-- Consequences: やり直し（refine）は同じ id に上書きするので、リンク先は並びと関係なく最新になる。「分析設計の派生」の節の並び（id の順）は変えない。
+  - 最新の1つだけ出し、残りは畳む。結論の根拠になった古い分析設計が隠れる。
+- Consequences: やり直し（refine）は同じ id に上書きするので、飛んだ先は並びと関係なく最新になる。「分析設計の派生」の節の並び（id の順）と、ページの下に分析ノートを並べる順（id の順）は、この並びに合わせない。
 
 ### Decision: replies-go-through-the-journal
 
 - What: 分析者が根拠を読んで返す言葉は、今ある経路で journal に残す。分析設計の振り返りでは Step 3 の答えが `reflect` と `conclude` になり、ほかの時点では `/analysis-journal` が出来事を足す。
   返信のための新しい出来事の種類は足さない。読むものに、チャットで返せば journal に残せることを書く。
-- Why: 論点ツリーの HTML と分析ノートは script を持たないので、ページからは書けない。分析ノートは journal から作るので、残した言葉は次に作り直したときに載る。
+- Why: 論点ツリーの HTML は script を持たないので、ページからは書けない。分析ノートは journal から作るので、残した言葉は次に作り直したときに載る。
 - Criteria: 返した言葉が記録に残り、分析ノートに出ること（高、人間）。足すモデルと手順の量（高、人間）。決め手は後者。
 - Affected modules: `skills/analysis-reflection/SKILL.md`。
 - Alternatives considered: 返信のための出来事の種類を足し、分析ノートに分けて出す。journal の出来事の種類を足すには ADR、モデル、検証、レポートのテンプレートの変更が要る。
 - Consequences: 分析者の言葉か AI の観察かは、出来事の種類から読む。見分けにくければ、後の Epic で種類を足す。
 
-### Decision: marimo-and-interactive-figures-wait
+### Decision: marimo-figures-and-the-report-wait
 
-- What: この Epic は入口と分析ノートだけを扱う。図を動かせる形で出すこと（#175）と、notebook を marimo で書くのをやめるか（#176）は、issue に起こして別に決める。notebook の HTML の書き出しは必須にしない。
-- Why: 人間は、分析ノートでコードを読めるなら marimo に期待していることは満たせると述べた。分析ノートは marimo の HTML に頼らないので、入口の課題を先に解いても、後で作り直すものが出ない。
+- What: この Epic は入口と分析ノートだけを扱う。図を動かせる形で出すこと（#175）、notebook を marimo で書くのをやめるか（#176）、Markdown のレポートを分析ノートに一本化するか（#177）は、issue に起こして別に決める。
+  notebook の HTML の書き出しは必須にしない。`/analysis-report` と `/report-upload` は変えない。
+- Why: 人間は、分析ノートでコードを読めるなら marimo に期待していることは満たせると述べた。分析ノートとレポートは同じもので、進捗で埋まる所が違うとも述べた。
+  分析ノートは marimo の HTML にも Markdown のレポートにも頼らないので、入口の課題を先に解いても、後で作り直すものが出ない。
 - Criteria: 入口の課題が早く解けること（高、人間、issue）。図を動かして確かめられること（高、人間）。1つの Epic を一度に読んで精査しきれること（高、Claude の推測、[docs/WORKFLOW.md](../WORKFLOW.md) §3）。
   作ったものを後で捨てないこと（中、Claude の推測）。決め手は最初の1つと3つめ。
 - Affected modules: なし（進め方）。
 - Alternatives considered:
   - 図の契約の拡張もこの Epic に入れる。notebook の契約と既定の許可リストの ADR に触り、Epic が読み切れる大きさを超える。
   - notebook の作り直しを先にやる。入口の課題が待たされる。
-- Consequences: この Epic が終わっても、図は静止画のままである。
+  - レポートの文章を分析ノートに取り込む。Markdown を HTML にするライブラリが要り、モデルが書いた文章が、記録に無い文を確かめないまま分析ノートに載る。
+- Consequences: この Epic が終わっても、図は静止画のままである。結論の後の節とレポートで、同じ結論が2つの形で在る。
+
+### Decision: the-mock-settled-how-notes-reach-an-artifact
+
+- What: 初版を承認する前に、合成シナリオ（公共図書館の予約本）で論点ツリー・分析ノート・レポートの見本を作り、Artifact に出して人間と確かめた。その結果で、初版の案を3か所改めた。
+  分析ノートは別ファイルではなく、論点ツリーの HTML の中に並べる。`/tree-upload` は添えるファイルを送らず、同じ1ファイルを送る。分析ノートは結論の後の節も持つ。
+- Why: 初版の案は、Artifact が添える HTML を開けるという、ツールの説明だけに頼っていた。未確認のまま Story の最初に回すと、28.1 から 28.3 の作り（置き場所、リンクの向き、図の埋め込み）を後から変えることになる。
+- Criteria: 確かめられる事実は人間に聞かずに確かめる（Claude の進め方）。人間は成果物を見てから DesignDoc を見極めたいと述べた（人間）。
+- Affected modules: なし（進め方）。見本を作ったスクリプトは使い捨てで、リポジトリには入れていない。
+- Alternatives considered: リンクの確認を Story の最初の AC にする（初版の US-5 AC 1）。通らなかったときに、分析ノートを送る件が次の Epic に回る。
+- Consequences: 見本は notebook を契約どおりに書いて実際に走らせたので、図・verdict・lineage は本物の出力である。論点ツリーへのアンカーの差し込みと分析ノートの組み立ては、見本用のコードで行った。
+  製品のコードは Story で TDD で書き、見本のコードは写さない。確かめたのは 2026-11-22 のスマホのアプリとデスクトップで、Artifact の作りが変われば結果も変わりうる。
 
 ### Cross-epic decisions (links to ADR)
 
-- [ADR-0036: 分析ノートは、分析設計ごとにコードが生成する HTML にする](../adr/0036-design-note-is-a-generated-page-per-design.md): 分析ノートの中身と決まり、論点ツリーの HTML からのリンク、読むものの意味の変更。
-- [ADR-0037: `/tree-upload` は、論点ツリーと一緒に分析ノートを Artifact に送る](../adr/0037-tree-upload-sends-the-design-notes.md): 送るファイルの範囲と承認の文。最初に答えた「手元だけ」を改めた経緯。
+- [ADR-0036: 分析ノートは、分析設計ごとにコードが生成し、論点ツリーの HTML の中に並べる](../adr/0036-design-note-is-a-generated-page-per-design.md): 分析ノートの中身と決まり、置き方、結論の後の節、Epic 18 の US-5 AC 1 の文言の変更、読むものの意味の変更。
+- [ADR-0037: `/tree-upload` は、分析ノートを含む論点ツリーの HTML を、1ファイルのまま Artifact に送る](../adr/0037-tree-upload-sends-the-design-notes.md): 送る物と承認の文。最初に答えた「手元だけ」を改めた経緯。
 
 ## Test Design Matrix
 
@@ -420,10 +467,16 @@ Epic-scoped な決定。人間の判断は、2026-11-22 の DesignDoc 初版の�
 |---|---|---|---|
 | 28.1 分析ノートを作る | ☐（表示の純関数。エスケープ、決定性、無い節） | ☐（合成シナリオの fixture で `tree_io render --design` を回す） | ☐ |
 | 28.2 コードと経過を載せる | ☐（cell の切り出し、データ取得の cell を載せない、契約の形でない notebook） | ☐ | ☐ |
-| 28.3 論点ツリーからリンクする | ☐（リンク、並び、notebook の出力で変わらないこと） | ☐（`tree_io render --theme` が書いた HTML のリンク先が、すべて実在する） | ☐（built-in browser で、論点から分析ノートの図とコードまでたどる手動確認） |
-| 28.4 結論の段で示す | ☐（SKILL.md の構造テスト） | ☐ | ☐ |
-| 28.5 分析ノートも送る | ☐（SKILL.md の構造テスト） | ☐ | ☐（Artifact でリンクが開けるかの手動確認） |
+| 28.3 結論の後の節を埋める | ☐（terminal status の有無、記録の写し。レポートのテンプレートとの突き合わせ） | ☐ | ☐ |
+| 28.4 論点ツリーの HTML に並べる | ☐（アンカー、並び、別の HTML へのリンクが無いこと） | ☐（`tree_io render --theme` が書いた HTML のアンカーの飛び先が、すべて同じファイルに在る） | ☐（built-in browser で、論点から分析ノートの図とコードまで行き来する手動確認） |
+| 28.5 結論の段で示す | ☐（SKILL.md の構造テスト） | ☐ | ☐ |
+| 28.6 分析ノートを含めて送る | ☐（SKILL.md の構造テスト） | ☐ | ☐（Artifact で行き来できるかの手動確認。スマホのアプリとデスクトップ） |
 
 ## Story Timeline
 
 - 2026-11-22 — DesignDoc 初版。人間と7件の判断を決め、ADR-0036 と ADR-0037 を書いた。範囲の外に回した件を #175 と #176 に起こした。
+- 2026-11-22 — 手動確認（見本）: 人間が承認の前に成果物の見本を求めた。合成シナリオに結論待ちの分析設計を足し、notebook を契約どおりに書いて走らせ、論点ツリー・分析ノート・レポートの見本を Artifact に出した。
+  別の HTML へのリンクはスマホのアプリで開けず（リンクの向きを変えても同じ）、デスクトップでは移れたが戻れなかった。新しいタブ、枠での埋め込み、script での読み込みも、スマホのアプリでは通らなかった。同じページの中のアンカーだけが通った。
+  1ファイルにまとめた見本は、スマホのアプリとデスクトップで行き来でき、人間がイメージと合っていると答えた。
+- 2026-11-22 — 見本を受けて初版を改めた。分析ノートを論点ツリーの HTML の中に並べる。`/tree-upload` は同じ1ファイルを送る。分析ノートは結論の後の節も記録から埋める（人間の判断）。
+  Markdown のレポートの一本化を #177 に起こした。Story の分割の案は5本から6本になった。

@@ -803,7 +803,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 19 | Validation library（`VALID_TRANSITIONS` の `analyzing` の行）+ Skill layer（`/analysis-design` の Status Flow、`/analysis-reflection` の結論の手順） |
 | Epic 26 | Skill layer（`/analysis-reflection` の Step 2 の読むもの） |
 | Epic 27 | Skill layer（`/analysis-auto` の report と upload の段。前の実行で書いたレポートも `/report-upload` の KEEP ゲートへ回す） |
-| Epic 28 | Skill layer（`/analysis-reflection`・`/analysis-notebook`・`/analysis-auto`・`/tree-upload` が分析ノートを作って示し、送る段）+ `tree_io render` の表示（論点ツリーの HTML からのリンクと、分析ノート。計画中で、`.insight/` の構成とシーケンス図への反映は実装の Story で行う） |
+| Epic 28 | Skill layer（`/analysis-reflection`・`/analysis-notebook`・`/analysis-auto`・`/tree-upload` が分析ノートを作って示し、送る段）+ `tree_io render` の表示（論点ツリーの HTML の中に並べる分析ノート。計画中で、`.insight/` の構成とシーケンス図への反映は実装の Story で行う） |
 
 
 ## 参照
