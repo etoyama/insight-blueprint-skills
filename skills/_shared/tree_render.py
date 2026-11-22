@@ -84,6 +84,7 @@ _TREE_CSS = """.legend { background: var(--panel); border: 1px solid var(--line)
 .kind { font-weight: 700; }
 .notice { border: 1px solid var(--investigating); padding: .4rem .8rem; }
 .notes { margin: .3rem 0; padding-left: 1.2rem; }
+.design-note { scroll-margin-top: 4rem; }
 """
 
 _AIM_LABELS = {
@@ -267,7 +268,7 @@ def _legend() -> Html:
             "p",
             "「分析ノートを開く」は、その分析設計の分析ノートへ飛ぶ。分析ノートはこの"
             "ページの下に、分析設計ごとに並べてある。分析ノートの冒頭と末尾の"
-            "「論点ツリーへ戻る」で、ここへ戻る。",
+            "「論点ツリーへ戻る」で、論点ツリーの節へ戻る。",
         ),
         class_="legend",
         id="legend",
