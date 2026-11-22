@@ -180,6 +180,39 @@ class TestRenderDesignNote:
         assert "<td>0.30（cohens_d）</td>" in html
         assert "<td>水準 0.95: [0.10, 0.50]</td>" in html
 
+    def test_a_json_constant_appears_as_written(self, insight: Path) -> None:
+        design_id = _design(insight)
+        _write_verdict(
+            insight,
+            design_id,
+            '{"metrics": {"m": {"value": NaN, "threshold": Infinity, "p": -Infinity}}}',
+        )
+
+        html = _note_html(insight, design_id)
+
+        for cell in ("NaN", "Infinity", "-Infinity"):
+            assert f"<td>{cell}</td>" in html
+        assert "<td>nan</td>" not in html
+
+    def test_a_value_that_is_an_object_or_a_list_appears_as_its_json_text(
+        self, insight: Path
+    ) -> None:
+        design_id = _design(insight)
+        _write_verdict(
+            insight,
+            design_id,
+            '{"metrics": {"m": {"value": {"a": 0.50, "b": [1, "x", true, null]},'
+            ' "threshold": [0.10, NaN]}}}',
+        )
+
+        html = _note_html(insight, design_id)
+
+        assert (
+            "<td>{&quot;a&quot;: 0.50, &quot;b&quot;: [1, &quot;x&quot;, true, null]}</td>"
+            in html
+        )
+        assert "<td>[0.10, NaN]</td>" in html
+
     def test_a_partial_effect_size_or_interval_is_left_out(self, insight: Path) -> None:
         design_id = _design(insight)
         verdict = {

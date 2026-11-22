@@ -62,8 +62,36 @@ RESOLVES = "resolves"
 
 
 def _text(value: object) -> str | None:
-    """The text of a JSON scalar, or None when the verdict has no such value."""
+    """The text of a journal value, or None when the event has no such value."""
     return None if value is None else str(value)
+
+
+class _Number(str):
+    """A JSON number or constant of the verdict, kept as the text the notebook wrote."""
+
+
+def _json_text(value: object) -> str:
+    if isinstance(value, _Number):
+        return str(value)
+    if isinstance(value, dict):
+        items = cast(dict[str, object], value).items()
+        return (
+            "{" + ", ".join(f"{_json_text(k)}: {_json_text(v)}" for k, v in items) + "}"
+        )
+    if isinstance(value, list):
+        return "[" + ", ".join(_json_text(v) for v in value) + "]"
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _verdict_text(value: object) -> str | None:
+    """A verdict value as the notebook wrote it, or None when there is none.
+
+    A string shows bare; an object or a list shows as its JSON text, not as a
+    Python repr.
+    """
+    if value is None:
+        return None
+    return value if isinstance(value, str) else _json_text(value)
 
 
 def _note_event(event: dict) -> NoteEvent:
@@ -92,7 +120,7 @@ def _all_of(item: object, *keys: str) -> list[str] | None:
     found = cast(dict[str, object], item)
     if any(found.get(key) is None for key in keys):
         return None
-    return [str(found[key]) for key in keys]
+    return [cast(str, _verdict_text(found[key])) for key in keys]
 
 
 def _effect_size(item: object) -> tuple[str, str] | None:
@@ -109,13 +137,13 @@ def _metric(name: object, entry: dict) -> VerdictMetric:
     passed = entry.get("pass")
     return VerdictMetric(
         name=str(name),
-        value=_text(entry.get("value")),
-        threshold=_text(entry.get("threshold")),
-        p=_text(entry.get("p")),
+        value=_verdict_text(entry.get("value")),
+        threshold=_verdict_text(entry.get("threshold")),
+        p=_verdict_text(entry.get("p")),
         passed=passed if isinstance(passed, bool) else None,
         effect_size=_effect_size(entry.get("effect_size")),
         confidence_interval=_interval(entry.get("confidence_interval")),
-        sample_size=_text(entry.get("sample_size")),
+        sample_size=_verdict_text(entry.get("sample_size")),
     )
 
 
@@ -298,9 +326,14 @@ def _read_own_text(path: Path) -> str | None:
 
 
 def _read_verdict(path: Path) -> dict:
-    # parse_float / parse_int keep each number as the text the notebook wrote.
+    # Each number, NaN and Infinity included, keeps the text the notebook wrote.
     try:
-        verdict = json.loads(path.read_text("utf-8"), parse_float=str, parse_int=str)
+        verdict = json.loads(
+            path.read_text("utf-8"),
+            parse_float=_Number,
+            parse_int=_Number,
+            parse_constant=_Number,
+        )
     except json.JSONDecodeError as exc:
         raise ValueError(f"{path.name} is not valid JSON: {exc}") from None
     if not isinstance(verdict, dict):
