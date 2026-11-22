@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import base64
-import dataclasses
 import re
 
 import pytest
@@ -47,7 +46,7 @@ def _design(**over: object) -> AnalysisDesign:
 
 
 def _note(**over: object) -> DesignNote:
-    """A note; ``metrics`` or ``conclusion`` stands for a verdict that holds them."""
+    """A note; ``metrics`` or ``verdict_conclusion`` stands for a verdict that holds them."""
     fields: dict = {
         "design": _design(),
         "sources": (),
@@ -59,10 +58,10 @@ def _note(**over: object) -> DesignNote:
         "local_files": (),
         "conclusion": None,
     }
-    if "metrics" in over or "conclusion" in over:
+    if "metrics" in over or "verdict_conclusion" in over:
         fields["verdict"] = NoteVerdict(
             metrics=over.pop("metrics", ()),  # type: ignore[arg-type]
-            conclusion=over.pop("conclusion", None),  # type: ignore[arg-type]
+            conclusion=over.pop("verdict_conclusion", None),  # type: ignore[arg-type]
         )
     fields.update(over)
     return DesignNote(**fields)
@@ -576,7 +575,7 @@ class TestProgress:
 
     def test_it_shows_the_verdict_conclusion_as_written(self) -> None:
         html = _section_of(
-            str(render_note(_note(conclusion="期限切れは減った"))), "progress"
+            str(render_note(_note(verdict_conclusion="期限切れは減った"))), "progress"
         )
 
         assert "notebook の結論（verdict の conclusion）: 期限切れは減った" in html
@@ -655,11 +654,11 @@ class TestLocalFiles:
         assert "href" not in html
 
 
-def test_code_lineage_and_conclusion_text_is_escaped() -> None:
+def test_code_lineage_verdict_conclusion_and_journal_text_are_escaped() -> None:
     note = _note(
         cells=(CodeCell(position=1, source=EVIL),),
         lineage=EVIL,
-        conclusion=EVIL,
+        verdict_conclusion=EVIL,
         events=(_event("E01", EVIL, EVIL),),
     )
 
@@ -692,10 +691,10 @@ def _conclusion(**over: object) -> Conclusion:
 def _concluded(
     conclusion: Conclusion, design: AnalysisDesign | None = None
 ) -> DesignNote:
-    """A note in the conclusion's status; ``_note(conclusion=)`` is the verdict's."""
+    """A note in the conclusion's status."""
     design = design or _design()
-    return dataclasses.replace(
-        _note(design=design.model_copy(update={"status": conclusion.status})),
+    return _note(
+        design=design.model_copy(update={"status": conclusion.status}),
         conclusion=conclusion,
     )
 
