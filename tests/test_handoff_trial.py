@@ -37,7 +37,6 @@ from skills._shared.tree_check import check_theme
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = "lib"
-RECORDS = sorted((REPO_ROOT / "docs/handoff-trials").glob("*.yaml"))
 
 
 @pytest.fixture(scope="module")
@@ -427,21 +426,6 @@ class TestRecord:
     def test_an_unknown_field_is_refused(self, key: handoff_trial.Key) -> None:
         with pytest.raises(ValidationError):
             Record.model_validate(self._record(key, comment="x"))
-
-    def test_a_record_for_another_stage_than_the_key_is_refused(
-        self, key: handoff_trial.Key
-    ) -> None:
-        record = Record.model_validate(self._record(key, stage="start"))
-        with pytest.raises(ValueError, match="stage"):
-            handoff_trial.rescore(record)
-
-    @pytest.mark.parametrize("path", RECORDS, ids=lambda p: p.name)
-    def test_every_kept_record_has_the_score_its_answers_get(self, path: Path) -> None:
-        record = Record.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
-        assert record.score == handoff_trial.rescore(record)
-
-    def test_at_least_one_record_is_kept(self) -> None:
-        assert RECORDS
 
 
 def _cli(*args: str) -> subprocess.CompletedProcess[str]:

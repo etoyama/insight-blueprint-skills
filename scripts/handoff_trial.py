@@ -285,15 +285,6 @@ def score(answers: Answers, key: Key) -> dict[str, bool]:
     return result
 
 
-def rescore(record: Record) -> dict[str, bool]:
-    key = load_key(record.scenario)
-    if record.stage != key.stage:
-        raise ValueError(
-            f"the key is for stage '{key.stage}', the record for '{record.stage}'"
-        )
-    return score(record.answers, key)
-
-
 def _build(args: argparse.Namespace) -> int:
     print(build(load_scenario(args.scenario), Path(args.out), args.through))
     return 0

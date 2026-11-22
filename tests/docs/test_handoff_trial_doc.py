@@ -90,6 +90,11 @@ class TestRecord:
     def test_records_are_kept_under_docs(self) -> None:
         assert "docs/handoff-trials/" in section(_doc(), "## Step 5")
 
+    def test_a_record_keeps_the_score_of_the_key_it_was_scored_with(self) -> None:
+        body = unwrap(section(_doc(), "## Step 5"))
+        assert "](adr/0035-" in body
+        assert "採点し直さない" in body
+
 
 class TestCommandsExist:
     def test_every_named_subcommand_exists(self) -> None:
