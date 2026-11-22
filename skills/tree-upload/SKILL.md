@@ -54,10 +54,6 @@ The skill never updates an existing Artifact and never shares one.
    tree and prints its `path`; that path is the only file this skill sends. If it exits
    non-zero (for example, a linked design is gone, or a note cannot be built), show stderr,
    send nothing, and exit.
-4. Never send the notebook's `.py`, the verdict, the Markdown report or the notebook's HTML,
-   even though the notes link to them: those files can hold the values of a connection
-   ([ADR-0022](../../docs/adr/0022-connection-reaches-only-the-notebook.md)), and the
-   links in the notes' 「手元のファイル」 section open only on this machine.
 
 Never write, edit, copy or regenerate the HTML yourself, and never send a page you wrote:
 the page is what `tree_io render` printed, byte for byte.
@@ -119,7 +115,11 @@ writes an Artifact. Reading the tool's own guidance is fine.
 Run this step only after the analyst approved in Step 3.
 
 Publish the file listed in Step 3 as a new Artifact, passing its path as it is, and attach no other file
-to it, not even a file the page links to: the notes are already inside the page. Always a new
+to it, not even a file the page links to: the notes are already inside the page. Never send the
+notebook's `.py`, the verdict, the Markdown report or the notebook's HTML: those files can hold
+the values of a connection
+([ADR-0022](../../docs/adr/0022-connection-reaches-only-the-notebook.md)), and the links in the
+notes' 「手元のファイル」 section open only on this machine. Always a new
 Artifact: never update or reuse one, even when the same tree was uploaded before. The Artifact
 takes its name from the page's `<title>` (`論点ツリー {theme_id}`), so pass no title of your own.
 If the tool still asks for a title, use the root question; if it asks for an icon, use "tree".

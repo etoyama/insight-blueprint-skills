@@ -234,9 +234,16 @@ class TestTheNotesGoAsOneFile:
     )
     def test_the_files_behind_the_notes_are_never_sent(self, kept: str) -> None:
         # The sentence names `.py`, so it is cut at its colon, not at a period.
-        never = re.search(r"Never send [^:]*:", _step(1))
+        never = re.search(r"Never send [^:]*:", _step(4))
         assert never, "no sentence names the files that stay on this machine"
         assert kept in never.group(0)
+
+    def test_the_publish_step_gives_the_reason_the_files_stay(self) -> None:
+        assert "ADR-0022" in _step(4)
+
+    def test_making_the_html_does_not_repeat_the_rule(self) -> None:
+        """#143: the rule lives in Step 4, and the gate tells the analyst."""
+        assert "Never send" not in _step(1)
 
     def test_the_gate_says_the_local_files_stay(self) -> None:
         step = _step(3)
@@ -381,8 +388,8 @@ class TestTheDocsDescribeTheSameUpload:
         assert "`DesignNote`" in row[1]
         assert "class DesignNote" in code
 
-    def test_the_autopilot_row_names_the_one_file(self) -> None:
+    def test_the_autopilot_row_leaves_what_is_sent_to_tree_upload(self) -> None:
         gates = split_sections(_read_skill("analysis-auto"))["Gate policy"]
         row = table_row(gates, "tree-upload")
-        assert "the tree's HTML with the analysis notes" in row[1]
+        assert "the tree's HTML" not in row[1]
         assert "no question of its own" in row[1]
