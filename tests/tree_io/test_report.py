@@ -53,6 +53,7 @@ class TestReportWritten:
             "path": str(answered / "reports" / "LIB.md"),
             "figures": [],
             "round": 1,
+            "root_answer_round": 1,
             "unfinished_designs": ["LIB-H01", "LIB-H02"],
         }
         text = _report_path(answered).read_text("utf-8")
@@ -69,6 +70,19 @@ class TestReportWritten:
 
         assert _report_path(answered).read_bytes() == first
         assert str(answered) not in first.decode("utf-8")
+
+    def test_the_round_of_the_root_answer_is_told_apart_from_the_last_round(
+        self, answered: Path
+    ) -> None:
+        later = tree_io.answer(
+            "LIB", answers=[_entry("LIB-Q02", "期限切れは152件")], base_dir=answered
+        )
+        assert later["written"], later
+
+        result = tree_io.report("LIB", base_dir=answered)
+
+        assert (result["round"], result["root_answer_round"]) == (2, 1)
+        assert "2回目の振り返りの時点" in _report_path(answered).read_text("utf-8")
 
     def test_a_linked_design_that_is_not_finished_does_not_stop_the_report(
         self, answered: Path

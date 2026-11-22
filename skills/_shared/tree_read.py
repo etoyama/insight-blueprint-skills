@@ -386,7 +386,9 @@ def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
     A tree that fails its schema, a journal that cannot be read and a cited id
     that two events share stay errors. So does a linked design that no longer
     exists, as in ``progress``. A linked design that is not finished does not
-    stop the report: ``unfinished_designs`` names it.
+    stop the report: ``unfinished_designs`` names it. ``round`` is the last
+    reflection round of the tree, ``root_answer_round`` the one that wrote the
+    answer to the root.
     """
     if not load_tree(theme_id, base_dir):
         return {
@@ -440,5 +442,8 @@ def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
         "path": str(report_path),
         "figures": [],
         "round": tree.current_round(),
+        # A later round may have answered other nodes only, so the last round
+        # does not say how old the answer to the root is.
+        "root_answer_round": root_answer.round,
         "unfinished_designs": unfinished,
     }
