@@ -121,16 +121,16 @@ AC の正本はここ。
 
 ## Stories
 
-Story は未起票で、分割の案である。起票は親のセッションが行う。「触る所」が重なる Story は並行で進めない。
+Story は親のセッションが起票した（2026-11-22）。「触る所」が重なる Story は並行で進めない。
 
 | Story issue | User Story | 扱う AC | 触る所 | 前提 |
 |---|---|---|---|---|
-| 未起票（28.1 分析ノートを作る） | US-1 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/design_note.py`（新設）、`skills/_shared/tree_read.py`、`skills/_shared/tree_io.py`、`tests/` | なし |
-| 未起票（28.2 コードと経過を載せる） | US-2 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/design_note.py` | 28.1 |
-| 未起票（28.3 結論の後の節を埋める） | US-3 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/design_note.py`、`tests/skills/` | 28.2 |
-| 未起票（28.4 論点ツリーの HTML に並べる） | US-4 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`、`skills/_shared/tree_io.py` | 28.1 |
-| 未起票（28.5 結論の段で示す） | US-5 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/analysis-reflection/SKILL.md`、`skills/analysis-notebook/SKILL.md`、`skills/analysis-auto/SKILL.md`、`tests/skills/`、`docs/UBIQUITOUS_LANGUAGE.md` | 28.4 |
-| 未起票（28.6 分析ノートを含めて送る） | US-6 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/tree-upload/SKILL.md`、`skills/analysis-auto/SKILL.md`、`README.md`、`docs/ARCHITECTURE.md`、`docs/UBIQUITOUS_LANGUAGE.md` | 28.5 |
+| [#179](https://github.com/etoyama/insight-blueprint-skills/issues/179)（28.1 分析ノートを作る） | US-1 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/design_note.py`（新設）、`skills/_shared/tree_read.py`、`skills/_shared/tree_io.py`、`tests/` | なし |
+| [#180](https://github.com/etoyama/insight-blueprint-skills/issues/180)（28.2 コードと経過を載せる） | US-2 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/design_note.py` | 28.1 |
+| [#181](https://github.com/etoyama/insight-blueprint-skills/issues/181)（28.3 結論の後の節を埋める） | US-3 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/design_note.py`、`tests/skills/` | 28.2 |
+| [#182](https://github.com/etoyama/insight-blueprint-skills/issues/182)（28.4 論点ツリーの HTML に並べる） | US-4 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`、`skills/_shared/tree_io.py` | 28.1 |
+| [#183](https://github.com/etoyama/insight-blueprint-skills/issues/183)（28.5 結論の段で示す） | US-5 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/analysis-reflection/SKILL.md`、`skills/analysis-notebook/SKILL.md`、`skills/analysis-auto/SKILL.md`、`tests/skills/`、`docs/UBIQUITOUS_LANGUAGE.md` | 28.4 |
+| [#184](https://github.com/etoyama/insight-blueprint-skills/issues/184)（28.6 分析ノートを含めて送る） | US-6 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/tree-upload/SKILL.md`、`skills/analysis-auto/SKILL.md`、`README.md`、`docs/ARCHITECTURE.md`、`docs/UBIQUITOUS_LANGUAGE.md` | 28.5 |
 
 - 28.1 → 28.2 → 28.3 はどれも `design_note.py` を触るので直列にする。
 - 28.4 は 28.1 の後なら、28.2・28.3 と並行で進められる。触るファイルが重ならない。分析ノートの節が増えても、論点ツリーの側は分析ノートを作る関数を呼ぶだけである。
