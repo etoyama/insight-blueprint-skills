@@ -99,6 +99,10 @@ flowchart LR
    計画外の判断は Decisions（Epic-scoped）か ADR（cross-epic）へ、完了は Story Timeline へ、
    テストは Test Design Matrix へ反映する。新しい語は §7 に従って UBIQUITOUS_LANGUAGE に足す。
    Domain Model 図を追加・修正したら、PR 説明に変更を書いて人間の承認を得る。
+   Story を完了にする前に、次の2つを行う（決定: [FLOW-0007](adr/flow/0007-story-done-includes-release-note-and-bug-review.md)）。
+   - 利用者に効く変更があれば、リリースノートに1行書く。このリポジトリでは CHANGELOG の `[Unreleased]` に書く。
+   - Story の差分に、バグ・セキュリティの観点のレビューを1本回す。直すものは Story の中で直す。
+     コード品質の観点は、Epic 完了の前にまとめて見る。
 5. Epic 完了: Test Design Matrix 全✓ が Epic PR のレビューゲート。PR を開く前に §8 の推敲を行う。
    **AI アシスタントは Epic PR をマージしない**。人間がレビューしてマージする。
 
@@ -121,6 +125,10 @@ Story 実装中に、承認済みの計画が想定していなかった設計�
 1. **ADR を作る**（既定。アーキテクチャ・ライブラリ選定・公開契約の変更など非自明な判断）。
 2. DesignDoc の `## Decisions` に書く（効果がその Epic を超えない場合のみ）。
 3. PR 説明に明記して人間に確認する（1 も 2 も過剰といえる小さな判断のみ）。
+
+判断の Consequences に、既存の入力や利用の場面が失敗に変わること（受け付けていた入力を拒む、
+失敗の範囲が広がる）があれば、2 の Decisions に書くだけでなく、人間に聞いてから先へ進む
+（決定: [FLOW-0008](adr/flow/0008-ask-before-narrowing-what-worked.md)）。
 
 黙って判断して先へ進むことを禁止する。テンプレートは
 [.claude/rules/adr-template.md](../.claude/rules/adr-template.md)、索引は

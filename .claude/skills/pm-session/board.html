@@ -1,0 +1,323 @@
+<title>Epic マージ段取り</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap">
+<style>
+/* Layout: one reading column; "your turn" first, then what AI is doing, then the full sequence by phase, then the log. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2330;
+  --muted: #5d6778;
+  --line: #dde2ea;
+  --accent: #2b4c7e;
+  --human: #a85b00;
+  --human-bg: #fff3e0;
+  --ai: #2b4c7e;
+  --ai-bg: #e8eef8;
+  --done: #2e7d4f;
+  --done-bg: #e6f4ec;
+  --blocked: #6b7280;
+  --blocked-bg: #eef0f3;
+  --font-body: "IBM Plex Sans JP", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161d; --surface: #1a2029; --fg: #e4e8ef; --muted: #9aa4b5; --line: #2c3442;
+    --accent: #8fb0e6; --human: #f2a54a; --human-bg: #3a2a14; --ai: #8fb0e6; --ai-bg: #1f2b40;
+    --done: #6fcf97; --done-bg: #17301f; --blocked: #9aa4b5; --blocked-bg: #232a35; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161d; --surface: #1a2029; --fg: #e4e8ef; --muted: #9aa4b5; --line: #2c3442;
+  --accent: #8fb0e6; --human: #f2a54a; --human-bg: #3a2a14; --ai: #8fb0e6; --ai-bg: #1f2b40;
+  --done: #6fcf97; --done-bg: #17301f; --blocked: #9aa4b5; --blocked-bg: #232a35; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.65;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 64px;
+}
+main { max-width: 880px; margin: 0 auto; display: grid; gap: 36px; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+header { display: grid; gap: 10px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; }
+h1 { font-size: 28px; line-height: 1.3; margin: 0; text-wrap: balance; }
+h2 { font-size: 18px; margin: 0 0 12px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+h2 .count { font-family: var(--font-mono); font-size: 13px; color: var(--muted); font-weight: 400; }
+.summary { color: var(--muted); max-width: 65ch; margin: 0; }
+.meter { display: flex; gap: 3px; margin-top: 6px; }
+.meter span { flex: 1; height: 8px; border-radius: 2px; background: var(--line); }
+.meter span.done { background: var(--done); }
+.meter span.in_progress { background: var(--ai); }
+.meter span.waiting_human { background: var(--human); }
+.metaline { font-family: var(--font-mono); font-size: 12px; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap; }
+.notice { font-size: 13px; color: var(--muted); }
+.cards { display: grid; gap: 10px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; display: grid; gap: 6px; min-width: 0; }
+.card.human { border-left: 4px solid var(--human); }
+.card.ai { border-left: 4px solid var(--ai); }
+.card .title { font-weight: 700; }
+.card .detail { color: var(--muted); font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.empty { color: var(--muted); font-size: 14px; padding: 12px 0; }
+.phase { display: grid; gap: 0; }
+.phase h3 { font-size: 13px; font-family: var(--font-mono); letter-spacing: .04em; color: var(--muted); margin: 18px 0 6px; font-weight: 500; }
+.row { display: grid; grid-template-columns: 4.5em 6.5em 1fr; gap: 4px 12px; padding: 10px 0; border-top: 1px solid var(--line); align-items: start; }
+.row:last-child { border-bottom: 1px solid var(--line); }
+.row.head { font-size: 12px; color: var(--muted); padding: 4px 0; border-top: 0; font-family: var(--font-mono); letter-spacing: .04em; }
+.row .cell { min-width: 0; }
+.deps { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--muted); }
+.deps .lbl { font-family: var(--font-mono); }
+.dep { display: inline-flex; gap: 4px; align-items: center; padding: 0 6px; border-radius: 4px; border: 1px solid var(--line); font-family: var(--font-mono); }
+.dep.ok { color: var(--done); border-color: var(--done); }
+.dep.wait { color: var(--muted); }
+.dep.run { color: var(--ai); border-color: var(--ai); }
+.card.next { border-left: 4px solid var(--done); }
+.group-note { font-size: 13px; color: var(--muted); margin: 0 0 6px; }
+.unlock { background: var(--surface); border: 1px dashed var(--line); border-radius: 6px; padding: 10px 14px; font-size: 14px; }
+.row .body { min-width: 0; display: grid; gap: 2px; }
+.row .title { font-weight: 500; }
+.row.done .title { color: var(--muted); }
+.row .detail { color: var(--muted); font-size: 13.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.refs { display: flex; gap: 10px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.chip { display: inline-block; font-size: 12px; line-height: 1.5; padding: 1px 8px; border-radius: 999px; white-space: nowrap; font-weight: 500; }
+.chip.owner-human { background: var(--human-bg); color: var(--human); }
+.chip.owner-ai { background: var(--ai-bg); color: var(--ai); }
+.chip.st-done { background: var(--done-bg); color: var(--done); }
+.chip.st-in_progress { background: var(--ai-bg); color: var(--ai); }
+.chip.st-waiting_human { background: var(--human-bg); color: var(--human); }
+.chip.st-ready { background: var(--surface); color: var(--fg); border: 1px solid var(--line); }
+.chip.st-blocked { background: var(--blocked-bg); color: var(--blocked); }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.log li { display: grid; grid-template-columns: 9.5em 1fr; gap: 12px; font-size: 14px; }
+.log time { font-family: var(--font-mono); font-size: 12px; color: var(--muted); padding-top: 2px; font-variant-numeric: tabular-nums; }
+.log .who { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.legend { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--muted); }
+@media (max-width: 560px) {
+  .row { grid-template-columns: 4em 6em 1fr; gap: 4px 8px; }
+  .row .body { grid-column: 1 / -1; }
+  .row.head .body { display: none; }
+  .log li { grid-template-columns: 1fr; gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<main>
+  <header>
+    <div class="eyebrow" id="eyebrow">Epic</div>
+    <h1 id="epic-title">マージまでの段取り</h1>
+    <p class="summary" id="headline">段取りを読み込んでいる。</p>
+    <div class="meter" id="meter" aria-label="段取りの進み具合"></div>
+    <div class="metaline">
+      <span id="progress-text">—</span>
+      <span id="updated">—</span>
+      <a id="epic-link" hidden>Epic issue</a>
+      <a id="designdoc-link" hidden>DesignDoc</a>
+    </div>
+    <div class="notice" id="notice" hidden></div>
+  </header>
+
+  <section aria-labelledby="h-human">
+    <h2 id="h-human">あなたの番 <span class="count" id="c-human"></span></h2>
+    <div class="cards" id="human"><div class="empty">読み込み中。</div></div>
+  </section>
+
+  <section aria-labelledby="h-ai">
+    <h2 id="h-ai">AI が進めていること <span class="count" id="c-ai"></span></h2>
+    <div class="cards" id="ai"><div class="empty">読み込み中。</div></div>
+  </section>
+
+  <section aria-labelledby="h-next">
+    <h2 id="h-next">次に始められること <span class="count" id="c-next"></span></h2>
+    <p class="group-note">前提がすべて済んだ AI の作業。ここに出たものは、子セッションを立ち上げられる。2件以上あれば互いに依存していないので、同時に立ち上げられる。</p>
+    <div class="cards" id="next"><div class="empty">読み込み中。</div></div>
+    <div class="cards" id="unlocks" style="margin-top:10px"></div>
+  </section>
+
+  <section aria-labelledby="h-all">
+    <h2 id="h-all">段取りの全体</h2>
+    <div class="legend">
+      <span class="chip st-done">済み</span><span class="chip st-in_progress">進行中</span>
+      <span class="chip st-waiting_human">あなた待ち</span><span class="chip st-ready">着手できる</span>
+      <span class="chip st-blocked">前提待ち</span>
+    </div>
+    <div id="phases"><div class="empty">読み込み中。</div></div>
+  </section>
+
+  <section aria-labelledby="h-log">
+    <h2 id="h-log">更新の記録</h2>
+    <ul class="log" id="log"><li class="empty">読み込み中。</li></ul>
+  </section>
+</main>
+
+<script>
+const STATUS = { done: "済み", in_progress: "進行中", waiting_human: "あなた待ち", ready: "着手できる", blocked: "前提待ち" };
+const OWNER = { human: "あなた", ai: "AI" };
+// The board's identity comes from board/summary in the db, never from text pasted into this file,
+// so a title or URL can only ever reach the page as a text node or a checked https link.
+// A segment of only dots would let the URL climb out of the repository once a browser normalizes it.
+const GITHUB_REPO = /^https:\/\/github\.com\/(?!\.+\/)[A-Za-z0-9_.-]+\/(?!\.+$)[A-Za-z0-9_.-]+$/;
+let REPO = null;
+const positiveInt = v => { const n = Number(v); return Number.isInteger(n) && n > 0 ? n : null; };
+const repoUrl = v => typeof v === "string" && GITHUB_REPO.test(v) ? v : null;
+// Compare parsed URLs, so "../" in the value cannot point outside the repository.
+const docUrl = v => {
+  if (typeof v !== "string" || !REPO) return null;
+  try {
+    const u = new URL(v), base = new URL(REPO + "/");
+    return u.protocol === "https:" && u.host === "github.com" && u.href.startsWith(base.href) ? u.href : null;
+  } catch { return null; }
+};
+const state = { steps: [], summary: null, log: [], stepsLoaded: false };
+
+function el(tag, attrs, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") n.className = v; else if (k === "text") n.textContent = v; else n.setAttribute(k, v);
+  }
+  for (const k of kids) if (k != null) n.append(k);
+  return n;
+}
+function chip(cls, text) { return el("span", { class: "chip " + cls, text }); }
+let byId = {};
+const ACTIVE = s => s.status !== "done";
+const depIds = s => Array.isArray(s.depends_on) ? s.depends_on.filter(id => byId[id]) : [];
+const depsDone = s => depIds(s).every(id => byId[id].status === "done");
+const label = s => s.key || s.id;
+function depChip(id) {
+  const d = byId[id];
+  const cls = d.status === "done" ? "ok" : d.status === "in_progress" ? "run" : "wait";
+  const mark = d.status === "done" ? "済" : d.status === "in_progress" ? "進行中" : "未";
+  return el("span", { class: "dep " + cls, title: d.title || "", text: `${label(d)} ${mark}` });
+}
+function depsLine(s) {
+  const ids = depIds(s);
+  const after = Object.values(byId).filter(x => depIds(x).includes(s.id));
+  const free = Array.isArray(s.depends) && s.depends.length ? s.depends : [];
+  if (!ids.length && !after.length && !free.length) return null;
+  const box = el("div", { class: "deps" });
+  if (ids.length || free.length) {
+    box.append(el("span", { class: "lbl", text: "前提" }), ...ids.map(depChip), ...free.map(t => el("span", { class: "dep wait", text: t })));
+  }
+  if (after.length) {
+    box.append(el("span", { class: "lbl", text: ids.length || free.length ? " / 後に続く" : "後に続く" }),
+      ...after.map(x => el("span", { class: "dep wait", title: x.title || "", text: label(x) })));
+  }
+  return box;
+}
+function refs(s) {
+  const box = el("div", { class: "refs" });
+  const issue = positiveInt(s.issue), pr = positiveInt(s.pr);
+  if (issue && REPO) box.append(el("a", { href: `${REPO}/issues/${issue}`, text: `#${issue}` }));
+  if (pr && REPO) box.append(el("a", { href: `${REPO}/pull/${pr}`, text: `PR #${pr}` }));
+  if (s.session) box.append(el("span", { text: `セッション: ${s.session}` }));
+  if (s.model) box.append(el("span", { text: `モデル: ${s.model}` }));
+  if (s.updated) box.append(el("span", { text: `更新 ${s.updated}` }));
+  return box.childNodes.length ? box : null;
+}
+function card(s, extra) {
+  return el("div", { class: "card " + (extra || (s.owner === "human" ? "human" : "ai")) },
+    el("div", { class: "refs" }, chip("owner-" + s.owner, OWNER[s.owner] || s.owner), chip("st-" + s.status, STATUS[s.status] || s.status), el("span", { text: s.key || "" })),
+    el("div", { class: "title", text: s.title || "" }),
+    s.action ? el("div", { class: "detail", text: s.action }) : (s.detail ? el("div", { class: "detail", text: s.detail }) : null),
+    depsLine(s),
+    refs(s));
+}
+function render() {
+  const steps = state.steps;
+  byId = Object.fromEntries(steps.map(s => [s.id, s]));
+  const sum = state.summary || {};
+  REPO = repoUrl(sum.repo_url);
+  const epicNo = typeof sum.epic_no === "string" || typeof sum.epic_no === "number" ? String(sum.epic_no) : "";
+  const epicIssue = positiveInt(sum.epic_issue);
+  document.getElementById("eyebrow").textContent = [sum.repo_name, epicNo && `Epic ${epicNo}`, epicIssue && `#${epicIssue}`].filter(Boolean).join(" / ") || "Epic";
+  document.getElementById("epic-title").textContent = `${typeof sum.epic_title === "string" ? sum.epic_title + ": " : ""}マージまでの段取り`;
+  document.title = epicNo ? `Epic ${epicNo} マージ段取り` : "Epic マージ段取り";
+  const setLink = (id, href) => { const a = document.getElementById(id); if (href) { a.href = href; a.hidden = false; } else { a.removeAttribute("href"); a.hidden = true; } };
+  setLink("epic-link", REPO && epicIssue ? `${REPO}/issues/${epicIssue}` : null);
+  document.getElementById("epic-link").textContent = epicIssue ? `Epic issue #${epicIssue}` : "Epic issue";
+  setLink("designdoc-link", docUrl(sum.designdoc_url));
+  document.getElementById("headline").textContent = sum.headline || (state.stepsLoaded && !steps.length ? "まだ段取りが書かれていない。Claude が最初の段取りを書き込むと、ここに出る。" : "段取りを読み込んでいる。");
+  document.getElementById("updated").textContent = sum.updated_at ? `最終更新 ${sum.updated_at}` : "";
+
+  const meter = document.getElementById("meter");
+  meter.replaceChildren(...steps.map(s => el("span", { class: s.status, title: `${s.key || ""} ${s.title || ""}: ${STATUS[s.status] || s.status}` })));
+  const done = steps.filter(s => s.status === "done").length;
+  document.getElementById("progress-text").textContent = steps.length ? `${done} / ${steps.length} 済み` : "";
+
+  // Any row waiting on the human belongs here, including AI rows paused for a review or a decision.
+  const human = steps.filter(s => s.status === "waiting_human");
+  const ai = steps.filter(s => s.owner === "ai" && s.status === "in_progress");
+  const put = (id, list, emptyText) => {
+    const box = document.getElementById(id);
+    box.replaceChildren(...(list.length ? list.map(card) : [el("div", { class: "empty", text: state.stepsLoaded ? emptyText : "読み込み中。" })]));
+  };
+  put("human", human, "いま、あなたが決めることややることは無い。");
+  put("ai", ai, "いま進行中の AI の作業は無い。");
+  document.getElementById("c-human").textContent = human.length ? `${human.length} 件` : "";
+  document.getElementById("c-ai").textContent = ai.length ? `${ai.length} 件` : "";
+
+  const startable = steps.filter(s => s.owner === "ai" && ACTIVE(s) && s.status !== "in_progress" && Array.isArray(s.depends_on) && depsDone(s));
+  const nextBox = document.getElementById("next");
+  nextBox.replaceChildren(...(startable.length ? startable.map(s => card(s, "next")) : [el("div", { class: "empty", text: state.stepsLoaded ? "いま前提がそろって待っている AI の作業は無い。" : "読み込み中。" })]));
+  document.getElementById("c-next").textContent = startable.length ? (startable.length >= 2 ? `${startable.length} 件、同時に立ち上げられる` : "1 件") : "";
+
+  const unlocks = [];
+  for (const p of steps.filter(s => s.status === "in_progress" || s.status === "waiting_human")) {
+    const opens = steps.filter(x => ACTIVE(x) && x.status !== "in_progress" && depIds(x).includes(p.id)
+      && depIds(x).every(id => id === p.id || byId[id].status === "done"));
+    if (opens.length) unlocks.push({ p, opens });
+  }
+  document.getElementById("unlocks").replaceChildren(...unlocks.map(({ p, opens }) => el("div", { class: "unlock" },
+    el("div", { text: `${label(p)}（${STATUS[p.status]}）が済むと始められる: ${opens.map(label).join("、")}` +
+      (opens.length >= 2 ? `。この ${opens.length} 件は同時に立ち上げられる。` : "。") }))));
+
+  const phases = [];
+  for (const s of steps) {
+    let p = phases.find(x => x.name === s.phase);
+    if (!p) { p = { name: s.phase || "その他", items: [] }; phases.push(p); }
+    p.items.push(s);
+  }
+  const box = document.getElementById("phases");
+  box.replaceChildren(...(phases.length ? phases.map(p => el("div", { class: "phase" },
+    el("h3", { text: p.name }),
+    el("div", { class: "row head" }, el("div", { text: "担当" }), el("div", { text: "状態" }), el("div", { class: "body", text: "内容" })),
+    ...p.items.map(s => el("div", { class: "row " + s.status },
+      el("div", { class: "cell" }, chip("owner-" + s.owner, OWNER[s.owner] || s.owner)),
+      el("div", { class: "cell" }, chip("st-" + s.status, STATUS[s.status] || s.status)),
+      el("div", { class: "body" },
+        el("div", { class: "title", text: (s.key ? s.key + "  " : "") + (s.title || "") }),
+        s.detail ? el("div", { class: "detail", text: s.detail }) : null,
+        depsLine(s),
+        refs(s)))))) : [el("div", { class: "empty", text: state.stepsLoaded ? "段取りはまだ無い。" : "読み込み中。" })]));
+
+  const log = document.getElementById("log");
+  log.replaceChildren(...(state.log.length ? state.log.map(e => el("li", {},
+    el("time", { text: e.at || "" }),
+    el("div", {}, el("div", { text: e.text || "" }), e.who ? el("div", { class: "who", text: e.who }) : null))) : [el("li", { class: "empty", text: "記録はまだ無い。" })]));
+}
+
+render();
+
+(async () => {
+  const notice = document.getElementById("notice");
+  const say = t => { notice.textContent = t; notice.hidden = !t; };
+  const db = await (window.claude?.use ? window.claude.use("db") : null);
+  if (!db) { say("このビューではデータを読めない。claude.ai にサインインして開き直してほしい。"); state.stepsLoaded = true; render(); return; }
+  const timer = setTimeout(() => say("データにまだ届いていない。表示が古い可能性がある。"), 10000);
+  const onErr = e => { clearTimeout(timer); say(`データを読めなかった（${e.code}）。`); state.stepsLoaded = true; render(); };
+  db.collection("steps").orderBy("order").onSnapshot(snap => {
+    state.steps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (!snap.metadata.fromCache) { clearTimeout(timer); say(""); state.stepsLoaded = true; }
+    render();
+  }, onErr);
+  db.doc("board/summary").onSnapshot(d => { state.summary = d.exists ? d.data() : null; render(); }, onErr);
+  db.collection("log").orderBy("at", "desc").limit(30).onSnapshot(snap => {
+    state.log = snap.docs.map(d => d.data()); render();
+  }, onErr);
+})();
+</script>
+
