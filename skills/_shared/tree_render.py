@@ -11,7 +11,6 @@ is trusted: see ``_html`` for how markup is told from text.
 
 from __future__ import annotations
 
-import re
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -33,6 +32,7 @@ from insight_blueprint.models.tree import (
     design_id_of,
 )
 from skills._shared._html import BASE_CSS, Html, el, join, page
+from skills._shared.design_io import design_number
 from skills._shared.design_note import NOTE_CSS, note_anchor
 
 if TYPE_CHECKING:  # tree_check imports this module (CitedEvent)
@@ -344,8 +344,8 @@ def _link(target: str, label: str) -> Html:
 
 def _id_key(design_id: str) -> tuple[int, str]:
     """Order by the number after ``-H``: ``H10`` follows ``H9``."""
-    found = re.search(r"-H(\d+)$", design_id)
-    return (int(found[1]) if found else -1, design_id)
+    number = design_number(design_id)
+    return (-1 if number is None else number, design_id)
 
 
 def _newest_first(group: list[DesignSummary]) -> list[DesignSummary]:

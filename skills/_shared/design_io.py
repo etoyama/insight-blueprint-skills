@@ -137,6 +137,29 @@ def list_designs(
     return out
 
 
+# A design id is ``{theme_id}-H{nn}``: the theme is read from it, as from a file name.
+_DESIGN_ID = re.compile(r"(.+)-H(\d+)")
+
+
+def _design_id_parts(design_id: str) -> tuple[str, int] | None:
+    found = _DESIGN_ID.fullmatch(design_id)
+    if not found or not THEME_ID_PATTERN.fullmatch(found[1]):
+        return None
+    return found[1], int(found[2])
+
+
+def theme_of(design_id: str) -> str | None:
+    """The theme of *design_id*, or None when the id is not ``{theme_id}-H{nn}``."""
+    parts = _design_id_parts(design_id)
+    return parts[0] if parts else None
+
+
+def design_number(design_id: str) -> int | None:
+    """The number after ``-H`` in *design_id*, or None when the id is not ``{theme_id}-H{nn}``."""
+    parts = _design_id_parts(design_id)
+    return parts[1] if parts else None
+
+
 def designs_of_theme(
     theme_id: str, base_dir: Path = DEFAULT_BASE_DIR
 ) -> dict[str, dict]:
@@ -149,11 +172,11 @@ def designs_of_theme(
     # theme_id goes into a glob and a pattern, so it is checked before any I/O.
     if not THEME_ID_PATTERN.fullmatch(theme_id):
         raise ValueError(f"Invalid theme_id '{theme_id}': must match [A-Z][A-Z0-9]*")
-    name = re.compile(rf"({re.escape(theme_id)}-H\d+)_hypothesis\.yaml")
     found: dict[str, dict] = {}
     for path in sorted(_designs_dir(base_dir).glob(f"{theme_id}-H*_hypothesis.yaml")):
-        if matched := name.fullmatch(path.name):
-            found[matched[1]] = read_yaml(path)
+        design_id = path.name.removesuffix("_hypothesis.yaml")
+        if theme_of(design_id) == theme_id:
+            found[design_id] = read_yaml(path)
     return found
 
 
@@ -162,15 +185,12 @@ def next_design_id(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> str:
     if not THEME_ID_PATTERN.fullmatch(theme_id):
         raise ValueError(f"Invalid theme_id '{theme_id}': must match [A-Z][A-Z0-9]*")
     designs_dir = _designs_dir(base_dir)
-    prefix = f"{theme_id}-H"
     max_n = 0
     if designs_dir.exists():
-        for path in designs_dir.glob(f"{prefix}*_hypothesis.yaml"):
-            id_part = path.stem.replace("_hypothesis", "")
-            try:
-                max_n = max(max_n, int(id_part[len(prefix) :]))
-            except (ValueError, IndexError):
-                continue
+        for path in designs_dir.glob(f"{theme_id}-H*_hypothesis.yaml"):
+            design_id = path.name.removesuffix("_hypothesis.yaml")
+            if theme_of(design_id) == theme_id:
+                max_n = max(max_n, design_number(design_id) or 0)
     return f"{theme_id}-H{max_n + 1:02d}"
 
 

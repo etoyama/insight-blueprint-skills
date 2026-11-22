@@ -11,7 +11,6 @@ Writes go through ``tree_io``, which also carries the CLI for these reads.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Iterable, Iterator
 from datetime import datetime
 from enum import StrEnum
@@ -34,6 +33,7 @@ from skills._shared.design_io import (
     journal_events,
     load_design,
     read_yaml,
+    theme_of,
 )
 from skills._shared.design_note import DesignNote, note_anchor, render_note
 from skills._shared.design_note_read import load_design_note, render_design_note
@@ -327,11 +327,8 @@ def render_design(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str
     """
     require_design(design_id, base_dir)
     # The theme is read from the file name, as designs_of_theme does for the page.
-    theme = re.fullmatch(r"(.+)-H\d+", design_id)
-    if not theme or not THEME_ID_PATTERN.fullmatch(theme[1]):
-        return render_design_note(design_id, base_dir)
-    theme_id = theme[1]
-    if not load_tree(theme_id, base_dir):
+    theme_id = theme_of(design_id)
+    if theme_id is None or not load_tree(theme_id, base_dir):
         return render_design_note(design_id, base_dir)
     tree = load_tree_model(theme_id, base_dir)
     path = render(theme_id, base_dir)["path"]
