@@ -1,9 +1,9 @@
 """Reads of the question tree of a theme (Epic 18, ADR-0024).
 
-Everything here is derived from the canonical file
-``.insight/themes/{theme_id}_tree.yaml`` and never writes it: ``progress`` and
-``position`` derive from the status of the linked designs, and ``render``
-writes only the generated view ``{theme_id}_tree.html`` next to it. The page
+Reads of the canonical file ``.insight/themes/{theme_id}_tree.yaml`` and of
+the designs and journals it links to. Nothing here writes the canonical file:
+``progress`` and ``position`` derive from the status of the linked designs, and
+``render`` writes only the generated view ``{theme_id}_tree.html`` next to it. The page
 is built by ``tree_render`` and is never edited.
 
 Writes go through ``tree_io``, which also carries the CLI for these reads.

@@ -179,10 +179,11 @@ def _main(argv: list[str] | None = None) -> int:
     parser.add_argument("--theme", required=True)
     parser.add_argument("--base-dir", default=str(DEFAULT_BASE_DIR))
     args = parser.parse_args(argv)
-    from skills._shared.tree_read import tree_path  # tree_read imports this
 
     # Exit 2, not 1: for this command 1 means "violations found".
     try:
+        from skills._shared.tree_read import tree_path  # tree_read imports this
+
         base = resolve_base_dir(Path(args.base_dir))
         violations = check_theme(args.theme, base)
         path = tree_path(args.theme, base)
