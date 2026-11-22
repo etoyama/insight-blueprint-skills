@@ -98,7 +98,9 @@ class TestTheReportComesFromTreeIo:
 
     def test_any_other_outcome_sends_nothing(self) -> None:
         # An exit code and `written` that disagree, or output that is not the JSON, is not a report.
-        assert "Any other exit code or output: show it, send nothing, and exit" in _step(1)
+        assert (
+            "Any other exit code or output: show it, send nothing, and exit" in _step(1)
+        )
 
     def test_a_broken_call_shows_stderr_and_sends_nothing(self) -> None:
         step = _step(1)
