@@ -282,7 +282,7 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
         design_id: DesignSummary(
             design_id,
             note.design.title,
-            note.design.status.value,
+            note.design.status,
             note.design.parent_id,
             note.design.created_at,
         )

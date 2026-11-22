@@ -254,7 +254,7 @@ def summary(
     parent_id: str | None,
     created_at: datetime = T0,
 ) -> DesignSummary:
-    return DesignSummary(id, title, status, parent_id, created_at)
+    return DesignSummary(id, title, DesignStatus(status), parent_id, created_at)
 
 
 def stub_design_notes(designs: dict[str, DesignSummary]) -> dict[str, Html]:

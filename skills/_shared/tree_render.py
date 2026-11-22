@@ -43,7 +43,7 @@ if TYPE_CHECKING:  # tree_check imports this module (CitedEvent)
 class DesignSummary:
     id: str
     title: str
-    status: str
+    status: DesignStatus
     parent_id: str | None
     created_at: datetime
 
@@ -307,9 +307,7 @@ class _Context:
             if design_id not in design_notes:
                 raise ValueError(f"design '{design_id}' has no analysis note")
         progress = {
-            node.id: Progress.of(
-                DesignStatus(designs[d].status) for d in node.design_ids
-            )
+            node.id: Progress.of(designs[d].status for d in node.design_ids)
             for node in tree.nodes
         }
         violations: dict[str, list[Violation]] = {}
@@ -362,7 +360,7 @@ def _newest_first(group: list[DesignSummary]) -> list[DesignSummary]:
 
 def _card_order(designs: list[DesignSummary]) -> list[DesignSummary]:
     """Unfinished designs first, then finished ones; the newest first in each."""
-    finished = [d for d in designs if DesignStatus(d.status) in TERMINAL_STATUSES]
+    finished = [d for d in designs if d.status in TERMINAL_STATUSES]
     unfinished = [d for d in designs if d not in finished]
     return _newest_first(unfinished) + _newest_first(finished)
 
