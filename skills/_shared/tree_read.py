@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Iterator
-from dataclasses import replace
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
@@ -240,21 +239,17 @@ def cited_events(
 def _design_notes(theme_id: str, base_dir: Path) -> dict[str, DesignNote]:
     """The note of every design of the theme, keyed by the id of its file name.
 
-    A copied design file still carries the id of its source, so the note takes
-    the file-name id: heading and anchor then name the design the tree links.
     One design that cannot be built stops the whole page.
     """
     notes: dict[str, DesignNote] = {}
     for design_id in designs_of_theme(theme_id, base_dir):
         try:
-            note = load_design_note(design_id, base_dir)
+            notes[design_id] = load_design_note(design_id, base_dir)
         except ValueError as exc:
             reason = " ".join(str(exc).split())
             raise ValueError(
                 f"analysis note of '{design_id}' cannot be built: {reason}"
             ) from exc
-        design = note.design.model_copy(update={"id": design_id})
-        notes[design_id] = replace(note, design=design)
     return notes
 
 

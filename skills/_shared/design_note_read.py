@@ -358,7 +358,9 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
     data = load_design(design_id, base_dir)
     if not data:
         raise ValueError(f"design '{design_id}' not found")
-    design = AnalysisDesign.model_validate(data)
+    # A copied design file still carries the id of its source, so the note
+    # takes the file-name id: heading, anchor and local files name this design.
+    design = AnalysisDesign.model_validate(data).model_copy(update={"id": design_id})
     # Only these three fields of a source are read: its connection stays unread.
     sources = tuple(
         NoteSource(

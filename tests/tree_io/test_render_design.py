@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 from skills._shared import catalog_io, design_io
+from skills._shared._atomic import atomic_write_yaml
 from skills._shared.design_note_read import render_design_note
 from tests.tree_io._support import _design, _finish, _run_cli
 
@@ -112,6 +113,21 @@ class TestRenderDesignNote:
 
         assert result == {"path": str(world / "notes" / f"{design_id}.html")}
         assert not (world / "themes" / "LIB_tree.html").exists()
+
+    def test_a_copied_design_is_named_by_its_file_name_id(self, insight: Path) -> None:
+        """A copied design file still carries the id of the one it was copied from."""
+        first = _design(insight)
+        copied = dict(design_io.load_design(first, base_dir=insight))
+        atomic_write_yaml(insight / "designs" / "LIB-H02_hypothesis.yaml", copied)
+        _notebook(insight, "LIB-H02", LOAD)
+
+        html = _note_html(insight, "LIB-H02")
+
+        assert "分析ノート LIB-H02" in html
+        assert 'id="note-LIB-H02"' in html
+        assert "LIB-H01" not in html
+        assert "../notebooks/LIB-H02.py" in html
+        assert "<summary>cell 1</summary>" in html
 
     def test_an_unknown_design_is_an_error_and_writes_nothing(
         self, insight: Path
