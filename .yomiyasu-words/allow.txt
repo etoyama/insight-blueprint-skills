@@ -53,6 +53,7 @@ figures manifest
 標本サイズ
 レポート
 アップロード
+export
 データ由来の文
 レポートの検査
 違反

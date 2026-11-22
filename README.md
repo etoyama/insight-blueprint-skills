@@ -104,6 +104,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 - `/analysis-reflection` — Structured reflection to draw conclusions or branch hypotheses
 - `/analysis-report` — Assemble a distributable APA-style Markdown report from a concluded analysis (read-only consumer)
 - `/report-upload` — Upload a finished report to Claude Docs as a new Doc, after you approve the files to send (needs the host's Claude Docs connector; without it nothing is sent)
+- `/report-export` — Export the final report of a theme to Claude Docs as a new Doc, after you approve the files to send. `tree_io report` writes the report from the question tree; when it cannot (no tree, no answer to the root question, or a violation of the tree check), nothing is sent (needs the host's Claude Docs connector; without it nothing is sent)
 - `/tree-upload` — Upload the HTML view of a theme's question tree, with the analysis note of every design under it in the same file, to the host's Artifact as a new page, after you approve the file to send (needs the host's Artifact feature; without it, or when the page is over the 16MB limit, nothing is sent)
 - `/analysis-revision` — Guided revision workflow for addressing review comments
 - `/catalog-register` — Step-by-step data source registration
