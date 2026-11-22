@@ -1205,9 +1205,8 @@ class TestEscaping:
         with_note(tree, "LIB-Q05", **{**HEARD, "ask": "問い" + HOSTILE})
         designs = make_designs()
         designs["LIB-H01"] = summary("LIB-H01", "題" + HOSTILE, "supported", None)
-        designs["LIB-H04"] = summary(
-            "LIB-H04", "t", "in_review" + HOSTILE, "LIB-H99" + HOSTILE
-        )
+        # The status is a DesignStatus, so no text of the analyst reaches it.
+        designs["LIB-H04"] = summary("LIB-H04", "t", "in_review", "LIB-H99" + HOSTILE)
         events = make_events()
         events["LIB-H01-E01"] = CitedEvent(
             "LIB-H01-E01", "evidence" + HOSTILE, "supports" + HOSTILE, "本文" + HOSTILE
