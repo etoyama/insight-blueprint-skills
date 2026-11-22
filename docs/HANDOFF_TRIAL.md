@@ -118,6 +118,7 @@ uv run python -m scripts.handoff_trial record --scenario lib --answers "$TRIAL/r
 - `score`: 問いごとの正誤
 
 人の試行では `--reader-kind human` にし、`--minutes-confirm` と `--minutes-reconstruct` を渡す。
-`tests/test_handoff_trial.py` は記録がすべて型に合い、保存した正誤が採点し直した結果と同じことを確かめる。
+記録の正誤は、その時点の鍵での採点として残す。CI は記録を今の鍵で採点し直さない（[ADR-0035](adr/0035-handoff-trial-records-keep-their-score.md)）。
+鍵を直しても、過去の記録は書き換えない。鍵が変わる前と後の記録を比べるときは、記録の日付と鍵の git の履歴を見る。
 
 時間の目標値は、既存のフローでの基準値が取れてから決める（[PRD の成功基準](PRD.md#成功基準)）。

@@ -38,6 +38,7 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0032](0032-marketplace-serves-the-release-tag.md) | marketplace は plugin をリリースのタグから配る | Accepted |
 | [0033](0033-derived-design-inherits-the-nodes-of-its-source.md) | 派生の分析設計は、派生元が結ばれている論点に聞かずに結ぶ | Accepted |
 | [0034](0034-credential-check-joins-nested-keys.md) | 認証情報の判定は、入れ子のキーを親とつないで見て、`authorization` と `sas` を名前全体で拒む | Accepted |
+| [0035](0035-handoff-trial-records-keep-their-score.md) | 引き継ぎの試行の記録は、その時点の鍵での採点として残し、CI で採点し直さない | Accepted |
 
 - ADR-0001〜0008 は旧形式のまま残す。ADR-0009 からは新形式（Problem と Decision Analysis の節を持つ）で書く。
 - 開発フローの決定の出典は [flow/](flow/README.md) にある。repo-template の ADR のコピーで、`FLOW-000N` と表記する。
