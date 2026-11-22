@@ -6,12 +6,16 @@ the designs and journals it links to. Nothing here writes the canonical file:
 ``render`` writes only the generated view ``{theme_id}_tree.html`` next to it. The page
 is built by ``tree_render`` and is never edited.
 
+``report`` writes the final report ``reports/{theme_id}.md``, also generated and
+never edited.
+
 Writes go through ``tree_io``, which also carries the CLI for these reads.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
+from dataclasses import asdict
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
@@ -20,6 +24,7 @@ from typing import Any
 from insight_blueprint.models.common import THEME_ID_PATTERN
 from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 from insight_blueprint.models.tree import (
+    Answer,
     Progress,
     QuestionTree,
     TreeDecisionKind,
@@ -37,7 +42,8 @@ from skills._shared.design_io import (
 )
 from skills._shared.design_note import DesignNote, note_anchor, render_note
 from skills._shared.design_note_read import load_design_note, render_design_note
-from skills._shared.tree_check import Violation, check_cited
+from skills._shared.theme_report import ThemeReport, render_report
+from skills._shared.tree_check import Violation, check_cited, check_tree
 from skills._shared.tree_render import (
     CheckFailed,
     CitedEvent,
@@ -340,4 +346,99 @@ def render_design(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str
         "path": path,
         "anchor": note_anchor(design_id),
         "node_ids": [n.id for n in tree.nodes if design_id in n.design_ids],
+    }
+
+
+class ReportStop(StrEnum):
+    """Why no report is written."""
+
+    no_tree = "no_tree"
+    no_root_answer = "no_root_answer"
+    violations = "violations"
+
+
+def _root_answer(tree: QuestionTree) -> Answer | None:
+    """The answer of the root, if it was given under the current root revision."""
+    answer = tree.root().current_answer()
+    if answer is None or answer.root_revision != tree.current_revision().revision:
+        return None
+    return answer
+
+
+def _unfinished_designs(tree: QuestionTree, base_dir: Path) -> list[str]:
+    """The linked designs not in a terminal status, in tree order, each once."""
+    unfinished: dict[str, None] = {}
+    for node in tree.nodes:
+        for design_id in node.design_ids:
+            if status_of(require_design(design_id, base_dir)) not in TERMINAL_STATUSES:
+                unfinished[design_id] = None
+    return list(unfinished)
+
+
+def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
+    """Write ``reports/{theme_id}.md`` from the records of the theme, unless it cannot be trusted.
+
+    Nothing is written, and an older report is left as it is, when the theme has
+    no tree, when its root has no answer under the current root revision, or when
+    the check finds a violation on any node. The result then holds ``reasons``,
+    each with its ``kind`` (a ``ReportStop``) and a ``message``.
+
+    A tree that fails its schema, a journal that cannot be read and a cited id
+    that two events share stay errors. So does a linked design that no longer
+    exists, as in ``progress``. A linked design that is not finished does not
+    stop the report: ``unfinished_designs`` names it.
+    """
+    if not load_tree(theme_id, base_dir):
+        return {
+            "written": False,
+            "reasons": [
+                {
+                    "kind": ReportStop.no_tree,
+                    "message": f"Theme '{theme_id}' has no question tree",
+                }
+            ],
+        }
+    tree = load_tree_model(theme_id, base_dir)
+    reasons: list[dict[str, Any]] = []
+    root_answer = _root_answer(tree)
+    if root_answer is None:
+        revision = tree.current_revision().revision
+        reasons.append(
+            {
+                "kind": ReportStop.no_root_answer,
+                "message": f"The root of theme '{theme_id}' has no answer given "
+                f"under root revision {revision}",
+            }
+        )
+    violations = check_tree(tree, base_dir)
+    if violations:
+        reasons.append(
+            {
+                "kind": ReportStop.violations,
+                "message": f"The answers of theme '{theme_id}' have "
+                f"{len(violations)} violation(s) of the cited-answer check",
+                "violations": [asdict(v) for v in violations],
+            }
+        )
+    if reasons or root_answer is None:
+        return {"written": False, "reasons": reasons}
+
+    unfinished = _unfinished_designs(tree, base_dir)
+    markdown = render_report(
+        ThemeReport(
+            theme_id=theme_id,
+            root_question=tree.current_revision().question,
+            aim=tree.current_revision().aim,
+            round=tree.current_round(),
+            answer=root_answer,
+        )
+    )
+    report_path = Path(base_dir) / "reports" / f"{theme_id}.md"
+    atomic_write_text(report_path, markdown)
+    return {
+        "written": True,
+        "path": str(report_path),
+        "figures": [],
+        "round": tree.current_round(),
+        "unfinished_designs": unfinished,
     }

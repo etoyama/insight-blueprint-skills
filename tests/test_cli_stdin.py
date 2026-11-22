@@ -37,6 +37,7 @@ NO_PAYLOAD = [
     ("tree_io", "position", "--theme", "LIB"),
     ("tree_io", "progress", "--theme", "LIB"),
     ("tree_io", "render", "--theme", "LIB"),
+    ("tree_io", "report", "--theme", "LIB"),
 ]
 
 
