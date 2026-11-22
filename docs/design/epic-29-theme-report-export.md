@@ -564,3 +564,4 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
   本文をその分析設計自身の journal から取り、答えの引用と同じ id で本文が違うときはエラーにして直した。低の指摘のうち、同じ id が2回あるとき本文がずれる点は同じ直しで塞いだ。分析ノートが組めないときに分析設計の名前が出ない点も直した。
   同じ図が2つの番号で出る点（1つの分析設計を、答えのある論点2つに結んだとき）は Decision `the-report-design-is-cut-from-the-design-note` のとおりで、直していない。
 - 2026-11-23 — 計画外の判断が3件あった（Appendix の範囲、結論の前の反する証拠、図の番号の数え方）。Decisions に書き、PM には完了の報告で知らせた。
+- 2026-11-23 — Story 29.2 の後に、図を Doc に載せる道を確かめた（PM の依頼）。合成シナリオ（`handoff_trial build --scenario lib`）の LIB-H01 と LIB-H02 に verdict の図を1枚ずつ足し、`tree_io report --theme LIB` が `figures` に2枚を返し、レポートが2つの画像のリンクを持つことを見た。人間が KEEP ゲートで承認した後に `/report-export` の手順で Doc（https://claude.ai/artifact/D3YAvLEXADYCtbxCQqWBjh）を作り、図2枚を1枚ずつ載せた。注記は残らず、図の題・軸・読み方の文は図の下にそのまま残った。ホストの承認カードは出なかったので、断ったときの道は確かめていない。SKILL.md は直していない。
