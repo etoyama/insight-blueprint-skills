@@ -148,7 +148,7 @@ hypothesis, registering a data source, a `HARD_BLOCK`/`HIGH` premortem, a notebo
 need out-of-allowlist packages or external communication beyond the declared source, the
 conclusion, and the tree decision (deepen, return or close) that ends each round. When a design
 is concluded it writes the distributable report without asking. Once the
-report is written it starts `/report-upload`, which lists the files it would send to Claude Docs
+round has a report, written by this run or an earlier one, it starts `/report-upload`, which lists the files it would send to Claude Docs
 and waits for your approval; nothing leaves your machine without it. It is
 opt-in and still interactive — not an unattended pipeline. The individual
 skills stay explicit everywhere else. See

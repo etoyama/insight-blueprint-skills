@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from skills._shared import design_io, tree_io
+from tests.skills._auto import round_item as _round_item
 from tests.skills._markdown import section, table_row, table_rows, unwrap
 from tests.skills._shown import run_shown_commands, run_shown_line
 from tests.skills.test_skill_structure import (
@@ -58,17 +59,6 @@ def _gates() -> str:
 
 def _step(heading: str) -> str:
     return section(_auto(), heading)
-
-
-def _round_item(name: str) -> str:
-    """The numbered item ``N. **name**`` of the round, up to the next item or heading."""
-    found = re.search(
-        rf"^\d+\. \*\*{re.escape(name)}\*\*.*?(?=^\d+\. \*\*|^#{{2,4}} |\Z)",
-        _step("### Step 3:"),
-        re.MULTILINE | re.DOTALL,
-    )
-    assert found, f"the round has no '{name}' item"
-    return unwrap(found.group(0))
 
 
 def _on_request(about: str) -> str:
@@ -255,10 +245,11 @@ class TestTheReportIsWrittenWithoutAsking:
         assert "without asking" in item
         assert "offer" not in item.lower()
 
-    def test_a_report_from_an_earlier_run_is_kept_and_its_upload_is_named(self) -> None:
+    def test_a_report_from_an_earlier_run_is_kept_and_goes_to_the_upload(self) -> None:
+        # Epic 27: the round takes the kept report on to the upload, not to the analyst.
         item = _round_item("report")
         assert "not written again" in item
-        assert re.search(r"`/report-upload \{design_id\}`[^.]*theirs to run", item)
+        assert "go on to the upload with it" in item
 
     def test_a_round_without_a_conclusion_writes_no_report(self) -> None:
         item = _round_item("report")

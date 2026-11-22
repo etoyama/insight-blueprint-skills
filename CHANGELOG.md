@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/analysis-reflection` closes a design right after its analysis and the default
   `/analysis-auto` walk no longer stops there. Moving back to `in_review` to review the result
   stays available and is optional ([ADR-0029](docs/adr/0029-analyzing-reaches-conclusion-directly.md), #138).
+- **A resumed `/analysis-auto` still asks whether to send the report.** When the report of the
+  round was written by an earlier run, the walk now goes on to the approval gate of
+  `/report-upload` instead of only telling you to run it. Nothing records what was sent, so the
+  gate comes with a note: if you sent it before, answer no, since sending again makes a second
+  Doc ([epic-27](docs/design/epic-27-resume-upload.md), #139).
 
 ### Fixed
 

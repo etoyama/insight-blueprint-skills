@@ -8,9 +8,9 @@ SKILL.md files that keep the driver and `/analysis-report` from asking a second 
 
 from __future__ import annotations
 
-import re
-
-from tests.skills._markdown import section, table_row, unwrap
+from tests.skills._auto import gate_row as _gate_row
+from tests.skills._auto import round_item as _drive_item
+from tests.skills._markdown import section, unwrap
 from tests.skills.test_skill_structure import (
     _extract_chaining_edges,
     _read_skill,
@@ -20,22 +20,6 @@ from tests.skills.test_skill_structure import (
 
 def _auto() -> str:
     return _read_skill("analysis-auto")
-
-
-def _gate_row(step: str) -> list[str]:
-    """The cells of the Gate policy row whose first cell is ``step``."""
-    return table_row(split_sections(_auto())["Gate policy"], step)
-
-
-def _drive_item(name: str) -> str:
-    """The numbered item ``N. **name**`` of Step 2, up to the next item or heading."""
-    match = re.search(
-        rf"^\d+\. \*\*{re.escape(name)}\*\*.*?(?=^\d+\. \*\*|^#{{2,3}} |\Z)",
-        _auto(),
-        re.MULTILINE | re.DOTALL,
-    )
-    assert match, f"Step 2 has no '{name}' item"
-    return unwrap(match.group(0))
 
 
 def _h3(skill: str, heading: str) -> str:
@@ -79,7 +63,8 @@ class TestAutopilotStartsTheUpload:
         assert "ADR-0016" in item
 
     def test_no_report_means_no_upload(self) -> None:
-        assert "when no report was written" in _drive_item("upload").lower()
+        # Epic 27: a report an earlier run wrote counts too, so the item names the round.
+        assert "when the round has no report" in _drive_item("upload").lower()
 
     def test_a_missing_connector_goes_on_with_the_round(self) -> None:
         item = _drive_item("upload")

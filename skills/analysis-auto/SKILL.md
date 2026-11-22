@@ -59,7 +59,7 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | journal | — | auto-record the notebook verdict (observe/evidence/question) |
 | reflection | **the conclusion (conclude/refine/branch) + terminal transition** | presenting the evidence summary |
 | report | — | writing the report with `/analysis-report` once the design is in a terminal status |
-| upload | **the files to send to Claude Docs** — asked by `/report-upload` itself, at its approval gate; the driver adds no question of its own | starting `/report-upload` once the report is written |
+| upload | **the files to send to Claude Docs** — asked by `/report-upload` itself, at its approval gate; the driver adds no question of its own | starting `/report-upload` once the round has a report, written by this run or before it |
 | theme reflection | **the tree decision (deepen / return / close, the next node, the reason) and any answer the analyst heard** (`/analysis-reflection {theme_id}` T7) | writing the current answers, the tree check, the next candidates, the HTML |
 | tree-upload | **the file to send as an Artifact** — asked by `/tree-upload` itself, at its approval gate; the driver adds no question of its own | starting `/tree-upload` when the analyst asks to hand the tree over |
 | catalog-register | **registering a data source** (external-data side-effect); unregistered source → stop | — |
@@ -136,7 +136,8 @@ tree_io position --theme LIB
    `/analysis-framing {theme_id}` first, which asks where it belongs (4c, "Designs no node holds").
 4. Tell the analyst the plan ("論点ツリーの {node_id} から、design→premortem→notebook→journal→
    reflection→レポート→テーマを横断した振り返り の順に進める。仮説の確定・コスト判定・結論・ツリーの決定では
-   止まる。結論が出たらレポートは聞かずに書く。外へ送る前には、送るファイルを見せて承認を待つ").
+   止まる。結論が出たらレポートは聞かずに書く。外へ送る前には、送るファイルを見せて承認を待つ。
+   前に書いたレポートも、送るかを聞く").
 
 ### Step 2: Build the tree (the theme has none)
 
@@ -217,22 +218,25 @@ the round until the analyst closes the walk or says stop.
 8. **report**: when the design is in a terminal status (`supported` / `rejected` /
    `inconclusive`), run `/analysis-report {design_id}` without asking; the report is a file on
    this machine. A report that is already there (`.insight/reports/{design_id}.md`) is not
-   written again: say so, and that `/report-upload {design_id}` is theirs to run if it was
-   never sent. When the design is not in a terminal status (refine or branch), write no report
-   and go to item 10.
-9. **upload**: when item 8 wrote the report, run `/report-upload {design_id}` right after it.
-   **Do not ask whether to upload**, before or after starting the skill. The skill lists the files it
-   would send and waits at its own KEEP gate; that is the only question the analyst gets about the
-   upload. Never answer it for them, and never treat an earlier "yes" as a "yes" to the upload
-   ([ADR-0016](../../docs/adr/0016-approval-before-external-send.md)). Without the Claude Docs
-   connector the skill sends nothing and asks nothing; go on to the theme reflection. Skip this item
-   when no report was written. Keep the skill's one-line outcome for item 10 and the summary.
+   written again: go on to the upload with it. When the design
+   is not in a terminal status (refine or branch), write no report and go to item 10.
+9. **upload**: when the round has a report, run `/report-upload {design_id}` right after item 8,
+   also for a report that was there before this run. **Do not ask whether to upload**, before or
+   after starting the skill. The skill lists the files it would send and waits at its own KEEP
+   gate; that is the only question the analyst gets about the upload. Never answer it for them,
+   and never treat an earlier "yes" as a "yes" to the upload, an approval given in an earlier run
+   included ([ADR-0016](../../docs/adr/0016-approval-before-external-send.md)).
+   The driver keeps no record of what was sent. So when the report was there before this run,
+   write this line in the gate's message, right before "送ってよい？":
+   "このレポートは前に書いた。前に送っていれば送らなくてよい。送ると Doc がもう1つできる". The note asks
+   nothing: the gate stays the one question. Without the Claude Docs connector the skill sends
+   nothing and asks nothing; go on to the theme reflection. Skip this item when the round has no
+   report. Keep the skill's one-line outcome for item 10 and the summary.
 10. **theme reflection**: run `/analysis-reflection {theme_id}`. It writes the current answer
     of each node, checks them, shows the next candidates and renders the HTML without asking. Its
     Step T7 is the KEEP gate of the round. Before that gate, show the report's path next to the
     path of the tree's HTML, so the analyst decides with both in view. The report is the one of
-    this round's design, also when an earlier run wrote it; add the upload outcome when this run
-    has one. A round without a conclusion has no report: say so. Never choose the kind, the node or the reason for them, and never
+    this round's design, also when an earlier run wrote it; add the upload outcome. A round without a conclusion has no report: say so. Never choose the kind, the node or the reason for them, and never
     fill in an answer they heard.
 11. **next round**: after a `deepen` or a `return` the walk goes on: read `tree_io position`
     again and start the next round at item 1, in the same turn. Do not summarize in between, and
@@ -256,7 +260,7 @@ Two things happen only when the analyst asks for them, at any point of the walk:
 Report what ran automatically, where it paused and why, and the final state (status, journal, lineage).
 For the walk, add the nodes it went through, the tree decisions the analyst took, the path of
 the tree's HTML, and the node the next `/analysis-auto {theme_id}` resumes from.
-When a report was written, add the report's path and the upload outcome: the Doc URL, "承認されなかった",
+When the round has a report, add the report's path and the upload outcome: the Doc URL, "承認されなかった",
 "コネクタが無い", or "アップロードに失敗した" with the reason.
 
 ## Delegated skills
@@ -276,7 +280,7 @@ through `tree_io`.
 | /analysis-auto | → /analysis-design | The node of the round needs its design |
 | /analysis-auto | → /analysis-reflection | Autopilot reaches results; the conclusion and the tree decision are the user's call |
 | /analysis-auto | → /analysis-report | The design reached a terminal status; the report is written without asking (AUTO) |
-| /analysis-auto | → /report-upload | The report is written; start the upload, whose own approval gate is the only question |
+| /analysis-auto | → /report-upload | The round has a report, written by this run or before it; start the upload, whose own approval gate is the only question |
 | /analysis-auto | → /tree-upload | The analyst asks to hand the tree over; its own approval gate is the only question |
 
 ## Language Rules

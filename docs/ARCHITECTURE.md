@@ -415,12 +415,12 @@ sequenceDiagram
 
         D->>U: 【KEEP】/analysis-reflection {design_id} で結論（conclude/refine/branch）+ terminal 遷移
         alt 結論が出た（terminal status）
-            D->>FS: /analysis-report でレポートを書く（AUTO。.insight/reports/{id}.md）
-            D->>P: /report-upload を起動（AUTO。driver は自分では聞かない）
+            D->>FS: /analysis-report でレポートを書く（AUTO。.insight/reports/{id}.md。前に書いたレポートがあれば書き直さない）
+            D->>P: /report-upload を起動（AUTO。前に書いたレポートでも起動する。driver は自分では聞かない）
             alt Claude Docs のコネクタが無い
                 P-->>D: 何も送らず「コネクタが無い」を返す
             else 送れる
-                P->>U: 【KEEP】送るファイル（レポートと図）を列挙して承認を待つ
+                P->>U: 【KEEP】送るファイル（レポートと図）を列挙して承認を待つ（前に書いたレポートなら「前に送っていれば送らなくてよい」を添える）
                 alt 承認する
                     P->>DC: 新しい Doc を作り、本文と図を送る
                     DC-->>P: Doc の URL
@@ -801,6 +801,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 18 | Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-reflection` の論点ツリー、`/analysis-auto` の論点ごとの巡回）+ 論点ツリーのモデルと `validate.py` の検証 + `tree_io`・`tree_check`（Story 18.1 で正本・`tree_io`・hook の対象を、Story 18.2 で `/analysis-framing` と `/analysis-design` の論点ツリーを、Story 18.3 で現時点の答えの型と `tree_check` を実装した。残りは計画中で、シーケンス図への反映は実装の Story で行う） |
 | Epic 19 | Validation library（`VALID_TRANSITIONS` の `analyzing` の行）+ Skill layer（`/analysis-design` の Status Flow、`/analysis-reflection` の結論の手順） |
 | Epic 26 | Skill layer（`/analysis-reflection` の Step 2 の読むもの） |
+| Epic 27 | Skill layer（`/analysis-auto` の report と upload の段。前の実行で書いたレポートも `/report-upload` の KEEP ゲートへ回す） |
 
 
 ## 参照
