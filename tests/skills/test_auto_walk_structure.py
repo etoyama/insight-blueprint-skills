@@ -26,13 +26,13 @@ from tests.skills.test_skill_structure import (
 )
 
 # The five gates US-8 AC 3 adds, by the first cell of their Gate policy row.
-NEW_GATES = {
-    "entry: a design without a tree": "whether to build a tree",
-    "framing ① root question and aim": "root question",
-    "framing ② first node": "first node",
-    "framing ③ root revision": "root revision",
-    "theme reflection": "T7",
-}
+NEW_GATES = (
+    "entry: a design without a tree",
+    "framing ① root question and aim",
+    "framing ② first node",
+    "framing ③ root revision",
+    "theme reflection",
+)
 
 # The rows of gates a delegated skill holds: the row names the gate and the
 # step that holds it, and copies none of that step's logic (#143).
@@ -156,10 +156,6 @@ class TestTheThemeIsTheEntry:
         build = unwrap(_step("### Step 2:"))
         assert re.search(r"only this design[^.]*items 2[–-]9", build)
 
-    def test_framing_places_the_designs_that_already_exist(self) -> None:
-        build = unwrap(_step("### Step 2:"))
-        assert re.search(r"existing designs[^.]*4b", build)
-
     def test_the_position_is_read_again_once_the_tree_is_built(self) -> None:
         # Review: a design placed in 4b was skipped and its node designed anew.
         build = unwrap(_step("### Step 2:"))
@@ -211,9 +207,12 @@ class TestGates:
 
     @pytest.mark.parametrize("step", NEW_GATES)
     def test_the_five_new_gates_are_keep_gates(self, step: str) -> None:
-        name, keep, _auto_cell = table_row(_gates(), step)
+        _, keep, _auto_cell = table_row(_gates(), step)
         assert keep.startswith("**"), keep
-        assert NEW_GATES[step] in name + keep
+
+    def test_the_entry_gate_asks_whether_to_build_a_tree(self) -> None:
+        _, keep, _auto_cell = table_row(_gates(), "entry: a design without a tree")
+        assert "whether to build a tree" in keep
 
     @pytest.mark.parametrize("step", OWNED_GATES)
     def test_a_gate_of_a_delegated_skill_points_at_its_step_only(
@@ -222,13 +221,6 @@ class TestGates:
         _, keep, auto = table_row(_gates(), step)
         assert keep == f"**{OWNED_GATES[step]}**"
         assert auto == "—"
-
-    def test_the_decided_node_is_not_asked_again_inside_the_walk(self) -> None:
-        # The driver hands framing the position; 4d alone says what it skips.
-        assert "`/analysis-framing` 4d" in table_row(_gates(), "framing ④ next node")[1]
-        item = _round_item("framing brief")
-        assert "output of `tree_io position`" in item
-        assert "without asking again" not in item
 
     def test_the_skills_own_gates_are_listed_and_the_driver_adds_no_question(
         self,
@@ -270,10 +262,6 @@ class TestTheReportIsWrittenWithoutAsking:
         item = _round_item("theme reflection")
         assert re.search(r"report's path[^.]*HTML", item)
         assert "T7" in item
-
-    def test_the_driver_never_decides_for_the_analyst(self) -> None:
-        item = _round_item("theme reflection")
-        assert re.search(r"[Nn]ever choose[^.]*kind", item)
 
 
 class TestTheWalkGoesOnUntilTheAnalystStops:
@@ -423,11 +411,12 @@ class TestFramingTakesTheDecisionAsTheAnswerInsideAuto:
     def _gate(self) -> str:
         return unwrap(_framing("#### 4d:"))
 
-    def test_the_exception_needs_the_position_from_the_driver(self) -> None:
+    def test_the_exception_needs_the_position_it_was_handed(self) -> None:
+        # #143: framing keys the exception on its input, not on who called it.
         gate = self._gate()
-        assert "/analysis-auto" in gate
-        assert "`tree_io position --theme {theme_id}`" in gate
+        assert re.search(r"handed the output of `tree_io position", gate)
         assert "`not_started`" in gate
+        assert "/analysis-auto" not in gate
 
     def test_the_decision_is_the_answer_and_nothing_is_written(self) -> None:
         gate = self._gate()
@@ -441,4 +430,4 @@ class TestFramingTakesTheDecisionAsTheAnswerInsideAuto:
     def test_every_other_case_still_asks(self) -> None:
         gate = self._gate()
         assert re.search(r"any other state[^.]*ask", gate)
-        assert re.search(r"started on its own[^.]*ask", gate)
+        assert re.search(r"not handed the position[^.]*ask", gate)

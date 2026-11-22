@@ -366,3 +366,5 @@ class TestAnEmptyGetIsCheckedAgainstTheProject:
         assert "`tree_io: no tree at {path}`" in step
         assert re.search(r"(?i)never `cd`[^.]*before", step)
         assert "this project's `.insight`" in step
+        # #143: the reason travels with the rule, for a run started on its own.
+        assert re.search(r"`tree_io` reads the `.insight` of [^.]*directory", step)
