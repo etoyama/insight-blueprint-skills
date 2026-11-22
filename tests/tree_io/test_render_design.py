@@ -1,4 +1,4 @@
-"""Tests of ``tree_io render --design`` (Epic 28, Stories 28.1 and 28.2): the analysis note page.
+"""Tests of ``tree_io render --design`` (Epic 28, Stories 28.1 to 28.3): the analysis note page.
 
 The note is built from the files of one design: its YAML, its journal, the
 catalog, and the verdict and figures the notebook wrote. Synthetic data only
@@ -18,7 +18,7 @@ import pytest
 
 from skills._shared import catalog_io, design_io
 from skills._shared.design_note_read import render_design_note
-from tests.tree_io._support import _design, _run_cli
+from tests.tree_io._support import _design, _finish, _run_cli
 
 CONNECTION_PATH = "/Users/secret-analyst/data/reservations.csv"
 # Written by hand: json.dumps would drop the trailing zeros the notebook wrote.
@@ -519,6 +519,144 @@ class TestCodeAndProgress:
             f"../notebooks/{design_id}_verdict.json",
             f"../reports/{design_id}.md",
         ]
+
+
+def _say(
+    insight: Path, design_id: str, type_: str, content: str, **meta: object
+) -> str:
+    event = {"type": type_, "content": content}
+    if meta:
+        event["metadata"] = meta
+    return design_io.append_journal_event(design_id, event, base_dir=insight)["id"]
+
+
+def _conclusion_section(html: str, design_id: str) -> str:
+    return html.split(f'id="note-{design_id}-conclusion"')[1].split("<section")[0]
+
+
+class TestConclusion:
+    def test_a_concluded_design_shows_its_records_as_written(
+        self, insight: Path
+    ) -> None:
+        design_id = _design(insight)
+        design_io.update_design(
+            design_id,
+            {
+                "decision_context": {
+                    "decision_maker": "図書館員",
+                    "decision": "延長を試すか",
+                },
+                "next_action": {
+                    "if_supported": "全館で延長を試す",
+                    "if_rejected": {"reason": "差が無い", "pivot": "督促を変える"},
+                },
+            },
+            base_dir=insight,
+        )
+        _say(insight, design_id, "evidence", "平日は減った", direction="supports")
+        _say(insight, design_id, "evidence", "雨の週は増えた", direction="contradicts")
+        settled = _say(insight, design_id, "question", "分館でも同じか")
+        _say(insight, design_id, "question", "冬も同じか")
+        _say(insight, design_id, "conclude", "期限切れは減った", resolves=[settled])
+        _say(insight, design_id, "reflect", "季節を見ていない")
+        _finish(insight, design_id)
+
+        section = _conclusion_section(_note_html(insight, design_id), design_id)
+
+        assert section.index("仮説は支持された。") < section.index("期限切れは減った")
+        for text in (
+            "決める人: 図書館員",
+            "決めること: 延長を試すか",
+            "next_action の if_supported: 全館で延長を試す",
+            "雨の週は増えた",
+            "季節を見ていない",
+            "冬も同じか",
+        ):
+            assert text in section
+        for text in ("差が無い", "督促を変える", "平日は減った", "分館でも同じか"):
+            assert text not in section
+
+    def test_a_rejected_design_shows_the_reason_and_pivot_of_its_branch(
+        self, insight: Path
+    ) -> None:
+        design_id = _design(insight)
+        design_io.update_design(
+            design_id,
+            {
+                "next_action": {
+                    "if_supported": "全館で延長を試す",
+                    "if_rejected": {"reason": "差が無い", "pivot": "督促を変える"},
+                }
+            },
+            base_dir=insight,
+        )
+        design_io.transition_status(design_id, "rejected", base_dir=insight)
+
+        section = _conclusion_section(_note_html(insight, design_id), design_id)
+
+        assert "仮説は棄却された。" in section
+        assert "next_action の if_rejected.reason: 差が無い" in section
+        assert "next_action の if_rejected.pivot: 督促を変える" in section
+        assert "全館で延長を試す" not in section
+
+    def test_an_inconclusive_design_names_no_branch(self, insight: Path) -> None:
+        design_id = _design(insight)
+        design_io.update_design(
+            design_id,
+            {"next_action": {"if_supported": "全館で延長を試す"}},
+            base_dir=insight,
+        )
+        design_io.transition_status(design_id, "inconclusive", base_dir=insight)
+
+        section = _conclusion_section(_note_html(insight, design_id), design_id)
+
+        assert "仮説を支持するとも棄却するとも結論できなかった。" in section
+        assert "勧めの元" not in section
+
+    def test_a_question_resolved_by_one_id_is_not_open(self, insight: Path) -> None:
+        design_id = _design(insight)
+        settled = _say(insight, design_id, "question", "分館でも同じか")
+        _say(insight, design_id, "conclude", "期限切れは減った", resolves=settled)
+        _finish(insight, design_id)
+
+        section = _conclusion_section(_note_html(insight, design_id), design_id)
+
+        assert "未解決の問い" not in section
+
+    def test_a_branch_value_that_is_not_text_is_left_out(self, insight: Path) -> None:
+        design_id = _design(insight)
+        design_io.update_design(
+            design_id, {"next_action": {"if_supported": ["a", "b"]}}, base_dir=insight
+        )
+        _finish(insight, design_id)
+
+        section = _conclusion_section(_note_html(insight, design_id), design_id)
+
+        assert "next_action" not in section
+
+    def test_a_design_not_yet_concluded_has_no_conclusion_section(
+        self, insight: Path
+    ) -> None:
+        design_id = _design(insight)
+        _say(insight, design_id, "conclude", "期限切れは減った")
+
+        html = _note_html(insight, design_id)
+
+        assert f'id="note-{design_id}-conclusion"' not in html
+        assert "結論はまだ出ていない（分析設計が terminal status でない）。" in html
+
+    def test_the_report_the_model_wrote_is_not_read(self, insight: Path) -> None:
+        design_id = _design(insight)
+        _finish(insight, design_id)
+        reports = insight / "reports"
+        reports.mkdir(parents=True)
+        (reports / f"{design_id}.md").write_text(
+            "## Abstract\n\nモデルが書いた含意の文章\n", encoding="utf-8"
+        )
+
+        html = _note_html(insight, design_id)
+
+        assert "モデルが書いた含意の文章" not in html
 
 
 class TestRenderDesignCli:

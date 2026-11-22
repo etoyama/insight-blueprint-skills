@@ -18,7 +18,7 @@ import base64
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
-from insight_blueprint.models.design import AnalysisDesign
+from insight_blueprint.models.design import AnalysisDesign, DesignStatus
 from skills._shared._html import BASE_CSS, Html, el, join, page
 
 
@@ -81,6 +81,22 @@ class CodeCell:
 
 
 @dataclass(frozen=True)
+class Conclusion:
+    """What the records hold once a design reaches a terminal status.
+
+    Copies of the journal and the design only: no sentence here is generated.
+    """
+
+    status: DesignStatus  # terminal
+    conclude_events: tuple[NoteEvent, ...]
+    # (field, text) of the next_action branch for the status, e.g. "if_rejected.pivot"
+    next_action: tuple[tuple[str, str], ...]
+    contradicting_evidence: tuple[NoteEvent, ...]
+    reflect_events: tuple[NoteEvent, ...]
+    open_questions: tuple[NoteEvent, ...]
+
+
+@dataclass(frozen=True)
 class DesignNote:
     design: AnalysisDesign
     sources: tuple[NoteSource, ...]
@@ -91,6 +107,7 @@ class DesignNote:
     cells: tuple[CodeCell, ...] | None
     lineage: str | None  # the Mermaid text of lineage/{id}.mmd
     local_files: tuple[str, ...]  # paths under .insight/ that exist, LOCAL_FILES order
+    conclusion: Conclusion | None  # None: the design is not in a terminal status
 
 
 NOTE_CSS = """
@@ -148,11 +165,20 @@ _SECTIONS = (
     ("explanatory", "説明変数"),
     ("sources", "データソース"),
     ("results", "結果"),
+    ("conclusion", "結論"),
     ("code", "分析コード"),
     ("lineage", "データ加工の履歴"),
     ("progress", "分析の経過"),
     ("files", "手元のファイル"),
 )
+
+# The first sentence of the report's Abstract for each terminal status
+# (analysis-report/references/apa-template.md); a structure test holds them equal.
+LEAD_SENTENCES = {
+    DesignStatus.supported: "仮説は支持された。",
+    DesignStatus.rejected: "仮説は棄却された。",
+    DesignStatus.inconclusive: "仮説を支持するとも棄却するとも結論できなかった。",
+}
 
 # The kinds of journal event (docs/UBIQUITOUS_LANGUAGE.md).
 _EVENT_WORDS = {
@@ -204,16 +230,21 @@ def _status(note: DesignNote, anchor: str) -> Html:
     else:
         journal = f"載せた journal の最後の出来事の時刻: {last.created_at or '（時刻の記載なし）'}"
     verdict = "あり" if note.verdict is not None else "まだ無い"
+    concluded = note.conclusion is not None
     return el(
         "div",
         el("p", f"状態: {note.design.status.value}"),
         el("p", journal),
         el("p", f"notebook の結果（verdict）: {verdict}"),
+        None
+        if concluded
+        else el("p", "結論はまだ出ていない（分析設計が terminal status でない）。"),
         el(
             "ul",
             *(
                 el("li", el("a", label, href=f"#{anchor}-{name}"))
                 for name, label in _SECTIONS
+                if concluded or name != "conclusion"
             ),
         ),
         class_="status",
@@ -424,6 +455,50 @@ def _results(note: DesignNote, anchor: str) -> Html:
     )
 
 
+def _recommendation_sources(
+    design: AnalysisDesign, conclusion: Conclusion
+) -> list[Html]:
+    context = design.decision_context
+    lines = (
+        []
+        if context is None
+        else [
+            el("p", f"決める人: {context.decision_maker}"),
+            el("p", f"決めること: {context.decision}"),
+        ]
+    ) + [
+        el("p", f"next_action の {field}: {text}")
+        for field, text in conclusion.next_action
+    ]
+    return [el("h4", "勧めの元"), *lines] if lines else []
+
+
+def _records(heading: str, events: Sequence[NoteEvent]) -> list[Html]:
+    return [el("h4", heading), _event_list(events)] if events else []
+
+
+def _conclusion(note: DesignNote, anchor: str) -> Html | None:
+    conclusion = note.conclusion
+    if conclusion is None:
+        return None
+    return _section(
+        anchor,
+        "conclusion",
+        "結論",
+        el("p", LEAD_SENTENCES[conclusion.status]),
+        el(
+            "p",
+            "この節は journal と分析設計の記録を書かれたとおりに写す。"
+            "conclude と reflect の本文は「分析の経過」にも在る。",
+        ),
+        *_records("conclude の本文", conclusion.conclude_events),
+        *_recommendation_sources(note.design, conclusion),
+        *_records("仮説に反する証拠", conclusion.contradicting_evidence),
+        *_records("reflect の本文", conclusion.reflect_events),
+        *_records("未解決の問い", conclusion.open_questions),
+    )
+
+
 def _code(note: DesignNote, anchor: str) -> Html:
     if note.cells is not None:
         body = join(
@@ -552,6 +627,7 @@ def render_note(note: DesignNote) -> Html:
         _explanatory(design, anchor),
         _sources(note, anchor),
         _results(note, anchor),
+        _conclusion(note, anchor),
         _code(note, anchor),
         _lineage(note, anchor),
         _progress(note, anchor),

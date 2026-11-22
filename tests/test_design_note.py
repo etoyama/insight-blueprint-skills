@@ -1,13 +1,17 @@
-"""Tests of skills/_shared/design_note.py (Epic 28, Stories 28.1 and 28.2): the analysis note page."""
+"""Tests of skills/_shared/design_note.py (Epic 28, Stories 28.1 to 28.3): the analysis note page."""
 
 from __future__ import annotations
 
 import base64
+import dataclasses
 import re
 
-from insight_blueprint.models.design import AnalysisDesign
+import pytest
+
+from insight_blueprint.models.design import AnalysisDesign, DesignStatus
 from skills._shared.design_note import (
     CodeCell,
+    Conclusion,
     DesignNote,
     NoteEvent,
     NoteFigure,
@@ -53,6 +57,7 @@ def _note(**over: object) -> DesignNote:
         "cells": None,
         "lineage": None,
         "local_files": (),
+        "conclusion": None,
     }
     if "metrics" in over or "conclusion" in over:
         fields["verdict"] = NoteVerdict(
@@ -669,3 +674,175 @@ def test_the_status_block_links_to_the_new_sections() -> None:
 
     for name in ("code", "lineage", "progress", "files"):
         assert f'href="#note-LIB-H01-{name}"' in html
+
+
+def _conclusion(**over: object) -> Conclusion:
+    fields: dict = {
+        "status": DesignStatus.supported,
+        "conclude_events": (),
+        "next_action": (),
+        "contradicting_evidence": (),
+        "reflect_events": (),
+        "open_questions": (),
+    }
+    fields.update(over)
+    return Conclusion(**fields)
+
+
+def _concluded(
+    conclusion: Conclusion, design: AnalysisDesign | None = None
+) -> DesignNote:
+    """A note in the conclusion's status; ``_note(conclusion=)`` is the verdict's."""
+    design = design or _design()
+    return dataclasses.replace(
+        _note(design=design.model_copy(update={"status": conclusion.status})),
+        conclusion=conclusion,
+    )
+
+
+def _texts(markup: str) -> list[str]:
+    """The text runs between tags, stripped; empty runs dropped."""
+    return [t.strip() for t in re.findall(r">([^<]+)<", markup) if t.strip()]
+
+
+FULL = _conclusion(
+    conclude_events=(_event("LIB-H01-E05", "conclude", "期限切れは減った"),),
+    next_action=(("if_supported", "全館で延長を試す"),),
+    contradicting_evidence=(
+        _event("LIB-H01-E02", "evidence", "雨の週は増えた", "contradicts"),
+    ),
+    reflect_events=(_event("LIB-H01-E06", "reflect", "季節を見ていない"),),
+    open_questions=(_event("LIB-H01-E03", "question", "冬も同じか"),),
+)
+
+
+class TestConclusion:
+    @pytest.mark.parametrize(
+        ("status", "lead"),
+        [
+            (DesignStatus.supported, "仮説は支持された。"),
+            (DesignStatus.rejected, "仮説は棄却された。"),
+            (
+                DesignStatus.inconclusive,
+                "仮説を支持するとも棄却するとも結論できなかった。",
+            ),
+        ],
+    )
+    def test_the_section_opens_with_the_fixed_sentence_of_the_status(
+        self, status: DesignStatus, lead: str
+    ) -> None:
+        html = _section_of(
+            str(render_note(_concluded(_conclusion(status=status)))), "conclusion"
+        )
+
+        assert _texts(html)[:2] == ["結論", lead]
+
+    def test_it_comes_after_the_results_and_before_the_code(self) -> None:
+        html = str(render_note(_concluded(FULL)))
+
+        results = _position(html, 'id="note-LIB-H01-results"')
+        conclusion = _position(html, 'id="note-LIB-H01-conclusion"')
+        assert results < conclusion < _position(html, 'id="note-LIB-H01-code"')
+
+    def test_it_shows_each_record_as_written(self) -> None:
+        html = _section_of(str(render_note(_concluded(FULL))), "conclusion")
+
+        for text in (
+            "期限切れは減った",
+            "全館で延長を試す",
+            "雨の週は増えた",
+            "季節を見ていない",
+            "冬も同じか",
+        ):
+            assert text in html
+        for heading in (
+            "conclude の本文",
+            "勧めの元",
+            "仮説に反する証拠",
+            "reflect の本文",
+            "未解決の問い",
+        ):
+            assert f"<h4>{heading}</h4>" in html
+
+    def test_the_recommendation_sources_are_the_decision_context_and_the_branch(
+        self,
+    ) -> None:
+        note = _concluded(
+            _conclusion(
+                status=DesignStatus.rejected,
+                next_action=(
+                    ("if_rejected.reason", "差が無い"),
+                    ("if_rejected.pivot", "督促の時期を変える"),
+                ),
+            ),
+            _rich_design(),
+        )
+
+        html = _section_of(str(render_note(note)), "conclusion")
+
+        assert "決める人: 図書館員" in html
+        assert "決めること: 延長を試すか" in html
+        assert "next_action の if_rejected.reason: 差が無い" in html
+        assert "next_action の if_rejected.pivot: 督促の時期を変える" in html
+
+    def test_a_missing_record_is_left_out(self) -> None:
+        html = _section_of(str(render_note(_concluded(_conclusion()))), "conclusion")
+
+        assert "<h4>" not in html
+        assert _texts(html)[:2] == ["結論", "仮説は支持された。"]
+
+    def test_only_records_and_fixed_labels_appear(self) -> None:
+        html = _section_of(str(render_note(_concluded(FULL))), "conclusion")
+        events = (
+            *FULL.conclude_events,
+            *FULL.contradicting_evidence,
+            *FULL.reflect_events,
+            *FULL.open_questions,
+        )
+        records = {e.content for e in events} | {e.id for e in events}
+        labels = {
+            "結論",
+            "仮説は支持された。",
+            "この節は journal と分析設計の記録を書かれたとおりに写す。"
+            "conclude と reflect の本文は「分析の経過」にも在る。",
+            "conclude の本文",
+            "勧めの元",
+            "next_action の if_supported: 全館で延長を試す",
+            "仮説に反する証拠",
+            "reflect の本文",
+            "未解決の問い",
+        }
+
+        assert set(_texts(html)) <= records | labels
+
+    def test_the_status_block_links_to_the_section(self) -> None:
+        html = _section_of(str(render_note(_concluded(FULL))), "status")
+
+        assert 'href="#note-LIB-H01-conclusion"' in html
+        assert "結論はまだ出ていない" not in html
+
+    def test_a_design_without_a_conclusion_has_no_section(self) -> None:
+        html = str(render_note(_note()))
+
+        assert 'id="note-LIB-H01-conclusion"' not in html
+        assert "#note-LIB-H01-conclusion" not in html
+        assert "結論はまだ出ていない（分析設計が terminal status でない）。" in (
+            _section_of(html, "status")
+        )
+
+    def test_its_text_is_escaped(self) -> None:
+        evil = _event(EVIL, "conclude", EVIL)
+        note = _concluded(
+            _conclusion(
+                conclude_events=(evil,),
+                next_action=(("if_supported", EVIL),),
+                contradicting_evidence=(evil,),
+                reflect_events=(evil,),
+                open_questions=(evil,),
+            )
+        )
+
+        html = _section_of(render_note_page(note), "conclusion")
+
+        assert "<script" not in html
+        assert html.count("&lt;script&gt;alert(1)&lt;/script&gt;&quot;") >= 9

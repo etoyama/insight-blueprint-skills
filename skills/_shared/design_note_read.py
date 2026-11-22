@@ -18,12 +18,17 @@ import re
 from pathlib import Path
 from typing import cast
 
-from insight_blueprint.models.design import AnalysisDesign
+from insight_blueprint.models.design import (
+    TERMINAL_STATUSES,
+    AnalysisDesign,
+    DesignStatus,
+)
 from skills._shared._atomic import atomic_write_text
 from skills._shared.catalog_io import describe
 from skills._shared.design_io import DEFAULT_BASE_DIR, journal_events, load_design
 from skills._shared.design_note import (
     CodeCell,
+    Conclusion,
     DesignNote,
     NoteEvent,
     NoteFigure,
@@ -37,6 +42,21 @@ from skills._shared.design_note import (
 # A figure is a bare file name: it becomes a path under notebooks/.
 _FIGURE_FILE = re.compile(r"[A-Za-z0-9_.-]+")
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+# The next_action fields the report's Recommendation takes for each terminal
+# status (analysis-report/references/apa-template.md); a structure test holds
+# them equal. A dot steps into a mapping.
+NEXT_ACTION_BRANCHES = {
+    DesignStatus.supported: ("if_supported",),
+    DesignStatus.rejected: ("if_rejected.reason", "if_rejected.pivot"),
+    DesignStatus.inconclusive: (),
+}
+
+# A question event is open until a conclude event names it in
+# metadata.resolves (analysis-journal/SKILL.md, Open Questions).
+QUESTION = "question"
+CONCLUDE = "conclude"
+RESOLVES = "resolves"
 
 
 def _text(value: object) -> str | None:
@@ -149,6 +169,56 @@ def _verdict_conclusion(verdict: dict) -> str | None:
     return conclusion if isinstance(conclusion, str) else None
 
 
+def _branch_text(next_action: object, field: str) -> str | None:
+    value = next_action
+    for key in field.split("."):
+        if not isinstance(value, dict):
+            return None
+        value = cast(dict[str, object], value).get(key)
+    return value if isinstance(value, str) and value else None
+
+
+def _resolved_ids(events: list[dict]) -> set[str]:
+    resolved: set[str] = set()
+    for event in events:
+        metadata = event.get("metadata")
+        if event.get("type") != CONCLUDE or not isinstance(metadata, dict):
+            continue
+        ids = metadata.get(RESOLVES)
+        if isinstance(ids, list):
+            resolved |= {str(i) for i in ids}
+        elif ids is not None:
+            resolved.add(str(ids))
+    return resolved
+
+
+def _conclusion(
+    design: AnalysisDesign, raw: list[dict], events: tuple[NoteEvent, ...]
+) -> Conclusion | None:
+    """The records of a terminal design, copied; None before it concludes."""
+    if design.status not in TERMINAL_STATUSES:
+        return None
+    resolved = _resolved_ids(raw)
+
+    def of(kind: str) -> tuple[NoteEvent, ...]:
+        return tuple(e for e in events if e.type == kind)
+
+    return Conclusion(
+        status=design.status,
+        conclude_events=of(CONCLUDE),
+        next_action=tuple(
+            (field, text)
+            for field in NEXT_ACTION_BRANCHES[design.status]
+            if (text := _branch_text(design.next_action, field)) is not None
+        ),
+        contradicting_evidence=tuple(
+            e for e in of("evidence") if e.direction == "contradicts"
+        ),
+        reflect_events=of("reflect"),
+        open_questions=tuple(e for e in of(QUESTION) if e.id not in resolved),
+    )
+
+
 def _is_cell(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     """Whether *node* is decorated ``@app.cell`` or ``@app.cell(...)``."""
     for decorator in node.decorator_list:
@@ -234,8 +304,8 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
     Raises ValueError for a design that does not exist or fails its schema, and
     for a verdict file that is not a JSON object. A design whose notebook has
     not run has no verdict: ``verdict`` is None then, and there are no figures.
-    A notebook ``.py`` that is missing, a link, or not in the contract's shape
-    gives ``cells`` None.
+    A design not in a terminal status has no ``conclusion``. A notebook ``.py``
+    that is missing, a link, or not in the contract's shape gives ``cells`` None.
     """
     data = load_design(design_id, base_dir)
     if not data:
@@ -248,7 +318,8 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
         )
         for s in describe(design.source_ids, base_dir)["sources"]
     )
-    events = tuple(_note_event(e) for e in journal_events(design_id, base_dir))
+    raw = journal_events(design_id, base_dir)
+    events = tuple(_note_event(e) for e in raw)
     base = Path(base_dir)
     notebooks = base / "notebooks"
     notebook = _read_own_text(notebooks / f"{design_id}.py")
@@ -258,30 +329,22 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
         path for path in local_file_paths(design_id) if (base / path).is_file()
     )
     verdict_path = notebooks / f"{design_id}_verdict.json"
-    if not verdict_path.is_file():
-        return DesignNote(
-            design,
-            sources,
-            events,
-            verdict=None,
-            figures=(),
-            cells=cells,
-            lineage=lineage,
-            local_files=local_files,
-        )
-    verdict = _read_verdict(verdict_path)
+    verdict = _read_verdict(verdict_path) if verdict_path.is_file() else None
     return DesignNote(
         design,
         sources,
         events,
-        verdict=NoteVerdict(
+        verdict=None
+        if verdict is None
+        else NoteVerdict(
             metrics=_verdict_metrics(verdict),
             conclusion=_verdict_conclusion(verdict),
         ),
-        figures=_verdict_figures(verdict, notebooks),
+        figures=() if verdict is None else _verdict_figures(verdict, notebooks),
         cells=cells,
         lineage=lineage,
         local_files=local_files,
+        conclusion=_conclusion(design, raw, events),
     )
 
 
