@@ -375,10 +375,18 @@ class TestResults:
     def test_figures_are_embedded_in_order_with_their_captions(self) -> None:
         figures = (
             NoteFigure(
-                title="図の題その1", axes="x=週", how_to_read="右上がりを見る", png=PNG
+                file="a.png",
+                title="図の題その1",
+                axes="x=週",
+                how_to_read="右上がりを見る",
+                png=PNG,
             ),
             NoteFigure(
-                title="図の題その2", axes="x=支店", how_to_read="差を見る", png=b"two"
+                file="b.png",
+                title="図の題その2",
+                axes="x=支店",
+                how_to_read="差を見る",
+                png=b"two",
             ),
         )
 
@@ -405,7 +413,11 @@ class TestSafety:
                 _event("E02", "evidence", EVIL, "supports"),
             ),
             metrics=(_metric(name=EVIL, value=EVIL),),
-            figures=(NoteFigure(title=EVIL, axes=EVIL, how_to_read=EVIL, png=PNG),),
+            figures=(
+                NoteFigure(
+                    file="f.png", title=EVIL, axes=EVIL, how_to_read=EVIL, png=PNG
+                ),
+            ),
         )
 
     def test_text_from_the_design_journal_verdict_and_catalog_is_escaped(self) -> None:
@@ -416,7 +428,9 @@ class TestSafety:
         assert "&lt;script&gt;alert(1)&lt;/script&gt;&quot;" in html
 
     def test_the_page_loads_nothing_from_outside(self) -> None:
-        figures = (NoteFigure(title="t", axes="a", how_to_read="h", png=PNG),)
+        figures = (
+            NoteFigure(file="f.png", title="t", axes="a", how_to_read="h", png=PNG),
+        )
 
         html = render_note_page(_note(figures=figures))
 
@@ -439,7 +453,9 @@ class TestSafety:
             _event("E01", "observe", "o"),
             _event("E02", "evidence", "e", "supports"),
         )
-        figures = (NoteFigure(title="t", axes="a", how_to_read="h", png=PNG),)
+        figures = (
+            NoteFigure(file="f.png", title="t", axes="a", how_to_read="h", png=PNG),
+        )
         html = str(
             render_note(
                 _note(

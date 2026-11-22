@@ -184,6 +184,7 @@ def _verdict_figures(verdict: dict, notebooks: Path) -> tuple[NoteFigure, ...]:
             continue
         figures.append(
             NoteFigure(
+                file=file,
                 title=str(entry.get("title") or ""),
                 axes=str(entry.get("axes") or ""),
                 how_to_read=str(entry.get("how_to_read") or ""),

@@ -11,8 +11,14 @@ from pathlib import Path
 
 import pytest
 
-from skills._shared import design_io, tree_io
+from skills._shared import catalog_io, design_io, tree_io
 from tests.tree_io._support import _entry, _finish, _run_cli
+from tests.tree_io.test_render_design import (
+    CONNECTION_PATH,
+    _figure,
+    _write_verdict,
+)
+from tests.tree_io.test_render_design import _entry as _figure_entry
 
 
 @pytest.fixture
@@ -116,6 +122,161 @@ class TestReportWritten:
     ) -> None:
         with pytest.raises(ValueError, match="Invalid theme_id"):
             tree_io.report("../x", base_dir=tmp_path)
+
+
+def _concluded(base: Path, design_id: str = "LIB-H01") -> None:
+    """*design_id* concluded: supported, with a conclude event and evidence against it."""
+    design_io.write_journal(
+        design_id,
+        {
+            "events": [
+                {
+                    "id": f"{design_id}-E01",
+                    "type": "observe",
+                    "content": f"{design_id} は期限切れ152件、取消除外後34.6%",
+                },
+                {
+                    "id": f"{design_id}-E02",
+                    "type": "evidence",
+                    "content": "金曜に確保した本は16%のまま",
+                    "metadata": {"direction": "contradicts"},
+                },
+                {
+                    "id": f"{design_id}-E03",
+                    "type": "observe",
+                    "content": "どこにも引用しない観察",
+                },
+                {
+                    "id": f"{design_id}-E04",
+                    "type": "conclude",
+                    "content": "対象期間の期限切れは152件だった",
+                },
+            ]
+        },
+        base_dir=base,
+    )
+    _finish(base, design_id)
+
+
+def _written(base: Path) -> tuple[dict, str]:
+    result = tree_io.report("LIB", base_dir=base)
+    assert result["written"], result
+    return result, _report_path(base).read_text("utf-8")
+
+
+class TestReportContents:
+    def test_the_answered_question_comes_with_the_analysis_behind_it(
+        self, answered: Path
+    ) -> None:
+        _concluded(answered)
+        tree_io.answer(
+            "LIB", answers=[_entry("LIB-Q02", "期限切れは152件")], base_dir=answered
+        )
+
+        _, text = _written(answered)
+
+        assert "| LIB-Q02 | LIB-Q02 の問い | LIB-Q01 |" in text
+        assert "| LIB-H01 Test | LIB-Q02 | X improves Y | OLS | — |" in text
+        assert "### LIB-Q02 LIB-Q02 の問い" in text
+        assert "**根拠となる分析: LIB-H01 Test**" in text
+        assert (
+            "仮説は支持された。対象期間の期限切れは152件だった（LIB-H01-E04）" in text
+        )
+        assert "- 金曜に確保した本は16%のまま（LIB-H01-E02）" in text
+        assert "### LIB-Q03 " not in text
+
+    def test_the_appendix_lists_the_cited_records_and_no_other(
+        self, answered: Path
+    ) -> None:
+        _concluded(answered)
+        tree_io.answer(
+            "LIB", answers=[_entry("LIB-Q02", "期限切れは152件")], base_dir=answered
+        )
+
+        _, text = _written(answered)
+
+        appendix = text[text.index("## Appendix") :]
+        assert (
+            "| LIB-H01-E01 | 観察 | LIB-H01 は期限切れ152件、取消除外後34.6% |"
+            in appendix
+        )
+        assert "| LIB-H01-E04 | 結論 | 対象期間の期限切れは152件だった |" in appendix
+        assert "| LIB-H01-E02 |" in appendix
+        assert "LIB-H01-E03" not in text
+
+    def test_the_figures_of_the_answered_questions_are_returned_and_linked(
+        self, answered: Path
+    ) -> None:
+        for design_id in ("LIB-H01", "LIB-H02"):
+            _figure(answered, f"{design_id}_fig01.png")
+            _write_verdict(
+                answered,
+                design_id,
+                {"figures": [_figure_entry(f"{design_id}_fig01.png")]},
+            )
+        tree_io.answer(
+            "LIB", answers=[_entry("LIB-Q02", "期限切れは152件")], base_dir=answered
+        )
+
+        result, text = _written(answered)
+
+        assert result["figures"] == ["LIB-H01_fig01.png"]
+        assert "![図 1](../notebooks/LIB-H01_fig01.png)" in text
+        assert "LIB-H02_fig01.png" not in text
+
+    def test_neither_a_connection_nor_code_nor_lineage_reaches_the_report(
+        self, answered: Path
+    ) -> None:
+        catalog_io.create_source(
+            id="reservations",
+            name="予約台帳",
+            type="csv",
+            description="予約の一覧",
+            connection={"path": CONNECTION_PATH},
+            base_dir=answered,
+        )
+        design_io.update_design(
+            "LIB-H01", {"source_ids": ["reservations"]}, base_dir=answered
+        )
+        notebooks = answered / "notebooks"
+        notebooks.mkdir(parents=True, exist_ok=True)
+        (notebooks / "LIB-H01.py").write_text(
+            "import marimo\napp = marimo.App()\n\n@app.cell\ndef _():\n"
+            f'    raw_df = pd.read_csv("{CONNECTION_PATH}")\n    return (raw_df,)\n\n'
+            "@app.cell\ndef _(raw_df):\n    shown_cell_marker = 1\n    return\n",
+            encoding="utf-8",
+        )
+        (answered / "lineage").mkdir()
+        (answered / "lineage" / "LIB-H01.mmd").write_text(
+            "flowchart TD\n  lineage_marker\n", encoding="utf-8"
+        )
+
+        _, text = _written(answered)
+
+        assert "| 予約台帳 | csv | 予約の一覧 |" in text
+        assert CONNECTION_PATH not in text
+        assert "shown_cell_marker" not in text
+        assert "lineage_marker" not in text
+
+    def test_the_last_tree_decision_is_the_future_direction(
+        self, answered: Path
+    ) -> None:
+        tree_io.decide(
+            "LIB", kind="start", node_id="LIB-Q01", reason="始める", base_dir=answered
+        )
+        tree_io.decide(
+            "LIB",
+            kind="deepen",
+            node_id="LIB-Q03",
+            reason="通知の遅れを先に確かめる",
+            base_dir=answered,
+        )
+
+        _, text = _written(answered)
+
+        future = text[text.index("### Future Directions") : text.index("## Appendix")]
+        assert "- 次に調べる論点: LIB-Q03 LIB-Q03 の問い" in future
+        assert "- 理由: 通知の遅れを先に確かめる" in future
 
 
 class TestReportRefused:

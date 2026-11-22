@@ -26,6 +26,7 @@ from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 from insight_blueprint.models.tree import (
     Answer,
     Progress,
+    QuestionNode,
     QuestionTree,
     TreeDecisionKind,
     design_id_of,
@@ -42,7 +43,12 @@ from skills._shared.design_io import (
 )
 from skills._shared.design_note import DesignNote, note_anchor, render_note
 from skills._shared.design_note_read import load_design_note, render_design_note
-from skills._shared.theme_report import ThemeReport, render_report
+from skills._shared.theme_report import (
+    ReportDesign,
+    ReportNode,
+    ThemeReport,
+    render_report,
+)
 from skills._shared.tree_check import Violation, check_cited, check_tree
 from skills._shared.tree_render import (
     CheckFailed,
@@ -365,14 +371,66 @@ def _root_answer(tree: QuestionTree) -> Answer | None:
     return answer
 
 
-def _unfinished_designs(tree: QuestionTree, base_dir: Path) -> list[str]:
-    """The linked designs not in a terminal status, in tree order, each once."""
-    unfinished: dict[str, None] = {}
+def _linked_notes(tree: QuestionTree, base_dir: Path) -> dict[str, DesignNote]:
+    """The note of every linked design, in tree order, each once.
+
+    The report reads a design the way its analysis note does, so the two cannot
+    disagree (ADR-0039).
+    """
+    notes: dict[str, DesignNote] = {}
     for node in tree.nodes:
         for design_id in node.design_ids:
-            if status_of(require_design(design_id, base_dir)) not in TERMINAL_STATUSES:
-                unfinished[design_id] = None
-    return list(unfinished)
+            if design_id not in notes:
+                notes[design_id] = load_design_note(design_id, base_dir)
+    return notes
+
+
+def _report_node(node: QuestionNode, notes: dict[str, DesignNote]) -> ReportNode:
+    return ReportNode(
+        id=node.id,
+        question=node.question,
+        parent=node.parent_question_id or "",
+        contribution=node.contribution,
+        progress=Progress.of(notes[d].design.status for d in node.design_ids),
+        answer=node.current_answer(),
+        design_ids=tuple(node.design_ids),
+        next_candidate=node.next_candidate,
+    )
+
+
+def _theme_report(
+    tree: QuestionTree, root_answer: Answer, base_dir: Path
+) -> tuple[ThemeReport, list[str]]:
+    """The report of *tree*, and the linked designs not in a terminal status."""
+    notes = _linked_notes(tree, base_dir)
+    root = tree.root()
+    nodes = tuple(_report_node(n, notes) for n in tree.nodes if n is not root)
+    designs = tuple(ReportDesign.of(note) for note in notes.values())
+    # Two designs may read the same source; the report lists it once.
+    sources = tuple(dict.fromkeys(s for note in notes.values() for s in note.sources))
+    answers = [root_answer] + [n.answer for n in nodes if n.answer is not None]
+    cited = {c for a in answers for s in a.statements for c in s.cites} | {
+        e.id for d in designs for e in (*d.conclude_events, *d.contradicting_evidence)
+    }
+    records, _ = cited_events(cited, base_dir)
+    revision = tree.current_revision()
+    report = ThemeReport(
+        theme_id=tree.theme_id,
+        root_question=revision.question,
+        aim=revision.aim,
+        round=tree.current_round(),
+        root_revision=revision.revision,
+        answer=root_answer,
+        nodes=nodes,
+        designs=designs,
+        sources=sources,
+        decision=tree.decisions[-1] if tree.decisions else None,
+        records=records,
+    )
+    unfinished = [
+        d for d, note in notes.items() if note.design.status not in TERMINAL_STATUSES
+    ]
+    return report, unfinished
 
 
 def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
@@ -425,22 +483,13 @@ def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
     if reasons or root_answer is None:
         return {"written": False, "reasons": reasons}
 
-    unfinished = _unfinished_designs(tree, base_dir)
-    markdown = render_report(
-        ThemeReport(
-            theme_id=theme_id,
-            root_question=tree.current_revision().question,
-            aim=tree.current_revision().aim,
-            round=tree.current_round(),
-            answer=root_answer,
-        )
-    )
+    theme_report, unfinished = _theme_report(tree, root_answer, base_dir)
     report_path = Path(base_dir) / "reports" / f"{theme_id}.md"
-    atomic_write_text(report_path, markdown)
+    atomic_write_text(report_path, render_report(theme_report))
     return {
         "written": True,
         "path": str(report_path),
-        "figures": [],
+        "figures": theme_report.figures(),
         "round": tree.current_round(),
         # A later round may have answered other nodes only, so the last round
         # does not say how old the answer to the root is.

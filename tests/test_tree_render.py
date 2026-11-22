@@ -1233,7 +1233,7 @@ class TestEveryKindHasItsWord:
     @pytest.mark.parametrize(
         ("words", "kinds"),
         [
-            (tree_render._PROGRESS_WORDS, Progress),
+            (tree_render.PROGRESS_WORDS, Progress),
             (tree_render._KIND_WORDS, StatementKind),
             (tree_render._MARK_WORDS, tree_render.Mark),
             (tree_render._DECISION_LABELS, TreeDecisionKind),

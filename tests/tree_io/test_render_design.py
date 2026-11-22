@@ -18,7 +18,7 @@ import pytest
 
 from skills._shared import catalog_io, design_io
 from skills._shared._atomic import atomic_write_yaml
-from skills._shared.design_note_read import render_design_note
+from skills._shared.design_note_read import load_design_note, render_design_note
 from tests.tree_io._support import _design, _finish, _run_cli
 
 CONNECTION_PATH = "/Users/secret-analyst/data/reservations.csv"
@@ -297,6 +297,19 @@ class TestFigures:
         assert html.index("二つ目を先に載せる") < html.index("一つ目を後に載せる")
         assert "軸の説明: x = 日数, y = 期限切れ率" in html
         assert "図の読み方: 右下がりなら延長が効いている" in html
+
+    def test_each_figure_keeps_the_file_name_the_manifest_gave(
+        self, insight: Path
+    ) -> None:
+        design_id = _design(insight)
+        _figure(insight, f"{design_id}_fig01.png")
+        _write_verdict(
+            insight, design_id, {"figures": [_entry(f"{design_id}_fig01.png")]}
+        )
+
+        note = load_design_note(design_id, base_dir=insight)
+
+        assert [f.file for f in note.figures] == [f"{design_id}_fig01.png"]
 
     @pytest.mark.parametrize(
         "file",

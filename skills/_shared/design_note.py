@@ -66,6 +66,7 @@ class NoteVerdict:
 
 @dataclass(frozen=True)
 class NoteFigure:
+    file: str  # a bare file name under notebooks/, as the manifest gave it
     title: str
     axes: str
     how_to_read: str
@@ -181,7 +182,7 @@ LEAD_SENTENCES = {
 }
 
 # The kinds of journal event (docs/UBIQUITOUS_LANGUAGE.md).
-_EVENT_WORDS = {
+EVENT_WORDS = {
     "observe": "観察",
     "hypothesize": "仮説",
     "evidence": "証拠",
@@ -551,7 +552,7 @@ def _verdict_conclusion(verdict: NoteVerdict | None) -> Html:
 
 
 def _event_item(event: NoteEvent) -> Html:
-    word = _EVENT_WORDS.get(event.type, event.type)
+    word = EVENT_WORDS.get(event.type, event.type)
     at = event.created_at or "（時刻の記載なし）"
     return el(
         "li",
