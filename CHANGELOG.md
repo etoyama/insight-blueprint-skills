@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-11-22
+
+### Fixed
+
+- **A resumed `/analysis-auto` carried only the first design of a concluded round** (#161).
+  When more than one design was finished since the last tree decision, the report and the
+  upload named one `design_id`. The driver now carries each design in turn, writing its report
+  when missing and starting its upload, so every report reaches its own approval gate. The
+  theme reflection and the summary show each report with its upload outcome.
+
 ## [0.14.0] - 2026-11-22
 
 ### Added
@@ -73,11 +83,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the journal is not a list, or holds an entry that is not a mapping. It reads only the
   mappings, like every other reader of the journal, and says the event is not found when no
   real event has that id (#141).
-- **A resumed `/analysis-auto` carried only the first design of a concluded round** (#161).
-  When more than one design was finished since the last tree decision, the report and the
-  upload named one `design_id`. The driver now carries each design in turn, writing its report
-  when missing and starting its upload, so every report reaches its own approval gate. The
-  theme reflection and the summary show each report with its upload outcome.
 
 ## [0.13.0] - 2026-11-22
 
@@ -601,7 +606,8 @@ Version bumps and maintenance releases. See git history for details:
 - YAML direct edit resilience (extra field preservation + corrupt file isolation)
 - SQLite FTS5 full-text search index
 
-[unreleased]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.14.0...HEAD
+[unreleased]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.14.1...HEAD
+[0.14.1]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.11.0...v0.12.0
