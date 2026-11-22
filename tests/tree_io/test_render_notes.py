@@ -125,6 +125,34 @@ class TestNotesUnderTheTree:
         assert (tree / "themes" / "LIB_tree.html").read_bytes() == old_bytes
         assert old
 
+    def test_the_standalone_page_of_each_design_under_the_tree_is_removed(
+        self, tree: Path
+    ) -> None:
+        first, second = _design(tree), _design(tree)
+        notes = tree / "notes"
+        notes.mkdir()
+        for design_id in (first, second, "FP-H01"):
+            (notes / f"{design_id}.html").write_text("old", encoding="utf-8")
+
+        done = _run_cli(tree, "render", "--theme", "LIB")
+
+        assert done.returncode == 0, done.stderr
+        assert not (notes / f"{first}.html").exists()
+        assert not (notes / f"{second}.html").exists()
+        assert (notes / "FP-H01.html").read_text("utf-8") == "old"
+
+    def test_a_failed_render_keeps_the_standalone_pages(self, tree: Path) -> None:
+        good, broken = _design(tree), _design(tree)
+        _write_verdict(tree, broken, "[1, 2]")
+        notes = tree / "notes"
+        notes.mkdir()
+        (notes / f"{good}.html").write_text("old", encoding="utf-8")
+
+        done = _run_cli(tree, "render", "--theme", "LIB")
+
+        assert done.returncode == 1
+        assert (notes / f"{good}.html").read_text("utf-8") == "old"
+
     def test_a_design_is_known_by_its_file_name_in_its_note_too(
         self, tree: Path
     ) -> None:

@@ -267,7 +267,8 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
 
     The HTML is generated, never edited: the same tree, designs and journals give
     the same bytes. A linked design that no longer exists is an error (as in
-    ``progress``) and nothing is written.
+    ``progress``) and nothing is written. Once the page is written, the
+    standalone page ``notes/{id}.html`` of each design it holds is removed.
 
     A stale answer is not stored as withdrawn, so the page is where it shows. A
     cited id that two events share stops the check, not the page: it says so on
@@ -308,6 +309,10 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     )
     path = tree_path(theme_id, base_dir).with_suffix(".html")
     atomic_write_text(path, html)
+    # A standalone page left from before the theme had a tree would be a
+    # second, older reading surface. Removed only once the tree page is written.
+    for design_id in notes:
+        (Path(base_dir) / "notes" / f"{design_id}.html").unlink(missing_ok=True)
     return {"path": str(path)}
 
 
@@ -330,8 +335,6 @@ def render_design(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str
         return render_design_note(design_id, base_dir)
     tree = load_tree_model(theme_id, base_dir)
     path = render(theme_id, base_dir)["path"]
-    # A standalone page left by an earlier run would be a second, older reading surface.
-    (Path(base_dir) / "notes" / f"{design_id}.html").unlink(missing_ok=True)
     return {
         "path": path,
         "anchor": note_anchor(design_id),
