@@ -171,6 +171,13 @@ A round takes one node from its design to the tree decision. For each item, **fo
 skill's SKILL.md** (do not duplicate its logic here) and apply the gate policy above. Repeat
 the round until the analyst closes the walk or says stop.
 
+When the round enters at item 8 from a `concluded` position, items 8 and 9 run for each of its
+`design_ids`, in that order: finish one design's upload before the next design's report, and
+leave none of them out. Every one of them is finished, so each gets its report. Each upload
+keeps its own gate, and an answer at one design's gate, yes or no, is not the answer for the
+next. When a declined figure ends the turn, go on with the next design's report on the next
+turn. Any other round carries the one design it worked on.
+
 1. **framing brief**: a design is made from the Framing Brief of its node. When the position
    is `not_started` or `closed` and that Brief is not in the conversation yet, run
    `/analysis-framing {theme_id}` and hand it the output of `tree_io position`. For
@@ -215,9 +222,7 @@ the round until the analyst closes the walk or says stop.
 6. **journal**: the notebook step already records observe/evidence/question — no pause.
 7. **reflection**: run `/analysis-reflection {design_id}`; **pause at the conclusion**
    (conclude/refine/branch) and the terminal transition.
-8. **report**: items 8 and 9 run once for each design of the round, in the order of
-   `design_ids`: finish the upload of one design before the report of the next, and leave
-   none of them out. When the design is in a terminal status (`supported` / `rejected` /
+8. **report**: when the design is in a terminal status (`supported` / `rejected` /
    `inconclusive`), run `/analysis-report {design_id}` without asking; the report is a file on
    this machine. A report that is already there (`.insight/reports/{design_id}.md`) is not
    written again: go on to the upload with it. When the design
@@ -233,13 +238,15 @@ the round until the analyst closes the walk or says stop.
    "このレポートは前に書いた。前に送っていれば送らなくてよい。送ると Doc がもう1つできる". The note asks
    nothing: the gate stays the one question. Without the Claude Docs connector the skill sends
    nothing and asks nothing; go on to the next design's report, or after the last one go on to
-   the theme reflection. Skip this item when the round has no report. Keep the skill's one-line outcome for item 10 and the summary.
+   the theme reflection. Skip this item when the round has no report. Keep the skill's
+   one-line outcome for item 10 and the summary.
 10. **theme reflection**: run `/analysis-reflection {theme_id}`. It writes the current answer
     of each node, checks them, shows the next candidates and renders the HTML without asking. Its
-    Step T7 is the KEEP gate of the round. Before that gate, show the report's path next to the
+    Step T7 is the KEEP gate of the round. Before that gate, show each report's path next to the
     path of the tree's HTML, so the analyst decides with both in view. The reports are those of
-    all of this round's designs, also when an earlier run wrote them; for each, add the upload outcome. A round without a conclusion has no report: say so. Never choose the kind, the node or the reason for them, and never
-    fill in an answer they heard.
+    the designs this round carried, also when an earlier run wrote them; for each, add the
+    upload outcome. A round without a conclusion has no report: say so. Never choose the kind,
+    the node or the reason for them, and never fill in an answer they heard.
 11. **next round**: after a `deepen` or a `return` the walk goes on: read `tree_io position`
     again and start the next round at item 1, in the same turn. Do not summarize in between, and
     never tell the analyst to run `/analysis-auto` again to continue: a decision that names the
@@ -262,8 +269,8 @@ Two things happen only when the analyst asks for them, at any point of the walk:
 Report what ran automatically, where it paused and why, and the final state (status, journal, lineage).
 For the walk, add the nodes it went through, the tree decisions the analyst took, the path of
 the tree's HTML, and the node the next `/analysis-auto {theme_id}` resumes from.
-When the round has a report, add the report's path and the upload outcome, for each report of the round: the Doc URL, "承認されなかった",
-"コネクタが無い", or "アップロードに失敗した" with the reason.
+For each report of the round, add the report's path and the upload outcome: the Doc URL,
+"承認されなかった", "コネクタが無い", or "アップロードに失敗した" with the reason.
 
 ## Delegated skills
 

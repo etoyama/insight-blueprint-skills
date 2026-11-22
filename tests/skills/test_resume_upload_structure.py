@@ -85,7 +85,7 @@ class TestTheRestOfTheSkillAgrees:
 
     def test_the_summary_covers_any_report_of_the_round(self) -> None:
         summary = unwrap(section(auto(), "### Step 4:"))
-        assert "When the round has a report, add the report's path" in summary
+        assert "For each report of the round, add the report's path" in summary
 
     def test_the_chaining_row_starts_the_upload_for_any_report(self) -> None:
         rows = table_rows(split_sections(auto())["Chaining"])
