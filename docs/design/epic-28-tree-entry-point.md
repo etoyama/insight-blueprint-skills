@@ -416,7 +416,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 
 ### Decision: the-card-jumps-only-to-the-design-note
 
-- What: 論点のカードには、結んだ分析設計ごとに、分析ノートへ飛ぶアンカーを1つだけ出す。図・verdict・notebook・レポートへは、分析ノートからたどる。
+- What: 論点のカードには結んだ分析設計ごとに、分析ノートへ飛ぶアンカーを1つだけ出す。図・verdict・notebook・レポートへは、分析ノートからたどる。
   分析ノートはテーマの分析設計すべてに作る。notebook をまだ実行していない分析設計にも作る。
 - Why: 論点から根拠へたどる手数を減らしつつ、論点のカードを軽く保つ（issue #173 の求める運用）。
 - Criteria: 論点のカードから飛んだ先が必ず在ること（Must、課題1）。論点から根拠までの手数（高、人間）。論点のカードが軽いこと（高、人間）。決め手は後の2つ。
@@ -523,7 +523,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 
 - What: 表示の型の名前を確定する（Story 28.1）。`DesignNote`・`NoteFigure`・`CodeCell`・`Conclusion` は初版のままにし、`NoteSource`・`NoteEvent`・`NoteVerdict`・`VerdictMetric` を足す。
   `DesignNote` の `verdict` は項目名を残し、中身を `NoteVerdict` にする。verdict のファイルが無いときは `None` である。`DesignNote` に `sources` を足す。
-  verdict の数は、JSON に書かれた文字のまま読む（`json.loads` の `parse_float=str` と `parse_int=str`）。
+  verdict の数は JSON に書かれた文字のまま読む（`json.loads` の `parse_float=str` と `parse_int=str`）。
 - Why: 「値は書かれたとおりに出し、計算しない」（US-1 AC 2）を、表示の関数の注意ではなく型で守る。数を float で持つと、`0.00010` が `0.0001` に、`0.00001` が `1e-05` に変わる。
   データソースを辞書のまま渡すと、接続情報が表示まで届きうる。
   28.2 は verdict の `conclusion` を載せる（US-2 AC 3）。`DesignNote` に直に置くと、28.3 の `conclusion`（結論の節）と名前が当たる。
@@ -532,7 +532,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
   決め手は3つめ。人間が Decision Analysis の提示から、この形を選んだ（2026-11-22、Story 28.1 のセッション）。
 - Affected modules: `skills/_shared/design_note.py`、`skills/_shared/design_note_read.py`。
 - Alternatives considered:
-  - verdict を辞書のまま `DesignNote` に持たせる。表示の関数が、形の崩れた verdict を毎回確かめることになる。
+  - verdict を辞書のまま `DesignNote` に持たせる。表示の関数が形の崩れた verdict を毎回確かめることになる。
   - `DesignNote` の `verdict` を `metrics` に改める（最初の実装）。verdict の `conclusion` の置き場が無く、28.2 が図をもう一度変えることになる。
   - `Conclusion` を `NoteConclusion` に改める。verdict の `conclusion` と紛れるが、Domain Model 図の変更が増える。28.3 が実装するときに決められる。
 - Consequences: Domain Model 図に型を4つ足し、`DesignNote` に `sources` を足した。図の変更は人間が承認した（2026-11-22）。
@@ -557,9 +557,9 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 
 ### Decision: the-data-load-cell-is-the-one-that-binds-raw-df
 
-- What: データ取得の cell は、`raw_df` を束縛する cell とする（Story 28.2）。notebook の `.py` を `ast` で読み、トップレベルの `@app.cell` か `@app.cell(...)` の関数を cell とする。
+- What: データ取得の cell は `raw_df` を束縛する cell とする（Story 28.2）。notebook の `.py` を `ast` で読み、トップレベルの `@app.cell` か `@app.cell(...)` の関数を cell とする。
   `raw_df` を束縛する cell がちょうど1つのときだけ、それを除いた cell を `CodeCell` にする。読めない、cell が無い、`raw_df` を束縛する cell が0か2つ以上のときは、コードを1つも載せない。
-  `CodeCell` は `position`（ファイルの中の cell の順番、1から）と `source`（デコレータからの書かれたとおりの文字）を持つ。抜けた番号が、載せなかった cell を表す。
+  `CodeCell` は `position`（ファイルの中の cell の順番、1から）と `source`（デコレータからの書かれたとおりの文字）を持つ。抜けた番号が載せなかった cell を表す。
   notebook の `.py` と lineage は、シンボリックリンクなら読まない。
 - Why: データ取得の cell には接続情報の値が入る（ADR-0022）。分析ノートは Artifact で外に出る（ADR-0037）ので、取り違えれば接続情報が漏れる。
 - Criteria: データ取得の cell を載せないこと（Must、US-2 AC 2、ADR-0036）。特定できなければ何も載せないこと（Must、US-2 AC 2）。
@@ -570,7 +570,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
   - `import marimo as mo` を持つ cell とする。契約の目印だが、どのデータを読むかとは関係が無い。`raw_df` は契約で cell 2 だけが作る名前で、marimo は1つの名前を2つの cell で作れない（契約の marimo rules 8）。
   - 8つの cell の署名をすべて照らす。参照用の notebook も引数の順が契約と違い、何も載らなくなる。
 - Consequences: データ取得の cell のほかの cell に分析者が接続情報を書き足しても、検査しない（ADR-0036 の Negative と同じ）。
-  marimo のファイルの形（`@app.cell`）が変わると、コードが載らなくなる。載らなくなるだけで、漏れる向きには倒れない。
+  marimo のファイルの形（`@app.cell`）が変わると、コードが載らなくなる。載らなくなるだけで、漏れることにはならない。
 
 ### Decision: the-verdict-conclusion-is-text-or-absent
 
@@ -587,7 +587,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 - What: 「手元のファイル」の節のリンクは `../` に `.insight/` からのパスをつないだ相対リンクにする（Story 28.2）。
   単独のページ（`.insight/notes/`）も論点ツリーの HTML（`.insight/themes/`）も `.insight/` の1段下なので、同じリンクで通る。
   候補と並びは `design_note.LOCAL_FILES`（notebook の `.py`、verdict、lineage、notebook の HTML、レポート）で、在るものだけを出す。
-  「分析の経過」の節は、journal の出来事を journal に書いた順に出し、それを時刻の順とする。
+  「分析の経過」の節は journal の出来事を journal に書いた順に出し、それを時刻の順とする。
 - Why: 28.4 は同じ `render_note` を論点ツリーの HTML に置くので、置き場所でリンクを変えずに済む。
   journal に足す道（`append_journal_event`）は、足す時点の時刻を `created_at` に書いて末尾に積むので、書いた順が時刻の順になる。
 - Criteria: 単独のページと論点ツリーの HTML の両方で開けること（Must、US-2 AC 5、US-4 AC 1）。時刻の順に出すこと（Must、US-2 AC 3）。
@@ -604,7 +604,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 
 - What: `tree_io render --theme` は、テーマの分析設計すべての分析ノートを作ってから、ページを書く（Story 28.4）。1つでも作れなければ `ValueError` にして、何も書かない。前に書いたページは変えない。
   文は `analysis note of '{design_id}' cannot be built: {理由}` で、理由は1行に詰める。CLI は今までどおり、`tree_io: ` を付けて stderr に出し、exit 1 で終わる。
-  分析設計の id は、今までどおりファイル名から取る。中の `id` がファイル名と違う分析設計（写したファイル）の分析ノートは、見出しとアンカーをファイル名の id にする。
+  分析設計の id は今までどおりファイル名から取る。中の `id` がファイル名と違う分析設計（写したファイル）の分析ノートは、見出しとアンカーをファイル名の id にする。
 - Why: 論点のカードと派生の節のアンカーは、飛んだ先が必ず在ることを前提にする（Decision `the-card-jumps-only-to-the-design-note`）。分析ノートの欠けたページを書くと、飛べないアンカーが残る。
   エラーが分析設計を名指ししないと、分析者はどのファイルを直すか分からない。
 - Criteria: 飛んだ先が必ず在ること（Must、US-4 AC 1、AC 2）。直すファイルが文から分かること（高、Claude の推測、Epic 18 の `render` の決まり）。
@@ -626,14 +626,14 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
   verdict と図を置いたテーマで `render --theme` を2回呼び、同じバイト列になることを見る。verdict を書き換えると、ページが変わることも見る。ページに `.insight/` の絶対パスが入らないことも見る。
   引き継ぎの試行のテスト（`tests/test_handoff_trial.py` の `test_the_html_is_the_same_bytes_every_time`）は、時計を止めてからシナリオを2回作って比べる。
 - Why: Epic 18 のテストは、正本が同じなら同じバイト列になることだけを見ていた。notebook の出力もページを決めるようになったので、入力が変わればページが変わることも見ないと、不変条件の半分しか守れない。
-  分析ノートは、載せた journal の最後の出来事の時刻を出す（Decision `render-right-before-showing`）。試行のシナリオは journal の出来事をその場の時刻で書くので、2回作ると入力が違う。
+  分析ノートは載せた journal の最後の出来事の時刻を出す（Decision `render-right-before-showing`）。試行のシナリオは journal の出来事をその場の時刻で書くので、2回作ると入力が違う。
 - Criteria: `uv run poe all` が通ること（Must）。不変条件が ADR-0036 と食い違わないこと（Must）。「シナリオがページを決める」ことを試行のテストが守り続けること（中、Claude の推測）。
   担当の外のファイルに入れる変更の量（高、親のセッションのブリーフ）。テストが内部に縛られないこと（中、Claude の推測）。決め手は3つめ。人間が Decision Analysis の提示から、この形を選んだ（2026-11-23、Story 28.4 のセッション）。
 - Affected modules: `tests/tree_io/test_render_notes.py`、`tests/test_handoff_trial.py`。
 - Alternatives considered:
   - `scripts/handoff_trial.py` の `build` が時刻を固定して作る。渡す HTML まで毎回同じになるが、製品のコードに試行のための変更が入る。
   - 試行のテストを、同じ `.insight/` を2回 render する形に改める。`tests/tree_io/` に同じ検査があり、シナリオの作りが揺れても気づけない。
-- Consequences: 試行のテストは、journal の出来事の時刻を書く関数（`design_io` の `now_jst`）を知っている。時刻を書く所が増えると、このテストが赤くなって気づける。
+- Consequences: 試行のテストは journal の出来事の時刻を書く関数（`design_io` の `now_jst`）を知っている。時刻を書く所が増えると、このテストが赤くなって気づける。
   試行で読み手に渡す HTML には、作った時刻が載る。`build` は `tree_io render` を呼ぶので、読み手に渡す HTML には分析ノートも入る。試行の型（問いと鍵）は変えていない（Scope の範囲外のまま）。
 
 ### Decision: render-design-says-where-the-note-is
@@ -644,12 +644,12 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
   論点ツリーの HTML を書いた後、前に書いた単独のページ（`.insight/notes/{design_id}.html`）が在れば消す。
 - Why: 28.5 の読むものは、開くファイル、分析ノートの場所、対象の論点を出す（US-5 AC 2）。呼ぶ側が正本を読み直さずに済むように、3つを一度に返す。
   単独のページが残ると、同じ分析設計に読む面が2つでき、古い方を開きうる（Decision `show-the-entry-at-the-conclusion-gate` の、読む面が1つであること）。
-- Criteria: 返したアンカーがページに必ず在ること（Must、US-4 AC 4）。呼ぶ側の手順が、論点ツリーの有無で分かれないこと（高、US-5 AC 1）。読む面が1つであること（高、人間）。決め手は最初の1つ。
+- Criteria: 返したアンカーがページに必ず在ること（Must、US-4 AC 4）。呼ぶ側の手順が論点ツリーの有無で分かれないこと（高、US-5 AC 1）。読む面が1つであること（高、人間）。決め手は最初の1つ。
 - Affected modules: `skills/_shared/tree_read.py`（`render_design`）、`skills/_shared/tree_io.py`。
 - Alternatives considered:
   - 分析設計のテーマを、ファイルの中の `theme_id` から取る。ページに並ぶ分析設計はファイル名で決まるので（`designs_of_theme`）、中の値が違うと、返したアンカーがページに無い。
   - 論点に結んでいないときは `anchor` と `node_ids` を返さない。US-5 AC 2 はパスだけを出すと決めているが、何を出すかは SKILL.md が決めればよく、返す形は分かれない方が読みやすい。
-- Consequences: テーマはファイル名（`{theme_id}-H{nn}`）から取る。この形でない id の分析設計は、単独のページになる。
+- Consequences: テーマはファイル名（`{theme_id}-H{nn}`）から取る。この形でない id の分析設計は単独のページになる。
   `render --design` は、テーマの分析ノートをすべて作り直す。ほかの分析設計の分析ノートが作れないと、対象の分析設計の分析ノートも示せない。
   28.5 は、`anchor` が在れば分析ノートの場所として示し、`node_ids` が空でなければ論点を示す。どちらも無ければ `path` だけを示す。
 
@@ -709,7 +709,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 
 ### Decision: the-entry-is-filled-from-what-render-returns
 
-- What: 読むもののブロックは、`tree_io render --design` の返した JSON だけから組む（Story 28.5）。
+- What: 読むもののブロックは `tree_io render --design` の返した JSON だけから組む（Story 28.5）。
   論点に結んでいれば `開くファイル: {path}`、`分析ノート: {path}#{anchor}`、`論点: {node_ids}` の3行を出す。`anchor` が無いか `node_ids` が空なら、`分析ノート:` の1行だけを出し、`anchor` が無ければ `#{anchor}` を省く。
   ブロックの末尾に、気づいたことをチャットで返せば journal に残すことを書く。render が失敗したら stderr を出してパスを示さず、Step 3 には進む。
   返った JSON の読み方は `/analysis-reflection` の `#### 読むもの` の1か所に書き、`/analysis-notebook` の Step 7 はそこを指す。`/analysis-auto` は reflection の行と item 7 に、Step 2 が分析ノートを示すことと、driver が分析ノートを読まないことだけを書く。
@@ -728,7 +728,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 
 - What: 上限の判定は `/tree-upload` の Step 2 で、Artifact の有無を確かめた後に行う（Story 28.6）。`wc -c < {path}` で送るファイルのバイト数を数え、16,000,000 バイトを超えれば、バイト数とパスを示して止める。承認は聞かず、何も送らず、ページを縮めも分けも書き換えもしない。
   上限の 16MB は 10進の 16,000,000 バイトと読む。`tree_io` は変えない。呼んだ skill に返す結果に「大きすぎて送れない」を足した。
-- Why: US-6 AC 3 は、承認を聞く前に上限を超えることを伝えて何も送らないことを求める。上限は Artifact というホストの機能の決まりで、`tree_io` は Artifact を知らない（[ADR-0015](../adr/0015-host-connectors-for-optional-features.md)）。
+- Why: US-6 AC 3 は承認を聞く前に上限を超えることを伝えて何も送らないことを求める。上限は Artifact というホストの機能の決まりで、`tree_io` は Artifact を知らない（[ADR-0015](../adr/0015-host-connectors-for-optional-features.md)）。
 - Criteria: 承認を聞く前に止まること（Must、US-6 AC 3）。数えるのが送るファイルそのものであること（Must、Epic 18 の US-6 AC 3）。ホストの上限を `tree_io` に持ち込まないこと（高、Claude の判断、ADR-0015）。足すコード（高、YAGNI）。決め手は後の2つ。
 - Affected modules: `skills/tree-upload/SKILL.md`、`tests/skills/test_tree_upload_structure.py`。
 - Alternatives considered:
@@ -778,7 +778,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 - 2026-11-22 — Story 28.1 completed: `tree_io render --design` が分析ノートの単独のページ（`.insight/notes/{design_id}.html`）を書く。US-1 の AC 1〜5。
   モジュールを `_html.py`・`design_note.py`・`design_note_read.py` に分け、表示の型に `NoteSource`・`NoteEvent`・`NoteVerdict`・`VerdictMetric` を足した（Domain Model 図の変更は人間が承認した）。
 - 2026-11-22 — 手動確認（28.1）: 合成のプロジェクト（分析設計、catalog、journal、verdict、図2枚）で `bin/tree_io render --design LIB-H01` を2回通し、同じバイト列になった。
-  built-in browser で開き、script が0件、外部への要求が0件、図が2枚とも出ること、幅 375px でページが横にはみ出さないことを見た。列の多い表は、表の枠の中で横に送れる。
+  built-in browser で開き、script が0件、外部への要求が0件、図が2枚とも出ること、幅 375px でページが横にはみ出さないことを見た。列の多い表は表の枠の中で横に送れる。
 - 2026-11-23 — Story 28.2 completed: 分析ノートに、分析コード（cell ごとに畳む。データ取得の cell は載せない）、lineage の Mermaid の文字、分析の経過（verdict の `conclusion` と journal のすべての出来事）、手元のファイルへの相対リンクを足した。US-2 の AC 1〜5。
   `NoteVerdict` に `conclusion` を足した（Domain Model 図の変更）。用語表に「データ取得の cell」を足した。
 - 2026-11-23 — 手動確認（28.2）: 合成のプロジェクト（分析設計、catalog、journal、CSV のデータソース）で、契約の形の notebook を書いて実際に走らせ、verdict・図・lineage を書き出した。
