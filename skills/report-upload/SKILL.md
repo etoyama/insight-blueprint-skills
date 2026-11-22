@@ -120,14 +120,25 @@ no byline or date line added.
    number. Captions stay. No local path of an image may reach the Doc.
 2. Create a new Doc with the report's title (its first `#` heading) and that body. Always a new
    Doc — never overwrite, update, or reuse one, even when the same report was uploaded before.
-3. Then, for each figure in report order, one figure at a time after the body is in place:
+3. If there are figures to upload, show the Doc's URL before the first figure upload, in one
+   message (`{count}` is the number of figures listed at the KEEP gate in Step 3):
+   「Doc を作った: {URL}。図 {count} 枚をこれから1枚ずつ載せる。図ごとにホストの承認カードが出ることがある。
+   断ると、その図とそれより後の図は Doc に載らず、注記のまま残る。断るとこのターンが終わることもある。
+   Doc は自分だけに見える状態。読者に渡すには Claude Docs で共有する」
+   A decline can end the turn, so Step 5 may never run. This message is then all the analyst
+   keeps, and when `/analysis-auto` started this skill, its URL is the outcome.
+4. Then, for each figure in report order, one figure at a time after the body is in place:
    upload the PNG with the host's asset upload into that Doc, make the connector's object for
    that upload in the Doc, and replace the note with that figure's number with an image link to
    that object.
-   - If an upload or embed fails or is declined: omit
-     that figure and leave its one-line note. Go on to the next one. A figure that could not be
-     embedded must never fail the upload as a whole.
-   - Upload only the figures listed in Step 3.
+   - If an upload or embed fails: omit that figure and leave its one-line note. Go on to the
+     next one. A figure that could not be embedded must never fail the upload as a whole.
+   - If the analyst declines an upload: upload no further figures, leave their notes, and go to
+     Step 5. A tool result that says the analyst refused counts as a decline, not a failure.
+     The approval at the KEEP gate in Step 3 does not outrank that "no".
+   - On the next turn after a decline that ended the turn, upload no figure of this run again:
+     go to Step 5.
+   - Upload only the figures listed at the KEEP gate in Step 3.
 
 If creating the Doc itself fails, report the error and exit; nothing else is sent. The outcome
 is "アップロードに失敗した" with the reason.

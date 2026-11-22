@@ -192,6 +192,11 @@ class TestFigures:
     def test_a_failed_figure_does_not_fail_the_upload(self) -> None:
         assert "never fail the upload" in _step(4).lower()
 
+    def test_a_failed_figure_moves_on_to_the_next(self) -> None:
+        step = _step(4)
+        assert "If an upload or embed fails" in step
+        assert "Go on to the next one" in step
+
     def test_no_local_path_reaches_the_doc(self) -> None:
         assert "no local path" in _step(4).lower()
 
@@ -230,3 +235,53 @@ class TestFigureRoute:
         step = _step(3)
         assert "no asset upload" in step
         assert "図: 送らない" in step
+
+
+class TestDeclinedFigureUpload:
+    """#155: a declined figure upload can end the turn, so the URL must come first.
+
+    The host's asset upload can show the analyst an approval card, and a decline
+    can end the turn (the connector's guide on uploads). Step 5 never runs then,
+    so the Doc's URL and what happens to the figures are shown before the first upload.
+    """
+
+    def test_shows_the_url_before_the_first_figure_upload(self) -> None:
+        step = _step(4)
+        assert step.index("Doc を作った: {URL}") < step.index(
+            "asset upload into that Doc"
+        )
+
+    def test_the_message_names_the_count_the_host_approval_and_the_notes(self) -> None:
+        step = _step(4)
+        for item in ("{count}", "ホストの承認カード", "注記のまま残る"):
+            assert item in step, f"the pre-upload message must carry {item}"
+
+    def test_the_message_does_not_promise_that_a_decline_ends_the_turn(self) -> None:
+        # Hosts differ; the message states only what holds on either path.
+        assert "断るとこのターンはそこで終わる" not in _step(4)
+
+    def test_the_message_says_how_to_share_the_doc(self) -> None:
+        # When the turn ends here, this message is all the analyst keeps of Step 5.
+        assert "読者に渡すには Claude Docs で共有する" in _step(4)
+
+    def test_a_decline_stops_the_remaining_uploads_and_goes_to_step_5(self) -> None:
+        # Approving the list at the KEEP gate does not outrank a "no" on the host's card.
+        step = _step(4)
+        assert "upload no further figures" in step
+        assert "go to Step 5" in step
+        assert "does not outrank" in step
+
+    def test_a_refusal_returned_as_a_tool_result_is_a_decline(self) -> None:
+        # Read as a failure, it would move on to the next figure and ask again.
+        assert "counts as a decline, not a failure" in _step(4)
+
+    def test_the_next_turn_after_a_decline_uploads_nothing_again(self) -> None:
+        step = _step(4)
+        assert "On the next turn" in step
+        assert "upload no figure of this run again" in step
+
+    def test_step_3_inside_step_4_names_the_keep_gate(self) -> None:
+        # Step 4 has its own item 3; "Step 3" alone reads as that item.
+        step = _step(4)
+        assert "the KEEP gate in Step 3" in step
+        assert "approval at Step 3" not in step

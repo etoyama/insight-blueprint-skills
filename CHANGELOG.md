@@ -59,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill now names the route: upload the PNG into the Doc with the host's asset upload, then link
   it from the Doc. Where the host has no asset upload (such as Claude Code in the terminal at this
   release), the approval list says before you approve that the figures are not sent.
+- **`/report-upload` showed no URL when you declined a figure upload** (#155). Declining the
+  host's approval card for a figure ends the turn, so the Doc was made but its URL never reached
+  you. The skill now shows the URL before it uploads the first figure. Declining one figure
+  stops the upload of the rest; they stay as notes in the Doc.
 - A design branched off in `/analysis-journal` is now linked to the question nodes of its
   source (`tree_io link-derived`), so it shows in the progress, in the position of the walk and
   in the theme reflection. Nobody is asked for the node
