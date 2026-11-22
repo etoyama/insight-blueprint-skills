@@ -29,6 +29,7 @@ NO_PAYLOAD = [
     ("catalog_io", "get-knowledge", "--id", "src"),
     ("catalog_io", "search", "--query", "src"),
     ("tree_io", "link", "--theme", "LIB", "--node", "LIB-Q01", "--design", "LIB-H01"),
+    ("tree_io", "link-derived", "--theme", "LIB", "--design", "LIB-H01"),
     ("tree_io", "candidates", "--theme", "LIB"),
     ("tree_io", "copy-hearing", "--theme", "LIB", "--node", "LIB-Q01")
     + ("--design", "LIB-H01"),
@@ -70,13 +71,35 @@ def test_a_command_without_payload_returns_while_stdin_stays_open(
     assert "ModuleNotFoundError" not in err
 
 
+WITH_PAYLOAD = [
+    (design_io, "create"),
+    (design_io, "review-batch"),
+    (design_io, "update"),
+    (catalog_io, "add-knowledge"),
+    (catalog_io, "create"),
+    (catalog_io, "update"),
+    (tree_io, "add-node"),
+    (tree_io, "answer"),
+    (tree_io, "candidate"),
+    (tree_io, "create"),
+    (tree_io, "decide"),
+    (tree_io, "hear"),
+    (tree_io, "revise-root"),
+]
+
+
+@pytest.mark.parametrize("module", [design_io, catalog_io, tree_io])
+def test_every_command_is_listed_as_reading_stdin_or_not(module) -> None:
+    name = module.__name__.rsplit(".", 1)[-1]
+    listed = [a[1] for a in NO_PAYLOAD if a[0] == name] + [
+        c for m, c in WITH_PAYLOAD if m is module
+    ]
+    assert sorted(listed) == sorted(module._COMMANDS)
+
+
 @pytest.mark.parametrize(
     "module, command",
-    [
-        (m, c)
-        for m in (design_io, catalog_io, tree_io)
-        for c in sorted(m._TAKES_PAYLOAD)
-    ],
+    WITH_PAYLOAD,
     ids=lambda v: v if isinstance(v, str) else v.__name__.rsplit(".", 1)[-1],
 )
 def test_a_command_with_payload_reads_stdin(
