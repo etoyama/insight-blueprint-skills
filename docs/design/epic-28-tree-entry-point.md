@@ -112,12 +112,12 @@ AC の正本はここ。
 
 分析者として、定例報告やレビューで根拠まで見せるために、分析ノートを含む論点ツリーの HTML を Artifact で渡したい。
 
-- [ ] AC 1: `/tree-upload` は、`tree_io render --theme` が書いた1ファイルを、今までどおり書き換えずに送る。添えるファイルは送らない。
-- [ ] AC 2: KEEP ゲートの承認の文に、ページに載る中身を書く。論点ツリーに加えて、分析設計ごとの分析ノート（手法、指標の値、図、journal のすべての出来事、分析コード、結論の後は結論と振り返りの本文）である。
+- [x] AC 1: `/tree-upload` は、`tree_io render --theme` が書いた1ファイルを、今までどおり書き換えずに送る。添えるファイルは送らない。
+- [x] AC 2: KEEP ゲートの承認の文に、ページに載る中身を書く。論点ツリーに加えて、分析設計ごとの分析ノート（手法、指標の値、図、journal のすべての出来事、分析コード、結論の後は結論と振り返りの本文）である。
   分析ノートを含まない論点ツリーだけを送る手段が無いことも書く。
-- [ ] AC 3: ファイルが Artifact の上限（16MB）を超えるときは、承認を聞く前にそう伝え、何も送らない。
-- [ ] AC 4: notebook の `.py`・verdict・Markdown のレポート・notebook の HTML は送らない。
-- [ ] AC 5: README、[docs/ARCHITECTURE.md](../ARCHITECTURE.md)（`.insight/` の構成、KEEP ゲートの一覧、シーケンス図）、[docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md)（アップロード、分析ノートのコード上の名前）、`/analysis-auto` の tree-upload の行が、実装と食い違わない。
+- [x] AC 3: ファイルが Artifact の上限（16MB）を超えるときは、承認を聞く前にそう伝え、何も送らない。
+- [x] AC 4: notebook の `.py`・verdict・Markdown のレポート・notebook の HTML は送らない。
+- [x] AC 5: README、[docs/ARCHITECTURE.md](../ARCHITECTURE.md)（`.insight/` の構成、KEEP ゲートの一覧、シーケンス図）、[docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md)（アップロード、分析ノートのコード上の名前）、`/analysis-auto` の tree-upload の行が、実装と食い違わない。
 
 ## Stories
 
@@ -724,6 +724,31 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
   Epic 26 の Decision（読むものの指標に `data_source` を出さない）は、指標をチャットに出さなくなったので当てはまる所が無くなった。Epic 26 の DesignDoc は凍結しているので直さない。
   ブロックの差し込み口は `render --design` の返すキーと構造テストで照らすので、返す形を変えるとテストが落ちる。
 
+### Decision: the-skill-counts-the-bytes-before-the-gate
+
+- What: 上限の判定は `/tree-upload` の Step 2 で、Artifact の有無を確かめた後に行う（Story 28.6）。`wc -c < {path}` で送るファイルのバイト数を数え、16,000,000 バイトを超えれば、バイト数とパスを示して止める。承認は聞かず、何も送らず、ページを縮めも分けも書き換えもしない。
+  上限の 16MB は 10進の 16,000,000 バイトと読む。`tree_io` は変えない。呼んだ skill に返す結果に「大きすぎて送れない」を足した。
+- Why: US-6 AC 3 は、承認を聞く前に上限を超えることを伝えて何も送らないことを求める。上限は Artifact というホストの機能の決まりで、`tree_io` は Artifact を知らない（[ADR-0015](../adr/0015-host-connectors-for-optional-features.md)）。
+- Criteria: 承認を聞く前に止まること（Must、US-6 AC 3）。数えるのが送るファイルそのものであること（Must、Epic 18 の US-6 AC 3）。ホストの上限を `tree_io` に持ち込まないこと（高、Claude の判断、ADR-0015）。足すコード（高、YAGNI）。決め手は後の2つ。
+- Affected modules: `skills/tree-upload/SKILL.md`、`tests/skills/test_tree_upload_structure.py`。
+- Alternatives considered:
+  - `tree_io render` の返す JSON に `bytes` を足し、skill はその値と比べる。シェルのコマンドは要らないが、ホストの事情のために `render` の返す形が変わり、呼ぶ skill が3つある `render` の契約が広がる。
+  - `tree_io` に上限の検査を入れ、超えたら exit 1 にする。手元で開く論点ツリーの HTML まで上限で止まる。
+  - 上限を 16MiB（16,777,216 バイト）と読む。Artifact の説明は「16MB」とだけ書く。ホストが 10進で数えていれば、その間のファイルは送った後に断られる。
+- Consequences: 数えるコマンドは構造テストが SKILL.md から取り出し、`tree_io render` が書いたファイルで実行して、ファイルの大きさと一致することを確かめる。比べるのはモデルである。
+  合成のプロジェクトで測った大きさ（2026-11-23）は次のとおり。分析設計ごとに journal の出来事20件、20 cell の notebook、図を持たせた。図は 3,000 点の散布図で、8×5 インチ、dpi 100 なら 77KB、dpi 150 なら 152KB の PNG である。
+  ページの大きさは、図の PNG の合計の 1.33 倍（base64 で埋め込むため）に、分析設計ごとのおよそ 40KB を足した値に近かった。
+
+  | 分析設計 × 図 | dpi 100 | dpi 150 |
+  |---|---|---|
+  | 3 × 3 | 1.04MB | 1.94MB |
+  | 10 × 3 | 3.45MB | 6.44MB |
+  | 10 × 5 | 5.50MB | 10.48MB |
+  | 20 × 5 | 11.00MB | 20.98MB |
+  | 40 × 5 | 22.01MB | 41.97MB |
+
+  dpi 150 の散布図なら、図がおよそ 75 枚で上限に届く。見本（分析設計3つ、図3枚）は 126KB で、線や棒の図は散布図よりずっと小さい。分析設計が 10 を超え、図の多いテーマで超えうる。超えたときに大きさを抑える手段は決めていない（Scope の範囲外）。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0036: 分析ノートは、分析設計ごとにコードが生成し、論点ツリーの HTML の中に並べる](../adr/0036-design-note-is-a-generated-page-per-design.md): 分析ノートの中身と決まり、置き方、結論の後の節、Epic 18 の US-5 AC 1 の文言の変更、読むものの意味の変更。
@@ -740,7 +765,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 | 28.3 結論の後の節を埋める | ✓（`tests/test_design_note.py` の `TestConclusion`。決まった文、置き場、記録の写し、無いものを省くこと、記録と決まった見出しのほかの文字が無いこと、エスケープ。`tests/skills/test_design_note_report_structure.py`。決まった文・勧めの元・未解決の問いの定義をレポートのテンプレートと照らす） | ✓（`tests/tree_io/test_render_design.py` の `TestConclusion`。status ごとの枝、解決済みの問いを出さないこと、未結論の分析設計に節が無いこと、Markdown のレポートを読まないこと） | —（自動の E2E は無い。built-in browser の手動確認を Story Timeline に書いた） |
 | 28.4 論点ツリーの HTML に並べる | ✓（`tests/test_tree_render.py`。アンカー、戻るアンカー、並び、分析ノートを二重にエスケープしないこと、論点ツリーの側が別の HTML へのリンクを出さないこと） | ✓（`tests/tree_io/test_render_notes.py`、`tests/tree_io/test_render_design_in_tree.py`。アンカーの飛び先がすべて同じファイルに在ること、2回で同じバイト列、作れない分析ノートのエラー、`render --design` の返す形） | —（自動の E2E は無い。built-in browser の手動確認を Story Timeline に書いた） |
 | 28.5 結論の段で示す | ✓（`tests/skills/test_reflection_materials_structure.py`。render を1回だけ読むものの直前に呼ぶこと、ブロックの差し込み口が `render --design` の返すキーと一致すること、notebook の出力と指標を並べないこと、notebook が journal の後に render し読み方は reflection を指すこと、返信が既存の出来事になること、auto が食い違わないこと） | —（足したのは skill の prose で、`tree_io` の振る舞いは 28.4 の Integration が確かめている） | —（自動の E2E は無い。合成のプロジェクトでの手動確認を Story Timeline に書いた） |
-| 28.6 分析ノートを含めて送る | ☐（SKILL.md の構造テスト） | ☐ | ☐（Artifact で行き来できるかの手動確認。スマホのアプリとデスクトップ） |
+| 28.6 分析ノートを含めて送る | ✓（`tests/skills/test_tree_upload_structure.py`。承認の文に載る中身と、ツリーだけを送る手段が無いこと、上限の判定が承認の前にあること、送らないファイルと添えるファイルが無いこと、README・ARCHITECTURE・用語表・`/analysis-auto` の行が食い違わないこと） | ✓（同じファイルの `test_the_shown_size_command_counts_the_bytes_of_the_page`。Step 2 が示す数えるコマンドを `tree_io render` の書いたファイルで実行し、ファイルの大きさと一致すること） | —（自動の E2E は無い。Artifact で行き来できたことを人間が確かめ、Story Timeline に書いた） |
 
 ## Story Timeline
 
@@ -776,3 +801,8 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 - 2026-11-23 — 手動確認（28.5）: 合成のプロジェクト（論点ツリーのあるテーマ LIB に、論点に結んだ LIB-H01 と結んでいない LIB-H02、ツリーの無いテーマ CAT に CAT-H01）で、Step 2 に当たる `bin/tree_io render --design` を3つとも通した。
   返った JSON は、LIB-H01 が `path`・`anchor`・`node_ids: ["LIB-Q02"]`、LIB-H02 が `node_ids: []`、CAT-H01 が `path`（`.insight/notes/CAT-H01.html`）だけで、読むものはそれぞれ3行、1行、1行になる。
   built-in browser で `{path}#{anchor}` を開き、LIB-H01 と LIB-H02 は分析ノートの頭に止まり、上に「論点ツリーへ戻る」と「結んだ論点」が見えることを見た。CAT-H01 は単独のページとして開け、script は0件だった。
+- 2026-11-23 — Story 28.6 completed: `/tree-upload` は、分析ノートを含む論点ツリーの HTML を1ファイルのまま送り、添えるファイルは送らない。KEEP ゲートの文に、ページに載る中身と、分析ノートを含まない論点ツリーだけを送る手段が無いことを書いた。
+  Step 2 で `wc -c` でバイト数を数え、16,000,000 バイトを超えれば承認を聞かずに止める。README・ARCHITECTURE・用語表の「アップロード」・`/analysis-auto` の tree-upload の行を揃えた。US-6 の AC 1〜5。
+- 2026-11-23 — 手動確認（28.6）: 合成のプロジェクトで `/tree-upload LIB` の手順を承認の直前まで通した。分析設計3つ・図9枚のページは 1,041,508 バイトで KEEP ゲートまで進み、分析設計20・図100枚のページは 20,978,205 バイトで Step 2 で止まった。
+  人間の承認の後に、小さい方を新しい Artifact に送った。スマホのアプリとデスクトップの両方で、論点のカードから分析ノートへ飛び、論点ツリーへ戻れることを人間が確かめた。
+  Artifact の名前は、Step 4 の「題を求められたら根の問い」ではなく、ページの `<title>`（「論点ツリー LIB」）になった。今のツールは題を求めない。
