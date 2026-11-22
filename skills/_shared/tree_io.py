@@ -24,7 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import asdict
 from datetime import datetime
 from enum import StrEnum
@@ -780,103 +780,88 @@ def _say_where_it_looked(theme_id: str, base_dir: Path) -> None:
     print(f"tree_io: no tree at {looked}", file=sys.stderr)
 
 
-_TAKES_PAYLOAD = frozenset(
-    {"create", "add-node", "decide", "candidate", "hear", "revise-root", "answer"}
-)
+def _get(args: argparse.Namespace, base: Path, payload: dict) -> Any:
+    tree = load_tree(args.theme, base_dir=base)
+    if not tree:
+        _say_where_it_looked(args.theme, base)
+    return tree
+
+
+def _position(args: argparse.Namespace, base: Path, payload: dict) -> Any:
+    where = position(args.theme, base_dir=base)
+    if where["state"] is WalkState.no_tree:
+        _say_where_it_looked(args.theme, base)
+    return where
+
+
+_Handler = Callable[[argparse.Namespace, Path, dict], Any]
+
+# name -> (handler, whether the command reads a JSON payload from stdin)
+_COMMANDS: dict[str, tuple[_Handler, bool]] = {
+    "create": (lambda a, base, p: create_tree(base_dir=base, **p), True),
+    "add-node": (lambda a, base, p: add_node(a.theme, base_dir=base, **p), True),
+    "link": (
+        lambda a, base, p: link_design(
+            a.theme, _required(a, "node"), _required(a, "design"), base_dir=base
+        ),
+        False,
+    ),
+    "link-derived": (
+        lambda a, base, p: link_derived_design(
+            a.theme, _required(a, "design"), base_dir=base
+        ),
+        False,
+    ),
+    "decide": (lambda a, base, p: decide(a.theme, base_dir=base, **p), True),
+    "candidates": (lambda a, base, p: candidates(a.theme, base_dir=base), False),
+    "candidate": (
+        lambda a, base, p: candidate(a.theme, _required(a, "node"), base_dir=base, **p),
+        True,
+    ),
+    "hear": (
+        lambda a, base, p: hear(a.theme, _required(a, "node"), base_dir=base, **p),
+        True,
+    ),
+    "copy-hearing": (
+        lambda a, base, p: copy_hearing(
+            a.theme, _required(a, "node"), _required(a, "design"), base_dir=base
+        ),
+        False,
+    ),
+    "revise-root": (lambda a, base, p: revise_root(a.theme, base_dir=base, **p), True),
+    "answer": (lambda a, base, p: answer(a.theme, base_dir=base, **p), True),
+    "get": (_get, False),
+    "position": (_position, False),
+    "progress": (lambda a, base, p: progress(a.theme, base_dir=base), False),
+    "render": (lambda a, base, p: render(a.theme, base_dir=base), False),
+}
 
 
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="tree_io")
-    parser.add_argument(
-        "command",
-        choices=[
-            "create",
-            "add-node",
-            "link",
-            "link-derived",
-            "decide",
-            "candidates",
-            "candidate",
-            "hear",
-            "copy-hearing",
-            "revise-root",
-            "answer",
-            "get",
-            "position",
-            "progress",
-            "render",
-        ],
-    )
+    parser.add_argument("command", choices=list(_COMMANDS))
     parser.add_argument("--base-dir", default=str(DEFAULT_BASE_DIR))
     parser.add_argument("--theme", default=None)
     parser.add_argument("--node", default=None)
     parser.add_argument("--design", default=None)
     args = parser.parse_args(argv)
     base = resolve_base_dir(Path(args.base_dir))
+    handler, takes_payload = _COMMANDS[args.command]
 
-    exit_code = 0
     try:
-        payload = read_payload() if args.command in _TAKES_PAYLOAD else {}
+        payload = read_payload() if takes_payload else {}
         if args.command != "create" and args.theme is None:
             raise ValueError(f"--theme is required for {args.command}")
-        if args.command == "create":
-            result: Any = create_tree(base_dir=base, **payload)
-        elif args.command == "add-node":
-            result = add_node(args.theme, base_dir=base, **payload)
-        elif args.command == "link":
-            result = link_design(
-                args.theme,
-                _required(args, "node"),
-                _required(args, "design"),
-                base_dir=base,
-            )
-        elif args.command == "link-derived":
-            result = link_derived_design(
-                args.theme, _required(args, "design"), base_dir=base
-            )
-        elif args.command == "decide":
-            result = decide(args.theme, base_dir=base, **payload)
-        elif args.command == "candidates":
-            result = candidates(args.theme, base_dir=base)
-        elif args.command == "candidate":
-            result = candidate(
-                args.theme, _required(args, "node"), base_dir=base, **payload
-            )
-        elif args.command == "hear":
-            result = hear(args.theme, _required(args, "node"), base_dir=base, **payload)
-        elif args.command == "copy-hearing":
-            result = copy_hearing(
-                args.theme,
-                _required(args, "node"),
-                _required(args, "design"),
-                base_dir=base,
-            )
-        elif args.command == "revise-root":
-            result = revise_root(args.theme, base_dir=base, **payload)
-        elif args.command == "answer":
-            result = answer(args.theme, base_dir=base, **payload)
-            # 3, not 1: 1 stays "the call or a file is wrong", and a caller must
-            # tell that apart from "rewrite the answer".
-            exit_code = 3 if result["violations"] else 0
-        elif args.command == "get":
-            result = load_tree(args.theme, base_dir=base)
-            if not result:
-                _say_where_it_looked(args.theme, base)
-        elif args.command == "position":
-            result = position(args.theme, base_dir=base)
-            if result["state"] is WalkState.no_tree:
-                _say_where_it_looked(args.theme, base)
-        elif args.command == "render":
-            result = render(args.theme, base_dir=base)
-        else:
-            result = progress(args.theme, base_dir=base)
+        result = handler(args, base, payload)
     # A payload or a file that cannot be read is the caller's to fix, not a crash.
     except (ValueError, TypeError, YAMLError, OSError) as exc:
         print(f"tree_io: {exc}", file=sys.stderr)
         return 1
 
     json.dump(result, sys.stdout, ensure_ascii=False, default=str)
-    return exit_code
+    # 3, not 1: 1 stays "the call or a file is wrong", and a caller must
+    # tell that apart from "rewrite the answer".
+    return 3 if args.command == "answer" and result["violations"] else 0
 
 
 if __name__ == "__main__":

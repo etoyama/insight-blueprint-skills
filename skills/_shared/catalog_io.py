@@ -20,6 +20,7 @@ import json
 import os
 import re
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -459,25 +460,41 @@ def _without_connection(source: dict) -> dict:
 _PRINTS_SOURCES = frozenset({"create", "update", "get", "list"})
 
 
-_TAKES_PAYLOAD = frozenset({"create", "update", "add-knowledge"})
+def _describe(args: argparse.Namespace, base: Path, payload: dict) -> Any:
+    ids = [i.strip() for i in (args.ids or "").split(",") if i.strip()]
+    return describe(ids, base_dir=base)
+
+
+def _search(args: argparse.Namespace, base: Path, payload: dict) -> Any:
+    tags = [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else None
+    return search(args.query or "", source_type=args.type, tags=tags, base_dir=base)
+
+
+_Handler = Callable[[argparse.Namespace, Path, dict], Any]
+
+# name -> (handler, whether the command reads a JSON payload from stdin)
+_COMMANDS: dict[str, tuple[_Handler, bool]] = {
+    "create": (lambda a, base, p: create_source(base_dir=base, **p), True),
+    "update": (lambda a, base, p: update_source(a.id, p, base_dir=base), True),
+    "get": (lambda a, base, p: load_source(a.id, base_dir=base), False),
+    "list": (lambda a, base, p: list_sources(base_dir=base), False),
+    "describe": (_describe, False),
+    "get-schema": (lambda a, base, p: get_schema(a.id, base_dir=base), False),
+    "search": (_search, False),
+    "get-knowledge": (
+        lambda a, base, p: get_knowledge(a.id, category=a.category, base_dir=base),
+        False,
+    ),
+    "add-knowledge": (
+        lambda a, base, p: add_knowledge(a.id, p.get("entries", []), base_dir=base),
+        True,
+    ),
+}
 
 
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="catalog_io")
-    parser.add_argument(
-        "command",
-        choices=[
-            "create",
-            "update",
-            "get",
-            "list",
-            "describe",
-            "get-schema",
-            "search",
-            "get-knowledge",
-            "add-knowledge",
-        ],
-    )
+    parser.add_argument("command", choices=list(_COMMANDS))
     parser.add_argument("--base-dir", default=str(DEFAULT_BASE_DIR))
     parser.add_argument("--id", default=None)
     parser.add_argument(
@@ -497,37 +514,10 @@ def _main(argv: list[str] | None = None) -> int:
         # describe feeds a distributable report; say no rather than ignore the flag.
         parser.error("describe never prints a connection; use get --with-connection")
     base = resolve_base_dir(Path(args.base_dir))
+    handler, takes_payload = _COMMANDS[args.command]
 
-    payload = read_payload() if args.command in _TAKES_PAYLOAD else {}
-
-    tags = [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else None
-
-    if args.command == "create":
-        result: Any = create_source(base_dir=base, **payload)
-    elif args.command == "update":
-        result = update_source(args.id, payload, base_dir=base)
-    elif args.command == "get":
-        result = load_source(args.id, base_dir=base)
-    elif args.command == "list":
-        result = list_sources(base_dir=base)
-    elif args.command == "describe":
-        ids = [i.strip() for i in (args.ids or "").split(",") if i.strip()]
-        result = describe(ids, base_dir=base)
-    elif args.command == "get-schema":
-        result = get_schema(args.id, base_dir=base)
-    elif args.command == "get-knowledge":
-        result = get_knowledge(args.id, category=args.category, base_dir=base)
-    elif args.command == "add-knowledge":
-        result = add_knowledge(args.id, payload.get("entries", []), base_dir=base)
-    elif args.command == "search":
-        result = search(
-            args.query or "",
-            source_type=args.type,
-            tags=tags,
-            base_dir=base,
-        )
-    else:  # pragma: no cover - argparse restricts choices
-        raise SystemExit(2)
+    payload = read_payload() if takes_payload else {}
+    result = handler(args, base, payload)
 
     if args.command in _PRINTS_SOURCES and not args.with_connection:
         result = (

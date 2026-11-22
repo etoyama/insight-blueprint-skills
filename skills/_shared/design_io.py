@@ -19,6 +19,7 @@ import os
 import re
 import sys
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -458,57 +459,52 @@ def list_review_batches(
 # ---------------------------------------------------------------------------
 
 
-_TAKES_PAYLOAD = frozenset({"create", "update", "review-batch"})
+def _review_batch(args: argparse.Namespace, base: Path, payload: dict) -> Any:
+    status_after = args.status or payload.get("status_after")
+    if not status_after:
+        raise ValueError("review-batch requires --status or payload.status_after")
+    return append_review_batch(
+        args.id,
+        status_after=status_after,
+        comments=payload.get("comments", []),
+        reviewer=payload.get("reviewer", "analyst"),
+        base_dir=base,
+    )
+
+
+_Handler = Callable[[argparse.Namespace, Path, dict], Any]
+
+# name -> (handler, whether the command reads a JSON payload from stdin)
+_COMMANDS: dict[str, tuple[_Handler, bool]] = {
+    "create": (lambda a, base, p: create_design(base_dir=base, **p), True),
+    "update": (lambda a, base, p: update_design(a.id, p, base_dir=base), True),
+    "transition": (
+        lambda a, base, p: transition_status(a.id, a.target, base_dir=base),
+        False,
+    ),
+    "get": (lambda a, base, p: load_design(a.id, base_dir=base), False),
+    "list": (lambda a, base, p: list_designs(base_dir=base, status=a.status), False),
+    "review-batch": (_review_batch, True),
+    "list-reviews": (
+        lambda a, base, p: list_review_batches(a.id, base_dir=base),
+        False,
+    ),
+}
 
 
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="design_io")
-    parser.add_argument(
-        "command",
-        choices=[
-            "create",
-            "update",
-            "transition",
-            "get",
-            "list",
-            "review-batch",
-            "list-reviews",
-        ],
-    )
+    parser.add_argument("command", choices=list(_COMMANDS))
     parser.add_argument("--base-dir", default=str(DEFAULT_BASE_DIR))
     parser.add_argument("--id", default=None)
     parser.add_argument("--target", default=None)
     parser.add_argument("--status", default=None)
     args = parser.parse_args(argv)
     base = resolve_base_dir(Path(args.base_dir))
+    handler, takes_payload = _COMMANDS[args.command]
 
-    payload = read_payload() if args.command in _TAKES_PAYLOAD else {}
-
-    if args.command == "create":
-        result: Any = create_design(base_dir=base, **payload)
-    elif args.command == "update":
-        result = update_design(args.id, payload, base_dir=base)
-    elif args.command == "transition":
-        result = transition_status(args.id, args.target, base_dir=base)
-    elif args.command == "get":
-        result = load_design(args.id, base_dir=base)
-    elif args.command == "list":
-        result = list_designs(base_dir=base, status=args.status)
-    elif args.command == "review-batch":
-        status_after = args.status or payload.get("status_after")
-        if not status_after:
-            raise ValueError("review-batch requires --status or payload.status_after")
-        result = append_review_batch(
-            args.id,
-            status_after=status_after,
-            comments=payload.get("comments", []),
-            reviewer=payload.get("reviewer", "analyst"),
-            base_dir=base,
-        )
-    elif args.command == "list-reviews":
-        result = list_review_batches(args.id, base_dir=base)
-    else:  # pragma: no cover - argparse restricts choices
-        raise SystemExit(2)
+    payload = read_payload() if takes_payload else {}
+    result = handler(args, base, payload)
 
     json.dump(result, sys.stdout, ensure_ascii=False, default=str)
     return 0
