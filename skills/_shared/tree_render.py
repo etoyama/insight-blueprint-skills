@@ -1,6 +1,7 @@
 """Render a question tree as one self-contained HTML page (Epic 18, ADR-0024).
 
-Pure: no I/O. ``tree_io render`` reads the files and hands the data in here.
+Pure: no I/O. ``tree_read.render`` (CLI: ``tree_io render``) reads the files
+and hands the data in here.
 The page has no script, no external resource and no timestamp, so the same
 inputs give the same bytes. Interaction is ``<details>`` only.
 
@@ -33,7 +34,7 @@ from insight_blueprint.models.tree import (
     design_id_of,
 )
 
-if TYPE_CHECKING:  # tree_check imports tree_io, which imports this module
+if TYPE_CHECKING:  # tree_check imports this module (CitedEvent)
     from skills._shared.tree_check import Violation
 
 

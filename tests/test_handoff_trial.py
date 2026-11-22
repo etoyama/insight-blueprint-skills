@@ -32,7 +32,7 @@ from scripts.handoff_trial import (
     prompt_for,
     score,
 )
-from skills._shared import tree_io
+from skills._shared import tree_io, tree_read
 from skills._shared.tree_check import check_theme
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -225,7 +225,7 @@ class TestTheKeyHoldsForTheTree:
         assert answer is not None
         cited = {e for s in answer.statements for e in s.cites}
         by_direction: dict[str, set[tuple[str, str]]] = {}
-        for event in tree_io.cited_journal_events(cited, built):
+        for event in tree_read.cited_journal_events(cited, built):
             pair = (event["id"], tree_io.design_id_of(event["id"]))
             by_direction.setdefault(event["metadata"]["direction"], set()).add(pair)
         q3 = key.answers.q3

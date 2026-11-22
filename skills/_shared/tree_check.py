@@ -24,7 +24,6 @@ from typing import Literal
 
 from insight_blueprint.models.tree import AnswerStatement, QuestionTree, design_id_of
 from skills._shared.design_io import DEFAULT_BASE_DIR, resolve_base_dir
-from skills._shared.tree_io import cited_events, load_tree_model, tree_path
 from skills._shared.tree_render import CitedEvent
 
 # The dashes and triangles writers use for "down" all read as one minus: a
@@ -135,18 +134,22 @@ def check_theme(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> list[Violat
     fails its schema or names another theme, or a cited event id that two
     events share, and OSError or YAMLError for a file that cannot be read.
     """
+    from skills._shared.tree_read import load_tree_model  # tree_read imports this
+
     return check_tree(load_tree_model(theme_id, base_dir), base_dir)
 
 
 def check_tree(tree: QuestionTree, base_dir: Path) -> list[Violation]:
     """Check a tree already in memory against the journals under *base_dir*."""
+    from skills._shared.tree_read import cited_events  # tree_read imports this
+
     return check_cited(tree, *cited_events(_current_cites(tree), base_dir))
 
 
 def check_cited(
     tree: QuestionTree, events: Mapping[str, CitedEvent], duplicated: Iterable[str]
 ) -> list[Violation]:
-    """Check *tree* against cited events already read (``tree_io.cited_events``).
+    """Check *tree* against cited events already read (``tree_read.cited_events``).
 
     *events* may hold more than the current answers cite. A cited id that two
     events share raises ValueError: which of them backs the answer is unknown.
@@ -179,6 +182,8 @@ def _main(argv: list[str] | None = None) -> int:
 
     # Exit 2, not 1: for this command 1 means "violations found".
     try:
+        from skills._shared.tree_read import tree_path  # tree_read imports this
+
         base = resolve_base_dir(Path(args.base_dir))
         violations = check_theme(args.theme, base)
         path = tree_path(args.theme, base)
