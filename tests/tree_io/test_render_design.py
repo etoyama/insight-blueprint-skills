@@ -436,6 +436,27 @@ class TestCodeAndProgress:
         assert CONNECTION_PATH not in html
         assert "secret-analyst" not in html
 
+    @pytest.mark.parametrize("separator", ["\x0c", " "], ids=["FF", "LS"])
+    def test_a_character_that_splitlines_breaks_on_leaks_no_connection(
+        self, insight: Path, separator: str
+    ) -> None:
+        design_id = _design(insight)
+        _notebook(insight, design_id, LOAD)
+        notebook = insight / "notebooks" / f"{design_id}.py"
+        notebook.write_text(
+            notebook.read_text("utf-8").replace(
+                "    import pandas as pd\n",
+                f"    # {separator * 4}\n    import pandas as pd\n",
+            ),
+            encoding="utf-8",
+        )
+
+        html = _note_html(insight, design_id)
+
+        assert CONNECTION_PATH not in html
+        assert "secret-analyst" not in html
+        assert "df_clean = raw_df.dropna()" in html
+
     def test_a_notebook_whose_data_load_cell_cannot_be_found_shows_no_code(
         self, insight: Path
     ) -> None:

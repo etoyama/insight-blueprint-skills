@@ -6,6 +6,11 @@ data-load cell, which holds the connection values (ADR-0022, ADR-0036).
 
 from __future__ import annotations
 
+import re
+
+import pytest
+
+from skills._shared import design_note_read
 from skills._shared.design_note import CodeCell
 from skills._shared.design_note_read import notebook_cells
 
@@ -134,3 +139,57 @@ def test_a_function_that_is_not_a_cell_is_neither_shown_nor_counted() -> None:
     assert cells == (
         CodeCell(position=2, source="@app.cell\ndef _(raw_df):\n    return"),
     )
+
+
+# str.splitlines() also breaks on these; the tokenizer, and so ast, does not.
+# Six of them shift the slice of a later cell onto the data-load cell.
+NOT_LINE_BREAKS = ["\x0b", "\x0c", "\x1c", "\x1d", "\x1e", "\x85", "\u2028", "\u2029"]
+
+
+@pytest.mark.parametrize("separator", NOT_LINE_BREAKS, ids=lambda s: f"U+{ord(s):04X}")
+def test_a_character_that_is_not_a_line_break_shifts_no_cell(separator: str) -> None:
+    comment = f"    # {separator * 6}\n"
+    text = NOTEBOOK.replace(
+        "    import pandas as pd\n", comment + "    import pandas as pd\n"
+    )
+
+    cells = notebook_cells(text)
+
+    assert cells is not None
+    assert all(CONNECTION not in c.source for c in cells)
+    assert [c.position for c in cells] == [1, 3, 4]
+    assert cells[0].source == (
+        f"@app.cell\ndef _():\n{comment}    import pandas as pd\n    return (pd,)"
+    )
+    assert cells[2].source == (
+        "@app.cell\ndef _(raw_df):\n    df_clean = raw_df.dropna()\n"
+        "    return (df_clean,)"
+    )
+
+
+def test_cells_of_a_notebook_with_crlf_line_ends_are_cut_at_the_cell() -> None:
+    cells = notebook_cells(NOTEBOOK.replace("\n", "\r\n"))
+
+    assert cells is not None
+    assert all(CONNECTION not in c.source for c in cells)
+    assert cells[2].source == (
+        "@app.cell\ndef _(raw_df):\n    df_clean = raw_df.dropna()\n"
+        "    return (df_clean,)"
+    )
+
+
+def test_a_slice_that_is_not_its_cell_gives_no_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The split of str.splitlines() is put back, so the slices are off again.
+    monkeypatch.setattr(
+        design_note_read,
+        "_LINE_BREAK",
+        re.compile(r"\r\n|[\n\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029]"),
+    )
+    text = NOTEBOOK.replace(
+        "    import pandas as pd\n",
+        "    # " + "\x0c" * 6 + "\n    import pandas as pd\n",
+    )
+
+    assert notebook_cells(text) is None

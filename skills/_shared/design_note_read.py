@@ -42,6 +42,8 @@ from skills._shared.design_note import (
 # A figure is a bare file name: it becomes a path under notebooks/.
 _FIGURE_FILE = re.compile(r"[A-Za-z0-9_.-]+")
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+# The line ends of the tokenizer, which ast line numbers count.
+_LINE_BREAK = re.compile(r"\r\n|\r|\n")
 
 # The next_action fields the report's Recommendation takes for each terminal
 # status (analysis-report/references/apa-template.md); a structure test holds
@@ -261,17 +263,25 @@ def notebook_cells(text: str) -> tuple[CodeCell, ...] | None:
     loads = [cell for cell in cells if _binds_raw_df(cell)]
     if len(loads) != 1:
         return None
-    lines = text.splitlines()
-    return tuple(
-        CodeCell(
-            position=position,
-            source="\n".join(
-                lines[cell.decorator_list[0].lineno - 1 : cell.end_lineno]
-            ),
-        )
-        for position, cell in enumerate(cells, start=1)
-        if cell is not loads[0]
-    )
+    # The line numbers are the tokenizer's; str.splitlines() also breaks on
+    # \x0c, \x85, U+2028 and others, which would shift a slice onto another cell.
+    lines = _LINE_BREAK.split(text)
+    shown: list[CodeCell] = []
+    for position, cell in enumerate(cells, start=1):
+        source = "\n".join(lines[cell.decorator_list[0].lineno - 1 : cell.end_lineno])
+        # A slice that is not this cell could be the data-load cell, so a
+        # mismatch shows no code at all.
+        segment = ast.get_source_segment(text, cell)
+        if not source.startswith("@") or not segment or not _ends_with(source, segment):
+            return None
+        if cell is not loads[0]:
+            shown.append(CodeCell(position=position, source=source))
+    return tuple(shown)
+
+
+def _ends_with(source: str, segment: str) -> bool:
+    """Whether *source* ends with *segment*, whose line ends are as written."""
+    return source.endswith("\n".join(_LINE_BREAK.split(segment)))
 
 
 def _read_own_text(path: Path) -> str | None:
