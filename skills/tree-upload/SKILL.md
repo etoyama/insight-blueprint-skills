@@ -120,8 +120,9 @@ Run this step only after the analyst approved in Step 3.
 
 Publish the file listed in Step 3 as a new Artifact, passing its path as it is, and attach no other file
 to it, not even a file the page links to: the notes are already inside the page. Always a new
-Artifact: never update or reuse one, even when the same tree was uploaded before. If the tool
-asks for a title, use the root question; if it asks for an icon, use "tree".
+Artifact: never update or reuse one, even when the same tree was uploaded before. The Artifact
+takes its name from the page's `<title>` (`論点ツリー {theme_id}`), so pass no title of your own.
+If the tool still asks for a title, use the root question; if it asks for an icon, use "tree".
 
 If the publish fails or is declined, report the reason and exit; nothing else is sent. The
 outcome is "アップロードに失敗した" with the reason.
