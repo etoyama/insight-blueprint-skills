@@ -91,12 +91,12 @@ AC の正本はここ。
 
 分析者として、論点から根拠へ少ない手数でたどるために、論点のカードから、その論点に結んだ分析設計の分析ノートへ飛びたい。
 
-- [ ] AC 1: `tree_io render --theme {theme_id}` は、論点ツリーの下に、テーマの分析設計すべての分析ノートを並べた1ファイル（`.insight/themes/{theme_id}_tree.html`）を書く。分析ノートを1つでも作れなければエラーにして、理由を出す。
-- [ ] AC 2: 論点のカードの「結んだ分析設計」と、「分析設計の派生」の節の各分析設計に、分析ノートへ飛ぶアンカーを出す。分析ノートの冒頭と末尾に、論点ツリーへ戻るアンカーを出す。別の HTML へのリンクは出さない。
-- [ ] AC 3: 論点のカードは結んだ分析設計を、終わっていないものを先に、終わったものを後に並べる。それぞれの中は `created_at` の新しい順で、同じなら id の大きい順である。
-- [ ] AC 4: 論点ツリーの HTML は同じ入力（正本、分析設計、journal、notebook の出力）からは同じ HTML になる。script と stylesheet を読まない。
+- [x] AC 1: `tree_io render --theme {theme_id}` は、論点ツリーの下に、テーマの分析設計すべての分析ノートを並べた1ファイル（`.insight/themes/{theme_id}_tree.html`）を書く。分析ノートを1つでも作れなければエラーにして、理由を出す。
+- [x] AC 2: 論点のカードの「結んだ分析設計」と、「分析設計の派生」の節の各分析設計に、分析ノートへ飛ぶアンカーを出す。分析ノートの冒頭と末尾に、論点ツリーへ戻るアンカーを出す。別の HTML へのリンクは出さない。
+- [x] AC 3: 論点のカードは結んだ分析設計を、終わっていないものを先に、終わったものを後に並べる。それぞれの中は `created_at` の新しい順で、同じなら id の大きい順である。
+- [x] AC 4: 論点ツリーの HTML は同じ入力（正本、分析設計、journal、notebook の出力）からは同じ HTML になる。script と stylesheet を読まない。
   テーマに論点ツリーがあるとき、`tree_io render --design {design_id}` はこのファイルを書き直し、パスと、分析ノートのアンカーと、分析設計を結んだ論点の id を返す。
-- [ ] AC 5: 読み方の節に、「分析ノートを開く」の説明を書く。
+- [x] AC 5: 読み方の節に、「分析ノートを開く」の説明を書く。
 
 ### US-5: 分析者が、結論を求められたときに入口を示される
 
@@ -222,7 +222,7 @@ flowchart TD
 
 - `tree_io render --theme` は、論点ツリーと、テーマの分析設計すべての分析ノートを、1ファイルに書く。
 - `tree_io render --design` は、テーマに論点ツリーがあればそのファイルを書き直し、無ければ単独のページを書く。どちらのときも、開くファイルのパスを返す。
-- モジュールの分け方は 28.1 で決めた（Decision `note-reads-live-apart-and-markup-is-shared`）。28.1 の時点では、`tree_io render --design` は論点ツリーの有無にかかわらず単独のページを書く。論点ツリーがあるときの分は 28.4 で作る。
+- モジュールの分け方は 28.1 で決めた（Decision `note-reads-live-apart-and-markup-is-shared`）。論点ツリーがあるときの `tree_io render --design` は 28.4 で作った（Decision `render-design-says-where-the-note-is`）。
 
 ## Domain Model
 
@@ -600,6 +600,59 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
   「手元のファイル」の節は notebook の HTML へのリンクを持ちうる（US-2 AC 5）。節の冒頭に、手元で開いたときだけ開けることを書いた。28.4 に共有ノートで伝えた。
   `.insight/` の構成を変えるときは、`LOCAL_FILES` と相対リンクの起点を直す。
 
+### Decision: one-note-that-cannot-be-built-stops-the-page
+
+- What: `tree_io render --theme` は、テーマの分析設計すべての分析ノートを作ってから、ページを書く（Story 28.4）。1つでも作れなければ `ValueError` にして、何も書かない。前に書いたページは変えない。
+  文は `analysis note of '{design_id}' cannot be built: {理由}` で、理由は1行に詰める。CLI は今までどおり、`tree_io: ` を付けて stderr に出し、exit 1 で終わる。
+  分析設計の id は、今までどおりファイル名から取る。中の `id` がファイル名と違う分析設計（写したファイル）の分析ノートは、見出しとアンカーをファイル名の id にする。
+- Why: 論点のカードと派生の節のアンカーは、飛んだ先が必ず在ることを前提にする（Decision `the-card-jumps-only-to-the-design-note`）。分析ノートの欠けたページを書くと、飛べないアンカーが残る。
+  エラーが分析設計を名指ししないと、分析者はどのファイルを直すか分からない。
+- Criteria: 飛んだ先が必ず在ること（Must、US-4 AC 1、AC 2）。直すファイルが文から分かること（高、Claude の推測、Epic 18 の `render` の決まり）。
+  今まで書けていたテーマが書けなくなる範囲が狭いこと（中、Claude の推測）。決め手は最初の1つ。
+- Affected modules: `skills/_shared/tree_read.py`、`skills/_shared/tree_render.py`。
+- Alternatives considered:
+  - 作れなかった分析ノートの所に、作れなかったことを書いてページは出す。US-4 AC 1 がエラーにすると決めている。
+  - 中の `id` がファイル名と違う分析設計もエラーにする。Epic 18 は、写したファイルをファイル名の id で扱うと決めていて、ページは今まで書けていた。
+- Consequences: 論点に結んでいない分析設計でも、スキーマに合わなければテーマのページは書けない。今までは、`id` の無い分析設計や、verdict の JSON が壊れた分析設計があっても書けた。
+  状態が未知の分析設計のエラーは、スキーマの検証の文になった。`tree_render` は、分析ノートの無い分析設計を渡されるとエラーにする。
+  「分析設計の派生」の節と分析ノートの並びは、id の `-H` の後の数の順にした（`H9` の次が `H10`）。`H99` までの並びは今までと同じである。
+  論点のカードの並び（Decision `unfinished-designs-come-first`）で、タイムゾーンのある `created_at` と無い `created_at` が同じ組に混ざると、2つの分析設計を名指ししてエラーにする。どちらが新しいかを推測しない。
+  分析ノートの上下の戻るアンカーには、論点ツリーの節へ戻るものに加えて、結んだ論点へ戻るものを出す。
+  US-4 AC 2 の「別の HTML へのリンクは出さない」は、論点ツリーと分析ノートの行き来についての決まりと読んだ。分析ノートの「手元のファイル」の相対リンク（US-2 AC 5）は残る。
+
+### Decision: the-same-inputs-are-checked-on-files-and-the-trial-stops-its-clock
+
+- What: 「同じ入力からは同じ HTML」（ADR-0036）を、ファイルを置いたテストで守る（Story 28.4）。
+  verdict と図を置いたテーマで `render --theme` を2回呼び、同じバイト列になることを見る。verdict を書き換えると、ページが変わることも見る。ページに `.insight/` の絶対パスが入らないことも見る。
+  引き継ぎの試行のテスト（`tests/test_handoff_trial.py` の `test_the_html_is_the_same_bytes_every_time`）は、時計を止めてからシナリオを2回作って比べる。
+- Why: Epic 18 のテストは、正本が同じなら同じバイト列になることだけを見ていた。notebook の出力もページを決めるようになったので、入力が変わればページが変わることも見ないと、不変条件の半分しか守れない。
+  分析ノートは、載せた journal の最後の出来事の時刻を出す（Decision `render-right-before-showing`）。試行のシナリオは journal の出来事をその場の時刻で書くので、2回作ると入力が違う。
+- Criteria: `uv run poe all` が通ること（Must）。不変条件が ADR-0036 と食い違わないこと（Must）。「シナリオがページを決める」ことを試行のテストが守り続けること（中、Claude の推測）。
+  担当の外のファイルに入れる変更の量（高、親のセッションのブリーフ）。テストが内部に縛られないこと（中、Claude の推測）。決め手は3つめ。人間が Decision Analysis の提示から、この形を選んだ（2026-11-23、Story 28.4 のセッション）。
+- Affected modules: `tests/tree_io/test_render_notes.py`、`tests/test_handoff_trial.py`。
+- Alternatives considered:
+  - `scripts/handoff_trial.py` の `build` が時刻を固定して作る。渡す HTML まで毎回同じになるが、製品のコードに試行のための変更が入る。
+  - 試行のテストを、同じ `.insight/` を2回 render する形に改める。`tests/tree_io/` に同じ検査があり、シナリオの作りが揺れても気づけない。
+- Consequences: 試行のテストは、journal の出来事の時刻を書く関数（`design_io` の `now_jst`）を知っている。時刻を書く所が増えると、このテストが赤くなって気づける。
+  試行で読み手に渡す HTML には、作った時刻が載る。`build` は `tree_io render` を呼ぶので、読み手に渡す HTML には分析ノートも入る。試行の型（問いと鍵）は変えていない（Scope の範囲外のまま）。
+
+### Decision: render-design-says-where-the-note-is
+
+- What: テーマに論点ツリーがあるとき、`tree_io render --design {design_id}` は論点ツリーの HTML を書き直し、3つのキーを返す（Story 28.4）。
+  `path` は論点ツリーの HTML のパス、`anchor` は分析ノートのアンカー（`note-{design_id}`）、`node_ids` は分析設計を結んだ論点の id（ツリーの並び順）である。どの論点にも結んでいなければ、`node_ids` は空のリストである。3つのキーは必ず在る。
+  論点ツリーが無いテーマでは、28.1 のまま単独のページを書き、`path` だけを返す。論点ツリーのファイルが在って壊れているときは、単独のページを書かずにエラーにする。
+  論点ツリーの HTML を書いた後、前に書いた単独のページ（`.insight/notes/{design_id}.html`）が在れば消す。
+- Why: 28.5 の読むものは、開くファイル、分析ノートの場所、対象の論点を出す（US-5 AC 2）。呼ぶ側が正本を読み直さずに済むように、3つを一度に返す。
+  単独のページが残ると、同じ分析設計に読む面が2つでき、古い方を開きうる（Decision `show-the-entry-at-the-conclusion-gate` の、読む面が1つであること）。
+- Criteria: 返したアンカーがページに必ず在ること（Must、US-4 AC 4）。呼ぶ側の手順が、論点ツリーの有無で分かれないこと（高、US-5 AC 1）。読む面が1つであること（高、人間）。決め手は最初の1つ。
+- Affected modules: `skills/_shared/tree_read.py`（`render_design`）、`skills/_shared/tree_io.py`。
+- Alternatives considered:
+  - 分析設計のテーマを、ファイルの中の `theme_id` から取る。ページに並ぶ分析設計はファイル名で決まるので（`designs_of_theme`）、中の値が違うと、返したアンカーがページに無い。
+  - 論点に結んでいないときは `anchor` と `node_ids` を返さない。US-5 AC 2 はパスだけを出すと決めているが、何を出すかは SKILL.md が決めればよく、返す形は分かれない方が読みやすい。
+- Consequences: テーマはファイル名（`{theme_id}-H{nn}`）から取る。この形でない id の分析設計は、単独のページになる。
+  `render --design` は、テーマの分析ノートをすべて作り直す。ほかの分析設計の分析ノートが作れないと、対象の分析設計の分析ノートも示せない。
+  28.5 は、`anchor` が在れば分析ノートの場所として示し、`node_ids` が空でなければ論点を示す。どちらも無ければ `path` だけを示す。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0036: 分析ノートは、分析設計ごとにコードが生成し、論点ツリーの HTML の中に並べる](../adr/0036-design-note-is-a-generated-page-per-design.md): 分析ノートの中身と決まり、置き方、結論の後の節、Epic 18 の US-5 AC 1 の文言の変更、読むものの意味の変更。
@@ -614,7 +667,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 | 28.1 分析ノートを作る | ✓（`tests/test_design_note.py`。表示の純関数。エスケープ、決定性、無い節） | ✓（`tests/tree_io/test_render_design.py`。合成シナリオの fixture で `tree_io render --design` を回す） | —（自動の E2E は無い。built-in browser の手動確認を Story Timeline に書いた） |
 | 28.2 コードと経過を載せる | ✓（`tests/test_design_note_read.py` の cell の切り出し、データ取得の cell を特定できない notebook。`tests/test_design_note.py` の分析コード・lineage・分析の経過・手元のファイルの節） | ✓（`tests/tree_io/test_render_design.py` の `TestCodeAndProgress`。接続情報が載らないこと、リンクのファイルを読まないこと、在るファイルだけへのリンク） | —（自動の E2E は無い。built-in browser の手動確認を Story Timeline に書いた） |
 | 28.3 結論の後の節を埋める | ☐（terminal status の有無、記録の写し。レポートのテンプレートとの突き合わせ） | ☐ | ☐ |
-| 28.4 論点ツリーの HTML に並べる | ☐（アンカー、並び、別の HTML へのリンクが無いこと） | ☐（`tree_io render --theme` が書いた HTML のアンカーの飛び先が、すべて同じファイルに在る） | ☐（built-in browser で、論点から分析ノートの図とコードまで行き来する手動確認） |
+| 28.4 論点ツリーの HTML に並べる | ✓（`tests/test_tree_render.py`。アンカー、戻るアンカー、並び、分析ノートを二重にエスケープしないこと、論点ツリーの側が別の HTML へのリンクを出さないこと） | ✓（`tests/tree_io/test_render_notes.py`、`tests/tree_io/test_render_design_in_tree.py`。アンカーの飛び先がすべて同じファイルに在ること、2回で同じバイト列、作れない分析ノートのエラー、`render --design` の返す形） | —（自動の E2E は無い。built-in browser の手動確認を Story Timeline に書いた） |
 | 28.5 結論の段で示す | ☐（SKILL.md の構造テスト） | ☐ | ☐ |
 | 28.6 分析ノートを含めて送る | ☐（SKILL.md の構造テスト） | ☐ | ☐（Artifact で行き来できるかの手動確認。スマホのアプリとデスクトップ） |
 
@@ -635,3 +688,10 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 - 2026-11-23 — 手動確認（28.2）: 合成のプロジェクト（分析設計、catalog、journal、CSV のデータソース）で、契約の形の notebook を書いて実際に走らせ、verdict・図・lineage を書き出した。
   `bin/tree_io render --design LIB-H01` を2回通し、同じバイト列になった。HTML に CSV のパスは0件で、データ取得の cell（3番目）は載らなかった。
   built-in browser で開き、畳んだ9か所がすべて閉じた状態で始まり、開けること、script が0件、外部への要求が0件、幅 375px で開いても閉じてもページが横にはみ出さないこと（長いコードの行は枠の中で横に送れる）、相対リンクが `.insight/` のファイルを指すことを見た。
+- 2026-11-23 — Story 28.4 completed: `tree_io render --theme` が、論点ツリーの下にテーマの分析設計すべての分析ノートを並べた1ファイルを書く。US-4 の AC 1〜5。
+  論点のカードと派生の節から分析ノートへ飛び、分析ノートの上下から論点ツリーと結んだ論点へ戻れる。`render --design` は、論点ツリーがあればこのファイルを書き直し、`path`・`anchor`・`node_ids` を返す。
+  Domain Model 図は変えていない（`DesignSummary` の `created_at` は初版の図に在る）。引き継ぎの試行の決定性のテストは、人間の判断で、時計を止めて比べる形に改めた。
+- 2026-11-23 — 手動確認（28.4）: 合成のプロジェクト（分析設計4つ。終わったもの、その派生で終わっていないもの、notebook をまだ実行していないもの、どの論点にも結んでいないもの）で `bin/tree_io render --theme LIB` を2回通し、同じバイト列になった。
+  `render --design` の後も同じバイト列だった。verdict を壊すと、分析設計を名指しして exit 1 で終わり、前のページは変わらなかった。
+  built-in browser で開き、アンカー 56 本がすべて `#` で始まり、飛び先が同じファイルに在ること、id の重複が0件、script が0件、外部への要求が0件、幅 375px でページが横にはみ出さないことを見た。
+  論点のカードから分析ノートへ飛び、「結んだ論点」で元の論点に戻れた。飛んだ直後に上の戻るアンカーが隠れたので、止まる位置を下げて直した。28.2 を取り込んだ後、「手元のファイル」の相対リンクが論点ツリーのページからも実在のファイルを指すことを見た。
