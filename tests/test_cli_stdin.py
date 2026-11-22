@@ -70,13 +70,26 @@ def test_a_command_without_payload_returns_while_stdin_stays_open(
     assert "ModuleNotFoundError" not in err
 
 
+WITH_PAYLOAD = [
+    (design_io, "create"),
+    (design_io, "review-batch"),
+    (design_io, "update"),
+    (catalog_io, "add-knowledge"),
+    (catalog_io, "create"),
+    (catalog_io, "update"),
+    (tree_io, "add-node"),
+    (tree_io, "answer"),
+    (tree_io, "candidate"),
+    (tree_io, "create"),
+    (tree_io, "decide"),
+    (tree_io, "hear"),
+    (tree_io, "revise-root"),
+]
+
+
 @pytest.mark.parametrize(
     "module, command",
-    [
-        (m, c)
-        for m in (design_io, catalog_io, tree_io)
-        for c in sorted(m._TAKES_PAYLOAD)
-    ],
+    WITH_PAYLOAD,
     ids=lambda v: v if isinstance(v, str) else v.__name__.rsplit(".", 1)[-1],
 )
 def test_a_command_with_payload_reads_stdin(
