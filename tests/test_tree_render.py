@@ -10,7 +10,7 @@ from __future__ import annotations
 import copy
 import re
 from collections.abc import Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from html.parser import HTMLParser
 from typing import get_args
 
@@ -1025,7 +1025,7 @@ class TestOrderOfLinkedDesigns:
         assert shown == ["LIB-H10", "LIB-H9"]
 
     def test_times_are_compared_as_times_not_as_text(self) -> None:
-        later_in_utc = datetime(2026, 11, 1, 2, 0, tzinfo=timezone.utc)  # 11:00 JST
+        later_in_utc = datetime(2026, 11, 1, 2, 0, tzinfo=UTC)  # 11:00 JST
         shown = self._shown(
             [("LIB-H01", "analyzing", later_in_utc), ("LIB-H02", "analyzing", T0)]
         )

@@ -11,11 +11,11 @@ is trusted: see ``_html`` for how markup is told from text.
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-import re
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
