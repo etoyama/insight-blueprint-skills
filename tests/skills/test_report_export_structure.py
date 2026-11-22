@@ -96,6 +96,10 @@ class TestTheReportComesFromTreeIo:
             assert kind in step
             assert skill in step
 
+    def test_any_other_outcome_sends_nothing(self) -> None:
+        # An exit code and `written` that disagree, or output that is not the JSON, is not a report.
+        assert "Any other exit code or output: show it, send nothing, and exit" in _step(1)
+
     def test_a_broken_call_shows_stderr_and_sends_nothing(self) -> None:
         step = _step(1)
         assert "exits 1" in step
@@ -253,6 +257,13 @@ class TestFigures:
         assert "`figures`" in step
         assert ".insight/notebooks/" in step
 
+    def test_a_figure_no_image_link_points_at_is_never_sent(self) -> None:
+        # `figures` and the report's links can disagree; a figure with no link has no note
+        # to replace, so there is no place in the Doc it was approved for.
+        step = _step(1)
+        assert "an image link in the report points at it" in step
+        assert "A name in `figures` that no image link points at is never sent" in step
+
     def test_figure_file_must_be_a_bare_png_basename(self) -> None:
         step = _step(1)
         assert "basename" in step
@@ -267,6 +278,21 @@ class TestFigures:
             "（図 {N} は Doc に載せていない。図は Markdown のレポートにある）" in step
         )
         assert "its own number" in step
+
+    def test_each_figure_replaces_the_notes_with_its_numbers(self) -> None:
+        # Step 1 of Step 4 removes the paths, so the match must be kept by number.
+        step = _step(4)
+        assert "remember which notes point at which figure" in step
+        assert "replace each note with that figure's numbers" in step
+
+    def test_a_figure_linked_twice_is_uploaded_once(self) -> None:
+        assert "A figure linked more than once is uploaded once" in _step(4)
+
+    def test_the_figure_count_has_its_own_name(self) -> None:
+        # `{count}` at the KEEP gate is the number of unfinished designs.
+        step = _step(4)
+        assert "{figure_count}" in step
+        assert "{count}" not in step
 
     def test_names_the_route_from_asset_upload_into_the_doc_to_image_link(self) -> None:
         step = _step(4)
@@ -288,7 +314,7 @@ class TestFigures:
 
     def test_the_message_names_the_count_the_host_approval_and_the_notes(self) -> None:
         step = _step(4)
-        for item in ("{count}", "ホストの承認カード", "注記のまま残る"):
+        for item in ("{figure_count}", "ホストの承認カード", "注記のまま残る"):
             assert item in step, f"the pre-upload message must carry {item}"
 
     def test_a_decline_stops_the_remaining_uploads_and_goes_to_step_5(self) -> None:

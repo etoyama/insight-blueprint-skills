@@ -64,14 +64,18 @@ to report.
      report, even if `.insight/reports/{theme_id}.md` exists: `tree_io report` leaves the file
      of an earlier run in place when it does not write.
    - It exits 1 (a broken call or broken records): show stderr, send nothing, and exit.
+   - Any other exit code or output: show it, send nothing, and exit. An exit code and a
+     `written` that disagree, or a stdout that is not that JSON, is not a report.
 3. The report is the file at `path`, and nothing else. If `path` does not end with
    `.insight/reports/{theme_id}.md`, send nothing and exit. Read that one file (Read tool).
    Always take the path from the JSON; never list `.insight/reports/` to find a report. That
    folder also holds `{theme_id}.md.lock` and older reports, and none of them is ever sent.
 4. The figures are the entries of `figures`, file names under `.insight/notebooks/`. Keep a
-   figure only when the name is a bare basename ending in `.png` (no `/`, `\`, or `..`) and
-   `.insight/notebooks/{file}` exists. Any image link in the report that does not point at a
-   kept figure is never sent, and Step 4 replaces it with the note.
+   figure only when the name is a bare basename ending in `.png` (no `/`, `\`, or `..`),
+   `.insight/notebooks/{file}` exists, and an image link in the report points at it (the last
+   part of the link's target is `{file}`). A name in `figures` that no image link points at is
+   never sent: it has no place in the Doc. Any image link in the report that does not point at a
+   kept figure is never sent either, and Step 4 replaces it with the note.
 
 Never write, edit, or regenerate the report yourself, and never send a report you wrote: the
 body is the file `tree_io report` wrote in this run. Read only these files. The question tree,
@@ -148,20 +152,22 @@ sections and no byline or date line added.
    link with the one-line note
    `（図 {N} は Doc に載せていない。図は Markdown のレポートにある）`,
    where `{N}` counts the image links from the top of the report, so each note carries its own
-   number. Captions stay. No local path of an image may reach the Doc.
+   number. Captions stay. No local path of an image may reach the Doc. Before you replace the
+   links, remember which notes point at which figure: after this step the paths are gone.
 2. Create a new Doc with the report's title (its first `#` heading) and that body. Always a new
    Doc — never overwrite, update, or reuse one, even when the same theme was exported before.
 3. If there are figures to upload, show the Doc's URL before the first figure upload, in one
-   message (`{count}` is the number of figures listed at the KEEP gate in Step 3):
-   「Doc を作った: {URL}。図 {count} 枚をこれから1枚ずつ載せる。図ごとにホストの承認カードが出ることがある。
+   message (`{figure_count}` is the number of figures listed at the KEEP gate in Step 3):
+   「Doc を作った: {URL}。図 {figure_count} 枚をこれから1枚ずつ載せる。図ごとにホストの承認カードが出ることがある。
    断ると、その図とそれより後の図は Doc に載らず、注記のまま残る。断るとこのターンが終わることもある。
    Doc は自分だけに見える状態。読者に渡すには Claude Docs で共有する」
    A decline can end the turn, so Step 5 may never run. This message is then all the analyst
    keeps.
 4. Then, for each figure in report order, one figure at a time after the body is in place:
    upload the PNG with the host's asset upload into that Doc, make the connector's object for
-   that upload in the Doc, and replace the note of the image link that points at that figure
-   with an image link to that object.
+   that upload in the Doc, and replace each note with that figure's numbers (the notes whose
+   image links pointed at that figure) with an image link to that object. A figure linked more
+   than once is uploaded once, and its object goes in place of each of its notes.
    - If an upload or embed fails: omit that figure and leave its one-line note. Go on to the
      next one. A figure that could not be embedded must never fail the export as a whole.
    - If the analyst declines an upload: upload no further figures, leave their notes, and go to

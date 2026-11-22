@@ -504,3 +504,5 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
   直さなかった低の指摘は3件。書かなかったときに前のレポートが残ること（Decision のとおり）、リストやスカラーだけの壊れた論点ツリーのファイルが「論点ツリーが無い」と読まれること（`get` と `position` と同じ既存の読み方）、`reports/` にロックのファイルが残ること（`render` と同じ）。
 - 2026-11-23 — Story 29.4 completed: `/report-export {theme_id}` を足した。`tree_io report --theme` を呼び、書けなかったときは理由を伝えて何も送らない。KEEP ゲートの承認の後に、レポートを Claude Docs の新しい Doc として送る。用語表に「export」を足した。Decisions に2件書いた。
 - 2026-11-23 — 合成シナリオ（`scripts/handoff_trial.py build --scenario lib`）で SKILL.md の手順を手で回した。最後の stage では終了コード 0 で `root_answer_round` が 2、`unfinished_designs` が空。`start` の stage に前のレポートを置いた所では、終了コード 3（`no_root_answer`）でファイルが残ることを確かめた。人間が KEEP ゲートで承認し、Doc（https://claude.ai/artifact/ETHsydDcbKPxfrevYarTKc）を作った。Doc の本文はレポートと一字一句同じだった。図は `figures` が空なので確かめていない。
+- 2026-11-23 — Story 29.4 の差分に、バグ・セキュリティの観点のレビューを1本回した（`pstack:thermo-nuclear-review`）。高以上の指摘は無かった。中の指摘2件を直した。1件めは、`figures` に在ってレポートのリンクが指さない図の置き場が決まっていないことで、リンクが指す図だけを送ることにした。2件めは、図と注記の対応を番号で覚えると書いていないことで、同じ図を2回指すときの扱いも書いた。
+  低の指摘も2件直した。`{count}` が承認の文と図の文で別の物を指していたので、図の数を `{figure_count}` にした。また、終了コードと `written` が食い違うときも送らないと書いた。直さなかった低の指摘は1件で、構造テストが文の在りかまでは確かめないこと（ADR-0010 の決まりの範囲）である。
