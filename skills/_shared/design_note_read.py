@@ -176,9 +176,8 @@ def _verdict_figures(verdict: dict, notebooks: Path) -> tuple[NoteFigure, ...]:
         ):
             continue
         path = notebooks / file
-        # The note may leave the machine, so only an image goes in: a manifest
-        # that names the notebook, or a link out of notebooks/, embeds nothing.
-        if path.is_symlink() or not path.is_file():
+        # Only an image goes in: a manifest that names the notebook embeds nothing.
+        if not _is_own_file(path):
             continue
         png = path.read_bytes()
         if not png.startswith(_PNG_SIGNATURE):
@@ -312,12 +311,18 @@ def _ends_with(source: str, segment: str) -> bool:
     return source.endswith("\n".join(_LINE_BREAK.split(segment)))
 
 
-def _read_own_text(path: Path) -> str | None:
-    """The text of *path*; None when it is absent, a link, or not UTF-8.
+def _is_own_file(path: Path) -> bool:
+    """Whether *path* is a regular file and not a link.
 
-    The note may leave the machine, so a link out of .insight/ is not followed.
+    The note may leave the machine, so a link out of .insight/ is never read,
+    embedded or listed.
     """
-    if path.is_symlink() or not path.is_file():
+    return not path.is_symlink() and path.is_file()
+
+
+def _read_own_text(path: Path) -> str | None:
+    """The text of *path*; None when it is not an own file or not UTF-8."""
+    if not _is_own_file(path):
         return None
     try:
         return path.read_text("utf-8")
@@ -369,10 +374,10 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
     cells = None if notebook is None else notebook_cells(notebook)
     lineage = _read_own_text(base / "lineage" / f"{design_id}.mmd")
     local_files = tuple(
-        path for path in local_file_paths(design_id) if (base / path).is_file()
+        path for path in local_file_paths(design_id) if _is_own_file(base / path)
     )
     verdict_path = notebooks / f"{design_id}_verdict.json"
-    verdict = _read_verdict(verdict_path) if verdict_path.is_file() else None
+    verdict = _read_verdict(verdict_path) if _is_own_file(verdict_path) else None
     return DesignNote(
         design,
         sources,

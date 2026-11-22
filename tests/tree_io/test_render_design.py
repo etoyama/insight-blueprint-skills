@@ -514,6 +514,49 @@ class TestCodeAndProgress:
 
         assert "<summary>cell" not in html
 
+    def test_a_linked_notebook_is_neither_linked_nor_called_out_of_shape(
+        self, insight: Path, tmp_path: Path
+    ) -> None:
+        design_id = _design(insight)
+        _notebook(insight, design_id, LOAD)
+        elsewhere = tmp_path / "elsewhere.py"
+        (insight / "notebooks" / f"{design_id}.py").rename(elsewhere)
+        (insight / "notebooks" / f"{design_id}.py").symlink_to(elsewhere)
+
+        html = _note_html(insight, design_id)
+
+        assert "契約の形でなく" not in html
+        assert "notebook の .py はまだ無い。" in html
+        assert f"../notebooks/{design_id}.py" not in html
+
+    def test_a_linked_verdict_is_not_read(self, insight: Path, tmp_path: Path) -> None:
+        design_id = _design(insight)
+        secret = tmp_path / "verdict.json"
+        secret.write_text(
+            '{"conclusion": "secret-analyst", "metrics": {}}', encoding="utf-8"
+        )
+        (insight / "notebooks").mkdir(parents=True)
+        (insight / "notebooks" / f"{design_id}_verdict.json").symlink_to(secret)
+
+        html = _note_html(insight, design_id)
+
+        assert "secret-analyst" not in html
+        assert "notebook をまだ実行していない（verdict が無い）。" in html
+        assert f"../notebooks/{design_id}_verdict.json" not in html
+
+    def test_a_linked_local_file_is_not_listed(
+        self, insight: Path, tmp_path: Path
+    ) -> None:
+        design_id = _design(insight)
+        report = tmp_path / "report.md"
+        report.write_text("# r", encoding="utf-8")
+        (insight / "reports").mkdir()
+        (insight / "reports" / f"{design_id}.md").symlink_to(report)
+
+        html = _note_html(insight, design_id)
+
+        assert "手元のファイルはまだ無い。" in html
+
     def test_the_lineage_text_and_the_verdict_conclusion_appear_as_written(
         self, insight: Path
     ) -> None:
