@@ -81,11 +81,11 @@ AC の正本はここ。
 
 分析者として、結論の前に読む文書と結論の文書を行き来せずに済むように、分析ノートが分析の進みに合わせて埋まってほしい。
 
-- [ ] AC 1: 分析設計が terminal status のとき、分析ノートに結論の節を出す。節の最初に、terminal status ごとの決まった文（レポートの Abstract の最初の文と同じ）を出す。
-- [ ] AC 2: 結論の節に、journal の `conclude` の本文を、書かれたとおりに出す。
-- [ ] AC 3: 結論の節に、分析設計の `next_action` と決定の文脈（勧め）、仮説に反する証拠、`reflect` の本文、未解決の問いを、書かれたとおりに出す。無いものは省く。
-- [ ] AC 4: terminal status でない分析設計の分析ノートには、結論の節を出さず、まだ結論が出ていないことを書く。モデルが書く文章は、どの節にも載せない。
-- [ ] AC 5: 結論の節の項目（決まった文、勧めの元、未解決の問いの定義）が、レポートのテンプレートと食い違わないことを、構造テストで照らす。
+- [x] AC 1: 分析設計が terminal status のとき、分析ノートに結論の節を出す。節の最初に、terminal status ごとの決まった文（レポートの Abstract の最初の文と同じ）を出す。
+- [x] AC 2: 結論の節に、journal の `conclude` の本文を、書かれたとおりに出す。
+- [x] AC 3: 結論の節に、分析設計の `next_action` と決定の文脈（勧め）、仮説に反する証拠、`reflect` の本文、未解決の問いを、書かれたとおりに出す。無いものは省く。
+- [x] AC 4: terminal status でない分析設計の分析ノートには、結論の節を出さず、まだ結論が出ていないことを書く。モデルが書く文章は、どの節にも載せない。
+- [x] AC 5: 結論の節の項目（決まった文、勧めの元、未解決の問いの定義）が、レポートのテンプレートと食い違わないことを、構造テストで照らす。
 
 ### US-4: 分析者が、論点ツリーの HTML の中で、論点と分析ノートを行き来できる
 
@@ -228,7 +228,7 @@ flowchart TD
 
 `src/insight_blueprint/models/` のクラスは変えない。分析ノートは既存の型と notebook の出力から読んだ値を並べた生成物である。
 下の図の `DesignNote`・`NoteSource`・`NoteEvent`・`NoteVerdict`・`VerdictMetric`・`NoteFigure`・`CodeCell`・`Conclusion` は `skills/_shared/` に置く表示のための型で、保存しない。
-名前は 28.1 で確定した（Decision `note-types-are-parsed-at-the-reader`）。`CodeCell` は 28.2 で実装した。`Conclusion` は 28.3 で実装する。
+名前は 28.1 で確定した（Decision `note-types-are-parsed-at-the-reader`）。`CodeCell` は 28.2 で、`Conclusion` は 28.3 で実装した。
 
 ```mermaid
 classDiagram
@@ -340,14 +340,14 @@ classDiagram
 | `QuestionTree`、`QuestionNode` | 集約ルート、エンティティ | 変えない。分析ノートへのアンカーは保存せず、`design_ids` から導く |
 | `AnalysisDesign` | 集約ルート | 変えない |
 | `DesignSummary` | 値オブジェクト（表示の入力） | `created_at` を足す。並びは状態と `created_at` と id だけで決まる |
-| `DesignNote` | 値オブジェクト（表示の入力） | 保存しない。同じ入力からは同じ HTML ができる。接続情報を持たない。`verdict` が無い（`None`）ことが、notebook をまだ実行していないことを表す。`cells` が無い（`None`）ことは、notebook の `.py` が無いか、データ取得の cell を特定できないことを表す。`lineage` は lineage の Mermaid の文字で、無ければ `None`。`local_files` は在るファイルの `.insight/` からのパス。`conclusion` は 28.3 で足す |
+| `DesignNote` | 値オブジェクト（表示の入力） | 保存しない。同じ入力からは同じ HTML ができる。接続情報を持たない。`verdict` が無い（`None`）ことが、notebook をまだ実行していないことを表す。`cells` が無い（`None`）ことは、notebook の `.py` が無いか、データ取得の cell を特定できないことを表す。`lineage` は lineage の Mermaid の文字で、無ければ `None`。`local_files` は在るファイルの `.insight/` からのパス。`conclusion` は terminal status の分析設計にだけ在り、それ以外は `None` |
 | `NoteSource` | 値オブジェクト | データソースの名前・種類・説明だけを持つ。接続情報を入れる所が無い |
 | `NoteEvent` | 値オブジェクト | journal の出来事の1件。本文と時刻は書かれたとおりの文字 |
 | `NoteVerdict` | 値オブジェクト | verdict のファイルのうち、分析ノートが出す分。verdict のファイルが在るときにだけ在る。`conclusion` は verdict に書かれた文字のままで、文字列でなければ無い（`None`） |
 | `VerdictMetric` | 値オブジェクト | verdict の指標の1件。数は verdict の JSON に書かれた文字のまま持つ。`effect_size` と `confidence_interval` は、項目が欠けていれば無いものとする（ADR-0013） |
 | `NoteFigure` | 値オブジェクト | figures manifest の1件。`file` がファイル名だけで、`.insight/notebooks/` に実在する PNG に限る。シンボリックリンクは載せない |
 | `CodeCell` | 値オブジェクト | notebook の cell の1つ。`position` はファイルの中の cell の順番（1から）、`source` はデコレータを含む書かれたとおりの文字。データ取得の cell は含めない。データ取得の cell を特定できない notebook からは1つも作らない |
-| `Conclusion` | 値オブジェクト | terminal status の分析設計にだけ在る。中身は記録の写しで、生成した文を持たない |
+| `Conclusion` | 値オブジェクト | terminal status の分析設計にだけ在る。中身は記録の写しで、生成した文を持たない。`next_action` は status に合う枝の（項目、文字）の組で、文字列でない値は持たない。`open_questions` は journal の `question` のうち、どの `conclude` の `metadata.resolves` にも挙がっていないもの |
 
 ## Sequence Diagram
 
@@ -653,6 +653,60 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
   `render --design` は、テーマの分析ノートをすべて作り直す。ほかの分析設計の分析ノートが作れないと、対象の分析設計の分析ノートも示せない。
   28.5 は、`anchor` が在れば分析ノートの場所として示し、`node_ids` が空でなければ論点を示す。どちらも無ければ `path` だけを示す。
 
+### Decision: the-conclusion-follows-the-results
+
+- What: 結論の節（`{anchor}-conclusion`）は「結果」の後、「分析コード」の前に置く（Story 28.3）。節の最初に `design_note.LEAD_SENTENCES` の決まった文を出し、次に、記録の写しであることと、`conclude`・`reflect` の本文が「分析の経過」にも在ることを書く。
+  その後に、conclude の本文、勧めの元、仮説に反する証拠、reflect の本文、未解決の問いを、この順で出す。無いものは見出しごと省く。
+  terminal status でない分析設計では、節もアンカーも出さず、冒頭の状態の欄に「結論はまだ出ていない（分析設計が terminal status でない）。」と書く。
+- Why: US-3 AC 1〜4。レポートは Results の後に Discussion（Implications・Recommendation・Limitations・Future Directions）を置く。分析ノートの前半はすでにレポートの並びに合わせてある（US-1 AC 2）。
+- Criteria: レポートのテンプレートと並びが食い違わないこと（高、US-1 AC 2、ADR-0036）。事実を読んでから結論を読めること（中、Claude の推測。結論を求める段で示すページなので）。決め手は最初の1つ。
+- Affected modules: `skills/_shared/design_note.py`（`_SECTIONS`、`_conclusion`、`_status`）。
+- Alternatives considered: 冒頭の状態の欄の直後に置く。Abstract に近いが、レポートは Abstract に決まった文と結論の要約しか置かず、勧め・限界・問いは Discussion に置く。分けると節が2つになる。
+- Consequences: 同じ本文が「分析の経過」と結論の節に2回出る。US-3 AC 2・AC 3 の求めどおりで、節の冒頭にそう書いた。
+
+### Decision: the-conclusion-type-keeps-its-name
+
+- What: 結論の節の型は `Conclusion` のままにし、`NoteConclusion` に改めない（Story 28.3）。項目は Domain Model 図のとおり（`status`、`conclude_events`、`next_action`、`contradicting_evidence`、`reflect_events`、`open_questions`）。
+  `design_note_read._conclusion` が分析設計と journal から作る。決定の文脈は `DesignNote.design` から表示の側で読み、`Conclusion` に写さない。
+- Why: 28.1 の Decision `note-types-are-parsed-at-the-reader` が、名前を 28.3 に回した。
+- Criteria: Domain Model 図と項目がコードと食い違わないこと（Must、design-doc-template）。図の変更と人間の承認の手数（中、Claude の推測）。verdict の `conclusion` と紛れないこと（中、28.1 の Decision）。決め手は2つめ。
+  紛れは `DesignNote.verdict.conclusion`（文字列）と `DesignNote.conclusion`（`Conclusion`）で、置き場と型が違う。表示の型にも `CodeCell`・`VerdictMetric` のように `Note` の付かない名前がある。
+- Affected modules: `skills/_shared/design_note.py`、`skills/_shared/design_note_read.py`。
+- Alternatives considered: `NoteConclusion` に改める。名前は揃うが、図の変更と人間の承認が要り、紛れはすでに型と置き場で避けられている。
+- Consequences: Domain Model 図は変えていない。表の `DesignNote` と `Conclusion` の不変条件を実装に合わせて書き足した。
+
+### Decision: open-questions-are-read-from-the-journal
+
+- What: 未解決の問いは journal だけから読む（Story 28.3）。`question` の出来事のうち、どの `conclude` の `metadata.resolves`（id 1つか、id のリスト）にも挙がっていないものである。verdict の `open_questions` は読まない。
+  読む種類と鍵は `design_note_read.QUESTION`・`CONCLUDE`・`RESOLVES` に置く。
+- Why: レポートのテンプレートは「Journal events」で、未解決の問いを journal だけから読み、定義を `/analysis-journal` の Open Questions に任せている。`/analysis-notebook` は verdict の `open_questions` を `question` の出来事として journal に書くので、両方を読むと同じ問いが2回出る。
+- Criteria: レポートの未解決の問いと食い違わないこと（Must、US-3 AC 5）。同じ問いが2回出ないこと（高、apa-template.md）。決め手は最初の1つ。
+- Affected modules: `skills/_shared/design_note_read.py`。
+- Alternatives considered: verdict の `open_questions` も読む。テンプレートと食い違い、問いが2回出る。
+- Consequences: 構造テスト（`tests/skills/test_design_note_report_structure.py`）が、テンプレートの参照先と `/analysis-journal` の定義の文を、読み手の定数と照らす。
+
+### Decision: the-recommendation-sources-are-the-branch-for-the-status
+
+- What: 「勧めの元」には、決定の文脈（決める人、決めること）と、`next_action` のうち status に合う枝だけを出す（Story 28.3）。枝は `design_note_read.NEXT_ACTION_BRANCHES` で、`supported` は `if_supported`、`rejected` は `if_rejected` の `reason` と `pivot`、`inconclusive` は無し。
+  「next_action の if_rejected.pivot: …」のように項目の名前を添えて、書かれたとおりに出す。文字列でない値と空の文字列は出さない。Recommendation の決まった文（「この分析は、…に…について次を推奨する。」）は出さない。
+- Why: US-3 AC 3 は `next_action` と決定の文脈を書かれたとおりに出すことを求め、AC 5 は勧めの元がテンプレートと食い違わないことを求める。テンプレートの Recommendation は status に合う枝だけを使う。
+- Criteria: テンプレートと勧めの元が食い違わないこと（Must、US-3 AC 5）。書かれたとおりに出すこと（Must、US-3 AC 3）。モデルの文に見えないこと（高、US-3 AC 4）。決め手は最初の1つ。
+- Affected modules: `skills/_shared/design_note.py`（`_recommendation_sources`）、`skills/_shared/design_note_read.py`。
+- Alternatives considered:
+  - `next_action` の全体を出す。status に合わない枝（棄却されたのに `if_supported`）が勧めに見える。
+  - Recommendation の決まった文で組み立てる。文は決まっているが、どの行を使うかの判断と「次を推奨する」の後の文はレポートでモデルが書く。項目名を添えた写しのほうが、読む人が出所を取り違えない。
+- Consequences: 計画外の判断（1件目）。PR 説明に書く。`if_rejected` を文字列で書いた分析設計では、勧めの元に枝が出ない（テンプレートも `reason` と `pivot` を読む）。
+
+### Decision: contradicting-evidence-is-the-contradicts-direction
+
+- What: 結論の節の「仮説に反する証拠」は、`evidence` のうち `metadata.direction` が `contradicts` のものとする（Story 28.3）。status によらない。
+- Why: US-3 AC 3 と ADR-0036 は「仮説に反する証拠」と書き、Domain Model 図の項目も `contradicting_evidence` である。
+  レポートの Limitations は「結論に反する証拠」（`supported` なら `contradicts`、`rejected` なら `supports`、`inconclusive` なら無し）を挙げるので、`rejected` と `inconclusive` では中身が違う。
+- Criteria: AC の文言どおりであること（Must、US-3 AC 3）。レポートの Limitations と揃うこと（中、Claude の推測。AC 5 が照らす項目に入っていない）。決め手は最初の1つ。
+- Affected modules: `skills/_shared/design_note_read.py`（`_conclusion`）。
+- Alternatives considered: Limitations と同じく、結論に反する向きの証拠を出す。AC と図の名前と食い違い、`rejected` では `supports` の証拠が「仮説に反する証拠」の見出しの下に出る。
+- Consequences: 計画外の判断（2件目）。PR 説明に書く。`rejected` の分析設計では、結論を裏づける証拠がこの見出しの下に出る。どの証拠もすでに「結果」の節に向きごとに出ている。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0036: 分析ノートは、分析設計ごとにコードが生成し、論点ツリーの HTML の中に並べる](../adr/0036-design-note-is-a-generated-page-per-design.md): 分析ノートの中身と決まり、置き方、結論の後の節、Epic 18 の US-5 AC 1 の文言の変更、読むものの意味の変更。
@@ -666,7 +720,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 |---|---|---|---|
 | 28.1 分析ノートを作る | ✓（`tests/test_design_note.py`。表示の純関数。エスケープ、決定性、無い節） | ✓（`tests/tree_io/test_render_design.py`。合成シナリオの fixture で `tree_io render --design` を回す） | —（自動の E2E は無い。built-in browser の手動確認を Story Timeline に書いた） |
 | 28.2 コードと経過を載せる | ✓（`tests/test_design_note_read.py` の cell の切り出し、データ取得の cell を特定できない notebook。`tests/test_design_note.py` の分析コード・lineage・分析の経過・手元のファイルの節） | ✓（`tests/tree_io/test_render_design.py` の `TestCodeAndProgress`。接続情報が載らないこと、リンクのファイルを読まないこと、在るファイルだけへのリンク） | —（自動の E2E は無い。built-in browser の手動確認を Story Timeline に書いた） |
-| 28.3 結論の後の節を埋める | ☐（terminal status の有無、記録の写し。レポートのテンプレートとの突き合わせ） | ☐ | ☐ |
+| 28.3 結論の後の節を埋める | ✓（`tests/test_design_note.py` の `TestConclusion`。決まった文、置き場、記録の写し、無いものを省くこと、記録と決まった見出しのほかの文字が無いこと、エスケープ。`tests/skills/test_design_note_report_structure.py`。決まった文・勧めの元・未解決の問いの定義をレポートのテンプレートと照らす） | ✓（`tests/tree_io/test_render_design.py` の `TestConclusion`。status ごとの枝、解決済みの問いを出さないこと、未結論の分析設計に節が無いこと、Markdown のレポートを読まないこと） | —（自動の E2E は無い。built-in browser の手動確認を Story Timeline に書いた） |
 | 28.4 論点ツリーの HTML に並べる | ✓（`tests/test_tree_render.py`。アンカー、戻るアンカー、並び、分析ノートを二重にエスケープしないこと、論点ツリーの側が別の HTML へのリンクを出さないこと） | ✓（`tests/tree_io/test_render_notes.py`、`tests/tree_io/test_render_design_in_tree.py`。アンカーの飛び先がすべて同じファイルに在ること、2回で同じバイト列、作れない分析ノートのエラー、`render --design` の返す形） | —（自動の E2E は無い。built-in browser の手動確認を Story Timeline に書いた） |
 | 28.5 結論の段で示す | ☐（SKILL.md の構造テスト） | ☐ | ☐ |
 | 28.6 分析ノートを含めて送る | ☐（SKILL.md の構造テスト） | ☐ | ☐（Artifact で行き来できるかの手動確認。スマホのアプリとデスクトップ） |
@@ -695,3 +749,8 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
   `render --design` の後も同じバイト列だった。verdict を壊すと、分析設計を名指しして exit 1 で終わり、前のページは変わらなかった。
   built-in browser で開き、アンカー 56 本がすべて `#` で始まり、飛び先が同じファイルに在ること、id の重複が0件、script が0件、外部への要求が0件、幅 375px でページが横にはみ出さないことを見た。
   論点のカードから分析ノートへ飛び、「結んだ論点」で元の論点に戻れた。飛んだ直後に上の戻るアンカーが隠れたので、止まる位置を下げて直した。28.2 を取り込んだ後、「手元のファイル」の相対リンクが論点ツリーのページからも実在のファイルを指すことを見た。
+- 2026-11-23 — Story 28.3 completed: terminal status の分析設計の分析ノートに、結論の節を足した（決まった文、conclude の本文、勧めの元、仮説に反する証拠、reflect の本文、未解決の問い）。US-3 の AC 1〜5。
+  terminal status でない分析設計には節を出さず、冒頭に結論がまだ出ていないことを書く。決まった文・勧めの元・未解決の問いの定義をレポートのテンプレートと照らす構造テストを足した。Domain Model 図は変えていない。
+- 2026-11-23 — 手動確認（28.3）: 合成のプロジェクトに、`rejected` の分析設計（決定の文脈、`next_action` の両方の枝、向きの違う証拠、解決済みと未解決の問い、`conclude`、長い `reflect`）と、`in_review` の分析設計を作った。
+  `bin/tree_io render --design` をそれぞれ2回通し、同じバイト列になった。built-in browser で開き、結論の節が「結果」の後に出て、`if_rejected` の `reason` と `pivot` だけが出ること、解決済みの問いが出ないこと、問いの中の `<b>` が文字のまま出ることを見た。
+  `in_review` の分析設計には結論の節もアンカーも無く、冒頭に結論がまだ出ていないことが出た。どちらも script が0件で、幅 375px でページが横にはみ出さない。
