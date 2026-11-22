@@ -29,7 +29,7 @@ from dataclasses import asdict
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from ruamel.yaml import YAMLError
@@ -60,15 +60,13 @@ from skills._shared.design_io import (
     read_yaml,
     resolve_base_dir,
 )
+from skills._shared.tree_check import Violation, check_cited, check_tree
 from skills._shared.tree_render import (
     CheckFailed,
     CitedEvent,
     DesignSummary,
     render_tree_html,
 )
-
-if TYPE_CHECKING:  # tree_check imports this module
-    from skills._shared.tree_check import Violation
 
 
 def tree_path(theme_id: str, base_dir: Path) -> Path:
@@ -484,8 +482,6 @@ def answer(
     new round when answers were written, the earlier one when none were. A
     violation carries the round its answer would have had.
     """
-    from skills._shared.tree_check import check_tree  # tree_check imports tree_io
-
     # The payload is JSON a model wrote, so it is parsed before anything reads it.
     entries = TypeAdapter(list[_AnswerEntry]).validate_python(answers)
     tree = load_tree_model(theme_id, base_dir)
@@ -739,8 +735,6 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     the page. A journal that cannot be read stops ``render``, so the analyst is
     told which file to fix.
     """
-    from skills._shared.tree_check import check_cited  # tree_check imports tree_io
-
     tree = load_tree_model(theme_id, base_dir)
     designs = _design_summaries(theme_id, base_dir)
     _require_usable_links(tree, designs)

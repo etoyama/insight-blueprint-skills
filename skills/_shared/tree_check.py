@@ -24,7 +24,6 @@ from typing import Literal
 
 from insight_blueprint.models.tree import AnswerStatement, QuestionTree, design_id_of
 from skills._shared.design_io import DEFAULT_BASE_DIR, resolve_base_dir
-from skills._shared.tree_io import cited_events, load_tree_model, tree_path
 from skills._shared.tree_render import CitedEvent
 
 # The dashes and triangles writers use for "down" all read as one minus: a
@@ -135,11 +134,15 @@ def check_theme(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> list[Violat
     fails its schema or names another theme, or a cited event id that two
     events share, and OSError or YAMLError for a file that cannot be read.
     """
+    from skills._shared.tree_io import load_tree_model  # tree_io imports this
+
     return check_tree(load_tree_model(theme_id, base_dir), base_dir)
 
 
 def check_tree(tree: QuestionTree, base_dir: Path) -> list[Violation]:
     """Check a tree already in memory against the journals under *base_dir*."""
+    from skills._shared.tree_io import cited_events  # tree_io imports this
+
     return check_cited(tree, *cited_events(_current_cites(tree), base_dir))
 
 
@@ -176,6 +179,7 @@ def _main(argv: list[str] | None = None) -> int:
     parser.add_argument("--theme", required=True)
     parser.add_argument("--base-dir", default=str(DEFAULT_BASE_DIR))
     args = parser.parse_args(argv)
+    from skills._shared.tree_io import tree_path  # tree_io imports this
 
     # Exit 2, not 1: for this command 1 means "violations found".
     try:
