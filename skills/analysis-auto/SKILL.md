@@ -61,7 +61,7 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | report | — | writing the report with `/analysis-report` once the design is in a terminal status |
 | upload | **the files to send to Claude Docs** — asked by `/report-upload` itself, at its approval gate; the driver adds no question of its own | starting `/report-upload` once the round has a report, written by this run or before it |
 | theme reflection | **`/analysis-reflection {theme_id}` T7** | — |
-| tree-upload | **the file to send as an Artifact** — asked by `/tree-upload` itself, at its approval gate; the driver adds no question of its own | starting `/tree-upload` when the analyst asks to hand the tree over |
+| tree-upload | **the file to send as an Artifact** (the tree's HTML with the analysis notes, as one file) — asked by `/tree-upload` itself, at its approval gate; the driver adds no question of its own | starting `/tree-upload` when the analyst asks to hand the tree over |
 | catalog-register | **registering a data source** (external-data side-effect); unregistered source → stop | — |
 
 A KEEP cell that names a step of a delegated skill is that skill's own gate. That skill says what
