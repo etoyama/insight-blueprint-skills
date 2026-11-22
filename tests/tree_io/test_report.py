@@ -452,3 +452,31 @@ class TestReportCli:
         assert done.returncode == 1
         assert done.stderr.startswith("tree_io: ")
         assert "Traceback" not in done.stderr
+
+
+# Marks that would work as Markdown if copied raw, with a break and a block mark.
+_MARKS = "> 152件 <b>x</b> | y | `z` ![i](http://example.invalid/a.png)\n# w"
+_MARKS_ESCAPED = (
+    r"\> 152件 \<b>x\</b> \| y \| \`z\` !\[i\](http://example.invalid/a.png) # w"
+)
+
+
+class TestReportSourceText:
+    def test_texts_from_the_tree_and_the_journal_are_escaped_in_the_file(
+        self, answered: Path
+    ) -> None:
+        design_io.write_journal(
+            "LIB-H01",
+            {"events": [{"id": "LIB-H01-E01", "type": "conclude", "content": _MARKS}]},
+            base_dir=answered,
+        )
+        _finish(answered, "LIB-H01")
+        tree_io.answer("LIB", answers=[_entry("LIB-Q02", _MARKS)], base_dir=answered)
+
+        _, text = _written(answered)
+
+        assert f"- {_MARKS_ESCAPED}（LIB-H01-E01）" in text.splitlines()
+        assert f"仮説は支持された。{_MARKS_ESCAPED}（LIB-H01-E01）" in text
+        assert f"| LIB-H01-E01 | 結論 | {_MARKS_ESCAPED} |" in text
+        assert "<b>" not in text.replace(r"\<b>", "")
+        assert "\n# w" not in text

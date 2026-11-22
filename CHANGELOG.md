@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   next candidates; there is no section of recommendations. The Appendix lists every journal event
   the report cites, and no other; analysis code and lineage are left out
   ([ADR-0039](docs/adr/0039-report-is-the-final-report-of-a-theme-written-by-code.md), #177).
+  Text copied from the records shows as characters: line breaks and tabs fold into one space,
+  and a backslash goes before the characters and the marks that would make a tag, an image, a
+  link, a table cell, a code span, a fence, a heading or a list. The report says 主題, 記録, 分析,
+  上位の論点 and 答えると分かること for the glossary's words a reader does not know.
 - **`/report-export {theme_id}` exports the final report of a theme to Claude Docs.** It has
   `tree_io report` write the report, lists the report and its figures with the round that wrote
   the root's answer and the number of unconcluded designs, and creates a new Doc only after you

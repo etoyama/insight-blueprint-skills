@@ -69,11 +69,11 @@ AC の正本はここ。
 この文に `<` や `*` や `|` のような記号が入っていると、Markdown はそれを見出し、リンク、画像、表の区切りとして読み、レポートの体裁が変わってしまう。
 AC 3 から AC 5 は、そうした記号を文字のまま表示させるための決まりである。
 
-- [ ] AC 1: レポートは用語表の語を読み手向けの言葉に言い換えて出す（根の問いは「主題」、journal の出来事は「記録」、分析設計は「分析」、親の論点は「上位の論点」、寄与は「答えると分かること」など）。言い換えの対応はコードの1か所に持ち、用語表には写さない。対応の左側がすべて用語表の語であることを、テストで確かめる。
-- [ ] AC 2: 現時点の答えの種類は「言えること」「留保すべきこと」「まだ分からないこと」の見出しで出す。
-- [ ] AC 3: データ由来の文は改行とタブの連なりを空白1つにし、[ADR-0019](../adr/0019-report-source-text-escaped-and-checked.md) が挙げる8つの文字の前にバックスラッシュを置いて写す。削らない。
-- [ ] AC 4: 図は verdict の figures manifest の順に画像のリンクとして出す。出すのは、`file` がファイル名だけで、`.insight/notebooks/` に実在する図に限る。
-- [ ] AC 5: データ由来の文に入れたタグ、画像、リンク、表の区切り、コードスパン、フェンスが、Markdown を表示したときに記法として働かず、文字のまま出ることをテストで確かめる。terminal status ごとの決まった文は、分析ノートと同じ1か所から使う。
+- [x] AC 1: レポートは用語表の語を読み手向けの言葉に言い換えて出す（根の問いは「主題」、journal の出来事は「記録」、分析設計は「分析」、親の論点は「上位の論点」、寄与は「答えると分かること」など）。言い換えの対応はコードの1か所に持ち、用語表には写さない。対応の左側がすべて用語表の語であることを、テストで確かめる。
+- [x] AC 2: 現時点の答えの種類は「言えること」「留保すべきこと」「まだ分からないこと」の見出しで出す。
+- [x] AC 3: データ由来の文は改行とタブの連なりを空白1つにし、[ADR-0019](../adr/0019-report-source-text-escaped-and-checked.md) が挙げる8つの文字の前にバックスラッシュを置いて写す。削らない。
+- [x] AC 4: 図は verdict の figures manifest の順に画像のリンクとして出す。出すのは、`file` がファイル名だけで、`.insight/notebooks/` に実在する図に限る。
+- [x] AC 5: データ由来の文に入れたタグ、画像、リンク、表の区切り、コードスパン、フェンスが、Markdown を表示したときに記法として働かず、文字のまま出ることをテストで確かめる。terminal status ごとの決まった文は、分析ノートと同じ1か所から使う。
 
 ### US-4: 分析者が、報告できると判断したときに、レポートを Claude Docs へ export できる
 
@@ -225,9 +225,9 @@ classDiagram
         +contradicting_evidence
         +of(note)
     }
-    class ReaderWords {
-        <<Value Object>>
-        +word(term)
+    class READER_WORDS {
+        <<Constant>>
+        用語表の語 → 読み手向けの言葉
     }
     class QuestionTree {
         <<Aggregate Root>>
@@ -275,7 +275,7 @@ classDiagram
     ThemeReport "1" *-- "0..*" ReportNode
     ThemeReport "1" *-- "0..*" ReportDesign
     ThemeReport --> TreeDecision : 最新の決定
-    ThemeReport --> ReaderWords
+    ThemeReport ..> READER_WORDS : 決まった文の語
     ReportNode --> Answer : 最新の答え
     ReportNode --> NextCandidate
     ReportNode "1" --> "0..*" ReportDesign : 根拠となる分析
@@ -291,7 +291,7 @@ classDiagram
 | `ThemeReport` | 表示の型 | 根の問いに、今の根の版への答えがある。ツリーの検査の違反が0件である。保存しない。レポートが括弧で引用する出来事を、根拠にした記録としてすべて持つ |
 | `ReportNode` | 値オブジェクト | 根でない論点1つ。答えは最新の1つだけを持つ。答えが無ければ、まだ答えていない論点として出る。今の根の版より古い答えも答えとして出し、見直す前の答えだと添える |
 | `ReportDesign` | 値オブジェクト | 論点に結んだ分析設計1つ。`DesignNote` から作る（`of`）。値は書かれたとおりの文字で持つ。接続情報の置き場が無い。分析コードと lineage と journal のすべての出来事を持たない |
-| `ReaderWords` | 値オブジェクト | 用語表の語と、読み手向けの言葉の対応。対応は1か所にだけ在る |
+| `READER_WORDS` | 定数（`theme_report.py`） | 用語表の語と、読み手向けの言葉の対応。対応は1か所にだけ在り、左側はすべて用語表の語である。決まった文はここから語を取る |
 
 ## Sequence Diagram
 
@@ -446,6 +446,7 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
   - 到達点を文にせず、項目の箇条書きにする。Introduction の箇条書き（US-2 AC 1）と同じ物が2回並ぶ。
 - Consequences: 決まった文は、読み手向けの言葉（主題、記録の番号）で書いてある。言い換えの対応を1か所に集めるのは Story 29.3（US-3 AC 1）で、それまでは文の中に直接書いてある。
   データ由来の文のエスケープも 29.3 で入れる（US-3 AC 3）。それまでのレポートは、記号の入った答えの文で体裁が崩れうる。研究のテーマの文は人間がまだ見ていないので、29.1 の報告で示す。
+  2026-11-23 に、人間が Story 29.3 のセッションで、研究のテーマの文をこのままにすると決めた（Decision Analysis で、1文にする案と、主張の範囲を外す案と比べた）。
 
 ### Decision: the-report-reads-designs-the-way-the-note-does
 
@@ -524,6 +525,40 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
   - `conclude` と反する証拠には括弧を付けない。本文の後ろに番号が無くなり、記録にたどれなくなる。
 - Consequences: `conclude` と反する証拠の本文は、Results・Limitations と Appendix に2回出る。
 
+### Decision: source-text-is-escaped-where-it-enters-the-text
+
+- What: データ由来の文は、`theme_report.escape_source_text` を1回通してから決まった文に挿す。関数は次の順に直す。
+  - 改行とタブの連なり（`\r`・`\n`・`\t`・`\v`・`\f`・U+0085・U+2028・U+2029）を空白1つにし、前後の空白を落とす。
+  - [ADR-0019](../adr/0019-report-source-text-escaped-and-checked.md) の8つの文字の前にバックスラッシュを置く。
+  - 文の先頭でブロックを開く記号（空白か終わりが続く `#` の連なり、`>`、空白か終わりが続く `-`・`+`・`1.`・`1)`、`~~~`）と、文の末尾で見出しを閉じる `#`（空白の後）の前にもバックスラッシュを置く。
+  - 通さないのは、スキーマの型で検査済みの id（テーマ・論点・分析設計・出来事）、日付、決まった語、読む側の検査（`[A-Za-z0-9_.-]+`）を通った図のファイル名だけである。図のファイル名は画像のリンクの宛先なので、バックスラッシュを入れると壊れる。
+- Why: 8つの文字だけでは、答えの文や journal の本文が箇条書きの先頭に来たとき、`# ` が見出しに、`> ` が引用に、`~~~` がフェンスに、`1. ` が番号付きのリストになる。見出しの末尾の ` #` は、表示で消える。前後の空白は表示されないが、4つ以上あると箇条書きの中でコードのブロックになる。
+  入口ごとに `_e` を呼ぶ形にしたのは、表のセルをまとめてエスケープすると、手法とパッケージのように2つの文を1つのセルに並べたとき、2つめの文の先頭の記号が残るからである。
+- Criteria: データ由来の文を削らないこと（Must、US-3 AC 3）。US-3 AC 5 が挙げる記法が、どの入口でも働かないこと（Must）。ふつうの文（`2019-2023`、`1.5 倍`、`-1.2`、`C#`）にバックスラッシュを足さないこと（高、Claude の推測。Claude Docs がバックスラッシュをそのまま見せるかは確かめていない、ADR-0019）。決め手は2つめ。
+- Affected modules: `skills/_shared/theme_report.py`。
+- Alternatives considered:
+  - 8つの文字だけにする（AC 3 の文のとおり）。箇条書きの先頭と見出しの末尾で記法が働く。
+  - ASCII の記号をすべてエスケープする（CommonMark の決まり）。どの位置でも記法は働かないが、数や日付や括弧のほとんどにバックスラッシュが付く。
+  - 前後の空白を残す。箇条書きの中でコードのブロックになる。
+- Consequences: `~~打ち消し~~`（GFM の打ち消し線）、素の URL の自動リンク、`$…$`（数式を描く表示先）は、文の途中では働く。AC 5 の挙げる記法ではなく、文字は消えない。素の URL は ADR-0019 と同じく受け入れる。
+  テスト（`TestSourceTextInTheReport`）は、すべての項目に記号を入れたレポートで、その文が出るたびにエスケープされた形で丸ごと出ること、表の列数が見出しと同じこと、記法の始まりが残らないことを見る。
+  合成シナリオに記号を入れたレポートを markdown-it（生の HTML を通す設定）で描き、タグ・強調・コード・画像・リンク・引用・番号付きのリストが0個、見出しが APA の見出しと決まった見出しだけ、表の列数が見出しと同じで、文字が欠けないことを確かめた。
+
+### Decision: reader-words-are-one-mapping
+
+- What: 読み手向けの言い換えは、`theme_report.READER_WORDS`（用語表の語から読み手向けの言葉への辞書）の1か所に持つ。決まった文は、言い換える語をここから取る。対応は次の5つ。
+  根の問い → 主題、journal の出来事 → 記録、分析設計 → 分析、親の論点 → 上位の論点、寄与 → 答えると分かること。
+  用語表に「親の論点」を足した。左側がすべて用語表の語であることを、テストが用語表を読んで確かめる。
+  答えの種類の見出し（US-3 AC 2）、進捗の語（`tree_render.PROGRESS_WORDS`）、出来事の種類の語（`design_note.EVENT_WORDS`）、terminal status の決まった文（`design_note.LEAD_SENTENCES`）は、それぞれ今の置き場から使う。
+- Why: AC 1 は、対応をコードの1か所に持ち、左側が用語表の語であることを求める。言い換える語を決まった文に直接書くと、どれが言い換えかが読めず、テストもできない。
+- Criteria: 対応が1か所に在ること（Must、US-3 AC 1）。左側が用語表の語であることをテストできること（Must、US-3 AC 1）。足す型と呼び出しの量（中、Claude の推測。YAGNI）。決め手は3つめ。
+- Affected modules: `skills/_shared/theme_report.py`、`docs/UBIQUITOUS_LANGUAGE.md`、`.yomiyasu-words/allow.txt`。
+- Alternatives considered:
+  - Domain Model の初版のとおり、`word(term)` を持つ値オブジェクト `ReaderWords` にする。呼ぶ所は決まった文の組み立てだけで、辞書を引く以上のことをしない。
+  - 進捗・出来事の種類・答えの種類の語もこの辞書に移す。どれも分析ノートとツリーのページと共有する語で、言い換えではない。答えの種類の見出しは用語表の語（未判別・弱める証拠と留保）が左側に立たない。
+- Consequences: Domain Model の図の `ReaderWords` を `READER_WORDS`（定数）に替えた。Epic PR の説明に書き、人間の承認を得る。
+  テストは、ふつうのレポートが左側の語を1つも含まず、右側の語をすべて含むことも見る。「ツリーの決定はまだ無い。」のように、言い換えていない用語表の語はまだ残る。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0039: レポートは、テーマの最終報告として、コードが論点ツリーと分析設計の記録から書く](../adr/0039-report-is-the-final-report-of-a-theme-written-by-code.md): 読む面と配る先、レポートの単位と作り手、APA の骨組みと読み手向けの言い換え、用語「レポート」の意味の変更、ADR-0036 の一部の変更。
@@ -537,7 +572,7 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 |---|---|---|---|
 | 29.1 レポートの骨組みと、書かない条件 | ✓（`tests/test_theme_report.py`。見出しの並び、到達点の文、種類ごとの並びと引用の id、同じ入力から同じ Markdown、書いた時刻が載らないこと） | ✓（`tests/tree_io/test_report.py`。ファイルと返す値、2回で同じバイト列、書かない3つの条件と前のファイルに触らないこと、結論の出ていない分析設計で止めないこと、終了コード 0・3・1） | —（自動の E2E は無い。合成シナリオで `tree_io report --theme LIB` を回し、見本の第2版と見比べたことを Story Timeline に書いた） |
 | 29.2 答えと根拠を載せる | ✓（`tests/test_theme_report.py`。Introduction の箇条書きと論点の表、Method の2つの表、Results の答えと根拠となる分析と指標と図、見直す前の答えの注記、`figures()` の順、Limitations と Future Directions、勧めの節が無いこと、Appendix が括弧の記録だけを最初に出た順に載せること） | ✓（`tests/tree_io/test_report.py`。記録から書いた Results・Limitations・Future Directions・Appendix、返す `figures` と画像のリンク、接続情報と分析コードと lineage が載らないこと。`tests/tree_io/test_render_design.py` に図のファイル名） | —（自動の E2E は無い。合成シナリオで `tree_io report --theme LIB` を回し、見本の第2版と見比べたことを Story Timeline に書いた） |
-| 29.3 読み手の言葉と、崩れない体裁 | ☐ | ☐ | ☐ |
+| 29.3 読み手の言葉と、崩れない体裁 | ✓（`tests/test_theme_report.py`。`escape_source_text` の8つの文字・改行とタブ・先頭と末尾の記号・ふつうの文に足さないこと、すべての項目に記号を入れたレポートでどの入口もエスケープされること・表の列数・記法の始まりが残らないこと・図のリンクのファイル名、`READER_WORDS` の左側が用語表の語であることと、レポートが左側の語を含まないこと、terminal status の文が分析ノートと同じ物であること） | ✓（`tests/tree_io/test_report.py`。論点ツリーと journal に記号を入れて書いたファイルで、答えの文・`conclude` の本文・Appendix がエスケープされること） | —（自動の E2E は無い。合成シナリオに記号を入れて `tree_io report --theme LIB` を回し、markdown-it で描いて確かめたことを Story Timeline に書いた） |
 | 29.4 Claude Docs へ export する | ✓（`tests/skills/test_report_export_structure.py`。SKILL.md の文の契約: `written` が偽なら古いレポートも送らないこと、`path` だけを送り `.md.lock` を拾わないこと、KEEP ゲートの `root_answer_round` と `unfinished_designs` の長さ、図の扱いが `/report-upload` と同じこと、コネクタが無ければ聞かずに止まること） | —（skill はコネクタを通して動き、Python から呼べない。`tree_io report` の側は 29.1 の Integration が受け持つ） | —（自動の E2E は無い。合成シナリオで手順を手で回し、Claude Docs に Doc を作ったことを Story Timeline に書いた） |
 | 29.5 古いレポート周りを消し、文書をそろえる | ☐ | ☐ | ☐ |
 
@@ -565,3 +600,7 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
   同じ図が2つの番号で出る点（1つの分析設計を、答えのある論点2つに結んだとき）は Decision `the-report-design-is-cut-from-the-design-note` のとおりで、直していない。
 - 2026-11-23 — 計画外の判断が3件あった（Appendix の範囲、結論の前の反する証拠、図の番号の数え方）。Decisions に書き、PM には完了の報告で知らせた。
 - 2026-11-23 — Story 29.2 の後に、図を Doc に載せる道を確かめた（PM の依頼）。合成シナリオ（`handoff_trial build --scenario lib`）の LIB-H01 と LIB-H02 に verdict の図を1枚ずつ足し、`tree_io report --theme LIB` が `figures` に2枚を返し、レポートが2つの画像のリンクを持つことを見た。人間が KEEP ゲートで承認した後に `/report-export` の手順で Doc（https://claude.ai/artifact/D3YAvLEXADYCtbxCQqWBjh）を作り、図2枚を1枚ずつ載せた。注記は残らず、図の題・軸・読み方の文は図の下にそのまま残った。ホストの承認カードは出なかったので、断ったときの道は確かめていない。SKILL.md は直していない。
+- 2026-11-23 — 人間が D6（研究のテーマの Abstract の決まった文）を、Story 29.3 のセッションで Decision Analysis の形で聞かれて決めた。1文にする案と、主張の範囲を外す案と比べ、今の文のままにした。
+- 2026-11-23 — Story 29.3 completed: データ由来の文を、`theme_report.escape_source_text` を通してから挿す。読み手向けの言い換えを `READER_WORDS` の1か所に集め、用語表に「親の論点」を足した。Domain Model の図の `ReaderWords` を `READER_WORDS`（定数）に替えた（Epic PR で承認を得る）。Decisions に2件書いた。
+- 2026-11-23 — 合成シナリオ（`scripts/handoff_trial.py build --scenario lib`）の根の問い・論点の問いと寄与・答えの文・決定の理由・分析設計の題と仮説・journal の本文に、`<b>`・`*`・`|`・`` ` ``・`![x](http://example.invalid/a.png)`・改行・先頭と末尾の `#` などを入れて、`tree_io report --theme LIB` を回した（終了コード 0）。
+  出たファイルを markdown-it 13.0.2（生の HTML を通す設定）で描くと、タグ・強調・コード・画像・リンク・引用・番号付きのリストは0個で、太字は決まった見出しの9個だけ、見出しは APA と決まった見出しだけ、表の列数は見出しと同じだった。文字は1つも欠けなかった。Claude Docs での見え方は確かめていない（ADR-0019 の未確認の前提のまま）。
