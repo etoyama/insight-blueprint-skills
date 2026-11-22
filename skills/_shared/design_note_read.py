@@ -31,6 +31,7 @@ from skills._shared.design_note import (
 
 # A figure is a bare file name: it becomes a path under notebooks/.
 _FIGURE_FILE = re.compile(r"[A-Za-z0-9_.-]+")
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
 def _text(value: object) -> str | None:
@@ -120,14 +121,19 @@ def _verdict_figures(verdict: dict, notebooks: Path) -> tuple[NoteFigure, ...]:
         ):
             continue
         path = notebooks / file
-        if not path.is_file():
+        # The note may leave the machine, so only an image goes in: a manifest
+        # that names the notebook, or a link out of notebooks/, embeds nothing.
+        if path.is_symlink() or not path.is_file():
+            continue
+        png = path.read_bytes()
+        if not png.startswith(_PNG_SIGNATURE):
             continue
         figures.append(
             NoteFigure(
                 title=str(entry.get("title") or ""),
                 axes=str(entry.get("axes") or ""),
                 how_to_read=str(entry.get("how_to_read") or ""),
-                png=path.read_bytes(),
+                png=png,
             )
         )
     return tuple(figures)

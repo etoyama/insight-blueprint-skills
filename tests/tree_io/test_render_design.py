@@ -296,6 +296,37 @@ class TestFigures:
         assert "<img" not in html
         assert "図はまだ無い。" in html
 
+    def test_a_file_that_is_not_a_png_is_left_out(self, insight: Path) -> None:
+        """A manifest could name the notebook itself, which holds connection values."""
+        design_id = _design(insight)
+        notebooks = insight / "notebooks"
+        notebooks.mkdir(parents=True)
+        (notebooks / "LIB-H01.py").write_text("path = 'secret-warehouse'", "utf-8")
+        (notebooks / "renamed.png").write_text("path = 'secret-warehouse'", "utf-8")
+        _write_verdict(
+            insight,
+            design_id,
+            {"figures": [_entry("LIB-H01.py"), _entry("renamed.png")]},
+        )
+
+        html = _note_html(insight, design_id)
+
+        assert "<img" not in html
+        assert "図はまだ無い。" in html
+
+    def test_a_link_to_a_file_outside_notebooks_is_left_out(
+        self, insight: Path, tmp_path: Path
+    ) -> None:
+        design_id = _design(insight)
+        outside = tmp_path / "outside.png"
+        outside.write_bytes(_png(10))
+        notebooks = insight / "notebooks"
+        notebooks.mkdir(parents=True)
+        (notebooks / "fig01.png").symlink_to(outside)
+        _write_verdict(insight, design_id, {"figures": [_entry("fig01.png")]})
+
+        assert "<img" not in _note_html(insight, design_id)
+
     def test_a_figures_entry_that_is_not_an_object_is_skipped(
         self, insight: Path
     ) -> None:

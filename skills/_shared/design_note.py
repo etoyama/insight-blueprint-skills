@@ -81,9 +81,9 @@ NOTE_CSS = """
 .design-note table { border-collapse: collapse; margin: .5rem 0; }
 .design-note th, .design-note td {
   border: 1px solid var(--line); padding: .25rem .6rem; text-align: left;
-  vertical-align: top; overflow-wrap: anywhere;
+  vertical-align: top; overflow-wrap: break-word;
 }
-.design-note th { background: var(--panel); }
+.design-note th { background: var(--panel); white-space: nowrap; }
 .design-note figure { margin: 1rem 0; }
 .design-note img { max-width: 100%; height: auto; border: 1px solid var(--line); }
 .design-note figcaption { color: var(--muted); font-size: .9rem; }
@@ -334,11 +334,9 @@ def _figure(figure: NoteFigure, number: int) -> Html:
         el("img", src=f"data:image/png;base64,{encoded}", alt=f"図 {number}"),
         el(
             "figcaption",
-            el("strong", figure.title),
-            el("br"),
-            f"軸の説明: {figure.axes}",
-            el("br"),
-            f"図の読み方: {figure.how_to_read}",
+            el("div", el("strong", figure.title)),
+            el("div", f"軸の説明: {figure.axes}"),
+            el("div", f"図の読み方: {figure.how_to_read}"),
         ),
     )
 
