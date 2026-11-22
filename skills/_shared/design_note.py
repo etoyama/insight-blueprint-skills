@@ -3,7 +3,8 @@
 Pure: no I/O. ``design_note_read`` reads the files and hands a ``DesignNote`` in
 here. The note lays out what the design, the journal and the notebook output
 say, as written. Nothing is computed, rounded or summarized: a number is the
-literal text of the verdict JSON.
+literal text of the verdict JSON. The notebook's code comes cell by cell, never
+with its data-load cell, which holds the connection values (ADR-0022).
 
 The note is a fragment (``render_note``) so that the question-tree page can hold
 one per design; ``render_note_page`` wraps it as a standalone page. Every id
@@ -60,6 +61,7 @@ class NoteVerdict:
     """What the note shows of ``{id}_verdict.json``, besides its figures."""
 
     metrics: tuple[VerdictMetric, ...]
+    conclusion: str | None  # the one line the notebook wrote; None when absent
 
 
 @dataclass(frozen=True)
@@ -71,12 +73,24 @@ class NoteFigure:
 
 
 @dataclass(frozen=True)
+class CodeCell:
+    """One cell of the notebook ``.py``; never the data-load cell."""
+
+    position: int  # 1-based place among the cells of the file
+    source: str  # as written, decorator included
+
+
+@dataclass(frozen=True)
 class DesignNote:
     design: AnalysisDesign
     sources: tuple[NoteSource, ...]
     events: tuple[NoteEvent, ...]  # journal order
     verdict: NoteVerdict | None  # None: no verdict file, so the notebook has not run
     figures: tuple[NoteFigure, ...]
+    # None: no notebook, or one whose data-load cell cannot be told apart.
+    cells: tuple[CodeCell, ...] | None
+    lineage: str | None  # the Mermaid text of lineage/{id}.mmd
+    local_files: tuple[str, ...]  # paths under .insight/ that exist, LOCAL_FILES order
 
 
 NOTE_CSS = """
@@ -94,7 +108,29 @@ NOTE_CSS = """
 .design-note figcaption { color: var(--muted); font-size: .9rem; }
 .design-note .status { background: var(--panel); border: 1px solid var(--line); padding: .5rem 1rem; }
 .design-note .status p { margin: .2rem 0; }
+.design-note pre {
+  background: var(--panel); border: 1px solid var(--line); padding: .5rem;
+  overflow-x: auto; font-size: .85rem; line-height: 1.4;
+}
+.design-note ol.events li { margin: .4rem 0; }
 """
+
+# What "手元のファイル" may link, as paths under .insight/. Both the tree page
+# (themes/) and the standalone page (notes/) sit one level below .insight/, so
+# "../" + path reaches the file from either.
+_NOTEBOOK_PY = "notebooks/{id}.py"
+LOCAL_FILES = (
+    ("notebook の .py", _NOTEBOOK_PY),
+    ("verdict", "notebooks/{id}_verdict.json"),
+    ("lineage", "lineage/{id}.mmd"),
+    ("notebook の HTML", "notebooks/{id}.html"),
+    ("レポート", "reports/{id}.md"),
+)
+
+
+def local_file_paths(design_id: str) -> tuple[str, ...]:
+    return tuple(path.format(id=design_id) for _, path in LOCAL_FILES)
+
 
 _DASH = "—"
 
@@ -112,7 +148,24 @@ _SECTIONS = (
     ("explanatory", "説明変数"),
     ("sources", "データソース"),
     ("results", "結果"),
+    ("code", "分析コード"),
+    ("lineage", "データ加工の履歴"),
+    ("progress", "分析の経過"),
+    ("files", "手元のファイル"),
 )
+
+# The kinds of journal event (docs/UBIQUITOUS_LANGUAGE.md).
+_EVENT_WORDS = {
+    "observe": "観察",
+    "hypothesize": "仮説",
+    "evidence": "証拠",
+    "hearing": "人に聞いた答え",
+    "question": "問い",
+    "decide": "決定",
+    "reflect": "振り返り",
+    "conclude": "結論",
+    "branch": "派生",
+}
 
 
 def note_anchor(design_id: str) -> str:
@@ -371,6 +424,119 @@ def _results(note: DesignNote, anchor: str) -> Html:
     )
 
 
+def _code(note: DesignNote, anchor: str) -> Html:
+    if note.cells is not None:
+        body = join(
+            [
+                el(
+                    "p",
+                    "notebook の .py を cell ごとに出す。データ取得の cell は載せない"
+                    "（接続情報が入るため）。手元の notebook の .py で読む。",
+                ),
+                *(
+                    el(
+                        "details",
+                        el("summary", f"cell {c.position}"),
+                        el("pre", el("code", c.source)),
+                    )
+                    for c in note.cells
+                ),
+            ]
+        )
+    elif _NOTEBOOK_PY.format(id=note.design.id) in note.local_files:
+        body = el(
+            "p",
+            "notebook が契約の形でなく、データ取得の cell を特定できないので、"
+            "コードを1つも載せない。手元の notebook の .py で読む。",
+        )
+    else:
+        body = el("p", "notebook の .py はまだ無い。")
+    return _section(anchor, "code", "分析コード", body)
+
+
+def _lineage(note: DesignNote, anchor: str) -> Html:
+    body = (
+        el("p", "lineage はまだ無い。")
+        if note.lineage is None
+        else el(
+            "details",
+            el("summary", "lineage の Mermaid の文字"),
+            el("pre", el("code", note.lineage)),
+        )
+    )
+    return _section(anchor, "lineage", "データ加工の履歴", body)
+
+
+def _verdict_conclusion(verdict: NoteVerdict | None) -> Html:
+    if verdict is None:
+        return el("p", "notebook をまだ実行していない（verdict が無い）。")
+    if verdict.conclusion is None:
+        return el("p", "verdict に conclusion は無い。")
+    return el("p", f"notebook の結論（verdict の conclusion）: {verdict.conclusion}")
+
+
+def _event_item(event: NoteEvent) -> Html:
+    word = _EVENT_WORDS.get(event.type, event.type)
+    at = event.created_at or "（時刻の記載なし）"
+    return el(
+        "li",
+        el("div", f"{at} {word} {event.id}", class_="meta"),
+        el("div", event.content),
+    )
+
+
+def _progress(note: DesignNote, anchor: str) -> Html:
+    events = (
+        el(
+            "details",
+            el("summary", f"journal のすべての出来事（{len(note.events)} 件）"),
+            el("ol", *(_event_item(e) for e in note.events), class_="events"),
+        )
+        if note.events
+        else el("p", "journal にまだ出来事が無い。")
+    )
+    return _section(
+        anchor,
+        "progress",
+        "分析の経過",
+        el(
+            "p",
+            "分析中の判断と解釈の記録である。journal に書いた順（書いた時刻の順）に出す。",
+        ),
+        _verdict_conclusion(note.verdict),
+        events,
+    )
+
+
+def _local_files(note: DesignNote, anchor: str) -> Html:
+    present = [
+        (label, path)
+        for label, template in LOCAL_FILES
+        if (path := template.format(id=note.design.id)) in note.local_files
+    ]
+    body = (
+        join(
+            [
+                el(
+                    "p",
+                    "このリンクは、このページを手元で開いたときだけ開ける。"
+                    "Artifact では開けない。",
+                ),
+                el(
+                    "ul",
+                    *(
+                        el("li", el("a", f"{label}（{path}）", href=f"../{path}"))
+                        for label, path in present
+                    ),
+                ),
+            ]
+        )
+        if present
+        else el("p", "手元のファイルはまだ無い。")
+    )
+    return _section(anchor, "files", "手元のファイル", body)
+
+
 def render_note(note: DesignNote) -> Html:
     """The note as one ``<section>``, ready to sit inside a page."""
     design = note.design
@@ -386,6 +552,10 @@ def render_note(note: DesignNote) -> Html:
         _explanatory(design, anchor),
         _sources(note, anchor),
         _results(note, anchor),
+        _code(note, anchor),
+        _lineage(note, anchor),
+        _progress(note, anchor),
+        _local_files(note, anchor),
         class_="design-note",
         id=anchor,
     )

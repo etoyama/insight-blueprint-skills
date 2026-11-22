@@ -1,7 +1,8 @@
 """Reads for the analysis note of one design, and its generated page (Epic 28, ADR-0036).
 
-Reads ``.insight/designs/{id}_hypothesis.yaml``, its journal, the catalog and
-``.insight/notebooks/{id}_verdict.json`` with the figures it lists. Nothing here
+Reads ``.insight/designs/{id}_hypothesis.yaml``, its journal, the catalog,
+``.insight/notebooks/{id}_verdict.json`` with the figures it lists, the notebook
+``.py`` and ``.insight/lineage/{id}.mmd``. Nothing here
 writes a canonical file: ``render_design_note`` writes only the generated page
 ``.insight/notes/{id}.html``, which is built by ``design_note`` and never edited.
 
@@ -11,6 +12,7 @@ changes the tree page do not edit one file.
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 from pathlib import Path
@@ -21,12 +23,14 @@ from skills._shared._atomic import atomic_write_text
 from skills._shared.catalog_io import describe
 from skills._shared.design_io import DEFAULT_BASE_DIR, journal_events, load_design
 from skills._shared.design_note import (
+    CodeCell,
     DesignNote,
     NoteEvent,
     NoteFigure,
     NoteSource,
     NoteVerdict,
     VerdictMetric,
+    local_file_paths,
     render_note_page,
 )
 
@@ -140,6 +144,79 @@ def _verdict_figures(verdict: dict, notebooks: Path) -> tuple[NoteFigure, ...]:
     return tuple(figures)
 
 
+def _verdict_conclusion(verdict: dict) -> str | None:
+    conclusion = verdict.get("conclusion")
+    return conclusion if isinstance(conclusion, str) else None
+
+
+def _is_cell(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """Whether *node* is decorated ``@app.cell`` or ``@app.cell(...)``."""
+    for decorator in node.decorator_list:
+        target = decorator.func if isinstance(decorator, ast.Call) else decorator
+        if (
+            isinstance(target, ast.Attribute)
+            and target.attr == "cell"
+            and isinstance(target.value, ast.Name)
+            and target.value.id == "app"
+        ):
+            return True
+    return False
+
+
+def _binds_raw_df(cell: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    return any(
+        isinstance(node, ast.Name)
+        and node.id == "raw_df"
+        and isinstance(node.ctx, ast.Store)
+        for node in ast.walk(cell)
+    )
+
+
+def notebook_cells(text: str) -> tuple[CodeCell, ...] | None:
+    """The cells of a marimo notebook, without its data-load cell.
+
+    The data-load cell is the one cell that binds ``raw_df`` (the contract's
+    cell 2). It holds the connection values (ADR-0022), so a notebook where no
+    single cell binds it gives no code at all: any cell could hold them.
+    """
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return None
+    cells = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and _is_cell(node)
+    ]
+    loads = [cell for cell in cells if _binds_raw_df(cell)]
+    if len(loads) != 1:
+        return None
+    lines = text.splitlines()
+    return tuple(
+        CodeCell(
+            position=position,
+            source="\n".join(
+                lines[cell.decorator_list[0].lineno - 1 : cell.end_lineno]
+            ),
+        )
+        for position, cell in enumerate(cells, start=1)
+        if cell is not loads[0]
+    )
+
+
+def _read_own_text(path: Path) -> str | None:
+    """The text of *path*; None when it is absent, a link, or not UTF-8.
+
+    The note may leave the machine, so a link out of .insight/ is not followed.
+    """
+    if path.is_symlink() or not path.is_file():
+        return None
+    try:
+        return path.read_text("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
 def _read_verdict(path: Path) -> dict:
     # parse_float / parse_int keep each number as the text the notebook wrote.
     try:
@@ -157,6 +234,8 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
     Raises ValueError for a design that does not exist or fails its schema, and
     for a verdict file that is not a JSON object. A design whose notebook has
     not run has no verdict: ``verdict`` is None then, and there are no figures.
+    A notebook ``.py`` that is missing, a link, or not in the contract's shape
+    gives ``cells`` None.
     """
     data = load_design(design_id, base_dir)
     if not data:
@@ -170,17 +249,39 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
         for s in describe(design.source_ids, base_dir)["sources"]
     )
     events = tuple(_note_event(e) for e in journal_events(design_id, base_dir))
-    notebooks = Path(base_dir) / "notebooks"
+    base = Path(base_dir)
+    notebooks = base / "notebooks"
+    notebook = _read_own_text(notebooks / f"{design_id}.py")
+    cells = None if notebook is None else notebook_cells(notebook)
+    lineage = _read_own_text(base / "lineage" / f"{design_id}.mmd")
+    local_files = tuple(
+        path for path in local_file_paths(design_id) if (base / path).is_file()
+    )
     verdict_path = notebooks / f"{design_id}_verdict.json"
     if not verdict_path.is_file():
-        return DesignNote(design, sources, events, verdict=None, figures=())
+        return DesignNote(
+            design,
+            sources,
+            events,
+            verdict=None,
+            figures=(),
+            cells=cells,
+            lineage=lineage,
+            local_files=local_files,
+        )
     verdict = _read_verdict(verdict_path)
     return DesignNote(
         design,
         sources,
         events,
-        verdict=NoteVerdict(metrics=_verdict_metrics(verdict)),
+        verdict=NoteVerdict(
+            metrics=_verdict_metrics(verdict),
+            conclusion=_verdict_conclusion(verdict),
+        ),
         figures=_verdict_figures(verdict, notebooks),
+        cells=cells,
+        lineage=lineage,
+        local_files=local_files,
     )
 
 

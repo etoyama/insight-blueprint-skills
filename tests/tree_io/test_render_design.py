@@ -1,4 +1,4 @@
-"""Tests of ``tree_io render --design`` (Epic 28, Story 28.1): the analysis note page.
+"""Tests of ``tree_io render --design`` (Epic 28, Stories 28.1 and 28.2): the analysis note page.
 
 The note is built from the files of one design: its YAML, its journal, the
 catalog, and the verdict and figures the notebook wrote. Synthetic data only
@@ -194,7 +194,8 @@ class TestRenderDesignNote:
 
         html = _note_html(insight, design_id)
 
-        assert "（" not in html.split("指標の値")[1]
+        values = html.split("指標の値")[1].split(f'id="note-{design_id}-code"')[0]
+        assert "（" not in values
         assert "水準" not in html
 
     def test_a_verdict_without_a_metrics_object_has_no_metric_values(
@@ -399,6 +400,124 @@ class TestWhatTheNoteKeepsOut:
 
         assert "<script" not in html
         assert not re.search(r"https?://", html)
+
+
+def _notebook(insight: Path, design_id: str, load_line: str) -> None:
+    """A notebook in the contract's shape whose data-load cell runs *load_line*."""
+    notebooks = insight / "notebooks"
+    notebooks.mkdir(parents=True, exist_ok=True)
+    text = (
+        "import marimo\n\napp = marimo.App()\n\n\n"
+        "@app.cell\ndef _():\n    import pandas as pd\n    return (pd,)\n\n\n"
+        f"@app.cell\ndef _(pd):\n    {load_line}\n    return (raw_df,)\n\n\n"
+        "@app.cell\ndef _(raw_df):\n    df_clean = raw_df.dropna()\n"
+        "    return (df_clean,)\n"
+    )
+    (notebooks / f"{design_id}.py").write_text(text, encoding="utf-8")
+
+
+LOAD = f'raw_df = pd.read_csv("{CONNECTION_PATH}")'
+
+
+class TestCodeAndProgress:
+    def test_the_cells_come_without_the_data_load_cell_and_its_connection(
+        self, insight: Path
+    ) -> None:
+        design_id = _design(insight)
+        _notebook(insight, design_id, LOAD)
+
+        html = _note_html(insight, design_id)
+
+        assert "<summary>cell 1</summary>" in html
+        assert "<summary>cell 3</summary>" in html
+        assert "<summary>cell 2</summary>" not in html
+        assert "df_clean = raw_df.dropna()" in html
+        assert CONNECTION_PATH not in html
+        assert "secret-analyst" not in html
+
+    def test_a_notebook_whose_data_load_cell_cannot_be_found_shows_no_code(
+        self, insight: Path
+    ) -> None:
+        design_id = _design(insight)
+        _notebook(insight, design_id, f'df = pd.read_csv("{CONNECTION_PATH}")')
+
+        html = _note_html(insight, design_id)
+
+        assert "<summary>cell" not in html
+        assert "import pandas" not in html
+        assert CONNECTION_PATH not in html
+        assert "データ取得の cell を特定できない" in html
+
+    def test_a_linked_notebook_is_not_read(self, insight: Path, tmp_path: Path) -> None:
+        design_id = _design(insight)
+        _notebook(insight, design_id, LOAD)
+        elsewhere = tmp_path / "elsewhere.py"
+        (insight / "notebooks" / f"{design_id}.py").rename(elsewhere)
+        (insight / "notebooks" / f"{design_id}.py").symlink_to(elsewhere)
+
+        html = _note_html(insight, design_id)
+
+        assert "<summary>cell" not in html
+
+    def test_the_lineage_text_and_the_verdict_conclusion_appear_as_written(
+        self, insight: Path
+    ) -> None:
+        design_id = _design(insight)
+        lineage = insight / "lineage"
+        lineage.mkdir(parents=True)
+        (lineage / f"{design_id}.mmd").write_text(
+            "flowchart TD\n    A[1520 rows] --> B[1498 rows]\n", encoding="utf-8"
+        )
+        _write_verdict(insight, design_id, VERDICT_TEXT)
+
+        html = _note_html(insight, design_id)
+
+        assert "flowchart TD\n    A[1520 rows] --&gt; B[1498 rows]" in html
+        assert "notebook の結論（verdict の conclusion）: 期限切れは減った" in html
+
+    def test_a_linked_lineage_is_not_read(self, insight: Path, tmp_path: Path) -> None:
+        design_id = _design(insight)
+        secret = tmp_path / "secret.txt"
+        secret.write_text("secret-analyst", encoding="utf-8")
+        (insight / "lineage").mkdir(parents=True)
+        (insight / "lineage" / f"{design_id}.mmd").symlink_to(secret)
+
+        html = _note_html(insight, design_id)
+
+        assert "secret-analyst" not in html
+        assert "lineage はまだ無い。" in html
+
+    def test_every_journal_event_is_listed_in_the_progress_section(
+        self, insight: Path
+    ) -> None:
+        design_id = _design(insight)
+        for type_, content in (("observe", "1520 件"), ("question", "季節は?")):
+            design_io.append_journal_event(
+                design_id, {"type": type_, "content": content}, base_dir=insight
+            )
+
+        html = _note_html(insight, design_id)
+        progress = html.split(f'id="note-{design_id}-progress"')[1]
+
+        assert "journal のすべての出来事（2 件）" in progress
+        assert f"観察 {design_id}-E01" in progress
+        assert f"問い {design_id}-E02" in progress
+        assert "季節は?" in progress
+
+    def test_only_the_local_files_that_exist_are_linked(self, insight: Path) -> None:
+        design_id = _design(insight)
+        _notebook(insight, design_id, LOAD)
+        _write_verdict(insight, design_id, {})
+        (insight / "reports").mkdir()
+        (insight / "reports" / f"{design_id}.md").write_text("# r", encoding="utf-8")
+
+        html = _note_html(insight, design_id)
+
+        assert re.findall(r'href="(\.\./[^"]*)"', html) == [
+            f"../notebooks/{design_id}.py",
+            f"../notebooks/{design_id}_verdict.json",
+            f"../reports/{design_id}.md",
+        ]
 
 
 class TestRenderDesignCli:

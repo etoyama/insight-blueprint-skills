@@ -1,4 +1,4 @@
-"""Tests of skills/_shared/design_note.py (Epic 28, Story 28.1): the analysis note page."""
+"""Tests of skills/_shared/design_note.py (Epic 28, Stories 28.1 and 28.2): the analysis note page."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import re
 
 from insight_blueprint.models.design import AnalysisDesign
 from skills._shared.design_note import (
+    CodeCell,
     DesignNote,
     NoteEvent,
     NoteFigure,
@@ -42,16 +43,22 @@ def _design(**over: object) -> AnalysisDesign:
 
 
 def _note(**over: object) -> DesignNote:
-    """A note; ``metrics`` stands for a verdict that holds those metric values."""
+    """A note; ``metrics`` or ``conclusion`` stands for a verdict that holds them."""
     fields: dict = {
         "design": _design(),
         "sources": (),
         "events": (),
         "verdict": None,
         "figures": (),
+        "cells": None,
+        "lineage": None,
+        "local_files": (),
     }
-    if "metrics" in over:
-        fields["verdict"] = NoteVerdict(metrics=over.pop("metrics"))  # type: ignore[arg-type]
+    if "metrics" in over or "conclusion" in over:
+        fields["verdict"] = NoteVerdict(
+            metrics=over.pop("metrics", ()),  # type: ignore[arg-type]
+            conclusion=over.pop("conclusion", None),  # type: ignore[arg-type]
+        )
     fields.update(over)
     return DesignNote(**fields)
 
@@ -130,6 +137,10 @@ class TestSections:
                 "explanatory",
                 "sources",
                 "results",
+                "code",
+                "lineage",
+                "progress",
+                "files",
             )
         ]
         positions = [_position(html, i) for i in ids]
@@ -231,7 +242,7 @@ class TestStatusBlock:
             metrics=(),
         )
 
-        html = str(render_note(note))
+        html = _section_of(str(render_note(note)), "status")
 
         assert "状態: analyzing" in html
         assert "2026-11-03T11:30:00+09:00" in html
@@ -307,7 +318,7 @@ class TestResults:
     def test_other_event_types_are_not_listed_in_results(self) -> None:
         events = (_event("E01", "question", "未解決の問い"),)
 
-        html = str(render_note(_note(events=events)))
+        html = _section_of(str(render_note(_note(events=events))), "results")
 
         assert "未解決の問い" not in html
         assert "journal に観察も証拠もまだ記録されていない。" in html
@@ -463,7 +474,198 @@ class TestSafety:
 
 
 def test_a_metric_without_effect_size_or_interval_shows_no_label_for_them() -> None:
-    html = str(render_note(_note(metrics=(_metric(),))))
+    html = _section_of(str(render_note(_note(metrics=(_metric(),)))), "results")
 
     assert "（" not in html.split("指標の値")[1]
     assert "水準" not in html
+
+
+def _section_of(html: str, name: str) -> str:
+    """The markup of the note section *name*, up to the next section."""
+    start = _position(html, f'id="note-LIB-H01-{name}"')
+    end = html.find("<section", start)
+    return html[start:] if end < 0 else html[start:end]
+
+
+CELLS = (
+    CodeCell(position=1, source="@app.cell\ndef _():\n    import pandas as pd"),
+    CodeCell(position=3, source="@app.cell\ndef _(raw_df):\n    df = raw_df"),
+)
+
+
+class TestCode:
+    def test_each_cell_is_folded_with_its_position_and_source_as_written(
+        self,
+    ) -> None:
+        html = _section_of(str(render_note(_note(cells=CELLS))), "code")
+
+        assert html.count("<details>") == 2
+        assert "<summary>cell 1</summary>" in html
+        assert "<summary>cell 3</summary>" in html
+        assert (
+            "<pre><code>@app.cell\ndef _():\n    import pandas as pd</code></pre>"
+            in (html)
+        )
+        assert _position(html, "cell 1") < _position(html, "cell 3")
+
+    def test_it_says_the_data_load_cell_is_left_out_and_read_in_the_local_file(
+        self,
+    ) -> None:
+        html = _section_of(str(render_note(_note(cells=CELLS))), "code")
+
+        assert "データ取得の cell は載せない" in html
+        assert "手元の notebook の .py で読む" in html
+
+    def test_a_notebook_not_in_the_contract_shape_shows_no_code(self) -> None:
+        html = _section_of(
+            str(render_note(_note(cells=None, local_files=("notebooks/LIB-H01.py",)))),
+            "code",
+        )
+
+        assert "<pre" not in html
+        assert "<details" not in html
+        assert "契約の形でなく、データ取得の cell を特定できない" in html
+        assert "手元の notebook の .py で読む" in html
+
+    def test_a_design_without_a_notebook_says_there_is_none_yet(self) -> None:
+        html = _section_of(str(render_note(_note())), "code")
+
+        assert "notebook の .py はまだ無い。" in html
+        assert "<pre" not in html
+
+
+class TestLineage:
+    def test_the_mermaid_text_is_folded_as_text_not_drawn(self) -> None:
+        text = "flowchart TD\n    A[raw_df 1520 rows] --> B[df_clean]"
+
+        html = _section_of(str(render_note(_note(lineage=text))), "lineage")
+
+        assert "<details>" in html
+        assert (
+            "<pre><code>flowchart TD\n    A[raw_df 1520 rows] --&gt; B[df_clean]"
+            "</code></pre>"
+        ) in html
+        assert 'class="mermaid"' not in html
+
+    def test_a_design_without_lineage_says_there_is_none_yet(self) -> None:
+        html = _section_of(str(render_note(_note())), "lineage")
+
+        assert "lineage はまだ無い。" in html
+        assert "<pre" not in html
+
+
+EVENTS = (
+    _event("LIB-H01-E01", "observe", "1520 件", at="2026-11-01T10:00:00+09:00"),
+    _event("LIB-H01-E02", "evidence", "差が出た", "supports", at="2026-11-02T10:00:00"),
+    _event("LIB-H01-E03", "question", "季節は?", at="2026-11-03T10:00:00+09:00"),
+    _event("LIB-H01-E04", "hearing", "窓口に聞いた", at="2026-11-04T10:00:00+09:00"),
+    _event("LIB-H01-E05", "custom", "手で書いた", at=""),
+)
+
+
+class TestProgress:
+    def test_it_opens_with_what_the_section_records(self) -> None:
+        html = _section_of(str(render_note(_note())), "progress")
+
+        assert "分析中の判断と解釈の記録である" in html
+
+    def test_it_shows_the_verdict_conclusion_as_written(self) -> None:
+        html = _section_of(
+            str(render_note(_note(conclusion="期限切れは減った"))), "progress"
+        )
+
+        assert "notebook の結論（verdict の conclusion）: 期限切れは減った" in html
+
+    def test_a_verdict_without_a_conclusion_says_so(self) -> None:
+        html = _section_of(str(render_note(_note(metrics=()))), "progress")
+
+        assert "verdict に conclusion は無い。" in html
+
+    def test_an_unrun_design_says_there_is_no_verdict_conclusion(self) -> None:
+        html = _section_of(str(render_note(_note())), "progress")
+
+        assert "notebook をまだ実行していない" in html
+        assert "verdict の conclusion）:" not in html
+
+    def test_every_event_is_folded_in_journal_order_with_its_kind_word(
+        self,
+    ) -> None:
+        html = _section_of(str(render_note(_note(events=EVENTS))), "progress")
+
+        assert "<details>" in html
+        assert "<summary>journal のすべての出来事（5 件）</summary>" in html
+        markers = [
+            "2026-11-01T10:00:00+09:00 観察 LIB-H01-E01",
+            "2026-11-02T10:00:00 証拠 LIB-H01-E02",
+            "2026-11-03T10:00:00+09:00 問い LIB-H01-E03",
+            "2026-11-04T10:00:00+09:00 人に聞いた答え LIB-H01-E04",
+            "（時刻の記載なし） custom LIB-H01-E05",
+        ]
+        positions = [_position(html, m) for m in markers]
+        assert positions == sorted(positions)
+        for content in ("1520 件", "差が出た", "季節は?", "窓口に聞いた", "手で書いた"):
+            assert content in html
+
+    def test_no_event_says_the_journal_is_empty(self) -> None:
+        html = _section_of(str(render_note(_note())), "progress")
+
+        assert "journal にまだ出来事が無い。" in html
+        assert "<details" not in html
+
+
+class TestLocalFiles:
+    def test_it_links_the_files_that_exist_relative_to_the_note(self) -> None:
+        files = (
+            "notebooks/LIB-H01.py",
+            "notebooks/LIB-H01_verdict.json",
+            "lineage/LIB-H01.mmd",
+            "notebooks/LIB-H01.html",
+            "reports/LIB-H01.md",
+        )
+
+        html = _section_of(str(render_note(_note(local_files=files))), "files")
+
+        hrefs = re.findall(r'href="([^"]*)"', html)
+        assert hrefs == [f"../{f}" for f in files]
+        for label in (
+            "notebook の .py",
+            "verdict",
+            "lineage",
+            "notebook の HTML",
+            "レポート",
+        ):
+            assert label in html
+
+    def test_it_says_the_links_open_only_on_the_local_machine(self) -> None:
+        html = _section_of(
+            str(render_note(_note(local_files=("notebooks/LIB-H01.py",)))), "files"
+        )
+
+        assert "手元で開いたときだけ開ける" in html
+
+    def test_no_local_file_says_there_is_none_yet(self) -> None:
+        html = _section_of(str(render_note(_note())), "files")
+
+        assert "手元のファイルはまだ無い。" in html
+        assert "href" not in html
+
+
+def test_code_lineage_and_conclusion_text_is_escaped() -> None:
+    note = _note(
+        cells=(CodeCell(position=1, source=EVIL),),
+        lineage=EVIL,
+        conclusion=EVIL,
+        events=(_event("E01", EVIL, EVIL),),
+    )
+
+    html = render_note_page(note)
+
+    assert "<script" not in html
+    assert html.count("&lt;script&gt;alert(1)&lt;/script&gt;&quot;") >= 5
+
+
+def test_the_status_block_links_to_the_new_sections() -> None:
+    html = _section_of(str(render_note(_note())), "status")
+
+    for name in ("code", "lineage", "progress", "files"):
+        assert f'href="#note-LIB-H01-{name}"' in html
