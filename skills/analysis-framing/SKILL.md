@@ -156,11 +156,9 @@ This is a KEEP gate. Settle three things with the analyst and wait for their ans
    `[A-Z][A-Z0-9]*`. Propose the theme of the related designs in the Data Map, or a new one.
    Then run `tree_io get --theme {theme_id}`. If it prints `{}`, the theme has no tree yet:
    continue with 2 and 3. Otherwise the theme already has a tree: go to 4c now, without 2 and 3.
-   When `get` prints `{}` it also writes `tree_io: no tree at {path}` on stderr. `{}` comes
-   back as well when `tree_io` looked in another directory, so check that `{path}` is under
-   this project's `.insight`. Never `cd` anywhere before a `tree_io` command: it reads the
-   `.insight` of the directory it is run from. If the path is elsewhere, run it again from
-   the project directory.
+   `{}` also comes back when `tree_io` looked in another directory: check that the `{path}`
+   of `tree_io: no tree at {path}` on stderr is under this project's `.insight`. If it is
+   not, run it again from the project directory. Never `cd` before a `tree_io` command.
 2. **Root question** — the one question the whole theme answers, as a single sentence.
 3. **Aim** — what the root question is for. It has one of two kinds:
 
