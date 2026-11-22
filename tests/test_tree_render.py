@@ -420,6 +420,15 @@ class TestLegend:
         assert "論点の親子" in legend
         assert "分析設計の派生" in legend
 
+    def test_the_legend_explains_the_jump_to_a_note_and_the_way_back(self) -> None:
+        paragraphs = [
+            squash(e.text()) for e in by_id(page(), "legend").walk() if e.tag == "p"
+        ]
+
+        (explained,) = [p for p in paragraphs if "分析ノートを開く" in p]
+        assert "このページの下" in explained
+        assert "論点ツリーへ戻る" in explained
+
 
 def node_text(root: Element, node_id: str) -> str:
     """Text of the always-visible part of a node, without its folded details."""
