@@ -806,3 +806,7 @@ Epic-scoped な決定。人間の判断は 2026-11-22 の DesignDoc 初版のセ
 - 2026-11-23 — 手動確認（28.6）: 合成のプロジェクトで `/tree-upload LIB` の手順を承認の直前まで通した。分析設計3つ・図9枚のページは 1,041,508 バイトで KEEP ゲートまで進み、分析設計20・図100枚のページは 20,978,205 バイトで Step 2 で止まった。
   人間の承認の後に、小さい方を新しい Artifact に送った。スマホのアプリとデスクトップの両方で、論点のカードから分析ノートへ飛び、論点ツリーへ戻れることを人間が確かめた。
   Artifact の名前は、Step 4 の「題を求められたら根の問い」ではなく、ページの `<title>`（「論点ツリー LIB」）になった。今のツールは題を求めない。
+- 2026-11-23 — Epic のゲート: main（#178・#185・#186）を取り込んだ。thermos の2観点を回し、Epic PR の前に次を直した。
+  notebook の cell を `str.splitlines()` で切っていたため、改ページなどの文字の後ではデータ取得の cell が接続文字列ごと分析ノートに出た。tokenizer と同じ改行で切り、各 cell の文字が AST の範囲と一致しなければコードを載せない形にした。
+  verdict の `NaN`・`Infinity` と、object・list の値を書かれたとおりに出す。シンボリックリンクの判定を1つにまとめ、verdict と「手元のファイル」にも当てた。写した分析設計の単独のページもファイル名の id で書く。`render --theme` もツリーに入れた分析設計の単独のページを消す。
+  あわせて、分析設計の id の文法を `design_io` の1か所に置き、`tree_render` の引数を `design_notes` に改め、`DesignSummary.status` を `DesignStatus` にした。`/analysis-auto` と `/tree-upload` の SKILL.md の写しを減らした（#143 の方針）。DesignDoc・ADR-0036・0037 を yomiyasu で推敲した。
