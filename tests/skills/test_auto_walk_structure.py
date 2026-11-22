@@ -214,6 +214,12 @@ class TestGates:
         _, keep, _auto_cell = table_row(_gates(), "entry: a design without a tree")
         assert "whether to build a tree" in keep
 
+    def test_the_rest_of_a_delegated_skill_follows_it_as_written(self) -> None:
+        # Thermos on #170: the note must not silence the skill's other questions.
+        gates = unwrap(_gates())
+        assert "rest of that skill follows it as written" in gates
+        assert "runs without asking" not in gates
+
     @pytest.mark.parametrize("step", OWNED_GATES)
     def test_a_gate_of_a_delegated_skill_points_at_its_step_only(
         self, step: str
@@ -426,6 +432,11 @@ class TestFramingTakesTheDecisionAsTheAnswerInsideAuto:
         # Review: skipping all of 4c also skipped placing a design no node holds.
         gate = self._gate()
         assert re.search(r"[Dd]esigns no node holds are still placed", gate)
+
+    def test_the_steps_before_4d_point_at_the_exception(self) -> None:
+        # Thermos on #170: 4a and 4c ask before a reader reaches the end of 4d.
+        dialogue = unwrap(_framing("### Step 4:").split("#### 4a:")[0])
+        assert re.search(r"handed the position[^.]*end of 4d[^.]*4a[^.]*4c", dialogue)
 
     def test_every_other_case_still_asks(self) -> None:
         gate = self._gate()
