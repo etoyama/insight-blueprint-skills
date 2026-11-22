@@ -43,7 +43,7 @@
 | journal の出来事 | `observe`、`hypothesize`、`evidence`、`hearing`、`question`、`decide`、`reflect`、`conclude`、`branch` | journal の1件。種類は観察・仮説・証拠・人に聞いた答え・問い・決定・振り返り・結論・派生 | — | fork 前、[ADR-0028](adr/0028-hearing-is-its-own-journal-event.md) |
 | 未解決の問い | `metadata.resolves` | journal の `question` のうち、どの `conclude` の `metadata.resolves` にも id が挙がっていないもの | オープンクエスチョン | [epic-14](design/epic-14-report-template-gaps.md) |
 | reflection | `/analysis-reflection` | journal を振り返り、結論を出すか、仮説を直すか、派生するかを決めること | — | fork 前 |
-| 読むもの | — | reflection が結論を聞く前に出す、分析設計の図・verdict・notebook のパスと指標の定義。実在するファイルだけを並べ、書かれたとおりに出す | 判断材料 | [epic-26](design/epic-26-reflection-materials.md) |
+| 読むもの | — | reflection が結論を聞く前に出す、分析ノートへの入口。開くファイルのパス、分析ノートの場所、分析設計を結んだ論点の id の3つで、出す直前に分析ノートを作り直して得る。論点ツリーが無いか、どの論点にも結んでいなければ、分析ノートの場所だけを出す。図・verdict・notebook のパスと指標の定義は、チャットに並べず分析ノートが載せる | 判断材料 | [epic-28](design/epic-28-tree-entry-point.md)、[ADR-0036](adr/0036-design-note-is-a-generated-page-per-design.md) |
 | 分析ノート | `design_note`、`DesignNote` | 分析設計ごとにコードが生成する文書。仮説、手法、指標の定義、結果の値、図、分析コード、journal の出来事を、書かれたとおりに並べる。結論の後は結論の節も埋まる。解釈の文は生成しない。論点ツリーの HTML の中に分析設計ごとに並び、論点ツリーの無いテーマでは単独のページになる。notebook とは別のもので、分析設計・journal・notebook の出力から作る | デザインノート、ノート（分析ノートを指して単独で使うとき） | [ADR-0036](adr/0036-design-note-is-a-generated-page-per-design.md) |
 | 論点ツリー | `QuestionTree` | 1つのテーマ（`theme_id`）の問いの論理の構造。根の問いを1つ持ち、論点を親子でつなぐ。分析設計の派生とは別に辿る。正本は YAML で、表示は正本から生成する | イシューツリー、ロジックツリー | [ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md) |
 | 論点 | `QuestionNode` | 論点ツリーの1つのノード。問いの文と、親の論点への寄与を持ち、答えるための分析設計を結べる。journal の `question` とは別に持つ | 子の問い、サブクエスチョン | [epic-18](design/epic-18-question-tree.md) |

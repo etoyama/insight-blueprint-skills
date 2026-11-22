@@ -148,6 +148,12 @@ mapping (references). Preserve existing events; continue ids from the current ma
 
 ### Step 7: Hand off
 
+Run `tree_io render --design {design_id}` so that the design note shows the results you
+recorded, and tell the analyst where the note is: read the JSON it prints as the
+`#### 読むもの` of /analysis-reflection says, and show its `分析ノート:` line. This step is
+not a gate: ask nothing. If the render exits non-zero, show its stderr; the journal keeps
+the events of Step 6.
+
 - "結論づけは /analysis-reflection {design_id}"
 - "lineage 図: `.insight/lineage/{design_id}.mmd`（再出力は /data-lineage）"
 

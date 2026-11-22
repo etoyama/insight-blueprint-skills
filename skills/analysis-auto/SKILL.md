@@ -57,7 +57,7 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | premortem | **result is `HARD_BLOCK`/`HIGH`** → stop, surface the risk | running premortem; `LOW`/`MEDIUM` |
 | notebook | **non-allowlisted package / external comms beyond the declared source / other side-effects** | generate + run when premortem cleared AND it's declared-source read + allowlisted + local compute |
 | journal | — | auto-record the notebook verdict (observe/evidence/question) |
-| reflection | **the conclusion (conclude/refine/branch) + terminal transition** | presenting the evidence summary |
+| reflection | **the conclusion (conclude/refine/branch) + terminal transition** | presenting the evidence summary and the place of the design note (`/analysis-reflection` Step 2) |
 | report | — | writing the report with `/analysis-report` once the design is in a terminal status |
 | upload | **the files to send to Claude Docs** — asked by `/report-upload` itself, at its approval gate; the driver adds no question of its own | starting `/report-upload` once the round has a report, written by this run or before it |
 | theme reflection | **`/analysis-reflection {theme_id}` T7** | — |
@@ -220,7 +220,10 @@ turn. Any other round carries the one design it worked on.
    declared source, or another side-effect, **stop** and get the user's go-ahead first.
 6. **journal**: the notebook step already records observe/evidence/question — no pause.
 7. **reflection**: run `/analysis-reflection {design_id}`; **pause at the conclusion**
-   (conclude/refine/branch) and the terminal transition.
+   (conclude/refine/branch) and the terminal transition. Its Step 2 rebuilds the design note
+   and shows where it is and which questions link the design. The driver adds no list of
+   files of its own, and it never reads the design note: it reads the design, the journal
+   and the verdict.
 8. **report**: when the design is in a terminal status (`supported` / `rejected` /
    `inconclusive`), run `/analysis-report {design_id}` without asking; the report is a file on
    this machine. A report that is already there (`.insight/reports/{design_id}.md`) is not
