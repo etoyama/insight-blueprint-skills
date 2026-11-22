@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Superseded by FLOW-0005（[flow/0005-designdoc-draft-checks-whole-and-mockup.md](flow/0005-designdoc-draft-checks-whole-and-mockup.md)）。
+上流の etoyama/repo-template が同じ決定を ADR-0005 として採った（repo-template#4、2026-11-23）。
+上流は、利用者から見える変化がない Epic では理由を書いて見本を省けること、見本の置き場を問わないことを足した。
 
 ## Context
 

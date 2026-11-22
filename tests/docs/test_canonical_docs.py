@@ -672,7 +672,7 @@ class TestQuestionTreeDocs:
 
 
 class TestDesignDocFirstDraftChecks:
-    """ADR-0038: the first draft is checked as a whole, then shown as a mock-up, before approval."""
+    """FLOW-0005: the first draft is checked as a whole, then shown as a mock-up, before approval."""
 
     @pytest.mark.parametrize(
         "rel",
@@ -683,4 +683,5 @@ class TestDesignDocFirstDraftChecks:
         body = section(text, "## 4.") if rel == "docs/WORKFLOW.md" else text
         assert "全体の整合" in body
         assert "見本" in body
-        assert "ADR-0038" in body or "0038-" in body
+        assert "FLOW-0005" in body
+        assert "省いたら" in body
