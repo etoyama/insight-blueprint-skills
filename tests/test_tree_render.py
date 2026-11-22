@@ -16,6 +16,7 @@ from typing import get_args
 
 import pytest
 
+from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 from insight_blueprint.models.tree import (
     AimKind,
     Progress,
@@ -941,6 +942,118 @@ class TestStructure:
 
         assert by_id(root, "design-LIB-H01") is not None
         assert by_id(root, "design-LIB-H02") is not None
+
+
+def linking(design_ids: list[str]) -> dict:
+    """The tree where only LIB-Q03 links designs, so a test names every design it uses."""
+    tree = make_tree()
+    for node in tree["nodes"]:
+        node.pop("design_ids", None)
+    tree["nodes"][2]["design_ids"] = design_ids
+    return tree
+
+
+class TestOrderOfLinkedDesigns:
+    """The card puts the designs still being worked on first, then the finished ones."""
+
+    DAY = timedelta(days=1)
+
+    def _shown(self, specs: list[tuple[str, str, datetime]]) -> list[str]:
+        """The ids on the card of LIB-Q03, in the order the card lists them."""
+        designs = {i: summary(i, "t", status, None, at) for i, status, at in specs}
+        root = page(tree=linking([i for i, _, _ in specs]), designs=designs)
+        (card,) = [e for e in by_id(root, "LIB-Q03").children if e.tag == "div"]
+        return [
+            e.attrs["href"].removeprefix("#design-")  # type: ignore[union-attr]
+            for e in card.walk()
+            if e.tag == "a" and str(e.attrs["href"]).startswith("#design-")
+        ]
+
+    def test_an_unfinished_design_comes_before_a_finished_one_whatever_the_date(
+        self,
+    ) -> None:
+        shown = self._shown(
+            [
+                ("LIB-H01", "analyzing", T0),
+                ("LIB-H02", "supported", T0 + self.DAY),
+                ("LIB-H03", "analyzing", T0 - self.DAY),
+            ]
+        )
+
+        assert shown == ["LIB-H01", "LIB-H03", "LIB-H02"]
+
+    @pytest.mark.parametrize("status", list(DesignStatus))
+    def test_a_status_is_finished_exactly_when_it_is_terminal(
+        self, status: DesignStatus
+    ) -> None:
+        shown = self._shown(
+            [("LIB-H01", status.value, T0 + self.DAY), ("LIB-H02", "analyzing", T0)]
+        )
+
+        finished = status in TERMINAL_STATUSES
+        assert shown == (["LIB-H02", "LIB-H01"] if finished else ["LIB-H01", "LIB-H02"])
+
+    def test_inside_a_group_the_newer_design_comes_first(self) -> None:
+        shown = self._shown(
+            [
+                ("LIB-H03", "analyzing", T0),
+                ("LIB-H01", "analyzing", T0 + self.DAY),
+                ("LIB-H02", "supported", T0),
+                ("LIB-H04", "rejected", T0 + self.DAY),
+            ]
+        )
+
+        assert shown == ["LIB-H01", "LIB-H03", "LIB-H04", "LIB-H02"]
+
+    def test_the_same_time_puts_the_larger_id_first(self) -> None:
+        shown = self._shown([(f"LIB-H0{n}", "analyzing", T0) for n in (1, 3, 2)])
+
+        assert shown == ["LIB-H03", "LIB-H02", "LIB-H01"]
+
+    def test_ids_are_compared_by_their_number_not_as_strings(self) -> None:
+        shown = self._shown([("LIB-H9", "analyzing", T0), ("LIB-H10", "analyzing", T0)])
+
+        assert shown == ["LIB-H10", "LIB-H9"]
+
+    def test_times_are_compared_as_times_not_as_text(self) -> None:
+        later_in_utc = datetime(2026, 11, 1, 2, 0, tzinfo=timezone.utc)  # 11:00 JST
+        shown = self._shown(
+            [("LIB-H01", "analyzing", later_in_utc), ("LIB-H02", "analyzing", T0)]
+        )
+
+        assert shown == ["LIB-H01", "LIB-H02"]
+
+    def test_a_time_without_a_zone_next_to_one_with_a_zone_is_an_error_naming_both(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError, match=r"LIB-H01.*LIB-H02|LIB-H02.*LIB-H01"):
+            self._shown(
+                [
+                    ("LIB-H01", "analyzing", T0.replace(tzinfo=None)),
+                    ("LIB-H02", "analyzing", T0),
+                ]
+            )
+
+    def test_the_derivation_and_the_notes_stay_in_id_order(self) -> None:
+        designs = {
+            "LIB-H10": summary("LIB-H10", "t", "analyzing", None, T0 + self.DAY),
+            "LIB-H9": summary("LIB-H9", "t", "supported", None, T0),
+        }
+
+        root = page(tree=linking([]), designs=designs)
+
+        derivation = [
+            e.attrs["id"]
+            for e in by_id(root, "derivation").walk()
+            if str(e.attrs.get("id", "")).startswith("design-")
+        ]
+        notes = [
+            e.attrs["id"]
+            for e in by_id(root, "design-notes").children
+            if e.tag == "section"
+        ]
+        assert derivation == ["design-LIB-H9", "design-LIB-H10"]
+        assert notes == ["note-LIB-H9", "note-LIB-H10"]
 
 
 class TestAnchorsToTheNotes:

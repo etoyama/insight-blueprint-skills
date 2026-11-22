@@ -15,10 +15,11 @@ from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+import re
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from insight_blueprint.models.design import DesignStatus
+from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 from insight_blueprint.models.tree import (
     Aim,
     AimKind,
@@ -334,6 +335,31 @@ def _link(target: str, label: str) -> Html:
     return el("a", label, href=f"#{target}")
 
 
+def _id_key(design_id: str) -> tuple[int, str]:
+    """Order by the number after ``-H``: ``H10`` follows ``H9``."""
+    found = re.search(r"-H(\d+)$", design_id)
+    return (int(found[1]) if found else -1, design_id)
+
+
+def _newest_first(group: list[DesignSummary]) -> list[DesignSummary]:
+    naive = [d for d in group if d.created_at.tzinfo is None]
+    if naive and len(naive) != len(group):
+        aware = next(d for d in group if d.created_at.tzinfo is not None)
+        # Which zone a bare time means is unknowable, so no order is guessed.
+        raise ValueError(
+            f"created_at of '{naive[0].id}' has no time zone but that of "
+            f"'{aware.id}' has one: they cannot be ordered"
+        )
+    return sorted(group, key=lambda d: (d.created_at, _id_key(d.id)), reverse=True)
+
+
+def _card_order(designs: list[DesignSummary]) -> list[DesignSummary]:
+    """Unfinished designs first, then finished ones; the newest first in each."""
+    finished = [d for d in designs if DesignStatus(d.status) in TERMINAL_STATUSES]
+    unfinished = [d for d in designs if d not in finished]
+    return _newest_first(unfinished) + _newest_first(finished)
+
+
 def _note_link(design_id: str) -> Html:
     return _link(note_anchor(design_id), "分析ノートを開く")
 
@@ -574,7 +600,9 @@ def _evidence(
                         f" {design.title}　状態: {design.status}　",
                         _note_link(design.id),
                     )
-                    for design in (context.designs[d] for d in node.design_ids)
+                    for design in _card_order(
+                        [context.designs[d] for d in node.design_ids]
+                    )
                 ),
             ),
         ]
@@ -659,7 +687,11 @@ def _derivation(context: _Context) -> Html:
         )
         if design.parent_id is not None and design.parent_id not in designs:
             facts.append(f"　派生元: {design.parent_id}")
-        below = [c for c in sorted(children.get(design_id, [])) if c not in shown]
+        below = [
+            c
+            for c in sorted(children.get(design_id, []), key=_id_key)
+            if c not in shown
+        ]
         return el(
             "li",
             el(
@@ -672,10 +704,12 @@ def _derivation(context: _Context) -> Html:
             id=f"design-{design_id}",
         )
 
-    top = [d for d in sorted(designs) if designs[d].parent_id not in designs]
+    top = [
+        d for d in sorted(designs, key=_id_key) if designs[d].parent_id not in designs
+    ]
     items = [branch(d) for d in top]
     # A cycle of parents has no top-level design; show its members anyway.
-    items += [branch(d) for d in sorted(designs) if d not in shown]
+    items += [branch(d) for d in sorted(designs, key=_id_key) if d not in shown]
     body = (
         el("ul", join(items), class_="derivation")
         if items
@@ -722,7 +756,7 @@ def _design_notes(context: _Context) -> Html:
                 _back_links(context, design_id),
             ]
         )
-        for design_id in sorted(context.designs)
+        for design_id in sorted(context.designs, key=_id_key)
     ]
     return el(
         "section",
