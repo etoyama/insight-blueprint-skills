@@ -728,3 +728,29 @@ class TestDesignDocFirstDraftChecks:
         assert "見本" in body
         assert "FLOW-0005" in body
         assert "省いたら" in body
+
+
+class TestPmSessionFlow:
+    """FLOW-0006〜0008: the PM session, the Story done criteria and the narrowing rule."""
+
+    def test_the_pm_session_skill_and_its_board_are_kept(self) -> None:
+        skill = REPO_ROOT / ".claude/skills/pm-session"
+        assert (skill / "SKILL.md").is_file()
+        assert (skill / "board.html").is_file()
+        assert "FLOW-0006" in (skill / "SKILL.md").read_text(encoding="utf-8")
+
+    def test_claude_md_points_to_the_pm_session_skill(self) -> None:
+        body = section(_read("CLAUDE.md"), "## 4.")
+        assert ".claude/skills/pm-session/SKILL.md" in body
+        assert "FLOW-0006" in body
+
+    def test_a_story_is_done_with_a_release_note_and_a_bug_review(self) -> None:
+        body = section(_read("docs/WORKFLOW.md"), "## 4.")
+        assert "FLOW-0007" in body
+        assert "[Unreleased]" in body
+        assert "バグ・セキュリティの観点のレビュー" in body
+
+    def test_narrowing_what_worked_is_asked_to_the_human(self) -> None:
+        body = section(_read("docs/WORKFLOW.md"), "## 6.")
+        assert "FLOW-0008" in body
+        assert "失敗に変わる" in body
