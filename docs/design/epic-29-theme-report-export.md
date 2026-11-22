@@ -53,13 +53,13 @@ AC の正本はここ。
 
 レポートの読み手として、答えを吟味するために、論点の構成と、答えの根拠となる分析を同じ文書で読みたい。
 
-- [ ] AC 1: Introduction に、根の問い、到達点、論点の表（問い、親の論点、寄与、進捗）を出す。
-- [ ] AC 2: Method に、論点に結んだ分析設計ごとの仮説・手法・手法を選んだ理由の表と、データソースの名前・種類・説明の表を出す。接続情報は出さない。
-- [ ] AC 3: Results に、答えのある論点ごとに、現時点の答えと、根拠となる分析を出す。根拠となる分析は terminal status ごとの決まった文、`conclude` の本文、verdict の指標の値、図と題・軸の説明・読み方である。
+- [x] AC 1: Introduction に、根の問い、到達点、論点の表（問い、親の論点、寄与、進捗）を出す。
+- [x] AC 2: Method に、論点に結んだ分析設計ごとの仮説・手法・手法を選んだ理由の表と、データソースの名前・種類・説明の表を出す。接続情報は出さない。
+- [x] AC 3: Results に、答えのある論点ごとに、現時点の答えと、根拠となる分析を出す。根拠となる分析は terminal status ごとの決まった文、`conclude` の本文、verdict の指標の値、図と題・軸の説明・読み方である。
   結論の出ていない分析設計は、まだ結論が出ていないと書く。
-- [ ] AC 4: Discussion の Limitations に、分析設計ごとの仮説に反する証拠と、まだ答えていない論点の表を出す。Future Directions に、最新のツリーの決定（次に調べる論点と理由）と、次の候補について聞いてきた答えを出す。
+- [x] AC 4: Discussion の Limitations に、分析設計ごとの仮説に反する証拠と、まだ答えていない論点の表を出す。Future Directions に、最新のツリーの決定（次に調べる論点と理由）と、次の候補について聞いてきた答えを出す。
   勧め（何をすべきか）の節は作らない。
-- [ ] AC 5: Appendix に、レポートが引用した journal の出来事の id・種類・本文の表を出す。分析コード、journal のすべての出来事、lineage は載せない。
+- [x] AC 5: Appendix に、レポートが引用した journal の出来事の id・種類・本文の表を出す。分析コード、journal のすべての出来事、lineage は載せない。
 
 ### US-3: レポートが読み手に通じる言葉で書かれ、データから写した文に記号が混ざっていても体裁が崩れない
 
@@ -189,7 +189,8 @@ flowchart TD
 
 ## Domain Model
 
-レポートは保存する集約ではなく、記録から作る表示の型である。新しい型の名前は Story 29.1 で、初版の名前のまま確定した（Decision `the-report-is-one-pure-module-and-one-read`）。既存の型（`QuestionTree`、`QuestionNode`、`Answer`、`AnswerStatement`、`TreeDecision`、`NextCandidate`、`Aim`、`DesignNote`、`NoteFigure`、`NoteSource`、`VerdictMetric`）は変えない。
+レポートは保存する集約ではなく、記録から作る表示の型である。新しい型の名前は Story 29.1 で、初版の名前のまま確定した（Decision `the-report-is-one-pure-module-and-one-read`）。既存の型（`QuestionTree`、`QuestionNode`、`Answer`、`AnswerStatement`、`TreeDecision`、`NextCandidate`、`Aim`、`DesignNote`、`NoteSource`、`VerdictMetric`、`CitedEvent`）は変えない。`NoteFigure` には、Story 29.2 で図のファイル名（`file`）を足した。
+図は Story 29.2 で、`ReportDesign` の項目と、`ThemeReport` が持つ根拠にした記録（`CitedEvent`）を足した（人間が 2026-11-23 に承認した）。
 
 ```mermaid
 classDiagram
@@ -198,22 +199,31 @@ classDiagram
         +theme_id
         +root_question
         +round
+        +root_revision
         +figures()
     }
     class ReportNode {
         <<Value Object>>
+        +id
         +question
         +parent
         +contribution
         +progress
+        +design_ids
     }
     class ReportDesign {
         <<Value Object>>
+        +id
+        +title
         +hypothesis
         +method
+        +package
+        +method_reason
+        +status
         +lead_sentence
         +conclude_events
         +contradicting_evidence
+        +of(note)
     }
     class ReaderWords {
         <<Value Object>>
@@ -252,6 +262,9 @@ classDiagram
     class VerdictMetric {
         <<Value Object>>
     }
+    class CitedEvent {
+        <<Value Object>>
+    }
     QuestionTree "1" *-- "1..*" QuestionNode
     QuestionTree "1" *-- "0..*" TreeDecision
     QuestionNode "1" *-- "0..*" Answer
@@ -270,13 +283,14 @@ classDiagram
     ReportDesign "1" *-- "0..*" NoteFigure
     ReportDesign "1" *-- "0..*" VerdictMetric
     ThemeReport "1" *-- "0..*" NoteSource
+    ThemeReport "1" *-- "0..*" CitedEvent : 根拠にした記録
 ```
 
 | 型 | 種類 | 不変条件 |
 |---|---|---|
-| `ThemeReport` | 表示の型 | 根の問いに、今の根の版への答えがある。ツリーの検査の違反が0件である。保存しない |
-| `ReportNode` | 値オブジェクト | 根でない論点1つ。答えは最新の1つだけを持つ。答えが無ければ、まだ答えていない論点として出る |
-| `ReportDesign` | 値オブジェクト | 論点に結んだ分析設計1つ。値は書かれたとおりの文字で持つ。接続情報の置き場が無い。分析コードと journal のすべての出来事を持たない |
+| `ThemeReport` | 表示の型 | 根の問いに、今の根の版への答えがある。ツリーの検査の違反が0件である。保存しない。レポートが括弧で引用する出来事を、根拠にした記録としてすべて持つ |
+| `ReportNode` | 値オブジェクト | 根でない論点1つ。答えは最新の1つだけを持つ。答えが無ければ、まだ答えていない論点として出る。今の根の版より古い答えも答えとして出し、見直す前の答えだと添える |
+| `ReportDesign` | 値オブジェクト | 論点に結んだ分析設計1つ。`DesignNote` から作る（`of`）。値は書かれたとおりの文字で持つ。接続情報の置き場が無い。分析コードと lineage と journal のすべての出来事を持たない |
 | `ReaderWords` | 値オブジェクト | 用語表の語と、読み手向けの言葉の対応。対応は1か所にだけ在る |
 
 ## Sequence Diagram
@@ -473,6 +487,43 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
   - `/analysis-reflection` と `/analysis-framing` に `/report-export` への辺を足す。分析者が気づきやすいが、触る所が広がり、29.5 の `/analysis-auto` の変更と順序が絡む。
 - Consequences: 今は、分析者が README か用語表で `/report-export` を知る。書けない理由を伝えるときに `/analysis-framing` と `/analysis-reflection` を名前で挙げるが、表の辺にはしていない。
 
+### Decision: an-answer-before-the-root-changed-is-shown-with-a-note
+
+- What: 根でない論点の答えが今の根の版より古いときも、Results に答えと根拠となる分析を出す。論点の見出しのすぐ下に「この答えは、主題を今の形に見直す前に書いた。」と添える。
+- Why: 根の問いを見直しても、子の論点の答えは古い版のまま残る。印を付けずに出すと、見直す前の答えを今の主題への答えとして読ませる。消すと、検査済みの根拠が読み手に届かない。
+- Criteria: 古い答えを今の答えと見分けがつかない形で出さないこと（Must）。論点ツリーのページと同じ記録を同じように見せること（高、ADR-0039 の W5）。分かったことが読み手に届くこと（中、Claude の推測）。決め手は2つめ。人間が 2026-11-23 に、このセッションで決めた。
+- Affected modules: `skills/_shared/theme_report.py`。
+- Alternatives considered:
+  - まだ答えていない論点として扱い、Limitations の表に入れる。根の問いと同じ厳しさになるが、ツリーのページでは答えのある論点が、レポートでは未回答になる。
+  - 印を付けずに出す。Must を満たさない。
+- Consequences: 古い答えが今の主題にまだ当てはまるかを、コードは判断しない。分析者が Docs の上で直すか、次の振り返りで答え直す。
+
+### Decision: the-report-design-is-cut-from-the-design-note
+
+- What: `ReportDesign` は `DesignNote` から `ReportDesign.of` で作る。持つのは id、題、仮説、手法とパッケージと理由、状態、`conclude` の出来事、仮説に反する証拠、verdict の指標、図だけである。
+  `ReportNode` は論点の id、問い、親の論点、寄与、進捗、最新の答え、結んだ分析設計の id、次の候補を持つ。`NoteFigure` に図のファイル名（`file`）を足し、`figures` の一覧はそこから作る。
+  `tree_read.report` は、結んだ分析設計を `load_design_note` で1回ずつ読み、結論の出ていない分析設計の一覧も同じ読みから作る（29.1 の `_unfinished_designs` は消した）。
+- Why: 分析ノートと同じ読み方をそのまま使い（Decision `the-report-reads-designs-the-way-the-note-does`）、レポートに出さない物（分析コード、lineage、journal のすべての出来事）は型に置き場を作らない。置き場が無ければ、出し忘れではなく出せないことになる。
+- Criteria: 接続情報と分析コードと lineage を載せないこと（Must、US-2 AC 2 と AC 5）。分析ノートと中身が食い違わないこと（高、ADR-0039 の W5）。決め手は1つめ。
+- Affected modules: `skills/_shared/theme_report.py`、`skills/_shared/tree_read.py`、`skills/_shared/design_note.py`、`skills/_shared/design_note_read.py`。
+- Alternatives considered:
+  - `ReportDesign` が `DesignNote` をそのまま持つ。分析コードと journal のすべての出来事を持ち、Domain Model の不変条件に反する。
+- Consequences: 仮説に反する証拠は、分析ノートの結論の節と違い、結論の前の分析設計でも出す。Limitations は「分析設計ごと」と書いており、結論の有無で絞っていない。
+  図の番号は、レポートの上から数えた画像のリンクの番号である（`/report-upload` の数え方と同じ）。1つの分析設計が答えのある論点2つに結んであれば、その図は2回、別の番号で出る。`figures` には1回だけ入る。
+  進捗と出来事の種類の語は、ツリーのページと分析ノートの表をそのまま使うために公開した（`tree_render.PROGRESS_WORDS`、`design_note.EVENT_WORDS`）。読み手向けの言い換えを1か所に集めるのは Story 29.3 である。
+
+### Decision: the-appendix-lists-every-record-in-brackets
+
+- What: Appendix の「根拠にした記録」には、レポートが括弧で添えた出来事の id をすべて、最初に出た順に1回ずつ載せる。答えの文の引用だけでなく、Results の `conclude` の出来事と、Limitations の仮説に反する証拠も入る。括弧に出ない出来事は載せない。
+  括弧はすべて `theme_report._Cites` を通して書き、Appendix は最後にその記録から作る。
+- Why: Abstract の決まった文が「文の後ろの括弧は根拠にした記録の番号で、本文は Appendix にある」と約束している。見本 v2 では `conclude` の出来事の番号が括弧に出ているのに Appendix に無く、約束が破れていた。
+- Criteria: 決まった文の約束が守られること（Must）。Appendix に journal のすべての出来事を載せないこと（Must、US-2 AC 5）。決め手は1つめ。
+- Affected modules: `skills/_shared/theme_report.py`、`skills/_shared/tree_read.py`。
+- Alternatives considered:
+  - 答えの文の引用だけを載せる（見本 v2 のとおり）。括弧の番号を Appendix で引けないことがある。
+  - `conclude` と反する証拠には括弧を付けない。本文の後ろに番号が無くなり、記録にたどれなくなる。
+- Consequences: `conclude` と反する証拠の本文は、Results・Limitations と Appendix に2回出る。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0039: レポートは、テーマの最終報告として、コードが論点ツリーと分析設計の記録から書く](../adr/0039-report-is-the-final-report-of-a-theme-written-by-code.md): 読む面と配る先、レポートの単位と作り手、APA の骨組みと読み手向けの言い換え、用語「レポート」の意味の変更、ADR-0036 の一部の変更。
@@ -485,7 +536,7 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
 | 29.1 レポートの骨組みと、書かない条件 | ✓（`tests/test_theme_report.py`。見出しの並び、到達点の文、種類ごとの並びと引用の id、同じ入力から同じ Markdown、書いた時刻が載らないこと） | ✓（`tests/tree_io/test_report.py`。ファイルと返す値、2回で同じバイト列、書かない3つの条件と前のファイルに触らないこと、結論の出ていない分析設計で止めないこと、終了コード 0・3・1） | —（自動の E2E は無い。合成シナリオで `tree_io report --theme LIB` を回し、見本の第2版と見比べたことを Story Timeline に書いた） |
-| 29.2 答えと根拠を載せる | ☐ | ☐ | ☐ |
+| 29.2 答えと根拠を載せる | ✓（`tests/test_theme_report.py`。Introduction の箇条書きと論点の表、Method の2つの表、Results の答えと根拠となる分析と指標と図、見直す前の答えの注記、`figures()` の順、Limitations と Future Directions、勧めの節が無いこと、Appendix が括弧の記録だけを最初に出た順に載せること） | ✓（`tests/tree_io/test_report.py`。記録から書いた Results・Limitations・Future Directions・Appendix、返す `figures` と画像のリンク、接続情報と分析コードと lineage が載らないこと。`tests/tree_io/test_render_design.py` に図のファイル名） | —（自動の E2E は無い。合成シナリオで `tree_io report --theme LIB` を回し、見本の第2版と見比べたことを Story Timeline に書いた） |
 | 29.3 読み手の言葉と、崩れない体裁 | ☐ | ☐ | ☐ |
 | 29.4 Claude Docs へ export する | ✓（`tests/skills/test_report_export_structure.py`。SKILL.md の文の契約: `written` が偽なら古いレポートも送らないこと、`path` だけを送り `.md.lock` を拾わないこと、KEEP ゲートの `root_answer_round` と `unfinished_designs` の長さ、図の扱いが `/report-upload` と同じこと、コネクタが無ければ聞かずに止まること） | —（skill はコネクタを通して動き、Python から呼べない。`tree_io report` の側は 29.1 の Integration が受け持つ） | —（自動の E2E は無い。合成シナリオで手順を手で回し、Claude Docs に Doc を作ったことを Story Timeline に書いた） |
 | 29.5 古いレポート周りを消し、文書をそろえる | ☐ | ☐ | ☐ |
@@ -506,3 +557,10 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 - 2026-11-23 — 合成シナリオ（`scripts/handoff_trial.py build --scenario lib`）で SKILL.md の手順を手で回した。最後の stage では終了コード 0 で `root_answer_round` が 2、`unfinished_designs` が空。`start` の stage に前のレポートを置いた所では、終了コード 3（`no_root_answer`）でファイルが残ることを確かめた。人間が KEEP ゲートで承認し、Doc（https://claude.ai/artifact/ETHsydDcbKPxfrevYarTKc）を作った。Doc の本文はレポートと一字一句同じだった。図は `figures` が空なので確かめていない。
 - 2026-11-23 — Story 29.4 の差分に、バグ・セキュリティの観点のレビューを1本回した（`pstack:thermo-nuclear-review`）。高以上の指摘は無かった。中の指摘2件を直した。1件めは、`figures` に在ってレポートのリンクが指さない図の置き場が決まっていないことで、リンクが指す図だけを送ることにした。2件めは、図と注記の対応を番号で覚えると書いていないことで、同じ図を2回指すときの扱いも書いた。
   低の指摘も2件直した。`{count}` が承認の文と図の文で別の物を指していたので、図の数を `{figure_count}` にした。また、終了コードと `written` が食い違うときも送らないと書いた。直さなかった低の指摘は1件で、構造テストが文の在りかまでは確かめないこと（ADR-0010 の決まりの範囲）である。
+- 2026-11-23 — Story 29.2 completed: `tree_io report --theme` が Introduction から Appendix までを記録から書き、載せる図のファイル名を `figures` で返す。`ReportNode`・`ReportDesign` を足し、`NoteFigure` に図のファイル名を足した。Decisions に3件書いた。人間が、今の根の版より古い答えを注記して出すことと、Domain Model 図の変更を承認した（このセッションで直接）。
+- 2026-11-23 — 合成シナリオ（`scripts/handoff_trial.py build --scenario lib`）に、見本の第2版と同じ手法・`conclude`・verdict・図を使い捨てのスクリプトで足して、`tree_io report --theme LIB` を回した。Introduction から Future Directions までが、見本の第2版と同じ並びと文だった。
+  違いは2つで、どちらも意図したとおりである。Appendix に `conclude` と仮説に反する証拠の番号も載ること（Decision `the-appendix-lists-every-record-in-brackets`）と、Method にデータソースの表か「データソースは宣言していない。」が在ること（US-2 AC 2）。研究のテーマとデータソースのある実物は、単体と統合テストだけで確かめた。
+- 2026-11-23 — Story 29.2 の差分に、バグ・セキュリティの観点のレビューを1本回した（`pstack:thermo-nuclear-review`）。中の指摘は1件だった。`conclude` と仮説に反する証拠の id が検査されないまま journal を引きに行き、id の無い出来事や別の分析設計の id で落ちるか、別の本文を出した。
+  本文をその分析設計自身の journal から取り、答えの引用と同じ id で本文が違うときはエラーにして直した。低の指摘のうち、同じ id が2回あるとき本文がずれる点は同じ直しで塞いだ。分析ノートが組めないときに分析設計の名前が出ない点も直した。
+  同じ図が2つの番号で出る点（1つの分析設計を、答えのある論点2つに結んだとき）は Decision `the-report-design-is-cut-from-the-design-note` のとおりで、直していない。
+- 2026-11-23 — 計画外の判断が3件あった（Appendix の範囲、結論の前の反する証拠、図の番号の数え方）。Decisions に書き、PM には完了の報告で知らせた。

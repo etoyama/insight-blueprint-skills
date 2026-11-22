@@ -14,8 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the aim and the current answer to the root question, each sentence followed by the journal
   events it cites. No sentence is written by a model. Nothing is written, and the command exits 3
   with the reasons as JSON, when the theme has no question tree, when the root question has no
-  answer under the current root revision, or when the tree check finds a violation. The sections
-  after the Abstract are still empty headings
+  answer under the current root revision, or when the tree check finds a violation. The
+  Introduction lists the questions of the tree with their progress. The Method has a table of the
+  linked designs (hypothesis, method, why that method) and of their data sources, with no
+  connection. The Results give each answered question its answer and the analyses behind it: the
+  fixed sentence of the terminal status and the conclude text, the verdict metrics as written, and
+  the figures as image links with their captions (`figures` in the JSON lists them). An answer
+  given before the root question was revised says so. The Discussion has the evidence against each
+  hypothesis, the questions not answered yet, the last tree decision and the answers heard about
+  next candidates; there is no section of recommendations. The Appendix lists every journal event
+  the report cites, and no other; analysis code and lineage are left out
   ([ADR-0039](docs/adr/0039-report-is-the-final-report-of-a-theme-written-by-code.md), #177).
 - **`/report-export {theme_id}` exports the final report of a theme to Claude Docs.** It has
   `tree_io report` write the report, lists the report and its figures with the round that wrote
