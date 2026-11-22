@@ -97,15 +97,15 @@ AC 3 から AC 5 は、そうした記号を文字のまま表示させるため
 
 ## Stories
 
-Story は未起票で、表は案である。起票は PM のセッションが行う。「触る所」が重なる Story は並行で進めない。
+Story は PM のセッションが起票した（2026-11-23）。「触る所」が重なる Story は並行で進めない。
 
 | Story issue | User Story | 扱う AC | 触る所 | 前提 |
 |---|---|---|---|---|
-| 未起票（29.1 レポートの骨組みと、書かない条件） | US-1 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/` のレポートのモジュール（新設）、`skills/_shared/tree_io.py`、`skills/_shared/tree_read.py`、`tests/` | なし |
-| 未起票（29.2 答えと根拠を載せる） | US-2 | AC 1, AC 2, AC 3, AC 4, AC 5 | レポートのモジュール、`skills/_shared/design_note_read.py` | 29.1 |
-| 未起票（29.3 読み手の言葉と、崩れない体裁） | US-3 | AC 1, AC 2, AC 3, AC 4, AC 5 | レポートのモジュール、`skills/_shared/design_note.py`（決まった文の置き場） | 29.2 |
-| 未起票（29.4 Claude Docs へ export する） | US-4 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/report-export/SKILL.md`（新設）、`tests/skills/` | 29.1 |
-| 未起票（29.5 古いレポート周りを消し、文書をそろえる） | US-5 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/analysis-report/`、`skills/report-upload/`、`skills/_shared/report_check.py`、`bin/report_check`、`skills/analysis-auto/SKILL.md`、`skills/_shared/design_note.py`、`tests/`、README、`docs/`、`CHANGELOG.md` | 29.3、29.4 |
+| [#190](https://github.com/etoyama/insight-blueprint-skills/issues/190)（29.1 レポートの骨組みと、書かない条件） | US-1 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/` のレポートのモジュール（新設）、`skills/_shared/tree_io.py`、`skills/_shared/tree_read.py`、`tests/` | なし |
+| [#191](https://github.com/etoyama/insight-blueprint-skills/issues/191)（29.2 答えと根拠を載せる） | US-2 | AC 1, AC 2, AC 3, AC 4, AC 5 | レポートのモジュール、`skills/_shared/design_note_read.py` | 29.1 |
+| [#192](https://github.com/etoyama/insight-blueprint-skills/issues/192)（29.3 読み手の言葉と、崩れない体裁） | US-3 | AC 1, AC 2, AC 3, AC 4, AC 5 | レポートのモジュール、`skills/_shared/design_note.py`（決まった文の置き場） | 29.2 |
+| [#193](https://github.com/etoyama/insight-blueprint-skills/issues/193)（29.4 Claude Docs へ export する） | US-4 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/report-export/SKILL.md`（新設）、`tests/skills/` | 29.1 |
+| [#194](https://github.com/etoyama/insight-blueprint-skills/issues/194)（29.5 古いレポート周りを消し、文書をそろえる） | US-5 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/analysis-report/`、`skills/report-upload/`、`skills/_shared/report_check.py`、`bin/report_check`、`skills/analysis-auto/SKILL.md`、`skills/_shared/design_note.py`、`tests/`、README、`docs/`、`CHANGELOG.md` | 29.3、29.4 |
 
 - 29.1 → 29.2 → 29.3 はどれもレポートのモジュールを触るので直列にする。
 - 29.4 は 29.1 の後なら、29.2 と 29.3 に並べて進められる。
@@ -406,3 +406,4 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 - 2026-11-23 — 見本を3つ作った。分析ノートに含意を足す版と足さない版の Artifact（論点ツリーと分析ノート）と、レポートの見本の Doc（2版）である。人間が見て、分析ノートに含意を足さないこと、APA の骨組み、読み手向けの言い換えを決めた。見本はコミットしていない。
 - 2026-11-23 — ADR の番号は、main の最大（0038）の次の 0039 から使った。
 - 2026-11-23 — 人間が DesignDoc 初版と ADR-0039・ADR-0040 を承認した（DesignDoc 初版のセッションで直接）。
+- 2026-11-23 — PM のセッションが Story 29.1〜29.5 を起票した（#190〜#194）。
