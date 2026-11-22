@@ -19,8 +19,6 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from insight_blueprint.models.common import THEME_ID_PATTERN
 from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 
-_EVENT_ID_PATTERN = re.compile(r"[A-Za-z0-9_]+-H\d+-E\d+")
-
 
 def design_id_of(event_id: str) -> str:
     """The design whose journal holds the event ``{design_id}-E{nn}``."""
@@ -110,16 +108,8 @@ class AnswerStatement(BaseModel):
 
     kind: StatementKind
     text: str = Field(min_length=1)
+    # The form of each cite is checked by QuestionTree, which knows the theme.
     cites: list[str] = Field(min_length=1)
-
-    @model_validator(mode="after")
-    def _cites_look_like_events(self) -> Self:
-        for cite in self.cites:
-            if not _EVENT_ID_PATTERN.fullmatch(cite):
-                raise ValueError(
-                    f"cites: '{cite}' is not a journal event id ({{design_id}}-E{{nn}})"
-                )
-        return self
 
 
 class Answer(BaseModel):
@@ -188,13 +178,6 @@ class QuestionNode(BaseModel):
     def _check_node(self) -> Self:
         if self.parent_question_id is not None and not self.contribution:
             raise ValueError(f"contribution: {self.id} has a parent and needs one")
-        if self.origin_event_id is not None and not _EVENT_ID_PATTERN.fullmatch(
-            self.origin_event_id
-        ):
-            raise ValueError(
-                f"origin_event_id: '{self.origin_event_id}' is not a journal "
-                "event id ({design_id}-E{nn})"
-            )
         if len(set(self.design_ids)) != len(self.design_ids):
             raise ValueError(f"design_ids: {self.id} links the same design twice")
         rounds = [a.round for a in self.answers]
@@ -263,6 +246,12 @@ class QuestionTree(BaseModel):
 
     def root(self) -> QuestionNode:
         return next(n for n in self.nodes if n.parent_question_id is None)
+
+    def node(self, node_id: str) -> QuestionNode:
+        for node in self.nodes:
+            if node.id == node_id:
+                return node
+        raise ValueError(f"node '{node_id}' not found in the tree of {self.theme_id}")
 
     def designs_by_branch(self) -> dict[str, set[str]]:
         """For each node, the designs linked to it or to any node below it."""
@@ -335,7 +324,7 @@ class QuestionTree(BaseModel):
             origin = node.origin_event_id
             if origin is not None and not event_pattern.fullmatch(origin):
                 raise ValueError(
-                    f"{node.id}: origin '{origin}' must be "
+                    f"{node.id}: origin_event_id '{origin}' must be "
                     f"{self.theme_id}-H{{nn}}-E{{nn}}"
                 )
             for answer in node.answers:
@@ -408,7 +397,7 @@ class QuestionTree(BaseModel):
             )
 
     def _check_parents(self) -> None:
-        parents = {n.id: n.parent_question_id for n in self.nodes}
+        parents = self._parent_map()
         roots = [i for i, p in parents.items() if p is None]
         if len(roots) != 1:
             raise ValueError(

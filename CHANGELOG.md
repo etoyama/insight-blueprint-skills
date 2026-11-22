@@ -67,6 +67,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   source (`tree_io link-derived`), so it shows in the progress, in the position of the walk and
   in the theme reflection. Nobody is asked for the node
   ([ADR-0033](docs/adr/0033-derived-design-inherits-the-nodes-of-its-source.md), #134).
+- `tree_io add-node` with `origin_event_id` no longer ends in a traceback when `events` in
+  the journal is not a list, or holds an entry that is not a mapping. It reads only the
+  mappings, like every other reader of the journal, and says the event is not found when no
+  real event has that id (#141).
 
 ## [0.13.0] - 2026-11-22
 
