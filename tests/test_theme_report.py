@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import importlib.util
+import re
 from dataclasses import replace
 from datetime import date, datetime
+from pathlib import Path
+
+import pytest
 
 from insight_blueprint.models.design import DesignStatus
 from insight_blueprint.models.tree import (
@@ -14,14 +19,31 @@ from insight_blueprint.models.tree import (
     Progress,
     TreeDecision,
 )
-from skills._shared.design_note import NoteEvent, NoteFigure, NoteSource, VerdictMetric
+from skills._shared.design_note import (
+    LEAD_SENTENCES,
+    NoteEvent,
+    NoteFigure,
+    NoteSource,
+    VerdictMetric,
+)
 from skills._shared.theme_report import (
+    READER_WORDS,
     ReportDesign,
     ReportNode,
     ThemeReport,
+    escape_source_text,
     render_report,
 )
 from skills._shared.tree_render import CitedEvent
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+# The glossary's own reader, as the documents' tests use it.
+_spec = importlib.util.spec_from_file_location(
+    "export_yomiyasu_words", REPO_ROOT / "scripts/export_yomiyasu_words.py"
+)
+assert _spec and _spec.loader
+_glossary = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_glossary)
 
 BUSINESS_AIM = Aim.model_validate(
     {
@@ -521,7 +543,7 @@ class TestResults:
             in lines
         )
         assert (
-            "| 差 | 0.1 | 0.30（cohens_d） | 水準 0.95: [0.10, 0.50] | 1520 | 0.05 | 0.01 | ✗ |"
+            "| 差 | 0.1 | 0.30（cohens\\_d） | 水準 0.95: [0.10, 0.50] | 1520 | 0.05 | 0.01 | ✗ |"
             in lines
         )
 
@@ -798,3 +820,206 @@ class TestAppendix:
         appendix = _section(render_report(report), "## Appendix")
 
         assert "| LIB-H01-E01 | 人に聞いた答え | 聞いた |" in appendix.splitlines()
+
+
+class TestEscapeSourceText:
+    def test_each_of_the_eight_characters_gets_a_backslash(self) -> None:
+        assert escape_source_text("\\`*_[]<|") == r"\\\`\*\_\[\]\<\|"
+
+    def test_a_run_of_line_breaks_and_tabs_becomes_one_space(self) -> None:
+        assert escape_source_text("a\r\n\tb\n\nc d") == "a b c d"
+
+    def test_other_text_is_kept_as_written(self) -> None:
+        assert escape_source_text("期限切れは152件 (n=3) a>b、2.5%") == (
+            "期限切れは152件 (n=3) a>b、2.5%"
+        )
+
+    @pytest.mark.parametrize(
+        ("text", "escaped"),
+        [
+            ("# 見出し", r"\# 見出し"),
+            ("> 引用", r"\> 引用"),
+            ("- 項目", r"\- 項目"),
+            ("+ 項目", r"\+ 項目"),
+            ("~~~", r"\~~~"),
+            ("1. 番号", r"1\. 番号"),
+            ("12) 番号", r"12\) 番号"),
+        ],
+    )
+    def test_a_mark_that_starts_a_block_at_the_head_gets_a_backslash(
+        self, text: str, escaped: str
+    ) -> None:
+        assert escape_source_text(text) == escaped
+
+    @pytest.mark.parametrize(
+        "text", ["2019-2023 年", "1.5 倍", "-1.2", "+3%", "#タグ", "C#", "~~ 2つ"]
+    )
+    def test_a_mark_that_opens_no_block_is_kept(self, text: str) -> None:
+        assert escape_source_text(text) == text
+
+    def test_a_hash_that_would_close_a_heading_gets_a_backslash(self) -> None:
+        assert escape_source_text("C の問い ##") == r"C の問い \##"
+
+    def test_spaces_at_the_ends_are_dropped(self) -> None:
+        assert escape_source_text("   # 見出し  ") == r"\# 見出し"
+
+
+# Every Markdown mark AC 5 names, in one text; it starts with a block mark.
+POISON = (
+    "> 引用 <b>太字</b> *強調* _下線_ | セル | `コード`\n```\n"
+    "![画像](http://example.invalid/a.png) [リンク](http://example.invalid/)"
+    " \\ 終わり\n~~~\n# 見出し\t- 項目 #"
+)
+POISON_ESCAPED = (
+    r"\> 引用 \<b>太字\</b> \*強調\* \_下線\_ \| セル \| \`コード\` \`\`\` "
+    r"!\[画像\](http://example.invalid/a.png) \[リンク\](http://example.invalid/)"
+    r" \\ 終わり ~~~ # 見出し - 項目 \#"
+)
+
+
+def _poisoned_report(aim: Aim) -> ThemeReport:
+    """A report whose every text taken from the records is POISON."""
+    p = POISON
+    cited = ("LIB-H01-E01", "LIB-H01-E02", "LIB-H01-E03")
+    answer = _answer(
+        _statement("claim", p, cited[0]),
+        _statement("weakening", p, cited[0]),
+        _statement("undetermined", p, cited[0]),
+    )
+    design = _design(
+        title=p,
+        hypothesis=p,
+        method=p,
+        package=p,
+        method_reason=p,
+        conclude_events=(_event(cited[1], p, "conclude"),),
+        contradicting_evidence=(_event(cited[2], p),),
+        metrics=(
+            _metric(
+                p,
+                p,
+                threshold=p,
+                p=p,
+                passed=True,
+                effect_size=(p, p),
+                confidence_interval=(p, p, p),
+                sample_size=p,
+            ),
+        ),
+        figures=(NoteFigure(file="a_b.png", title=p, axes=p, how_to_read=p, png=b""),),
+    )
+    candidate = NextCandidate(
+        ask=p, answer=p, answered_by=p, answered_at=date(2026, 11, 1)
+    )
+    return ThemeReport(
+        theme_id="LIB",
+        root_question=p,
+        aim=aim,
+        round=2,
+        root_revision=1,
+        answer=answer,
+        nodes=(
+            _node(
+                question=p,
+                contribution=p,
+                answer=answer,
+                design_ids=("LIB-H01",),
+            ),
+            _node("LIB-Q03", question=p, contribution=p, next_candidate=candidate),
+        ),
+        designs=(design,),
+        sources=(NoteSource(name=p, type=p, description=p),),
+        decision=TreeDecision.model_validate(
+            {"round": 2, "kind": "deepen", "node_id": "LIB-Q03", "reason": p}
+        ),
+        records={
+            i: CitedEvent(id=i, type="evidence", direction=None, content=p)
+            for i in cited
+        },
+    )
+
+
+POISON_AIMS = [
+    Aim.model_validate(
+        {"kind": "business", "decision_maker": POISON, "decision": POISON}
+    ),
+    Aim.model_validate({"kind": "research", "audience": POISON, "claim_scope": POISON}),
+]
+
+# A `|` that splits a table row: not preceded by an odd run of backslashes.
+_CELL_BAR = re.compile(r"(?<!\\)(?:\\\\)*\|")
+
+
+class TestSourceTextInTheReport:
+    @pytest.mark.parametrize("aim", POISON_AIMS, ids=["business", "research"])
+    def test_every_text_from_the_records_is_escaped_wherever_it_goes(
+        self, aim: Aim
+    ) -> None:
+        markdown = render_report(_poisoned_report(aim))
+
+        # Each copy of the text is whole and escaped: no part of it went in raw.
+        assert markdown.count("太字") == markdown.count(POISON_ESCAPED) > 0
+
+    @pytest.mark.parametrize("aim", POISON_AIMS, ids=["business", "research"])
+    def test_no_mark_in_the_text_works_as_markdown(self, aim: Aim) -> None:
+        markdown = render_report(_poisoned_report(aim))
+
+        assert not re.search(r"(?<!\\)</?b>", markdown)
+        for raw in ("*強調*", "_下線_", "`コード`", "![画像]", "[リンク]", "```"):
+            assert raw not in markdown
+        assert "\t" not in markdown
+        for line in markdown.splitlines():
+            assert not line.startswith(("~~~", "```", "> ", "# 見出し"))
+            assert not re.match(r"- (?:[#>+=~-]|\d+[.)])", line)
+
+    @pytest.mark.parametrize("aim", POISON_AIMS, ids=["business", "research"])
+    def test_every_table_row_keeps_the_columns_of_its_header(self, aim: Aim) -> None:
+        markdown = render_report(_poisoned_report(aim))
+
+        for table in re.findall(r"(?:^\|.*\n)+", markdown, flags=re.MULTILINE):
+            widths = {len(_CELL_BAR.findall(row)) for row in table.splitlines()}
+            assert len(widths) == 1, table
+
+    def test_the_figure_link_keeps_its_file_name_as_written(self) -> None:
+        markdown = render_report(_poisoned_report(BUSINESS_AIM))
+
+        assert "](../notebooks/a_b.png)" in markdown
+
+
+class TestReaderWords:
+    def test_every_word_rewritten_is_a_term_of_the_glossary(self) -> None:
+        glossary = (REPO_ROOT / "docs/UBIQUITOUS_LANGUAGE.md").read_text("utf-8")
+        terms = {row["用語"] for row in _glossary.terms_rows(glossary)}
+
+        assert set(READER_WORDS) <= terms
+
+    def test_the_report_says_none_of_the_terms_it_rewrites(self) -> None:
+        markdown = render_report(
+            _report(
+                aim=RESEARCH_AIM,
+                nodes=(
+                    _node(answer=_answer(), design_ids=("LIB-H01", "LIB-H02")),
+                    _node("LIB-Q03"),
+                ),
+                designs=(
+                    _design(
+                        conclude_events=(_event("LIB-H01-E02", "差", "conclude"),),
+                        contradicting_evidence=(_event("LIB-H01-E03", "反"),),
+                    ),
+                    _design("LIB-H02", status=DesignStatus.analyzing),
+                ),
+                decision=TreeDecision.model_validate(
+                    {"round": 2, "kind": "deepen", "node_id": "LIB-Q03", "reason": "次"}
+                ),
+            )
+        )
+
+        for term, word in READER_WORDS.items():
+            assert term not in markdown
+            assert word in markdown
+
+    def test_the_lead_sentence_of_a_finished_design_is_the_one_of_the_analysis_note(
+        self,
+    ) -> None:
+        for status, sentence in LEAD_SENTENCES.items():
+            assert _design(status=status).lead_sentence is sentence

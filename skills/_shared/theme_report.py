@@ -1,8 +1,9 @@
 """The final report of a theme, written by code from its records (Epic 29).
 
-Pure: no I/O. Every sentence is a fixed template or a text copied verbatim from
-the records, so a model's wording cannot enter the report. Nothing is computed,
-reformatted or trimmed, and no time or path goes into the text: the same records
+Pure: no I/O. Every sentence is a fixed template or a text copied from the
+records, so a model's wording cannot enter the report. A copied text keeps its
+words: ``escape_source_text`` only makes its marks show as characters. Nothing is
+computed or reformatted, and no time or path goes into the text: the same records
 give the same bytes.
 
 Every event id the text puts in brackets goes through one ``_Cites``, so the
@@ -11,6 +12,7 @@ Appendix lists exactly the records the report cites.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 
@@ -38,6 +40,50 @@ from skills._shared.tree_render import PROGRESS_WORDS, CitedEvent
 
 _DASH = "—"
 
+# The glossary's words a reader does not know, and what the report says instead.
+# Every fixed sentence takes these words from here (ADR-0039).
+READER_WORDS: Mapping[str, str] = {
+    "根の問い": "主題",
+    "journal の出来事": "記録",
+    "分析設計": "分析",
+    "親の論点": "上位の論点",
+    "寄与": "答えると分かること",
+}
+_ROOT = READER_WORDS["根の問い"]
+_RECORD = READER_WORDS["journal の出来事"]
+_DESIGN = READER_WORDS["分析設計"]
+_PARENT = READER_WORDS["親の論点"]
+_CONTRIBUTION = READER_WORDS["寄与"]
+
+# The eight characters ADR-0019 escapes.
+_MARKS = re.compile(r"([\\`*_\[\]<|])")
+# Line breaks and tabs: a table row or a list item ends at a line break.
+_BREAKS = re.compile(r"[\t\n\v\f\r\x85\u2028\u2029]+")
+# A mark that opens a block when a text heads a list item: a heading, a quote,
+# a list, a fence. ``*`` and the backtick are among the eight already. A rule
+# would need the whole line, and a list item ends with the cited ids.
+_HEAD_MARK = re.compile(
+    r"^(\d{0,9})(#(?=#{0,5}(?:\s|$))|>|[-+](?=\s|$)|(?<=\d)[.)](?=\s|$)|~(?=~~))"
+)
+# The marks that close a heading: a run of ``#`` after a space, at the end.
+_TAIL_MARK = re.compile(r"(?<=\s)#(?=#*$)")
+
+
+def escape_source_text(text: str) -> str:
+    """*text* from the records, as Markdown that shows it as characters (US-3 AC 3).
+
+    Breaks fold into one space and the ends lose their spaces, which Markdown
+    does not show anyway; every other character stays. Each of ADR-0019's eight
+    characters gets a backslash, and so does a mark that would open a block at
+    the head (heading, quote, list, fence) or close a heading at the end (``#``).
+    """
+    text = _MARKS.sub(r"\\\1", _BREAKS.sub(" ", text).strip())
+    text = _HEAD_MARK.sub(r"\1\\\2", text, count=1)
+    return _TAIL_MARK.sub(r"\\#", text, count=1)
+
+
+_e = escape_source_text
+
 # The order of this table is the order of the groups in the report.
 _KIND_HEADINGS: dict[StatementKind, str] = {
     StatementKind.claim: "言えること",
@@ -45,6 +91,7 @@ _KIND_HEADINGS: dict[StatementKind, str] = {
     StatementKind.undetermined: "まだ分からないこと",
 }
 
+# The fields of an aim are texts from the records; the sentences escape them.
 _AIM_SENTENCES: dict[AimKind, str] = {
     AimKind.business: "{decision_maker}が、{decision}を決めるための分析である。",
     AimKind.research: (
@@ -59,12 +106,12 @@ _AIM_ITEMS: dict[AimKind, tuple[tuple[str, str], ...]] = {
 }
 
 _ABSTRACT_LEAD = (
-    "主題への現時点の答えは次のとおり。"
-    "文の後ろの括弧は根拠にした記録の番号で、本文は Appendix にある。"
+    f"{_ROOT}への現時点の答えは次のとおり。"
+    f"文の後ろの括弧は根拠にした{_RECORD}の番号で、本文は Appendix にある。"
 )
 
-_NOT_CONCLUDED = "この分析は、まだ結論が出ていない。"
-_BEFORE_ROOT_CHANGE = "この答えは、主題を今の形に見直す前に書いた。"
+_NOT_CONCLUDED = f"この{_DESIGN}は、まだ結論が出ていない。"
+_BEFORE_ROOT_CHANGE = f"この答えは、{_ROOT}を今の形に見直す前に書いた。"
 
 # What a decision says about its node: where to look next, or where it stopped.
 _DECISION_WORDS = {
@@ -199,6 +246,7 @@ def _cell(text: str) -> str:
 
 
 def _table(headers: Sequence[str], rows: Iterable[Sequence[str]]) -> str:
+    """A table; each cell of *rows* is escaped already, or an id."""
     lines = [
         f"| {' | '.join(headers)} |",
         f"| {' | '.join('---' for _ in headers)} |",
@@ -208,14 +256,15 @@ def _table(headers: Sequence[str], rows: Iterable[Sequence[str]]) -> str:
 
 
 def _aim_sentence(aim: Aim) -> str:
-    return _AIM_SENTENCES[aim.kind].format(**aim.model_dump())
+    fields = {k: _e(v) for k, v in aim.model_dump().items() if isinstance(v, str)}
+    return _AIM_SENTENCES[aim.kind].format(**fields)
 
 
 def _statements(answer: Answer, cites: _Cites) -> list[str]:
     blocks: list[str] = []
     for kind, heading in _KIND_HEADINGS.items():
         lines = [
-            f"- {s.text}{cites.mark(s.cites)}"
+            f"- {_e(s.text)}{cites.mark(s.cites)}"
             for s in answer.statements
             if s.kind is kind
         ]
@@ -234,30 +283,36 @@ def _abstract(report: ThemeReport, cites: _Cites) -> list[str]:
 
 def _introduction(report: ThemeReport) -> list[str]:
     aim = report.aim.model_dump()
-    items = [f"- 主題: {report.root_question}"] + [
-        f"- {label}: {aim[key]}" for label, key in _AIM_ITEMS[report.aim.kind]
+    items = [f"- {_ROOT}: {_e(report.root_question)}"] + [
+        f"- {label}: {_e(aim[key])}" for label, key in _AIM_ITEMS[report.aim.kind]
     ]
     if not report.nodes:
-        return ["## Introduction", "\n".join(items), "主題を論点に分けていない。"]
+        return ["## Introduction", "\n".join(items), f"{_ROOT}を論点に分けていない。"]
     table = _table(
-        ("論点", "問い", "上位の論点", "答えると分かること", "進捗"),
+        ("論点", "問い", _PARENT, _CONTRIBUTION, "進捗"),
         (
-            (n.id, n.question, n.parent, n.contribution, PROGRESS_WORDS[n.progress][0])
+            (
+                n.id,
+                _e(n.question),
+                n.parent,
+                _e(n.contribution),
+                PROGRESS_WORDS[n.progress][0],
+            )
             for n in report.nodes
         ),
     )
     return [
         "## Introduction",
         "\n".join(items),
-        "主題を、次の論点に分けて調べた。",
+        f"{_ROOT}を、次の論点に分けて調べた。",
         table,
     ]
 
 
 def _method_text(design: ReportDesign) -> str:
     if design.method and design.package:
-        return f"{design.method}（{design.package}）"
-    return design.method
+        return f"{_e(design.method)}（{_e(design.package)}）"
+    return _e(design.method)
 
 
 def _method(report: ThemeReport) -> list[str]:
@@ -269,27 +324,27 @@ def _method(report: ThemeReport) -> list[str]:
         }
         blocks.append(
             _table(
-                ("分析", "答える論点", "仮説", "手法", "手法を選んだ理由"),
+                (_DESIGN, "答える論点", "仮説", "手法", "手法を選んだ理由"),
                 (
                     (
-                        f"{d.id} {d.title}",
+                        f"{d.id} {_e(d.title)}",
                         "、".join(answered[d.id]),
-                        d.hypothesis,
+                        _e(d.hypothesis),
                         _method_text(d),
-                        d.method_reason,
+                        _e(d.method_reason),
                     )
                     for d in report.designs
                 ),
             )
         )
     else:
-        blocks.append("論点に結んだ分析は無い。")
+        blocks.append(f"論点に結んだ{_DESIGN}は無い。")
     if report.sources:
         blocks += [
             "分析に使ったデータソースは次のとおり。",
             _table(
                 ("名前", "種類", "説明"),
-                ((s.name, s.type, s.description) for s in report.sources),
+                ((_e(s.name), _e(s.type), _e(s.description)) for s in report.sources),
             ),
         ]
     else:
@@ -297,27 +352,31 @@ def _method(report: ThemeReport) -> list[str]:
     return blocks
 
 
+def _or_none(text: str | None) -> str | None:
+    return None if text is None else _e(text)
+
+
 # Each column of the metric table: its heading and how a metric fills it.
 _METRIC_COLUMNS = (
-    ("値", lambda m: m.value),
+    ("値", lambda m: _or_none(m.value)),
     (
         "効果量",
-        lambda m: f"{m.effect_size[1]}（{m.effect_size[0]}）"
+        lambda m: f"{_e(m.effect_size[1])}（{_e(m.effect_size[0])}）"
         if m.effect_size
         else None,
     ),
     (
         "信頼区間",
         lambda m: (
-            f"水準 {m.confidence_interval[0]}: "
-            f"[{m.confidence_interval[1]}, {m.confidence_interval[2]}]"
+            f"水準 {_e(m.confidence_interval[0])}: "
+            f"[{_e(m.confidence_interval[1])}, {_e(m.confidence_interval[2])}]"
         )
         if m.confidence_interval
         else None,
     ),
-    ("標本サイズ", lambda m: m.sample_size),
-    ("しきい値", lambda m: m.threshold),
-    ("p 値", lambda m: m.p),
+    ("標本サイズ", lambda m: _or_none(m.sample_size)),
+    ("しきい値", lambda m: _or_none(m.threshold)),
+    ("p 値", lambda m: _or_none(m.p)),
     ("合否", lambda m: None if m.passed is None else ("✓" if m.passed else "✗")),
 )
 
@@ -334,7 +393,7 @@ def _metrics(metrics: Sequence[VerdictMetric]) -> list[str]:
     return [
         _table(
             ("指標", *(heading for heading, _ in columns)),
-            ([m.name, *(fill(m) or "" for _, fill in columns)] for m in metrics),
+            ([_e(m.name), *(fill(m) or "" for _, fill in columns)] for m in metrics),
         )
     ]
 
@@ -349,15 +408,17 @@ class _FigureNumbers:
         self.count += 1
         n = self.count
         return [
+            # The file name passed the reader's check: a bare name, no brackets.
             f"![図 {n}](../notebooks/{figure.file})",
-            f"図 {n}: {figure.title}。軸: {figure.axes}。読み方: {figure.how_to_read}",
+            f"図 {n}: {_e(figure.title)}。軸: {_e(figure.axes)}。"
+            f"読み方: {_e(figure.how_to_read)}",
         ]
 
 
 def _evidence(
     design: ReportDesign, cites: _Cites, numbers: _FigureNumbers
 ) -> list[str]:
-    blocks = [f"**根拠となる分析: {design.id} {design.title}**"]
+    blocks = [f"**根拠となる{_DESIGN}: {design.id} {_e(design.title)}**"]
     lead = design.lead_sentence
     if lead is None:
         blocks.append(_NOT_CONCLUDED)
@@ -365,7 +426,7 @@ def _evidence(
         blocks.append(
             lead
             + "".join(
-                f"{e.content}{cites.mark([e.id])}" for e in design.conclude_events
+                f"{_e(e.content)}{cites.mark([e.id])}" for e in design.conclude_events
             )
         )
     blocks += _metrics(design.metrics)
@@ -384,7 +445,7 @@ def _results(report: ThemeReport, cites: _Cites) -> list[str]:
         answer = node.answer
         if answer is None:  # answered_nodes() keeps only nodes with one
             continue
-        blocks.append(f"### {node.id} {node.question}")
+        blocks.append(f"### {node.id} {_e(node.question)}")
         if answer.root_revision < report.root_revision:
             blocks.append(_BEFORE_ROOT_CHANGE)
         blocks += _statements(answer, cites)
@@ -394,7 +455,7 @@ def _results(report: ThemeReport, cites: _Cites) -> list[str]:
 
 
 def _event_items(events: Sequence[NoteEvent], cites: _Cites) -> str:
-    return "\n".join(f"- {e.content}{cites.mark([e.id])}" for e in events)
+    return "\n".join(f"- {_e(e.content)}{cites.mark([e.id])}" for e in events)
 
 
 def _limitations(report: ThemeReport, cites: _Cites) -> list[str]:
@@ -402,7 +463,7 @@ def _limitations(report: ThemeReport, cites: _Cites) -> list[str]:
     against = [d for d in report.designs if d.contradicting_evidence]
     for design in against:
         blocks += [
-            f"{design.id} {design.title} の仮説に反する証拠:",
+            f"{design.id} {_e(design.title)} の仮説に反する証拠:",
             _event_items(design.contradicting_evidence, cites),
         ]
     if not against:
@@ -412,8 +473,8 @@ def _limitations(report: ThemeReport, cites: _Cites) -> list[str]:
         blocks += [
             "次の論点には、まだ答えていない。",
             _table(
-                ("論点", "問い", "答えると分かること"),
-                ((n.id, n.question, n.contribution) for n in unanswered),
+                ("論点", "問い", _CONTRIBUTION),
+                ((n.id, _e(n.question), _e(n.contribution)) for n in unanswered),
             ),
         ]
     else:
@@ -426,8 +487,8 @@ def _heard(node: ReportNode) -> str | None:
     if candidate is None or not candidate.answer:
         return None
     return (
-        f"- {node.id} について聞いた答え（{candidate.answered_by}、"
-        f"{candidate.answered_at}）: {candidate.answer}"
+        f"- {node.id} について聞いた答え（{_e(candidate.answered_by)}、"
+        f"{candidate.answered_at}）: {_e(candidate.answer)}"
     )
 
 
@@ -441,8 +502,8 @@ def _future_directions(report: ThemeReport) -> list[str]:
         question = questions.get(decision.node_id, report.root_question)
         label = _DECISION_WORDS.get(decision.kind, _NEXT_NODE)
         lines += [
-            f"- {label}: {decision.node_id} {question}",
-            f"- 理由: {decision.reason}",
+            f"- {label}: {decision.node_id} {_e(question)}",
+            f"- 理由: {_e(decision.reason)}",
         ]
     lines += [line for n in report.nodes if (line := _heard(n)) is not None]
     return ["### Future Directions", "\n".join(lines)]
@@ -451,18 +512,19 @@ def _future_directions(report: ThemeReport) -> list[str]:
 def _appendix(report: ThemeReport, cites: _Cites) -> list[str]:
     def row(event_id: str) -> tuple[str, str, str]:
         event = report.records[event_id]
-        return (event_id, EVENT_WORDS.get(event.type, event.type), event.content)
+        word = EVENT_WORDS.get(event.type) or _e(event.type)
+        return (event_id, word, _e(event.content))
 
     return [
         "## Appendix",
-        "### 根拠にした記録",
-        _table(("記録の番号", "種類", "本文"), (row(i) for i in cites.ids)),
+        f"### 根拠にした{_RECORD}",
+        _table((f"{_RECORD}の番号", "種類", "本文"), (row(i) for i in cites.ids)),
     ]
 
 
 def _blocks(report: ThemeReport) -> Iterator[str]:
     cites = _Cites()
-    yield f"# {report.root_question}"
+    yield f"# {_e(report.root_question)}"
     yield (
         f"テーマ {report.theme_id} のレポート。"
         f"{report.round}回目の振り返りの時点の記録にもとづく。"
