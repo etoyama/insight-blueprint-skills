@@ -91,9 +91,8 @@ class TestRecord:
         assert "docs/handoff-trials/" in section(_doc(), "## Step 5")
 
     def test_a_record_keeps_the_score_of_the_key_it_was_scored_with(self) -> None:
-        # ADR-0035: fixing the key must not rewrite or fail the records kept so far.
         body = unwrap(section(_doc(), "## Step 5"))
-        assert "その時点の鍵での採点" in body
+        assert "](adr/0035-" in body
         assert "採点し直さない" in body
 
 
