@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`tree_io report --theme {theme_id}` writes the final report of a theme.** Code writes
+  `.insight/reports/{theme_id}.md` from the question tree: the APA headings, and an Abstract with
+  the aim and the current answer to the root question, each sentence followed by the journal
+  events it cites. No sentence is written by a model. Nothing is written, and the command exits 3
+  with the reasons as JSON, when the theme has no question tree, when the root question has no
+  answer under the current root revision, or when the tree check finds a violation. The sections
+  after the Abstract are still empty headings
+  ([ADR-0039](docs/adr/0039-report-is-the-final-report-of-a-theme-written-by-code.md), #177).
+
 ## [0.15.0] - 2026-11-23
 
 ### Added

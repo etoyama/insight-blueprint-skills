@@ -43,11 +43,11 @@ AC の正本はここ。
 
 分析者として、顧客に大本の問いへの答えを報告するために、論点ツリーと分析設計の記録からレポートを作ってほしい。
 
-- [ ] AC 1: `tree_io report --theme {theme_id}` は、レポートを `.insight/reports/{theme_id}.md` に書き、ファイルのパスと、レポートが載せる図のファイル名の一覧を返す。
-- [ ] AC 2: レポートは APA の骨組みに従う。見出しは英語で、Abstract、Introduction、Method、Results、Discussion（Limitations と Future Directions）、Appendix の順に並ぶ。
-- [ ] AC 3: Abstract に、到達点（業務では決める人と決めること、研究では想定読者と主張の範囲）と、根の問いへの現時点の答えを出す。答えの文は種類ごとに分け、文ごとに引用した journal の出来事の id を添える。
-- [ ] AC 4: 同じ入力（論点ツリー、分析設計、journal、verdict）からは同じ Markdown ができる。値は書かれたとおりに出し、計算しない。モデルが書く文は無い。生成した時刻、絶対パス、接続情報を入れない。
-- [ ] AC 5: 次のどれかに当たるときは、レポートを書かずに理由を返す。テーマに論点ツリーが無い。根の問いに、今の根の版への答えが無い。ツリーの検査に違反がある。結論の出ていない分析設計が論点に結んであっても止めない。
+- [x] AC 1: `tree_io report --theme {theme_id}` は、レポートを `.insight/reports/{theme_id}.md` に書き、ファイルのパスと、レポートが載せる図のファイル名の一覧を返す。
+- [x] AC 2: レポートは APA の骨組みに従う。見出しは英語で、Abstract、Introduction、Method、Results、Discussion（Limitations と Future Directions）、Appendix の順に並ぶ。
+- [x] AC 3: Abstract に、到達点（業務では決める人と決めること、研究では想定読者と主張の範囲）と、根の問いへの現時点の答えを出す。答えの文は種類ごとに分け、文ごとに引用した journal の出来事の id を添える。
+- [x] AC 4: 同じ入力（論点ツリー、分析設計、journal、verdict）からは同じ Markdown ができる。値は書かれたとおりに出し、計算しない。モデルが書く文は無い。生成した時刻、絶対パス、接続情報を入れない。
+- [x] AC 5: 次のどれかに当たるときは、レポートを書かずに理由を返す。テーマに論点ツリーが無い。根の問いに、今の根の版への答えが無い。ツリーの検査に違反がある。結論の出ていない分析設計が論点に結んであっても止めない。
 
 ### US-2: 読み手が、レポートだけで答えと根拠をたどれる
 
@@ -189,7 +189,7 @@ flowchart TD
 
 ## Domain Model
 
-レポートは保存する集約ではなく、記録から作る表示の型である。新しい型の名前は Story 29.1 で確定する。既存の型（`QuestionTree`、`QuestionNode`、`Answer`、`AnswerStatement`、`TreeDecision`、`NextCandidate`、`Aim`、`DesignNote`、`NoteFigure`、`NoteSource`、`VerdictMetric`）は変えない。
+レポートは保存する集約ではなく、記録から作る表示の型である。新しい型の名前は Story 29.1 で、初版の名前のまま確定した（Decision `the-report-is-one-pure-module-and-one-read`）。既存の型（`QuestionTree`、`QuestionNode`、`Answer`、`AnswerStatement`、`TreeDecision`、`NextCandidate`、`Aim`、`DesignNote`、`NoteFigure`、`NoteSource`、`VerdictMetric`）は変えない。
 
 ```mermaid
 classDiagram
@@ -383,6 +383,67 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
   - 古い skill の名前だけ残し、中身を案内にする。案内だけの skill が残り、いつか消す仕事も残る。
 - Consequences: バージョンを上げた人は、`/analysis-report` と `/report-upload` が無いことに戸惑いうる。`CHANGELOG.md` に書く（US-5 AC 5）。Story 29.5 は 29.3 と 29.4 の後に進め、新しい経路ができてから古い経路を消す。
 
+### Decision: the-report-is-one-pure-module-and-one-read
+
+- What: レポートの型と Markdown を書く純関数を `skills/_shared/theme_report.py` に置く。記録を読んでファイルを書く `report` は `skills/_shared/tree_read.py` に置き、`tree_io` はコマンドを足すだけにする。
+  型の名前は初版の仮の名前のまま確定する。Story 29.1 が作るのは `ThemeReport` だけで、`ReportNode`・`ReportDesign`・`ReaderWords` は中身を載せる Story（29.2、29.3）が作る。
+  書かない理由の種類は `tree_read.ReportStop`（`no_tree`、`no_root_answer`、`violations`）で持つ。コマンドの返す値の一部なので、Domain Model の図には足さない。
+- Why: 論点ツリーの表示（`tree_render` と `tree_read`）と分析ノート（`design_note` と `design_note_read`）が、表示の純関数と読む側に分かれている。同じ分け方にすると、同じ入力から同じ Markdown ができることを I/O なしで確かめられる。
+- Criteria: 同じ入力から同じ Markdown ができることを、ファイルなしでテストできること（US-1 AC 4）。今の Story が使わない型を作らないこと（YAGNI）。既存の分け方に合うこと。決め手は1つめ。
+- Affected modules: `skills/_shared/theme_report.py`（新設）、`skills/_shared/tree_read.py`、`skills/_shared/tree_io.py`。
+- Alternatives considered:
+  - 読む側も `theme_report.py` に置く。`tree_read` の `load_tree_model` と `cited_events` を読むので、`tree_render` と同じく表示のモジュールが読む側に依る形になる。
+  - 4つの型を 29.1 で全部作る。29.1 の AC が使うのは `ThemeReport` だけである。
+- Consequences: 29.2 と 29.3 は `ThemeReport` に項目を足し、`render_report` の節を埋める。`tree_read.py` は Story 29.1 から 29.3 が続けて触る。
+
+### Decision: report-says-written-or-why-not
+
+- What: `tree_io report --theme {theme_id}` は、書いたときも書かなかったときも、標準出力に JSON を1つ返す。
+  - 書いたとき（終了コード 0）: `written` が true。`path`（レポートのパス）、`figures`（レポートが載せる図のファイル名。29.1 では空）、`round`（論点ツリーの最後の振り返りの回）、`root_answer_round`（根の問いの答えを書いた回）、`unfinished_designs`（論点に結んだ、結論の出ていない分析設計の id）。
+  - 書かなかったとき（終了コード 3）: `written` が false。`reasons` に理由を並べる。理由は `kind`（`no_tree`、`no_root_answer`、`violations`）と `message` を持ち、`violations` のときは違反の一覧も持つ。
+    根の問いに答えが無いことと違反は同時に起きうるので、両方を返す。レポートのファイルは書かず、前に書いたファイルにも触らない。
+  - 呼び方か記録が壊れているとき（終了コード 1）: 今までどおり標準エラーに出す。スキーマに通らない論点ツリー、読めない journal、同じ id の出来事が2つある、がこれに当たる。書ける場合に、結んだ分析設計のファイルが無いときもこれに当たる。
+- Why: `/report-export` は、書けない理由を分析者に伝えて終わる場合と、呼び方を直す場合を見分ける必要がある。`answer` が同じ区別を終了コード 3 でしている。
+  `root_answer_round` と `unfinished_designs` は、KEEP ゲートの承認の文（US-4 AC 3）が出す値である。Story 29.4 が触るのは SKILL.md だけなので、値はこのコマンドが返す。
+- Criteria: skill が終了コードだけで3つの場合を見分けられること（US-4 AC 1）。承認の文の値を、モデルが数えずに済むこと（US-4 AC 3）。`tree_io` のほかのコマンドと同じ読み方ができること。決め手は1つめ。
+- Affected modules: `skills/_shared/tree_read.py`、`skills/_shared/tree_io.py`、`skills/report-export/SKILL.md`（29.4）。
+- Alternatives considered:
+  - 書かない理由を終了コード 1 と標準エラーで返す。壊れた記録と見分けられず、理由が文だけになる。
+  - 論点ツリーが無いときだけ終了コード 1 にする（今の `progress` と同じ）。US-1 AC 5 が、論点ツリーが無いことを書かない理由に数えている。
+  - `root_answer_round` と `unfinished_designs` を返さず、skill が `tree_io get` と `progress` から数える。モデルが数えることになる。
+- Consequences: `round` と `root_answer_round` は別の値である。振り返りは一部の論点だけに答えを書けるので、後の回が根の問いを見直したかは記録から分からない。
+  レポートの題の下の行には `round` を出す（レポートはその回までの記録を載せる）。承認の文の「答えを書いた振り返りの回」には `root_answer_round` を使う。
+  最初は `round` だけを返していた。Story のレビューが、古い答えが新しく見えると指摘したので分けた。
+  論点ツリーが無いときは、探したファイルのパスを標準エラーにも出す（`get` と同じ）。
+
+### Decision: the-abstract-is-built-from-fixed-sentences
+
+- What: Abstract は、到達点の文、決まった案内の文、種類ごとの現時点の答えの順に書く。文の形は見本（第2版）のとおりにする。
+  - 業務のテーマ: 「{決める人}が、{決めること}を決めるための分析である。」
+  - 研究のテーマ: 「{想定読者}が、主張を吟味するための分析である。主張の範囲は「{主張の範囲}」である。」
+  - 種類の見出しは「言えること」「留保すべきこと」「まだ分からないこと」の順に並べ、文の無い種類は見出しごと出さない。文の後ろに、引用した出来事の id を全角の括弧で添える。
+  - 題の下に「テーマ {theme_id} のレポート。{N}回目の振り返りの時点の記録にもとづく。」と書く。
+- Why: 見本が決めたのは業務のテーマの文だけだった。研究の到達点（想定読者と主張の範囲）は自由な文なので、文の途中に挿すと助詞が合わないことがある。主張の範囲をかぎ括弧で受けると、どんな文でも崩れない。
+  「主張を吟味する」は [docs/PRD.md](../PRD.md) の到達点の言い方（想定読者が主張を吟味できるところまで）に合わせた。
+- Criteria: 記録に無い文を書かないこと（Must、ADR-0039）。到達点の2つの項目が両方出ること（US-1 AC 3）。到達点がどんな文でも、日本語として崩れないこと。決め手は3つめ。
+- Affected modules: `skills/_shared/theme_report.py`。
+- Alternatives considered:
+  - 研究のテーマも1文にする（「{想定読者}が、{主張の範囲}の主張を吟味するための分析である。」）。主張の範囲が文で書かれていると崩れる。
+  - 到達点を文にせず、項目の箇条書きにする。Introduction の箇条書き（US-2 AC 1）と同じ物が2回並ぶ。
+- Consequences: 決まった文は、読み手向けの言葉（主題、記録の番号）で書いてある。言い換えの対応を1か所に集めるのは Story 29.3（US-3 AC 1）で、それまでは文の中に直接書いてある。
+  データ由来の文のエスケープも 29.3 で入れる（US-3 AC 3）。それまでのレポートは、記号の入った答えの文で体裁が崩れうる。研究のテーマの文は人間がまだ見ていないので、29.1 の報告で示す。
+
+### Decision: the-report-reads-designs-the-way-the-note-does
+
+- What: レポートが分析設計の中身を読むときは、`design_note_read.load_design_note` をそのまま使う（Story 29.2 から）。レポート用の読み方を別に作らない。
+  Story 29.1 が分析設計から読むのは状態だけなので、`progress` と同じく `require_design` と `status_of` を使う。
+- Why: ADR-0039 は、分析ノートとレポートが同じ記録を同じ読み方で読むことを、中身が食い違わない理由にしている（W5）。verdict の数を書かれた文字のまま持つ決まり、接続情報を読まない決まり、リンクのファイルを読まない決まりが、`load_design_note` に既に在る。
+- Criteria: 分析ノートとレポートの中身が食い違わないこと（高、人間、ADR-0039 の W5）。接続情報を読まないこと（Must、US-2 AC 2）。足すコードの量（高、人間）。決め手は1つめ。
+- Affected modules: `skills/_shared/design_note_read.py`、`skills/_shared/design_note.py`（29.2）。
+- Alternatives considered:
+  - レポートが使う項目だけを読む関数を別に作る。同じ決まりを2か所に持つ。
+- Consequences: レポートは使わない物（分析コードの cell、lineage、図のバイト列）も読む。`NoteFigure` は図のファイル名を持たないので、29.2 でファイル名を足す。`figures` の一覧はそこから作る。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0039: レポートは、テーマの最終報告として、コードが論点ツリーと分析設計の記録から書く](../adr/0039-report-is-the-final-report-of-a-theme-written-by-code.md): 読む面と配る先、レポートの単位と作り手、APA の骨組みと読み手向けの言い換え、用語「レポート」の意味の変更、ADR-0036 の一部の変更。
@@ -394,7 +455,7 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| 29.1 レポートの骨組みと、書かない条件 | ☐ | ☐ | ☐ |
+| 29.1 レポートの骨組みと、書かない条件 | ✓（`tests/test_theme_report.py`。見出しの並び、到達点の文、種類ごとの並びと引用の id、同じ入力から同じ Markdown、書いた時刻が載らないこと） | ✓（`tests/tree_io/test_report.py`。ファイルと返す値、2回で同じバイト列、書かない3つの条件と前のファイルに触らないこと、結論の出ていない分析設計で止めないこと、終了コード 0・3・1） | —（自動の E2E は無い。合成シナリオで `tree_io report --theme LIB` を回し、見本の第2版と見比べたことを Story Timeline に書いた） |
 | 29.2 答えと根拠を載せる | ☐ | ☐ | ☐ |
 | 29.3 読み手の言葉と、崩れない体裁 | ☐ | ☐ | ☐ |
 | 29.4 Claude Docs へ export する | ☐ | ☐ | ☐ |
@@ -407,3 +468,8 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 - 2026-11-23 — ADR の番号は、main の最大（0038）の次の 0039 から使った。
 - 2026-11-23 — 人間が DesignDoc 初版と ADR-0039・ADR-0040 を承認した（DesignDoc 初版のセッションで直接）。
 - 2026-11-23 — PM のセッションが Story 29.1〜29.5 を起票した（#190〜#194）。
+- 2026-11-23 — Story 29.1 completed: `tree_io report --theme` がレポートの骨組みと Abstract を `.insight/reports/{theme_id}.md` に書き、書けないときは理由を返して終了コード 3 で終わる。型の名前は初版のまま確定し、Domain Model の図は変えていない。Decisions に4件書いた。
+- 2026-11-23 — 合成シナリオ（`scripts/handoff_trial.py build --scenario lib`）で `tree_io report --theme LIB` を回した。題、題の下の行、Abstract が見本の第2版と一字一句同じだった。論点ツリーの無いテーマと、根の問いに答えの無い段階（最初の stage まで）では、理由を返して終了コード 3 で終わった。研究のテーマの文は合成シナリオに無く、単体テストだけで確かめた。
+- 2026-11-23 — 29.1 のレポートは、データ由来の文をエスケープしていない。コミットの自動レビューも同じ点を挙げた。エスケープは Story 29.3（US-3 AC 3）で入れる。Epic PR は 29.3 の後に開くので、エスケープの無いレポートは main に出ない。
+- 2026-11-23 — Story 29.1 の差分に、バグ・セキュリティの観点のレビューを1本回した（`pstack:thermo-nuclear-review`）。中の指摘が1件で、`round` が根の問いの答えを書いた回ではないことだった。`root_answer_round` を足して直した。
+  直さなかった低の指摘は3件。書かなかったときに前のレポートが残ること（Decision のとおり）、リストやスカラーだけの壊れた論点ツリーのファイルが「論点ツリーが無い」と読まれること（`get` と `position` と同じ既存の読み方）、`reports/` にロックのファイルが残ること（`render` と同じ）。
