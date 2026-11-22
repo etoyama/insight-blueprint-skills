@@ -826,6 +826,12 @@ class TestEscapeSourceText:
     def test_each_of_the_eight_characters_gets_a_backslash(self) -> None:
         assert escape_source_text("\\`*_[]<|") == r"\\\`\*\_\[\]\<\|"
 
+    def test_a_tilde_and_an_ampersand_get_a_backslash_too(self) -> None:
+        # GFM strikes through ~x~, and &lt; would show as <.
+        assert escape_source_text("2019~2023年、~~削除~~、&lt;b&gt;") == (
+            r"2019\~2023年、\~\~削除\~\~、\&lt;b\&gt;"
+        )
+
     def test_a_run_of_line_breaks_and_tabs_becomes_one_space(self) -> None:
         assert escape_source_text("a\r\n\tb\n\nc d") == "a b c d"
 
@@ -841,7 +847,6 @@ class TestEscapeSourceText:
             ("> 引用", r"\> 引用"),
             ("- 項目", r"\- 項目"),
             ("+ 項目", r"\+ 項目"),
-            ("~~~", r"\~~~"),
             ("1. 番号", r"1\. 番号"),
             ("12) 番号", r"12\) 番号"),
         ],
@@ -852,13 +857,16 @@ class TestEscapeSourceText:
         assert escape_source_text(text) == escaped
 
     @pytest.mark.parametrize(
-        "text", ["2019-2023 年", "1.5 倍", "-1.2", "+3%", "#タグ", "C#", "~~ 2つ"]
+        "text", ["2019-2023 年", "1.5 倍", "-1.2", "+3%", "#タグ", "C#"]
     )
     def test_a_mark_that_opens_no_block_is_kept(self, text: str) -> None:
         assert escape_source_text(text) == text
 
     def test_a_hash_that_would_close_a_heading_gets_a_backslash(self) -> None:
         assert escape_source_text("C の問い ##") == r"C の問い \##"
+
+    def test_a_text_of_hashes_alone_gets_a_backslash(self) -> None:
+        assert escape_source_text("#######") == r"\#######"
 
     def test_spaces_at_the_ends_are_dropped(self) -> None:
         assert escape_source_text("   # 見出し  ") == r"\# 見出し"
@@ -873,7 +881,7 @@ POISON = (
 POISON_ESCAPED = (
     r"\> 引用 \<b>太字\</b> \*強調\* \_下線\_ \| セル \| \`コード\` \`\`\` "
     r"!\[画像\](http://example.invalid/a.png) \[リンク\](http://example.invalid/)"
-    r" \\ 終わり ~~~ # 見出し - 項目 \#"
+    r" \\ 終わり \~\~\~ # 見出し - 項目 \#"
 )
 
 
@@ -1023,3 +1031,42 @@ class TestReaderWords:
     ) -> None:
         for status, sentence in LEAD_SENTENCES.items():
             assert _design(status=status).lead_sentence is sentence
+
+
+class TestJournalIdsInTheReport:
+    def test_an_event_id_the_tree_did_not_check_is_escaped_where_it_is_cited(
+        self,
+    ) -> None:
+        # The ids of conclude events and evidence against come from the journal
+        # unchecked; an answer's cites are checked by the tree.
+        odd = "LIB-H01-E9 | x | <img src=x>\n# 注入"
+        report = replace(
+            _report(
+                nodes=(_node(answer=_answer(), design_ids=("LIB-H01",)),),
+                designs=(
+                    _design(
+                        conclude_events=(_event(odd, "結論", "conclude"),),
+                        contradicting_evidence=(_event(odd, "反"),),
+                    ),
+                ),
+            ),
+            records={**RECORDS, odd: CitedEvent(odd, "conclude", None, "結論")},
+        )
+
+        markdown = render_report(report)
+
+        escaped = r"LIB-H01-E9 \| x \| \<img src=x> # 注入"
+        assert f"結論（{escaped}）" in markdown
+        assert f"| {escaped} | 結論 | 結論 |" in markdown
+        assert "<img" not in markdown.replace(r"\<img", "")
+        assert "\n# 注入" not in markdown
+
+    def test_a_blank_title_leaves_the_bold_line_closed(self) -> None:
+        results = _results(
+            _report(
+                nodes=(_node(answer=_answer(), design_ids=("LIB-H01",)),),
+                designs=(_design(title="   "),),
+            )
+        )
+
+        assert "**根拠となる分析: LIB-H01**" in results.splitlines()

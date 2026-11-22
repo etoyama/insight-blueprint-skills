@@ -55,18 +55,20 @@ _DESIGN = READER_WORDS["分析設計"]
 _PARENT = READER_WORDS["親の論点"]
 _CONTRIBUTION = READER_WORDS["寄与"]
 
-# The eight characters ADR-0019 escapes.
-_MARKS = re.compile(r"([\\`*_\[\]<|])")
+# The eight characters ADR-0019 escapes, and two more: GFM strikes through
+# ``~x~`` (``2019~2023``), and ``&lt;`` would show as ``<``.
+_MARKS = re.compile(r"([\\`*_\[\]<|~&])")
 # Line breaks and tabs: a table row or a list item ends at a line break.
 _BREAKS = re.compile(r"[\t\n\v\f\r\x85\u2028\u2029]+")
 # A mark that opens a block when a text heads a list item: a heading, a quote,
-# a list, a fence. ``*`` and the backtick are among the eight already. A rule
-# would need the whole line, and a list item ends with the cited ids.
+# a list. The fences' marks are escaped everywhere already. A rule would need
+# the whole line, and a list item ends with the cited ids.
 _HEAD_MARK = re.compile(
-    r"^(\d{0,9})(#(?=#{0,5}(?:\s|$))|>|[-+](?=\s|$)|(?<=\d)[.)](?=\s|$)|~(?=~~))"
+    r"^(\d{0,9})(#(?=#{0,5}(?:\s|$))|>|[-+](?=\s|$)|(?<=\d)[.)](?=\s|$))"
 )
-# The marks that close a heading: a run of ``#`` after a space, at the end.
-_TAIL_MARK = re.compile(r"(?<=\s)#(?=#*$)")
+# The marks that close a heading: a run of ``#`` at the end, after a space or
+# alone (a heading puts a space before the text).
+_TAIL_MARK = re.compile(r"(?:(?<=\s)|^)#(?=#*$)")
 
 
 def escape_source_text(text: str) -> str:
@@ -74,8 +76,9 @@ def escape_source_text(text: str) -> str:
 
     Breaks fold into one space and the ends lose their spaces, which Markdown
     does not show anyway; every other character stays. Each of ADR-0019's eight
-    characters gets a backslash, and so does a mark that would open a block at
-    the head (heading, quote, list, fence) or close a heading at the end (``#``).
+    characters, ``~`` and ``&`` get a backslash, and so does a mark that would
+    open a block at the head (heading, quote, list) or close a heading at the
+    end (``#``).
     """
     text = _MARKS.sub(r"\\\1", _BREAKS.sub(" ", text).strip())
     text = _HEAD_MARK.sub(r"\1\\\2", text, count=1)
@@ -238,7 +241,9 @@ class _Cites:
         ids = list(ids)
         for event_id in ids:
             self.ids[event_id] = None
-        return f"（{'、'.join(ids)}）"
+        # The tree checks the ids an answer cites; the ids of conclude events
+        # and of evidence against come from the journal unchecked.
+        return f"（{'、'.join(_e(i) for i in ids)}）"
 
 
 def _cell(text: str) -> str:
@@ -418,7 +423,9 @@ class _FigureNumbers:
 def _evidence(
     design: ReportDesign, cites: _Cites, numbers: _FigureNumbers
 ) -> list[str]:
-    blocks = [f"**根拠となる{_DESIGN}: {design.id} {_e(design.title)}**"]
+    # A space before the closing ** would leave the bold open.
+    name = " ".join(t for t in (design.id, _e(design.title)) if t)
+    blocks = [f"**根拠となる{_DESIGN}: {name}**"]
     lead = design.lead_sentence
     if lead is None:
         blocks.append(_NOT_CONCLUDED)
@@ -513,7 +520,7 @@ def _appendix(report: ThemeReport, cites: _Cites) -> list[str]:
     def row(event_id: str) -> tuple[str, str, str]:
         event = report.records[event_id]
         word = EVENT_WORDS.get(event.type) or _e(event.type)
-        return (event_id, word, _e(event.content))
+        return (_e(event_id), word, _e(event.content))
 
     return [
         "## Appendix",
