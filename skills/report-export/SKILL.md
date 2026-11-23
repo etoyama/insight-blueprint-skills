@@ -154,8 +154,10 @@ sections and no byline or date line added.
    where `{N}` counts the image links from the top of the report, so each note carries its own
    number. Captions stay. No local path of an image may reach the Doc. Before you replace the
    links, remember which notes point at which figure: after this step the paths are gone.
-2. Create a new Doc with the report's title (its first `#` heading) and that body. Always a new
-   Doc — never overwrite, update, or reuse one, even when the same theme was exported before.
+2. Create a new Doc with the report's title (its first `#` heading) and that body. The title
+   is the heading as displayed, with the backslash escapes removed: `2019\~2023年の売上\_推移`
+   becomes `2019~2023年の売上_推移`. Always a new Doc — never overwrite, update, or reuse one,
+   even when the same theme was exported before.
 3. If there are figures to upload, show the Doc's URL before the first figure upload, in one
    message (`{figure_count}` is the number of figures listed at the KEEP gate in Step 3):
    「Doc を作った: {URL}。図 {figure_count} 枚をこれから1枚ずつ載せる。図ごとにホストの承認カードが出ることがある。

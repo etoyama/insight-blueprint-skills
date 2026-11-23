@@ -250,6 +250,10 @@ class TestNewDocWithTheReportAsItIs:
     def test_a_failed_export_is_an_outcome(self) -> None:
         assert "export に失敗した" in _step(4)
 
+    def test_the_doc_title_is_the_heading_as_displayed(self) -> None:
+        # The heading is escaped Markdown source: 2019\~2023 would show its backslash.
+        assert "with the backslash escapes removed" in _step(4)
+
 
 class TestFigures:
     """US-4 AC 4: figures go one at a time."""
