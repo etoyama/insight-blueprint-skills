@@ -13,7 +13,7 @@
       "source": {
         "source": "github",
         "repo": "etoyama/insight-blueprint-skills",
-        "ref": "v0.16.0"
+        "ref": "v0.17.0"
       },
       "description": "Hypothesis-driven EDA skills plugin with an embedded validation library",
       "license": "MIT",
