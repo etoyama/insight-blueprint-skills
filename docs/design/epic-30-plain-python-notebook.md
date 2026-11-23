@@ -76,14 +76,14 @@ plugin を入れる分析者として、使わないパッケージを抱えな�
 
 ## Stories
 
-Story は PM のセッションが起票する。「触る所」が重なる Story は並行で進めない。
+Story は PM のセッションが起票した（2026-11-23）。「触る所」が重なる Story は並行で進めない。
 どの Story も、Epic 29 が main に入り、epic ブランチに取り込まれてから始める。
 
 | Story issue | User Story | 扱う AC | 触る所 | 前提 |
 |---|---|---|---|---|
-| 未起票（30.1 契約と実行と env） | US-1、US-3 | US-1 AC 1, AC 2, AC 3、US-3 AC 1, AC 2 | `skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-notebook/SKILL.md`、`tests/integration/fixtures/sample_notebook.py`、`tests/integration/test_analysis_notebook_contract.py`、`pyproject.toml`、`uv.lock`、`tests/skills/test_default_allowlist_structure.py`、`tests/skills/test_connection_boundary_structure.py`、`tests/skills/test_lineage_calls_structure.py`、`CHANGELOG.md` | Epic 29 が main に入る |
-| 未起票（30.2 分析ノートの切り出し） | US-2 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/design_note_read.py`、`skills/_shared/design_note.py`、`tests/test_design_note_read.py`、`tests/test_design_note.py`、`tests/tree_io/test_render_design.py`、`CHANGELOG.md` | Epic 29 が main に入る |
-| 未起票（30.3 文書） | US-4、US-3 | US-4 AC 1, AC 2, AC 3, AC 4、US-3 AC 3 | `docs/PRD.md`、`docs/UBIQUITOUS_LANGUAGE.md`、`.yomiyasu-words/`、`docs/ARCHITECTURE.md`、`README.md`、`docs/adr/README.md`、`CHANGELOG.md`、`tests/docs/test_canonical_docs.py` | 30.1、30.2 |
+| #200（30.1 契約と実行と env） | US-1、US-3 | US-1 AC 1, AC 2, AC 3、US-3 AC 1, AC 2 | `skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-notebook/SKILL.md`、`tests/integration/fixtures/sample_notebook.py`、`tests/integration/test_analysis_notebook_contract.py`、`pyproject.toml`、`uv.lock`、`tests/skills/test_default_allowlist_structure.py`、`tests/skills/test_connection_boundary_structure.py`、`tests/skills/test_lineage_calls_structure.py`、`CHANGELOG.md` | Epic 29 が main に入る |
+| #201（30.2 分析ノートの切り出し） | US-2 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/design_note_read.py`、`skills/_shared/design_note.py`、`tests/test_design_note_read.py`、`tests/test_design_note.py`、`tests/tree_io/test_render_design.py`、`CHANGELOG.md` | Epic 29 が main に入る |
+| #202（30.3 文書） | US-4、US-3 | US-4 AC 1, AC 2, AC 3, AC 4、US-3 AC 3 | `docs/PRD.md`、`docs/UBIQUITOUS_LANGUAGE.md`、`.yomiyasu-words/`、`docs/ARCHITECTURE.md`、`README.md`、`docs/adr/README.md`、`CHANGELOG.md`、`tests/docs/test_canonical_docs.py` | 30.1、30.2 |
 
 - 波 1 は 30.1 と 30.2 で、並行で進められる。重なるのは `CHANGELOG.md` だけで、どちらも `[Unreleased]` に1行を足す。push の前に取り込んで、両方の行を残す。
 - 30.1 が契約と env をまとめて扱うのは、構造テストが3つ（既定の許可リスト、契約の import、plugin の env）を等号で照らしているからである。契約から `import marimo` を消すと、同じコミットで既定の許可リストと `notebook` extra も直すことになる。
