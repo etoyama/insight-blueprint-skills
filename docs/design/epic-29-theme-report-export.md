@@ -465,7 +465,7 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 - What: `/report-export` が送るのは、その実行で `tree_io report --theme` が返した `path` のファイル1つと、`figures` の図だけにする。
   - `written` が偽（終了コード 3）なら、`.insight/reports/{theme_id}.md` が在っても読まず、`reasons` を伝えて終わる。
   - `path` が `.insight/reports/{theme_id}.md` で終わらなければ送らない。`.insight/reports/` は列挙しない（`{theme_id}.md.lock` と古いレポートを拾わない）。
-  - 図は `figures` の名前のうち、`.png` で終わる素のファイル名で、`.insight/notebooks/` に在るものだけ。どの図でもない画像のリンクは注記にする。
+  - 図は `figures` の名前のうち、レポートの画像のリンクが指すものだけ。名前は `tree_io report` が検査済み（`.insight/notebooks/` に在る PNG の素のファイル名）なので、skill は検査し直さない。どの図でもない画像のリンクは注記にする。
   - KEEP ゲートの「答えを書いた振り返りの回」は `root_answer_round`。最後の振り返りの回（`round`）は括弧で添える。「結論の出ていない分析設計」は `unfinished_designs` の長さで、モデルは数えない。
 - Why: `tree_io report` は書かなかったときに前のファイルを残す（Decision `report-says-written-or-why-not`）。ファイルの有無で送ると、古いレポートが新しく見えて外へ出る。
   `/report-upload` は図をレポートの画像のリンクから拾っていたが、今は `tree_io report` が図の一覧を返すので、モデルがリンクを読み解く必要が無い。

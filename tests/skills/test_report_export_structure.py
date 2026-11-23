@@ -266,10 +266,12 @@ class TestFigures:
         assert "an image link in the report points at it" in step
         assert "A name in `figures` that no image link points at is never sent" in step
 
-    def test_figure_file_must_be_a_bare_png_basename(self) -> None:
+    def test_a_figure_name_is_kept_as_tree_io_checked_it(self) -> None:
+        # tree_io report returns only names its reader checked (a bare name and a PNG
+        # file); a narrower rule here would drop a figure the report links.
         step = _step(1)
-        assert "basename" in step
-        assert ".png" in step
+        assert "`tree_io report` already checked" in step
+        assert "ending in `.png`" not in step
 
     def test_no_local_path_reaches_the_doc(self) -> None:
         assert "no local path" in _step(4).lower()

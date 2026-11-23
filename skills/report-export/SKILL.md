@@ -70,9 +70,9 @@ to report.
    `.insight/reports/{theme_id}.md`, send nothing and exit. Read that one file (Read tool).
    Always take the path from the JSON; never list `.insight/reports/` to find a report. That
    folder also holds `{theme_id}.md.lock` and older reports, and none of them is ever sent.
-4. The figures are the entries of `figures`, file names under `.insight/notebooks/`. Keep a
-   figure only when the name is a bare basename ending in `.png` (no `/`, `\`, or `..`),
-   `.insight/notebooks/{file}` exists, and an image link in the report points at it (the last
+4. The figures are the entries of `figures`, file names under `.insight/notebooks/`.
+   `tree_io report` already checked each name (a bare file name of a PNG file there), so do not
+   check it again. Keep a figure only when an image link in the report points at it (the last
    part of the link's target is `{file}`). A name in `figures` that no image link points at is
    never sent: it has no place in the Doc. Any image link in the report that does not point at a
    kept figure is never sent either, and Step 4 replaces it with the note.
