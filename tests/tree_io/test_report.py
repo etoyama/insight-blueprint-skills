@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from skills._shared import catalog_io, design_io, tree_io
+from skills._shared import catalog_io, design_io, tree_io, tree_read
 from tests.tree_io._support import _entry, _finish, _run_cli
 from tests.tree_io.test_render_design import (
     CONNECTION_PATH,
@@ -116,6 +116,27 @@ class TestReportWritten:
             tree_io.report("LIB", base_dir=answered)
 
         assert not _report_path(answered).exists()
+
+    def test_the_report_quotes_the_records_the_check_passed(
+        self, answered: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A journal rewritten after the check read it must not reach the report:
+        # its number was never checked.
+        read = tree_read.journal_events
+
+        def read_then_rewrite(design_id: str, base_dir: Path) -> list[dict]:
+            events = read(design_id, base_dir)
+            _blank_the_number(answered)
+            return events
+
+        monkeypatch.setattr(tree_read, "journal_events", read_then_rewrite)
+
+        _, text = _written(answered)
+
+        assert (
+            "| LIB-H01-E01 | 観察 | LIB-H01 は期限切れ152件、取消除外後34.6% |" in text
+        )
+        assert "件数なし" not in text
 
     def test_a_theme_id_that_is_not_a_theme_id_never_reaches_a_path(
         self, tmp_path: Path

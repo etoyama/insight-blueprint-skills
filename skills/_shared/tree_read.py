@@ -49,7 +49,7 @@ from skills._shared.theme_report import (
     ThemeReport,
     render_report,
 )
-from skills._shared.tree_check import Violation, check_cited, check_tree
+from skills._shared.tree_check import Violation, check_cited, current_cites
 from skills._shared.tree_render import (
     CheckFailed,
     CitedEvent,
@@ -424,19 +424,22 @@ def _report_node(node: QuestionNode, notes: dict[str, DesignNote]) -> ReportNode
 
 
 def _theme_report(
-    tree: QuestionTree, root_answer: Answer, base_dir: Path
+    tree: QuestionTree,
+    root_answer: Answer,
+    cited: dict[str, CitedEvent],
+    base_dir: Path,
 ) -> tuple[ThemeReport, list[str]]:
-    """The report of *tree*, and the linked designs not in a terminal status."""
+    """The report of *tree*, and the linked designs not in a terminal status.
+
+    *cited* are the events the check read: the report quotes what it passed.
+    """
     notes = _linked_notes(tree, base_dir)
     root = tree.root()
     nodes = tuple(_report_node(n, notes) for n in tree.nodes if n is not root)
     designs = tuple(ReportDesign.of(note) for note in notes.values())
     # Two designs may read the same source; the report lists it once.
     sources = tuple(dict.fromkeys(s for note in notes.values() for s in note.sources))
-    answers = [root_answer] + [n.answer for n in nodes if n.answer is not None]
-    records, _ = cited_events(
-        {c for a in answers for s in a.statements for c in s.cites}, base_dir
-    )
+    records = dict(cited)
     _add_design_records(records, designs)
     revision = tree.current_revision()
     report = ThemeReport(
@@ -495,7 +498,10 @@ def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
                 f"under root revision {revision}",
             }
         )
-    violations = check_tree(tree, base_dir)
+    # Read once: a journal rewritten between the check and the report would
+    # put a number the check never saw into the report.
+    events, duplicated = cited_events(current_cites(tree), base_dir)
+    violations = check_cited(tree, events, duplicated)
     if violations:
         reasons.append(
             {
@@ -508,7 +514,7 @@ def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
     if reasons or root_answer is None:
         return {"written": False, "reasons": reasons}
 
-    theme_report, unfinished = _theme_report(tree, root_answer, base_dir)
+    theme_report, unfinished = _theme_report(tree, root_answer, events, base_dir)
     report_path = Path(base_dir) / "reports" / f"{theme_id}.md"
     atomic_write_text(report_path, render_report(theme_report))
     return {
