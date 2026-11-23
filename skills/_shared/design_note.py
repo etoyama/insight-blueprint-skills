@@ -86,7 +86,7 @@ class CodeCell:
 
     position: int  # 1-based place among the cells of the file
     name: str  # the text after "# %%" on the cell's first line; may be empty
-    source: str  # as written, without the "# %%" line
+    source: str  # as written, from the "# %%" line on
 
 
 @dataclass(frozen=True)

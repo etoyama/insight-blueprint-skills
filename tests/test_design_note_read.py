@@ -45,6 +45,7 @@ results = {{"n": len(df_clean)}}
 '''
 
 PREP = (
+    "# %% data_prep\n"
     "def keep_known(df):\n    kept = df.dropna()\n\n    return kept\n\n\n"
     "df_clean = keep_known(raw_df)"
 )
@@ -58,8 +59,12 @@ IMPORTS = "# %% imports\nimport pandas as pd\n"
 DATA_LOAD = "# %% data_load\n" + LOAD
 DATA_PREP = "# %% data_prep\ndf_clean = raw_df.dropna()\n"
 SHOWN = (
-    CodeCell(position=1, name="imports", source="import pandas as pd"),
-    CodeCell(position=3, name="data_prep", source="df_clean = raw_df.dropna()"),
+    CodeCell(position=1, name="imports", source="# %% imports\nimport pandas as pd"),
+    CodeCell(
+        position=3,
+        name="data_prep",
+        source="# %% data_prep\ndf_clean = raw_df.dropna()",
+    ),
 )
 
 
@@ -71,12 +76,14 @@ class TestContractShape:
             CodeCell(
                 position=1,
                 name="imports",
-                source="import pandas as pd\n\n"
+                source="# %% imports\nimport pandas as pd\n\n"
                 "from insight_blueprint.lineage import LineageSession",
             ),
             CodeCell(position=3, name="data_prep", source=PREP),
             CodeCell(
-                position=4, name="analysis", source='results = {"n": len(df_clean)}'
+                position=4,
+                name="analysis",
+                source='# %% analysis\nresults = {"n": len(df_clean)}',
             ),
         )
 
@@ -104,6 +111,17 @@ class TestContractShape:
         ]
         assert all("LineageSession(name=" not in c.source for c in cells)
 
+    @pytest.mark.parametrize("line", ["# coding: utf-8", "# -*- coding: UTF8 -*-"])
+    def test_a_declared_utf_8_encoding_is_cut(self, line: str) -> None:
+        text = _notebook(IMPORTS, DATA_LOAD, DATA_PREP, head=f"{line}\n")
+
+        assert notebook_cells(text) == SHOWN
+
+    def test_a_coding_comment_after_the_second_line_declares_nothing(self) -> None:
+        text = _notebook(IMPORTS, DATA_LOAD, DATA_PREP, head="\n\n# coding: utf-7\n")
+
+        assert notebook_cells(text) == SHOWN
+
     def test_a_notebook_without_a_docstring_is_cut(self) -> None:
         assert notebook_cells(_notebook(IMPORTS, DATA_LOAD, DATA_PREP, head="")) == (
             SHOWN
@@ -129,16 +147,16 @@ class TestContractShape:
         text = _notebook(DATA_LOAD, "# %% extra\nx = 1\n", "# %%\ny = 2\n")
 
         assert notebook_cells(text) == (
-            CodeCell(position=2, name="extra", source="x = 1"),
-            CodeCell(position=3, name="", source="y = 2"),
+            CodeCell(position=2, name="extra", source="# %% extra\nx = 1"),
+            CodeCell(position=3, name="", source="# %%\ny = 2"),
         )
 
     def test_a_separator_after_an_indented_block_starts_the_next_cell(self) -> None:
         text = _notebook(DATA_LOAD, "# %% a\ndef f():\n    return 1\n# %% b\ny = f()\n")
 
         assert notebook_cells(text) == (
-            CodeCell(position=2, name="a", source="def f():\n    return 1"),
-            CodeCell(position=3, name="b", source="y = f()"),
+            CodeCell(position=2, name="a", source="# %% a\ndef f():\n    return 1"),
+            CodeCell(position=3, name="b", source="# %% b\ny = f()"),
         )
 
     def test_an_indented_percent_comment_is_not_a_separator(self) -> None:
@@ -152,7 +170,9 @@ class TestContractShape:
 
         assert cells is not None
         assert [c.name for c in cells] == ["imports", "data_prep"]
-        assert cells[1].source == "if True:\n    # %% not_a_cell\n    x = 1"
+        assert cells[1].source == (
+            "# %% data_prep\nif True:\n    # %% not_a_cell\n    x = 1"
+        )
 
 
 class TestOutOfShape:
@@ -236,6 +256,45 @@ class TestOutOfShape:
 
         assert notebook_cells(text) is None
 
+    @pytest.mark.parametrize(
+        "body",
+        [
+            f'raw_df = 1\n@(\n# %% x\nf)\ndef g(): return "{CONNECTION}"\n',
+            f'raw_df = [\n# %% x\n    "{CONNECTION}"]\n',
+            f'raw_df = {{\n# %% x\n    "{CONNECTION}"}}\n',
+        ],
+        ids=["in_a_bracketed_decorator", "in_a_list", "in_a_set"],
+    )
+    def test_a_separator_inside_brackets(self, body: str) -> None:
+        text = _notebook(IMPORTS, "# %% data_load\n" + body)
+
+        assert notebook_cells(text) is None
+
+    @pytest.mark.parametrize(
+        "line", ["# coding: utf-7", "# -*- coding: latin-1 -*-", "# coding=nope"]
+    )
+    @pytest.mark.parametrize("before", ["", "#!/usr/bin/env python\n"])
+    def test_a_declared_encoding_other_than_utf_8(self, line: str, before: str) -> None:
+        # Python would decode the file by the declaration; the note reads UTF-8.
+        text = _notebook(IMPORTS, DATA_LOAD, DATA_PREP, head=f"{before}{line}\n")
+
+        assert notebook_cells(text) is None
+
+    @pytest.mark.parametrize(
+        "statement",
+        ["x = " + "+".join(['"a"'] * 5000), "x = " + "not " * 20000 + "1"],
+        ids=["a_long_sum", "a_long_negation"],
+    )
+    def test_a_file_too_deep_to_parse_gives_no_code_and_no_error(
+        self, statement: str
+    ) -> None:
+        # Which depth ends the parse depends on the Python version.
+        text = _notebook(IMPORTS, DATA_LOAD, f"# %% x\n{statement}\n")
+
+        cells = notebook_cells(text)
+
+        assert cells is None or all(CONNECTION not in c.source for c in cells)
+
     def test_no_separator(self) -> None:
         assert notebook_cells(f"import pandas as pd\n\n{LOAD}") is None
 
@@ -285,7 +344,8 @@ class TestPercentInAString:
             CodeCell(
                 position=3,
                 name="data_prep",
-                source='note = """\n# %% data_load\n"""\ndf_clean = raw_df',
+                source="# %% data_prep\n"
+                'note = """\n# %% data_load\n"""\ndf_clean = raw_df',
             ),
         )
 
@@ -340,28 +400,30 @@ class TestSeparatorLine:
 
 
 class TestSource:
-    def test_the_separator_line_and_the_blank_lines_around_a_cell_are_left_out(
+    def test_a_cell_starts_at_its_separator_line_and_drops_its_last_blank_lines(
         self,
     ) -> None:
         text = _notebook(DATA_LOAD, "# %% a\n\n\nx = 1\n\n  \n# %% b\ny = 2\n\n\n")
 
         assert notebook_cells(text) == (
-            CodeCell(position=2, name="a", source="x = 1"),
-            CodeCell(position=3, name="b", source="y = 2"),
+            CodeCell(position=2, name="a", source="# %% a\n\n\nx = 1"),
+            CodeCell(position=3, name="b", source="# %% b\ny = 2"),
         )
 
     def test_a_cell_keeps_its_comments_and_inner_blank_lines_as_written(self) -> None:
         body = "# why: drop unknowns\nx = 1  # one\n\n\ny = 'a'  \t# two"
         text = _notebook(DATA_LOAD, f"# %% a\n{body}\n")
 
-        assert notebook_cells(text) == (CodeCell(position=2, name="a", source=body),)
+        assert notebook_cells(text) == (
+            CodeCell(position=2, name="a", source=f"# %% a\n{body}"),
+        )
 
     def test_a_cell_without_code_is_still_listed(self) -> None:
         text = _notebook(DATA_LOAD, "# %% a\n# %% b\ny = 2\n")
 
         assert notebook_cells(text) == (
-            CodeCell(position=2, name="a", source=""),
-            CodeCell(position=3, name="b", source="y = 2"),
+            CodeCell(position=2, name="a", source="# %% a"),
+            CodeCell(position=3, name="b", source="# %% b\ny = 2"),
         )
 
 
@@ -386,7 +448,9 @@ class TestLineEnds:
         assert cells is not None
         assert all(CONNECTION not in c.source for c in cells)
         assert [c.position for c in cells] == [1, 3, 4]
-        assert cells[0].source.startswith(comment + "import pandas as pd\n")
+        assert cells[0].source.startswith(
+            "# %% imports\n" + comment + "import pandas as pd\n"
+        )
         assert cells[1].source == PREP
 
     @pytest.mark.parametrize("char", NOT_LINE_BREAKS, ids=lambda s: f"U+{ord(s):04X}")

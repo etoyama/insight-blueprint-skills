@@ -48,12 +48,12 @@ AC の正本はここ。
 
 分析者として、判断の前に実装を確かめるために、分析ノートで分析コードを cell の名前つきで読みたい。接続情報は載ってほしくない。
 
-- [ ] AC 1: 契約の形の notebook からは、データ取得の cell を除いた cell が、ファイルの順に、cell の名前を添えて分析ノートに出る。出るのは `.py` に書かれたとおりの文字である。
-- [ ] AC 2: 次のどれかに当たる notebook からは、コードが1つも出ない。`data_load` という名前の cell が無いか、2つ以上ある。`raw_df` を、`data_load` のほかの cell か、最初の区切りより前で代入している。
+- [x] AC 1: 契約の形の notebook からは、データ取得の cell を除いた cell が、ファイルの順に、cell の名前を添えて分析ノートに出る。出るのは `.py` に書かれたとおりの文字である。
+- [x] AC 2: 次のどれかに当たる notebook からは、コードが1つも出ない。`data_load` という名前の cell が無いか、2つ以上ある。`raw_df` を、`data_load` のほかの cell か、最初の区切りより前で代入している。
   `data_load` の cell が `raw_df` を代入していない。区切りの行が文の途中にある。最初の区切りより前に、docstring のほかの文がある。区切りが1つも無い。Python として読めない。
-- [ ] AC 3: 文字列の中に書かれた `# %%` は区切りとして扱わない。
-- [ ] AC 4: marimo の書式の notebook からは、コードが1つも出ない。分析ノートは、notebook が契約の形でないことと、`/analysis-notebook` で作り直すと載ることを示す。
-- [ ] AC 5: `@app.cell` を見分けるコードが `skills/_shared/` に残っていない。
+- [x] AC 3: 文字列の中に書かれた `# %%` は区切りとして扱わない。
+- [x] AC 4: marimo の書式の notebook からは、コードが1つも出ない。分析ノートは、notebook が契約の形でないことと、`/analysis-notebook` で作り直すと載ることを示す。
+- [x] AC 5: `@app.cell` を見分けるコードが `skills/_shared/` に残っていない。
 
 ### US-3: plugin の env と既定の許可リストに、使わない marimo が残らない
 
@@ -292,6 +292,38 @@ sequenceDiagram
 - 併せて、接続情報の値（パス、テーブル名、project id、ホスト、それを受け取るクライアントの生成）は `data_load` の cell にだけ書く、と契約と SKILL.md に命令の文で書いた。分析ノートが隠すのは `data_load` の cell だけで、ほかの cell の値は出る。import を `imports` の cell に寄せると、クライアントの生成もそこに書かれやすくなるので、レビューの指摘で足した。
 - Consequences: ruff の E402（モジュールの import が先頭にない）が、`matplotlib.use` の後の import に出る。生成された notebook は lint しないので、利用者には影響しない。見本は `noqa` で抑えた。
 
+### Decision: the-cell-heading-is-position-and-name
+
+- What: 分析ノートの cell の見出しは「cell 3 · data_prep」の形にする。ファイルの中の順番と、区切りの行に書かれた名前を並べる。名前が空の cell は「cell 3」とだけ書く。
+- Why: 名前は、cell が何をするかを読み手に伝える。順番は、データ取得の cell が抜けていることを伝える（cell 1 の次が cell 3 になる）。
+  切り出しはほかの cell の名前を確かめないので、同じ名前の cell や名前の無い cell が在りうる。順番があれば、それらを見分けられる。
+- Criteria: 判断の前に実装を確かめられること（US-2）と、人間が承認した見本と Domain Model の図（`CodeCell` は `position` と `name` を持つ）。決め手は、名前だけでは cell を見分けられない場合が在ること。
+- Affected modules: `skills/_shared/design_note.py`（`_cell_heading`）
+- Alternatives considered: 名前だけを書く。同じ名前の cell と名前の無い cell を見分けられず、データ取得の cell が抜けていることも見出しから読めない。
+- Consequences: `source` の1行目は区切りの行なので、名前が見出しと本文の両方に出る。
+
+### Decision: the-cell-name-is-the-rest-of-the-separator-line
+
+- What: 列0から始まるコメントのうち `# %%` で始まるものは、すべて区切りである（ADR-0045 の文のとおり）。cell の名前は、その行の `# %%` より後ろから前後の空白を除いた文字である。
+  `# %%data_load` と `# %%   data_load` の名前は `data_load` になる。`# %% data_load v2` の名前は `data_load v2` で、データ取得の cell ではない。`#%%` と字下げした `# %%` は、ただのコメントである。
+- Why: ADR-0045 は区切りを「`# %%` で始まるもの」と定めたが、名前の取り方は定めていない。初版の試作は、`# %%` の後ろに空白と名前だけを許す狭い読み方だった。
+  書き損じた行が接続情報を載せる側に倒れるかは、どちらの読み方でも場合による。狭く読むと、`# %%data_load` と書いた cell は前の cell の続きになる。
+  広く読むと、データ取得の cell の中の `# %%memo` が新しい cell を始める。接続情報の境界では差がつかないので、ADR の文のとおりに読む。
+- Criteria: 接続情報を載せないこと（ADR-0022）と、ADR-0045 の文との一致。前者では差がつかず、決め手は後者である。
+- Affected modules: `skills/_shared/design_note_read.py`（`_separators`）
+- Alternatives considered: `# %%` の後ろに空白と名前だけを許す（初版の試作の正規表現）。ADR の文より狭くなり、狭くする理由が無い。
+- Consequences: `# %% [markdown]` のような、ほかのツールの書き方の行も cell を始める。その cell は、書かれた文字を名前として分析ノートに出る。
+
+### Decision: the-cut-reads-one-list-of-lines
+
+- What: 切り出しは、`.py` の文字を行の区切り（`\r\n`・`\r`・`\n`）で一度だけ行に分ける。`ast` も tokenizer も cell の切り取りも、その同じ行の並びを読む。
+- Why: Epic 28 のゲートで、`str.splitlines()` の行と tokenizer の行番号がずれて、データ取得の cell が載る穴が見つかった。そのときは、切り取った文字を `ast` の範囲と照らして塞いだ。
+  新しい形では cell が `ast` の節ではないので、同じ照らしは書けない。行の並びを1つにすれば、行番号は3つのどこでも同じ行を指す。
+- Criteria: 接続情報を載せないこと（ADR-0022、ブリーフの「同じ穴が無いことをテストで押さえる」）。決め手は、ずれを後から見つけるのではなく、ずれる余地を無くせること。
+- Affected modules: `skills/_shared/design_note_read.py`（`notebook_cells`）
+- Alternatives considered: 元の文字を `ast.parse` に渡し、切り取った後で照らす。照らす相手になる `ast` の節が無い。
+- Consequences: 分析ノートに出るコードの行の終わりは、どれも `\n` になる（今までと同じ）。`str.splitlines()` だけが区切る8つの文字は、テストが1つずつ確かめる。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0045: notebook は `# %%` で cell を区切る素の Python にし、marimo の書式をやめる](../adr/0045-notebook-is-plain-python-with-percent-cells.md): 形式、7つの cell、実行の1段、分析ノートの切り出しの決まり、旧形式の notebook を読まないこと。
@@ -304,7 +336,7 @@ sequenceDiagram
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
 | 30.1 契約と実行と env | ✓（`tests/skills/test_notebook_contract_structure.py`、`test_default_allowlist_structure.py`、`test_connection_boundary_structure.py`。契約の cell の表と File layout、既定の許可リストの3つの一致と env と `uv.lock`、実行のコマンド） | ✓（`tests/integration/test_analysis_notebook_contract.py`。見本が契約の形であることと、見本を `python` の1つのコマンドで走らせた出力） | —（plugin を入れた分析者の環境で `/analysis-notebook` を走らせる経路は自動のテストが無い。scratchpad で、SQL のデータソースと図が2枚の notebook を同じコマンドで走らせて確かめた） |
-| 30.2 分析ノートの切り出し | ☐（`tests/test_design_note_read.py`。契約の形、崩れた形、旧形式。`tests/test_design_note.py` の cell の名前と案内の文） | ☐（`tests/tree_io/test_render_design.py`） | ☐ |
+| 30.2 分析ノートの切り出し | ✓（`tests/test_design_note_read.py`。契約の形、AC 2 の崩れ方を1つずつ、文字列の中の `# %%`、区切りの行の読み方、行の終わりと `str.splitlines()` だけが区切る文字、旧形式。`tests/test_design_note.py` の見出しと案内の文） | ✓（`tests/tree_io/test_render_design.py`。`.insight/` のファイルから分析ノートを作り、cell の見出しが出ること、接続情報が出ないこと、旧形式の案内の文） | —（分析者が `/tree-upload` で分析ノートを作る経路は自動のテストが無い。30.1 の見本の notebook を切り出しに通すテストで代える） |
 | 30.3 文書 | ☐（`tests/docs/test_canonical_docs.py`） | ☐ | ☐ |
 
 ## Story Timeline
@@ -321,3 +353,9 @@ sequenceDiagram
   scratchpad で、SQL のデータソース（sqlite）と図が2枚の notebook を新しい形で書いて走らせた。`verdict.json`、図の PNG 2枚、`lineage.mmd` が出た。分かったことを Decisions の2つに書いた。
   日本語の軸ラベルは、matplotlib の既定のフォントで字が出ない（警告だけで止まらない）。marimo のときも同じで、この Epic では扱わない。
   Story の差分に thermo-nuclear-review を1本回した。致命的な指摘は無かった。中くらいの1件（接続情報の値を `data_load` だけに書く命令が契約に無い）と、低い3件（見本の区切りの行の後ろに文がある、置き方のテストが pandas の無い env で一緒に skip される、テストの名前の古い言い方）を、この Story の中で直した。
+- 2026-11-23 — Story 30.2 completed: 分析ノートの切り出しを、列0の `# %%` のコメントで cell を切る形に改めた。`data_load` の cell を除き、見出しに順番と名前（「cell 3 · data_prep」）を添えて出す。
+  ADR-0045 の決まりを1つでも欠く notebook からは、コードを1つも出さない。`@app.cell` を見分けるコードは消した。旧形式の notebook には、`/analysis-notebook` で作り直すと載ることを示す。
+  `ast`・tokenizer・切り取りが同じ行の並びを読むようにした。守りを1つずつ外すとテストが落ちることを確かめ、Python 3.11・3.12・3.14 で回した。30.1 の見本の notebook から分析ノートを作り、データ取得の cell の中身が出ないことを確かめた。
+  Story の差分に thermo-nuclear-review を1本回した。致命的な指摘は無かった。次の3件をこの Story の中で直した。括弧で始まるデコレータの中の区切りが、文の途中の検査を抜けて後ろの行が載る（中）。
+  深い式の `RecursionError` と `MemoryError` が分析ノート全体を止める（低〜中）。UTF-8 でない encoding の宣言が在ると、Python と分析ノートで区切りの行が食い違う（低）。宣言が在る `.py` からはコードを出さないことにした。
+  直さなかった1件。`raw_df` の代入は `ast.Name` への代入だけを見る（Epic 28 から同じ）。`import x as raw_df` や `def raw_df` は数えない。データ取得の cell は名前で決まるので、接続情報が載ることには直結しない。

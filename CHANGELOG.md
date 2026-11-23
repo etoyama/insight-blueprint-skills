@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   allowlist, which is now `insight_blueprint`, `pandas`, `matplotlib` and `numpy`
   ([ADR-0045](docs/adr/0045-notebook-is-plain-python-with-percent-cells.md),
   [ADR-0046](docs/adr/0046-marimo-leaves-the-plugin-env-and-the-default-allowlist.md), #200).
+- **The analysis note reads the new notebook form and shows each cell with its name.** The code
+  section lists the cells of `.insight/notebooks/{id}.py` in file order under headings such as
+  `cell 3 · data_prep`, without the `data_load` cell and its connection values. A notebook shows
+  no code at all when its `data_load` cell cannot be told apart: no `# %%` line, a statement other
+  than the docstring before the first one, a `# %%` line inside a statement, no cell or several
+  cells named `data_load`, or `raw_df` assigned outside that cell. A marimo notebook is such a
+  notebook, so its code no longer appears; the note says that running `/analysis-notebook` again
+  brings it back ([ADR-0045](docs/adr/0045-notebook-is-plain-python-with-percent-cells.md), #201).
 
 ## [0.16.0] - 2026-11-23
 

@@ -13,6 +13,7 @@ changes the tree page do not edit one file.
 from __future__ import annotations
 
 import ast
+import codecs
 import io
 import json
 import re
@@ -50,6 +51,8 @@ _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 _LINE_BREAK = re.compile(r"\r\n|\r|\n")
 # A comment at column 0 that starts with this opens a cell; the rest is its name.
 _SEPARATOR = "# %%"
+# The encoding declaration of PEP 263, read on the first two lines.
+_CODING = re.compile(r"[ \t\f]*#.*?coding[:=][ \t]*([-\w.]+)")
 DATA_LOAD_CELL = "data_load"
 
 # The next_action fields the note's recommendation takes for each terminal
@@ -253,20 +256,43 @@ def _conclusion(
     )
 
 
-def _separators(lines: list[str]) -> dict[int, str]:
+def _separators(lines: list[str]) -> dict[int, str] | None:
     """The cell name of each separator line, by its 1-based line number.
 
     A separator is a comment that starts at column 0 with ``# %%``. The
-    tokenizer tells a comment from the same characters in a string.
+    tokenizer tells a comment from the same characters in a string. None when
+    a separator sits inside brackets, where it cuts a statement in two.
     """
-    tokens = tokenize.generate_tokens(io.StringIO("\n".join(lines)).readline)
-    return {
-        token.start[0]: token.string.removeprefix(_SEPARATOR).strip()
-        for token in tokens
-        if token.type == tokenize.COMMENT
-        and token.start[1] == 0
-        and token.string.startswith(_SEPARATOR)
-    }
+    names: dict[int, str] = {}
+    depth = 0
+    for token in tokenize.generate_tokens(io.StringIO("\n".join(lines)).readline):
+        if token.type == tokenize.OP:
+            depth += (token.string in "([{") - (token.string in ")]}")
+        elif (
+            token.type == tokenize.COMMENT
+            and token.start[1] == 0
+            and token.string.startswith(_SEPARATOR)
+        ):
+            if depth:
+                return None
+            names[token.start[0]] = token.string.removeprefix(_SEPARATOR).strip()
+    return names
+
+
+def _declares_another_encoding(lines: list[str]) -> bool:
+    """Whether the file declares an encoding that is not UTF-8 (PEP 263).
+
+    Python decodes the file by the declaration and the note reads it as
+    UTF-8, so the two could see different separator lines.
+    """
+    for line in lines[:2]:
+        declared = _CODING.match(line)
+        if declared:
+            try:
+                return codecs.lookup(declared[1]).name != "utf-8"
+            except LookupError:
+                return True
+    return False
 
 
 def _first_line(statement: ast.stmt) -> int:
@@ -292,9 +318,7 @@ def _binds_raw_df(statement: ast.stmt) -> bool:
 
 
 def _cell_source(lines: list[str]) -> str:
-    """The lines of a cell as written, without the blank lines around them."""
-    while lines and not lines[0].strip():
-        lines = lines[1:]
+    """The lines of a cell as written, without the blank lines after them."""
     while lines and not lines[-1].strip():
         lines = lines[:-1]
     return "\n".join(lines)
@@ -312,10 +336,13 @@ def notebook_cells(text: str) -> tuple[CodeCell, ...] | None:
     # means the same line in each. str.splitlines() also breaks on \x0c, \x85,
     # U+2028 and others, which would shift a slice onto the data-load cell.
     lines = _LINE_BREAK.split(text)
+    if _declares_another_encoding(lines):
+        return None
     try:
         tree = ast.parse("\n".join(lines))
         names = _separators(lines)
-    except (SyntaxError, ValueError, tokenize.TokenError):
+    # A deeply nested expression ends the parse with one of the last two.
+    except (SyntaxError, ValueError, tokenize.TokenError, RecursionError, MemoryError):
         return None
     if not names:
         return None
@@ -338,7 +365,7 @@ def notebook_cells(text: str) -> tuple[CodeCell, ...] | None:
         CodeCell(
             position=index + 1,
             name=names[start],
-            source=_cell_source(lines[start:end]),
+            source=_cell_source(lines[start - 1 : end]),
         )
         for index, (start, end) in enumerate(zip(starts, ends, strict=True))
         if index not in loads
