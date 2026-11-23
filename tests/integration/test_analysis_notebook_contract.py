@@ -2,7 +2,8 @@
 
 Guards the execution path the skill relies on: run the reference notebook, a plain
 Python script cut into ``# %% <name>`` cells (ADR-0045), with ``python`` in one step and
-assert the verdict JSON side-effect + Mermaid lineage export. The run is skipped when
+assert the verdict JSON side-effect + Mermaid lineage export. The fixture's shape is
+checked by the analysis note's own cut (``notebook_cells``), not a second parser. The run is skipped when
 the optional `notebook` extra (pandas/matplotlib) is not installed — matching how a minimal install
 lacks the analysis-runtime deps.
 """
@@ -19,6 +20,13 @@ from pathlib import Path
 
 import pytest
 
+from skills._shared.design_note import CodeCell
+from skills._shared.design_note_read import (
+    CONTRACT_CELLS,
+    DATA_LOAD_CELL,
+    notebook_cells,
+)
+
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_notebook.py"
 CONTRACT = (
     Path(__file__).parents[2]
@@ -27,7 +35,6 @@ CONTRACT = (
     / "references"
     / "notebook-contract.md"
 )
-_DELIMITER = re.compile(r"^# %% (\w+)$")
 
 
 def _run_fixture(tmp_path: Path) -> dict:
@@ -45,16 +52,11 @@ def _run_fixture(tmp_path: Path) -> dict:
     return json.loads((tmp_path / "verdict.json").read_text(encoding="utf-8"))
 
 
-def _cells() -> list[tuple[str, str]]:
-    """The fixture's cells as (name, source), cut at the delimiter lines."""
-    cells: list[tuple[str, list[str]]] = []
-    for line in FIXTURE.read_text(encoding="utf-8").splitlines(keepends=True):
-        found = _DELIMITER.match(line.rstrip("\n"))
-        if found:
-            cells.append((found.group(1), []))
-        if cells:
-            cells[-1][1].append(line)
-    return [(name, "".join(lines)) for name, lines in cells]
+def _shown_cells() -> tuple[CodeCell, ...]:
+    """The fixture's cells as the analysis note cuts them (data_load left out)."""
+    cells = notebook_cells(FIXTURE.read_text(encoding="utf-8"))
+    assert cells is not None, "the cut found the fixture out of the contract's shape"
+    return cells
 
 
 def _contract_cell_names() -> list[str]:
@@ -65,30 +67,27 @@ def _contract_cell_names() -> list[str]:
 class TestTheSampleIsLaidOutAsTheContractSays:
     """US-1 AC 2: the reference notebook is the contract's form, not marimo's."""
 
-    def test_its_cells_are_the_contract_cells_in_order(self) -> None:
-        names = _contract_cell_names()
-        assert len(names) == 7
-        assert [name for name, _ in _cells()] == names
+    def test_the_cut_knows_the_contract_cells_in_order(self) -> None:
+        assert list(CONTRACT_CELLS) == _contract_cell_names()
 
-    def test_only_the_docstring_comes_before_the_first_cell(self) -> None:
-        text = FIXTURE.read_text(encoding="utf-8")
-        head = text.split("\n# %% ", 1)[0]
-        body = ast.parse(head).body
-        assert len(body) == 1
-        assert isinstance(body[0], ast.Expr)
-        assert isinstance(body[0].value, ast.Constant)
-        assert isinstance(body[0].value.value, str)
+    def test_the_note_cuts_it_into_the_six_cells_but_data_load(self) -> None:
+        assert [c.name for c in _shown_cells()] == [
+            name for name in CONTRACT_CELLS if name != DATA_LOAD_CELL
+        ]
 
     def test_each_contract_variable_is_assigned_in_one_cell(self) -> None:
         owners: dict[str, list[str]] = {}
-        for name, source in _cells():
-            for node in ast.walk(ast.parse(source)):
+        for cell in _shown_cells():
+            for node in ast.walk(ast.parse(cell.source)):
                 if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
                     owners.setdefault(node.id, [])
-                    if name not in owners[node.id]:
-                        owners[node.id].append(name)
-        assert owners["raw_df"] == ["data_load"]
-        assert owners["session"] == ["data_load"]
+                    if cell.name not in owners[node.id]:
+                        owners[node.id].append(cell.name)
+        # The cut lets through only a notebook that binds raw_df in data_load
+        # alone and puts nothing but the docstring before the first cell.
+        assert "raw_df" not in owners
+        assert "session" not in owners
+        assert "session = LineageSession(" in FIXTURE.read_text(encoding="utf-8")
         assert owners["df_clean"] == ["data_prep"]
         assert owners["results"] == ["analysis"]
         assert owners["figure_manifest"] == ["viz"]
