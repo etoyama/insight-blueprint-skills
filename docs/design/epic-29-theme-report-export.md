@@ -548,6 +548,7 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
   素の URL・`www.`・メールアドレスの自動リンクは、ADR-0019 と同じく受け入れる。GFM は自動リンクの中のバックスラッシュを解かないので、`_` などを含む URL は、表示にバックスラッシュが見え、リンク先も壊れる。`$…$`（数式を描く表示先）も文の途中では働く。どちらも文字は消えない。
   テスト（`TestSourceTextInTheReport`）は、すべての項目に記号を入れたレポートで、その文が出るたびにエスケープされた形で丸ごと出ること、表の列数が見出しと同じこと、記法の始まりが残らないことを見る。
   合成シナリオに記号を入れたレポートを markdown-it（生の HTML を通す設定）で描き、タグ・強調・コード・画像・リンク・引用・番号付きのリストが0個、見出しが APA の見出しと決まった見出しだけ、表の列数が見出しと同じで、文字が欠けないことを確かめた。
+  エスケープは、データ由来の文を挿す所がどれも `escape_source_text` を呼ぶことに頼っている。作るときにエスケープする型（`_html.Html` と同じ形の `class Md(str)`）も Epic PR のレビューで考えたが、後の作業に残した。それまでは、すべての項目に `POISON` を入れたレポートのテスト（`TestSourceTextInTheReport`）が、呼び忘れを見つける。
 
 ### Decision: reader-words-are-one-mapping
 
@@ -654,3 +655,4 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 - 2026-11-23 — 合成シナリオ（`scripts/handoff_trial.py build --scenario lib`）の `.insight/reports/` に古い形のレポート（`LIB-H01.md`）を置いて、`tree_io render --theme LIB` と `tree_io report --theme LIB` を回した。論点ツリーの HTML は `reports/` を1度も指さず、古いレポートは書き換えられずに残り、新しいレポート `LIB.md` が並んで書かれた。
 - 2026-11-23 — Story 29.5 の差分に、バグ・セキュリティの観点のレビューを1本回した（`pstack:thermo-nuclear-review`）。hook・plugin のマニフェスト・`pyproject.toml`・scripts・ほかの skill に、消した物を呼ぶ所は残っていなかった。`/analysis-auto` の item の番号を参照する所も、詰めた後の番号と合っていた。高と中の指摘は無かった。
   低の指摘1件を直した。`/tree-upload` の承認の文が、分析ノートの手元のファイルとして「Markdown のレポート」をまだ挙げていた。
+- 2026-11-23 — Epic PR の前のレビューの指摘8件を直した。`report` は journal を1度だけ読み、検査した記録でレポートを書く。`_theme_report` は `ThemeReport` だけを返す。仮説に反する証拠の条件を `design_note.contradicting_evidence` の1か所に置いた。ツリーの決定が知らない論点を指すとエラーにし、そのために `ThemeReport` に `root_id` を足した（Domain Model の図も直した。Epic PR で承認を得る）。先頭の数字は番号付きのリストのときだけ数える。id の無い結論や反する証拠の出来事は、分析設計と種類を挙げて止める。`/report-export` は図の名前を検査し直さず、Doc の題からバックスラッシュのエスケープを外す。
