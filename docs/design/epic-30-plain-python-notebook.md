@@ -51,7 +51,7 @@ AC の正本はここ。
 - [x] AC 1: 契約の形の notebook からは、データ取得の cell を除いた cell が、ファイルの順に、cell の名前を添えて分析ノートに出る。出るのは `.py` に書かれたとおりの文字である。
 - [x] AC 2: 次のどれかに当たる notebook からは、コードが1つも出ない。`data_load` という名前の cell が無いか、2つ以上ある。`raw_df` を、`data_load` のほかの cell か、最初の区切りより前で代入している。
   `data_load` の cell が `raw_df` を代入していない。区切りの行が文の途中にある。最初の区切りより前に、docstring のほかの文がある。区切りが1つも無い。Python として読めない。
-  cell の名前が、契約の7つとこの順で同じでない（Decision `the-cut-shows-code-only-for-the-contracts-seven-cells`）。
+  cell の名前が契約の7つとこの順で同じでない（Decision `the-cut-shows-code-only-for-the-contracts-seven-cells`）。
 - [x] AC 3: 文字列の中に書かれた `# %%` は区切りとして扱わない。
 - [x] AC 4: marimo の書式の notebook からは、コードが1つも出ない。分析ノートは、notebook が契約の形でないことと、`/analysis-notebook` で作り直すと載ることを示す。
 - [x] AC 5: `@app.cell` を見分けるコードが `skills/_shared/` に残っていない。
@@ -267,7 +267,7 @@ sequenceDiagram
 
 - What: 分析ノートの切り出しは、cell の名前が契約の7つ（`imports`、`data_load`、`data_prep`、`analysis`、`viz`、`verdict`、`lineage`）とこの順でちょうど同じときだけコードを載せる。
   cell を足した・欠いた・名前を変えた・順を変えた notebook からは、コードを1つも載せない。前の Decision `the-cut-checks-only-the-data-load-cell`（`data_load` の cell だけを確かめ、ほかの cell の名前・数・順は確かめない）を置き換える。
-- Why: Epic のゲートのレビューで、接続情報が載る穴が見つかり、再現した。`data_load` の cell の中に別の `# %%` の行（`# %% data_load (second source)`、名前の無い `# %%`、`# %% [markdown]`、`# %% data_load_2`）を書くと、そこから後ろが別の cell になる。
+- Why: Epic のゲートのレビューで、接続情報が載る穴を見つけ、再現した。`data_load` の cell の中に別の `# %%` の行（`# %% data_load (second source)`、名前の無い `# %%`、`# %% [markdown]`、`# %% data_load_2`）を書くと、そこから後ろが別の cell になる。
   その cell は `data_load` という名前でないので載り、2つめのデータソースの接続情報が分析ノートに出た。`data_load` の名前と `raw_df` の代入だけでは、cell の終わりが正しいかを確かめられない。
 - Criteria: 接続情報を載せないこと（ADR-0022）を、境界を1文で言える形で、塞ぎ損ねても安全な側に倒して守ること。決め手は、人間の判断（2026-11-23、PM セッション）。「契約の形のときだけコードを出す」と1文で言え、分析者は notebook を手で直さない（`marimo edit` も使っていない。ADR-0045 の Context）ので、狭めて失うものが小さい。
 - Affected modules: `skills/_shared/design_note_read.py`（`CONTRACT_CELLS`、`notebook_cells`）、`skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-notebook/SKILL.md`、ADR-0045
