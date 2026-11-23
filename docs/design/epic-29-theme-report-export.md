@@ -651,3 +651,5 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 - 2026-11-23 — Story 29.5 completed: `/analysis-report`、`/report-upload`、`apa-template.md`、`report_check`（`bin/`、モジュール、テスト）を消した。`/analysis-auto` から report と upload の段を消し、巡回が止まったときのまとめで `/report-export` の名前を挙げるだけにした。分析ノートの手元のファイルからレポートを外し、テンプレートと照らす構造テストをやめた（journal の定義との照合は別のファイルに残した）。用語表・README・ARCHITECTURE・PRD・CHANGELOG をそろえた。Decisions に3件書いた。
 - 2026-11-23 — 計画外の判断が3件あった（古い ADR の Status の書き方、凍結した DesignDoc のリンク、`/report-export` の名前を挙げる所）。どれも既存の決定から一意に決まったので、人間には聞かずに Decisions に書き、PM には完了の報告で知らせた。
 - 2026-11-23 — 合成シナリオ（`scripts/handoff_trial.py build --scenario lib`）の `.insight/reports/` に古い形のレポート（`LIB-H01.md`）を置いて、`tree_io render --theme LIB` と `tree_io report --theme LIB` を回した。論点ツリーの HTML は `reports/` を1度も指さず、古いレポートは書き換えられずに残り、新しいレポート `LIB.md` が並んで書かれた。
+- 2026-11-23 — Story 29.5 の差分に、バグ・セキュリティの観点のレビューを1本回した（`pstack:thermo-nuclear-review`）。hook・plugin のマニフェスト・`pyproject.toml`・scripts・ほかの skill に、消した物を呼ぶ所は残っていなかった。`/analysis-auto` の item の番号を参照する所も、詰めた後の番号と合っていた。高と中の指摘は無かった。
+  低の指摘1件を直した。`/tree-upload` の承認の文が、分析ノートの手元のファイルとして「Markdown のレポート」をまだ挙げていた。
