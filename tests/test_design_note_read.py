@@ -212,7 +212,6 @@ class TestContractShape:
         )
 
 
-@pytest.mark.xfail(strict=True, reason="the cut does not check the seven names yet")
 class TestTheCellsAreTheContractsSeven:
     """Code shows only when the cells are the contract's seven, in order."""
 

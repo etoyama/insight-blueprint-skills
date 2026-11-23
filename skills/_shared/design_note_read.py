@@ -54,6 +54,16 @@ _SEPARATOR = "# %%"
 # The encoding declaration of PEP 263, read on the first two lines.
 _CODING = re.compile(r"[ \t\f]*#.*?coding[:=][ \t]*([-\w.]+)")
 DATA_LOAD_CELL = "data_load"
+# The cells of the notebook contract, in order (notebook-contract.md, ADR-0045).
+CONTRACT_CELLS = (
+    "imports",
+    DATA_LOAD_CELL,
+    "data_prep",
+    "analysis",
+    "viz",
+    "verdict",
+    "lineage",
+)
 
 # The next_action fields the note's recommendation takes for each terminal
 # status. A dot steps into a mapping.
@@ -328,9 +338,10 @@ def notebook_cells(text: str) -> tuple[CodeCell, ...] | None:
     """The cells of a notebook, without its data-load cell (ADR-0045).
 
     A cell runs from a ``# %% <name>`` line to the line before the next one.
-    The data-load cell is the one cell named ``data_load``. It holds the
-    connection values (ADR-0022), so a notebook where it cannot be told apart
-    gives no code at all: any cell could hold them.
+    The cells must be the contract's seven, in order; the data-load cell is the
+    one named ``data_load``. It holds the connection values (ADR-0022), so a
+    notebook where it cannot be told apart gives no code at all: any cell could
+    hold them.
     """
     # ast, the tokenizer and the slices all read these lines, so a line number
     # means the same line in each. str.splitlines() also breaks on \x0c, \x85,
@@ -344,9 +355,10 @@ def notebook_cells(text: str) -> tuple[CodeCell, ...] | None:
     # A deeply nested expression ends the parse with one of the last two.
     except (SyntaxError, ValueError, tokenize.TokenError, RecursionError, MemoryError):
         return None
-    if not names:
+    starts = sorted(names or ())
+    # Any other cell could be a piece of data_load cut off by a stray # %% line.
+    if tuple(names[start] for start in starts) != CONTRACT_CELLS:
         return None
-    starts = sorted(names)
     binders: set[int] = set()
     for index, statement in enumerate(tree.body):
         first, last = _first_line(statement), cast(int, statement.end_lineno)
@@ -357,8 +369,8 @@ def notebook_cells(text: str) -> tuple[CodeCell, ...] | None:
                 return None
         elif _binds_raw_df(statement):
             binders.add(bisect_right(starts, first) - 1)
-    loads = {i for i, start in enumerate(starts) if names[start] == DATA_LOAD_CELL}
-    if len(loads) != 1 or binders != loads:
+    loads = {CONTRACT_CELLS.index(DATA_LOAD_CELL)}
+    if binders != loads:
         return None
     ends = [*(start - 1 for start in starts[1:]), len(lines)]
     return tuple(
