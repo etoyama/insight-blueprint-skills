@@ -151,6 +151,7 @@ def _report(
 ) -> ThemeReport:
     return ThemeReport(
         theme_id="LIB",
+        root_id="LIB-Q01",
         root_question="取り置き期限を延ばす試行をするか",
         aim=aim,
         round=2,
@@ -703,6 +704,20 @@ class TestFutureDirections:
 
         assert "- 次に調べる論点: LIB-Q01 取り置き期限を延ばす試行をするか" in future
 
+    def test_a_decision_on_a_node_the_report_does_not_hold_is_an_error(
+        self,
+    ) -> None:
+        # Labelled with the root question, it would send the reader to the root.
+        report = _report(
+            nodes=(_node("LIB-Q02"),),
+            decision=TreeDecision(
+                round=2, kind="deepen", node_id="LIB-Q09", reason="先に確かめる"
+            ),
+        )
+
+        with pytest.raises(ValueError, match="LIB-Q09"):
+            render_report(report)
+
     def test_a_close_names_where_the_investigation_stopped(self) -> None:
         future = _discussion(
             _report(
@@ -921,6 +936,7 @@ def _poisoned_report(aim: Aim) -> ThemeReport:
     )
     return ThemeReport(
         theme_id="LIB",
+        root_id="LIB-Q01",
         root_question=p,
         aim=aim,
         round=2,

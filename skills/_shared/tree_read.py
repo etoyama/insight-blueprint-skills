@@ -444,6 +444,7 @@ def _theme_report(
     revision = tree.current_revision()
     return ThemeReport(
         theme_id=tree.theme_id,
+        root_id=root.id,
         root_question=revision.question,
         aim=revision.aim,
         round=tree.current_round(),

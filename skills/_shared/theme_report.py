@@ -199,6 +199,7 @@ class ThemeReport:
     """
 
     theme_id: str
+    root_id: str
     root_question: str
     aim: Aim
     round: int
@@ -209,6 +210,15 @@ class ThemeReport:
     sources: tuple[NoteSource, ...]
     decision: TreeDecision | None
     records: Mapping[str, CitedEvent]
+
+    def question_of(self, node_id: str) -> str:
+        """The question of the root or of a node below it; any other id is an error."""
+        if node_id == self.root_id:
+            return self.root_question
+        for node in self.nodes:
+            if node.id == node_id:
+                return node.question
+        raise ValueError(f"node '{node_id}' is not in the tree of {self.theme_id}")
 
     def answered_nodes(self) -> list[ReportNode]:
         return [n for n in self.nodes if n.answer is not None]
@@ -502,8 +512,7 @@ def _future_directions(report: ThemeReport) -> list[str]:
     if decision is None:
         lines.append("- ツリーの決定はまだ無い。")
     else:
-        questions = {n.id: n.question for n in report.nodes}
-        question = questions.get(decision.node_id, report.root_question)
+        question = report.question_of(decision.node_id)
         label = _DECISION_WORDS.get(decision.kind, _NEXT_NODE)
         lines += [
             f"- {label}: {decision.node_id} {_e(question)}",

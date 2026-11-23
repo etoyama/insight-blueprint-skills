@@ -197,6 +197,7 @@ classDiagram
     class ThemeReport {
         <<Read Model>>
         +theme_id
+        +root_id
         +root_question
         +round
         +root_revision
