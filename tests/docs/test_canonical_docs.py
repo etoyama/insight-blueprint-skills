@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.skills._markdown import section
+from tests.skills._markdown import section, unwrap
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -831,3 +831,47 @@ class TestPmSessionFlow:
         body = section(_read("docs/WORKFLOW.md"), "## 6.")
         assert "FLOW-0008" in body
         assert "失敗に変わる" in body
+
+
+class TestRetrospectiveFlow:
+    """FLOW-0009・0010: the order of first-draft decisions and the retrospective."""
+
+    FLOWS = (
+        "0009-designdoc-decisions-scope-first.md",
+        "0010-retrospective-after-epic.md",
+    )
+
+    @pytest.mark.parametrize("name", FLOWS)
+    def test_the_flow_copy_is_kept_and_indexed(self, name: str) -> None:
+        assert (REPO_ROOT / "docs/adr/flow" / name).is_file()
+        assert f"]({name})" in _read("docs/adr/flow/README.md")
+
+    def test_first_draft_decisions_ask_scope_before_content(self) -> None:
+        body = unwrap(section(_read("docs/WORKFLOW.md"), "## 4."))
+        assert "FLOW-0009" in body
+        assert "成果物の単位と範囲を決める判断" in body
+        assert "案ごとの見本を見比べてもらう" in body
+
+    def test_an_epic_ends_with_a_retrospective(self) -> None:
+        body = unwrap(section(_read("docs/WORKFLOW.md"), "## 4."))
+        assert "振り返り<br/>→ 反映の束を人間が選ぶ" in body
+        assert "FLOW-0010" in body
+        assert "前回の振り返りで反映したことが効いたか" in body
+        assert "Epic issue のコメントに残し" in body
+
+    def test_claude_md_names_the_retrospective(self) -> None:
+        body = section(_read("CLAUDE.md"), "## 4.")
+        assert "振り返りを1回回し" in body
+        assert "FLOW-0010" in body
+
+    def test_the_pm_session_skill_runs_the_retrospective(self) -> None:
+        skill = REPO_ROOT / ".claude/skills/pm-session/SKILL.md"
+        body = section(skill.read_text(encoding="utf-8"), "## 9. 振り返り")
+        assert "FLOW-0010" in body
+        targets = _LINK.findall(body)
+        assert targets
+        assert all((skill.parent / t).is_file() for t in targets)
+
+    def test_the_pm_session_skill_starts_waiting_stories_early(self) -> None:
+        skill = _read(".claude/skills/pm-session/SKILL.md")
+        assert "前提待ちの Story を前もって立てる" in section(skill, "## 5.")
