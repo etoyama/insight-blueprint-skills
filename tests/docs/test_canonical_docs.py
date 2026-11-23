@@ -605,11 +605,12 @@ class TestCanonicalDocsPointAtPlainPythonNotebook:
         assert self.AMENDED_ADRS[adr] in status, adr
 
     def test_changelog_tells_how_to_run_an_old_notebook_by_hand(self) -> None:
-        unreleased = section(_read("CHANGELOG.md"), "## [Unreleased]")
-        assert "marimo: marimo" in unreleased
-        assert "--with marimo" in unreleased
+        # Epic 30 shipped in 0.17.0; the notes moved there from [Unreleased].
+        release = section(_read("CHANGELOG.md"), "## [0.17.0] - 2026-11-23")
+        assert "marimo: marimo" in release
+        assert "--with marimo" in release
         # The other half of US-3 AC 3, written by Story 30.2.
-        assert "running `/analysis-notebook` again" in unreleased
+        assert "running `/analysis-notebook` again" in release
 
 
 class TestYomiyasuWords:
