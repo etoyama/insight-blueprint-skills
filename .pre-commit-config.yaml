@@ -1,3 +1,7 @@
+# Hooks without `stages` run on commit only. The pre-push hook runs the same check as CI.
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
 repos:
   - repo: local
     hooks:
@@ -32,3 +36,13 @@ repos:
         pass_filenames: false
         always_run: false
         types: [python]
+
+      # Why: a commit can skip hooks or land in a worktree without them; the push is the
+      # last point before the epic branch is shared, so check everything there.
+      - id: poe-all
+        name: "poe all (lint + typecheck + test)"
+        entry: uv run poe all
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
