@@ -390,7 +390,8 @@ def _read_own_text(path: Path) -> str | None:
     if not _is_own_file(path):
         return None
     try:
-        return path.read_text("utf-8")
+        # Python runs a .py that opens with a byte order mark; so does the note.
+        return path.read_text("utf-8-sig")
     except UnicodeDecodeError:
         return None
 

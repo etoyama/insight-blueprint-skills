@@ -523,6 +523,20 @@ class TestCodeAndProgress:
         assert "secret-analyst" not in html
         assert "df_clean = raw_df.dropna()" in html
 
+    def test_a_notebook_that_starts_with_a_byte_order_mark_is_cut(
+        self, insight: Path
+    ) -> None:
+        # Python runs such a file, so the note reads it too.
+        design_id = _design(insight)
+        _notebook(insight, design_id, LOAD)
+        notebook = insight / "notebooks" / f"{design_id}.py"
+        notebook.write_text(notebook.read_text("utf-8"), encoding="utf-8-sig")
+
+        html = _note_html(insight, design_id)
+
+        assert "<summary>cell 3 · data_prep</summary>" in html
+        assert CONNECTION_PATH not in html
+
     def test_a_notebook_whose_data_load_cell_cannot_be_found_shows_no_code(
         self, insight: Path
     ) -> None:
