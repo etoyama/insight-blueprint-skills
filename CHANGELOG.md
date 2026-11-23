@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cells named `data_load`, or `raw_df` assigned outside that cell. A marimo notebook is such a
   notebook, so its code no longer appears; the note says that running `/analysis-notebook` again
   brings it back ([ADR-0045](docs/adr/0045-notebook-is-plain-python-with-percent-cells.md), #201).
+- **A marimo notebook you already have no longer runs in the plugin env as it is.** marimo is
+  out of the env and the default allowlist, so running an old `{id}.py` or `{id}_flat.py` stops
+  with `ModuleNotFoundError: marimo`. To run one by hand, add `marimo: marimo` under
+  `allowed_packages` in `.insight/rules/package_allowlist.yaml` and add `--with marimo` after
+  `--extra notebook`. Running `/analysis-notebook` again writes the notebook in the new form
+  instead ([ADR-0046](docs/adr/0046-marimo-leaves-the-plugin-env-and-the-default-allowlist.md),
+  #202).
 
 ## [0.16.0] - 2026-11-23
 

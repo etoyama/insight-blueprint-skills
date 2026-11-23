@@ -540,6 +540,73 @@ class TestPlainPythonNotebookDocs:
         assert "notebook 契約 & lineage" in words.section(_read(self.DOC), "Scope")
 
 
+class TestCanonicalDocsPointAtPlainPythonNotebook:
+    """Epic 30 US-4 and US-3 AC 3: the canonical docs describe the `# %%` notebook, not marimo."""
+
+    # ADR-0045 replaced the run line of 0006 and the cell form of 0036;
+    # ADR-0046 replaced what the default allowlist of 0021 and 0027 holds.
+    AMENDED_ADRS = {
+        "0006": "ADR-0045",
+        "0021": "ADR-0046",
+        "0027": "ADR-0046",
+        "0036": "ADR-0045",
+    }
+
+    @staticmethod
+    def _term(name: str) -> dict[str, str]:
+        rows = words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        return next(row for row in rows if row[words.TERM] == name)
+
+    def test_prd_core_value_is_the_notebook_contract(self) -> None:
+        core = words.section(_read("docs/PRD.md"), "コアバリュー（温存すべき核）")
+        assert "notebook 契約 & lineage" in core
+        assert "marimo" not in core
+
+    def test_notebook_term_is_cut_into_percent_cells(self) -> None:
+        definition = self._term("notebook")["定義"]
+        assert "`# %%" in definition
+        assert "marimo" not in definition
+
+    def test_data_load_cell_term_is_told_apart_by_its_name(self) -> None:
+        row = self._term("データ取得の cell")
+        assert "`data_load`" in row["コード上の名前"] + row["定義"]
+        assert "`raw_df` を作る cell が1つに決まらない" not in row["定義"]
+
+    def test_cell_is_a_term(self) -> None:
+        assert "`# %%" in self._term("cell")["定義"]
+
+    def test_architecture_outside_the_epic_mapping_has_no_marimo(self) -> None:
+        text = _read("docs/ARCHITECTURE.md")
+        body = text.replace(section(text, "## Epic マッピング"), "")
+        assert "marimo" not in body
+        assert "_flat.py" not in body
+
+    def test_architecture_maps_epic_30(self) -> None:
+        mapping = section(_read("docs/ARCHITECTURE.md"), "## Epic マッピング")
+        assert re.search(r"^\| Epic 30 \|", mapping, re.MULTILINE)
+
+    @pytest.mark.parametrize("path", ["README.md", "CLAUDE.md"])
+    def test_entry_docs_do_not_mention_marimo(self, path: str) -> None:
+        assert "marimo" not in _read(path)
+
+    @pytest.mark.parametrize("adr", sorted(AMENDED_ADRS))
+    def test_adr_index_status_names_the_amending_adr(self, adr: str) -> None:
+        row = next(
+            line
+            for line in _read("docs/adr/README.md").splitlines()
+            if line.startswith(f"| [{adr}](")
+        )
+        status = row.strip("|").split("|")[-1]
+        assert self.AMENDED_ADRS[adr] in status, adr
+
+    def test_changelog_tells_how_to_run_an_old_notebook_by_hand(self) -> None:
+        unreleased = section(_read("CHANGELOG.md"), "## [Unreleased]")
+        assert "marimo: marimo" in unreleased
+        assert "--with marimo" in unreleased
+        # The other half of US-3 AC 3, written by Story 30.2.
+        assert "running `/analysis-notebook` again" in unreleased
+
+
 class TestYomiyasuWords:
     """WORKFLOW §8: .yomiyasu-words/ is exported from UBIQUITOUS_LANGUAGE, never edited by hand."""
 

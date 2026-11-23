@@ -25,7 +25,7 @@
 
 ## コアバリュー（温存すべき核）
 
-- marimo notebook 契約 & lineage — データ加工の透明性・追跡可能性
+- notebook 契約 & lineage — データ加工の透明性・追跡可能性
 - 分析設計（`*_hypothesis.yaml`）と、それを生成する skills
 - journal / reflection — 結果の解釈と結論づけ
 - premortem — 高コストなデータアクセス前の費用・リスク評価

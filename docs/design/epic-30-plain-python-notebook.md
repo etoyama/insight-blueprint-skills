@@ -62,17 +62,17 @@ plugin を入れる分析者として、使わないパッケージを抱えな�
 - [x] AC 1: `pyproject.toml` の `notebook` extra と開発用の依存に、marimo が無い。`uv.lock` にも無い。
 - [x] AC 2: 契約の既定の許可リストが `insight_blueprint`・`pandas`・`matplotlib`・`numpy` である。
   構造テストが、既定の許可リスト、契約の `imports` の cell の import、plugin の env の3つが一致することを確かめている。
-- [ ] AC 3: CHANGELOG の `[Unreleased]` に、更新した利用者に起きること2つと直し方が書いてある。
+- [x] AC 3: CHANGELOG の `[Unreleased]` に、更新した利用者に起きること2つと直し方が書いてある。
   旧形式の notebook は分析ノートにコードが出なくなること。旧形式の notebook を手で走らせるには、パッケージ許可リストに `marimo: marimo` を足し、`--with marimo` を付けること。
 
 ### US-4: 文書が、新しい notebook の形を指している
 
 コントリビュータと AI として、古い決まりで notebook を書かないために、正本の文書が新しい形を指していてほしい。
 
-- [ ] AC 1: PRD のコアバリューが「notebook 契約 & lineage」になっている。
-- [ ] AC 2: 用語表の「notebook」と「データ取得の cell」の定義が、新しい形を指している。「cell」が用語表に在る。`.yomiyasu-words/` が用語表と一致している。
-- [ ] AC 3: ARCHITECTURE の構成図、`.insight/` の構成、パス解決の表、2本のシーケンス図に、marimo と `{id}_flat.py` が無い。Epic マッピングにこの Epic の行が在る。
-- [ ] AC 4: README が notebook を marimo notebook と呼んでいない。ADR の索引の ADR-0006・0021・0027・0036 の Status に、この Epic の ADR が改めた所が書いてある。
+- [x] AC 1: PRD のコアバリューが「notebook 契約 & lineage」になっている。
+- [x] AC 2: 用語表の「notebook」と「データ取得の cell」の定義が、新しい形を指している。「cell」が用語表に在る。`.yomiyasu-words/` が用語表と一致している。
+- [x] AC 3: ARCHITECTURE の構成図、`.insight/` の構成、パス解決の表、2本のシーケンス図に、marimo と `{id}_flat.py` が無い。Epic マッピングにこの Epic の行が在る。
+- [x] AC 4: README が notebook を marimo notebook と呼んでいない。ADR の索引の ADR-0006・0021・0027・0036 の Status に、この Epic の ADR が改めた所が書いてある。
 
 ## Stories
 
@@ -324,6 +324,24 @@ sequenceDiagram
 - Alternatives considered: 元の文字を `ast.parse` に渡し、切り取った後で照らす。照らす相手になる `ast` の節が無い。
 - Consequences: 分析ノートに出るコードの行の終わりは、どれも `\n` になる（今までと同じ）。`str.splitlines()` だけが区切る8つの文字は、テストが1つずつ確かめる。
 
+### Decision: the-data-load-cell-term-names-where-connection-values-live
+
+- What: 用語表の「データ取得の cell」は、`data_load` という名前で決まる cell と定め、接続情報の値はこの cell にだけ書くことを定義に入れる。import をこの cell に書かないこと（`every-import-lives-in-the-imports-cell`）は、定義に入れない。
+- Why: 分析ノートがこの cell を載せない理由は、接続情報の値がここにだけ在ることである。契約は 30.1 でこれを命じた。定義に理由を書かないと、載せない決まりの根拠が読めない。import の置き場は `imports` の cell の決まりで、データ取得の cell を見分けることにも、載せないことにも効かない。
+- Criteria: 用語の定義は、その語を見分ける条件と、その語に結びつく決まりの理由だけを書く（UBIQUITOUS_LANGUAGE の Context）。決め手は、載せない理由を定義から読めること。
+- Affected modules: `docs/UBIQUITOUS_LANGUAGE.md`、`.yomiyasu-words/`
+- Alternatives considered: import の置き場も定義に書く。cell の契約の細目で、用語の見分けに要らない。
+- Consequences: 契約の `data_load` の cell の決まりが変わったら、用語表の定義も見直す。
+
+### Decision: data-lineage-keeps-its-run-step
+
+- What: `skills/data-lineage/SKILL.md` の Mode B と Mode C の「notebook を走らせる」は直さない。旧形式の notebook を走らせて `ModuleNotFoundError: marimo` で止まる場合の直し方は、CHANGELOG に書く。
+- Why: Mode B と Mode C の文は形式を名指ししておらず、新しい形の notebook ではそのまま正しい。止まるのは旧形式だけで、その直し方（`marimo: marimo` と `--with marimo`）は US-3 AC 3 が CHANGELOG に書くと決めている。
+- Criteria: US-3 AC 3、ブリーフの「CHANGELOG の直し方で足りるなら触らない」。決め手は、skill の文を変えずに旧形式の利用者に直し方が届くこと。
+- Affected modules: `CHANGELOG.md`
+- Alternatives considered: Mode B と Mode C に旧形式の注意を足す。旧形式を走らせる手順を skill に残すことになり、ADR-0045 の「旧形式は作り直す」と食い違う。
+- Consequences: `--with marimo` は、そのときの最新の marimo を入れる（2026-11-23 は 0.25.2。旧形式を書いたときの 0.21.1 ではない）。旧形式の notebook がこの版で走るかは確かめていない。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0045: notebook は `# %%` で cell を区切る素の Python にし、marimo の書式をやめる](../adr/0045-notebook-is-plain-python-with-percent-cells.md): 形式、7つの cell、実行の1段、分析ノートの切り出しの決まり、旧形式の notebook を読まないこと。
@@ -337,7 +355,7 @@ sequenceDiagram
 |---|---|---|---|
 | 30.1 契約と実行と env | ✓（`tests/skills/test_notebook_contract_structure.py`、`test_default_allowlist_structure.py`、`test_connection_boundary_structure.py`。契約の cell の表と File layout、既定の許可リストの3つの一致と env と `uv.lock`、実行のコマンド） | ✓（`tests/integration/test_analysis_notebook_contract.py`。見本が契約の形であることと、見本を `python` の1つのコマンドで走らせた出力） | —（plugin を入れた分析者の環境で `/analysis-notebook` を走らせる経路は自動のテストが無い。scratchpad で、SQL のデータソースと図が2枚の notebook を同じコマンドで走らせて確かめた） |
 | 30.2 分析ノートの切り出し | ✓（`tests/test_design_note_read.py`。契約の形、AC 2 の崩れ方を1つずつ、文字列の中の `# %%`、区切りの行の読み方、行の終わりと `str.splitlines()` だけが区切る文字、旧形式。`tests/test_design_note.py` の見出しと案内の文） | ✓（`tests/tree_io/test_render_design.py`。`.insight/` のファイルから分析ノートを作り、cell の見出しが出ること、接続情報が出ないこと、旧形式の案内の文） | —（分析者が `/tree-upload` で分析ノートを作る経路は自動のテストが無い。30.1 の見本の notebook を切り出しに通すテストで代える） |
-| 30.3 文書 | ☐（`tests/docs/test_canonical_docs.py`） | ☐ | ☐ |
+| 30.3 文書 | ✓（`tests/docs/test_canonical_docs.py` の `TestCanonicalDocsPointAtPlainPythonNotebook`。PRD のコアバリュー、用語表の notebook・cell・データ取得の cell、ARCHITECTURE と README と CLAUDE.md の marimo、ADR の索引の Status、CHANGELOG の直し方。`.yomiyasu-words/` は `TestYomiyasuWords`） | —（文書の Story で、組み合わせて動かすコードが無い） | —（同じ理由。CHANGELOG の直し方は、plugin の env で `import marimo` が止まることと、`--with marimo` で通ることを手で確かめた） |
 
 ## Story Timeline
 
@@ -359,3 +377,7 @@ sequenceDiagram
   Story の差分に thermo-nuclear-review を1本回した。致命的な指摘は無かった。次の3件をこの Story の中で直した。括弧で始まるデコレータの中の区切りが、文の途中の検査を抜けて後ろの行が載る（中）。
   深い式の `RecursionError` と `MemoryError` が分析ノート全体を止める（低〜中）。UTF-8 でない encoding の宣言が在ると、Python と分析ノートで区切りの行が食い違う（低）。宣言が在る `.py` からはコードを出さないことにした。
   直さなかった1件。`raw_df` の代入は `ast.Name` への代入だけを見る（Epic 28 から同じ）。`import x as raw_df` や `def raw_df` は数えない。データ取得の cell は名前で決まるので、接続情報が載ることには直結しない。
+- 2026-11-23 — Story 30.3 completed: 正本の文書を新しい notebook の形に合わせた。PRD のコアバリューを「notebook 契約 & lineage」にし、用語表の「notebook」と「データ取得の cell」を改め、「cell」を足した。
+  ARCHITECTURE の構成図・コンポーネント・`.insight/` の構成・パス解決の表・シーケンス図2本から marimo と `{id}_flat.py` と `{id}.html` を消した。README と CLAUDE.md からも marimo を消した。
+  ADR の索引の ADR-0006・0021・0027・0036 の Status に、ADR-0045 と ADR-0046 が改めた所を書いた。CHANGELOG に、旧形式の notebook を手で走らせる直し方を足し、30.2 の行と合わせて US-3 AC 3 の2つがそろった。
+  `skills/data-lineage/SKILL.md` は直さなかった（Decisions の `data-lineage-keeps-its-run-step`）。推敲（yomiyasu）は Epic のゲートで回す。
