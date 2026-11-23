@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cells named `data_load`, or `raw_df` assigned outside that cell. A marimo notebook is such a
   notebook, so its code no longer appears; the note says that running `/analysis-notebook` again
   brings it back ([ADR-0045](docs/adr/0045-notebook-is-plain-python-with-percent-cells.md), #201).
+- **A notebook whose cells differ from the contract's seven shows no code in the analysis note.**
+  Any added, missing, renamed or reordered cell, a bare `# %%` or a `# %% [markdown]` line included,
+  now hides all the code, because such a line inside `data_load` showed its second half with the
+  connection values ([ADR-0045](docs/adr/0045-notebook-is-plain-python-with-percent-cells.md)).
 - **A marimo notebook you already have no longer runs in the plugin env as it is.** marimo is
   out of the env and the default allowlist, so running an old `{id}.py` or `{id}_flat.py` stops
   with `ModuleNotFoundError: No module named 'marimo'`. To run one by hand, add `marimo: marimo`

@@ -51,6 +51,7 @@ AC の正本はここ。
 - [x] AC 1: 契約の形の notebook からは、データ取得の cell を除いた cell が、ファイルの順に、cell の名前を添えて分析ノートに出る。出るのは `.py` に書かれたとおりの文字である。
 - [x] AC 2: 次のどれかに当たる notebook からは、コードが1つも出ない。`data_load` という名前の cell が無いか、2つ以上ある。`raw_df` を、`data_load` のほかの cell か、最初の区切りより前で代入している。
   `data_load` の cell が `raw_df` を代入していない。区切りの行が文の途中にある。最初の区切りより前に、docstring のほかの文がある。区切りが1つも無い。Python として読めない。
+  cell の名前が、契約の7つとこの順で同じでない（Decision `the-cut-shows-code-only-for-the-contracts-seven-cells`）。
 - [x] AC 3: 文字列の中に書かれた `# %%` は区切りとして扱わない。
 - [x] AC 4: marimo の書式の notebook からは、コードが1つも出ない。分析ノートは、notebook が契約の形でないことと、`/analysis-notebook` で作り直すと載ることを示す。
 - [x] AC 5: `@app.cell` を見分けるコードが `skills/_shared/` に残っていない。
@@ -262,14 +263,19 @@ sequenceDiagram
 - Alternatives considered: リンクを消す。既にある HTML へたどれなくなるだけで、得るものが無い。
 - Consequences: `LOCAL_FILES` に、新しく作られることのないファイルの行が残る。
 
-### Decision: the-cut-checks-only-the-data-load-cell
+### Decision: the-cut-shows-code-only-for-the-contracts-seven-cells
 
-- What: 分析ノートの切り出しは `data_load` の cell を特定できるかだけを確かめる。ほかの cell の名前、数、順は確かめない。
-- Why: 切り出しが守るのは、接続情報を載せないことである（ADR-0022）。契約どおりの7つかどうかは、分析ノートの読み手の害にならない。分析者が cell を足した notebook でも、コードを読める。
-- Criteria: 接続情報を載せないこと（ADR-0022）と、分析コードを読めること（ADR-0036 の課題4）。決め手は前者を満たしたうえで、後者を狭めないこと。
-- Affected modules: `skills/_shared/design_note_read.py`
-- Alternatives considered: 7つの名前と順を確かめ、合わなければ載せない。契約から外れた notebook を早く見つけられるが、コードを読めなくなる。
-- Consequences: 契約から外れた notebook に、分析ノートは気づかない。
+- What: 分析ノートの切り出しは、cell の名前が契約の7つ（`imports`、`data_load`、`data_prep`、`analysis`、`viz`、`verdict`、`lineage`）とこの順でちょうど同じときだけコードを載せる。
+  cell を足した・欠いた・名前を変えた・順を変えた notebook からは、コードを1つも載せない。前の Decision `the-cut-checks-only-the-data-load-cell`（`data_load` の cell だけを確かめ、ほかの cell の名前・数・順は確かめない）を置き換える。
+- Why: Epic のゲートのレビューで、接続情報が載る穴が見つかり、再現した。`data_load` の cell の中に別の `# %%` の行（`# %% data_load (second source)`、名前の無い `# %%`、`# %% [markdown]`、`# %% data_load_2`）を書くと、そこから後ろが別の cell になる。
+  その cell は `data_load` という名前でないので載り、2つめのデータソースの接続情報が分析ノートに出た。`data_load` の名前と `raw_df` の代入だけでは、cell の終わりが正しいかを確かめられない。
+- Criteria: 接続情報を載せないこと（ADR-0022）を、境界を1文で言える形で、塞ぎ損ねても安全な側に倒して守ること。決め手は、人間の判断（2026-11-23、PM セッション）。「契約の形のときだけコードを出す」と1文で言え、分析者は notebook を手で直さない（`marimo edit` も使っていない。ADR-0045 の Context）ので、狭めて失うものが小さい。
+- Affected modules: `skills/_shared/design_note_read.py`（`CONTRACT_CELLS`、`notebook_cells`）、`skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-notebook/SKILL.md`、ADR-0045
+- Alternatives considered: A: `data_load` の次の cell が `data_prep` であることだけを確かめる。この穴は塞げるが、境界が「契約の形」より分かりにくく、ほかの割れ方が残るかを1つずつ考える必要がある。
+  C: 契約に「cell の中に別の `# %%` を書かない」とだけ足す。生成の誤り1つで載るので、安全な側に倒れない。
+- Consequences: 契約の7つと違う notebook は、`data_load` の cell を特定できても、分析ノートにコードが出ない。分析者は手元の `.py` で読む。
+  契約と SKILL.md は、7つのほかの `# %%` の行を書かないこと、2つめのデータソースも `data_load` の cell の中で読むことを命じる。
+  あわせて、切り出しを「冒頭と各 cell の断片を別々に parse し、つないだ文が、ファイル全体の文と `ast.dump` で同じ」という1つの不変条件にまとめた。括弧の深さの追跡と文の範囲のループは消えた。
 
 ### Decision: the-docstring-escapes-backslashes-and-double-quotes
 
@@ -301,6 +307,7 @@ sequenceDiagram
 - Affected modules: `skills/_shared/design_note.py`（`_cell_heading`）
 - Alternatives considered: 名前だけを書く。同じ名前の cell と名前の無い cell を見分けられず、データ取得の cell が抜けていることも見出しから読めない。
 - Consequences: `source` の1行目は区切りの行なので、名前が見出しと本文の両方に出る。
+  Epic のゲートで、切り出しは cell の名前を契約の7つに限った（`the-cut-shows-code-only-for-the-contracts-seven-cells`）。同じ名前の cell と名前の無い cell は分析ノートに出なくなったが、見出しの形は変えない。
 
 ### Decision: the-cell-name-is-the-rest-of-the-separator-line
 
@@ -312,7 +319,8 @@ sequenceDiagram
 - Criteria: 接続情報を載せないこと（ADR-0022）と、ADR-0045 の文との一致。前者では差がつかず、決め手は後者である。
 - Affected modules: `skills/_shared/design_note_read.py`（`_separators`）
 - Alternatives considered: `# %%` の後ろに空白と名前だけを許す（初版の試作の正規表現）。ADR の文より狭くなり、狭くする理由が無い。
-- Consequences: `# %% [markdown]` のような、ほかのツールの書き方の行も cell を始める。その cell は、書かれた文字を名前として分析ノートに出る。
+- Consequences: `# %% [markdown]` のような、ほかのツールの書き方の行も cell を始める。
+  Epic のゲートで、そうした cell を持つ notebook からはコードを載せないことにした（`the-cut-shows-code-only-for-the-contracts-seven-cells`）。
 
 ### Decision: the-cut-reads-one-list-of-lines
 
@@ -354,7 +362,7 @@ sequenceDiagram
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
 | 30.1 契約と実行と env | ✓（`tests/skills/test_notebook_contract_structure.py`、`test_default_allowlist_structure.py`、`test_connection_boundary_structure.py`。契約の cell の表と File layout、既定の許可リストの3つの一致と env と `uv.lock`、実行のコマンド） | ✓（`tests/integration/test_analysis_notebook_contract.py`。見本が契約の形であることと、見本を `python` の1つのコマンドで走らせた出力） | —（plugin を入れた分析者の環境で `/analysis-notebook` を走らせる経路は自動のテストが無い。scratchpad で、SQL のデータソースと図が2枚の notebook を同じコマンドで走らせて確かめた） |
-| 30.2 分析ノートの切り出し | ✓（`tests/test_design_note_read.py`。契約の形、AC 2 の崩れ方を1つずつ、文字列の中の `# %%`、区切りの行の読み方、行の終わりと `str.splitlines()` だけが区切る文字、旧形式。`tests/test_design_note.py` の見出しと案内の文） | ✓（`tests/tree_io/test_render_design.py`。`.insight/` のファイルから分析ノートを作り、cell の見出しが出ること、接続情報が出ないこと、旧形式の案内の文） | —（分析者が `/tree-upload` で分析ノートを作る経路は自動のテストが無い。30.1 の見本の notebook を切り出しに通すテストで代える） |
+| 30.2 分析ノートの切り出し | ✓（`tests/test_design_note_read.py`。契約の形、AC 2 の崩れ方を1つずつ（契約の7つと違う cell の並びを含む）、文字列の中の `# %%`、区切りの行の読み方、行の終わりと `str.splitlines()` だけが区切る文字、旧形式。`tests/test_design_note.py` の見出しと案内の文） | ✓（`tests/tree_io/test_render_design.py`。`.insight/` のファイルから分析ノートを作り、cell の見出しが出ること、接続情報が出ないこと、旧形式の案内の文） | —（分析者が `/tree-upload` で分析ノートを作る経路は自動のテストが無い。30.1 の見本の notebook を切り出しに通すテストで代える） |
 | 30.3 文書 | ✓（`tests/docs/test_canonical_docs.py` の `TestCanonicalDocsPointAtPlainPythonNotebook`。PRD のコアバリュー、用語表の notebook・cell・データ取得の cell、ARCHITECTURE と README と CLAUDE.md の marimo、ADR の索引の Status、CHANGELOG の直し方。`.yomiyasu-words/` は `TestYomiyasuWords`） | —（文書の Story で、組み合わせて動かすコードが無い） | —（同じ理由。CHANGELOG の直し方は、plugin の env で `import marimo` が止まることと、`--with marimo` で通ることを手で確かめた） |
 
 ## Story Timeline
@@ -381,3 +389,7 @@ sequenceDiagram
   ARCHITECTURE の構成図・コンポーネント・`.insight/` の構成・パス解決の表・シーケンス図2本から marimo と `{id}_flat.py` と `{id}.html` を消した。README と CLAUDE.md からも marimo を消した。
   ADR の索引の ADR-0006・0021・0027・0036 の Status に、ADR-0045 と ADR-0046 が改めた所を書いた。CHANGELOG に、旧形式の notebook を手で走らせる直し方を足し、30.2 の行と合わせて US-3 AC 3 の2つがそろった。
   `skills/data-lineage/SKILL.md` は直さなかった（Decisions の `data-lineage-keeps-its-run-step`）。推敲（yomiyasu）は Epic のゲートで回す。
+- 2026-11-23 — Epic のゲート: レビューで、`data_load` の cell の中の別の `# %%` の行（`# %% data_load (second source)` など4つの形）が cell を割り、後ろ半分が接続情報ごと分析ノートに載る穴を見つけ、再現した。
+  人間が案 B を選び、cell の名前が契約の7つとこの順で同じときだけコードを載せることにした（Decision `the-cut-shows-code-only-for-the-contracts-seven-cells`）。
+  直したこと。切り出しを冒頭と各 cell の断片の parse と `ast.dump` の一致という1つの不変条件にまとめた。BOM で始まる notebook も読む。崩れ方のテストを1つの表にまとめた。結合テストは見本の形を切り出しそのもので確かめる。契約と SKILL.md に、7つのほかの `# %%` の行を書かないことを書いた。
+  守りを1つずつ外すと、どれもテストが落ちる。ただし、断片の parse と `ast.dump` の一致は互いを補い、片方だけを外しても落ちない。
