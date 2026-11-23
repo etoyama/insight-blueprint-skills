@@ -24,7 +24,7 @@ Epic issue（[#176](https://github.com/etoyama/insight-blueprint-skills/issues/1
 - marimo 0.21.1 は site-packages で 114MB を占め、直下の依存は17個ある。
 - 分析ノートは notebook の `.py` を `ast` で読み、`@app.cell` の付いた関数を cell として切り出す。`raw_df` を代入する cell がちょうど1つのときだけ、その cell を除いて載せる
   （`skills/_shared/design_note_read.py` の `notebook_cells`、[ADR-0036](../adr/0036-design-note-is-a-generated-page-per-design.md)）。
-- marimo に結びついていないもの。`src/insight_blueprint/lineage/`（`LineageSession`、`tracked_pipe`）、verdict の形、figures manifest、`/analysis-report`（`.py` が在るかだけを見る）。
+- marimo に結びついていないもの。`src/insight_blueprint/lineage/`（`LineageSession`、`tracked_pipe`）、verdict の形、figures manifest、テーマの最終報告（`tree_io report`。Epic 29 で `/analysis-report` を置き換えた）。
 - Epic 29（[#177](https://github.com/etoyama/insight-blueprint-skills/issues/177)）は `epic/177-theme-report-export` にあり、まだ main に入っていない。
   `skills/_shared/design_note_read.py` と `design_note.py` に `NoteFigure.file` を足し、figures manifest を読む消費者を1つ増やす。cell の切り出しには触っていない。
 - 確かめ方と、形式ごとの比較は [ADR-0045](../adr/0045-notebook-is-plain-python-with-percent-cells.md) と [ADR-0046](../adr/0046-marimo-leaves-the-plugin-env-and-the-default-allowlist.md) の Context にある。
@@ -118,7 +118,7 @@ PRD の改訂案は次のとおりで、30.3 で直す。
   - PRD・用語表・ARCHITECTURE・README・ADR の索引を、新しい形に合わせること。
 - Epic 範囲外:
   - 図を動かして確かめられる形で出すこと（[#175](https://github.com/etoyama/insight-blueprint-skills/issues/175)）。描画ライブラリ、figures manifest の項目、分析ノートでの見せ方は、#175 で決める。
-  - verdict・figures manifest・lineage の形を変えること。Epic 29 と `/analysis-report` が読むので、変えない。
+  - verdict・figures manifest・lineage の形を変えること。分析ノートとテーマの最終報告（Epic 29）が読むので、変えない。
   - 旧形式の notebook を新しい形に書き換える手順やコマンド。要ると分かってから足す。
   - 旧形式の notebook のコードを、分析ノートに出すこと。
   - 既にある `{id}_flat.py` と `{id}.html` を消すこと。作らなくなるだけで、在るファイルには触らない。
@@ -143,7 +143,7 @@ flowchart TD
     out["verdict.json / figNN.png / lineage.mmd<br/>形は変えない"]
     cut["skills/_shared/design_note_read.py<br/>notebook_cells（tokenize + ast）"]
     note["skills/_shared/design_note.py<br/>分析ノートの「分析コード」の節"]
-    consumers["/analysis-report、テーマの最終報告（Epic 29）"]
+    consumers["テーマの最終報告（Epic 29、tree_io report）"]
 
     contract --> gen
     gen --> nb
@@ -161,7 +161,7 @@ flowchart TD
 ```
 
 - 変わるのは、契約、生成される `.py` の形、実行の段数、env の中身、`notebook_cells` の読み方である。
-- 変わらないのは、lineage のライブラリ、notebook の出力の形と置き場、分析ノートのほかの節、`/analysis-report` である。
+- 変わらないのは、lineage のライブラリ、notebook の出力の形と置き場、分析ノートのほかの節、テーマの最終報告である。
 - `marimo export script` と `{id}_flat.py` の経路は、図から無くなる。
 
 ## Domain Model

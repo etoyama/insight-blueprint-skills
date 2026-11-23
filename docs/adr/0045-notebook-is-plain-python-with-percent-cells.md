@@ -46,7 +46,7 @@ notebook の形式をどれにするか。
 
 | # | 基準 | 区分 | 分類 | 重み（決めた人） | 出典 |
 |---|---|---|---|---|---|
-| M1 | verdict・figures manifest・lineage の形と置き場が変わらない | Must | - | - | Epic 29 と `/analysis-report` が読む（[ADR-0008](0008-notebook-figure-manifest.md)、[ADR-0013](0013-verdict-metric-optional-items.md)） |
+| M1 | verdict・figures manifest・lineage の形と置き場が変わらない | Must | - | - | 分析ノートとテーマの最終報告（`tree_io render`・`tree_io report`）が読む（[ADR-0008](0008-notebook-figure-manifest.md)、[ADR-0013](0013-verdict-metric-optional-items.md)） |
 | M2 | 分析ノートが cell ごとにコードを出し、データ取得の cell を特定できなければ1つも出さない | Must | - | - | ADR-0022、ADR-0036 |
 | M3 | notebook が HTML の図を保存することを妨げない | Must | - | - | #175、#176 のコメント |
 | W1 | 形式の決まりで notebook が止まりにくい | Want | 解決 | 高（Claude の推測。人間は結論に同意した） | 課題1 |
