@@ -565,11 +565,11 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 
 ### Decision: old-adrs-say-what-was-changed
 
-- What: 古いレポートを前提にした ADR は、Superseded にせず Accepted のままにし、Status に、どの決まりをどの ADR か Decision が改めたかを書く。
+- What: 古いレポートを前提にした ADR は Superseded にせず Accepted のままにし、Status に、どの決まりをどの ADR か Decision が改めたかを書く。
   ADR-0019（検査と手順の置き場は ADR-0040、エスケープする文字は Decision `source-text-is-escaped-where-it-enters-the-text`）、
   ADR-0026（report と upload の段は ADR-0040）、ADR-0036（レポートを残すこととレポートへのリンクは ADR-0039）の3つである。`docs/adr/README.md` の Status も同じにした。
   ADR-0008・ADR-0013・ADR-0015・ADR-0016・ADR-0018・ADR-0020・ADR-0022・ADR-0025・ADR-0028 は、本文が `/analysis-report` か `/report-upload` を例や前提に挙げるだけで、決まり（図の契約、外へ送る前の承認など）は変わらないので、Status も本文も変えていない。
-- Why: ADR-0019 は、データ由来の文を削らずエスケープすることと、文の中の指示に従わないことが、新しいレポートでも生きている。ADR-0040 は「Supersedes: なし（ADR-0019 の Decision の2点を改める）」と書いており、人間が承認している。
+- Why: ADR-0019 の決まりのうち、データ由来の文を削らずエスケープすることと、文の中の指示に従わないことは、新しいレポートでも生きている。ADR-0040 は「Supersedes: なし（ADR-0019 の Decision の2点を改める）」と書いており、人間が承認している。
 - Criteria: 承認済みの ADR-0040 と食い違わないこと（Must）。同じ形の前例（ADR-0023 の Status「入れ子のキーの判定と、拒む語の一覧は ADR-0034 が改めた」）に合わせること（高、前例）。決め手は1つめで、選択肢が一意に決まったので人間には聞いていない。
 - Affected modules: `docs/adr/0019-*.md`、`docs/adr/0026-*.md`、`docs/adr/0036-*.md`、`docs/adr/README.md`。
 - Alternatives considered:
@@ -615,7 +615,7 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 | 29.2 答えと根拠を載せる | ✓（`tests/test_theme_report.py`。Introduction の箇条書きと論点の表、Method の2つの表、Results の答えと根拠となる分析と指標と図、見直す前の答えの注記、`figures()` の順、Limitations と Future Directions、勧めの節が無いこと、Appendix が括弧の記録だけを最初に出た順に載せること） | ✓（`tests/tree_io/test_report.py`。記録から書いた Results・Limitations・Future Directions・Appendix、返す `figures` と画像のリンク、接続情報と分析コードと lineage が載らないこと。`tests/tree_io/test_render_design.py` に図のファイル名） | —（自動の E2E は無い。合成シナリオで `tree_io report --theme LIB` を回し、見本の第2版と見比べたことを Story Timeline に書いた） |
 | 29.3 読み手の言葉と、崩れない体裁 | ✓（`tests/test_theme_report.py`。`escape_source_text` の8つの文字・改行とタブ・先頭と末尾の記号・ふつうの文に足さないこと、すべての項目に記号を入れたレポートでどの入口もエスケープされること・表の列数・記法の始まりが残らないこと・図のリンクのファイル名、`READER_WORDS` の左側が用語表の語であることと、レポートが左側の語を含まないこと、terminal status の文が分析ノートと同じ物であること） | ✓（`tests/tree_io/test_report.py`。論点ツリーと journal に記号を入れて書いたファイルで、答えの文・`conclude` の本文・Appendix がエスケープされること） | —（自動の E2E は無い。合成シナリオに記号を入れて `tree_io report --theme LIB` を回し、markdown-it で描いて確かめたことを Story Timeline に書いた） |
 | 29.4 Claude Docs へ export する | ✓（`tests/skills/test_report_export_structure.py`。SKILL.md の文の契約: `written` が偽なら古いレポートも送らないこと、`path` だけを送り `.md.lock` を拾わないこと、KEEP ゲートの `root_answer_round` と `unfinished_designs` の長さ、図の扱いが `/report-upload` と同じこと、コネクタが無ければ聞かずに止まること） | —（skill はコネクタを通して動き、Python から呼べない。`tree_io report` の側は 29.1 の Integration が受け持つ） | —（自動の E2E は無い。合成シナリオで手順を手で回し、Claude Docs に Doc を作ったことを Story Timeline に書いた） |
-| 29.5 古いレポート周りを消し、文書をそろえる | ✓（`tests/skills/test_old_report_removed_structure.py`。消したファイルが無いこと、配る物と正本の文書が古い名前を持たないこと（ロードマップと Epic マッピングを除く）、`/analysis-auto` に report と upload の段が無く、まとめで `/report-export` の名前を挙げ Chaining の辺にしないこと、分析ノートの手元のファイルにレポートが無いこと。`tests/docs/test_canonical_docs.py` に用語表と README・ARCHITECTURE・PRD。`tests/skills/test_design_note_journal_structure.py` に、テンプレートと照らすのをやめた後に残す journal との照合） | ✓（`tests/tree_io/test_render_design.py`。`reports/` に古いレポートがあっても分析ノートがリンクしないこと） | —（自動の E2E は無い。合成シナリオに古いレポートを置いて `tree_io render` と `tree_io report` を回したことを Story Timeline に書いた） |
+| 29.5 古いレポート周りを消し、文書をそろえる | ✓（`tests/skills/test_old_report_removed_structure.py`。消したファイルが無いこと、配る物と README・ARCHITECTURE・PRD・用語表が古い名前を持たないこと（ロードマップと Epic マッピングを除く）、`/analysis-auto` に report と upload の段が無く、まとめで `/report-export` の名前を挙げ Chaining の辺にしないこと、分析ノートの手元のファイルにレポートが無いこと。`tests/docs/test_canonical_docs.py` に用語表と README・ARCHITECTURE・PRD。`tests/skills/test_design_note_journal_structure.py` に、journal の skill の定義との照合（テンプレートとの照合をやめた後も残す）） | ✓（`tests/tree_io/test_render_design.py`。`reports/` に古いレポートがあっても分析ノートがリンクしないこと） | —（自動の E2E は無い。合成シナリオに古いレポートを置いて `tree_io render` と `tree_io report` を回したことを Story Timeline に書いた） |
 
 ## Story Timeline
 
