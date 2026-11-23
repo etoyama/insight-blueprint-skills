@@ -37,12 +37,12 @@ AC の正本はここ。
 
 分析者として、分析が形式の決まりで止まらないように、notebook を上から下へ走る素の Python で生成して実行したい。
 
-- [ ] AC 1: notebook の契約が7つの cell（`imports`・`data_load`・`data_prep`・`analysis`・`viz`・`verdict`・`lineage`）を `# %% <名前>` の行で区切る形を定めている。
+- [x] AC 1: notebook の契約が7つの cell（`imports`・`data_load`・`data_prep`・`analysis`・`viz`・`verdict`・`lineage`）を `# %% <名前>` の行で区切る形を定めている。
   冒頭の docstring に分析設計の id・題・仮説・intent を書くこと、最初の区切りより前には docstring だけを書くこと、契約の変数をその cell だけで代入することも定めている。
   契約は marimo rules の節を持たず、`import marimo` を書かせない。
-- [ ] AC 2: 契約の見本の notebook を `python {id}.py` の1つのコマンドで走らせると、`verdict.json`、図の PNG、`lineage.mmd` ができる。
+- [x] AC 2: 契約の見本の notebook を `python {id}.py` の1つのコマンドで走らせると、`verdict.json`、図の PNG、`lineage.mmd` ができる。
   verdict の形は変わらない。結合テストが verdict・figures manifest・指標の任意の項目について確かめていることは、同じ内容のまま通る。
-- [ ] AC 3: 契約と `/analysis-notebook` の SKILL.md の実行の手順が1段になっている。`marimo export` と `{id}_flat.py` と `{id}.html` を書いていない。
+- [x] AC 3: 契約と `/analysis-notebook` の SKILL.md の実行の手順が1段になっている。`marimo export` と `{id}_flat.py` と `{id}.html` を書いていない。
 
 ### US-2: 分析者が、新しい形の notebook の分析コードを、分析ノートで cell ごとに読める
 
@@ -59,8 +59,8 @@ AC の正本はここ。
 
 plugin を入れる分析者として、使わないパッケージを抱えないために、env と既定の許可リストから marimo を外したい。
 
-- [ ] AC 1: `pyproject.toml` の `notebook` extra と開発用の依存に、marimo が無い。`uv.lock` にも無い。
-- [ ] AC 2: 契約の既定の許可リストが `insight_blueprint`・`pandas`・`matplotlib`・`numpy` である。
+- [x] AC 1: `pyproject.toml` の `notebook` extra と開発用の依存に、marimo が無い。`uv.lock` にも無い。
+- [x] AC 2: 契約の既定の許可リストが `insight_blueprint`・`pandas`・`matplotlib`・`numpy` である。
   構造テストが、既定の許可リスト、契約の `imports` の cell の import、plugin の env の3つが一致することを確かめている。
 - [ ] AC 3: CHANGELOG の `[Unreleased]` に、更新した利用者に起きること2つと直し方が書いてある。
   旧形式の notebook は分析ノートにコードが出なくなること。旧形式の notebook を手で走らせるには、パッケージ許可リストに `marimo: marimo` を足し、`--with marimo` を付けること。
@@ -271,6 +271,27 @@ sequenceDiagram
 - Alternatives considered: 7つの名前と順を確かめ、合わなければ載せない。契約から外れた notebook を早く見つけられるが、コードを読めなくなる。
 - Consequences: 契約から外れた notebook に、分析ノートは気づかない。
 
+### Decision: the-docstring-escapes-backslashes-and-double-quotes
+
+- What: 冒頭の docstring に分析設計の文を書くとき、`\` を `\\` に、`"` を `\"` にする（契約の「File layout」）。
+- Why: 題や仮説の文に `"""` が入ると docstring がそこで終わり、notebook が Python として読めなくなる。`\` が入ると、エスケープとして読まれて文字が変わる。
+- Criteria: notebook が必ず読めること（US-1 AC 2、ADR-0045 の切り出しの決まり「Python として読める」）と、docstring の値が元の文と同じであること。決め手は、2つの文字を置き換えるだけで両方を満たすこと。
+  scratchpad で、`"""`・`"`・`\` を含む題と仮説を書いた notebook を走らせ、`ast.get_docstring` の値が元の文と同じになることを確かめた。
+- Affected modules: `skills/analysis-notebook/references/notebook-contract.md`
+- Alternatives considered: raw の docstring（`r"""`）。`\` は守れるが `"""` で終わる。`'''` で囲む。文に `'''` が入ると同じ問題が起きる。
+- Consequences: `"` を含む文は、`.py` の上では `\"` と見える。分析ノートは docstring を載せないので、読み手には出ない。
+
+### Decision: every-import-lives-in-the-imports-cell
+
+- What: import はすべて `imports` の cell に書く。データソースのクライアントのライブラリと、手法に固有のパッケージも含む。`imports` の cell では、`pyplot` を読み込む前に `matplotlib.use("Agg")` を呼ぶ。
+- Why: SQL のデータソースの notebook を scratchpad で書くと、クライアントの import を `data_load` の cell に書きたくなる。その cell は分析ノートに出ないので、notebook が何を import したかが読み手から見えなくなる。marimo rules の9（import は1つの cell で）が消えるので、その意図を契約に残す。
+  `Agg` は、素の `python` の実行で窓を開かないためである。marimo のときは marimo が描画を引き受けていた。
+- Criteria: パッケージ許可リストの照らし（ADR-0021）と分析ノートの読み手に、import が見えること。決め手は、データ取得の cell を隠す決まり（ADR-0022）と両立すること。
+- Affected modules: `skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-notebook/SKILL.md`、`tests/integration/fixtures/sample_notebook.py`
+- Alternatives considered: import の場所を決めない。`data_load` の import が分析ノートから消える。
+- 併せて、接続情報の値（パス、テーブル名、project id、ホスト、それを受け取るクライアントの生成）は `data_load` の cell にだけ書く、と契約と SKILL.md に命令の文で書いた。分析ノートが隠すのは `data_load` の cell だけで、ほかの cell の値は出る。import を `imports` の cell に寄せると、クライアントの生成もそこに書かれやすくなるので、レビューの指摘で足した。
+- Consequences: ruff の E402（モジュールの import が先頭にない）が、`matplotlib.use` の後の import に出る。生成された notebook は lint しないので、利用者には影響しない。見本は `noqa` で抑えた。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0045: notebook は `# %%` で cell を区切る素の Python にし、marimo の書式をやめる](../adr/0045-notebook-is-plain-python-with-percent-cells.md): 形式、7つの cell、実行の1段、分析ノートの切り出しの決まり、旧形式の notebook を読まないこと。
@@ -282,7 +303,7 @@ sequenceDiagram
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| 30.1 契約と実行と env | ☐（`tests/skills/` の構造テスト。契約の cell の表、既定の許可リストの3つの一致、実行のコマンド） | ☐（`tests/integration/test_analysis_notebook_contract.py`。見本を1つのコマンドで走らせ、出力を確かめる） | ☐ |
+| 30.1 契約と実行と env | ✓（`tests/skills/test_notebook_contract_structure.py`、`test_default_allowlist_structure.py`、`test_connection_boundary_structure.py`。契約の cell の表と File layout、既定の許可リストの3つの一致と env と `uv.lock`、実行のコマンド） | ✓（`tests/integration/test_analysis_notebook_contract.py`。見本が契約の形であることと、見本を `python` の1つのコマンドで走らせた出力） | —（plugin を入れた分析者の環境で `/analysis-notebook` を走らせる経路は自動のテストが無い。scratchpad で、SQL のデータソースと図が2枚の notebook を同じコマンドで走らせて確かめた） |
 | 30.2 分析ノートの切り出し | ☐（`tests/test_design_note_read.py`。契約の形、崩れた形、旧形式。`tests/test_design_note.py` の cell の名前と案内の文） | ☐（`tests/tree_io/test_render_design.py`） | ☐ |
 | 30.3 文書 | ☐（`tests/docs/test_canonical_docs.py`） | ☐ | ☐ |
 
@@ -296,3 +317,7 @@ sequenceDiagram
   分かった事実。データ取得の cell と、そこに書いたデータの場所は、分析ノートに出なかった。cell の中に関数の定義（空行を含む）を書いても、cell は正しく切り出せた。分析ノートは 25KB だった。
   確かめていない前提。cell の見出しの書き方（見本では「cell 3 · data_prep」）は仮のもので、30.2 で決める。SQL のデータソースと、図が複数の notebook は走らせていない。エディタが `# %%` を cell として扱うことも確かめていない。
 - 2026-11-23 — 人間が見本を見て、初版と Domain Model の図（`CodeCell` に `name` を足す）を承認した。
+- 2026-11-23 — Story 30.1 completed: 契約を7つの `# %%` の cell と冒頭の docstring に書き直し、marimo rules の節を消した。実行は `python {id}.py` の1段にした。見本の notebook を新しい形にし、`notebook` extra・開発用の依存・`uv.lock`・既定の許可リストから marimo を外した。
+  scratchpad で、SQL のデータソース（sqlite）と図が2枚の notebook を新しい形で書いて走らせた。`verdict.json`、図の PNG 2枚、`lineage.mmd` が出た。分かったことを Decisions の2つに書いた。
+  日本語の軸ラベルは、matplotlib の既定のフォントで字が出ない（警告だけで止まらない）。marimo のときも同じで、この Epic では扱わない。
+  Story の差分に thermo-nuclear-review を1本回した。致命的な指摘は無かった。中くらいの1件（接続情報の値を `data_load` だけに書く命令が契約に無い）と、低い3件（見本の区切りの行の後ろに文がある、置き方のテストが pandas の無い env で一緒に skip される、テストの名前の古い言い方）を、この Story の中で直した。

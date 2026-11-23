@@ -1,21 +1,76 @@
-# marimo notebook contract (8-cell)
+# Notebook contract (7 cells)
 
-The `/analysis-notebook` skill generates a marimo notebook that follows this fixed 8-cell
+The `/analysis-notebook` skill generates a plain Python script that follows this fixed 7-cell
 structure. The contract keeps generated notebooks predictable, lineage-tracked, and
 machine-readable (the `verdict` cell persists a JSON side-effect that the skill reads back).
+The script runs from top to bottom with `python` (see "Execution" below).
+
+## File layout
+
+The file opens with a docstring that holds the design's id, title, hypothesis and intent.
+Inside the docstring, write each `\` as `\\` and each `"` as `\"`, so a title or a hypothesis
+cannot end the docstring early or turn into an escape sequence.
+Only the docstring comes before the first `# %%` line: no import, no assignment, no other statement.
+
+A cell starts at a `# %% <name>` line written at the start of a line, and runs up to the next
+`# %%` line (or the end of the file). The seven cells come in the order of the table below,
+each under its own name. The analysis note shows every cell but `data_load` with its name and
+leaves `data_load` out, because that cell holds the connection values (ADR-0022, ADR-0045).
+
+Assign each contract variable only in the cell that makes it (`raw_df`, `session`, `df_clean`,
+`results`, `figure_manifest`, `verdict`; see "Assigns" below). Never reassign another cell's
+variable; give an intermediate a fresh name instead.
+Put every import in the `imports` cell, the source's client library and the methodology-specific
+packages included. An import in `data_load` would be hidden from the analysis note with that cell.
+The `imports` cell holds imports and settings only.
+
+Write every `connection` value only in the `data_load` cell: a file path, a table name, a project id,
+a host, and the client that takes one (`bigquery.Client(project=...)`). The analysis note hides only
+that cell, so a `connection` value in any other cell shows there. A second source that the
+`analysis` cell reads is loaded in `data_load` too.
+
+```python
+"""H01 — 平日夜の予約は週末より多い
+
+- Design ID: H01
+- Hypothesis: 平日夜の予約数は週末の予約数を上回る
+- Intent: confirmatory
+"""
+
+# %% imports
+import json
+from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from insight_blueprint.lineage import LineageSession, export_lineage_as_mermaid, tracked_pipe
+
+plt.rcParams["figure.figsize"] = (10, 6)
+
+# %% data_load
+raw_df = pd.read_csv("data/reservations.csv")
+session = LineageSession(name="H01-analysis", design_id="H01")
+
+# %% data_prep
+...
+```
 
 ## Cells
 
-| # | Name | Signature | Returns | Responsibility |
-|---|------|-----------|---------|----------------|
-| 0 | imports | `def _():` | `(pd, plt, np, LineageSession, tracked_pipe, export_lineage_as_mermaid, json, Path)` | Library imports + `plt.rcParams["figure.figsize"] = (10, 6)` |
-| 1 | meta | `def _(mo):` | — | `mo.md()` of design id / title / hypothesis / intent (display only) |
-| 2 | data_load | `def _(pd, LineageSession):` | `(raw_df, session, mo)` | Load source into `raw_df`. Each `{source:ID}` in `methodology.steps` becomes the location in that source's `connection`: a string literal in Python code, a quoted identifier in a SQL query (ADR-0022); an `ID` not in `source_ids` stops the generation; `session = LineageSession(name="{id}-analysis", design_id="{id}")`. **Only this cell** does `import marimo as mo` |
-| 3 | data_prep | `def _(raw_df, session, tracked_pipe, mo):` | `(df_clean,)` | Methodology-**independent** cleaning (nulls, types, filters). Every transform via `tracked_pipe(...)` |
-| 4 | analysis | `def _(df_clean, pd, np, session, tracked_pipe, mo):` | `(results,)` | Methodology-**dependent** analysis (branch on `analysis_intent`). `results` MUST include `hypothesis_direction`, `observed_direction`, `confidence_level`, `decision_reason` |
-| 5 | viz | `def _(df_clean, results, plt):` | `(figure_manifest,)` | Plots; local vars use `_` prefix; **save each figure** to `.insight/notebooks/{id}_fig{NN:02d}.png` and build `figure_manifest` (see figures below); final expression is `plt.gcf()` |
-| 6 | verdict | `def _(results, figure_manifest, json, Path, mo):` | `(verdict,)` | Build `verdict` dict (include `figures=figure_manifest`) and **persist it** to `.insight/notebooks/{id}_verdict.json` (the skill reads this). Display via `mo.md()` |
-| 7 | lineage | `def _(session, export_lineage_as_mermaid, mo):` | — | `export_lineage_as_mermaid(session, project_path=".")` → `.insight/lineage/{id}.mmd`; display via `mo.mermaid()` |
+| Name | Assigns | Responsibility |
+|------|---------|----------------|
+| `imports` | `pd, plt, np, LineageSession, tracked_pipe, export_lineage_as_mermaid, json, Path` | Library imports. Call `matplotlib.use("Agg")` before importing `pyplot`, so a run opens no window; then `plt.rcParams["figure.figsize"] = (10, 6)` |
+| `data_load` | `raw_df`, `session` | Load source into `raw_df`. Each `{source:ID}` in `methodology.steps` becomes the location in that source's `connection`: a string literal in Python code, a quoted identifier in a SQL query (ADR-0022); an `ID` not in `source_ids` stops the generation; `session = LineageSession(name="{id}-analysis", design_id="{id}")`. The only cell that assigns `raw_df` |
+| `data_prep` | `df_clean` | Methodology-**independent** cleaning (nulls, types, filters). Every transform via `tracked_pipe(...)` |
+| `analysis` | `results` | Methodology-**dependent** analysis (branch on `analysis_intent`). `results` MUST include `hypothesis_direction`, `observed_direction`, `confidence_level`, `decision_reason` |
+| `viz` | `figure_manifest` | Plots; **save each figure** to `.insight/notebooks/{id}_fig{NN:02d}.png`, close it, and build `figure_manifest` (see figures below) |
+| `verdict` | `verdict` | Build `verdict` dict (include `figures=figure_manifest`) and **persist it** to `.insight/notebooks/{id}_verdict.json` (the skill reads this) |
+| `lineage` | — | `export_lineage_as_mermaid(session, project_path=".")` → `.insight/lineage/{id}.mmd` |
 
 ## Lineage calls
 
@@ -24,17 +79,18 @@ first, then `reason` and `session` as **keyword-only** arguments, and returns a 
 DataFrame — pass it to `.pipe()`. It never takes the DataFrame itself, and it has no `name`.
 
 ```python
-# cell 2 (data_load)
+# %% data_load
 session = LineageSession(name="{id}-analysis", design_id="{id}")
 
-# cell 3 (data_prep) — same shape in cell 4; one tracked_pipe per transform
-def _drop_nulls(df):
+# %% data_prep
+# Same shape in the analysis cell; one tracked_pipe per transform.
+def drop_nulls(df):
     return df.dropna()
 
-df_clean = raw_df.pipe(tracked_pipe(_drop_nulls, reason="drop rows with nulls", session=session))
+df_clean = raw_df.pipe(tracked_pipe(drop_nulls, reason="drop rows with nulls", session=session))
 ```
 
-## `results` shape (cell 4)
+## `results` shape (`analysis` cell)
 
 ```python
 # confirmatory
@@ -63,7 +119,7 @@ results = {
 }
 ```
 
-## `verdict` shape (cell 6) — persisted JSON
+## `verdict` shape (`verdict` cell) — persisted JSON
 
 ```python
 verdict = {
@@ -71,14 +127,14 @@ verdict = {
     "evidence_summary": ["...", "..."],
     "open_questions": ["...", "..."],
     "metrics": results.get("metrics", {}),  # confirmatory: persist so the note and report tabulate
-    "figures": figure_manifest,  # from cell 5 (may be []); see figures below
+    "figures": figure_manifest,  # from the viz cell (may be []); see figures below
 }
 Path(".insight/notebooks/{id}_verdict.json").write_text(
     json.dumps(verdict, ensure_ascii=False)
 )
 ```
 
-## Optional metric items (cell 4) — effect size, confidence interval, sample size (ADR-0013)
+## Optional metric items (`analysis` cell) — effect size, confidence interval, sample size (ADR-0013)
 
 Each entry of `results["metrics"]` may carry three **optional** items, so a reader of the report
 can tell how large and how certain an effect is, not only whether it passed. The notebook (the
@@ -96,11 +152,11 @@ computes a missing one ([ADR-0013](../../../docs/adr/0013-verdict-metric-optiona
   then leave that key out. Never write `null`, `0`, or a placeholder for an item you cannot compute.
 - **An item is all-or-nothing.** `effect_size` without `kind`, or `confidence_interval` without
   `level`, cannot be read correctly, so the consumer treats a partial item as absent.
-- Compute them in cell 4 from the same data as `value`. Do not copy a number from elsewhere.
+- Compute them in the `analysis` cell from the same data as `value`. Do not copy a number from elsewhere.
 - A verdict written before this contract simply lacks the keys; the report then comes out in its
   earlier form (graceful degrade).
 
-## `figure_manifest` shape (cell 5) — figures for the analysis note and the report (ADR-0008)
+## `figure_manifest` shape (`viz` cell) — figures for the analysis note and the report (ADR-0008)
 
 The viz cell **saves each figure as a PNG** and records a manifest so the analysis note and the report
 (read-only consumers) can embed figures with axis + how-to-read captions **without
@@ -108,8 +164,10 @@ re-rendering**. The figure's truth (actual axes, how to read it) lives with the 
 here, not reconstructed from `design.chart[]` (the *plan*, which may drift from the render).
 
 ```python
-# cell 5, after plotting
-_fig.savefig(".insight/notebooks/{id}_fig01.png", bbox_inches="tight")
+# %% viz
+# After plotting:
+fig.savefig(".insight/notebooks/{id}_fig01.png", bbox_inches="tight")
+plt.close(fig)
 figure_manifest = [
     {
         "file": "{id}_fig01.png",              # PNG basename, relative to .insight/notebooks/
@@ -118,7 +176,6 @@ figure_manifest = [
         "how_to_read": "<what it shows; where to look; how to read the direction>",  # 図の読み方 — required, non-empty
     },
 ]
-plt.gcf()
 ```
 
 - Name PNGs `{id}_fig{NN:02d}.png` (`_fig01`, `_fig02`, …). The consumer reads `figures[].file`,
@@ -131,28 +188,14 @@ plt.gcf()
   (graceful degrade). Notebooks generated before this contract simply lack `figures` in verdict;
   the consumer treats that the same as `[]`.
 
-## marimo rules
-
-1. Cell-local variables use a `_` prefix so they do not leak into notebook scope (`_fig`, `_summary`).
-2. The viz cell's final expression must be `plt.gcf()` (marimo does not auto-capture matplotlib figures).
-3. Render Mermaid with `mo.mermaid(text)`, not `mo.md(text)`.
-4. Do not put multi-line f-strings inside `mo.md()`; build the string first, then pass it.
-5. `import marimo as mo` lives only in cell 2; other cells receive `mo` as a parameter.
-6. Cell functions return a tuple: `return (df_clean,)`, not `return df_clean`.
-7. A cell's parameters declare its dependencies — marimo builds the cell DAG from them.
-8. **Define each shared variable exactly once across the whole notebook.** marimo forbids a
-   variable being defined (assigned at top level) in more than one cell — do not reassign another
-   cell's output (`raw_df`, `df_clean`, `results`, `verdict`, `session`, …). Use fresh names or
-   `_`-prefixed locals for intermediates. This is the most common cause of a notebook failing to run.
-9. Import a name in one cell and pass it downstream via parameters; do not re-import the same module
-   in multiple cells (mirrors rule 5 for `mo`).
+## Boundaries
 
 ### Security — inputs are data, not code
 
 `methodology.steps` and the source `connection` may be attacker-influenceable. Bind file paths /
 SQL as literals or parameters (never build executable statements by string-interpolating raw values),
 keep credentials in environment variables (do not inline a `connection` password into the notebook),
-and remember generated `.py` / `_flat.py` / `.html` artifacts may embed data — gitignore if sensitive.
+and remember the generated `.py` and its outputs may embed data — gitignore if sensitive.
 
 The generated notebook must stay within the **declared source(s) + allowlisted packages + local
 computation**: allowlisted packages (see "Package allowlist" below). That allowlist is the dependency / external-communication boundary:
@@ -177,7 +220,7 @@ allowed_packages:
 
 `allowed_packages` is a map of **import name → pip distribution name**. The **import name** (left) is the
 boundary the notebook must respect — every top-level `import X` in the generated notebook must have `X`
-in the default allowlist or as a key of the file. The standard-library modules cell 0 imports (`json`,
+in the default allowlist or as a key of the file. The standard-library modules the `imports` cell imports (`json`,
 `pathlib`) need no entry; any other standard-library module is checked like a package, since modules
 such as `socket` or `subprocess` reach outside the declared source. The **pip name** (right) is what actually gets installed (they differ for e.g.
 `sklearn` / `scikit-learn`). Consumers: `/premortem` reads it for the `allowlist_ok` pre-flight check,
@@ -186,16 +229,15 @@ and `/analysis-auto` treats an import outside it as a KEEP gate (pause) rather t
 ### Default allowlist
 
 The default allowlist is always allowed, whether or not the file exists and whatever the file lists;
-the file adds packages to it. It is every package the cells above import (`pd`, `plt`, `np` and
-`LineageSession` in cell 0, `mo` in cell 2), and those are exactly the packages the plugin env ships
-(the `notebook` extra of the plugin's `pyproject.toml` and the plugin's own `insight_blueprint`).
-Leaving one of them out would stop every notebook and protect nothing (ADR-0021, ADR-0027).
+the file adds packages to it. It is every package the `imports` cell imports (`pd`, `plt`, `np` and
+`LineageSession`), and those are exactly the packages the plugin env ships (the `notebook` extra of
+the plugin's `pyproject.toml` and the plugin's own `insight_blueprint`). Leaving one of them out
+would stop every notebook and protect nothing (ADR-0021, ADR-0027, ADR-0046).
 
 ```yaml
 # default allowlist (always allowed)
 allowed_packages:
   insight_blueprint: insight-blueprint-lineage
-  marimo: marimo
   pandas: pandas
   matplotlib: matplotlib
   numpy: numpy
@@ -216,9 +258,7 @@ layers it onto the run without touching the cached env:
 ```bash
 # e.g. a notebook that imports sklearn (allowlisted as sklearn: scikit-learn)
 uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook --with scikit-learn \
-  marimo export script .insight/notebooks/{id}.py -o .insight/notebooks/{id}_flat.py
-uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook --with scikit-learn \
-  python .insight/notebooks/{id}_flat.py
+  python .insight/notebooks/{id}.py
 ```
 
 Pass one `--with` per extra pip name (repeatable). Packages used by *every* analysis belong in the
@@ -226,35 +266,25 @@ Pass one `--with` per extra pip name (repeatable). Packages used by *every* anal
 
 ## Execution (non-interactive)
 
-marimo 0.21 has **no `export session`** (and `export ipynb` needs `nbformat`). Execute by converting
-to a flat script and running it — no extra deps:
+The notebook is a plain script, so one command runs it from top to bottom:
 
 ```bash
-# Run from the project directory; the plugin env supplies marimo + insight_blueprint.
+# Run from the project directory; the plugin env supplies pandas, matplotlib, numpy and insight_blueprint.
 uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
-  marimo export script .insight/notebooks/{id}.py -o .insight/notebooks/{id}_flat.py
-uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
-  python .insight/notebooks/{id}_flat.py
+  python .insight/notebooks/{id}.py
 ```
 
-Running the flat script executes cells in dependency order, so the verdict cell writes
+The run executes the cells in file order, so the verdict cell writes
 `.insight/notebooks/{id}_verdict.json` and the lineage cell writes `.insight/lineage/{id}.mmd`.
-The skill then reads `{id}_verdict.json` to build journal events.
-
-Optional human-viewable artifact — note this **re-executes** the notebook (rewriting verdict.json /
-lineage.mmd), so run it after the script run, not instead of it:
-
-```bash
-uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
-  marimo export html .insight/notebooks/{id}.py -o .insight/notebooks/{id}.html
-```
+The skill then reads `{id}_verdict.json` to build journal events. When the run stops, the
+traceback names the line; fix the cell that holds it and run the same command again.
 
 ## verdict → journal events
 
 Map the verdict into `observe` / `evidence` / `question` events appended to
 `.insight/designs/{id}_journal.yaml` (never `conclude` — concluding is `/analysis-reflection`):
 
-- `observe` — data characteristics (from cells 2–3).
+- `observe` — data characteristics (from the `data_load` and `data_prep` cells).
 - `evidence` — each item of `evidence_summary`; set `metadata.direction`:
   - confirmatory: `supported`→`supports`, `rejected`→`contradicts`, `inconclusive`→(question)
   - exploratory: matches prediction→`supports`, opposes→`contradicts`, unclear→(question)

@@ -1,4 +1,4 @@
-"""Structure tests for the package allowlist (Epic 16 / ADR-0021, amended by ADR-0027).
+"""Structure tests for the package allowlist (Epic 16 / ADR-0021, ADR-0027, ADR-0046).
 
 ``allowlist_ok`` is built by the driver from SKILL.md prose; no code reads
 ``package_allowlist.yaml``. These tests guard the load-bearing sentences: the default
@@ -22,8 +22,8 @@ CONTRACT = SKILLS_DIR / "analysis-notebook" / "references" / "notebook-contract.
 SAMPLE = REPO_ROOT / ".insight" / "rules" / "package_allowlist.yaml"
 ALLOWLIST_FILE = "`.insight/rules/package_allowlist.yaml`"
 
-# Where each name in cell 0's return tuple comes from.
-CELL0_SOURCES = {
+# Where each name the imports cell binds comes from.
+IMPORTS_CELL_SOURCES = {
     "pd": "pandas",
     "plt": "matplotlib",
     "np": "numpy",
@@ -53,12 +53,19 @@ def _default_allowlist() -> dict[str, str]:
     return yaml.safe_load(fenced.group(1))["allowed_packages"]
 
 
+def _pyproject() -> dict:
+    return tomllib.loads((REPO_ROOT / "pyproject.toml").read_text("utf-8"))
+
+
+def _pip_name(dependency: str) -> str:
+    return re.split(r"[<>=!~\[; ]", dependency)[0]
+
+
 def _plugin_env() -> set[str]:
     """The pip names the plugin env ships: the project itself and its notebook extra."""
-    pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text("utf-8"))
-    project = pyproject["project"]
+    project = _pyproject()["project"]
     extra = project["optional-dependencies"]["notebook"]
-    return {project["name"]} | {re.split(r"[<>=!~\[; ]", dep)[0] for dep in extra}
+    return {project["name"]} | {_pip_name(dep) for dep in extra}
 
 
 class TestDefaultAllowlistIsWhatTheContractImports:
@@ -70,23 +77,45 @@ class TestDefaultAllowlistIsWhatTheContractImports:
     def test_the_plugin_library_is_allowed_by_its_import_name(self) -> None:
         assert _default_allowlist()["insight_blueprint"] == "insight-blueprint-lineage"
 
+    def test_it_is_the_plugin_library_and_three_data_packages(self) -> None:
+        assert set(_default_allowlist()) == {
+            "insight_blueprint",
+            "pandas",
+            "matplotlib",
+            "numpy",
+        }
+
     def test_import_names_are_every_non_stdlib_module_the_cells_import(self) -> None:
-        returns = table_row(section(_contract(), "## Cells"), "0")[3]
-        names = re.findall(r"\w+", returns)
-        assert set(names) == set(CELL0_SOURCES), "cell 0 returns only known names"
-        modules = set(CELL0_SOURCES.values()) | {"marimo"}
-        assert "`import marimo as mo`" in _contract()
+        binds = table_row(section(_contract(), "## Cells"), "`imports`")[1]
+        names = re.findall(r"\w+", binds)
+        assert set(names) == set(IMPORTS_CELL_SOURCES), "imports binds known names"
+        modules = set(IMPORTS_CELL_SOURCES.values())
         assert modules - sys.stdlib_module_names == set(_default_allowlist())
 
-    def test_only_the_stdlib_modules_of_cell_0_need_no_entry(self) -> None:
-        stdlib = set(CELL0_SOURCES.values()) & sys.stdlib_module_names
+    def test_only_the_stdlib_modules_of_the_imports_cell_need_no_entry(self) -> None:
+        stdlib = set(IMPORTS_CELL_SOURCES.values()) & sys.stdlib_module_names
         assert stdlib == {"json", "pathlib"}
         block = unwrap(section(_contract(), "### Format"))
         assert (
-            "The standard-library modules cell 0 imports (`json`, `pathlib`) need no entry"
-            in block
+            "The standard-library modules the `imports` cell imports (`json`, `pathlib`)"
+            " need no entry" in block
         )
         assert "any other standard-library module is checked like a package" in block
+
+
+class TestMarimoLeftThePluginEnv:
+    """US-3 AC 1 (ADR-0046): no notebook uses marimo, so the env does not ship it."""
+
+    def test_the_notebook_extra_has_no_marimo(self) -> None:
+        assert "marimo" not in _plugin_env()
+
+    def test_the_dev_dependencies_have_no_marimo(self) -> None:
+        dev = _pyproject()["dependency-groups"]["dev"]
+        assert "marimo" not in {_pip_name(dep) for dep in dev}
+
+    def test_the_lock_has_no_marimo(self) -> None:
+        lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text("utf-8"))
+        assert "marimo" not in {package["name"] for package in lock["package"]}
 
 
 class TestDefaultAllowlistIsAlwaysAllowed:

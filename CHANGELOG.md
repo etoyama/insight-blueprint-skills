@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **A notebook is now a plain Python script cut into seven `# %% <name>` cells, and it runs in
+  one step.** `/analysis-notebook` writes `.insight/notebooks/{id}.py` with a docstring of the
+  design and the cells `imports`, `data_load`, `data_prep`, `analysis`, `viz`, `verdict` and
+  `lineage`, and runs it with `uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook python
+  .insight/notebooks/{id}.py`. It no longer writes `{id}_flat.py` or `{id}.html`. The verdict,
+  the figures and the lineage keep their form. marimo leaves the plugin env and the default
+  allowlist, which is now `insight_blueprint`, `pandas`, `matplotlib` and `numpy`
+  ([ADR-0045](docs/adr/0045-notebook-is-plain-python-with-percent-cells.md),
+  [ADR-0046](docs/adr/0046-marimo-leaves-the-plugin-env-and-the-default-allowlist.md), #200).
+
 ## [0.16.0] - 2026-11-23
 
 ### Added

@@ -1,14 +1,17 @@
-"""Integration test for the /analysis-notebook 8-cell contract mechanics (Epic 07).
+"""Integration test for the /analysis-notebook contract mechanics (Epic 07, Epic 30).
 
-Guards the execution path the skill relies on: convert the reference notebook to a flat
-script (`marimo export script`), run it, and assert the verdict JSON side-effect + Mermaid
-lineage export. Skipped when the optional `notebook` extra (marimo/pandas/matplotlib) is
-not installed — matching how a minimal install lacks the analysis-runtime deps.
+Guards the execution path the skill relies on: run the reference notebook, a plain
+Python script cut into ``# %% <name>`` cells (ADR-0045), with ``python`` in one step and
+assert the verdict JSON side-effect + Mermaid lineage export. The run is skipped when
+the optional `notebook` extra (pandas/matplotlib) is not installed — matching how a minimal install
+lacks the analysis-runtime deps.
 """
 
 from __future__ import annotations
 
+import ast
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -16,35 +19,86 @@ from pathlib import Path
 
 import pytest
 
-pytest.importorskip("marimo")
-pytest.importorskip("pandas")
-pytest.importorskip("matplotlib")
-
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_notebook.py"
+CONTRACT = (
+    Path(__file__).parents[2]
+    / "skills"
+    / "analysis-notebook"
+    / "references"
+    / "notebook-contract.md"
+)
+_DELIMITER = re.compile(r"^# %% (\w+)$")
 
 
 def _run_fixture(tmp_path: Path) -> dict:
-    """Export the reference notebook to a flat script (no nbformat needed), run it in
-    ``tmp_path`` — the skill's execution mechanism — and return the verdict side-effect.
+    """Run the reference notebook in ``tmp_path`` with one ``python`` command — the
+    skill's execution mechanism — and return the verdict side-effect.
     """
+    pytest.importorskip("pandas")
+    pytest.importorskip("matplotlib")
     nb = tmp_path / "SAMPLE.py"
     shutil.copy(FIXTURE, nb)
-    flat = tmp_path / "SAMPLE_flat.py"
-    export = subprocess.run(
-        [sys.executable, "-m", "marimo", "export", "script", str(nb), "-o", str(flat)],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-    )
-    assert export.returncode == 0, export.stderr
     run = subprocess.run(
-        [sys.executable, str(flat)], cwd=tmp_path, capture_output=True, text=True
+        [sys.executable, str(nb)], cwd=tmp_path, capture_output=True, text=True
     )
     assert run.returncode == 0, run.stderr
     return json.loads((tmp_path / "verdict.json").read_text(encoding="utf-8"))
 
 
-def test_notebook_contract_export_run_and_sideeffects(tmp_path: Path) -> None:
+def _cells() -> list[tuple[str, str]]:
+    """The fixture's cells as (name, source), cut at the delimiter lines."""
+    cells: list[tuple[str, list[str]]] = []
+    for line in FIXTURE.read_text(encoding="utf-8").splitlines(keepends=True):
+        found = _DELIMITER.match(line.rstrip("\n"))
+        if found:
+            cells.append((found.group(1), []))
+        if cells:
+            cells[-1][1].append(line)
+    return [(name, "".join(lines)) for name, lines in cells]
+
+
+def _contract_cell_names() -> list[str]:
+    table = CONTRACT.read_text(encoding="utf-8").split("## Cells", 1)[1]
+    return re.findall(r"^\| `(\w+)` \|", table.split("\n## ", 1)[0], re.M)
+
+
+class TestTheSampleIsLaidOutAsTheContractSays:
+    """US-1 AC 2: the reference notebook is the contract's form, not marimo's."""
+
+    def test_its_cells_are_the_contract_cells_in_order(self) -> None:
+        names = _contract_cell_names()
+        assert len(names) == 7
+        assert [name for name, _ in _cells()] == names
+
+    def test_only_the_docstring_comes_before_the_first_cell(self) -> None:
+        text = FIXTURE.read_text(encoding="utf-8")
+        head = text.split("\n# %% ", 1)[0]
+        body = ast.parse(head).body
+        assert len(body) == 1
+        assert isinstance(body[0], ast.Expr)
+        assert isinstance(body[0].value, ast.Constant)
+        assert isinstance(body[0].value.value, str)
+
+    def test_each_contract_variable_is_assigned_in_one_cell(self) -> None:
+        owners: dict[str, list[str]] = {}
+        for name, source in _cells():
+            for node in ast.walk(ast.parse(source)):
+                if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+                    owners.setdefault(node.id, [])
+                    if name not in owners[node.id]:
+                        owners[node.id].append(name)
+        assert owners["raw_df"] == ["data_load"]
+        assert owners["session"] == ["data_load"]
+        assert owners["df_clean"] == ["data_prep"]
+        assert owners["results"] == ["analysis"]
+        assert owners["figure_manifest"] == ["viz"]
+        assert owners["verdict"] == ["verdict"]
+
+    def test_it_does_not_use_marimo(self) -> None:
+        assert "marimo" not in FIXTURE.read_text(encoding="utf-8")
+
+
+def test_notebook_contract_run_and_sideeffects(tmp_path: Path) -> None:
     # verdict JSON side-effect (what the skill reads to build journal events)
     verdict = _run_fixture(tmp_path)
     assert {"conclusion", "evidence_summary", "open_questions"} <= set(verdict)
