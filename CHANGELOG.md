@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-23
+
 ### Added
 
 - **`tree_io report --theme {theme_id}` writes the final report of a theme.** Code writes
@@ -690,6 +692,7 @@ Version bumps and maintenance releases. See git history for details:
 - SQLite FTS5 full-text search index
 
 [unreleased]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.14.1...HEAD
+[0.16.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.13.0...v0.14.0
