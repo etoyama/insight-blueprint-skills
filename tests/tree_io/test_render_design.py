@@ -473,7 +473,11 @@ def _notebook(insight: Path, design_id: str, load_line: str) -> None:
         f'"""{design_id}"""\n\n'
         "# %% imports\nimport pandas as pd\n\n"
         f"# %% data_load\n{load_line}\n\n"
-        "# %% data_prep\ndf_clean = raw_df.dropna()\n"
+        "# %% data_prep\ndf_clean = raw_df.dropna()\n\n"
+        "# %% analysis\nresults = {}\n\n"
+        "# %% viz\nfigure_manifest = []\n\n"
+        "# %% verdict\nverdict = {}\n\n"
+        "# %% lineage\nprint(verdict)\n"
     )
     (notebooks / f"{design_id}.py").write_text(text, encoding="utf-8")
 
