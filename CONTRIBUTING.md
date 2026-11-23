@@ -21,7 +21,8 @@ cd insight-blueprint-skills
 # --all-extras がないと ruff・ty・pytest・poe が入らない
 uv sync --all-extras
 
-# commit の前に lint・typecheck・test を回す
+# commit の前に lint・typecheck・test を、push の前に uv run poe all を回す。
+# hook は clone の .git に入るので、同じ clone のワークツリーすべてに効く
 uv run pre-commit install
 
 # .claude/settings.json で宣言したプラグイン（yomiyasu・decision-analysis）を入れる

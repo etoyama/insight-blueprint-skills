@@ -1,7 +1,7 @@
 # 開発フローの決定（repo-template のコピー）
 
 このディレクトリには [etoyama/repo-template](https://github.com/etoyama/repo-template) の ADR の
-コピーだけを置く。採用したコミットは `168ba50f49f5e2b83de94e80374be493cc195c76`（FLOW-0006〜0008 を足した時点。FLOW-0001〜0005 の本文は変わっていない）。
+コピーだけを置く。採用したコミットは `f33bdaa5c9252d8667fe4075bd7bf824675d9706`（FLOW-0009・0010 を足した時点。FLOW-0001〜0008 の本文は変わっていない）。
 [docs/WORKFLOW.md](../../WORKFLOW.md) と `.claude/rules/` のテンプレートは、ここの文書を決定の出典として参照する。
 
 - 番号は repo-template のものを保つ。表記は `FLOW-000N` とし、`ADR-000N` とは書かない。
@@ -21,3 +21,5 @@
 | [0006](0006-pm-session-and-board.md) | Epic は PM セッションが段取りボードで統括し、作業は子セッションに渡す | Accepted |
 | [0007](0007-story-done-includes-release-note-and-bug-review.md) | Story の完了の条件に、リリースノートの行と、バグ・セキュリティの観点のレビューを入れる | Accepted |
 | [0008](0008-ask-before-narrowing-what-worked.md) | 今まで動いていたものを動かなくする判断は、Decisions に書くだけでなく人間に聞く | Accepted |
+| [0009](0009-designdoc-decisions-scope-first.md) | DesignDoc 初版では、成果物の単位と範囲の判断を先に聞き、中身で迷ったら見本を見比べてから決める | Accepted |
+| [0010](0010-retrospective-after-epic.md) | Epic のリリースの後に、軽量な定型の振り返りを回す | Accepted |

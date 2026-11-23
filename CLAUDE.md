@@ -52,6 +52,7 @@ GitHub issue 駆動の2階層。定義の正本は [docs/WORKFLOW.md](docs/WORKF
 - Epic 以外の単発の PR は、定めた振る舞いを変えない変更だけ（[ADR-0012](docs/adr/0012-single-pr-scope.md)）。
 - Epic 10 までの DesignDoc と ADR-0001〜0008 は旧形式のまま凍結する
   （[ADR-0009](docs/adr/0009-adopt-repo-template-flow.md)）。閉じた Epic の DesignDoc には追記しない。
+- Epic のリリースまで終えたら、振り返りを1回回し、反映する束を人間が選ぶ（[FLOW-0010](docs/adr/flow/0010-retrospective-after-epic.md)）。
 - **AI アシスタントは Epic PR を `main` にマージしない**。人間がレビューしてマージする。
 - Epic は PM セッションが段取りボードで統括し、DesignDoc 初版と Story は子セッションに渡す。
   手順の正本は `.claude/skills/pm-session/SKILL.md`（[FLOW-0006](docs/adr/flow/0006-pm-session-and-board.md)）。
