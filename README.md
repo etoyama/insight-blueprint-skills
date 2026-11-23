@@ -23,10 +23,21 @@ automatically — there is nothing to `pip install`.
    /plugin marketplace add etoyama/insight-blueprint-skills
    /plugin install insight-blueprint@insight-blueprint-marketplace
    ```
-2. **Open your analysis project** in Claude Code and take the first step:
+2. **Register a data source** in your analysis project. The analysis reads only sources
+   registered in the catalog:
+   ```
+   /catalog-register        # register a CSV file, a database table, ...
+   ```
+3. **Start the analysis.** Either let `/analysis-auto` walk you through a theme, pausing only at
+   genuine decisions:
+   ```
+   /analysis-auto           # single entry: builds the question tree and investigates it node by node
+   ```
+   or run the steps yourself:
    ```
    /analysis-framing        # explore your data & frame a direction
    /analysis-design         # turn it into a hypothesis design document
+   /analysis-notebook       # generate & run the notebook, record the results to the journal
    /analysis-journal        # record reasoning as you investigate
    /analysis-reflection     # conclude (or branch) the hypothesis
    /report-export           # export the theme's final report to Claude Docs (asks before sending)
@@ -80,6 +91,13 @@ uv add insight-blueprint-lineage
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.
+
+### Upgrading
+
+Read the [CHANGELOG](CHANGELOG.md) entry of every version you skip. Changes that need action
+on your side are spelled out there. For example, from 0.17.0 a notebook is a plain Python
+script cut into `# %% <name>` cells: the analysis note shows no code for a notebook written
+before 0.17.0 until you run `/analysis-notebook` again.
 
 ## How it works
 
