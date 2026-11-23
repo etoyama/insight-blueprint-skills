@@ -39,7 +39,7 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0033](0033-derived-design-inherits-the-nodes-of-its-source.md) | 派生の分析設計は、派生元が結ばれている論点に聞かずに結ぶ | Accepted |
 | [0034](0034-credential-check-joins-nested-keys.md) | 認証情報の判定は、入れ子のキーを親とつないで見て、`authorization` と `sas` を名前全体で拒む | Accepted |
 | [0035](0035-handoff-trial-records-keep-their-score.md) | 引き継ぎの試行の記録は、その時点の鍵での採点として残し、CI で採点し直さない | Accepted |
-| [0036](0036-design-note-is-a-generated-page-per-design.md) | 分析ノートは、分析設計ごとにコードが生成し、論点ツリーの HTML の中に並べる | Accepted（レポートを残すこととレポートへのリンクは ADR-0039 が改めた。cell の形（`@app.cell`）と notebook の HTML の書き出しは ADR-0045 が改め、`# %% <名前>` の区切りにした） |
+| [0036](0036-design-note-is-a-generated-page-per-design.md) | 分析ノートは、分析設計ごとにコードが生成し、論点ツリーの HTML の中に並べる | Accepted（レポートを残すこととレポートへのリンクは ADR-0039 が改めた。cell の形（`@app.cell`）と notebook の HTML の書き出しは ADR-0045 が改めた。cell は `# %% <名前>` で区切り、notebook の HTML は書き出さない） |
 | [0037](0037-tree-upload-sends-the-design-notes.md) | `/tree-upload` は、分析ノートを含む論点ツリーの HTML を、1ファイルのまま Artifact に送る | Accepted |
 | [0038](0038-designdoc-draft-checks-whole-and-mockup.md) | DesignDoc 初版では、全体の整合を確かめ、成果物の見本を見せてから承認を求める | Superseded by FLOW-0005 |
 | [0039](0039-report-is-the-final-report-of-a-theme-written-by-code.md) | レポートは、テーマの最終報告として、コードが論点ツリーと分析設計の記録から書く | Accepted |

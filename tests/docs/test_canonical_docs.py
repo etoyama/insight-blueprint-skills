@@ -553,6 +553,11 @@ class TestCanonicalDocsPointAtPlainPythonNotebook:
     }
 
     @staticmethod
+    def _prose(text: str) -> str:
+        # ADR-0046's file name contains "marimo"; citing it must stay allowed.
+        return re.sub(r"\]\([^)]*\)", "]", text)
+
+    @staticmethod
     def _term(name: str) -> dict[str, str]:
         rows = words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
         return next(row for row in rows if row[words.TERM] == name)
@@ -568,9 +573,9 @@ class TestCanonicalDocsPointAtPlainPythonNotebook:
         assert "marimo" not in definition
 
     def test_data_load_cell_term_is_told_apart_by_its_name(self) -> None:
-        row = self._term("データ取得の cell")
-        assert "`data_load`" in row["コード上の名前"] + row["定義"]
-        assert "`raw_df` を作る cell が1つに決まらない" not in row["定義"]
+        definition = self._term("データ取得の cell")["定義"]
+        assert definition.startswith("`data_load` という名前の cell")
+        assert "接続情報の値はこの cell にだけ書く" in definition
 
     def test_cell_is_a_term(self) -> None:
         assert "`# %%" in self._term("cell")["定義"]
@@ -578,7 +583,7 @@ class TestCanonicalDocsPointAtPlainPythonNotebook:
     def test_architecture_outside_the_epic_mapping_has_no_marimo(self) -> None:
         text = _read("docs/ARCHITECTURE.md")
         body = text.replace(section(text, "## Epic マッピング"), "")
-        assert "marimo" not in body
+        assert "marimo" not in self._prose(body)
         assert "_flat.py" not in body
 
     def test_architecture_maps_epic_30(self) -> None:
@@ -587,7 +592,7 @@ class TestCanonicalDocsPointAtPlainPythonNotebook:
 
     @pytest.mark.parametrize("path", ["README.md", "CLAUDE.md"])
     def test_entry_docs_do_not_mention_marimo(self, path: str) -> None:
-        assert "marimo" not in _read(path)
+        assert "marimo" not in self._prose(_read(path))
 
     @pytest.mark.parametrize("adr", sorted(AMENDED_ADRS))
     def test_adr_index_status_names_the_amending_adr(self, adr: str) -> None:

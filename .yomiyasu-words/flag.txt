@@ -16,7 +16,6 @@ design document	分析設計
 暫定回答	現時点の答え
 イテレーション	巡回
 ノートブック	notebook
-セル	cell
 データロードのセル	データ取得の cell
 図のマニフェスト	figures manifest
 エフェクトサイズ	効果量

@@ -131,4 +131,4 @@ ARCHITECTURE のどのコンポーネントを前進させるかを示す。
 - 検証の正本が `validate.py` 1 箇所に集約され、hook と skill の双方から再利用される
 - 移行の各段階で `pytest` が全緑を保つ（挙動の非回帰）
 - 常駐プロセス・WebUI・SQLite 依存が消え、plugin として動作する
-- コアバリュー（marimo 契約 / 分析設計 / journal・reflection / premortem）が維持される
+- コアバリュー（notebook 契約 / 分析設計 / journal・reflection / premortem）が維持される

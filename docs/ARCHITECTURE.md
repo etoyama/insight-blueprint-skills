@@ -196,7 +196,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 供給手順（`--with <pip名>` による ephemeral 注入）は
 [`skills/analysis-notebook/references/notebook-contract.md`](../skills/analysis-notebook/references/notebook-contract.md)
 の「Package allowlist — format & supplying packages」節が正本。
-plugin の env に最初から入っている既定の許可リストは、ファイルの有無や中身にかかわらず許し、ファイルはそこにパッケージを足す（[ADR-0021](adr/0021-default-package-allowlist.md)、[ADR-0027](adr/0027-default-allowlist-always-allowed.md)）。
+plugin の env に最初から入っている既定の許可リストは、ファイルの有無や中身にかかわらず許し、ファイルはそこにパッケージを足す（[ADR-0021](adr/0021-default-package-allowlist.md)、[ADR-0027](adr/0027-default-allowlist-always-allowed.md)）。中身は `insight_blueprint`・`pandas`・`matplotlib`・`numpy` である（[ADR-0046](adr/0046-marimo-leaves-the-plugin-env-and-the-default-allowlist.md)）。
 
 **notebook はどこに出るか（混乱ポイントの明示回答）**: 利用者プロジェクトの
 `${CLAUDE_PROJECT_DIR}/.insight/notebooks/`（および `lineage/`）に出る。**plugin ディレクトリではない**。
