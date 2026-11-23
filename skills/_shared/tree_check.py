@@ -143,7 +143,7 @@ def check_tree(tree: QuestionTree, base_dir: Path) -> list[Violation]:
     """Check a tree already in memory against the journals under *base_dir*."""
     from skills._shared.tree_read import cited_events  # tree_read imports this
 
-    return check_cited(tree, *cited_events(_current_cites(tree), base_dir))
+    return check_cited(tree, *cited_events(current_cites(tree), base_dir))
 
 
 def check_cited(
@@ -154,7 +154,7 @@ def check_cited(
     *events* may hold more than the current answers cite. A cited id that two
     events share raises ValueError: which of them backs the answer is unknown.
     """
-    current = _current_cites(tree)
+    current = current_cites(tree)
     for event_id in duplicated:
         if event_id in current:
             raise ValueError(
@@ -164,7 +164,8 @@ def check_cited(
     return find_violations(tree, {i: e.content for i, e in events.items()})
 
 
-def _current_cites(tree: QuestionTree) -> set[str]:
+def current_cites(tree: QuestionTree) -> set[str]:
+    """The event ids the current answer of any node cites."""
     return {
         cite
         for node in tree.nodes

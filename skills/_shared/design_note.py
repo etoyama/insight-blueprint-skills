@@ -42,6 +42,13 @@ class NoteEvent:
     created_at: str  # as written in the journal; "" when absent
 
 
+def contradicting_evidence(events: Iterable[NoteEvent]) -> tuple[NoteEvent, ...]:
+    """The evidence events against the hypothesis, in journal order."""
+    return tuple(
+        e for e in events if e.type == "evidence" and e.direction == "contradicts"
+    )
+
+
 @dataclass(frozen=True)
 class VerdictMetric:
     """One entry of ``verdict.metrics``. Every number is the literal JSON text."""
@@ -66,6 +73,7 @@ class NoteVerdict:
 
 @dataclass(frozen=True)
 class NoteFigure:
+    file: str  # a bare file name under notebooks/, as the manifest gave it
     title: str
     axes: str
     how_to_read: str
@@ -141,7 +149,6 @@ LOCAL_FILES = (
     ("verdict", "notebooks/{id}_verdict.json"),
     ("lineage", "lineage/{id}.mmd"),
     ("notebook の HTML", "notebooks/{id}.html"),
-    ("レポート", "reports/{id}.md"),
 )
 
 
@@ -172,8 +179,8 @@ _SECTIONS = (
     ("files", "手元のファイル"),
 )
 
-# The first sentence of the report's Abstract for each terminal status
-# (analysis-report/references/apa-template.md); a structure test holds them equal.
+# The fixed sentence for each terminal status. The note's conclusion opens with it,
+# and theme_report takes it from here, so the two never say it differently.
 LEAD_SENTENCES = {
     DesignStatus.supported: "仮説は支持された。",
     DesignStatus.rejected: "仮説は棄却された。",
@@ -181,7 +188,7 @@ LEAD_SENTENCES = {
 }
 
 # The kinds of journal event (docs/UBIQUITOUS_LANGUAGE.md).
-_EVENT_WORDS = {
+EVENT_WORDS = {
     "observe": "観察",
     "hypothesize": "仮説",
     "evidence": "証拠",
@@ -551,7 +558,7 @@ def _verdict_conclusion(verdict: NoteVerdict | None) -> Html:
 
 
 def _event_item(event: NoteEvent) -> Html:
-    word = _EVENT_WORDS.get(event.type, event.type)
+    word = EVENT_WORDS.get(event.type, event.type)
     at = event.created_at or "（時刻の記載なし）"
     return el(
         "li",

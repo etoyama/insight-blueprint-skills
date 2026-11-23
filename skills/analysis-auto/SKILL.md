@@ -4,8 +4,8 @@ version: "1.0.0"
 description: |
   Guided autopilot and the analyst's single entry. Takes a theme, builds its question tree
   (or resumes at the node the latest tree decision names) and walks the tree one node per round:
-  design → review → premortem → notebook → journal → reflection → report → upload →
-  theme reflection → tree decision. Progresses automatically through low-friction steps and
+  design → review → premortem → notebook → journal → reflection → theme reflection →
+  tree decision. Progresses automatically through low-friction steps and
   pauses only at genuine decision points (root question and aim, the node to investigate,
   hypothesis, source registration, cost/risk, code with external effects, conclusion, the tree
   decision, sending anything outside this machine).
@@ -58,8 +58,6 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | notebook | **non-allowlisted package / external comms beyond the declared source / other side-effects** | generate + run when premortem cleared AND it's declared-source read + allowlisted + local compute |
 | journal | — | auto-record the notebook verdict (observe/evidence/question) |
 | reflection | **the conclusion (conclude/refine/branch) + terminal transition** | presenting the evidence summary and the place of the design note (`/analysis-reflection` Step 2) |
-| report | — | writing the report with `/analysis-report` once the design is in a terminal status |
-| upload | **the files to send to Claude Docs** — asked by `/report-upload` itself, at its approval gate; the driver adds no question of its own | starting `/report-upload` once the round has a report, written by this run or before it |
 | theme reflection | **`/analysis-reflection {theme_id}` T7** | — |
 | tree-upload | **the file to send as an Artifact** — asked by `/tree-upload` itself, at its approval gate; the driver adds no question of its own | starting `/tree-upload` when the analyst asks to hand the tree over |
 | catalog-register | **registering a data source** (external-data side-effect); unregistered source → stop | — |
@@ -95,7 +93,7 @@ is intended: outside this run the skills stay explicit. Inside this run, the ana
   does not have the variable.
 - Never call the Skill tool for a delegated skill, and never ask the analyst to type its
   `/command`: carrying the steps is what this run is for.
-- `design_io`, `catalog_io`, `tree_io`, `tree_check` and `report_check` are on PATH: call them
+- `design_io`, `catalog_io`, `tree_io` and `tree_check` are on PATH: call them
   by name, from the project directory.
 
 ## Workflow
@@ -126,7 +124,7 @@ tree_io position --theme LIB
 | `no_decision` | A tree without a first node to investigate: an earlier framing stopped halfway | Step 2, item 3 (`/analysis-framing` finishes it: 4c, "An unfinished tree") |
 | `not_started` | The latest decision names `node_id`, and no design was made on it since | Step 3, item 1 |
 | `in_progress` | `design_ids` are the unfinished designs on `node_id` | Step 3, at the item the first of them calls for |
-| `concluded` | `design_ids` were made after the decision and are all finished; the round lacks its theme reflection | Step 3, item 8, for each of the `design_ids` in turn |
+| `concluded` | `design_ids` were made after the decision and are all finished; the round lacks its theme reflection | Step 3, item 8 |
 | `closed` | The analyst closed the walk at `node_id`, and no design was made on it since | Step 3, item 1 |
 
    For `in_progress`, read the design with `design_io get --id {design_id}`:
@@ -139,9 +137,8 @@ tree_io position --theme LIB
    Step 3 at the item its status calls for. If no node of the tree holds it, say so and run
    `/analysis-framing {theme_id}` first (4c, "Designs no node holds").
 4. Tell the analyst the plan ("論点ツリーの {node_id} から、design→premortem→notebook→journal→
-   reflection→レポート→テーマを横断した振り返り の順に進める。仮説の確定・コスト判定・結論・ツリーの決定では
-   止まる。結論が出たらレポートは聞かずに書く。外へ送る前には、送るファイルを見せて承認を待つ。
-   前に書いたレポートも、送るかを聞く").
+   reflection→テーマを横断した振り返り の順に進める。仮説の確定・コスト判定・結論・ツリーの決定では
+   止まる").
 
 ### Step 2: Build the tree (the theme has none)
 
@@ -150,8 +147,8 @@ tree_io position --theme LIB
    A design of a theme that has a tree is never asked this. The answer is not stored: whether
    the tree exists is the record.
    - Build the tree → go on to item 2.
-   - Carry only this design → run Step 3 items 2–9 for it once, with no tree step (no
-     item 1, 10 or 11), then go to Step 4.
+   - Carry only this design → run Step 3 items 2–7 for it once, with no tree step (no
+     item 1, 8 or 9), then go to Step 4.
 2. **rq-problematization**: when the analyst brings a research theme and has no research
    question yet (they state none, and no RQ Brief is in the conversation), run
    `/rq-problematization` before framing. Its questions are its own gates. It ends with an RQ
@@ -171,13 +168,6 @@ tree_io position --theme LIB
 A round takes one node from its design to the tree decision. For each item, **follow that
 skill's SKILL.md** (do not duplicate its logic here) and apply the gate policy above. Repeat
 the round until the analyst closes the walk or says stop.
-
-When the round enters at item 8 from a `concluded` position, items 8 and 9 run for each of its
-`design_ids`, in that order: finish one design's upload before the next design's report, and
-leave none of them out. Every one of them is finished, so each gets its report. Each upload
-keeps its own gate, and an answer at one design's gate, yes or no, is not the answer for the
-next. When a declined figure ends the turn, go on with the next design's report on the next
-turn. Any other round carries the one design it worked on.
 
 1. **framing brief**: a design is made from the Framing Brief of its node. When the position
    is `not_started` or `closed` and that Brief is not in the conversation yet, run
@@ -222,35 +212,15 @@ turn. Any other round carries the one design it worked on.
 7. **reflection**: run `/analysis-reflection {design_id}`; **pause at the conclusion**
    (conclude/refine/branch) and the terminal transition. Its Step 2 読むもの says what
    the analyst reads; the driver adds no list of files of its own.
-8. **report**: when the design is in a terminal status (`supported` / `rejected` /
-   `inconclusive`), run `/analysis-report {design_id}` without asking; the report is a file on
-   this machine. A report that is already there (`.insight/reports/{design_id}.md`) is not
-   written again: go on to the upload with it. When the design
-   is not in a terminal status (refine or branch), write no report and go to item 10.
-9. **upload**: when the round has a report, run `/report-upload {design_id}` right after item 8,
-   also for a report that was there before this run. **Do not ask whether to upload**, before or
-   after starting the skill. The skill lists the files it would send and waits at its own KEEP
-   gate; that is the only question the analyst gets about the upload. Never answer it for them,
-   and never treat an earlier "yes" as a "yes" to the upload, an approval given in an earlier run
-   included ([ADR-0016](../../docs/adr/0016-approval-before-external-send.md)).
-   The driver keeps no record of what was sent. So when the report was there before this run,
-   write this line in the gate's message, right before "送ってよい？":
-   "このレポートは前に書いた。前に送っていれば送らなくてよい。送ると Doc がもう1つできる". The note asks
-   nothing: the gate stays the one question. Without the Claude Docs connector the skill sends
-   nothing and asks nothing; go on to the next design's report, or after the last one go on to
-   the theme reflection. Skip this item when the round has no report. Keep the skill's
-   one-line outcome for item 10 and the summary.
-10. **theme reflection**: run `/analysis-reflection {theme_id}`. Its Step T7 is the KEEP gate
-    of the round. Before that gate, show each report's path next to the
-    path of the tree's HTML, so the analyst decides with both in view. The reports are those of
-    the designs this round carried, also when an earlier run wrote them; for each, add the
-    upload outcome. A round without a conclusion has no report: say so.
-11. **next round**: after a `deepen` or a `return` the walk goes on: read `tree_io position`
-    again and start the next round at item 1, in the same turn. Do not summarize in between, and
-    never tell the analyst to run `/analysis-auto` again to continue: a decision that names the
-    next node is the go-ahead for it. After a `close`, go to Step 4. When the analyst leaves the
-    decision open or says stop, go to Step 4 as well: the tree keeps its last decision, and the
-    next run resumes from it.
+8. **theme reflection**: run `/analysis-reflection {theme_id}`. Its Step T7 is the KEEP gate
+   of the round. Before that gate, show the path of the tree's HTML, so the analyst decides
+   with the tree in view.
+9. **next round**: after a `deepen` or a `return` the walk goes on: read `tree_io position`
+   again and start the next round at item 1, in the same turn. Do not summarize in between, and
+   never tell the analyst to run `/analysis-auto` again to continue: a decision that names the
+   next node is the go-ahead for it. After a `close`, go to Step 4. When the analyst leaves the
+   decision open or says stop, go to Step 4 as well: the tree keeps its last decision, and the
+   next run resumes from it.
 
 Two things happen only when the analyst asks for them, at any point of the walk:
 
@@ -266,14 +236,15 @@ Two things happen only when the analyst asks for them, at any point of the walk:
 Report what ran automatically, where it paused and why, and the final state (status, journal, lineage).
 For the walk, add the nodes it went through, the tree decisions the analyst took, the path of
 the tree's HTML, and the node the next `/analysis-auto {theme_id}` resumes from.
-For each report of the round, add the report's path and the upload outcome: the Doc URL,
-"承認されなかった", "コネクタが無い", or "アップロードに失敗した" with the reason.
+When the theme has a question tree, name `/report-export {theme_id}` as the skill to use next
+once the analyst judges the theme ready to report: it writes the theme's report and exports it
+to Claude Docs. Never start it, and do not ask whether to export
+([ADR-0040](../../docs/adr/0040-report-export-sends-the-report-to-claude-docs.md)).
 
 ## Delegated skills
 
 `/rq-problematization`, `/analysis-framing`, `/analysis-design`, `/analysis-review`, `/premortem`,
-`/analysis-notebook`, `/analysis-journal`, `/analysis-reflection`, `/analysis-report`, `/report-upload`,
-`/tree-upload`, `/catalog-register` — each remains explicit-invocable on its own; `/analysis-auto` only
+`/analysis-notebook`, `/analysis-journal`, `/analysis-reflection`, `/tree-upload`, `/catalog-register` — each remains explicit-invocable on its own; `/analysis-auto` only
 sequences them and enforces the gate policy. It never writes the question tree itself: the skills do,
 through `tree_io`.
 
@@ -285,8 +256,6 @@ through `tree_io`.
 | /analysis-auto | → /analysis-framing | The theme has no tree, the round needs the Framing Brief of its node, or the root changes |
 | /analysis-auto | → /analysis-design | The node of the round needs its design |
 | /analysis-auto | → /analysis-reflection | Autopilot reaches results; the conclusion and the tree decision are the user's call |
-| /analysis-auto | → /analysis-report | The design reached a terminal status; the report is written without asking (AUTO) |
-| /analysis-auto | → /report-upload | The round has a report, written by this run or before it; start the upload, whose own approval gate is the only question |
 | /analysis-auto | → /tree-upload | The analyst asks to hand the tree over; its own approval gate is the only question |
 
 ## Language Rules

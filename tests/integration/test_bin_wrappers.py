@@ -72,7 +72,6 @@ def test_wrapper_writes_to_project_dir_from_foreign_cwd(tmp_path: Path) -> None:
         ("catalog_io", ["list"]),
         ("tree_io", ["get", "--theme", "LIB"]),
         ("premortem", ["--help"]),
-        ("report_check", ["--help"]),
         ("tree_check", ["--help"]),
     ],
 )
@@ -222,56 +221,6 @@ def test_tree_io_candidates_wrapper_reads_the_project_tree_from_foreign_cwd(
     assert (created.returncode, added.returncode) == (0, 0), added.stderr
     assert listed.returncode == 0, listed.stderr
     assert [c["id"] for c in json.loads(listed.stdout)] == ["LIB-Q02"]
-
-
-def test_report_check_wrapper_reads_the_project_report_from_foreign_cwd(
-    tmp_path: Path,
-) -> None:
-    """report_check checks CLAUDE_PROJECT_DIR/.insight/reports and creates nothing."""
-    project = tmp_path / "userproj"
-    reports = project / ".insight" / "reports"
-    reports.mkdir(parents=True)
-    (reports / "X.md").write_text("![x](http://evil.example/a.png)\n", encoding="utf-8")
-    foreign_cwd = tmp_path / "elsewhere"
-    foreign_cwd.mkdir()
-
-    env = _base_env()
-    env["CLAUDE_PLUGIN_ROOT"] = str(REPO_ROOT)
-    env["CLAUDE_PROJECT_DIR"] = str(project)
-
-    result = subprocess.run(
-        [str(REPO_ROOT / "bin" / "report_check"), "--id", "X"],
-        capture_output=True,
-        text=True,
-        cwd=str(foreign_cwd),
-        env=env,
-    )
-
-    assert result.returncode == 1, result.stderr
-    out = json.loads(result.stdout)
-    assert [v["kind"] for v in out["violations"]] == ["image"]
-    assert list(foreign_cwd.iterdir()) == []
-    assert sorted(p.name for p in (project / ".insight").iterdir()) == ["reports"]
-
-
-def test_report_check_wrapper_does_not_report_a_missing_project_as_violations(
-    tmp_path: Path,
-) -> None:
-    """Exit 1 means "violations found", so a setup error must not use it."""
-    env = _base_env()
-    env["CLAUDE_PLUGIN_ROOT"] = str(REPO_ROOT)
-    env["CLAUDE_PROJECT_DIR"] = str(tmp_path / "no-such-project")
-
-    result = subprocess.run(
-        [str(REPO_ROOT / "bin" / "report_check"), "--id", "X"],
-        capture_output=True,
-        text=True,
-        cwd=str(tmp_path),
-        env=env,
-    )
-
-    assert result.returncode == 2, result.stderr
-    assert result.stdout == ""
 
 
 def test_tree_check_wrapper_reads_the_project_tree_from_foreign_cwd(

@@ -115,7 +115,7 @@ marimo rules). Drive cell content from the design:
   "Optional metric items" (leave a key out rather than writing a placeholder)
 - cell 5 (viz): from `chart[]` (type/description); **save each figure** to
   `.insight/notebooks/{design_id}_fig{NN:02d}.png` and build `figure_manifest`
-  (`file`/`title`/`axes`/`how_to_read`) so `/analysis-report` can embed it — see the contract's
+  (`file`/`title`/`axes`/`how_to_read`) so the analysis note and the report can embed it — see the contract's
   figure section
 - cell 6 (verdict): build `verdict` (include `metrics` from `results` and `figures=figure_manifest`)
   and persist `.insight/notebooks/{design_id}_verdict.json`

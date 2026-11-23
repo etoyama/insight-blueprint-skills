@@ -79,7 +79,7 @@ def _(mo, raw_df, session, tracked_pipe):
 def _(df_clean, mo, np):
     _means = df_clean.groupby("group")["value"].mean()
     # Optional metric items (Epic 12 / ADR-0013): the producer computes how large and how
-    # certain the effect is, so /analysis-report only lays the numbers out.
+    # certain the effect is, so the analysis note and the report only lay the numbers out.
     _a = df_clean.loc[df_clean["group"] == "A", "value"]
     _b = df_clean.loc[df_clean["group"] == "B", "value"]
     _diff = float(_b.mean() - _a.mean())
@@ -115,7 +115,7 @@ def _(df_clean, mo, np):
 @app.cell
 def _(df_clean, plt):
     # viz cell (Epic 10 / ADR-0008): save the figure as a PNG and describe it in a
-    # figure_manifest so /analysis-report can embed it with axis + how-to-read captions
+    # figure_manifest so the analysis note and the report can embed it with axis + how-to-read captions
     # without re-rendering. The producer owns the figure's truth.
     _fig, _ax = plt.subplots()
     df_clean.groupby("group")["value"].mean().plot.bar(ax=_ax)

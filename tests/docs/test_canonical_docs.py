@@ -89,8 +89,28 @@ LIVING_DOCS = [
     "docs/design/epic-14-report-template-gaps.md",
     "docs/design/epic-18-question-tree.md",
     "docs/design/epic-28-tree-entry-point.md",
+    "docs/design/epic-29-theme-report-export.md",
     *(str(p.relative_to(REPO_ROOT)) for p in _new_format_adrs()),
 ]
+
+
+# Epic 29 removed the old report. The DesignDocs of closed Epics are frozen, so their
+# links into it stay as history; no living document may link there.
+REMOVED_BY_EPIC_29 = (
+    "skills/analysis-report/",
+    "skills/report-upload/",
+    "skills/_shared/report_check.py",
+)
+FROZEN_DESIGN_DOCS = {
+    "docs/design/epic-12-decision-ready-report.md",
+    "docs/design/epic-13-report-source-text.md",
+    "docs/design/epic-14-report-template-gaps.md",
+}
+
+
+def _is_removed_history(rel: str, target: Path) -> bool:
+    inside = target.resolve().relative_to(REPO_ROOT.resolve()).as_posix()
+    return rel in FROZEN_DESIGN_DOCS and inside.startswith(REMOVED_BY_EPIC_29)
 
 
 @pytest.mark.parametrize("rel", LIVING_DOCS)
@@ -100,7 +120,8 @@ def test_relative_links_resolve(rel: str) -> None:
         target
         for target in _LINK.findall(_read(rel))
         if not target.startswith(("http://", "https://", "mailto:", "#"))
-        and not (base / target.split("#", 1)[0]).exists()
+        and not (path := base / target.split("#", 1)[0]).exists()
+        and not _is_removed_history(rel, path)
     ]
     assert dead == []
 
@@ -298,7 +319,8 @@ class TestExternalSendRules:
             r[words.TERM]: r
             for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
         }
-        assert "`/report-upload`" in rows["アップロード"][words.CODE_NAME]
+        # Epic 29 (ADR-0040): the report is exported, so the upload is /tree-upload alone.
+        assert rows["アップロード"][words.CODE_NAME] == "`/tree-upload`"
         for avoided in ("公開", "共有"):
             assert avoided in rows["アップロード"][words.AVOID]
 
@@ -326,15 +348,16 @@ class TestReportAndUploadDocs:
         )
         assert [name for name in bundled if f"`/{name}`" not in listed] == []
 
-    def test_readme_workflow_shows_the_upload(self) -> None:
-        assert "/report-upload" in words.section(
+    def test_readme_workflow_shows_the_export(self) -> None:
+        # Epic 29 (ADR-0040): /report-export replaced /report-upload.
+        assert "/report-export" in words.section(
             _read("README.md"), "Analysis Workflow"
         )
 
-    def test_prd_functional_requirements_carry_the_report_and_the_upload(self) -> None:
+    def test_prd_functional_requirements_carry_the_report_and_the_export(self) -> None:
         requirements = section(_read("docs/PRD.md"), "### 機能要件")
         assert "レポート" in requirements
-        assert "アップロード" in requirements
+        assert "export" in requirements
 
     def test_ubiquitous_language_has_the_terms_of_epic_12(self) -> None:
         terms = {
@@ -352,14 +375,18 @@ class TestReportAndUploadDocs:
         assert "外部へ送る" in rows["KEEP ゲート"][words.DEFINITION]
         assert "adr/0016-" in rows["KEEP ゲート"]["初出"]
 
-    @pytest.mark.parametrize(
-        "heading",
-        ["### 分析ワークフロー全体", "### guided autopilot（`/analysis-auto`）"],
-    )
-    def test_architecture_sequences_include_the_upload(self, heading: str) -> None:
-        sequence = section(_read("docs/ARCHITECTURE.md"), heading)
-        assert "/report-upload" in sequence
+    def test_architecture_workflow_sequence_includes_the_export(self) -> None:
+        sequence = section(_read("docs/ARCHITECTURE.md"), "### 分析ワークフロー全体")
+        assert "/report-export" in sequence
         assert "Claude Docs" in sequence
+
+    def test_architecture_autopilot_sequence_only_names_the_export(self) -> None:
+        # Epic 29 (ADR-0040): the driver names /report-export and never starts it.
+        sequence = section(
+            _read("docs/ARCHITECTURE.md"), "### guided autopilot（`/analysis-auto`）"
+        )
+        assert "/report-export" in sequence
+        assert "Claude Docs" not in sequence
 
     def test_autopilot_sequence_asks_about_the_upload_once_from_the_skill(self) -> None:
         sequence = section(
@@ -370,8 +397,8 @@ class TestReportAndUploadDocs:
             for line in sequence.splitlines()
             if "【KEEP】" in line and ("送る" in line or "アップロード" in line)
         ]
-        # Story 18.9 adds the gate of /tree-upload; each send is asked once, by its skill.
-        assert [line.split(":")[0] for line in asks] == ["P->>U", "TU->>U"], asks
+        # Epic 29 removed /report-upload; the send left in the walk is /tree-upload's.
+        assert [line.split(":")[0] for line in asks] == ["TU->>U"], asks
 
     def test_architecture_epic_mapping_covers_every_roadmap_epic(self) -> None:
         roadmap = _first_cells(words.section(_read("docs/PRD.md"), "ロードマップ"))
@@ -421,6 +448,58 @@ class TestTreeEntryPointDocs:
         decisions = words.section(_read(self.DOC), "Decisions")
         assert "../adr/0036-" in decisions
         assert "../adr/0037-" in decisions
+
+
+class TestThemeReportDocs:
+    """Epic 29, first edition: the DesignDoc has what WORKFLOW §4 asks for before any Story starts."""
+
+    DOC = "docs/design/epic-29-theme-report-export.md"
+    FIRST_EDITION_DIAGRAMS = {
+        "Architecture": "flowchart",
+        "Domain Model": "classDiagram",
+        "Sequence Diagram": "sequenceDiagram",
+    }
+
+    @pytest.mark.parametrize("title", sorted(FIRST_EDITION_DIAGRAMS))
+    def test_first_edition_diagram_is_drawn_in_mermaid(self, title: str) -> None:
+        body = words.section(_read(self.DOC), title)
+        assert re.search(
+            rf"```mermaid\s*\n{self.FIRST_EDITION_DIAGRAMS[title]}\b", body
+        ), title
+
+    def test_every_story_handles_at_most_five_criteria(self) -> None:
+        rows = [
+            [cell.strip() for cell in line.strip("|").split("|")]
+            for line in words.section(_read(self.DOC), "Stories").splitlines()
+            if line.startswith("|")
+        ][2:]
+        assert rows, "the Stories table is empty"
+        for story, _user_story, criteria, *_ in rows:
+            assert len(re.findall(r"AC \d+", criteria)) <= 5, story
+
+    def test_every_user_story_is_handled_by_a_story(self) -> None:
+        doc = _read(self.DOC)
+        user_stories = re.findall(r"^### (US-\d+):", doc, flags=re.M)
+        stories = words.section(doc, "Stories")
+        assert user_stories
+        assert [us for us in user_stories if us not in stories] == []
+
+    def test_cross_epic_decisions_are_linked(self) -> None:
+        decisions = words.section(_read(self.DOC), "Decisions")
+        assert "../adr/0039-" in decisions
+        assert "../adr/0040-" in decisions
+
+    def test_the_terms_follow_the_removal_of_the_old_report(self) -> None:
+        """US-5 AC 4: the report is the theme's, and the report check is no longer a term."""
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        assert "レポートの検査" not in rows
+        assert "`tree_io report`" in rows["レポート"][words.CODE_NAME]
+        assert "テーマ" in rows["レポート"][words.DEFINITION]
+        assert "レポート" not in rows["違反"][words.DEFINITION]
+        assert "検査" not in rows["データ由来の文"][words.DEFINITION]
 
 
 class TestYomiyasuWords:
@@ -668,15 +747,12 @@ class TestQuestionTreeDocs:
         ):
             assert any(gate in line for line in keeps), gate
 
-    def test_architecture_autopilot_writes_the_report_without_asking(self) -> None:
-        """US-8 AC 4: the report is AUTO and comes before the tree decision."""
+    def test_architecture_autopilot_writes_no_report(self) -> None:
+        """Epic 29 US-5 AC 2: the walk writes no report; the decision shows the tree's HTML."""
         sequence = section(_read("docs/ARCHITECTURE.md"), self.AUTOPILOT)
-        report = next(
-            line for line in sequence.splitlines() if "/analysis-report" in line
-        )
-        assert "AUTO" in report and "【KEEP" not in report
-        assert sequence.index(report) < sequence.index("ツリーの決定（深める")
-        assert "レポートのパスと論点ツリーの HTML のパス" in sequence
+        assert "/analysis-report" not in sequence
+        assert "reports/" not in sequence
+        assert "論点ツリーの HTML のパスを示し" in sequence
 
     def test_architecture_invocation_model_lists_the_gates_of_the_walk(self) -> None:
         model = section(_read("docs/ARCHITECTURE.md"), "### Skill invocation model")
@@ -688,8 +764,9 @@ class TestQuestionTreeDocs:
         sequence = section(_read("docs/ARCHITECTURE.md"), "### 分析ワークフロー全体")
         assert "入口" in sequence
         assert "巡回" in sequence
-        report = sequence.index("/analysis-report")
-        assert report < sequence.index("/analysis-reflection {theme_id}")
+        # Epic 29: the report is the theme's, so the export follows the theme reflection.
+        export = sequence.index("U->>CC: /report-export")
+        assert export > sequence.index("/analysis-reflection {theme_id}")
 
     def test_design_doc_records_the_decisions_of_the_walk(self) -> None:
         decisions = section(

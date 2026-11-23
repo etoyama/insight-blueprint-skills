@@ -2,7 +2,7 @@
 
 `catalog_io get` prints no `connection` unless the caller passes `--with-connection`.
 Only `/analysis-notebook` loads data, so it is the only skill that may ask for it.
-`/analysis-report` builds a document that leaves the machine, so it must never ask.
+Every other skill must never ask.
 """
 
 from __future__ import annotations

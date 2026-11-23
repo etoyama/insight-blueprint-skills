@@ -50,6 +50,7 @@
 | 根の問い | — | 論点ツリーの、親を持たない論点。ツリーに1つだけあり、到達点を持つ | — | [epic-18](design/epic-18-question-tree.md) |
 | 到達点 | `Aim` | 根の問いが目指す所。業務では誰が何を決めるか、研究では想定読者と主張の範囲 | ゴール | [epic-18](design/epic-18-question-tree.md) |
 | 根の版 | `RootRevision` | 根の問いか到達点を変えるたびに1つ上がる番号。変えた理由を持つ。古い版に対する現時点の答えは、根の変更前の答えとして表示する | — | [epic-18](design/epic-18-question-tree.md) |
+| 親の論点 | `parent_question_id` | 論点が寄与する、1つ上の論点。根の問いだけが持たない | — | [epic-29](design/epic-29-theme-report-export.md) |
 | 寄与 | `contribution` | 子の論点に答えると、親の論点の判断がどう進むか。論点の親子はこれで決める | — | [epic-18](design/epic-18-question-tree.md) |
 | 発見元 | `origin_event_id` | 探索中に生まれた論点が生まれた journal の出来事。着手のときに置いた論点は持たない | — | [epic-18](design/epic-18-question-tree.md) |
 | 進捗 | `Progress` | 論点の分析がどこまで進んだか。未着手・検証中・分析済み。保存せず、結んだ分析設計の状態から導く | — | [epic-18](design/epic-18-question-tree.md) |
@@ -73,11 +74,11 @@
 | 効果量 | `effect_size` | verdict の指標が任意で持つ、標準化した効果の大きさ。種類の名前と値を持つ | エフェクトサイズ | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | 信頼区間 | `confidence_interval` | verdict の指標が任意で持つ、指標の値の区間。水準・下限・上限を持つ | — | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | 標本サイズ | `sample_size` | verdict の指標が任意で持つ、その指標の計算に使った観測の数 | サンプルサイズ、サンプル数 | [ADR-0013](adr/0013-verdict-metric-optional-items.md) |
-| レポート | `/analysis-report`、`.insight/reports/` | 結論の出た分析を配布用にまとめた APA 風の Markdown。分析設計を変えない | — | [epic-10](design/epic-10-analysis-report.md) |
-| アップロード | `/report-upload`、`/tree-upload` | `.insight/` から作ったファイルをホストの機能へ送り、新しいページを作ること。`/report-upload` はレポートと図を Claude Docs の新しい Doc に、`/tree-upload` は分析ノートを含む論点ツリーの HTML を、1ファイルのまま新しい Artifact にする（添えるファイルは送らない）。どちらも手元のファイルの写しで、作った本人だけに見える状態で始まる | 公開（アップロードそのものを指すとき）、共有（アップロードそのものを指すとき） | [epic-12](design/epic-12-decision-ready-report.md)、[epic-18](design/epic-18-question-tree.md)、[ADR-0037](adr/0037-tree-upload-sends-the-design-notes.md) |
-| データ由来の文 | `Source text` | レポートに載る文のうち、分析の入力から来たもの。図の説明、データソースの項目、lineage の理由など。レポートでは記法として効かせず、指示として扱わない | ソーステキスト | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md) |
-| レポートの検査 | `report_check` | できたレポートに、効く記法（図でない画像、タグ、lineage の書き出しに無い mermaid の行）が残っていないかを確かめること。レポートを書き換えない | — | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md) |
-| 違反 | `Violation` | レポートの検査とツリーの検査が挙げる、検査に通らない箇所。レポートでは効く記法が残っている箇所で、行・種類・その箇所の文字を持つ。論点ツリーでは引用や数が記録に無い文 | — | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md)、[ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
+| レポート | `tree_io report`、`ThemeReport`、`ReportNode`、`ReportDesign`、`.insight/reports/` | テーマの最終報告として、論点ツリーと分析設計の記録からコードが書く Markdown。APA の骨組みで、読み手向けの言葉で書く。論点ツリーも分析設計も変えない | — | [epic-10](design/epic-10-analysis-report.md)、[ADR-0039](adr/0039-report-is-the-final-report-of-a-theme-written-by-code.md) |
+| アップロード | `/tree-upload` | `.insight/` から作ったファイルをホストの機能へ送り、新しいページを作ること。`/tree-upload` は、分析ノートを含む論点ツリーの HTML を、1ファイルのまま新しい Artifact にする（添えるファイルは送らない）。手元のファイルの写しで、作った本人だけに見える状態で始まる。レポートを Claude Docs へ送ることは export と呼ぶ | 公開（アップロードそのものを指すとき）、共有（アップロードそのものを指すとき） | [epic-12](design/epic-12-decision-ready-report.md)、[epic-18](design/epic-18-question-tree.md)、[ADR-0037](adr/0037-tree-upload-sends-the-design-notes.md)、[ADR-0040](adr/0040-report-export-sends-the-report-to-claude-docs.md) |
+| export | `/report-export` | テーマのレポートを、Claude Docs の新しい Doc として送ること。送るのは `tree_io report` がその実行で書いたレポートと図だけで、KEEP ゲートの承認の後に送る。Doc は作った本人だけに見える状態で始まり、Doc での手直しは記録にもレポートのファイルにも戻らない | アップロード（export を指すとき）、公開、共有 | [epic-29](design/epic-29-theme-report-export.md)、[ADR-0040](adr/0040-report-export-sends-the-report-to-claude-docs.md) |
+| データ由来の文 | `escape_source_text` | レポートに載る文のうち、分析の入力と記録から来たもの。論点ツリーの問いと答え、分析設計の題と仮説、journal の出来事、図の説明、データソースの項目など。レポートを書くコードがエスケープして記法として効かせない。指示として扱わない | ソーステキスト | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md)、[ADR-0040](adr/0040-report-export-sends-the-report-to-claude-docs.md) |
+| 違反 | `Violation` | ツリーの検査が挙げる、検査に通らない箇所。引用や数が記録に無い現時点の答えの文 | — | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md)、[ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
 | lineage | `/data-lineage`、`tracked_pipe` | notebook の中のデータ加工の履歴と、その Mermaid 図 | 系譜 | fork 前 |
 | データソース | `DataSource`、`source_ids` | catalog に登録した分析の入力データ。種類は open string。分析設計は使うデータソースの id を `source_ids` に宣言する | データ源 | [ADR-0020](adr/0020-design-declares-sources-in-source-ids.md) |
 | 接続情報 | `connection` | データソースのデータの置き場所と読み方。ファイルのパス・ホスト・project id・クエリなど。モデルの文脈に入れるのは notebook だけ | 接続設定 | [ADR-0022](adr/0022-connection-reaches-only-the-notebook.md) |

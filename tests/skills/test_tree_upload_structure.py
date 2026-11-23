@@ -247,10 +247,7 @@ class TestTheNotesGoAsOneFile:
 
     def test_the_gate_says_the_local_files_stay(self) -> None:
         step = _step(3)
-        assert (
-            "notebook の .py・verdict・Markdown のレポート・notebook の HTML は送らない"
-            in step
-        )
+        assert "notebook の .py・verdict・notebook の HTML のファイルは送らない" in step
         assert "「手元のファイル」のリンクは Artifact では開けない" in step
 
 

@@ -163,7 +163,6 @@ If user chooses to conclude:
    (`analyzing → supported`, validated by VALID_TRANSITIONS).
 
 3. Show final summary and suggest:
-   - "周囲に説明・配布できる形にするなら /analysis-report（APAレポート化）"
    - "この分析で分かったソースの再利用知識を残すなら /knowledge-extract"
    - "新しいデータソース自体を登録するなら /catalog-register"
    - "派生仮説を立てるなら /analysis-design"
@@ -483,7 +482,6 @@ Both are on PATH via the plugin. JSON on stdout.
 | /analysis-notebook | → /analysis-reflection | Notebook 実行の結果が揃った: 結論づけへ |
 | /analysis-auto | → /analysis-reflection | autopilot が結果到達; 結論はユーザー判断 |
 | /analysis-reflection | → /tree-upload | 現時点の答えを書き、図（HTML）を作り直した: "論点ツリーの図を URL で渡すなら /tree-upload" |
-| /analysis-reflection | → /analysis-report | Conclusion reached (terminal status): 配布用 APA レポートに畳む |
 | /analysis-reflection | → /analysis-journal | Need more evidence or branching |
 | /analysis-reflection | → /knowledge-extract | Conclusion produced reusable source knowledge |
 | /knowledge-extract | → /analysis-reflection | The learning is really a conclusion, not source knowledge |

@@ -110,7 +110,7 @@ class Mark(StrEnum):
 
 # Each table holds the word shown on the page and what the legend says it means,
 # so the legend cannot drift from the page.
-_PROGRESS_WORDS = {
+PROGRESS_WORDS = {
     Progress.not_started: ("未着手", "分析設計を結んでいない。"),
     Progress.investigating: ("検証中", "結んだ分析設計に、終わっていないものがある。"),
     Progress.analyzed: ("分析済み", "結んだ分析設計がすべて終わっている。"),
@@ -245,7 +245,7 @@ def _legend() -> Html:
             "進捗は、論点に結んだ分析設計の状態から導いた言葉。色は添えただけで、"
             "意味は言葉が持つ。",
         ),
-        _word_list(_PROGRESS_WORDS.values()),
+        _word_list(PROGRESS_WORDS.values()),
         el("p", "現時点の答えは、文ごとに種類の言葉を付けて並べる。"),
         _word_list(_KIND_WORDS.values()),
         el("p", "答えの上に出す印。"),
@@ -377,7 +377,7 @@ def _counts(context: _Context) -> Html:
         el(
             "p",
             join(
-                el("span", f"{_PROGRESS_WORDS[p][0]} {found[p]}", class_="count")
+                el("span", f"{PROGRESS_WORDS[p][0]} {found[p]}", class_="count")
                 for p in Progress
             ),
         ),
@@ -489,7 +489,7 @@ def _node_card(context: _Context, node: QuestionNode) -> Html:
     progress = context.progress[node.id]
     meta: list[Html | str] = [
         "進捗: ",
-        el("span", _PROGRESS_WORDS[progress][0], class_="progress"),
+        el("span", PROGRESS_WORDS[progress][0], class_="progress"),
     ]
     if node.parent_question_id is not None:
         meta.append(f"　寄与: {node.contribution}")

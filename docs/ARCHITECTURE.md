@@ -107,9 +107,10 @@ KEEP ゲートは次のとおり。
   ③ データ取得プラン（SQL クエリ or データソースの id + columns + filter, premortem の前。パスは見せない、[ADR-0022](adr/0022-connection-reaches-only-the-notebook.md)） / ④ chart 仕様。
 - 実行: データソース登録 / premortem `HARD_BLOCK`・`HIGH` / notebook の非 allowlist・宣言 source 以外の外部通信 / 結論。
 - 巡回の終わり: ツリーの決定（深める・親に戻る・区切る、次に調べる論点、理由）と、人に聞いてきた答え。
-- 外部へ送る前: アップロードで送るファイルの承認（`/report-upload` と `/tree-upload` が聞く）。`/tree-upload` が送るのは分析ノートを含む論点ツリーの HTML の1ファイルで、承認の文にページに載る中身を書く。Artifact の上限（16MB）を超えるときは、承認を聞く前に止めて何も送らない（[ADR-0037](adr/0037-tree-upload-sends-the-design-notes.md)）。
+- 外部へ送る前: アップロードで送るファイルの承認（`/tree-upload` が聞く）。`/tree-upload` が送るのは分析ノートを含む論点ツリーの HTML の1ファイルで、承認の文にページに載る中身を書く。Artifact の上限（16MB）を超えるときは、承認を聞く前に止めて何も送らない（[ADR-0037](adr/0037-tree-upload-sends-the-design-notes.md)）。
 
-レポートは分析設計の結論が出たら聞かずに書く（AUTO）。結論が出ていない回は書かない。
+巡回はレポートを書かない。巡回が止まったら、テーマのレポートを export する skill として `/report-export` の名前を挙げるだけで、始めない
+（[ADR-0040](adr/0040-report-export-sends-the-report-to-claude-docs.md)）。
 notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定のときのみ。詳細は
 [ADR-0005](adr/0005-selective-autonomous-chaining.md)（selective autonomy）と
 [ADR-0007](adr/0007-upstream-judgment-gates.md)（上流の判断ゲートを design ビートに分割 + data-extraction 新設）。
@@ -117,7 +118,7 @@ notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定�
 
 **外部へ送る前の KEEP ゲート**: skill が `.insight/` の中身を外部へ送るときは、送るファイルを列挙して KEEP ゲートで承認を待つ。
 `/analysis-auto` の中でも自動にしない。承認は1回の実行に限り、覚えない
-（[ADR-0016](adr/0016-approval-before-external-send.md)）。今これに当たる skill は `/report-upload` と `/tree-upload` である。
+（[ADR-0016](adr/0016-approval-before-external-send.md)）。今これに当たる skill は `/report-export` と `/tree-upload` である。
 
 ## ディレクトリ構成（開発時 vs plugin 利用時）
 
@@ -135,10 +136,10 @@ notebook の auto 実行は premortem 通過 + allowlist + 宣言 source 限定�
 ```
 insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配布物の中身）
 ├── .claude-plugin/                # plugin マニフェスト（plugin.json / marketplace.json）
-├── bin/                           # plugin 有効時に PATH に載る: design_io / catalog_io / tree_io / premortem / report_check / tree_check ラッパー
-│                                  #   + _prelude.sh（6本が読み込む共通部分。実行ビットを付けないので、コマンドにはならない）
+├── bin/                           # plugin 有効時に PATH に載る: design_io / catalog_io / tree_io / premortem / tree_check ラッパー
+│                                  #   + _prelude.sh（5本が読み込む共通部分。実行ビットを付けないので、コマンドにはならない）
 ├── hooks/                         # plugin 同梱 hook: hooks.json + validate-design.py
-├── skills/                        # 全 skill + _shared/（design_io.py / catalog_io.py / tree_io.py / tree_read.py / tree_render.py / report_check.py / tree_check.py / ids.py / config_loader.py / models.py）+ premortem/
+├── skills/                        # 全 skill + _shared/（design_io.py / catalog_io.py / tree_io.py / tree_read.py / tree_render.py / theme_report.py / tree_check.py / ids.py / config_loader.py / models.py）+ premortem/
 ├── src/insight_blueprint/         # PyPI パッケージ insight-blueprint-lineage: models/ · validate.py · lineage/
 ├── tests/  docs/  scripts/
 ├── pyproject.toml · uv.lock       # ← この uv プロジェクトが「plugin の実行環境」を供給する
@@ -185,10 +186,10 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 │   ├── {id}.py                     # /analysis-notebook が生成する 8-cell marimo notebook
 │   ├── {id}_flat.py                # marimo export script（実行可能なフラット版）
 │   ├── {id}_verdict.json           # verdict 副作用（figures[] 含む; skill が読み戻す）
-│   ├── {id}_fig{NN}.png            # viz cell が保存する図（/analysis-report が埋め込む）
-│   └── {id}.html                   # 任意: 閲覧用レポート
+│   ├── {id}_fig{NN}.png            # viz cell が保存する図（分析ノートとレポートが載せる）
+│   └── {id}.html                   # 任意: notebook を閲覧用に書き出した HTML
 ├── reports/
-│   └── {id}.md                     # /analysis-report が生成する APA 風配布レポート
+│   └── {theme_id}.md               # テーマの最終報告のレポート。tree_io report が書く生成物（/report-export が Claude Docs へ export する）
 └── lineage/
     └── {id}.mmd                    # lineage の Mermaid 図
 ```
@@ -263,7 +264,7 @@ end-to-end の代表フロー。分析者の入口は `/analysis-auto`（guided 
 [ADR-0005](adr/0005-selective-autonomous-chaining.md) / [ADR-0026](adr/0026-analysis-auto-walks-the-question-tree.md)）。
 下の図は、**各 `/skill` を分析者が明示的に起動する**ときの同じ経路を示す。並びは1回の巡回の順である。**notebook の生成・実行は `/analysis-notebook` が design の
 `methodology` から 8-cell 契約に沿って行う**（`skills/analysis-notebook/references/notebook-contract.md`）。
-`/analysis-review`・`/premortem`・`/data-lineage`・`/analysis-report`・`/report-upload`・`/tree-upload` は任意ステップ。
+`/analysis-review`・`/premortem`・`/data-lineage`・`/report-export`・`/tree-upload` は任意ステップ。
 Claude Docs のコネクタと Artifact はホストが持つ機能で、plugin の外にある（[ADR-0015](adr/0015-host-connectors-for-optional-features.md)）。
 
 ```mermaid
@@ -305,17 +306,6 @@ sequenceDiagram
     end
     U->>CC: /analysis-reflection（結論 → status 遷移）
     CC->>IO: transition（supported / rejected / inconclusive）
-    opt 任意: 配布用レポート（terminal 後）
-        U->>CC: /analysis-report（design/journal/verdict/figures/catalog/lineage → APA Markdown）
-        CC->>FS: .insight/reports/{id}.md を Write（読み取り専用の消費者）
-        opt 任意: アップロード（Claude Docs のコネクタがあるとき）
-            U->>CC: /report-upload
-            CC->>U: 【KEEP】送るファイル（レポートと図）を列挙して承認を待つ
-            U-->>CC: 承認
-            CC->>DC: 新しい Doc を作り、本文と図を送る
-            DC-->>CC: Doc の URL
-        end
-    end
     opt テーマを横断した振り返り（論点ツリーがあるとき）
         U->>CC: /analysis-reflection {theme_id}
         CC->>IO: tree_io answer（論点ごとの現時点の答え。検査を通るまで書かない）
@@ -324,6 +314,17 @@ sequenceDiagram
         CC->>IO: tree_io candidates / candidate / hear / decide（次の候補、聞いてきた答え、ツリーの決定）
         opt 次の論点へ進む
             U->>CC: /analysis-framing {theme_id}（次に設計する論点を聞き、Framing Brief を出す）
+        end
+    end
+    opt 任意: テーマの最終報告（報告できると分析者が判断したとき）
+        U->>CC: /report-export {theme_id}
+        CC->>IO: tree_io report --theme（論点ツリーと分析設計の記録から Markdown を書く。書けなければ理由を返す）
+        IO->>FS: .insight/reports/{theme_id}.md を atomic write
+        opt Claude Docs のコネクタがあるとき
+            CC->>U: 【KEEP】送るファイル（レポートと図）を列挙して承認を待つ
+            U-->>CC: 承認
+            CC->>DC: 新しい Doc を作り、本文と図を送る
+            DC-->>CC: Doc の URL
         end
     end
     opt 任意: 知見の永続化
@@ -348,10 +349,9 @@ sequenceDiagram
     participant H as pre-write hook + validate.py
     participant PM as /premortem
     participant NB as /analysis-notebook + marimo
-    participant P as /report-upload
     participant TU as /tree-upload
     participant FS as .insight/
-    participant DC as Claude Docs / Artifact
+    participant DC as Artifact
 
     U->>D: /analysis-auto {theme_id | design_id}
     D->>IO: tree_io position（現在地を読む。何も書かない）
@@ -372,7 +372,7 @@ sequenceDiagram
         D->>IO: tree_io create / add-node / link / decide（start）/ render
         IO->>FS: {theme_id}_tree.yaml、{theme_id}_tree.html
     else not_started / in_progress / concluded / closed（最新のツリーの決定が指す論点から再開する）
-        Note over D,FS: in_progress は続きの手順へ、concluded はレポートと横断の振り返りへ入る
+        Note over D,FS: in_progress は続きの手順へ、concluded は横断の振り返りへ入る
     end
 
     loop 論点ごとの巡回（分析者が区切るか、止めると言うまで）
@@ -417,28 +417,9 @@ sequenceDiagram
         end
 
         D->>U: 【KEEP】/analysis-reflection {design_id} で結論（conclude/refine/branch）+ terminal 遷移
-        alt 結論が出た（terminal status）
-            D->>FS: /analysis-report でレポートを書く（AUTO。.insight/reports/{id}.md。前に書いたレポートがあれば書き直さない）
-            D->>P: /report-upload を起動（AUTO。前に書いたレポートでも起動する。driver は自分では聞かない）
-            alt Claude Docs のコネクタが無い
-                P-->>D: 何も送らず「コネクタが無い」を返す
-            else 送れる
-                P->>U: 【KEEP】送るファイル（レポートと図）を列挙して承認を待つ（前に書いたレポートなら「前に送っていれば送らなくてよい」を添える）
-                alt 承認する
-                    P->>DC: 新しい Doc を作り、本文と図を送る
-                    DC-->>P: Doc の URL
-                    P-->>D: Doc の URL
-                else 承認しない
-                    P-->>D: 何も送らず「承認されなかった」を返す
-                end
-            end
-        else refine か branch
-            Note over D,FS: レポートは書かない
-        end
-
         Note over D,FS: /analysis-reflection {theme_id}（テーマを横断した振り返り）
         D->>IO: tree_io answer（検査を通るまで書かない）→ tree_check → candidates / candidate → render
-        D->>U: 【KEEP】レポートのパスと論点ツリーの HTML のパスを示し、ツリーの決定（深める・親に戻る・区切る、次の論点、理由）と聞いてきた答えを聞く
+        D->>U: 【KEEP】論点ツリーの HTML のパスを示し、ツリーの決定（深める・親に戻る・区切る、次の論点、理由）と聞いてきた答えを聞く
         D->>IO: tree_io hear / decide / render
         D->>IO: tree_io position（次の巡回の現在地）
 
@@ -456,11 +437,11 @@ sequenceDiagram
             end
         end
     end
-    D-->>U: 実行サマリ（自動進行した所 / 停止した所 / 通った論点とツリーの決定 / ツリーの HTML のパス / 次に再開する論点 / レポートのパスとアップロードの結果）
+    D-->>U: 実行サマリ（自動進行した所 / 停止した所 / 通った論点とツリーの決定 / ツリーの HTML のパス / 次に再開する論点 / 論点ツリーがあれば、次に使える skill として /report-export の名前）
 ```
 
-外部へ送ることで分析者に聞くのは、`/report-upload` の KEEP ゲート（レポートごとに1回）と `/tree-upload` の KEEP ゲート（1回）だけである。driver は「送るか」を別に聞かない
-（[ADR-0016](adr/0016-approval-before-external-send.md)）。`/tree-upload` は、分析者が頼んだときにだけ起動する。
+巡回の中で、外部へ送ることを分析者に聞くのは、`/tree-upload` の KEEP ゲート（1回）だけである。driver は「送るか」を別に聞かない
+（[ADR-0016](adr/0016-approval-before-external-send.md)）。`/tree-upload` は、分析者が頼んだときにだけ起動する。`/report-export` は巡回の中では起動しない。
 
 再開する所は `tree_io position` が導く。最新のツリーの決定が指す論点に、終わっていない分析設計があれば `in_progress`、
 決定より後に作った分析設計がすべて終わっていれば `concluded`、どちらも無ければ `not_started` になる。最後の決定が区切るで、その後に分析設計を起こしていなければ `closed` になる。
@@ -775,7 +756,6 @@ classDiagram
 | `designs/{id}_journal.yaml` | journal（観察・証拠・人に聞いた答え・決定・問い） | [skills/analysis-journal/SKILL.md](../skills/analysis-journal/SKILL.md) |
 | `designs/{id}_revision.yaml` | review コメントへの対応の追跡 | [skills/analysis-revision/SKILL.md](../skills/analysis-revision/SKILL.md) |
 | `notebooks/{id}_verdict.json` | notebook の verdict と figures manifest（`figures[]`）。指標は任意で効果量・信頼区間・標本サイズを持つ | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md)、[ADR-0008](adr/0008-notebook-figure-manifest.md)、[ADR-0013](adr/0013-verdict-metric-optional-items.md) |
-| `reports/{id}.md` | レポート。データ由来の文はエスケープして載る | [apa-template.md](../skills/analysis-report/references/apa-template.md) |
 | `rules/package_allowlist.yaml` | notebook が使ってよいパッケージ | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md) |
 | `config.yaml` | premortem の閾値（読み込むと `PremortemConfig` になる） | [skills/_shared/config_loader.py](../skills/_shared/config_loader.py) |
 
@@ -810,6 +790,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 26 | Skill layer（`/analysis-reflection` の Step 2 の読むもの） |
 | Epic 27 | Skill layer（`/analysis-auto` の report と upload の段。前の実行で書いたレポートも `/report-upload` の KEEP ゲートへ回す） |
 | Epic 28 | Skill layer（`/analysis-reflection`・`/analysis-notebook`・`/analysis-auto`・`/tree-upload` が分析ノートを作って示し、送る段）+ `tree_io render` の表示（論点ツリーの HTML の中に並べる分析ノートと、論点ツリーの無いテーマの単独のページ `notes/{design_id}.html`） |
+| Epic 29 | Skill layer（`/report-export` の新設、`/analysis-report` と `/report-upload` の削除、`/analysis-auto` の report と upload の段の削除）+ `tree_io report` の出力（テーマの最終報告のレポート `reports/{theme_id}.md`）。Story 29.1〜29.5 で実装した |
 
 
 ## 参照

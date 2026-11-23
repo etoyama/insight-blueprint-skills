@@ -13,9 +13,11 @@ Usage from a skill (CLI):
     echo '<json>' | python -m skills._shared.tree_io create --base-dir .insight
     echo '{"answers": [...]}' | python -m skills._shared.tree_io answer --theme LIB
     python -m skills._shared.tree_io render --design LIB-H01   # the analysis note
+    python -m skills._shared.tree_io report --theme LIB   # .insight/reports/LIB.md
 
-Exit 0: done. Exit 1: error (message on stderr). Exit 3 (answer only): the check
-found violations, so nothing was written; they are in the JSON on stdout.
+Exit 0: done. Exit 1: error (message on stderr). Exit 3 (answer and report only):
+nothing was written, and why is in the JSON on stdout: the check found
+violations (answer), or no report can be trusted (report, its ``reasons``).
 """
 
 from __future__ import annotations
@@ -55,6 +57,7 @@ from skills._shared.design_io import (
 )
 from skills._shared.tree_check import check_tree
 from skills._shared.tree_read import (
+    ReportStop,
     WalkState,
     load_tree,
     load_tree_model,
@@ -63,6 +66,7 @@ from skills._shared.tree_read import (
     progress,
     render,
     render_design,
+    report,
     require_design,
     status_of,
     tree_path,
@@ -534,6 +538,13 @@ def _position(args: argparse.Namespace, base: Path, payload: dict) -> Any:
     return where
 
 
+def _report(args: argparse.Namespace, base: Path, payload: dict) -> dict[str, Any]:
+    result = report(args.theme, base_dir=base)
+    if not result["written"] and result["reasons"][0]["kind"] is ReportStop.no_tree:
+        _say_where_it_looked(args.theme, base)
+    return result
+
+
 def _render(args: argparse.Namespace, base: Path, payload: dict) -> dict[str, Any]:
     if (args.theme is None) == (args.design is None):
         raise ValueError("render takes exactly one of --theme and --design")
@@ -582,6 +593,14 @@ _COMMANDS: dict[str, tuple[_Handler, bool]] = {
     "position": (_position, False),
     "progress": (lambda a, base, p: progress(a.theme, base_dir=base), False),
     "render": (_render, False),
+    "report": (_report, False),
+}
+
+# 3, not 1: 1 stays "the call or a file is wrong", and a caller must
+# tell that apart from "rewrite the answer" or "fix what the reason names".
+_NOTHING_WRITTEN: dict[str, Callable[[dict], bool]] = {
+    "answer": lambda result: bool(result["violations"]),
+    "report": lambda result: not result["written"],
 }
 
 
@@ -607,9 +626,8 @@ def _main(argv: list[str] | None = None) -> int:
         return 1
 
     json.dump(result, sys.stdout, ensure_ascii=False, default=str)
-    # 3, not 1: 1 stays "the call or a file is wrong", and a caller must
-    # tell that apart from "rewrite the answer".
-    return 3 if args.command == "answer" and result["violations"] else 0
+    refused = _NOTHING_WRITTEN.get(args.command)
+    return 3 if refused is not None and refused(result) else 0
 
 
 if __name__ == "__main__":
