@@ -35,6 +35,7 @@ from skills._shared.design_note import (
     NoteSource,
     NoteVerdict,
     VerdictMetric,
+    contradicting_evidence,
     local_file_paths,
     render_note_page,
 )
@@ -240,9 +241,7 @@ def _conclusion(
             for field in NEXT_ACTION_BRANCHES[design.status]
             if (text := _branch_text(design.next_action, field)) is not None
         ),
-        contradicting_evidence=tuple(
-            e for e in of("evidence") if e.direction == "contradicts"
-        ),
+        contradicting_evidence=contradicting_evidence(events),
         reflect_events=of("reflect"),
         open_questions=tuple(e for e in of(QUESTION) if e.id not in resolved),
     )

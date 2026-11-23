@@ -35,6 +35,7 @@ from skills._shared.design_note import (
     NoteFigure,
     NoteSource,
     VerdictMetric,
+    contradicting_evidence,
 )
 from skills._shared.tree_render import PROGRESS_WORDS, CitedEvent
 
@@ -182,11 +183,7 @@ class ReportDesign:
             status=design.status,
             conclude_events=() if conclusion is None else conclusion.conclude_events,
             # Evidence against the hypothesis counts before the design concludes too.
-            contradicting_evidence=tuple(
-                e
-                for e in note.events
-                if e.type == "evidence" and e.direction == "contradicts"
-            ),
+            contradicting_evidence=contradicting_evidence(note.events),
             metrics=() if note.verdict is None else note.verdict.metrics,
             figures=note.figures,
         )

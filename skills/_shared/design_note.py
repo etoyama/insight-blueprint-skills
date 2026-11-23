@@ -42,6 +42,13 @@ class NoteEvent:
     created_at: str  # as written in the journal; "" when absent
 
 
+def contradicting_evidence(events: Iterable[NoteEvent]) -> tuple[NoteEvent, ...]:
+    """The evidence events against the hypothesis, in journal order."""
+    return tuple(
+        e for e in events if e.type == "evidence" and e.direction == "contradicts"
+    )
+
+
 @dataclass(frozen=True)
 class VerdictMetric:
     """One entry of ``verdict.metrics``. Every number is the literal JSON text."""
