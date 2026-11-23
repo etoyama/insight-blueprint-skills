@@ -428,8 +428,8 @@ def _theme_report(
     root_answer: Answer,
     cited: dict[str, CitedEvent],
     base_dir: Path,
-) -> tuple[ThemeReport, list[str]]:
-    """The report of *tree*, and the linked designs not in a terminal status.
+) -> ThemeReport:
+    """The report of *tree*.
 
     *cited* are the events the check read: the report quotes what it passed.
     """
@@ -442,7 +442,7 @@ def _theme_report(
     records = dict(cited)
     _add_design_records(records, designs)
     revision = tree.current_revision()
-    report = ThemeReport(
+    return ThemeReport(
         theme_id=tree.theme_id,
         root_question=revision.question,
         aim=revision.aim,
@@ -455,10 +455,6 @@ def _theme_report(
         decision=tree.decisions[-1] if tree.decisions else None,
         records=records,
     )
-    unfinished = [
-        d for d, note in notes.items() if note.design.status not in TERMINAL_STATUSES
-    ]
-    return report, unfinished
 
 
 def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
@@ -514,16 +510,18 @@ def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
     if reasons or root_answer is None:
         return {"written": False, "reasons": reasons}
 
-    theme_report, unfinished = _theme_report(tree, root_answer, events, base_dir)
+    theme_report = _theme_report(tree, root_answer, events, base_dir)
     report_path = Path(base_dir) / "reports" / f"{theme_id}.md"
     atomic_write_text(report_path, render_report(theme_report))
     return {
         "written": True,
         "path": str(report_path),
         "figures": theme_report.figures(),
-        "round": tree.current_round(),
+        "round": theme_report.round,
         # A later round may have answered other nodes only, so the last round
         # does not say how old the answer to the root is.
         "root_answer_round": root_answer.round,
-        "unfinished_designs": unfinished,
+        "unfinished_designs": [
+            d.id for d in theme_report.designs if d.status not in TERMINAL_STATUSES
+        ],
     }
