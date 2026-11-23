@@ -116,7 +116,7 @@ B と Q を採る（人間の判断、2026-11-23）。決め手は形式では W
 - verdict・figures manifest・lineage の形と置き場、`LineageSession` と `tracked_pipe` の呼び方、`results` の形は変えない。
 - 実行は1段にする。`uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook python .insight/notebooks/{id}.py`。
   `{id}_flat.py` と `{id}.html` は作らない。[ADR-0006](0006-plugin-execution-model.md) の notebook の実行の行（`<marimo|python>`）は、この形に置き換える。
-- 分析ノートは、次のすべてを満たす `.py` からだけ、cell を切り出す。1つでも欠けたら、コードを1つも載せない。
+- 分析ノートは次のすべてを満たす `.py` からだけ、cell を切り出す。1つでも欠けたら、コードを1つも載せない。
   - Python として読める。
   - 区切りの行が1つ以上ある。区切りは列0から始まるコメントのうち `# %%` で始まるものである。文字列の中の `# %%` は区切りにしない。
   - 最初の区切りより前に、docstring のほかの文が無い。
@@ -132,13 +132,13 @@ B と Q を採る（人間の判断、2026-11-23）。決め手は形式では W
 
 ### Positive
 
-- notebook は、形式の決まりでは止まらなくなる。止まるのは Python の誤りだけになる。
-- 手元の `.py` が、上から下へ読める分析のスクリプトになる。
+- notebook は形式の決まりでは止まらなくなる。止まるのは Python の誤りだけになる。
+- 手元の `.py` が上から下へ読める分析のスクリプトになる。
 - 実行が1段になり、`_flat.py` が残らない。実行に marimo が要らない。
 - データ取得の cell の見分け方が厳しくなる。今の決まり（`raw_df` を代入する cell が1つ）では、接続情報を別の cell で変数に入れてから `raw_df` を作る notebook で、その cell が分析ノートに載る。
   名前との一致を足すと、この notebook からはコードを載せなくなる。
 - 分析ノートは cell を名前で示せる。
-- #175 の動く図は、この契約の上に足せる。cell の書式は、図の保存のしかたを縛らない。
+- #175 の動く図はこの契約の上に足せる。cell の書式は図の保存のしかたを縛らない。
 
 ### Negative
 
@@ -147,7 +147,7 @@ B と Q を採る（人間の判断、2026-11-23）。決め手は形式では W
 - `raw_df` の代入として数えるのは、名前への代入だけである。`import … as raw_df`、`def raw_df`、`globals()` を通した代入は数えない。今の切り出しと同じ穴で、ここでは塞がない。
 - 分析コードの cell に、接続情報のほかの秘密や個人情報が書かれていても、検査しない（ADR-0036 と同じ）。
 - 冒頭の docstring には、分析設計の題と仮説の文が入る。文の中の `"""` や `\` で docstring が壊れないように、文字列として正しく書く必要がある。今の meta の cell の `mo.md("…")` と同じ注意である。
-- cell の間の依存は、変数の名前でしか分からない。
+- cell の間の依存は変数の名前でしか分からない。
 - `marimo edit` で notebook を開く道は無くなる。使いたくなったら、決め直す。
 - エディタが `# %%` を cell として扱うかは、確かめていない。
 - [Epic 07](../design/epic-07-analysis-notebook.md) の DesignDoc と ADR-0006 の記述のうち、8つの cell、marimo rules、2段の実行は、この ADR で古くなる。どちらも凍結しているので直さない（[ADR-0009](0009-adopt-repo-template-flow.md)）。

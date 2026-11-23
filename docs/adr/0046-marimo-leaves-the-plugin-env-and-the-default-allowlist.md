@@ -26,7 +26,7 @@ marimo は今、plugin の env（`pyproject.toml` の `notebook` extra と、開
 ## Problem
 
 - 課題1: plugin の env がどの notebook も使わないパッケージを抱え続ける。
-- 課題2: 既定の許可リストに marimo を残すと、「契約の cell が import するパッケージ」という定義と中身が食い違う。web サーバを連れてくるパッケージが、理由なく常に許される。
+- 課題2: 既定の許可リストに marimo を残すと、「契約の cell が import するパッケージ」という定義と中身が食い違う。web サーバを依存に含むパッケージが、理由なく常に許される。
 - 課題3: 外すと、既にある旧形式の notebook を今のコマンドで走らせ直せなくなる。動いていたものが止まる（[FLOW-0008](flow/0008-ask-before-narrowing-what-worked.md)）。
 
 扱わない範囲: 旧形式の notebook のコードを分析ノートに出すか（ADR-0045）。lineage のライブラリ（marimo に依らない）。
@@ -64,7 +64,7 @@ marimo は今、plugin の env（`pyproject.toml` の `notebook` extra と、開
 
 X を採る（人間の判断、2026-11-23）。決め手は W1 である。
 
-- `pyproject.toml` の `notebook` extra と、開発用の依存から、marimo を外す。`uv.lock` も更新する。
+- `pyproject.toml` の `notebook` extra と、開発用の依存から marimo を外す。`uv.lock` も更新する。
 - 既定の許可リストから marimo を外す。既定の許可リストは `insight_blueprint`・`pandas`・`matplotlib`・`numpy` になる。正本は今までどおり notebook の契約の「Default allowlist」の節に置く。
 - 既定の許可リストの定義（契約の cell が import するパッケージで、plugin の env に最初から入っているもの）と、常に許すという扱いは変えない（ADR-0021、ADR-0027）。変わるのは中身だけである。
 - 旧形式の notebook を走らせ直したい分析者は、`.insight/rules/package_allowlist.yaml` に `marimo: marimo` を書き、実行のコマンドに `--with marimo` を付ける。
@@ -74,7 +74,7 @@ X を採る（人間の判断、2026-11-23）。決め手は W1 である。
 
 ### Positive
 
-- plugin の env が軽くなる。web サーバを含む依存が、env に入らなくなる。
+- plugin の env が軽くなる。web サーバを含む依存が env に入らなくなる。
 - 常に許されるパッケージが、契約の cell が実際に import するものだけになる。
 - 既定の許可リスト、契約の import、plugin の env が一致したまま保たれる。
 

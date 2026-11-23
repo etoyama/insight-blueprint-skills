@@ -162,11 +162,11 @@ flowchart TD
 
 - 変わるのは、契約、生成される `.py` の形、実行の段数、env の中身、`notebook_cells` の読み方である。
 - 変わらないのは、lineage のライブラリ、notebook の出力の形と置き場、分析ノートのほかの節、テーマの最終報告である。
-- `marimo export script` と `{id}_flat.py` の経路は、図から無くなる。
+- `marimo export script` と `{id}_flat.py` の経路は図から無くなる。
 
 ## Domain Model
 
-`src/insight_blueprint/models/` のクラスは変えない。変えるのは、`skills/_shared/design_note.py` に在る表示のための型 `CodeCell` だけである。cell の名前を持たせる。
+`src/insight_blueprint/models/` のクラスは変えない。変えるのは、`skills/_shared/design_note.py` に在る表示のための型 `CodeCell` だけである。`CodeCell` に cell の名前を持たせる。
 notebook そのものは `.py` のファイルで、型を持たない。下の図の `Notebook` は、契約が定めるファイルの形を表す。コード上のクラスではない。
 
 ```mermaid
@@ -248,7 +248,7 @@ sequenceDiagram
 ```
 
 - 境界は2つある。plugin の env（`uv run --project`）は、実行の環境だけを貸す。cwd は分析者のプロジェクトのままである（[ADR-0006](../adr/0006-plugin-execution-model.md)）。
-- 接続情報の値は、`notebooks/{id}.py` の `data_load` の cell にだけ入る。`tree_io render` はその cell を HTML に出さない（[ADR-0022](../adr/0022-connection-reaches-only-the-notebook.md)）。
+- 接続情報の値は `notebooks/{id}.py` の `data_load` の cell にだけ入る。`tree_io render` はその cell を HTML に出さない（[ADR-0022](../adr/0022-connection-reaches-only-the-notebook.md)）。
 - `marimo export script` の段と `{id}_flat.py` は無い。
 
 ## Decisions
@@ -256,7 +256,7 @@ sequenceDiagram
 ### Decision: the-notebook-html-link-stays-for-files-that-exist
 
 - What: 分析ノートの「手元のファイル」の「notebook の HTML」（`notebooks/{id}.html`）へのリンクは、消さずに残す。
-- Why: 分析ノートは、在るファイルにだけリンクを張る（ADR-0036）。新しい notebook は HTML を作らないので、リンクは出ない。既に HTML を書き出した分析設計では、今までどおり出る。
+- Why: 分析ノートは在るファイルにだけリンクを張る（ADR-0036）。新しい notebook は HTML を作らないので、リンクは出ない。既に HTML を書き出した分析設計では、今までどおり出る。
 - Criteria: 動いていたものを止めないこと（FLOW-0008）と、変える量（YAGNI）。決め手は、残しても新しい notebook には何も出ないこと。
 - Affected modules: `skills/_shared/design_note.py`（`LOCAL_FILES`。変えない）
 - Alternatives considered: リンクを消す。既にある HTML へたどれなくなるだけで、得るものが無い。
@@ -264,7 +264,7 @@ sequenceDiagram
 
 ### Decision: the-cut-checks-only-the-data-load-cell
 
-- What: 分析ノートの切り出しは、`data_load` の cell を特定できるかだけを確かめる。ほかの cell の名前、数、順は確かめない。
+- What: 分析ノートの切り出しは `data_load` の cell を特定できるかだけを確かめる。ほかの cell の名前、数、順は確かめない。
 - Why: 切り出しが守るのは、接続情報を載せないことである（ADR-0022）。契約どおりの7つかどうかは、分析ノートの読み手の害にならない。分析者が cell を足した notebook でも、コードを読める。
 - Criteria: 接続情報を載せないこと（ADR-0022）と、分析コードを読めること（ADR-0036 の課題4）。決め手は前者を満たしたうえで、後者を狭めないこと。
 - Affected modules: `skills/_shared/design_note_read.py`
@@ -285,8 +285,8 @@ sequenceDiagram
 
 - What: import はすべて `imports` の cell に書く。データソースのクライアントのライブラリと、手法に固有のパッケージも含む。`imports` の cell では、`pyplot` を読み込む前に `matplotlib.use("Agg")` を呼ぶ。
 - Why: SQL のデータソースの notebook を scratchpad で書くと、クライアントの import を `data_load` の cell に書きたくなる。その cell は分析ノートに出ないので、notebook が何を import したかが読み手から見えなくなる。marimo rules の9（import は1つの cell で）が消えるので、その意図を契約に残す。
-  `Agg` は、素の `python` の実行で窓を開かないためである。marimo のときは marimo が描画を引き受けていた。
-- Criteria: パッケージ許可リストの照らし（ADR-0021）と分析ノートの読み手に、import が見えること。決め手は、データ取得の cell を隠す決まり（ADR-0022）と両立すること。
+  `Agg` にするのは、素の `python` の実行でウィンドウを開かないためである。marimo のときは marimo が描画を引き受けていた。
+- Criteria: パッケージ許可リストとの照合（ADR-0021）と分析ノートの読み手に、import が見えること。決め手は、データ取得の cell を隠す決まり（ADR-0022）と両立すること。
 - Affected modules: `skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-notebook/SKILL.md`、`tests/integration/fixtures/sample_notebook.py`
 - Alternatives considered: import の場所を決めない。`data_load` の import が分析ノートから消える。
 - 併せて、接続情報の値（パス、テーブル名、project id、ホスト、それを受け取るクライアントの生成）は `data_load` の cell にだけ書く、と契約と SKILL.md に命令の文で書いた。分析ノートが隠すのは `data_load` の cell だけで、ほかの cell の値は出る。import を `imports` の cell に寄せると、クライアントの生成もそこに書かれやすくなるので、レビューの指摘で足した。
@@ -307,7 +307,7 @@ sequenceDiagram
 - What: 列0から始まるコメントのうち `# %%` で始まるものは、すべて区切りである（ADR-0045 の文のとおり）。cell の名前は、その行の `# %%` より後ろから前後の空白を除いた文字である。
   `# %%data_load` と `# %%   data_load` の名前は `data_load` になる。`# %% data_load v2` の名前は `data_load v2` で、データ取得の cell ではない。`#%%` と字下げした `# %%` は、ただのコメントである。
 - Why: ADR-0045 は区切りを「`# %%` で始まるもの」と定めたが、名前の取り方は定めていない。初版の試作は、`# %%` の後ろに空白と名前だけを許す狭い読み方だった。
-  書き損じた行が接続情報を載せる側に倒れるかは、どちらの読み方でも場合による。狭く読むと、`# %%data_load` と書いた cell は前の cell の続きになる。
+  書き損じた行で接続情報が載るかは、どちらの読み方でも場合による。狭く読むと、`# %%data_load` と書いた cell は前の cell の続きになる。
   広く読むと、データ取得の cell の中の `# %%memo` が新しい cell を始める。接続情報の境界では差がつかないので、ADR の文のとおりに読む。
 - Criteria: 接続情報を載せないこと（ADR-0022）と、ADR-0045 の文との一致。前者では差がつかず、決め手は後者である。
 - Affected modules: `skills/_shared/design_note_read.py`（`_separators`）
@@ -318,7 +318,7 @@ sequenceDiagram
 
 - What: 切り出しは、`.py` の文字を行の区切り（`\r\n`・`\r`・`\n`）で一度だけ行に分ける。`ast` も tokenizer も cell の切り取りも、その同じ行の並びを読む。
 - Why: Epic 28 のゲートで、`str.splitlines()` の行と tokenizer の行番号がずれて、データ取得の cell が載る穴が見つかった。そのときは、切り取った文字を `ast` の範囲と照らして塞いだ。
-  新しい形では cell が `ast` の節ではないので、同じ照らしは書けない。行の並びを1つにすれば、行番号は3つのどこでも同じ行を指す。
+  新しい形では cell が `ast` の節ではないので、同じ照合は書けない。行の並びを1つにすれば、行番号は3つのどこでも同じ行を指す。
 - Criteria: 接続情報を載せないこと（ADR-0022、ブリーフの「同じ穴が無いことをテストで押さえる」）。決め手は、ずれを後から見つけるのではなく、ずれる余地を無くせること。
 - Affected modules: `skills/_shared/design_note_read.py`（`notebook_cells`）
 - Alternatives considered: 元の文字を `ast.parse` に渡し、切り取った後で照らす。照らす相手になる `ast` の節が無い。
@@ -327,7 +327,7 @@ sequenceDiagram
 ### Decision: the-data-load-cell-term-names-where-connection-values-live
 
 - What: 用語表の「データ取得の cell」は、`data_load` という名前で決まる cell と定め、接続情報の値はこの cell にだけ書くことを定義に入れる。import をこの cell に書かないこと（`every-import-lives-in-the-imports-cell`）は、定義に入れない。
-- Why: 分析ノートがこの cell を載せない理由は、接続情報の値がここにだけ在ることである。契約は 30.1 でこれを命じた。定義に理由を書かないと、載せない決まりの根拠が読めない。import の置き場は `imports` の cell の決まりで、データ取得の cell を見分けることにも、載せないことにも効かない。
+- Why: 分析ノートがこの cell を載せない理由は、接続情報の値がここにだけ在ることである。契約は 30.1 でこれを命じた。定義に理由を書かないと、載せない決まりの根拠が読めない。import の置き場は `imports` の cell の決まりで、データ取得の cell を見分けることにも、載せないことにも関わらない。
 - Criteria: 用語の定義は、その語を見分ける条件と、その語に結びつく決まりの理由だけを書く（UBIQUITOUS_LANGUAGE の Context）。決め手は、載せない理由を定義から読めること。
 - Affected modules: `docs/UBIQUITOUS_LANGUAGE.md`、`.yomiyasu-words/`
 - Alternatives considered: import の置き場も定義に書く。cell の契約の細目で、用語の見分けに要らない。
