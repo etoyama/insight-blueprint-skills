@@ -18,7 +18,7 @@ import io
 import json
 import re
 import tokenize
-from bisect import bisect_right
+from itertools import pairwise
 from pathlib import Path
 from typing import cast
 
@@ -266,27 +266,19 @@ def _conclusion(
     )
 
 
-def _separators(lines: list[str]) -> dict[int, str] | None:
+def _separators(source: str) -> dict[int, str]:
     """The cell name of each separator line, by its 1-based line number.
 
     A separator is a comment that starts at column 0 with ``# %%``. The
-    tokenizer tells a comment from the same characters in a string. None when
-    a separator sits inside brackets, where it cuts a statement in two.
+    tokenizer tells a comment from the same characters in a string.
     """
-    names: dict[int, str] = {}
-    depth = 0
-    for token in tokenize.generate_tokens(io.StringIO("\n".join(lines)).readline):
-        if token.type == tokenize.OP:
-            depth += (token.string in "([{") - (token.string in ")]}")
-        elif (
-            token.type == tokenize.COMMENT
-            and token.start[1] == 0
-            and token.string.startswith(_SEPARATOR)
-        ):
-            if depth:
-                return None
-            names[token.start[0]] = token.string.removeprefix(_SEPARATOR).strip()
-    return names
+    return {
+        token.start[0]: token.string.removeprefix(_SEPARATOR).strip()
+        for token in tokenize.generate_tokens(io.StringIO(source).readline)
+        if token.type == tokenize.COMMENT
+        and token.start[1] == 0
+        and token.string.startswith(_SEPARATOR)
+    }
 
 
 def _declares_another_encoding(lines: list[str]) -> bool:
@@ -303,11 +295,6 @@ def _declares_another_encoding(lines: list[str]) -> bool:
             except LookupError:
                 return True
     return False
-
-
-def _first_line(statement: ast.stmt) -> int:
-    decorators = getattr(statement, "decorator_list", [])
-    return min([statement.lineno, *(d.lineno for d in decorators)])
 
 
 def _is_docstring(statement: ast.stmt) -> bool:
@@ -334,6 +321,14 @@ def _cell_source(lines: list[str]) -> str:
     return "\n".join(lines)
 
 
+def _body(lines: list[str]) -> list[ast.stmt]:
+    return ast.parse("\n".join(lines)).body
+
+
+def _dumps(statements: list[ast.stmt]) -> list[str]:
+    return [ast.dump(statement) for statement in statements]
+
+
 def notebook_cells(text: str) -> tuple[CodeCell, ...] | None:
     """The cells of a notebook, without its data-load cell (ADR-0045).
 
@@ -350,37 +345,34 @@ def notebook_cells(text: str) -> tuple[CodeCell, ...] | None:
     if _declares_another_encoding(lines):
         return None
     try:
-        tree = ast.parse("\n".join(lines))
-        names = _separators(lines)
-    # A deeply nested expression ends the parse with one of the last two.
+        names = _separators("\n".join(lines))
+        starts = sorted(names)
+        # Any other cell could be a piece of data_load cut off by a stray # %% line.
+        if tuple(names[start] for start in starts) != CONTRACT_CELLS:
+            return None
+        slices = [
+            lines[a - 1 : b - 1] for a, b in pairwise([1, *starts, len(lines) + 1])
+        ]
+        head, *cells = map(_body, slices)
+        # A separator inside a statement leaves a slice that does not parse, or
+        # one that parses to other statements than the file's.
+        if _dumps(_body(lines)) != _dumps([s for body in [head, *cells] for s in body]):
+            return None
+    # A deeply nested expression ends the parse with RecursionError, or with
+    # MemoryError ("Parser stack overflowed", CPython 3.14).
     except (SyntaxError, ValueError, tokenize.TokenError, RecursionError, MemoryError):
         return None
-    starts = sorted(names or ())
-    # Any other cell could be a piece of data_load cut off by a stray # %% line.
-    if tuple(names[start] for start in starts) != CONTRACT_CELLS:
+    if head and (len(head) > 1 or not _is_docstring(head[0])):
         return None
-    binders: set[int] = set()
-    for index, statement in enumerate(tree.body):
-        first, last = _first_line(statement), cast(int, statement.end_lineno)
-        if any(first <= start <= last for start in starts):
-            return None
-        if last < starts[0]:
-            if index or not _is_docstring(statement):
-                return None
-        elif _binds_raw_df(statement):
-            binders.add(bisect_right(starts, first) - 1)
-    loads = {CONTRACT_CELLS.index(DATA_LOAD_CELL)}
-    if binders != loads:
+    binders = {i for i, body in enumerate(cells) if any(map(_binds_raw_df, body))}
+    if binders != {CONTRACT_CELLS.index(DATA_LOAD_CELL)}:
         return None
-    ends = [*(start - 1 for start in starts[1:]), len(lines)]
     return tuple(
-        CodeCell(
-            position=index + 1,
-            name=names[start],
-            source=_cell_source(lines[start - 1 : end]),
+        CodeCell(position=index + 1, name=name, source=_cell_source(cell))
+        for index, (name, cell) in enumerate(
+            zip(CONTRACT_CELLS, slices[1:], strict=True)
         )
-        for index, (start, end) in enumerate(zip(starts, ends, strict=True))
-        if index not in loads
+        if name != DATA_LOAD_CELL
     )
 
 
