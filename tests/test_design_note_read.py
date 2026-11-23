@@ -102,6 +102,14 @@ SHOWN = tuple(
 )
 
 
+def _assert_hides_connection(
+    cells: tuple[CodeCell, ...] | None,
+) -> tuple[CodeCell, ...]:
+    assert cells
+    assert all(CONNECTION not in c.source for c in cells)
+    return cells
+
+
 def _crossing(body: str) -> str:
     """The contract's seven names, with *body* carrying the data_prep separator."""
     return _notebook(
@@ -138,10 +146,7 @@ class TestContractShape:
         )
 
     def test_no_cell_carries_the_connection_value(self) -> None:
-        cells = notebook_cells(NOTEBOOK)
-
-        assert cells
-        assert all(CONNECTION not in c.source for c in cells)
+        _assert_hides_connection(notebook_cells(NOTEBOOK))
 
     def test_the_sample_notebook_of_the_contract_is_cut_into_six_cells(self) -> None:
         sample = Path("tests/integration/fixtures/sample_notebook.py").read_text(
@@ -212,185 +217,178 @@ class TestContractShape:
         )
 
 
-class TestTheCellsAreTheContractsSeven:
-    """Code shows only when the cells are the contract's seven, in order."""
-
-    def test_an_extra_cell(self) -> None:
-        cells = [_cell(n) for n in CONTRACT_CELLS]
-        cells.insert(4, "# %% extra\nx = 1\n")
-
-        assert notebook_cells(_notebook(*cells)) is None
-
-    # A missing data_load cell is test_no_cell_named_data_load.
-    @pytest.mark.parametrize("missing", [n for n in CONTRACT_CELLS if n != "data_load"])
-    def test_a_missing_cell(self, missing: str) -> None:
-        text = _notebook(*(_cell(n) for n in CONTRACT_CELLS if n != missing))
-
-        assert notebook_cells(text) is None
-
-    def test_cells_out_of_order(self) -> None:
-        order = ["imports", "data_load", "analysis", "data_prep", "viz", "verdict"]
-        text = _notebook(*(_cell(n) for n in [*order, "lineage"]))
-
-        assert notebook_cells(text) is None
-
-    @pytest.mark.parametrize("name", ["Analysis", "analysis_2", "config", ""])
-    def test_a_renamed_cell(self, name: str) -> None:
-        text = _contract().replace("# %% analysis\n", f"# %% {name}\n")
-
-        assert notebook_cells(text) is None
-
-    @pytest.mark.parametrize(
-        "line",
-        [
-            "# %% data_load (second source)",
-            "# %%",
-            "# %% [markdown]",
-            "# %% data_load_2",
-        ],
-        ids=["second_source", "bare", "markdown", "data_load_2"],
-    )
-    def test_a_percent_line_that_splits_the_data_load_cell(self, line: str) -> None:
-        # The second half once showed: it held the second source's connection.
-        load = f'{LOAD}{line}\nother_df = pd.read_csv("{CONNECTION}.2")\n'
-
-        assert notebook_cells(_contract(data_load=load)) is None
-
-    def test_a_notebook_of_only_the_data_load_cell(self) -> None:
-        assert notebook_cells(_notebook(_cell("data_load"))) is None
-
-    def test_a_config_cell_that_holds_the_connection(self) -> None:
-        cells = [_cell(n) for n in CONTRACT_CELLS]
-        cells.insert(1, f'# %% config\nPATH = "{CONNECTION}"\n')
-
-        assert notebook_cells(_notebook(*cells)) is None
+def _inserted(index: int, cell: str) -> str:
+    cells = [_cell(n) for n in CONTRACT_CELLS]
+    cells.insert(index, cell)
+    return _notebook(*cells)
 
 
-class TestOutOfShape:
-    """Each way a notebook falls out of the shape gives no code (US-2 AC 2)."""
+def _renamed(old: str, new: str) -> str:
+    return _contract().replace(f"# %% {old}\n", f"{new}\n")
 
-    def test_no_cell_named_data_load(self) -> None:
-        text = _contract().replace("# %% data_load\n", "# %% load\n")
 
-        assert notebook_cells(text) is None
+MARIMO = (
+    "import marimo\n\napp = marimo.App()\n\n\n"
+    "@app.cell\ndef _():\n    import pandas as pd\n    return (pd,)\n\n\n"
+    f"@app.cell\ndef _(pd):\n    {LOAD}    return (raw_df,)\n\n\n"
+    'if __name__ == "__main__":\n    app.run()\n'
+)
+MARIMO_WITH_PERCENT_COMMENTS = (
+    "import marimo\n\napp = marimo.App()\n\n"
+    "# %% imports\n@app.cell\ndef _():\n    import pandas as pd\n\n"
+    f"# %% data_load\n@app.cell\ndef _(pd):\n    {LOAD}"
+)
 
-    def test_two_cells_named_data_load(self) -> None:
-        text = _notebook(_contract(), "# %% data_load\nx = 1\n")
-
-        assert notebook_cells(text) is None
-
-    def test_two_cells_named_data_load_that_both_assign_raw_df(self) -> None:
-        text = _notebook(_contract(), _cell("data_load"))
-
-        assert notebook_cells(text) is None
-
-    def test_raw_df_assigned_in_another_cell(self) -> None:
-        prep = f'raw_df = pd.read_csv("{CONNECTION}")\n'
-
-        assert notebook_cells(_contract(data_prep=prep)) is None
-
-    def test_raw_df_assigned_in_a_function_of_another_cell(self) -> None:
-        prep = "def reload():\n    global raw_df\n    raw_df = 1\n"
-
-        assert notebook_cells(_contract(data_prep=prep)) is None
-
-    def test_raw_df_assigned_before_the_first_separator(self) -> None:
-        assert notebook_cells(_contract(head=LOAD)) is None
-
-    def test_a_data_load_cell_that_does_not_assign_raw_df(self) -> None:
-        load = f'df = pd.read_csv("{CONNECTION}")\n'
-
-        assert notebook_cells(_contract(data_load=load)) is None
-
-    @pytest.mark.parametrize(
-        "body",
-        [
-            f'raw_df = pd.read_csv(\n# %% data_prep\n    "{CONNECTION}"\n)\n',
-            f'if True:\n# %% data_prep\n    raw_df = pd.read_csv("{CONNECTION}")\n',
-            "raw_df = load()\n"
-            f'@decorate\n# %% data_prep\ndef load():\n    return "{CONNECTION}"\n',
-        ],
-        ids=["in_a_call", "in_a_block", "between_decorator_and_def"],
-    )
-    def test_a_separator_inside_a_statement(self, body: str) -> None:
-        assert notebook_cells(_crossing(body)) is None
-
-    @pytest.mark.parametrize(
-        "head",
-        [
-            '"""LIB-H01"""\nimport pandas as pd\n',
-            f'"""LIB-H01"""\nPATH = "{CONNECTION}"\n',
-            'import pandas as pd\n"""not a docstring"""\n',
-            '"""LIB-H01"""\n"""a second string"""\n',
-            'f"""LIB-H01"""\n',
-        ],
-        ids=["import", "assignment", "string_not_first", "two_strings", "f_string"],
-    )
-    def test_a_statement_other_than_the_docstring_before_the_first_separator(
-        self, head: str
-    ) -> None:
-        assert notebook_cells(_contract(head=head)) is None
-
-    @pytest.mark.parametrize(
-        "body",
-        [
-            f'raw_df = 1\n@(\n# %% data_prep\nf)\ndef g(): return "{CONNECTION}"\n',
-            f'raw_df = [\n# %% data_prep\n    "{CONNECTION}"]\n',
-            f'raw_df = {{\n# %% data_prep\n    "{CONNECTION}"}}\n',
-        ],
-        ids=["in_a_bracketed_decorator", "in_a_list", "in_a_set"],
-    )
-    def test_a_separator_inside_brackets(self, body: str) -> None:
-        assert notebook_cells(_crossing(body)) is None
-
-    @pytest.mark.parametrize(
-        "line", ["# coding: utf-7", "# -*- coding: latin-1 -*-", "# coding=nope"]
-    )
-    @pytest.mark.parametrize("before", ["", "#!/usr/bin/env python\n"])
-    def test_a_declared_encoding_other_than_utf_8(self, line: str, before: str) -> None:
-        # Python would decode the file by the declaration; the note reads UTF-8.
-        assert notebook_cells(_contract(head=f"{before}{line}\n")) is None
-
-    @pytest.mark.parametrize(
-        "statement",
-        ["x = " + "+".join(['"a"'] * 5000), "x = " + "not " * 20000 + "1"],
-        ids=["a_long_sum", "a_long_negation"],
-    )
-    def test_a_file_too_deep_to_parse_gives_no_code_and_no_error(
-        self, statement: str
-    ) -> None:
-        # Which depth ends the parse depends on the Python version.
-        cells = notebook_cells(_contract(analysis=f"{statement}\n"))
-
-        assert cells is None or all(CONNECTION not in c.source for c in cells)
-
-    def test_no_separator(self) -> None:
-        assert notebook_cells(f"import pandas as pd\n\n{LOAD}") is None
-
-    def test_a_file_that_does_not_parse(self) -> None:
-        assert notebook_cells(_contract(analysis="def _(:\n")) is None
-
-    def test_a_file_with_a_null_character(self) -> None:
-        assert notebook_cells(_contract(analysis="y = '\x00'\n")) is None
-
-    def test_a_marimo_notebook(self) -> None:
-        text = (
-            "import marimo\n\napp = marimo.App()\n\n\n"
-            "@app.cell\ndef _():\n    import pandas as pd\n    return (pd,)\n\n\n"
-            f"@app.cell\ndef _(pd):\n    {LOAD}    return (raw_df,)\n\n\n"
-            'if __name__ == "__main__":\n    app.run()\n'
+# Each way a notebook falls out of the contract's shape (US-2 AC 2). Each case
+# is the contract's notebook with one thing changed, so the change is the cause.
+OUT_OF_SHAPE = [
+    # The cells are not the contract's seven, in order.
+    pytest.param(_inserted(4, "# %% extra\nx = 1\n"), id="extra_cell"),
+    pytest.param(
+        _inserted(1, f'# %% config\nPATH = "{CONNECTION}"\n'),
+        id="config_cell_with_the_connection",
+    ),
+    *(
+        pytest.param(
+            _notebook(*(_cell(n) for n in CONTRACT_CELLS if n != missing)),
+            id=f"missing_{missing}",
         )
-
-        assert notebook_cells(text) is None
-
-    def test_a_marimo_notebook_with_percent_comments_between_its_cells(self) -> None:
-        text = (
-            "import marimo\n\napp = marimo.App()\n\n"
-            "# %% imports\n@app.cell\ndef _():\n    import pandas as pd\n\n"
-            f"# %% data_load\n@app.cell\ndef _(pd):\n    {LOAD}"
+        for missing in CONTRACT_CELLS
+    ),
+    pytest.param(
+        _notebook(
+            *(_cell(n) for n in ("imports", "data_load", "analysis", "data_prep")),
+            *(_cell(n) for n in CONTRACT_CELLS[4:]),
+        ),
+        id="out_of_order",
+    ),
+    *(
+        pytest.param(
+            _renamed("analysis", f"# %% {name}"), id=f"analysis_renamed_{name}"
         )
+        for name in ("Analysis", "analysis_2", "config", "")
+    ),
+    pytest.param(_renamed("data_load", "# %% load"), id="no_cell_named_data_load"),
+    pytest.param(_renamed("data_load", "# %% data_load v2"), id="data_load_v2"),
+    pytest.param(_notebook(_cell("data_load")), id="only_the_data_load_cell"),
+    pytest.param(
+        _notebook(_contract(), "# %% data_load\nx = 1\n"), id="two_data_load_cells"
+    ),
+    pytest.param(
+        _notebook(_contract(), _cell("data_load")),
+        id="two_data_load_cells_that_both_assign_raw_df",
+    ),
+    # A # %% line splits the data_load cell; the second half once showed with the
+    # second source's connection (Epic 30 gate).
+    *(
+        pytest.param(
+            _contract(
+                data_load=f'{LOAD}{line}\nother_df = pd.read_csv("{CONNECTION}.2")\n'
+            ),
+            id=f"data_load_split_by_{case}",
+        )
+        for case, line in [
+            ("second_source", "# %% data_load (second source)"),
+            ("bare", "# %%"),
+            ("markdown", "# %% [markdown]"),
+            ("data_load_2", "# %% data_load_2"),
+        ]
+    ),
+    # raw_df is not bound in data_load alone.
+    pytest.param(
+        _contract(data_prep=f'raw_df = pd.read_csv("{CONNECTION}")\n'),
+        id="raw_df_in_another_cell",
+    ),
+    pytest.param(
+        _contract(data_prep="def reload():\n    global raw_df\n    raw_df = 1\n"),
+        id="raw_df_in_a_function_of_another_cell",
+    ),
+    pytest.param(_contract(head=LOAD), id="raw_df_before_the_first_separator"),
+    pytest.param(
+        _contract(data_load=f'df = pd.read_csv("{CONNECTION}")\n'),
+        id="data_load_without_raw_df",
+    ),
+    # A separator inside a statement.
+    *(
+        pytest.param(_crossing(body), id=case)
+        for case, body in [
+            (
+                "in_a_call",
+                f'raw_df = pd.read_csv(\n# %% data_prep\n    "{CONNECTION}"\n)\n',
+            ),
+            (
+                "in_a_block",
+                f'if True:\n# %% data_prep\n    raw_df = pd.read_csv("{CONNECTION}")\n',
+            ),
+            (
+                "between_decorator_and_def",
+                "raw_df = load()\n"
+                f'@decorate\n# %% data_prep\ndef load():\n    return "{CONNECTION}"\n',
+            ),
+            (
+                "in_a_bracketed_decorator",
+                f'raw_df = 1\n@(\n# %% data_prep\nf)\ndef g(): return "{CONNECTION}"\n',
+            ),
+            ("in_a_list", f'raw_df = [\n# %% data_prep\n    "{CONNECTION}"]\n'),
+            ("in_a_set", f'raw_df = {{\n# %% data_prep\n    "{CONNECTION}"}}\n'),
+        ]
+    ),
+    # Away from data_load, so the raw_df check cannot stand in for this one.
+    pytest.param(
+        _notebook(
+            *(_cell(n) for n in CONTRACT_CELLS[:3]),
+            "# %% analysis\nresults = (\n# %% viz\n    1)\n",
+            *(_cell(n) for n in CONTRACT_CELLS[5:]),
+        ),
+        id="in_a_statement_of_another_cell",
+    ),
+    # A statement other than the docstring before the first separator.
+    *(
+        pytest.param(_contract(head=head), id=f"head_{case}")
+        for case, head in [
+            ("import", '"""LIB-H01"""\nimport pandas as pd\n'),
+            ("assignment", f'"""LIB-H01"""\nPATH = "{CONNECTION}"\n'),
+            ("string_not_first", 'import pandas as pd\n"""not a docstring"""\n'),
+            ("two_strings", '"""LIB-H01"""\n"""a second string"""\n'),
+            ("f_string", 'f"""LIB-H01"""\n'),
+        ]
+    ),
+    # Python would decode the file by the declaration; the note reads UTF-8.
+    *(
+        pytest.param(_contract(head=f"{before}{line}\n"), id=f"{case}{shebang}")
+        for case, line in [
+            ("utf_7", "# coding: utf-7"),
+            ("latin_1", "# -*- coding: latin-1 -*-"),
+            ("unknown_encoding", "# coding=nope"),
+        ]
+        for shebang, before in [
+            ("", ""),
+            ("_after_a_shebang", "#!/usr/bin/env python\n"),
+        ]
+    ),
+    pytest.param(f"import pandas as pd\n\n{LOAD}", id="no_separator"),
+    pytest.param(_contract(analysis="def _(:\n"), id="does_not_parse"),
+    pytest.param(_contract(analysis="y = '\x00'\n"), id="null_character"),
+    pytest.param(MARIMO, id="marimo"),
+    pytest.param(MARIMO_WITH_PERCENT_COMMENTS, id="marimo_with_percent_comments"),
+]
 
-        assert notebook_cells(text) is None
+
+@pytest.mark.parametrize("text", OUT_OF_SHAPE)
+def test_a_notebook_out_of_the_contracts_shape_gives_no_code(text: str) -> None:
+    assert notebook_cells(text) is None
+
+
+@pytest.mark.parametrize(
+    "statement",
+    ["x = " + "+".join(['"a"'] * 5000), "x = " + "not " * 20000 + "1"],
+    ids=["a_long_sum", "a_long_negation"],
+)
+def test_a_file_too_deep_to_parse_gives_no_code_and_no_error(statement: str) -> None:
+    # Which depth ends the parse depends on the Python version.
+    cells = notebook_cells(_contract(analysis=f"{statement}\n"))
+
+    assert cells is None or all(CONNECTION not in c.source for c in cells)
 
 
 class TestPercentInAString:
@@ -445,11 +443,6 @@ class TestSeparatorLine:
     ) -> None:
         assert notebook_cells(_contract(data_load=f"{LOAD}{line}\n")) == SHOWN
 
-    def test_a_name_with_more_words_is_another_name(self) -> None:
-        text = _contract().replace("# %% data_load\n", "# %% data_load v2\n")
-
-        assert notebook_cells(text) is None
-
 
 class TestSource:
     def test_a_cell_starts_at_its_separator_line_and_drops_its_last_blank_lines(
@@ -498,10 +491,8 @@ class TestLineEnds:
             "import pandas as pd\n", comment + "import pandas as pd\n"
         )
 
-        cells = notebook_cells(text)
+        cells = _assert_hides_connection(notebook_cells(text))
 
-        assert cells is not None
-        assert all(CONNECTION not in c.source for c in cells)
         assert [c.position for c in cells] == [1, 3, 4, 5, 6, 7]
         assert cells[0].source.startswith(
             "# %% imports\n" + comment + "import pandas as pd\n"
@@ -521,10 +512,8 @@ class TestLineEnds:
     def test_cells_of_a_notebook_with_other_line_ends_are_cut_at_the_cell(
         self, end: str
     ) -> None:
-        cells = notebook_cells(NOTEBOOK.replace("\n", end))
+        cells = _assert_hides_connection(notebook_cells(NOTEBOOK.replace("\n", end)))
 
-        assert cells is not None
-        assert all(CONNECTION not in c.source for c in cells)
         assert [c.position for c in cells] == [1, 3, 4, 5, 6, 7]
         assert cells[1].source == PREP
 
