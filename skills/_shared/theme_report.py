@@ -63,9 +63,16 @@ _MARKS = re.compile(r"([\\`*_\[\]<|~&])")
 _BREAKS = re.compile(r"[\t\n\v\f\r\x85\u2028\u2029]+")
 # A mark that opens a block when a text heads a list item: a heading, a quote,
 # a list. The fences' marks are escaped everywhere already. A rule would need
-# the whole line, and a list item ends with the cited ids.
+# the whole line, and a list item ends with the cited ids. Each alternative
+# matches what stands before its mark, so the backslash goes after the match.
 _HEAD_MARK = re.compile(
-    r"^(\d{0,9})(#(?=#{0,5}(?:\s|$))|>|[-+](?=\s|$)|(?<=\d)[.)](?=\s|$))"
+    r"""^(?:
+    (?=\#{1,6}(?:\s|$))       # a heading: one to six #, then a space or the end
+    | (?=>)                    # a quote needs no space after its mark
+    | (?=[-+](?:\s|$))         # a bullet; * is one of the marks escaped everywhere
+    | \d{1,9}(?=[.)](?:\s|$))  # only an ordered list starts with digits
+    )""",
+    re.VERBOSE,
 )
 # The marks that close a heading: a run of ``#`` at the end, after a space or
 # alone (a heading puts a space before the text).
@@ -82,7 +89,7 @@ def escape_source_text(text: str) -> str:
     end (``#``).
     """
     text = _MARKS.sub(r"\\\1", _BREAKS.sub(" ", text).strip())
-    text = _HEAD_MARK.sub(r"\1\\\2", text, count=1)
+    text = _HEAD_MARK.sub(r"\g<0>\\", text, count=1)
     return _TAIL_MARK.sub(r"\\#", text, count=1)
 
 

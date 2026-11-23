@@ -872,7 +872,19 @@ class TestEscapeSourceText:
         assert escape_source_text(text) == escaped
 
     @pytest.mark.parametrize(
-        "text", ["2019-2023 年", "1.5 倍", "-1.2", "+3%", "#タグ", "C#"]
+        "text",
+        # Digits open only an ordered list: "3# x" is no heading, "12- x" no item.
+        [
+            "2019-2023 年",
+            "1.5 倍",
+            "-1.2",
+            "+3%",
+            "#タグ",
+            "C#",
+            "3# x",
+            "12- x",
+            "3> x",
+        ],
     )
     def test_a_mark_that_opens_no_block_is_kept(self, text: str) -> None:
         assert escape_source_text(text) == text
