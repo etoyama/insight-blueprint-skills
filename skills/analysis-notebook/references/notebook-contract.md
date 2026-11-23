@@ -13,9 +13,12 @@ cannot end the docstring early or turn into an escape sequence.
 Only the docstring comes before the first `# %%` line: no import, no assignment, no other statement.
 
 A cell starts at a `# %% <name>` line written at the start of a line, and runs up to the next
-`# %%` line (or the end of the file). The seven cells come in the order of the table below,
-each under its own name. The analysis note shows every cell but `data_load` with its name and
-leaves `data_load` out, because that cell holds the connection values (ADR-0022, ADR-0045).
+`# %%` line (or the end of the file). The notebook has exactly these seven cells, in this order,
+each under its own name: the cells of the table below. Write no other `# %%` line, not even a bare
+`# %%` or a `# %% [markdown]`; read a second source inside the `data_load` cell, under no line of
+its own. The analysis note shows every cell but `data_load` with its name and leaves `data_load`
+out, because that cell holds the connection values (ADR-0022, ADR-0045). A notebook whose cells
+differ from the seven (one added, missing, renamed or out of order) shows no code at all.
 
 Assign each contract variable only in the cell that makes it (`raw_df`, `session`, `df_clean`,
 `results`, `figure_manifest`, `verdict`; see "Assigns" below). Never reassign another cell's
@@ -26,8 +29,7 @@ The `imports` cell holds imports and settings only.
 
 Write every `connection` value only in the `data_load` cell: a file path, a table name, a project id,
 a host, and the client that takes one (`bigquery.Client(project=...)`). The analysis note hides only
-that cell, so a `connection` value in any other cell shows there. A second source that the
-`analysis` cell reads is loaded in `data_load` too.
+that cell, so a `connection` value in any other cell shows there.
 
 ```python
 """H01 — 平日夜の予約は週末より多い

@@ -72,6 +72,19 @@ class TestTheContractLaysOutSevenPercentCells:
         assert "at the start of a line" in layout
         assert "up to the next `# %%` line" in layout
 
+    def test_the_notebook_has_the_seven_cells_and_no_other_percent_line(
+        self,
+    ) -> None:
+        """Epic 30 gate: a stray `# %%` line in data_load showed its second half."""
+        for text in (
+            section(_contract(), "## File layout"),
+            section(_read_skill("analysis-notebook"), "### Step 3: "),
+        ):
+            rule = unwrap(text)
+            assert "exactly these seven cells, in this order" in rule
+            assert "Write no other `# %%` line" in rule
+            assert "read a second source inside the `data_load` cell" in rule
+
     def test_the_file_opens_with_a_docstring_of_the_design(self) -> None:
         layout = unwrap(section(_contract(), "## File layout"))
         assert "opens with a docstring" in layout

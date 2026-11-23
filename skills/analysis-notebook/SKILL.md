@@ -89,9 +89,10 @@ If the source is unregistered (`get` returns `{}`), stop and suggest /catalog-re
 ### Step 3: Generate the notebook
 
 Write `.insight/notebooks/{design_id}.py` following the **7-cell contract**: a docstring, then
-the cells below in this order, each starting at its `# %% <name>` line (see
+exactly these seven cells, in this order, each starting at its `# %% <name>` line (see
 [references/notebook-contract.md](references/notebook-contract.md) for the file layout and what
-each cell assigns). Drive the content from the design:
+each cell assigns). Write no other `# %%` line; read a second source inside the `data_load` cell.
+A notebook with any other cell shows no code in the analysis note. Drive the content from the design:
 
 - docstring: `id` / `title` / `hypothesis_statement` / `analysis_intent`; nothing else comes before
   the first `# %%` line
