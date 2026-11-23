@@ -45,9 +45,8 @@ _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 # The line ends of the tokenizer, which ast line numbers count.
 _LINE_BREAK = re.compile(r"\r\n|\r|\n")
 
-# The next_action fields the report's Recommendation takes for each terminal
-# status (analysis-report/references/apa-template.md); a structure test holds
-# them equal. A dot steps into a mapping.
+# The next_action fields the note's recommendation takes for each terminal
+# status. A dot steps into a mapping.
 NEXT_ACTION_BRANCHES = {
     DesignStatus.supported: ("if_supported",),
     DesignStatus.rejected: ("if_rejected.reason", "if_rejected.pivot"),

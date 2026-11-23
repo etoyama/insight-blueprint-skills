@@ -121,7 +121,7 @@ class TestTheAutopilotOnlyNamesTheExport:
     def test_the_summary_names_the_export_after_the_theme_reflection(self) -> None:
         summary = unwrap(section(auto(), "### Step 4:"))
         assert "`/report-export {theme_id}`" in summary
-        assert re.search(r"never start it[^.]*do not ask whether to export", summary)
+        assert re.search(r"Never start it[^.]*do not ask whether to export", summary)
         assert "ADR-0040" in summary
 
     def test_the_export_is_not_an_edge_of_the_chaining(self) -> None:

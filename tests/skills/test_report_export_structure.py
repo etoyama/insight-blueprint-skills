@@ -4,7 +4,7 @@ The export runs through a connector the host owns, so no Python test can drive i
 These tests guard the parts of SKILL.md that keep the analyst safe: only the report
 `tree_io report` just wrote is sent, nothing leaves `.insight/` before the approval
 (ADR-0016), the skill stops where the connector is missing (ADR-0015), and a figure
-that cannot be sent degrades to a note the way it does in /report-upload (ADR-0040).
+that cannot be sent degrades to a note (ADR-0040).
 """
 
 from __future__ import annotations
@@ -252,7 +252,7 @@ class TestNewDocWithTheReportAsItIs:
 
 
 class TestFigures:
-    """US-4 AC 4: figures go one at a time, the way /report-upload sends them."""
+    """US-4 AC 4: figures go one at a time."""
 
     def test_takes_the_figures_from_what_tree_io_returned(self) -> None:
         step = _step(1)

@@ -142,7 +142,6 @@ LOCAL_FILES = (
     ("verdict", "notebooks/{id}_verdict.json"),
     ("lineage", "lineage/{id}.mmd"),
     ("notebook の HTML", "notebooks/{id}.html"),
-    ("レポート", "reports/{id}.md"),
 )
 
 
@@ -173,8 +172,8 @@ _SECTIONS = (
     ("files", "手元のファイル"),
 )
 
-# The first sentence of the report's Abstract for each terminal status
-# (analysis-report/references/apa-template.md); a structure test holds them equal.
+# The fixed sentence for each terminal status. The note's conclusion opens with it,
+# and theme_report takes it from here, so the two never say it differently.
 LEAD_SENTENCES = {
     DesignStatus.supported: "仮説は支持された。",
     DesignStatus.rejected: "仮説は棄却された。",

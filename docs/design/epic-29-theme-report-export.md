@@ -89,11 +89,11 @@ AC 3 から AC 5 は、そうした記号を文字のまま表示させるため
 
 分析者として、どの skill を使えばよいか迷わないために、レポートを作る経路を1本にしてほしい。
 
-- [ ] AC 1: `/analysis-report`、`/report-upload`、`apa-template.md`、`report_check`（`bin/`、モジュール、テスト）を消す。利用者の手元の `.insight/reports/` に在る古いレポートには触らない。
-- [ ] AC 2: `/analysis-auto` から report と upload の段を消す。テーマの振り返りの後に、`/report-export` を次に使える skill として挙げるだけにする。
-- [ ] AC 3: 分析ノートの「手元のファイル」の節から、レポートへのリンクを外す。結論の節の項目をレポートのテンプレートと照らす構造テストをやめる。
-- [ ] AC 4: README、[docs/ARCHITECTURE.md](../ARCHITECTURE.md)、[docs/PRD.md](../PRD.md)（機能要件と成功基準）、[docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) が実装と食い違わない。
-- [ ] AC 5: `CHANGELOG.md` の Unreleased に、消した skill と代わりの手段（分析ノート、`/report-export`）、論点ツリーの無いテーマでは外へ配る手段が無くなること、バージョンを固定する方法を書く。
+- [x] AC 1: `/analysis-report`、`/report-upload`、`apa-template.md`、`report_check`（`bin/`、モジュール、テスト）を消す。利用者の手元の `.insight/reports/` に在る古いレポートには触らない。
+- [x] AC 2: `/analysis-auto` から report と upload の段を消す。テーマの振り返りの後に、`/report-export` を次に使える skill として挙げるだけにする。
+- [x] AC 3: 分析ノートの「手元のファイル」の節から、レポートへのリンクを外す。結論の節の項目をレポートのテンプレートと照らす構造テストをやめる。
+- [x] AC 4: README、[docs/ARCHITECTURE.md](../ARCHITECTURE.md)、[docs/PRD.md](../PRD.md)（機能要件と成功基準）、[docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) が実装と食い違わない。
+- [x] AC 5: `CHANGELOG.md` の Unreleased に、消した skill と代わりの手段（分析ノート、`/report-export`）、論点ツリーの無いテーマでは外へ配る手段が無くなること、バージョンを固定する方法を書く。
 
 ## Stories
 
@@ -563,6 +563,43 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 - Consequences: Domain Model の図の `ReaderWords` を `READER_WORDS`（定数）に替えた。Epic PR の説明に書き、人間の承認を得る。
   テストは、ふつうのレポートが左側の語を1つも含まず、右側の語をすべて含むことも見る。「ツリーの決定はまだ無い。」のように、言い換えていない用語表の語はまだ残る。
 
+### Decision: old-adrs-say-what-was-changed
+
+- What: 古いレポートを前提にした ADR は、Superseded にせず Accepted のままにし、Status に、どの決まりをどの ADR か Decision が改めたかを書く。
+  ADR-0019（検査と手順の置き場は ADR-0040、エスケープする文字は Decision `source-text-is-escaped-where-it-enters-the-text`）、
+  ADR-0026（report と upload の段は ADR-0040）、ADR-0036（レポートを残すこととレポートへのリンクは ADR-0039）の3つである。`docs/adr/README.md` の Status も同じにした。
+  ADR-0008・ADR-0013・ADR-0015・ADR-0016・ADR-0018・ADR-0020・ADR-0022・ADR-0025・ADR-0028 は、本文が `/analysis-report` か `/report-upload` を例や前提に挙げるだけで、決まり（図の契約、外へ送る前の承認など）は変わらないので、Status も本文も変えていない。
+- Why: ADR-0019 は、データ由来の文を削らずエスケープすることと、文の中の指示に従わないことが、新しいレポートでも生きている。ADR-0040 は「Supersedes: なし（ADR-0019 の Decision の2点を改める）」と書いており、人間が承認している。
+- Criteria: 承認済みの ADR-0040 と食い違わないこと（Must）。同じ形の前例（ADR-0023 の Status「入れ子のキーの判定と、拒む語の一覧は ADR-0034 が改めた」）に合わせること（高、前例）。決め手は1つめで、選択肢が一意に決まったので人間には聞いていない。
+- Affected modules: `docs/adr/0019-*.md`、`docs/adr/0026-*.md`、`docs/adr/0036-*.md`、`docs/adr/README.md`。
+- Alternatives considered:
+  - ADR-0019 を Superseded にし、新しい ADR（0041）で置き換える。生きている決まりを新しい ADR に写し直すことになり、ADR-0040 の「Supersedes: なし」とも食い違う。
+- Consequences: ADR の本文には、消した skill の名前が残る。閉じた ADR の記録として読む。
+
+### Decision: frozen-docs-keep-links-to-the-old-report
+
+- What: 閉じた Epic の DesignDoc（Epic 12・13・14）が持つ、消したファイル（`skills/analysis-report/`、`skills/report-upload/`、`skills/_shared/report_check.py`）へのリンクは直さない。
+  リンクが解けることを見るテスト（`test_relative_links_resolve`）は、この3つの DesignDoc からこの3つへのリンクだけを、記録として許す。
+- Why: 閉じた Epic の DesignDoc には追記しない（ADR-0009、CLAUDE.md）。リンクのテストを外すと、ほかの死んだリンクも見逃す。
+- Criteria: 凍結した文書を書き換えないこと（Must、ADR-0009）。生きている文書の死んだリンクは今までどおり落とすこと（Must）。
+- Affected modules: `tests/docs/test_canonical_docs.py`。
+- Alternatives considered:
+  - リンクを、消す前のコミットを指す GitHub の URL に直す。凍結した文書を書き換えることになる。
+  - 3つの DesignDoc を `LIVING_DOCS` から外す。その文書のほかのリンクも見なくなる。
+- Consequences: 3つの DesignDoc のリンクは、リポジトリの上では開けない。消したファイルは git の履歴（v0.15.0 のタグ）で読む。
+
+### Decision: the-autopilot-names-the-export-in-its-summary
+
+- What: `/analysis-auto` は、巡回が止まったときのまとめ（Step 4）で、テーマに論点ツリーがあるときだけ `/report-export {theme_id}` の名前を挙げる。起動せず、export するかも聞かない。テーマを横断した振り返りの段（item 8）では挙げない。
+  巡回の段は、reflection（item 7）の次がテーマを横断した振り返り（item 8）、次の巡回（item 9）になり、`concluded` の現在地は item 8 から入る。
+- Why: レポートはテーマの最終報告で、巡回の途中（深める・親に戻る）で毎回挙げると、まだ報告しない回にも勧めることになる。論点ツリーの無いテーマでは `/report-export` が書けない理由を返して終わるので、挙げない。
+- Criteria: テーマの振り返りの後に挙げるだけにすること（Must、US-5 AC 2）。Chaining の表の辺にしないこと（Must、`test_only_the_analyst_starts_it`）。挙げても使えない場面で挙げないこと（中、Claude の推測）。
+- Affected modules: `skills/analysis-auto/SKILL.md`、`tests/skills/test_old_report_removed_structure.py`、`tests/skills/test_auto_walk_structure.py`、`docs/ARCHITECTURE.md`、README。
+- Alternatives considered:
+  - テーマを横断した振り返りのたびに挙げる。ツリーの決定のたびに同じ案内が出る。
+  - Chaining の表に `/analysis-auto → /report-export` の辺を足す。`/report-export` を始めるのは分析者だけ、という Decision `the-analyst-alone-starts-the-export` と食い違う。
+- Consequences: 深めるか親に戻るかで巡回を続けている間は、`/report-export` の名前は出ない。分析者が巡回を区切るか止めたときに出る。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0039: レポートは、テーマの最終報告として、コードが論点ツリーと分析設計の記録から書く](../adr/0039-report-is-the-final-report-of-a-theme-written-by-code.md): 読む面と配る先、レポートの単位と作り手、APA の骨組みと読み手向けの言い換え、用語「レポート」の意味の変更、ADR-0036 の一部の変更。
@@ -578,7 +615,7 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 | 29.2 答えと根拠を載せる | ✓（`tests/test_theme_report.py`。Introduction の箇条書きと論点の表、Method の2つの表、Results の答えと根拠となる分析と指標と図、見直す前の答えの注記、`figures()` の順、Limitations と Future Directions、勧めの節が無いこと、Appendix が括弧の記録だけを最初に出た順に載せること） | ✓（`tests/tree_io/test_report.py`。記録から書いた Results・Limitations・Future Directions・Appendix、返す `figures` と画像のリンク、接続情報と分析コードと lineage が載らないこと。`tests/tree_io/test_render_design.py` に図のファイル名） | —（自動の E2E は無い。合成シナリオで `tree_io report --theme LIB` を回し、見本の第2版と見比べたことを Story Timeline に書いた） |
 | 29.3 読み手の言葉と、崩れない体裁 | ✓（`tests/test_theme_report.py`。`escape_source_text` の8つの文字・改行とタブ・先頭と末尾の記号・ふつうの文に足さないこと、すべての項目に記号を入れたレポートでどの入口もエスケープされること・表の列数・記法の始まりが残らないこと・図のリンクのファイル名、`READER_WORDS` の左側が用語表の語であることと、レポートが左側の語を含まないこと、terminal status の文が分析ノートと同じ物であること） | ✓（`tests/tree_io/test_report.py`。論点ツリーと journal に記号を入れて書いたファイルで、答えの文・`conclude` の本文・Appendix がエスケープされること） | —（自動の E2E は無い。合成シナリオに記号を入れて `tree_io report --theme LIB` を回し、markdown-it で描いて確かめたことを Story Timeline に書いた） |
 | 29.4 Claude Docs へ export する | ✓（`tests/skills/test_report_export_structure.py`。SKILL.md の文の契約: `written` が偽なら古いレポートも送らないこと、`path` だけを送り `.md.lock` を拾わないこと、KEEP ゲートの `root_answer_round` と `unfinished_designs` の長さ、図の扱いが `/report-upload` と同じこと、コネクタが無ければ聞かずに止まること） | —（skill はコネクタを通して動き、Python から呼べない。`tree_io report` の側は 29.1 の Integration が受け持つ） | —（自動の E2E は無い。合成シナリオで手順を手で回し、Claude Docs に Doc を作ったことを Story Timeline に書いた） |
-| 29.5 古いレポート周りを消し、文書をそろえる | ☐ | ☐ | ☐ |
+| 29.5 古いレポート周りを消し、文書をそろえる | ✓（`tests/skills/test_old_report_removed_structure.py`。消したファイルが無いこと、配る物と正本の文書が古い名前を持たないこと（ロードマップと Epic マッピングを除く）、`/analysis-auto` に report と upload の段が無く、まとめで `/report-export` の名前を挙げ Chaining の辺にしないこと、分析ノートの手元のファイルにレポートが無いこと。`tests/docs/test_canonical_docs.py` に用語表と README・ARCHITECTURE・PRD。`tests/skills/test_design_note_journal_structure.py` に、テンプレートと照らすのをやめた後に残す journal との照合） | ✓（`tests/tree_io/test_render_design.py`。`reports/` に古いレポートがあっても分析ノートがリンクしないこと） | —（自動の E2E は無い。合成シナリオに古いレポートを置いて `tree_io render` と `tree_io report` を回したことを Story Timeline に書いた） |
 
 ## Story Timeline
 
@@ -611,3 +648,6 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
   低の指摘も3件直した。実体参照が文字として変わること（`&` を足した）、`#` だけの文が見出しで消えること、空白だけの題で太字が閉じないこと。直さなかったのは2件で、URL の中のバックスラッシュ（中）と素の URL の自動リンク（低）は、ADR-0019 が受け入れたとおりで Decision の Consequences に書いた。
 - 2026-11-23 — 合成シナリオ（`scripts/handoff_trial.py build --scenario lib`）の根の問い・論点の問いと寄与・答えの文・決定の理由・分析設計の題と仮説・journal の本文に、`<b>`・`*`・`|`・`` ` ``・`![x](http://example.invalid/a.png)`・改行・先頭と末尾の `#` などを入れて、`tree_io report --theme LIB` を回した（終了コード 0）。
   出たファイルを markdown-it 13.0.2（生の HTML を通す設定）で描くと、タグ・強調・コード・画像・リンク・引用・番号付きのリストは0個で、太字は決まった見出しの9個だけ、見出しは APA と決まった見出しだけ、表の列数は見出しと同じだった。文字は1つも欠けなかった。Claude Docs での見え方は確かめていない（ADR-0019 の未確認の前提のまま）。
+- 2026-11-23 — Story 29.5 completed: `/analysis-report`、`/report-upload`、`apa-template.md`、`report_check`（`bin/`、モジュール、テスト）を消した。`/analysis-auto` から report と upload の段を消し、巡回が止まったときのまとめで `/report-export` の名前を挙げるだけにした。分析ノートの手元のファイルからレポートを外し、テンプレートと照らす構造テストをやめた（journal の定義との照合は別のファイルに残した）。用語表・README・ARCHITECTURE・PRD・CHANGELOG をそろえた。Decisions に3件書いた。
+- 2026-11-23 — 計画外の判断が3件あった（古い ADR の Status の書き方、凍結した DesignDoc のリンク、`/report-export` の名前を挙げる所）。どれも既存の決定から一意に決まったので、人間には聞かずに Decisions に書き、PM には完了の報告で知らせた。
+- 2026-11-23 — 合成シナリオ（`scripts/handoff_trial.py build --scenario lib`）の `.insight/reports/` に古い形のレポート（`LIB-H01.md`）を置いて、`tree_io render --theme LIB` と `tree_io report --theme LIB` を回した。論点ツリーの HTML は `reports/` を1度も指さず、古いレポートは書き換えられずに残り、新しいレポート `LIB.md` が並んで書かれた。

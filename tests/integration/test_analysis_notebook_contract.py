@@ -49,7 +49,7 @@ def test_notebook_contract_export_run_and_sideeffects(tmp_path: Path) -> None:
     verdict = _run_fixture(tmp_path)
     assert {"conclusion", "evidence_summary", "open_questions"} <= set(verdict)
     assert isinstance(verdict["evidence_summary"], list)
-    # a confirmatory verdict persists its metrics so /analysis-report can build the
+    # a confirmatory verdict persists its metrics so the analysis note and the report can build the
     # Results numbers table (metrics live in results/cell4; verdict must carry them —
     # a consumer reading verdict.metrics would otherwise get an empty table)
     assert "metrics" in verdict, "confirmatory verdict must persist results metrics"
@@ -65,7 +65,7 @@ def test_notebook_contract_export_run_and_sideeffects(tmp_path: Path) -> None:
 
 def test_notebook_contract_figures_manifest(tmp_path: Path) -> None:
     """Epic 10 / ADR-0008: the viz cell saves PNG(s) and the verdict cell records a
-    ``figures[]`` manifest so /analysis-report (a read-only consumer) can lay figures out
+    ``figures[]`` manifest so the analysis note and the report (read-only consumers) can lay figures out
     with axis + how-to-read captions without re-rendering. The figure's truth lives with
     the producer (notebook), not with design.chart[].
     """
@@ -100,7 +100,7 @@ def test_verdict_metric_carries_effect_size_confidence_interval_and_sample_size(
     tmp_path: Path,
 ) -> None:
     """Epic 12 / ADR-0013: a metric may carry three optional, self-describing items so
-    /analysis-report can show how large and how certain an effect is without computing
+    the analysis note and the report can show how large and how certain an effect is without computing
     anything itself.
     """
     metric = _run_fixture(tmp_path)["metrics"]["mean_diff"]

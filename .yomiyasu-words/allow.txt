@@ -56,7 +56,6 @@ figures manifest
 アップロード
 export
 データ由来の文
-レポートの検査
 違反
 lineage
 データソース

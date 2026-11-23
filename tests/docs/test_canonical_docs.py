@@ -94,6 +94,25 @@ LIVING_DOCS = [
 ]
 
 
+# Epic 29 removed the old report. The DesignDocs of closed Epics are frozen, so their
+# links into it stay as history; no living document may link there.
+REMOVED_BY_EPIC_29 = (
+    "skills/analysis-report/",
+    "skills/report-upload/",
+    "skills/_shared/report_check.py",
+)
+FROZEN_DESIGN_DOCS = {
+    "docs/design/epic-12-decision-ready-report.md",
+    "docs/design/epic-13-report-source-text.md",
+    "docs/design/epic-14-report-template-gaps.md",
+}
+
+
+def _is_removed_history(rel: str, target: Path) -> bool:
+    inside = target.resolve().relative_to(REPO_ROOT.resolve()).as_posix()
+    return rel in FROZEN_DESIGN_DOCS and inside.startswith(REMOVED_BY_EPIC_29)
+
+
 @pytest.mark.parametrize("rel", LIVING_DOCS)
 def test_relative_links_resolve(rel: str) -> None:
     base = (REPO_ROOT / rel).parent
@@ -101,7 +120,8 @@ def test_relative_links_resolve(rel: str) -> None:
         target
         for target in _LINK.findall(_read(rel))
         if not target.startswith(("http://", "https://", "mailto:", "#"))
-        and not (base / target.split("#", 1)[0]).exists()
+        and not (path := base / target.split("#", 1)[0]).exists()
+        and not _is_removed_history(rel, path)
     ]
     assert dead == []
 
@@ -745,7 +765,7 @@ class TestQuestionTreeDocs:
         assert "入口" in sequence
         assert "巡回" in sequence
         # Epic 29: the report is the theme's, so the export follows the theme reflection.
-        export = sequence.index("/report-export")
+        export = sequence.index("U->>CC: /report-export")
         assert export > sequence.index("/analysis-reflection {theme_id}")
 
     def test_design_doc_records_the_decisions_of_the_walk(self) -> None:

@@ -70,7 +70,7 @@ verdict = {
     "conclusion": "<one line>",
     "evidence_summary": ["...", "..."],
     "open_questions": ["...", "..."],
-    "metrics": results.get("metrics", {}),  # confirmatory: persist so /analysis-report tabulates
+    "metrics": results.get("metrics", {}),  # confirmatory: persist so the note and report tabulate
     "figures": figure_manifest,  # from cell 5 (may be []); see figures below
 }
 Path(".insight/notebooks/{id}_verdict.json").write_text(
@@ -82,7 +82,8 @@ Path(".insight/notebooks/{id}_verdict.json").write_text(
 
 Each entry of `results["metrics"]` may carry three **optional** items, so a reader of the report
 can tell how large and how certain an effect is, not only whether it passed. The notebook (the
-producer) computes them; `/analysis-report` (a read-only consumer) only lays them out and never
+producer) computes them; the analysis note and the report (`tree_io render` and `tree_io report`,
+read-only consumers) only lay them out and never
 computes a missing one ([ADR-0013](../../../docs/adr/0013-verdict-metric-optional-items.md)).
 
 | Key | Shape | Meaning |
@@ -99,10 +100,10 @@ computes a missing one ([ADR-0013](../../../docs/adr/0013-verdict-metric-optiona
 - A verdict written before this contract simply lacks the keys; the report then comes out in its
   earlier form (graceful degrade).
 
-## `figure_manifest` shape (cell 5) — figures for /analysis-report (ADR-0008)
+## `figure_manifest` shape (cell 5) — figures for the analysis note and the report (ADR-0008)
 
-The viz cell **saves each figure as a PNG** and records a manifest so `/analysis-report`
-(a read-only consumer) can embed figures with axis + how-to-read captions **without
+The viz cell **saves each figure as a PNG** and records a manifest so the analysis note and the report
+(read-only consumers) can embed figures with axis + how-to-read captions **without
 re-rendering**. The figure's truth (actual axes, how to read it) lives with the producer
 here, not reconstructed from `design.chart[]` (the *plan*, which may drift from the render).
 
@@ -126,7 +127,7 @@ plt.gcf()
   value would leak paths. This mirrors `design_io`'s `SAFE_ID_PATTERN` posture for `{id}`.
 - `axes` and `how_to_read` are **mandatory and non-empty** — they guard against a distributed
   report's figure being misread.
-- No figures produced → `figure_manifest = []`. `/analysis-report` then omits the figure block
+- No figures produced → `figure_manifest = []`. The analysis note and the report then omit the figure block
   (graceful degrade). Notebooks generated before this contract simply lack `figures` in verdict;
   the consumer treats that the same as `[]`.
 

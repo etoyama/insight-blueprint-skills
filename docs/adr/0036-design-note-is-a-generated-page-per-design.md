@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted（Markdown のレポートとアップロードを今のまま残すことと、分析ノートからレポートへのリンクは [ADR-0039](0039-report-is-the-final-report-of-a-theme-written-by-code.md) が改めた）
 
 ## Context
 

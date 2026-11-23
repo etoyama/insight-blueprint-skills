@@ -36,6 +36,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   report is on disk. Without the host's Claude Docs connector nothing is sent
   ([ADR-0040](docs/adr/0040-report-export-sends-the-report-to-claude-docs.md), #177).
 
+### Changed
+
+- **`/analysis-auto` no longer writes or uploads a report.** The round goes from the design's
+  reflection straight to the theme reflection, and a `concluded` position enters there. When the
+  walk stops on a theme that has a question tree, the summary names `/report-export {theme_id}`
+  for when you judge the theme ready to report; the driver never starts it and does not ask
+  ([ADR-0040](docs/adr/0040-report-export-sends-the-report-to-claude-docs.md), #194).
+- **The design note no longer links a report.** Its local files list the notebook, the verdict,
+  the lineage and the notebook's HTML only (#194).
+
+### Removed
+
+- **`/analysis-report`, `/report-upload`, their template `apa-template.md`, and `report_check`
+  (`bin/report_check` and its module).** The per-design report is gone. Read a design in its
+  design note (`tree_io render`, inside the question tree's page); send the final report of a
+  theme to Claude Docs with `/report-export {theme_id}`. Old reports under
+  `.insight/reports/{design_id}.md` stay where they are; nothing deletes them
+  ([ADR-0040](docs/adr/0040-report-export-sends-the-report-to-claude-docs.md), #194).
+- **A theme without a question tree has no way left to send its results outside this machine.**
+  `/report-export` needs the tree, and its designs' notes are standalone pages that no skill
+  sends. Build the tree with `/analysis-framing` first. To keep the old skills, pin the plugin to
+  the last release that has them: remove the marketplace and add it again at the tag
+  (`/plugin marketplace add etoyama/insight-blueprint-skills#v0.15.0`), then install the plugin
+  again. Removing a marketplace uninstalls the plugins installed from it.
+
 ## [0.15.0] - 2026-11-23
 
 ### Added
