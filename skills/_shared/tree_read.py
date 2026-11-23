@@ -398,9 +398,15 @@ def _add_design_records(
     Their ids are not checked like the cites of an answer, so the text comes
     from the journal the report quotes, never from the journal an id names. An
     id that already stands for another text would show two texts under one id.
+    An event without an id could not be cited at all.
     """
     for design in designs:
         for event in (*design.conclude_events, *design.contradicting_evidence):
+            if not event.id:
+                raise ValueError(
+                    f"journal of '{design.id}': a '{event.type}' event has no id, "
+                    "and the report cites each event by its id"
+                )
             record = CitedEvent(event.id, event.type, event.direction, event.content)
             known = records.setdefault(event.id, record)
             if (known.type, known.content) != (record.type, record.content):

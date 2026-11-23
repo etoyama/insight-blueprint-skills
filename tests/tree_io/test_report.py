@@ -336,6 +336,36 @@ class TestReportRecordsOfTheDesigns:
 
         assert not _report_path(answered).exists()
 
+    def test_a_conclude_event_without_an_id_is_an_error_that_names_the_design(
+        self, answered: Path
+    ) -> None:
+        _concluded(answered)
+        journal = design_io.load_journal("LIB-H01", base_dir=answered)
+        del journal["events"][3]["id"]
+        design_io.write_journal("LIB-H01", journal, base_dir=answered)
+
+        with pytest.raises(
+            ValueError, match="journal of 'LIB-H01': a 'conclude' event has no id"
+        ):
+            tree_io.report("LIB", base_dir=answered)
+
+        assert not _report_path(answered).exists()
+
+    def test_two_evidence_events_without_an_id_exit_1_naming_the_cause(
+        self, answered: Path
+    ) -> None:
+        _concluded(answered)
+        journal = design_io.load_journal("LIB-H01", base_dir=answered)
+        against = journal["events"][1]
+        del against["id"]
+        journal["events"].append({**against, "content": "土曜も16%のまま"})
+        design_io.write_journal("LIB-H01", journal, base_dir=answered)
+
+        done = _run_cli(answered, "report", "--theme", "LIB")
+
+        assert done.returncode == 1
+        assert "journal of 'LIB-H01': a 'evidence' event has no id" in done.stderr
+
     def test_a_linked_design_whose_note_cannot_be_built_is_named(
         self, answered: Path
     ) -> None:
