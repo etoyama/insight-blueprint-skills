@@ -72,15 +72,17 @@ class TestDesignPointsAtSourcesById:
         assert "lib.accessor" not in step
         assert "FROM {source:" in step
 
-    def test_the_notebook_resolves_the_reference_in_cell_2(self) -> None:
+    def test_the_notebook_resolves_the_reference_in_the_data_load_cell(self) -> None:
         generate = unwrap(section(_read_skill("analysis-notebook"), "### Step 3: "))
-        cell_2 = generate.split("- cell 2 (data_load):", 1)[1].split("- cell 3", 1)[0]
-        assert _REF in cell_2
-        assert "`connection`" in cell_2
+        data_load = generate.split("- `# %% data_load`:", 1)[1].split(
+            "- `# %% data_prep`", 1
+        )[0]
+        assert _REF in data_load
+        assert "`connection`" in data_load
         # A file path goes into Python code, a table into a SQL query: a quoted string
         # in the query would be a value, not a table.
-        assert "string literal" in cell_2
-        assert "quoted identifier" in cell_2
+        assert "string literal" in data_load
+        assert "quoted identifier" in data_load
 
     def test_the_notebook_contract_states_the_reference(self) -> None:
         contract = unwrap(

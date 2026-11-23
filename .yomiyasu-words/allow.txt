@@ -46,6 +46,7 @@ Artifact
 巡回の現在地
 framing
 notebook
+cell
 データ取得の cell
 verdict
 figures manifest

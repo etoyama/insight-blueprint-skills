@@ -2,7 +2,7 @@
 name: analysis-notebook
 version: "1.0.0"
 description: |
-  Generates a marimo notebook from an analysis design's methodology, runs it non-interactively,
+  Generates a notebook (a plain Python script) from an analysis design's methodology, runs it,
   and records the results to the Insight Journal. Turns a reviewed/approved design into an
   executed, lineage-tracked analysis. Fills the design→analysis step (successor to the
   removed batch-analysis, now interactive).
@@ -14,18 +14,18 @@ argument-hint: "[design_id]"
 
 # /analysis-notebook — Analysis Notebook (generate + run + record)
 
-Turns a design's `methodology` into an executable **marimo notebook** (fixed 8-cell
-contract), runs it non-interactively (flat script), and records the findings to the journal.
+Turns a design's `methodology` into an executable **notebook**, a plain Python script cut into
+seven `# %% <name>` cells, runs it with `python` in one step, and records the findings to the journal.
 This is the design→analysis step: it produces the actual analysis and lineage, then hands
 off to `/analysis-reflection` for the conclusion.
 
-The full cell contract, marimo rules, execution commands, and verdict→journal mapping live
+The full cell contract, file layout, execution command, and verdict→journal mapping live
 in **[references/notebook-contract.md](references/notebook-contract.md)** — read it before generating.
 
 ## When to Use
 
 - A design is reviewed/approved and you want to run the analysis it specifies
-- You need a reproducible, lineage-tracked marimo notebook from the design's methodology
+- You need a reproducible, lineage-tracked notebook from the design's methodology
 
 ## When NOT to Use
 
@@ -36,7 +36,7 @@ in **[references/notebook-contract.md](references/notebook-contract.md)** — re
 
 ## Prerequisites
 
-The notebook (pandas / matplotlib / numpy + `insight_blueprint.lineage`, run with marimo) uses
+The notebook (pandas / matplotlib / numpy + `insight_blueprint.lineage`, run with `python`) uses
 the **plugin's own environment** via the `notebook` extra — the user does not install anything.
 All notebook commands run **from your project directory** (so `.insight/…` and the notebook's
 relative outputs land there) but use the plugin's env with `uv run --project "${CLAUDE_PLUGIN_ROOT}"
@@ -44,7 +44,7 @@ relative outputs land there) but use the plugin's env with `uv run --project "${
 
 ```bash
 uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
-  python -c "import marimo, pandas, matplotlib, numpy, insight_blueprint.lineage"
+  python -c "import pandas, matplotlib, numpy, insight_blueprint.lineage"
 ```
 
 Methodology-specific libraries (scikit-learn, statsmodels, …) that aren't in the `notebook`
@@ -72,10 +72,10 @@ The design's data sources (`source_ids`) must be registered in the catalog (else
 For each id in the design's `source_ids`, run the two commands below.
 
 - `catalog_io get --id {source_id} --with-connection` — the **full source**, whose
-  `connection` (CSV path / SQL / provider) drives cell 2's data load. Without the flag `get`
+  `connection` (CSV path / SQL / provider) drives the `data_load` cell. Without the flag `get`
   leaves `connection` out; this skill is the only one that asks for it.
 - `catalog_io get-schema --id {source_id}` — column names/types (+ PK,
-  row-count estimate) for cell 3/4. (`get-schema` returns **only** the schema, not the connection.)
+  row-count estimate) for the `data_prep` and `analysis` cells. (`get-schema` returns **only** the schema, not the connection.)
 
 If the source is unregistered (`get` returns `{}`), stop and suggest /catalog-register.
 
@@ -88,13 +88,17 @@ If the source is unregistered (`get` returns `{}`), stop and suggest /catalog-re
 
 ### Step 3: Generate the notebook
 
-Write `.insight/notebooks/{design_id}.py` following the **8-cell contract** — cells **0–7**
-(see [references/notebook-contract.md](references/notebook-contract.md) for exact signatures and
-marimo rules). Drive cell content from the design:
+Write `.insight/notebooks/{design_id}.py` following the **7-cell contract**: a docstring, then
+exactly these seven cells, in this order, each starting at its `# %% <name>` line (see
+[references/notebook-contract.md](references/notebook-contract.md) for the file layout and what
+each cell assigns). Write no other `# %%` line; read a second source inside the `data_load` cell.
+A notebook with any other cell shows no code in the analysis note. Drive the content from the design:
 
-- cell 0 (imports): pandas / matplotlib / numpy + `insight_blueprint.lineage` + `json` / `pathlib`
-- cell 1 (meta): `title` / `id` / `hypothesis_statement` / `analysis_intent`
-- cell 2 (data_load): source `connection` → `pd.read_csv(...)` / SQL; init `LineageSession`.
+- docstring: `id` / `title` / `hypothesis_statement` / `analysis_intent`; nothing else comes before
+  the first `# %%` line
+- `# %% imports`: pandas / matplotlib / numpy + `insight_blueprint.lineage` + `json` / `pathlib`
+  — and every other import the notebook needs (the source's client library, methodology packages)
+- `# %% data_load`: source `connection` → `pd.read_csv(...)` / SQL; init `LineageSession`.
   Replace each `{source:ID}` in `methodology.steps` with the location in that source's `connection`
   (from Step 2). In Python code (a file path, a URL) write it as a string literal. In a SQL query
   write the table name built from `connection` (e.g. `project_id.dataset.table`) as a quoted identifier
@@ -104,36 +108,40 @@ marimo rules). Drive cell content from the design:
   `ID` that is not in `source_ids` is a design error: stop and suggest /analysis-design.
   If the design carries a confirmed extraction query in `methodology.steps` (drafted in
   `/analysis-design` Step 2.6, and — under `/analysis-auto` — already confirmed by the user at the
-  data-extraction gate), cell 2 must **use that query as-is**; do not silently substitute a different
+  data-extraction gate), this cell must **use that query as-is**; do not silently substitute a different
   table, column set, or filter. A genuinely required change means re-confirming with the user, not an
-  unannounced divergence.
-- cell 3 (data_prep): methodology-independent cleaning, each step via `tracked_pipe`
-- cell 4 (analysis): from `methodology.method` + `methodology.steps` (code patterns) + `analysis_intent`;
+  unannounced divergence. This is the only cell that assigns `raw_df`.
+- `# %% data_prep`: methodology-independent cleaning, each step via `tracked_pipe`
+- `# %% analysis`: from `methodology.method` + `methodology.steps` (code patterns) + `analysis_intent`;
   build the `results` dict with the four required fields (`hypothesis_direction`, `observed_direction`,
   `confidence_level`, `decision_reason`). For each metric, add the optional `effect_size`,
   `confidence_interval`, and `sample_size` when the method defines them — see the contract's
   "Optional metric items" (leave a key out rather than writing a placeholder)
-- cell 5 (viz): from `chart[]` (type/description); **save each figure** to
+- `# %% viz`: from `chart[]` (type/description); **save each figure** to
   `.insight/notebooks/{design_id}_fig{NN:02d}.png` and build `figure_manifest`
   (`file`/`title`/`axes`/`how_to_read`) so the analysis note and the report can embed it — see the contract's
   figure section
-- cell 6 (verdict): build `verdict` (include `metrics` from `results` and `figures=figure_manifest`)
+- `# %% verdict`: build `verdict` (include `metrics` from `results` and `figures=figure_manifest`)
   and persist `.insight/notebooks/{design_id}_verdict.json`
-- cell 7 (lineage): `export_lineage_as_mermaid(session, project_path=".")`
+- `# %% lineage`: `export_lineage_as_mermaid(session, project_path=".")`
 
-### Step 4: Run it non-interactively
+Assign each contract variable (`raw_df`, `session`, `df_clean`, `results`, `figure_manifest`,
+`verdict`) only in its own cell.
+Write every `connection` value only in the `data_load` cell (file paths, table names, project
+ids, hosts, and the client that takes one), so the analysis note, which hides only that cell,
+shows none of them.
 
-Run from your project directory (relative paths resolve there); the plugin env supplies marimo:
+### Step 4: Run it
+
+Run from your project directory (relative paths resolve there); the plugin env supplies the packages:
 
 ```bash
 uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
-  marimo export script .insight/notebooks/{design_id}.py -o .insight/notebooks/{design_id}_flat.py
-uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
-  python .insight/notebooks/{design_id}_flat.py
+  python .insight/notebooks/{design_id}.py
 ```
 
-This executes the cells, writing `{design_id}_verdict.json` and `.insight/lineage/{design_id}.mmd`.
-(Optional viewable report: `uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook marimo export html .insight/notebooks/{design_id}.py -o .insight/notebooks/{design_id}.html`.)
+This runs the cells from top to bottom, writing `{design_id}_verdict.json`, the figure PNGs and
+`.insight/lineage/{design_id}.mmd`.
 
 ### Step 5: Fix-and-rerun on failure
 

@@ -68,7 +68,7 @@ alias claude-ib='claude --plugin-dir /path/to/insight-blueprint-skills'
 
 **You do not need to install anything for the skills to work.** The plugin is
 self-contained: its bundled uv environment provides `insight_blueprint` (models,
-validation, lineage) and `/analysis-notebook` runs marimo/pandas through that same
+validation, lineage) and `/analysis-notebook` runs pandas/matplotlib/numpy through that same
 environment (`--extra notebook`). See [ADR-0006](docs/adr/0006-plugin-execution-model.md).
 
 Install the `insight-blueprint-lineage` package **only** if you want to import
@@ -98,7 +98,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 - `/analysis-framing` — Explore available data and existing analyses to frame a direction
 - `/analysis-design` — Guided creation of hypothesis design documents
 - `/analysis-review` — Produce a structured review of a design and record it as a review batch
-- `/analysis-notebook` — Generate a marimo notebook from the design's methodology, run it, and record results to the journal
+- `/analysis-notebook` — Generate a plain Python notebook (seven `# %% <name>` cells) from the design's methodology, run it with `python`, and record results to the journal
 - `/analysis-journal` — Record reasoning steps during analysis (observations, evidence, decisions, questions)
 - `/analysis-reflection` — Structured reflection to draw conclusions or branch hypotheses
 - `/report-export` — Export the final report of a theme to Claude Docs as a new Doc, after you approve the files to send. `tree_io report` writes the report from the question tree; when it cannot (no tree, no answer to the root question, or a violation of the tree check), nothing is sent (needs the host's Claude Docs connector; without it nothing is sent)
@@ -122,7 +122,7 @@ Skills support both English and Japanese trigger phrases.
 /analysis-design (create hypothesis)
     ↓ ↘ /analysis-review (review the design) → /analysis-revision (address comments)
     ↓ ↘ /premortem (optional: cost/risk report before expensive data access)
-/analysis-notebook (generate & run a marimo notebook from the methodology → record results)
+/analysis-notebook (generate & run a `# %%` notebook from the methodology → record results)
     ↓ ↘ /data-lineage (optional: track transformations, export Mermaid)
 /analysis-journal (record reasoning during analysis)
     ↓
@@ -134,8 +134,8 @@ Skills support both English and Japanese trigger phrases.
 ```
 
 Skills are **invoked explicitly** (`/command`) by default and the flow is **interactive**. The
-actual analysis is run by `/analysis-notebook`, which generates a marimo notebook from the
-design's `methodology`, executes it, and records the results to the journal
+actual analysis is run by `/analysis-notebook`, which generates a plain Python notebook cut into
+`# %% <name>` cells from the design's `methodology`, executes it, and records the results to the journal
 (`uv add "insight-blueprint-lineage[notebook]"` for the runtime deps).
 
 **Guided autopilot.** `/analysis-auto` is the single entry: give it a theme and it builds the
@@ -222,7 +222,6 @@ Contributor/architecture docs: [CLAUDE.md](CLAUDE.md), [docs/ARCHITECTURE.md](do
 | **ruff** | Linting and formatting |
 | **ty** | Type checking |
 | **pytest** | Testing |
-| **marimo** | Notebooks & lineage |
 
 ## Support
 

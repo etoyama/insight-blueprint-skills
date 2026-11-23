@@ -10,7 +10,7 @@ AI コーディングアシスタント（Claude Code 等）と人間のコン�
 skills と YAML と埋め込みの検証ライブラリで組み直した軽量版である
 （[ADR-0001](docs/adr/0001-drop-mcp-server-embed-validation.md)）。
 
-- 守る核（marimo notebook 契約、分析設計、journal / reflection、premortem）: [docs/PRD.md](docs/PRD.md)
+- 守る核（notebook 契約、分析設計、journal / reflection、premortem）: [docs/PRD.md](docs/PRD.md)
 - 不変条件（No daemon / No MCP server / No SQLite）と、検証 hook・`.insight/` の構成:
   [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - skill の一覧: [README.md の Skills](README.md#skills)
@@ -32,7 +32,7 @@ skills と YAML と埋め込みの検証ライブラリで組み直した軽量�
 
 ## 3. Tech Stack
 
-uv（パッケージ管理）/ ruff（lint と format）/ ty（型検査）/ pytest（テスト）/ marimo（notebook）。
+uv（パッケージ管理）/ ruff（lint と format）/ ty（型検査）/ pytest（テスト）。
 新しい worktree では先に `uv sync --all-extras`、確認は `uv run poe all`（lint + typecheck + test）。
 詳細は [CONTRIBUTING.md](CONTRIBUTING.md)。
 

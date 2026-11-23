@@ -1,7 +1,7 @@
-"""Structure tests for the lineage calls the notebook contract shows (cells 2-4).
+"""Structure tests for the lineage calls the notebook contract shows (data_load to analysis).
 
 The contract once said only "every transform via ``tracked_pipe(...)``". A generator
-guessed ``tracked_pipe(df, session, fn, name=...)`` and the notebook died in cell 3 with
+guessed ``tracked_pipe(df, session, fn, name=...)`` and the notebook died in the data_prep cell with
 a ``TypeError``. These tests hold the contract's examples to the real signatures, so the
 examples cannot drift from ``insight_blueprint.lineage``.
 """

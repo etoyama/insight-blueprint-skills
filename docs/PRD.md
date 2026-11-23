@@ -25,7 +25,7 @@
 
 ## コアバリュー（温存すべき核）
 
-- marimo notebook 契約 & lineage — データ加工の透明性・追跡可能性
+- notebook 契約 & lineage — データ加工の透明性・追跡可能性
 - 分析設計（`*_hypothesis.yaml`）と、それを生成する skills
 - journal / reflection — 結果の解釈と結論づけ
 - premortem — 高コストなデータアクセス前の費用・リスク評価
@@ -107,6 +107,7 @@ Epic 06 からは軽量版の上に分析の能力を足していく。
 | Epic 27 | [epic-27](design/epic-27-resume-upload.md) | /analysis-auto を再開したときも、レポートを送るかを聞く | 完了 |
 | Epic 28 | [epic-28](design/epic-28-tree-entry-point.md) | 論点ツリーの HTML を、分析者と AI が分析を進める共通の入口にする | 完了 |
 | Epic 29 | [epic-29](design/epic-29-theme-report-export.md) | レポートを、テーマの最終報告として記録からコードで書き、Claude Docs へ export する | 完了 |
+| Epic 30 | [epic-30](design/epic-30-plain-python-notebook.md) | notebook を `# %%` で区切る素の Python にし、marimo を外す | 計画中 |
 
 各 Epic の DesignDoc は `## Scope` 節で、本書のどの要件と
 ARCHITECTURE のどのコンポーネントを前進させるかを示す。
@@ -130,4 +131,4 @@ ARCHITECTURE のどのコンポーネントを前進させるかを示す。
 - 検証の正本が `validate.py` 1 箇所に集約され、hook と skill の双方から再利用される
 - 移行の各段階で `pytest` が全緑を保つ（挙動の非回帰）
 - 常駐プロセス・WebUI・SQLite 依存が消え、plugin として動作する
-- コアバリュー（marimo 契約 / 分析設計 / journal・reflection / premortem）が維持される
+- コアバリュー（notebook 契約 / 分析設計 / journal・reflection / premortem）が維持される

@@ -33,7 +33,7 @@ flowchart LR
         validate["Validation library (validate.py)"]
         hook["pre-write hook"]
         yaml["Skill-managed YAML (.insight/)"]
-        marimo["marimo + lineage"]
+        notebook["notebook (# %% cells) + lineage"]
     end
     REMOVED -.->|削除| LIGHT
 ```
@@ -53,7 +53,7 @@ flowchart TD
         skills["Skill layer（skills/）<br/>分析能力・拡張点"]
         validate["validate.py<br/>純関数検証（単一正本）"]
         hook["pre-write hook<br/>hooks/validate-design.py（plugin 同梱）"]
-        marimo["marimo + lineage<br/>notebook 契約・加工透明性"]
+        notebook["notebook + lineage<br/>notebook 契約・加工透明性"]
     end
     yaml["(.insight/) designs / journals / themes / catalog / knowledge — YAML"]
 
@@ -62,7 +62,7 @@ flowchart TD
     cc -->|Write/Edit/MultiEdit| hook
     hook -->|検証| validate
     hook -->|"対象: *_hypothesis.yaml、*_tree.yaml"| yaml
-    skills --> marimo
+    skills --> notebook
 ```
 
 - **Skill layer（`skills/`）** — すべての分析能力。拡張点。skill の一覧は [README の Skills](../README.md#skills) が正本。分析設計・journal・catalog 等の YAML を直接 read/write する。
@@ -84,9 +84,9 @@ flowchart TD
 - **Skill-managed YAML（`.insight/`）** — designs / journals / themes / catalog / knowledge。skill が直接管理する。
   論点ツリー（`themes/{theme_id}_tree.yaml`）は `tree_io` を通して書く。
   表示（`themes/{theme_id}_tree.html`）は `tree_io render` が正本から作る生成物で、手では書かない。script を持たず、外部を読まない。
-- **marimo + lineage（`src/insight_blueprint/lineage/`）** — 分析 notebook は同梱テンプレートでなく、
-  **`/analysis-notebook` skill が分析設計の `methodology` から 8-cell 契約に沿って生成・実行**する
-  （`skills/analysis-notebook/references/notebook-contract.md`）。`lineage`（`tracked_pipe` / Mermaid export）は
+- **notebook + lineage（`src/insight_blueprint/lineage/`）** — 分析 notebook は同梱テンプレートでなく、
+  **`/analysis-notebook` skill が分析設計の `methodology` から、`# %% <名前>` で区切る7つの cell の契約に沿って生成し、`python` で1段で実行**する
+  （`skills/analysis-notebook/references/notebook-contract.md`、[ADR-0045](adr/0045-notebook-is-plain-python-with-percent-cells.md)）。`lineage`（`tracked_pipe` / Mermaid export）は
   optional な `insight-blueprint-lineage[notebook]` パッケージで、notebook 内の加工を追跡・可視化する。
 
 ### Skill invocation model
@@ -183,11 +183,9 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 │   ├── sources/{id}.yaml           # /catalog-register
 │   └── knowledge/{id}.yaml         # /knowledge-extract
 ├── notebooks/
-│   ├── {id}.py                     # /analysis-notebook が生成する 8-cell marimo notebook
-│   ├── {id}_flat.py                # marimo export script（実行可能なフラット版）
+│   ├── {id}.py                     # /analysis-notebook が生成する notebook（`# %%` で区切る7つの cell の素の Python。そのまま python で走る）
 │   ├── {id}_verdict.json           # verdict 副作用（figures[] 含む; skill が読み戻す）
-│   ├── {id}_fig{NN}.png            # viz cell が保存する図（分析ノートとレポートが載せる）
-│   └── {id}.html                   # 任意: notebook を閲覧用に書き出した HTML
+│   └── {id}_fig{NN}.png            # viz cell が保存する図（分析ノートとレポートが載せる）
 ├── reports/
 │   └── {theme_id}.md               # テーマの最終報告のレポート。tree_io report が書く生成物（/report-export が Claude Docs へ export する）
 └── lineage/
@@ -198,9 +196,9 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 供給手順（`--with <pip名>` による ephemeral 注入）は
 [`skills/analysis-notebook/references/notebook-contract.md`](../skills/analysis-notebook/references/notebook-contract.md)
 の「Package allowlist — format & supplying packages」節が正本。
-plugin の env に最初から入っている既定の許可リストは、ファイルの有無や中身にかかわらず許し、ファイルはそこにパッケージを足す（[ADR-0021](adr/0021-default-package-allowlist.md)、[ADR-0027](adr/0027-default-allowlist-always-allowed.md)）。
+plugin の env に最初から入っている既定の許可リストは、ファイルの有無や中身にかかわらず許し、ファイルはそこにパッケージを足す（[ADR-0021](adr/0021-default-package-allowlist.md)、[ADR-0027](adr/0027-default-allowlist-always-allowed.md)）。中身は `insight_blueprint`・`pandas`・`matplotlib`・`numpy` である（[ADR-0046](adr/0046-marimo-leaves-the-plugin-env-and-the-default-allowlist.md)）。
 
-**marimo notebook はどこに出るか（混乱ポイントの明示回答）**: 利用者プロジェクトの
+**notebook はどこに出るか（混乱ポイントの明示回答）**: 利用者プロジェクトの
 `${CLAUDE_PROJECT_DIR}/.insight/notebooks/`（および `lineage/`）に出る。**plugin ディレクトリではない**。
 理由は下のパス解決機構にある。
 
@@ -212,10 +210,10 @@ plugin の env に最初から入っている既定の許可リストは、フ�
 | 経路 | cwd | パス解決 | 出力先 |
 |---|---|---|---|
 | `design_io` / `catalog_io` / `tree_io` / `premortem`（bin ラッパー） | plugin のルートに**移動する**（`${CLAUDE_PLUGIN_ROOT}`。無ければラッパー自身の場所から求める） | 絶対パス env `INSIGHT_BASE_DIR=${CLAUDE_PROJECT_DIR}/.insight` で解決（`CLAUDE_PROJECT_DIR` が無ければ cwd） | 利用者 `.insight/` |
-| `/analysis-notebook`（marimo 実行） | **利用者プロジェクトのまま**（移動しない） | 相対パス `.insight/notebooks/…`（cwd 基準） | 利用者 `.insight/` |
+| `/analysis-notebook`（notebook の実行） | **利用者プロジェクトのまま**（移動しない） | 相対パス `.insight/notebooks/…`（cwd 基準） | 利用者 `.insight/` |
 
 ポイントは notebook 経路の `uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook …`:
-`--project` は **実行環境（marimo/pandas/insight_blueprint を供給する uv 環境）だけを plugin から借りる**
+`--project` は **実行環境（pandas/matplotlib/numpy/insight_blueprint を供給する uv 環境）だけを plugin から借りる**
 指定で、**cwd は移動しない**。だから notebook 内の相対 `.insight/…` は利用者プロジェクトに解決される。
 一方 bin ラッパーは `cd` で plugin へ移動する代わりに、絶対 `INSIGHT_BASE_DIR` でデータ先を指す。
 どちらも「コードは plugin・データは利用者プロジェクト」を別の手段で満たしている。
@@ -263,7 +261,7 @@ end-to-end の代表フロー。分析者の入口は `/analysis-auto`（guided 
 論点ごとの巡回として駆動し、KEEP ゲートでだけ停止する（上記 «Skill invocation model» /
 [ADR-0005](adr/0005-selective-autonomous-chaining.md) / [ADR-0026](adr/0026-analysis-auto-walks-the-question-tree.md)）。
 下の図は、**各 `/skill` を分析者が明示的に起動する**ときの同じ経路を示す。並びは1回の巡回の順である。**notebook の生成・実行は `/analysis-notebook` が design の
-`methodology` から 8-cell 契約に沿って行う**（`skills/analysis-notebook/references/notebook-contract.md`）。
+`methodology` から7つの cell の契約に沿って行う**（`skills/analysis-notebook/references/notebook-contract.md`）。
 `/analysis-review`・`/premortem`・`/data-lineage`・`/report-export`・`/tree-upload` は任意ステップ。
 Claude Docs のコネクタと Artifact はホストが持つ機能で、plugin の外にある（[ADR-0015](adr/0015-host-connectors-for-optional-features.md)）。
 
@@ -272,7 +270,7 @@ sequenceDiagram
     actor U as 分析者
     participant CC as Claude Code
     participant IO as design_io / catalog_io / tree_io
-    participant MO as marimo + lineage
+    participant MO as notebook + lineage
     participant FS as .insight/（YAML）
     participant DC as Claude Docs
 
@@ -293,9 +291,9 @@ sequenceDiagram
         U->>CC: /premortem（高コストアクセス前の risk report, report-only）
     end
 
-    Note over U,MO: 分析実行: /analysis-notebook が methodology から<br/>8-cell marimo notebook を生成・実行（tracked_pipe で lineage 追跡）
+    Note over U,MO: 分析実行: /analysis-notebook が methodology から<br/>7つの cell の notebook を生成・実行（tracked_pipe で lineage 追跡）
     U->>CC: /analysis-notebook
-    CC->>MO: notebook 生成 → marimo export script → 実行 → verdict.json / lineage.mmd
+    CC->>MO: notebook 生成 → python で実行 → verdict.json / lineage.mmd
     MO-->>CC: 結果・図表
     CC->>IO: verdict を journal に追記（observe/evidence/question）
 
@@ -348,7 +346,7 @@ sequenceDiagram
     participant IO as design_io / catalog_io / tree_io
     participant H as pre-write hook + validate.py
     participant PM as /premortem
-    participant NB as /analysis-notebook + marimo
+    participant NB as /analysis-notebook + python
     participant TU as /tree-upload
     participant FS as .insight/
     participant DC as Artifact
@@ -407,9 +405,9 @@ sequenceDiagram
             D->>U: 【KEEP】停止しリスク提示（/catalog-register or コスト判断）
         end
         D->>IO: design_io transition（in_review→analyzing, AUTO）
-        D->>NB: 8-cell notebook 生成（.insight/notebooks/{id}.py）
+        D->>NB: 7つの cell の notebook 生成（.insight/notebooks/{id}.py）
         alt 宣言 source + allowlist + ローカル計算
-            D->>NB: marimo export script → python（AUTO 実行）
+            D->>NB: python で実行（AUTO 実行）
             NB->>FS: verdict.json / lineage/{id}.mmd
             D->>FS: verdict→journal（observe/evidence/question, AUTO 記録）
         else 非allowlist / 宣言 source 以外の外部通信 / 副作用
@@ -791,6 +789,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 27 | Skill layer（`/analysis-auto` の report と upload の段。前の実行で書いたレポートも `/report-upload` の KEEP ゲートへ回す） |
 | Epic 28 | Skill layer（`/analysis-reflection`・`/analysis-notebook`・`/analysis-auto`・`/tree-upload` が分析ノートを作って示し、送る段）+ `tree_io render` の表示（論点ツリーの HTML の中に並べる分析ノートと、論点ツリーの無いテーマの単独のページ `notes/{design_id}.html`） |
 | Epic 29 | Skill layer（`/report-export` の新設、`/analysis-report` と `/report-upload` の削除、`/analysis-auto` の report と upload の段の削除）+ `tree_io report` の出力（テーマの最終報告のレポート `reports/{theme_id}.md`）。Story 29.1〜29.5 で実装した |
+| Epic 30 | Skill layer（`/analysis-notebook` の notebook の契約と実行）+ 分析ノートの cell の切り出し + plugin の env（`notebook` extra）と既定の許可リスト |
 
 
 ## 参照

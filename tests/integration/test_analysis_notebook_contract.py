@@ -1,14 +1,18 @@
-"""Integration test for the /analysis-notebook 8-cell contract mechanics (Epic 07).
+"""Integration test for the /analysis-notebook contract mechanics (Epic 07, Epic 30).
 
-Guards the execution path the skill relies on: convert the reference notebook to a flat
-script (`marimo export script`), run it, and assert the verdict JSON side-effect + Mermaid
-lineage export. Skipped when the optional `notebook` extra (marimo/pandas/matplotlib) is
-not installed — matching how a minimal install lacks the analysis-runtime deps.
+Guards the execution path the skill relies on: run the reference notebook, a plain
+Python script cut into ``# %% <name>`` cells (ADR-0045), with ``python`` in one step and
+assert the verdict JSON side-effect + Mermaid lineage export. The fixture's shape is
+checked by the analysis note's own cut (``notebook_cells``), not a second parser. The run is skipped when
+the optional `notebook` extra (pandas/matplotlib) is not installed — matching how a minimal install
+lacks the analysis-runtime deps.
 """
 
 from __future__ import annotations
 
+import ast
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -16,35 +20,84 @@ from pathlib import Path
 
 import pytest
 
-pytest.importorskip("marimo")
-pytest.importorskip("pandas")
-pytest.importorskip("matplotlib")
+from skills._shared.design_note import CodeCell
+from skills._shared.design_note_read import (
+    CONTRACT_CELLS,
+    DATA_LOAD_CELL,
+    notebook_cells,
+)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_notebook.py"
+CONTRACT = (
+    Path(__file__).parents[2]
+    / "skills"
+    / "analysis-notebook"
+    / "references"
+    / "notebook-contract.md"
+)
 
 
 def _run_fixture(tmp_path: Path) -> dict:
-    """Export the reference notebook to a flat script (no nbformat needed), run it in
-    ``tmp_path`` — the skill's execution mechanism — and return the verdict side-effect.
+    """Run the reference notebook in ``tmp_path`` with one ``python`` command — the
+    skill's execution mechanism — and return the verdict side-effect.
     """
+    pytest.importorskip("pandas")
+    pytest.importorskip("matplotlib")
     nb = tmp_path / "SAMPLE.py"
     shutil.copy(FIXTURE, nb)
-    flat = tmp_path / "SAMPLE_flat.py"
-    export = subprocess.run(
-        [sys.executable, "-m", "marimo", "export", "script", str(nb), "-o", str(flat)],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-    )
-    assert export.returncode == 0, export.stderr
     run = subprocess.run(
-        [sys.executable, str(flat)], cwd=tmp_path, capture_output=True, text=True
+        [sys.executable, str(nb)], cwd=tmp_path, capture_output=True, text=True
     )
     assert run.returncode == 0, run.stderr
     return json.loads((tmp_path / "verdict.json").read_text(encoding="utf-8"))
 
 
-def test_notebook_contract_export_run_and_sideeffects(tmp_path: Path) -> None:
+def _shown_cells() -> tuple[CodeCell, ...]:
+    """The fixture's cells as the analysis note cuts them (data_load left out)."""
+    cells = notebook_cells(FIXTURE.read_text(encoding="utf-8"))
+    assert cells is not None, "the cut found the fixture out of the contract's shape"
+    return cells
+
+
+def _contract_cell_names() -> list[str]:
+    table = CONTRACT.read_text(encoding="utf-8").split("## Cells", 1)[1]
+    return re.findall(r"^\| `(\w+)` \|", table.split("\n## ", 1)[0], re.M)
+
+
+class TestTheSampleIsLaidOutAsTheContractSays:
+    """US-1 AC 2: the reference notebook is the contract's form, not marimo's."""
+
+    def test_the_cut_knows_the_contract_cells_in_order(self) -> None:
+        assert list(CONTRACT_CELLS) == _contract_cell_names()
+
+    def test_the_note_cuts_it_into_the_six_cells_but_data_load(self) -> None:
+        assert [c.name for c in _shown_cells()] == [
+            name for name in CONTRACT_CELLS if name != DATA_LOAD_CELL
+        ]
+
+    def test_each_contract_variable_is_assigned_in_one_cell(self) -> None:
+        owners: dict[str, list[str]] = {}
+        for cell in _shown_cells():
+            for node in ast.walk(ast.parse(cell.source)):
+                if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+                    owners.setdefault(node.id, [])
+                    if cell.name not in owners[node.id]:
+                        owners[node.id].append(cell.name)
+        # The cut lets through only a notebook that binds raw_df in data_load
+        # alone and puts nothing but the docstring before the first cell.
+        assert "raw_df" not in owners
+        assert "session" not in owners
+        assert "session = LineageSession(" in FIXTURE.read_text(encoding="utf-8")
+        assert owners["df_clean"] == ["data_prep"]
+        assert owners["results"] == ["analysis"]
+        assert owners["figure_manifest"] == ["viz"]
+        assert owners["verdict"] == ["verdict"]
+
+    def test_it_does_not_use_marimo(self) -> None:
+        assert "marimo" not in FIXTURE.read_text(encoding="utf-8")
+
+
+def test_notebook_contract_run_and_sideeffects(tmp_path: Path) -> None:
     # verdict JSON side-effect (what the skill reads to build journal events)
     verdict = _run_fixture(tmp_path)
     assert {"conclusion", "evidence_summary", "open_questions"} <= set(verdict)

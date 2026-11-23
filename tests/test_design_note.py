@@ -508,25 +508,36 @@ def _section_of(html: str, name: str) -> str:
 
 
 CELLS = (
-    CodeCell(position=1, source="@app.cell\ndef _():\n    import pandas as pd"),
-    CodeCell(position=3, source="@app.cell\ndef _(raw_df):\n    df = raw_df"),
+    CodeCell(position=1, name="imports", source="import pandas as pd\n\nimport numpy"),
+    CodeCell(position=3, name="data_prep", source="df_clean = raw_df.dropna()"),
 )
 
 
 class TestCode:
-    def test_each_cell_is_folded_with_its_position_and_source_as_written(
+    def test_each_cell_is_folded_with_its_position_name_and_source_as_written(
         self,
     ) -> None:
         html = _section_of(str(render_note(_note(cells=CELLS))), "code")
 
         assert html.count("<details>") == 2
-        assert "<summary>cell 1</summary>" in html
-        assert "<summary>cell 3</summary>" in html
-        assert (
-            "<pre><code>@app.cell\ndef _():\n    import pandas as pd</code></pre>"
-            in (html)
-        )
+        assert "<summary>cell 1 · imports</summary>" in html
+        assert "<summary>cell 3 · data_prep</summary>" in html
+        assert "<pre><code>import pandas as pd\n\nimport numpy</code></pre>" in html
         assert _position(html, "cell 1") < _position(html, "cell 3")
+
+    def test_a_cell_without_a_name_shows_its_position_alone(self) -> None:
+        cells = (CodeCell(position=2, name="", source="x = 1"),)
+
+        html = _section_of(str(render_note(_note(cells=cells))), "code")
+
+        assert "<summary>cell 2</summary>" in html
+
+    def test_the_name_of_a_cell_is_escaped(self) -> None:
+        cells = (CodeCell(position=2, name="<b>x</b>", source="x = 1"),)
+
+        html = _section_of(str(render_note(_note(cells=cells))), "code")
+
+        assert "<summary>cell 2 · &lt;b&gt;x&lt;/b&gt;</summary>" in html
 
     def test_it_says_the_data_load_cell_is_left_out_and_read_in_the_local_file(
         self,
@@ -545,6 +556,7 @@ class TestCode:
         assert "<pre" not in html
         assert "<details" not in html
         assert "契約の形でなく、データ取得の cell を特定できない" in html
+        assert "/analysis-notebook で作り直すと載る" in html
         assert "手元の notebook の .py で読む" in html
 
     def test_a_design_without_a_notebook_says_there_is_none_yet(self) -> None:
@@ -670,7 +682,7 @@ class TestLocalFiles:
 
 def test_code_lineage_verdict_conclusion_and_journal_text_are_escaped() -> None:
     note = _note(
-        cells=(CodeCell(position=1, source=EVIL),),
+        cells=(CodeCell(position=1, name=EVIL, source=EVIL),),
         lineage=EVIL,
         verdict_conclusion=EVIL,
         events=(_event("E01", EVIL, EVIL),),
