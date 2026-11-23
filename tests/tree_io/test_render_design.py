@@ -127,7 +127,7 @@ class TestRenderDesignNote:
         assert 'id="note-LIB-H02"' in html
         assert "LIB-H01" not in html
         assert "../notebooks/LIB-H02.py" in html
-        assert "<summary>cell 1</summary>" in html
+        assert "<summary>cell 1 · imports</summary>" in html
 
     def test_an_unknown_design_is_an_error_and_writes_nothing(
         self, insight: Path
@@ -470,11 +470,10 @@ def _notebook(insight: Path, design_id: str, load_line: str) -> None:
     notebooks = insight / "notebooks"
     notebooks.mkdir(parents=True, exist_ok=True)
     text = (
-        "import marimo\n\napp = marimo.App()\n\n\n"
-        "@app.cell\ndef _():\n    import pandas as pd\n    return (pd,)\n\n\n"
-        f"@app.cell\ndef _(pd):\n    {load_line}\n    return (raw_df,)\n\n\n"
-        "@app.cell\ndef _(raw_df):\n    df_clean = raw_df.dropna()\n"
-        "    return (df_clean,)\n"
+        f'"""{design_id}"""\n\n'
+        "# %% imports\nimport pandas as pd\n\n"
+        f"# %% data_load\n{load_line}\n\n"
+        "# %% data_prep\ndf_clean = raw_df.dropna()\n"
     )
     (notebooks / f"{design_id}.py").write_text(text, encoding="utf-8")
 
@@ -491,9 +490,10 @@ class TestCodeAndProgress:
 
         html = _note_html(insight, design_id)
 
-        assert "<summary>cell 1</summary>" in html
-        assert "<summary>cell 3</summary>" in html
-        assert "<summary>cell 2</summary>" not in html
+        assert "<summary>cell 1 · imports</summary>" in html
+        assert "<summary>cell 3 · data_prep</summary>" in html
+        assert "<summary>cell 2" not in html
+        assert "data_load</summary>" not in html
         assert "df_clean = raw_df.dropna()" in html
         assert CONNECTION_PATH not in html
         assert "secret-analyst" not in html
@@ -507,8 +507,8 @@ class TestCodeAndProgress:
         notebook = insight / "notebooks" / f"{design_id}.py"
         notebook.write_text(
             notebook.read_text("utf-8").replace(
-                "    import pandas as pd\n",
-                f"    # {separator * 4}\n    import pandas as pd\n",
+                "import pandas as pd\n",
+                f"# {separator * 4}\nimport pandas as pd\n",
             ),
             encoding="utf-8",
         )
@@ -531,6 +531,29 @@ class TestCodeAndProgress:
         assert "import pandas" not in html
         assert CONNECTION_PATH not in html
         assert "データ取得の cell を特定できない" in html
+
+    def test_a_marimo_notebook_shows_no_code_and_says_how_to_get_it_shown(
+        self, insight: Path
+    ) -> None:
+        design_id = _design(insight)
+        _notebook(insight, design_id, LOAD)
+        (insight / "notebooks" / f"{design_id}.py").write_text(
+            "import marimo\n\napp = marimo.App()\n\n\n"
+            "@app.cell\ndef _():\n    import pandas as pd\n    return (pd,)\n\n\n"
+            f"@app.cell\ndef _(pd):\n    {LOAD}\n    return (raw_df,)\n\n\n"
+            "@app.cell\ndef _(raw_df):\n    df_clean = raw_df.dropna()\n"
+            "    return (df_clean,)\n",
+            encoding="utf-8",
+        )
+
+        html = _note_html(insight, design_id)
+
+        assert "<summary>cell" not in html
+        assert "import pandas" not in html
+        assert "df_clean" not in html
+        assert CONNECTION_PATH not in html
+        assert "notebook が契約の形でなく" in html
+        assert "/analysis-notebook で作り直すと載る" in html
 
     def test_a_linked_notebook_is_not_read(self, insight: Path, tmp_path: Path) -> None:
         design_id = _design(insight)

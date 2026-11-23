@@ -85,7 +85,8 @@ class CodeCell:
     """One cell of the notebook ``.py``; never the data-load cell."""
 
     position: int  # 1-based place among the cells of the file
-    source: str  # as written, decorator included
+    name: str  # the text after "# %%" on the cell's first line; may be empty
+    source: str  # as written, without the "# %%" line
 
 
 @dataclass(frozen=True)
@@ -506,19 +507,26 @@ def _conclusion(note: DesignNote, anchor: str) -> Html | None:
     )
 
 
+def _cell_heading(cell: CodeCell) -> str:
+    return (
+        f"cell {cell.position} · {cell.name}" if cell.name else f"cell {cell.position}"
+    )
+
+
 def _code(note: DesignNote, anchor: str) -> Html:
     if note.cells is not None:
         body = join(
             [
                 el(
                     "p",
-                    "notebook の .py を cell ごとに出す。データ取得の cell は載せない"
-                    "（接続情報が入るため）。手元の notebook の .py で読む。",
+                    "notebook の .py を cell ごとに、名前を添えて出す。"
+                    "データ取得の cell は載せない（接続情報が入るため）。"
+                    "手元の notebook の .py で読む。",
                 ),
                 *(
                     el(
                         "details",
-                        el("summary", f"cell {c.position}"),
+                        el("summary", _cell_heading(c)),
                         el("pre", el("code", c.source)),
                     )
                     for c in note.cells
@@ -529,7 +537,8 @@ def _code(note: DesignNote, anchor: str) -> Html:
         body = el(
             "p",
             "notebook が契約の形でなく、データ取得の cell を特定できないので、"
-            "コードを1つも載せない。手元の notebook の .py で読む。",
+            "コードを1つも載せない。/analysis-notebook で作り直すと載る。"
+            "手元の notebook の .py で読む。",
         )
     else:
         body = el("p", "notebook の .py はまだ無い。")

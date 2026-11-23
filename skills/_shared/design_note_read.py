@@ -13,8 +13,11 @@ changes the tree page do not edit one file.
 from __future__ import annotations
 
 import ast
+import io
 import json
 import re
+import tokenize
+from bisect import bisect_right
 from pathlib import Path
 from typing import cast
 
@@ -45,6 +48,9 @@ _FIGURE_FILE = re.compile(r"[A-Za-z0-9_.-]+")
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 # The line ends of the tokenizer, which ast line numbers count.
 _LINE_BREAK = re.compile(r"\r\n|\r|\n")
+# A comment at column 0 that starts with this opens a cell; the rest is its name.
+_SEPARATOR = "# %%"
+DATA_LOAD_CELL = "data_load"
 
 # The next_action fields the note's recommendation takes for each terminal
 # status. A dot steps into a mapping.
@@ -247,67 +253,96 @@ def _conclusion(
     )
 
 
-def _is_cell(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    """Whether *node* is decorated ``@app.cell`` or ``@app.cell(...)``."""
-    for decorator in node.decorator_list:
-        target = decorator.func if isinstance(decorator, ast.Call) else decorator
-        if (
-            isinstance(target, ast.Attribute)
-            and target.attr == "cell"
-            and isinstance(target.value, ast.Name)
-            and target.value.id == "app"
-        ):
-            return True
-    return False
+def _separators(lines: list[str]) -> dict[int, str]:
+    """The cell name of each separator line, by its 1-based line number.
+
+    A separator is a comment that starts at column 0 with ``# %%``. The
+    tokenizer tells a comment from the same characters in a string.
+    """
+    tokens = tokenize.generate_tokens(io.StringIO("\n".join(lines)).readline)
+    return {
+        token.start[0]: token.string.removeprefix(_SEPARATOR).strip()
+        for token in tokens
+        if token.type == tokenize.COMMENT
+        and token.start[1] == 0
+        and token.string.startswith(_SEPARATOR)
+    }
 
 
-def _binds_raw_df(cell: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+def _first_line(statement: ast.stmt) -> int:
+    decorators = getattr(statement, "decorator_list", [])
+    return min([statement.lineno, *(d.lineno for d in decorators)])
+
+
+def _is_docstring(statement: ast.stmt) -> bool:
+    return (
+        isinstance(statement, ast.Expr)
+        and isinstance(statement.value, ast.Constant)
+        and isinstance(statement.value.value, str)
+    )
+
+
+def _binds_raw_df(statement: ast.stmt) -> bool:
     return any(
         isinstance(node, ast.Name)
         and node.id == "raw_df"
         and isinstance(node.ctx, ast.Store)
-        for node in ast.walk(cell)
+        for node in ast.walk(statement)
     )
 
 
+def _cell_source(lines: list[str]) -> str:
+    """The lines of a cell as written, without the blank lines around them."""
+    while lines and not lines[0].strip():
+        lines = lines[1:]
+    while lines and not lines[-1].strip():
+        lines = lines[:-1]
+    return "\n".join(lines)
+
+
 def notebook_cells(text: str) -> tuple[CodeCell, ...] | None:
-    """The cells of a marimo notebook, without its data-load cell.
+    """The cells of a notebook, without its data-load cell (ADR-0045).
 
-    The data-load cell is the one cell that binds ``raw_df`` (the contract's
-    cell 2). It holds the connection values (ADR-0022), so a notebook where no
-    single cell binds it gives no code at all: any cell could hold them.
+    A cell runs from a ``# %% <name>`` line to the line before the next one.
+    The data-load cell is the one cell named ``data_load``. It holds the
+    connection values (ADR-0022), so a notebook where it cannot be told apart
+    gives no code at all: any cell could hold them.
     """
-    try:
-        tree = ast.parse(text)
-    except SyntaxError:
-        return None
-    cells = [
-        node
-        for node in tree.body
-        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and _is_cell(node)
-    ]
-    loads = [cell for cell in cells if _binds_raw_df(cell)]
-    if len(loads) != 1:
-        return None
-    # The line numbers are the tokenizer's; str.splitlines() also breaks on
-    # \x0c, \x85, U+2028 and others, which would shift a slice onto another cell.
+    # ast, the tokenizer and the slices all read these lines, so a line number
+    # means the same line in each. str.splitlines() also breaks on \x0c, \x85,
+    # U+2028 and others, which would shift a slice onto the data-load cell.
     lines = _LINE_BREAK.split(text)
-    shown: list[CodeCell] = []
-    for position, cell in enumerate(cells, start=1):
-        source = "\n".join(lines[cell.decorator_list[0].lineno - 1 : cell.end_lineno])
-        # A slice that is not this cell could be the data-load cell, so a
-        # mismatch shows no code at all.
-        segment = ast.get_source_segment(text, cell)
-        if not source.startswith("@") or not segment or not _ends_with(source, segment):
+    try:
+        tree = ast.parse("\n".join(lines))
+        names = _separators(lines)
+    except (SyntaxError, ValueError, tokenize.TokenError):
+        return None
+    if not names:
+        return None
+    starts = sorted(names)
+    binders: set[int] = set()
+    for index, statement in enumerate(tree.body):
+        first, last = _first_line(statement), cast(int, statement.end_lineno)
+        if any(first <= start <= last for start in starts):
             return None
-        if cell is not loads[0]:
-            shown.append(CodeCell(position=position, source=source))
-    return tuple(shown)
-
-
-def _ends_with(source: str, segment: str) -> bool:
-    """Whether *source* ends with *segment*, whose line ends are as written."""
-    return source.endswith("\n".join(_LINE_BREAK.split(segment)))
+        if last < starts[0]:
+            if index or not _is_docstring(statement):
+                return None
+        elif _binds_raw_df(statement):
+            binders.add(bisect_right(starts, first) - 1)
+    loads = {i for i, start in enumerate(starts) if names[start] == DATA_LOAD_CELL}
+    if len(loads) != 1 or binders != loads:
+        return None
+    ends = [*(start - 1 for start in starts[1:]), len(lines)]
+    return tuple(
+        CodeCell(
+            position=index + 1,
+            name=names[start],
+            source=_cell_source(lines[start:end]),
+        )
+        for index, (start, end) in enumerate(zip(starts, ends, strict=True))
+        if index not in loads
+    )
 
 
 def _is_own_file(path: Path) -> bool:
