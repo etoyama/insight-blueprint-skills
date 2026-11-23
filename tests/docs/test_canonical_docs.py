@@ -89,6 +89,7 @@ LIVING_DOCS = [
     "docs/design/epic-14-report-template-gaps.md",
     "docs/design/epic-18-question-tree.md",
     "docs/design/epic-28-tree-entry-point.md",
+    "docs/design/epic-30-plain-python-notebook.md",
     *(str(p.relative_to(REPO_ROOT)) for p in _new_format_adrs()),
 ]
 
@@ -421,6 +422,43 @@ class TestTreeEntryPointDocs:
         decisions = words.section(_read(self.DOC), "Decisions")
         assert "../adr/0036-" in decisions
         assert "../adr/0037-" in decisions
+
+
+class TestPlainPythonNotebookDocs:
+    """Epic 30, first edition: the DesignDoc has what WORKFLOW §4 asks for before any Story starts."""
+
+    DOC = "docs/design/epic-30-plain-python-notebook.md"
+    FIRST_EDITION_DIAGRAMS = {
+        "Architecture": "flowchart",
+        "Domain Model": "classDiagram",
+        "Sequence Diagram": "sequenceDiagram",
+    }
+
+    @pytest.mark.parametrize("title", sorted(FIRST_EDITION_DIAGRAMS))
+    def test_first_edition_diagram_is_drawn_in_mermaid(self, title: str) -> None:
+        body = words.section(_read(self.DOC), title)
+        assert re.search(
+            rf"```mermaid\s*\n{self.FIRST_EDITION_DIAGRAMS[title]}\b", body
+        ), title
+
+    def test_every_story_handles_at_most_five_criteria(self) -> None:
+        rows = [
+            [cell.strip() for cell in line.strip("|").split("|")]
+            for line in words.section(_read(self.DOC), "Stories").splitlines()
+            if line.startswith("|")
+        ][2:]
+        assert rows, "the Stories table is empty"
+        for story, _user_story, criteria, *_ in rows:
+            assert len(re.findall(r"AC \d+", criteria)) <= 5, story
+
+    def test_cross_epic_decisions_are_linked(self) -> None:
+        decisions = words.section(_read(self.DOC), "Decisions")
+        assert "../adr/0045-" in decisions
+        assert "../adr/0046-" in decisions
+
+    def test_the_core_value_revision_is_proposed(self) -> None:
+        # The PRD itself is revised by a Story; the first edition carries the wording.
+        assert "notebook 契約 & lineage" in words.section(_read(self.DOC), "Scope")
 
 
 class TestYomiyasuWords:

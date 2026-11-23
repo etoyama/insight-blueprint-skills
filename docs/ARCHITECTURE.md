@@ -810,6 +810,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 26 | Skill layer（`/analysis-reflection` の Step 2 の読むもの） |
 | Epic 27 | Skill layer（`/analysis-auto` の report と upload の段。前の実行で書いたレポートも `/report-upload` の KEEP ゲートへ回す） |
 | Epic 28 | Skill layer（`/analysis-reflection`・`/analysis-notebook`・`/analysis-auto`・`/tree-upload` が分析ノートを作って示し、送る段）+ `tree_io render` の表示（論点ツリーの HTML の中に並べる分析ノートと、論点ツリーの無いテーマの単独のページ `notes/{design_id}.html`） |
+| Epic 30 | Skill layer（`/analysis-notebook` の notebook の契約と実行）+ 分析ノートの cell の切り出し + plugin の env（`notebook` extra）と既定の許可リスト |
 
 
 ## 参照
