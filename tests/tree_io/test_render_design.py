@@ -635,6 +635,7 @@ class TestCodeAndProgress:
         design_id = _design(insight)
         _notebook(insight, design_id, LOAD)
         _write_verdict(insight, design_id, {})
+        # Epic 29: an old report left in reports/ is no longer linked from the note.
         (insight / "reports").mkdir()
         (insight / "reports" / f"{design_id}.md").write_text("# r", encoding="utf-8")
 
@@ -643,7 +644,6 @@ class TestCodeAndProgress:
         assert re.findall(r'href="(\.\./[^"]*)"', html) == [
             f"../notebooks/{design_id}.py",
             f"../notebooks/{design_id}_verdict.json",
-            f"../reports/{design_id}.md",
         ]
 
 

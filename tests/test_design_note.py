@@ -640,7 +640,6 @@ class TestLocalFiles:
             "notebooks/LIB-H01_verdict.json",
             "lineage/LIB-H01.mmd",
             "notebooks/LIB-H01.html",
-            "reports/LIB-H01.md",
         )
 
         html = _section_of(str(render_note(_note(local_files=files))), "files")
@@ -652,7 +651,6 @@ class TestLocalFiles:
             "verdict",
             "lineage",
             "notebook の HTML",
-            "レポート",
         ):
             assert label in html
 
