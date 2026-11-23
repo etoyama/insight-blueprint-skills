@@ -25,7 +25,7 @@ Epic issue（[#177](https://github.com/etoyama/insight-blueprint-skills/issues/1
 ### 前提にした事実（main の c2af3c6、2026-11-23）
 
 - 分析ノートは結論の後の節まで記録から埋まる。`/tree-upload` が、分析ノートを含む論点ツリーの HTML を1ファイルのまま Artifact に送る（ADR-0036、[ADR-0037](../adr/0037-tree-upload-sends-the-design-notes.md)、`skills/_shared/design_note.py` を読んだ）。
-- 現時点の答えは、テーマの振り返りが論点ごとに書く。文ごとに種類と、引用する journal の出来事を持つ。ツリーの検査が引用先の実在と、文の数が引用先の本文にあることを確かめる
+- 現時点の答えは、テーマの振り返りが論点ごとに書く。文ごとに種類と、引用する journal の出来事を持つ。ツリーの検査が引用先の実在と、文に書いた数が引用先の本文にあることを確かめる
   （[ADR-0025](../adr/0025-cited-answers-checked-after-writing.md)、`skills/analysis-reflection/SKILL.md` の T2 から T4 を読んだ）。
 - Claude Docs のコネクタが本文として受けるのは Markdown かブロックで、HTML は受けない。本文はツール呼び出しの引数に載る（コネクタの guide を読んだ）。
 - plugin の基本の env に、Markdown を HTML にするライブラリは無い（`bin/*` は extras なしの `uv run` で動く）。
@@ -67,7 +67,7 @@ AC の正本はここ。
 
 レポートには、図の説明やデータソースの説明、journal の本文のように、分析の入力から写した文（データ由来の文）が載る。
 この文に `<` や `*` や `|` のような記号が入っていると、Markdown はそれを見出し、リンク、画像、表の区切りとして読み、レポートの体裁が変わってしまう。
-AC 3 から AC 5 は、そうした記号を文字のまま表示させるための決まりである。
+AC 3 から AC 5 はそうした記号を文字のまま表示させるための決まりである。
 
 - [x] AC 1: レポートは用語表の語を読み手向けの言葉に言い換えて出す（根の問いは「主題」、journal の出来事は「記録」、分析設計は「分析」、親の論点は「上位の論点」、寄与は「答えると分かること」など）。言い換えの対応はコードの1か所に持ち、用語表には写さない。対応の左側がすべて用語表の語であることを、テストで確かめる。
 - [x] AC 2: 現時点の答えの種類は「言えること」「留保すべきこと」「まだ分からないこと」の見出しで出す。
@@ -346,7 +346,7 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 - Alternatives considered:
   - 結論の段で1問聞き、分析者が承認した文を journal に記録して、分析ノートの結論の節に写す。検査済みの現時点の答えの隣に、検査していない文が並ぶ。同じ含意を2か所で聞くことにもなる。
   - 含意の文を新しい記録にし、文ごとに出来事を引用させて検査する。同じ仕組みが論点の側に既に在る。
-- Consequences: 分析ノートだけを読む人は、結果の意味を論点のカードの現時点の答えで読む。見本は合成シナリオの論点ツリーと分析ノートを Epic 28 の実装で作り、片方にだけ含意の段落を差し込んだ。
+- Consequences: 分析ノートだけを読む人は、結果の意味を論点のカードの現時点の答えで読む。見本として、合成シナリオの論点ツリーと分析ノートを Epic 28 の実装で作り、片方にだけ含意の段落を差し込んだ。
 
 ### Decision: the-report-stops-on-two-conditions
 
@@ -389,7 +389,7 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 ### Decision: the-old-report-leaves-in-one-step
 
 - What: 古いレポート周りを、この Epic の中で一度に消す。新旧を並べるリリースを作らず、古い skill の名前を案内として残すこともしない。
-- Why: 新旧が並ぶ間は、分析ノートとレポートの二重がそのまま残る。1.0 より前で、古いバージョンは固定できる（[ADR-0032](../adr/0032-marketplace-serves-the-release-tag.md)）。
+- Why: 新旧が並ぶ間は、分析ノートとレポートが二重にある状態がそのまま残る。1.0 より前で、古いバージョンは固定できる（[ADR-0032](../adr/0032-marketplace-serves-the-release-tag.md)）。
 - Criteria: 利用者の手元のファイルを黙って消さないこと（Must）。Epic が終わった時点で経路が1本であること（高、人間）。保守する物と、移行のために足す物の量（高、人間）。決め手は後の2つ。
 - Affected modules: US-5 の AC 1 から AC 5 が挙げるもの。
 - Alternatives considered:
@@ -511,7 +511,7 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
   - `ReportDesign` が `DesignNote` をそのまま持つ。分析コードと journal のすべての出来事を持ち、Domain Model の不変条件に反する。
 - Consequences: 仮説に反する証拠は、分析ノートの結論の節と違い、結論の前の分析設計でも出す。Limitations は「分析設計ごと」と書いており、結論の有無で絞っていない。
   図の番号は、レポートの上から数えた画像のリンクの番号である（`/report-upload` の数え方と同じ）。1つの分析設計が答えのある論点2つに結んであれば、その図は2回、別の番号で出る。`figures` には1回だけ入る。
-  進捗と出来事の種類の語は、ツリーのページと分析ノートの表をそのまま使うために公開した（`tree_render.PROGRESS_WORDS`、`design_note.EVENT_WORDS`）。読み手向けの言い換えを1か所に集めるのは Story 29.3 である。
+  進捗と出来事の種類の語は、ツリーのページと分析ノートの表をそのまま使うために、モジュールの外から参照できる名前にした（`tree_render.PROGRESS_WORDS`、`design_note.EVENT_WORDS`）。読み手向けの言い換えを1か所に集めるのは Story 29.3 である。
 
 ### Decision: the-appendix-lists-every-record-in-brackets
 
@@ -559,7 +559,7 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 - Affected modules: `skills/_shared/theme_report.py`、`docs/UBIQUITOUS_LANGUAGE.md`、`.yomiyasu-words/allow.txt`。
 - Alternatives considered:
   - Domain Model の初版のとおり、`word(term)` を持つ値オブジェクト `ReaderWords` にする。呼ぶ所は決まった文の組み立てだけで、辞書を引く以上のことをしない。
-  - 進捗・出来事の種類・答えの種類の語もこの辞書に移す。どれも分析ノートとツリーのページと共有する語で、言い換えではない。答えの種類の見出しは用語表の語（未判別・弱める証拠と留保）が左側に立たない。
+  - 進捗・出来事の種類・答えの種類の語もこの辞書に移す。どれも分析ノートとツリーのページでも使う語で、言い換えではない。答えの種類の見出しは用語表の語（未判別・弱める証拠と留保）が左側に立たない。
 - Consequences: Domain Model の図の `ReaderWords` を `READER_WORDS`（定数）に替えた。Epic PR の説明に書き、人間の承認を得る。
   テストは、ふつうのレポートが左側の語を1つも含まず、右側の語をすべて含むことも見る。「ツリーの決定はまだ無い。」のように、言い換えていない用語表の語はまだ残る。
 
@@ -643,7 +643,7 @@ Epic-scoped な決定。人間の判断は 2026-11-23 の DesignDoc 初版のセ
 - 2026-11-23 — Story 29.2 の後に、図を Doc に載せる道を確かめた（PM の依頼）。合成シナリオ（`handoff_trial build --scenario lib`）の LIB-H01 と LIB-H02 に verdict の図を1枚ずつ足し、`tree_io report --theme LIB` が `figures` に2枚を返し、レポートが2つの画像のリンクを持つことを見た。人間が KEEP ゲートで承認した後に `/report-export` の手順で Doc（https://claude.ai/artifact/D3YAvLEXADYCtbxCQqWBjh）を作り、図2枚を1枚ずつ載せた。注記は残らず、図の題・軸・読み方の文は図の下にそのまま残った。ホストの承認カードは出なかったので、断ったときの道は確かめていない。SKILL.md は直していない。
 - 2026-11-23 — 人間が D6（研究のテーマの Abstract の決まった文）を、Story 29.3 のセッションで Decision Analysis の形で聞かれて決めた。1文にする案と、主張の範囲を外す案と比べ、今の文のままにした。
 - 2026-11-23 — Story 29.3 completed: データ由来の文を、`theme_report.escape_source_text` を通してから挿す。読み手向けの言い換えを `READER_WORDS` の1か所に集め、用語表に「親の論点」を足した。Domain Model の図の `ReaderWords` を `READER_WORDS`（定数）に替えた（Epic PR で承認を得る）。Decisions に2件書いた。
-- 2026-11-23 — Story 29.3 の差分に、バグ・セキュリティの観点のレビューを1本回した（`pstack:thermo-nuclear-review`。cmark-gfm で8つの位置に記号を入れて描き、30000通りのランダムな文もかけた）。8つの文字と先頭の記号は、どの位置でも効いていた。
+- 2026-11-23 — Story 29.3 の差分に、バグ・セキュリティの観点のレビューを1本回した（`pstack:thermo-nuclear-review`。cmark-gfm で8つの位置に記号を入れて描き、30000通りのランダムな文もかけた）。8つの文字と先頭の記号のエスケープで、どの位置でも記法は働かなかった。
   高の指摘1件を直した。`~` をエスケープしておらず、`2019~2023年` に打ち消し線が引かれて `~` が消えた。中の指摘1件も直した。`conclude` と反する証拠の出来事の id が検査もエスケープもされずに括弧と Appendix に入り、id に記号を入れた journal で画像のタグと見出しが出た。
   低の指摘も3件直した。実体参照が文字として変わること（`&` を足した）、`#` だけの文が見出しで消えること、空白だけの題で太字が閉じないこと。直さなかったのは2件で、URL の中のバックスラッシュ（中）と素の URL の自動リンク（低）は、ADR-0019 が受け入れたとおりで Decision の Consequences に書いた。
 - 2026-11-23 — 合成シナリオ（`scripts/handoff_trial.py build --scenario lib`）の根の問い・論点の問いと寄与・答えの文・決定の理由・分析設計の題と仮説・journal の本文に、`<b>`・`*`・`|`・`` ` ``・`![x](http://example.invalid/a.png)`・改行・先頭と末尾の `#` などを入れて、`tree_io report --theme LIB` を回した（終了コード 0）。
