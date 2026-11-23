@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted（できたレポートを `report_check` で検査することと、手順の正本を `apa-template.md` に置くことは、[ADR-0040](0040-report-export-sends-the-report-to-claude-docs.md) が改めた。写し方はレポートを書くコードが受け持ち、エスケープする文字は8つに `~` と `&` を足した10個と、先頭でブロックを開く記号と末尾で見出しを閉じる `#` に広げた（[Epic 29](../design/epic-29-theme-report-export.md) の Decision `source-text-is-escaped-where-it-enters-the-text`））
 
 ## Context
 

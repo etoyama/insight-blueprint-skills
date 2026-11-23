@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-23
+
+### Added
+
+- **`tree_io report --theme {theme_id}` writes the final report of a theme.** Code writes
+  `.insight/reports/{theme_id}.md` from the question tree: the APA headings, and an Abstract with
+  the aim and the current answer to the root question, each sentence followed by the journal
+  events it cites. No sentence is written by a model. Nothing is written, and the command exits 3
+  with the reasons as JSON, when the theme has no question tree, when the root question has no
+  answer under the current root revision, or when the tree check finds a violation. The
+  Introduction lists the questions of the tree with their progress. The Method has a table of the
+  linked designs (hypothesis, method, why that method) and of their data sources, with no
+  connection. The Results give each answered question its answer and the analyses behind it: the
+  fixed sentence of the terminal status and the conclude text, the verdict metrics as written, and
+  the figures as image links with their captions (`figures` in the JSON lists them). An answer
+  given before the root question was revised says so. The Discussion has the evidence against each
+  hypothesis, the questions not answered yet, the last tree decision and the answers heard about
+  next candidates; there is no section of recommendations. The Appendix lists every journal event
+  the report cites, and no other; analysis code and lineage are left out
+  ([ADR-0039](docs/adr/0039-report-is-the-final-report-of-a-theme-written-by-code.md), #177).
+  Text copied from the records shows as characters: line breaks and tabs fold into one space,
+  and a backslash goes before the characters and the marks that would make a tag, an image, a
+  link, a table cell, a code span, a fence, a heading or a list. The report says 主題, 記録, 分析,
+  上位の論点 and 答えると分かること for the glossary's words a reader does not know.
+- **`/report-export {theme_id}` exports the final report of a theme to Claude Docs.** It has
+  `tree_io report` write the report, lists the report and its figures with the round that wrote
+  the root's answer and the number of unconcluded designs, and creates a new Doc only after you
+  approve. When the report cannot be written, it tells you why and sends nothing, even if an older
+  report is on disk. Without the host's Claude Docs connector nothing is sent
+  ([ADR-0040](docs/adr/0040-report-export-sends-the-report-to-claude-docs.md), #177).
+
+### Changed
+
+- **`/analysis-auto` no longer writes or uploads a report.** The round goes from the design's
+  reflection straight to the theme reflection, and a `concluded` position enters there. When the
+  walk stops on a theme that has a question tree, the summary names `/report-export {theme_id}`
+  for when you judge the theme ready to report; the driver never starts it and does not ask
+  ([ADR-0040](docs/adr/0040-report-export-sends-the-report-to-claude-docs.md), #194).
+- **The design note no longer links a report.** Its local files list the notebook, the verdict,
+  the lineage and the notebook's HTML only (#194).
+
+### Removed
+
+- **`/analysis-report`, `/report-upload`, their template `apa-template.md`, and `report_check`
+  (`bin/report_check` and its module).** The per-design report is gone. Read a design in its
+  design note (`tree_io render`, inside the question tree's page); send the final report of a
+  theme to Claude Docs with `/report-export {theme_id}`. Old reports under
+  `.insight/reports/{design_id}.md` stay where they are; nothing deletes them
+  ([ADR-0040](docs/adr/0040-report-export-sends-the-report-to-claude-docs.md), #194).
+- **A theme without a question tree has no way left to send its results outside this machine.**
+  `/report-export` needs the tree, and its designs' notes are standalone pages that no skill
+  sends. Build the tree with `/analysis-framing` first. To keep the old skills, pin the plugin to
+  the last release that has them: remove the marketplace and add it again at the tag
+  (`/plugin marketplace add etoyama/insight-blueprint-skills#v0.15.0`), then install the plugin
+  again. Removing a marketplace uninstalls the plugins installed from it.
+
 ## [0.15.0] - 2026-11-23
 
 ### Added
@@ -636,6 +692,7 @@ Version bumps and maintenance releases. See git history for details:
 - SQLite FTS5 full-text search index
 
 [unreleased]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.14.1...HEAD
+[0.16.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.13.0...v0.14.0

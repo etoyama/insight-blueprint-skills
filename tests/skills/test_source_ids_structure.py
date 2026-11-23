@@ -110,9 +110,8 @@ class TestDownstreamSkillsReadSourceIds:
         assert "declared source(s) are the ids in the design's `source_ids`" in text
 
     def test_no_other_skill_mentions_data_source(self) -> None:
-        # Only the producer explains the note, and the report template says why it has
-        # no column for it. Anything else would be reading it.
-        allowed = {"analysis-design", "analysis-report"}
+        # Only the producer explains the note. Anything else would be reading it.
+        allowed = {"analysis-design"}
         for skill in sorted(SKILLS_DIR.iterdir()):
             if skill.name in allowed or not (skill / "SKILL.md").exists():
                 continue

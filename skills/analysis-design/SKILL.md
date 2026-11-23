@@ -180,7 +180,7 @@ methodology = {
 **Rules:**
 - Name each data source as `{source:ID}`, where `ID` is an id in `source_ids`. `/analysis-notebook`
   replaces it with the location in the source's `connection`. Never write a path, host, project id or
-  table name: the design is read by every later skill, including `/analysis-report`, and `connection`
+  table name: the design is read by every later skill and by the report, and `connection`
   reaches only the notebook ([ADR-0022](../../docs/adr/0022-connection-reaches-only-the-notebook.md)).
 - If the source is a SQL table: write the query with key columns from the schema and the filter
   conditions, and `FROM {source:ID}` for the table

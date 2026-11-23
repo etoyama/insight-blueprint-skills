@@ -29,8 +29,7 @@ automatically — there is nothing to `pip install`.
    /analysis-design         # turn it into a hypothesis design document
    /analysis-journal        # record reasoning as you investigate
    /analysis-reflection     # conclude (or branch) the hypothesis
-   /analysis-report         # write up a distributable APA-style report
-   /report-upload           # optional: upload the report to Claude Docs (asks before sending)
+   /report-export           # export the theme's final report to Claude Docs (asks before sending)
    /knowledge-extract       # save reusable, source-scoped knowledge
    ```
 
@@ -102,8 +101,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 - `/analysis-notebook` — Generate a marimo notebook from the design's methodology, run it, and record results to the journal
 - `/analysis-journal` — Record reasoning steps during analysis (observations, evidence, decisions, questions)
 - `/analysis-reflection` — Structured reflection to draw conclusions or branch hypotheses
-- `/analysis-report` — Assemble a distributable APA-style Markdown report from a concluded analysis (read-only consumer)
-- `/report-upload` — Upload a finished report to Claude Docs as a new Doc, after you approve the files to send (needs the host's Claude Docs connector; without it nothing is sent)
+- `/report-export` — Export the final report of a theme to Claude Docs as a new Doc, after you approve the files to send. `tree_io report` writes the report from the question tree; when it cannot (no tree, no answer to the root question, or a violation of the tree check), nothing is sent (needs the host's Claude Docs connector; without it nothing is sent)
 - `/tree-upload` — Upload the HTML view of a theme's question tree, with the analysis note of every design under it in the same file, to the host's Artifact as a new page, after you approve the file to send (needs the host's Artifact feature; without it, or when the page is over the 16MB limit, nothing is sent)
 - `/analysis-revision` — Guided revision workflow for addressing review comments
 - `/catalog-register` — Step-by-step data source registration
@@ -129,9 +127,9 @@ Skills support both English and Japanese trigger phrases.
 /analysis-journal (record reasoning during analysis)
     ↓
 /analysis-reflection (reflect → conclude or branch)
-    ↓ ↘ /analysis-report (concluded → distributable APA-style report)
-          ↘ /report-upload (optional: upload the report to Claude Docs; asks before sending)
     ↓ ↗ back to /analysis-framing (new direction needed)
+/report-export (the theme is ready to report → export its final report to Claude Docs; asks before sending)
+    ↓
 /knowledge-extract (save reusable, source-scoped knowledge)
 ```
 
@@ -146,10 +144,10 @@ stands on the next run. It auto-advances the low-friction steps and **pauses onl
 decisions**: the root question and its aim, the node to investigate first, confirming the
 hypothesis, registering a data source, a `HARD_BLOCK`/`HIGH` premortem, a notebook that would
 need out-of-allowlist packages or external communication beyond the declared source, the
-conclusion, and the tree decision (deepen, return or close) that ends each round. When a design
-is concluded it writes the distributable report without asking. Once the
-round has a report, written by this run or an earlier one, it starts `/report-upload`, which lists the files it would send to Claude Docs
-and waits for your approval; nothing leaves your machine without it. It is
+conclusion, and the tree decision (deepen, return or close) that ends each round. When the
+walk stops, it names `/report-export` for the theme's final report and leaves it to you to start
+once you judge the theme ready to report. `/report-export` lists the files it would send to
+Claude Docs and waits for your approval; nothing leaves your machine without it. It is
 opt-in and still interactive — not an unattended pipeline. The individual
 skills stay explicit everywhere else. See
 [ADR-0005](docs/adr/0005-selective-autonomous-chaining.md).

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted（結論の出た分析設計ごとにレポートを書いてアップロードを始める段は、[ADR-0040](0040-report-export-sends-the-report-to-claude-docs.md) が消した）
 
 ## Context
 

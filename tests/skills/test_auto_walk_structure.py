@@ -52,8 +52,6 @@ ROUND = [
     "notebook",
     "journal",
     "reflection",
-    "report",
-    "upload",
     "theme reflection",
     "next round",
 ]
@@ -154,7 +152,7 @@ class TestTheThemeIsTheEntry:
 
     def test_carrying_one_design_skips_the_tree_steps(self) -> None:
         build = unwrap(_step("### Step 2:"))
-        assert re.search(r"only this design[^.]*items 2[–-]9", build)
+        assert re.search(r"only this design[^.]*items 2[–-]7", build)
 
     def test_the_position_is_read_again_once_the_tree_is_built(self) -> None:
         # Review: a design placed in 4b was skipped and its node designed anew.
@@ -187,7 +185,7 @@ class TestOneRound:
         found = re.findall(r"^\d+\. \*\*(.+?)\*\*", walk, re.MULTILINE)
         assert found == ROUND
 
-    def test_the_theme_reflection_follows_the_report_and_the_upload(self) -> None:
+    def test_the_theme_reflection_follows_the_reflection(self) -> None:
         item = _round_item("theme reflection")
         assert "/analysis-reflection {theme_id}" in item
 
@@ -240,33 +238,13 @@ class TestGates:
         assert "Ask the analyst nothing outside the KEEP column" in unwrap(_gates())
 
 
-class TestTheReportIsWrittenWithoutAsking:
-    """US-8 AC 4: a concluded design gets its report unasked; the decision sees both paths."""
+class TestTheDecisionSeesTheTree:
+    """US-8 AC 4, as Epic 29 left it: the walk writes no report, so the decision sees the tree."""
 
-    def test_the_report_gate_moved_to_auto(self) -> None:
-        _, keep, auto = table_row(_gates(), "report")
-        assert keep == "—"
-        assert "/analysis-report" in auto
-        assert "terminal status" in auto
-
-    def test_the_report_item_does_not_ask(self) -> None:
-        item = _round_item("report")
-        assert "without asking" in item
-        assert "offer" not in item.lower()
-
-    def test_a_report_from_an_earlier_run_is_kept_and_goes_to_the_upload(self) -> None:
-        # Epic 27: the round takes the kept report on to the upload, not to the analyst.
-        item = _round_item("report")
-        assert "not written again" in item
-        assert "go on to the upload with it" in item
-
-    def test_a_round_without_a_conclusion_writes_no_report(self) -> None:
-        item = _round_item("report")
-        assert re.search(r"not in a terminal status[^.]*no report", item)
-
-    def test_the_decision_is_asked_with_both_paths(self) -> None:
+    def test_the_decision_is_asked_with_the_tree_in_view(self) -> None:
         item = _round_item("theme reflection")
-        assert re.search(r"report's path[^.]*HTML", item)
+        assert "path of the tree's HTML" in item
+        assert "report" not in item
         assert "T7" in item
 
 

@@ -35,6 +35,7 @@ from skills._shared.design_note import (
     NoteSource,
     NoteVerdict,
     VerdictMetric,
+    contradicting_evidence,
     local_file_paths,
     render_note_page,
 )
@@ -45,9 +46,8 @@ _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 # The line ends of the tokenizer, which ast line numbers count.
 _LINE_BREAK = re.compile(r"\r\n|\r|\n")
 
-# The next_action fields the report's Recommendation takes for each terminal
-# status (analysis-report/references/apa-template.md); a structure test holds
-# them equal. A dot steps into a mapping.
+# The next_action fields the note's recommendation takes for each terminal
+# status. A dot steps into a mapping.
 NEXT_ACTION_BRANCHES = {
     DesignStatus.supported: ("if_supported",),
     DesignStatus.rejected: ("if_rejected.reason", "if_rejected.pivot"),
@@ -184,6 +184,7 @@ def _verdict_figures(verdict: dict, notebooks: Path) -> tuple[NoteFigure, ...]:
             continue
         figures.append(
             NoteFigure(
+                file=file,
                 title=str(entry.get("title") or ""),
                 axes=str(entry.get("axes") or ""),
                 how_to_read=str(entry.get("how_to_read") or ""),
@@ -240,9 +241,7 @@ def _conclusion(
             for field in NEXT_ACTION_BRANCHES[design.status]
             if (text := _branch_text(design.next_action, field)) is not None
         ),
-        contradicting_evidence=tuple(
-            e for e in of("evidence") if e.direction == "contradicts"
-        ),
+        contradicting_evidence=contradicting_evidence(events),
         reflect_events=of("reflect"),
         open_questions=tuple(e for e in of(QUESTION) if e.id not in resolved),
     )

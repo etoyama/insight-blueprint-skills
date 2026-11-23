@@ -1,9 +1,0 @@
-#!/usr/bin/env sh
-# Wrapper so /analysis-report can call report_check from an INSTALLED plugin. See bin/_prelude.sh.
-# Setup fails with exit 2, not 1: for this command 1 means "violations found".
-set -e
-
-name=report_check setup_exit=2
-. "$(dirname "$0")/_prelude.sh"
-
-exec uv run python -m skills._shared.report_check "$@"

@@ -6,12 +6,16 @@ the designs and journals it links to. Nothing here writes the canonical file:
 ``render`` writes only the generated view ``{theme_id}_tree.html`` next to it. The page
 is built by ``tree_render`` and is never edited.
 
+``report`` writes the final report ``reports/{theme_id}.md``, also generated and
+never edited.
+
 Writes go through ``tree_io``, which also carries the CLI for these reads.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
+from dataclasses import asdict
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
@@ -20,7 +24,9 @@ from typing import Any
 from insight_blueprint.models.common import THEME_ID_PATTERN
 from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 from insight_blueprint.models.tree import (
+    Answer,
     Progress,
+    QuestionNode,
     QuestionTree,
     TreeDecisionKind,
     design_id_of,
@@ -37,7 +43,13 @@ from skills._shared.design_io import (
 )
 from skills._shared.design_note import DesignNote, note_anchor, render_note
 from skills._shared.design_note_read import load_design_note, render_design_note
-from skills._shared.tree_check import Violation, check_cited
+from skills._shared.theme_report import (
+    ReportDesign,
+    ReportNode,
+    ThemeReport,
+    render_report,
+)
+from skills._shared.tree_check import Violation, check_cited, current_cites
 from skills._shared.tree_render import (
     CheckFailed,
     CitedEvent,
@@ -241,16 +253,21 @@ def _design_notes(theme_id: str, base_dir: Path) -> dict[str, DesignNote]:
 
     One design that cannot be built stops the whole page.
     """
-    design_notes: dict[str, DesignNote] = {}
-    for design_id in designs_of_theme(theme_id, base_dir):
-        try:
-            design_notes[design_id] = load_design_note(design_id, base_dir)
-        except ValueError as exc:
-            reason = " ".join(str(exc).split())
-            raise ValueError(
-                f"analysis note of '{design_id}' cannot be built: {reason}"
-            ) from exc
-    return design_notes
+    return {
+        design_id: _note_of(design_id, base_dir)
+        for design_id in designs_of_theme(theme_id, base_dir)
+    }
+
+
+def _note_of(design_id: str, base_dir: Path) -> DesignNote:
+    """The note of *design_id*; an error names the design whose note failed."""
+    try:
+        return load_design_note(design_id, base_dir)
+    except ValueError as exc:
+        reason = " ".join(str(exc).split())
+        raise ValueError(
+            f"analysis note of '{design_id}' cannot be built: {reason}"
+        ) from exc
 
 
 def _require_linked_designs_exist(tree: QuestionTree, designs: Iterable[str]) -> None:
@@ -340,4 +357,178 @@ def render_design(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str
         "path": path,
         "anchor": note_anchor(design_id),
         "node_ids": [n.id for n in tree.nodes if design_id in n.design_ids],
+    }
+
+
+class ReportStop(StrEnum):
+    """Why no report is written."""
+
+    no_tree = "no_tree"
+    no_root_answer = "no_root_answer"
+    violations = "violations"
+
+
+def _root_answer(tree: QuestionTree) -> Answer | None:
+    """The answer of the root, if it was given under the current root revision."""
+    answer = tree.root().current_answer()
+    if answer is None or answer.root_revision != tree.current_revision().revision:
+        return None
+    return answer
+
+
+def _linked_notes(tree: QuestionTree, base_dir: Path) -> dict[str, DesignNote]:
+    """The note of every linked design, in tree order, each once.
+
+    The report reads a design the way its analysis note does, so the two cannot
+    disagree (ADR-0039).
+    """
+    notes: dict[str, DesignNote] = {}
+    for node in tree.nodes:
+        for design_id in node.design_ids:
+            if design_id not in notes:
+                notes[design_id] = _note_of(design_id, base_dir)
+    return notes
+
+
+def _add_design_records(
+    records: dict[str, CitedEvent], designs: Iterable[ReportDesign]
+) -> None:
+    """Add the events the report quotes from each design, as its own journal holds them.
+
+    Their ids are not checked like the cites of an answer, so the text comes
+    from the journal the report quotes, never from the journal an id names. An
+    id that already stands for another text would show two texts under one id.
+    An event without an id could not be cited at all.
+    """
+    for design in designs:
+        for event in (*design.conclude_events, *design.contradicting_evidence):
+            if not event.id:
+                raise ValueError(
+                    f"journal of '{design.id}': a '{event.type}' event has no id, "
+                    "and the report cites each event by its id"
+                )
+            record = CitedEvent(event.id, event.type, event.direction, event.content)
+            known = records.setdefault(event.id, record)
+            if (known.type, known.content) != (record.type, record.content):
+                raise ValueError(
+                    f"journal of '{design.id}': event id '{event.id}' also stands "
+                    "for another event the report cites"
+                )
+
+
+def _report_node(node: QuestionNode, notes: dict[str, DesignNote]) -> ReportNode:
+    return ReportNode(
+        id=node.id,
+        question=node.question,
+        parent=node.parent_question_id or "",
+        contribution=node.contribution,
+        progress=Progress.of(notes[d].design.status for d in node.design_ids),
+        answer=node.current_answer(),
+        design_ids=tuple(node.design_ids),
+        next_candidate=node.next_candidate,
+    )
+
+
+def _theme_report(
+    tree: QuestionTree,
+    root_answer: Answer,
+    cited: dict[str, CitedEvent],
+    base_dir: Path,
+) -> ThemeReport:
+    """The report of *tree*.
+
+    *cited* are the events the check read: the report quotes what it passed.
+    """
+    notes = _linked_notes(tree, base_dir)
+    root = tree.root()
+    nodes = tuple(_report_node(n, notes) for n in tree.nodes if n is not root)
+    designs = tuple(ReportDesign.of(note) for note in notes.values())
+    # Two designs may read the same source; the report lists it once.
+    sources = tuple(dict.fromkeys(s for note in notes.values() for s in note.sources))
+    records = dict(cited)
+    _add_design_records(records, designs)
+    revision = tree.current_revision()
+    return ThemeReport(
+        theme_id=tree.theme_id,
+        root_id=root.id,
+        root_question=revision.question,
+        aim=revision.aim,
+        round=tree.current_round(),
+        root_revision=revision.revision,
+        answer=root_answer,
+        nodes=nodes,
+        designs=designs,
+        sources=sources,
+        decision=tree.decisions[-1] if tree.decisions else None,
+        records=records,
+    )
+
+
+def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
+    """Write ``reports/{theme_id}.md`` from the records of the theme, unless it cannot be trusted.
+
+    Nothing is written, and an older report is left as it is, when the theme has
+    no tree, when its root has no answer under the current root revision, or when
+    the check finds a violation on any node. The result then holds ``reasons``,
+    each with its ``kind`` (a ``ReportStop``) and a ``message``.
+
+    A tree that fails its schema, a journal that cannot be read and a cited id
+    that two events share stay errors. So does a linked design that no longer
+    exists, as in ``progress``. A linked design that is not finished does not
+    stop the report: ``unfinished_designs`` names it. ``round`` is the last
+    reflection round of the tree, ``root_answer_round`` the one that wrote the
+    answer to the root.
+    """
+    if not load_tree(theme_id, base_dir):
+        return {
+            "written": False,
+            "reasons": [
+                {
+                    "kind": ReportStop.no_tree,
+                    "message": f"Theme '{theme_id}' has no question tree",
+                }
+            ],
+        }
+    tree = load_tree_model(theme_id, base_dir)
+    reasons: list[dict[str, Any]] = []
+    root_answer = _root_answer(tree)
+    if root_answer is None:
+        revision = tree.current_revision().revision
+        reasons.append(
+            {
+                "kind": ReportStop.no_root_answer,
+                "message": f"The root of theme '{theme_id}' has no answer given "
+                f"under root revision {revision}",
+            }
+        )
+    # Read once: a journal rewritten between the check and the report would
+    # put a number the check never saw into the report.
+    events, duplicated = cited_events(current_cites(tree), base_dir)
+    violations = check_cited(tree, events, duplicated)
+    if violations:
+        reasons.append(
+            {
+                "kind": ReportStop.violations,
+                "message": f"The answers of theme '{theme_id}' have "
+                f"{len(violations)} violation(s) of the cited-answer check",
+                "violations": [asdict(v) for v in violations],
+            }
+        )
+    if reasons or root_answer is None:
+        return {"written": False, "reasons": reasons}
+
+    theme_report = _theme_report(tree, root_answer, events, base_dir)
+    report_path = Path(base_dir) / "reports" / f"{theme_id}.md"
+    atomic_write_text(report_path, render_report(theme_report))
+    return {
+        "written": True,
+        "path": str(report_path),
+        "figures": theme_report.figures(),
+        "round": theme_report.round,
+        # A later round may have answered other nodes only, so the last round
+        # does not say how old the answer to the root is.
+        "root_answer_round": root_answer.round,
+        "unfinished_designs": [
+            d.id for d in theme_report.designs if d.status not in TERMINAL_STATUSES
+        ],
     }
