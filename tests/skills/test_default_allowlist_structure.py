@@ -103,6 +103,17 @@ class TestDefaultAllowlistIsWhatTheContractImports:
         assert "any other standard-library module is checked like a package" in block
 
 
+class TestSkillBodyStatesTheStdlibRule:
+    """Issue #215: the SKILL.md body says the allowlist also checks the standard library."""
+
+    def test_stdlib_beyond_json_and_pathlib_is_checked_like_a_package(self) -> None:
+        body = unwrap(section(_read_skill("analysis-notebook"), "### Step 3"))
+        assert (
+            "Any standard-library module other than `json` and `pathlib` is checked"
+            " against the allowlist like a package" in body
+        )
+
+
 class TestMarimoLeftThePluginEnv:
     """US-3 AC 1 (ADR-0046): no notebook uses marimo, so the env does not ship it."""
 

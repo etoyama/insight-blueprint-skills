@@ -98,6 +98,9 @@ A notebook with any other cell shows no code in the analysis note. Drive the con
   the first `# %%` line
 - `# %% imports`: pandas / matplotlib / numpy + `insight_blueprint.lineage` + `json` / `pathlib`
   — and every other import the notebook needs (the source's client library, methodology packages)
+  Any standard-library module other than `json` and `pathlib` is checked against the allowlist like a
+  package (`socket` and `subprocess` reach outside the source), so `re`, `math` or `unicodedata` also
+  need an entry.
 - `# %% data_load`: source `connection` → `pd.read_csv(...)` / SQL; init `LineageSession`.
   Replace each `{source:ID}` in `methodology.steps` with the location in that source's `connection`
   (from Step 2). In Python code (a file path, a URL) write it as a string literal. In a SQL query
