@@ -28,6 +28,11 @@ def _runs(job: dict) -> list[str]:
     return [step["run"] for step in job.get("steps", []) if "run" in step]
 
 
+def _commands(job: dict) -> list[str]:
+    """What each step runs or uses, so a publish action counts as much as a shell line."""
+    return [step.get("run", step.get("uses", "")) for step in job.get("steps", [])]
+
+
 class TestCiChecksTheTag:
     def test_ci_runs_on_a_v_tag_push(self) -> None:
         assert "v*" in _ci()["on"]["push"]["tags"]
@@ -70,10 +75,10 @@ class TestNoWheelTooling:
     def test_ci_has_no_build_check_job(self) -> None:
         assert "build-check" not in _ci()["jobs"]
 
-    @pytest.mark.parametrize("word", ["uv build", "verify_wheel", "twine"])
+    @pytest.mark.parametrize("word", ["uv build", "verify_wheel", "twine", "pypi"])
     def test_ci_runs_no_wheel_step(self, word: str) -> None:
         for job in _ci()["jobs"].values():
-            assert not any(word in run for run in _runs(job))
+            assert not any(word in command.lower() for command in _commands(job))
 
     @pytest.mark.parametrize("task", ["verify-wheel", "release-dry-run"])
     def test_poe_has_no_wheel_task(self, task: str) -> None:

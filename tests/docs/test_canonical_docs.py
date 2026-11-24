@@ -682,6 +682,17 @@ class TestReleaseProcedure:
         step = section(_read("docs/RELEASE.md"), "## Step 2")
         assert "uv run poe check-tag-version --tag vX.Y.Z" in step
 
+    def test_the_tag_itself_is_checked_before_it_is_pushed(self) -> None:
+        """Without --tag the script checks the tag on HEAD, so a mistyped tag fails here."""
+        step = section(_read("docs/RELEASE.md"), "## Step 3")
+        tag = step.index("git tag vX.Y.Z")
+        check = re.search(
+            r"^uv run poe check-tag-version(?!\s+--tag)", step, re.MULTILINE
+        )
+        assert check
+        push = step.index("git push origin vX.Y.Z")
+        assert tag < check.start() < push
+
     def test_tag_push_names_the_ci_check(self) -> None:
         step = section(_read("docs/RELEASE.md"), "## Step 3")
         assert ".github/workflows/ci.yml" in step

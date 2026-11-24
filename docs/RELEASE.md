@@ -55,8 +55,12 @@ Run the tag check before you push the tag. A pushed `v*` tag cannot be deleted o
 
 ```bash
 git tag vX.Y.Z
+uv run poe check-tag-version     # no --tag: checks the tag on HEAD, so a mistyped tag fails here
 git push origin vX.Y.Z
 ```
+
+If the check fails, delete the local tag (`git tag -d <tag>`) and tag again. It is not pushed
+yet, so nothing has served it.
 
 The push runs [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) on the tag. Its
 `tag-version` job runs `scripts/check_tag_version.py` and fails if the tag differs from the
