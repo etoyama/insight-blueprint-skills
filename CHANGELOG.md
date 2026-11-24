@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-25
+
 ### Upgrade note
 
 - **`insight-blueprint-lineage` is no longer published to PyPI.** The last version there is
@@ -14,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The plugin's env never came from PyPI; it is built from the tagged source
   ([ADR-0047](docs/adr/0047-stop-publishing-to-pypi.md), #207).
 - To keep using `insight_blueprint` outside the plugin, install it from a release tag of this
-  repository instead: `uv add "insight-blueprint-lineage @ git+https://github.com/etoyama/insight-blueprint-skills@vX.Y.Z"`.
+  repository instead: `uv add "insight-blueprint-lineage @ git+https://github.com/etoyama/insight-blueprint-skills@v0.18.0"` (or a later tag).
 - The shape of the models (`src/insight_blueprint/models/`) is no longer a public contract. A
   later version may change it while still reading the YAML already saved under `.insight/`, so
   code that imports the models outside the plugin can break on an update.
@@ -763,7 +765,8 @@ Version bumps and maintenance releases. See git history for details:
 - YAML direct edit resilience (extra field preservation + corrupt file isolation)
 - SQLite FTS5 full-text search index
 
-[unreleased]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.17.0...HEAD
+[unreleased]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.14.1...v0.15.0
