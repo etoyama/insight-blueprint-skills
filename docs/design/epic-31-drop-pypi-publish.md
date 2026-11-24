@@ -32,7 +32,7 @@ v0.17.0 の後に README と skill を読み直し、PyPI の公開がまだ要�
 - GitHub の ruleset の `protect-main` は `build-check` を必須のチェックにしている。`protect-release-tags` は `v*` のタグを消すことと動かすことを止めている。
 - 配布名 `insight-blueprint-lineage` は、notebook の契約の既定の許可リストと `src/insight_blueprint/__init__.py` が参照する。既定の許可リストのパッケージは plugin の env に入っているので、`--with` で PyPI から取ることはない。
 - git のタグからは入れられる。scratchpad のプロジェクトで `uv add "insight-blueprint-lineage @ git+https://github.com/etoyama/insight-blueprint-skills@v0.17.0"` を実行すると、`insight_blueprint.__version__` は `0.17.0` になった。
-- 手元の分析リポジトリには、`insight-blueprint-lineage` に頼るものが無かった（PM が確かめた）。
+- 手元の分析リポジトリには `insight-blueprint-lineage` に頼るものが無かった（PM が確かめた）。
 
 ## User Stories
 
@@ -49,7 +49,7 @@ AC の正本はここ。
 
 ### US-2: メンテナがリリースでタグを打つだけで済み、PyPI に出す道具を抱えない
 
-メンテナとして、使わない検査でリリースが止まらないように、PyPI に出す道具を消したい。タグの打ち間違いには、今までどおり CI で気づきたい。
+メンテナとして、使わない検査でリリースが止まらないように、PyPI に出す道具を消したい。タグの打ち間違いには今までどおり CI で気づきたい。
 
 - [x] AC 1: `publish.yml`、`ci.yml` の `build-check` job、poe の `verify-wheel` と `release-dry-run`、`scripts/verify_wheel.py`、`tests/test_verify_wheel.py`、`tests/test_packaging.py` が無い。
 - [x] AC 2: `ci.yml` が `v*` のタグの push で `scripts/check_tag_version.py` を回す。`check_tag_version.py`、`tests/test_check_tag_version.py`、poe の `check-tag-version` は残っている。
@@ -235,7 +235,7 @@ notebook を走らせ直すと、データの取得、verdict、図もやり直�
   Mode A を消すことは使えていた場面を失わせる（FLOW-0008）。人間は d1 のリスクの表でそれを見て A を選んだ。
 - 2026-11-25 — 見本: `/data-lineage` のやり取りの文言を2通り、チャットで示した。契約の notebook を走らせ直して図を出す場合と、対象外の notebook（`setup` を含む）で `/analysis-notebook` を案内して止まる場合である。見本はコミットしていない。
   確かめていない前提が1つある。見本の notebook は実際に走らせていない。走らせ方は `/analysis-notebook` の実行の節と同じコマンドである。
-- 2026-11-25 — 人間が見本と全体の整合の直しを見て、初版と ADR-0047 を承認した。Domain Model の図は型を変えない図で、ARCHITECTURE からの変更は無い。版は 0.18.0（minor）を推奨として書いた。決めるのはリリースのとき。
+- 2026-11-25 — 人間が見本と、全体の整合を確かめて直した所を見て、初版と ADR-0047 を承認した。Domain Model の図は型を変えない図で、ARCHITECTURE からの変更は無い。版は 0.18.0（minor）を推奨として書いた。決めるのはリリースのとき。
 - 2026-11-25 — PM が Story を起票した（31.1 は #219、31.2 は #220）。epic ブランチに `main`（#218）を取り込んだ。
 - 2026-11-25 — Story 31.2 completed: PyPI に出す道具（`publish.yml`、`build-check`、`verify_wheel`、poe の2つのタスク、テスト2つ）を消し、`ci.yml` に `tag-version` job を足した。RELEASE.md を plugin 1つを配る手順に書き直し、README と ARCHITECTURE から PyPI の記述を消した。`uv sync --all-extras` の後も、plugin の env で `insight_blueprint` を import できる。
 - 2026-11-25 — Story 31.1 completed: `/data-lineage` から Step 0 と Mode A を消し、Mode B と Mode C を `/analysis-notebook` と同じコマンドで走らせる形にした。SKILL.md の版は 1.2.0。
@@ -244,7 +244,7 @@ notebook を走らせ直すと、データの取得、verdict、図もやり直�
   Integration のテストは置かない（Test Design Matrix に理由）。計画に無かった小さな判断が2つある。
   1つ目は構造テストで `setup` の語を一律に禁じず、Mode A と argument-hint に絞ったこと。`setup` を渡されたら止まる、と本文に書くためである。
   2つ目は Chaining に `/analysis-notebook` への行を足さなかったこと。足すと `skills/analysis-notebook/SKILL.md` に逆向きの行が要り、この Epic では触らない。案内は When NOT to Use と Target の節に置いた。
-  バグ・セキュリティの観点のレビューの指摘6件を、すべて直した。主なものは3つある。
+  バグ・セキュリティの観点のレビューで出た指摘6件を、すべて直した。主なものは3つある。
   CHANGELOG の `uv remove` に、自分のスクリプトが `insight_blueprint` を import していれば残す、という条件を足した。
   AC 3 の構造テストを Target の節の中だけで確かめる形にし、Mode B と Mode C がどちらも対象を確かめてから走らせることもテストにした。
   SKILL.md の Target の節を、シーケンス図のとおり `design_io get` から始めた。

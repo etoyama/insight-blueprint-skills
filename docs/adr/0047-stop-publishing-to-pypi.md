@@ -31,7 +31,7 @@ plugin は `uv run --project "${CLAUDE_PLUGIN_ROOT}"` で、手元のソース�
   - `protect-main` は `python`・`plugin-validate`・`build-check` の3つを、`main` に入れる PR の必須のチェックにしている。
   - `protect-release-tags` は `v*` のタグを消すことと動かすことを止めている。
 - PyPI の archive は project を消さず、install も止めない。止まるのは新しい upload で、project のページに通知が出る。owner は戻せる。PyPI は archive の前に、説明を書き直した最後の版を出すよう勧めている（PyPI の公式ブログ、2025-01-30。docs.pypi.org の該当ページは 404 だった）。
-- pypistats では、mirror を除く過去180日のダウンロードが1,529件あった。bot との区別はついていない（#207）。
+- pypistats では mirror を除く過去180日のダウンロードが1,529件あった。bot との区別はついていない（#207）。
 
 ## Problem
 
@@ -40,7 +40,7 @@ plugin は `uv run --project "${CLAUDE_PLUGIN_ROOT}"` で、手元のソース�
 - 課題3: wheel を外に出しているかぎり、model の形が公開の契約になる。次の Epic（[#217](https://github.com/etoyama/insight-blueprint-skills/issues/217)）が `src/insight_blueprint/models/design.py` を変えられない。
 - 課題4: PyPI に出すためだけの検査が CI とリリースの手順の手間になり、失敗の元にもなる。v0.9.0 では、publish の action が同梱する twine の版の違いで publish が落ちた（RELEASE.md の Step 2）。
 - 課題5: タグを打つのは人間で、版と違う commit にタグを打つと、marketplace がその中身を配る（[ADR-0032](0032-marketplace-serves-the-release-tag.md)）。publish を消すと、それを機械で見る所が無くなる。
-- 課題6: PyPI の project のページは、公開をやめた後も 0.17.0 の README を出し続ける。そこには `uv add insight-blueprint-lineage` と書いてある。
+- 課題6: PyPI の project のページは公開をやめた後も 0.17.0 の README を出し続ける。そこには `uv add insight-blueprint-lineage` と書いてある。
 
 扱わない範囲: lineage の API と `.mmd` の形。notebook の契約。配布名 `insight-blueprint-lineage`（既定の許可リストと `src/insight_blueprint/__init__.py` が参照する）。
 公開済みの版の yank。
@@ -168,8 +168,8 @@ d1 は A、d2 は B、d3 は A を採る。決め手は d1 が W2、d2 が W1、
   RELEASE.md の Step 2 では、タグの push の前に手元でも回す。
 - ADR-0032 の Decision の4つ目（PyPI への publish が失敗してタグを打ち直すとき）は、publish が無くなるので効かない。
   `check_tag_version` が落ちても、タグは消さず、動かさない（ruleset の `protect-release-tags` が止めている）。
-  patch の版を1つ上げ、`marketplace.json` の `ref` もそろえて、正しい commit に新しいタグを打つ。間違ったタグの版は、次の版で入れ替わる。
-- `pyproject.toml` と build-system、`notebook` extra、配布名は残す。`uv run --project` が手元のソースから env を作るのに要るからである。`pyproject.toml` の `version` も、plugin の版と照らす場所として残す。
+  patch の版を1つ上げ、`marketplace.json` の `ref` もそろえて、正しい commit に新しいタグを打つ。間違ったタグの版は次の版で入れ替わる。
+- `pyproject.toml` と build-system、`notebook` extra、配布名は残す。`uv run --project` が手元のソースから env を作るのに要るからである。`pyproject.toml` の `version` も plugin の版と照らす場所として残す。
 - PyPI の公開済みの版は残し、yank しない。最後の版は出さない。
 - 人間が次の4つを行う。1つ目は Epic PR のマージの前で、残りはマージの後である。
   1. ruleset の `protect-main` の必須のチェックから `build-check` を外す。外さないと、`build-check` の結果が来ない Epic PR はマージできない。
@@ -192,7 +192,7 @@ d1 は A、d2 は B、d3 は A を採る。決め手は d1 が W2、d2 が W1、
 - 自分で書いた notebook に `tracked_pipe` を足す手伝いが無くなる。`/data-lineage setup` は使えなくなる。CHANGELOG の Upgrade note に書く。
 - PyPI のページには、0.17.0 の README（`uv add insight-blueprint-lineage`）が archive の通知と並んで残る。そこから 0.17.0 を入れた人には、plugin と違う古い model が入る。
 - plugin の外で `insight_blueprint` を使い続けたい人は、git のタグから入れることになる。その model の形は版をまたいで変わりうる。
-- `check_tag_version` が落ちるのは、タグを push した後である。タグは動かせないので、間違ったタグの版は、次の版を出すまで marketplace から配られる。その版を入れた cache は、次の版への update で入れ替わる。
+- `check_tag_version` が落ちるのは、タグを push した後である。タグは動かせないので、間違ったタグの版は次の版を出すまで marketplace から配られる。その版を入れた cache は次の版への update で入れ替わる。
 - `.mmd` からは step の記録を読み戻せないので、Mode C は notebook を走らせ直す。データの取得をもう一度行う。
 
 ## Alternatives considered
