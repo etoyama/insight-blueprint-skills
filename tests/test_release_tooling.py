@@ -55,7 +55,11 @@ class TestCiChecksTheTag:
         assert len(jobs) == 1
         job = jobs[0]
         # A branch push or a PR has no tag to check; the script would fail on it.
-        assert "refs/tags/v" in job["if"]
+        # A negated or widened condition would still mention the ref, so pin the
+        # shape: one startsWith on the tag ref, nothing negating or OR-ing it.
+        condition = job["if"]
+        assert condition.startswith("startsWith(github.ref, 'refs/tags/v')")
+        assert not any(op in condition for op in ("!", "||"))
         step = next(
             s
             for s in job["steps"]
