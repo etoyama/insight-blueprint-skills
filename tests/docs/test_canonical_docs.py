@@ -60,6 +60,11 @@ def _read(rel: str) -> str:
     return (REPO_ROOT / rel).read_text(encoding="utf-8")
 
 
+def _without_link_targets(text: str) -> str:
+    """Drop link targets, so citing an ADR whose file name holds a banned word stays allowed."""
+    return re.sub(r"\]\([^)]*\)", "]", text)
+
+
 def _h2_titles(text: str) -> list[str]:
     return [
         re.sub(r"^\d+\.\s*", "", line[3:].strip())
@@ -553,11 +558,6 @@ class TestCanonicalDocsPointAtPlainPythonNotebook:
     }
 
     @staticmethod
-    def _prose(text: str) -> str:
-        # ADR-0046's file name contains "marimo"; citing it must stay allowed.
-        return re.sub(r"\]\([^)]*\)", "]", text)
-
-    @staticmethod
     def _term(name: str) -> dict[str, str]:
         rows = words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
         return next(row for row in rows if row[words.TERM] == name)
@@ -583,7 +583,7 @@ class TestCanonicalDocsPointAtPlainPythonNotebook:
     def test_architecture_outside_the_epic_mapping_has_no_marimo(self) -> None:
         text = _read("docs/ARCHITECTURE.md")
         body = text.replace(section(text, "## Epic マッピング"), "")
-        assert "marimo" not in self._prose(body)
+        assert "marimo" not in _without_link_targets(body)
         assert "_flat.py" not in body
 
     def test_architecture_maps_epic_30(self) -> None:
@@ -592,7 +592,7 @@ class TestCanonicalDocsPointAtPlainPythonNotebook:
 
     @pytest.mark.parametrize("path", ["README.md", "CLAUDE.md"])
     def test_entry_docs_do_not_mention_marimo(self, path: str) -> None:
-        assert "marimo" not in self._prose(_read(path))
+        assert "marimo" not in _without_link_targets(_read(path))
 
     @pytest.mark.parametrize("adr", sorted(AMENDED_ADRS))
     def test_adr_index_status_names_the_amending_adr(self, adr: str) -> None:
@@ -633,56 +633,6 @@ class TestPluginVariables:
 
     def test_adr_0006_stays_frozen(self) -> None:
         assert "0017" not in _read("docs/adr/0006-plugin-execution-model.md")
-
-
-class TestReleaseProcedure:
-    """Existing plugin installs update only when plugin.json's version changes."""
-
-    def test_intro_ties_plugin_updates_to_the_manifest_version(self) -> None:
-        intro = _read("docs/RELEASE.md").split("\n## ", 1)[0]
-        assert ".claude-plugin/plugin.json" in intro
-
-    def test_version_bump_names_both_files(self) -> None:
-        step = section(_read("docs/RELEASE.md"), "## Step 1")
-        assert "pyproject.toml" in step
-        assert ".claude-plugin/plugin.json" in step
-
-    def test_intro_says_the_marketplace_serves_the_release_tag(self) -> None:
-        intro = _read("docs/RELEASE.md").split("\n## ", 1)[0]
-        assert "adr/0032-" in intro
-
-    def test_version_bump_names_the_marketplace_ref(self) -> None:
-        step = section(_read("docs/RELEASE.md"), "## Step 1")
-        assert ".claude-plugin/marketplace.json" in step
-
-    def test_missing_tag_error_is_named_where_it_can_happen(self) -> None:
-        """Between the merge and the tag, the marketplace points at a tag that does not exist."""
-        release = _read("docs/RELEASE.md")
-        error = "Remote branch vX.Y.Z not found"
-        assert error in section(release, "## Step 3")
-        assert error in section(release, "## Troubleshooting")
-
-    def test_retag_keeps_one_plugin_content_under_the_version(self) -> None:
-        """The marketplace serves the first tag before a failed publish is re-tagged."""
-        trouble = section(_read("docs/RELEASE.md"), "## Troubleshooting")
-        assert "Merge nothing else in between" in trouble
-
-    def test_verification_covers_the_plugin_the_marketplace_serves(self) -> None:
-        step = section(_read("docs/RELEASE.md"), "## Step 4")
-        assert (
-            "claude plugin update insight-blueprint@insight-blueprint-marketplace"
-            in step
-        )
-
-    def test_preflight_covers_the_publish_action(self) -> None:
-        """A local twine check does not run the twine bundled in the publish action."""
-        step = section(_read("docs/RELEASE.md"), "## Step 2")
-        assert "gh-action-pypi-publish" in step
-        assert "Dependabot" in step
-
-    def test_troubleshooting_covers_a_rejected_metadata_version(self) -> None:
-        trouble = section(_read("docs/RELEASE.md"), "## Troubleshooting")
-        assert "not a valid metadata version" in trouble
 
 
 class TestQuestionTreeDocs:

@@ -7,8 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upgrade note
+
+- **`insight-blueprint-lineage` is no longer published to PyPI.** The last version there is
+  0.17.0, and the PyPI project will be archived: it stays installable but gets no new versions.
+  The plugin's env never came from PyPI; it is built from the tagged source
+  ([ADR-0047](docs/adr/0047-stop-publishing-to-pypi.md), #207).
+- To keep using `insight_blueprint` outside the plugin, install it from a release tag of this
+  repository instead: `uv add "insight-blueprint-lineage @ git+https://github.com/etoyama/insight-blueprint-skills@vX.Y.Z"`.
+- The shape of the models (`src/insight_blueprint/models/`) is no longer a public contract. A
+  later version may change it while still reading the YAML already saved under `.insight/`, so
+  code that imports the models outside the plugin can break on an update.
+- `/data-lineage setup` is gone. `/data-lineage` now takes only the notebook `/analysis-notebook`
+  made (`.insight/notebooks/{id}.py`); for an id with no design, or for any other file, it points
+  you to `/analysis-notebook` and stops. A project that ran `uv add insight-blueprint-lineage` because `/data-lineage` asked
+  can drop it with `uv remove insight-blueprint-lineage`; the plugin no longer needs it. Keep it if
+  your own scripts import `insight_blueprint` (the removed `setup` mode added such imports)
+  ([ADR-0047](docs/adr/0047-stop-publishing-to-pypi.md), #219).
+
 ### Changed
 
+- **A release is now a tag and nothing else.** The PyPI publish workflow, the `build-check` CI
+  job, `scripts/verify_wheel.py` and the poe tasks `verify-wheel` and `release-dry-run` are gone.
+  `ci.yml` now checks a pushed `v*` tag against the `pyproject.toml` version, and
+  [docs/RELEASE.md](docs/RELEASE.md) tells to run `uv run poe check-tag-version` before pushing
+  the tag ([ADR-0047](docs/adr/0047-stop-publishing-to-pypi.md), #220).
+- `/data-lineage` runs the notebook in the plugin's env with the same command as
+  `/analysis-notebook` (`uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook python
+  .insight/notebooks/{id}.py`, plus `--with` for an allowlisted package in neither the `notebook`
+  extra nor the default allowlist). It no longer checks your project's Python for `insight_blueprint`
+  or offers to install it ([ADR-0047](docs/adr/0047-stop-publishing-to-pypi.md), #219).
+- `/analysis-notebook`, `/data-lineage` and the notebook contract now say never to pass a
+  default-allowlist package such as `insight_blueprint` to `--with`. The plugin env already ships
+  them, and `--with insight-blueprint-lineage` would layer the 0.17.0 copy from PyPI over the
+  plugin's own source (#207).
 - `/analysis-notebook` now says in its body that a standard-library module other than `json` and
   `pathlib` is checked against the allowlist like a package. The contract already said so; this
   changes no behavior (Refs #215).

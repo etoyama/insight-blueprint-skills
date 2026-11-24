@@ -1,113 +1,103 @@
 ---
 name: data-lineage
-version: "1.1.0"
+version: "1.2.0"
 description: |
-  Track data transformation pipeline lineage in analysis notebooks/scripts.
-  Wraps pandas pipe chains with tracked_pipe to record row count changes,
-  generates Mermaid diagrams for pipeline visualization.
+  Re-export and review the data-transformation lineage of a notebook that /analysis-notebook made.
+  Re-runs .insight/notebooks/{id}.py in the plugin's env to regenerate the Mermaid diagram of
+  row-count changes, and suggests pipeline refactors from it.
   Triggers: "lineage", "data lineage", "track transformations", "pipeline visualization",
   "リネージ", "変換追跡", "パイプライン可視化", "行数変化を確認".
 disable-model-invocation: true
-argument-hint: "[design_id] [setup|refactor]"
+argument-hint: "[design_id] [refactor]"
 ---
 
 # /data-lineage — Pipeline Lineage Tracker
 
-Track DataFrame transformation pipelines and visualize row count changes
-using `insight_blueprint.lineage`.
+Re-export and review the lineage of the notebook `/analysis-notebook` made for a design.
+The lineage is the row count before and after each `tracked_pipe` step, drawn as a Mermaid diagram
+by `insight_blueprint.lineage`.
 
 ## When to Use
 
-- Setting up lineage tracking in a new notebook
-- Exporting Mermaid diagrams from tracked pipelines
-- Refactoring pipelines based on lineage analysis
+- Regenerating `.insight/lineage/{id}.mmd` after the notebook or its data changed
+- Reviewing the notebook's transformation steps for refactors
 
 ## When NOT to Use
 
+- The notebook does not exist yet, or was not made by `/analysis-notebook` (-> /analysis-notebook)
 - Creating or managing analysis designs (-> /analysis-design)
 - Recording reasoning steps (-> /analysis-journal)
 - Registering data sources (-> /catalog-register)
 
-## Prerequisites Check
+## Target
 
-### Step 0: Python Package Check (MUST run before Step 1)
+The only target is the notebook `/analysis-notebook` made: `.insight/notebooks/{id}.py`. Its
+`data_prep` and `analysis` cells wrap every transform in `tracked_pipe`, and its `lineage` cell
+writes `.insight/lineage/{id}.mmd`. The user installs nothing: the notebook runs in the plugin's
+own env, like `/analysis-notebook` runs it.
 
-1. Run: `python -c "from insight_blueprint.lineage import tracked_pipe; print('OK')"`
-2. If output is "OK": proceed to Step 1
-3. If ImportError or command fails:
-   - Ask the user: "data-lineage の tracked_pipe を使うには insight-blueprint-lineage Python パッケージが必要です（import 名は insight_blueprint）。`uv add insight-blueprint-lineage` を実行しますか？（分析パイプラインの透明性追跡に推奨）"
-   - If user approves: run `uv add insight-blueprint-lineage`, then re-check import
-   - If user declines: inform user that lineage tracking/export is unavailable without the package
-   - If install fails: show error, suggest manual install with `pip install insight-blueprint-lineage`
+If no design_id is given, list `.insight/notebooks/*.py` and ask the user which one; do not take
+`refactor` as an id.
 
-> **Note**: All lineage features (`tracked_pipe`, `export_lineage_as_mermaid`) live in the
-> `insight_blueprint.lineage` Python package — no MCP server involved.
+Check the target before any mode, from the project directory, in this order; stop at the first that
+fails, so an id with no design never reaches a path or a shell command:
+
+1. `design_io get --id {id}` returns the design (`{}` means there is no such design).
+2. `.insight/notebooks/{id}.py` exists.
+3. The file uses `tracked_pipe` (for example, `grep -q tracked_pipe .insight/notebooks/{id}.py`).
+
+If any of the three checks fails (no design, no notebook file, or no `tracked_pipe`), or the user
+asks for a `setup` subcommand (it was removed in 1.2.0), tell the user that `/data-lineage` only
+takes the notebook `/analysis-notebook` made at `.insight/notebooks/{id}.py`, point them to
+`/analysis-notebook {id}` (-> /analysis-notebook) to make or regenerate it, and **stop**. Do not add `tracked_pipe` to the file and do not run it.
+
+## Running the notebook
+
+Run from the project directory (so `.insight/…` resolves there) with the same command as
+`/analysis-notebook`:
+
+```bash
+uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
+  python .insight/notebooks/{id}.py
+```
+
+A package of `.insight/rules/package_allowlist.yaml` that is in neither the `notebook` extra nor
+the default allowlist is supplied with `--with <pip-name>`; never pass a default-allowlist package
+such as `insight_blueprint` to `--with`, since the plugin env already ships it. Procedure:
+`${CLAUDE_PLUGIN_ROOT}/skills/analysis-notebook/references/notebook-contract.md`
+("Package allowlist — format & supplying packages").
+
+A run executes every cell. It loads the data again and also rewrites
+`.insight/notebooks/{id}_verdict.json` and the figure PNGs, as `/analysis-notebook` Step 4 does.
+Tell the user this before the run. The journal events already recorded from the old verdict stay
+as they are; to record the new verdict, use `/analysis-notebook {id}`.
+If the run fails, show the traceback and hand off to `/analysis-notebook {id}` to fix the notebook.
 
 ## Workflow
 
-### Mode A: Setup — `/data-lineage <design_id> setup`
-
-Help the user add `tracked_pipe` to an existing notebook.
-
-**Workflow:**
-
-1. Confirm the target AnalysisDesign (if design_id provided, run
-   `design_io get --id {design_id}`; empty `{}` = not found)
-2. Locate the target notebook/script (ask the user if unclear)
-3. Read the notebook and identify DataFrame transformation steps (`.pipe()`, filter,
-   merge, join, dropna, assign, query, etc.)
-4. For each transformation, suggest wrapping with `tracked_pipe`:
-
-```python
-from insight_blueprint.lineage import LineageSession, tracked_pipe
-
-session = LineageSession(name="<pipeline_name>", design_id="<design_id>")
-
-# Before:
-df = df.dropna(subset=["price"])
-
-# After:
-df = df.pipe(tracked_pipe(
-    lambda df: df.dropna(subset=["price"]),
-    reason="price 欠損行を除外",
-    session=session,
-))
-```
-
-5. Add export call at the end of the notebook:
-
-```python
-from insight_blueprint.lineage import export_lineage_as_mermaid
-
-export_lineage_as_mermaid(session, project_path=".")
-# -> .insight/lineage/<design_id>.mmd
-```
-
-6. Suggest running the notebook to verify tracking works.
-
 ### Mode B: Export — `/data-lineage <design_id>`
 
-Generate a Mermaid diagram from a tracked session. Default mode when no subcommand given.
+Regenerate the Mermaid diagram. Default mode when no subcommand is given.
 
 **Workflow:**
 
-1. Locate the notebook associated with the design
-2. Check if `tracked_pipe` is already used in the code
-   - If yes: run the notebook or relevant cells to populate the session,
-     then call `export_lineage_as_mermaid`
-   - If no: suggest running Mode A first
-3. Display the generated Mermaid diagram to the user
-4. Confirm the output file location (`.insight/lineage/<design_id>.mmd`)
+1. Check the target (see "Target")
+2. Run the notebook (see "Running the notebook")
+3. Display the generated diagram from `.insight/lineage/{id}.mmd`
+4. Confirm the output file location
 
 ### Mode C: Refactor — `/data-lineage <design_id> refactor`
 
-Analyze lineage data and suggest pipeline improvements.
+Analyze the lineage and suggest pipeline improvements.
 
 **Workflow:**
 
-1. Locate the notebook and its lineage session
-2. Run the notebook to get current step records
-3. Analyze patterns and report findings:
+1. Check the target (see "Target")
+2. Run the notebook (see "Running the notebook"). The step records live only in the run, so the
+   existing `.mmd` may not match the current code or data. Re-run it to get the current rows.
+3. Read `.insight/lineage/{id}.mmd` (each step's `reason`, rows after the step and row delta)
+   with the `tracked_pipe` calls in the `data_prep` and `analysis` cells
+4. Analyze patterns and report findings:
 
 **Improvement patterns to check:**
 
@@ -119,15 +109,16 @@ Analyze lineage data and suggest pipeline improvements.
 | Order optimization | Later step has higher reduction rate | Move high-reduction filters earlier |
 | Redundant filter | Step removes 0 rows | Filter condition may be subset of prior step |
 
-4. Present findings with specific code suggestions
-5. After refactoring, re-run to verify lineage changes
+5. Present findings with specific code suggestions
+6. After the user applies a refactor to the notebook, run it again and compare the new `.mmd`
 
 ## Output
 
-- **Mermaid file**: `.insight/lineage/<design_id>.mmd` (or `<session_name>.mmd`)
-- **Console**: Step-by-step summary with row counts
+- **Mermaid file**: `.insight/lineage/{id}.mmd`
 
 ## API Reference
+
+The notebook already imports these (`imports` cell); the skill does not call them directly.
 
 ```python
 from insight_blueprint.lineage import (

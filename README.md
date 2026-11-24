@@ -1,6 +1,5 @@
 # insight-blueprint
 
-[![PyPI](https://img.shields.io/pypi/v/insight-blueprint-lineage)](https://pypi.org/project/insight-blueprint-lineage/)
 [![CI](https://github.com/etoyama/insight-blueprint-skills/actions/workflows/ci.yml/badge.svg)](https://github.com/etoyama/insight-blueprint-skills/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
@@ -75,20 +74,12 @@ claude --plugin-dir ./insight-blueprint-skills
 alias claude-ib='claude --plugin-dir /path/to/insight-blueprint-skills'
 ```
 
-### Optional: Python package (only for hand-written lineage)
+### What the plugin brings with it
 
 **You do not need to install anything for the skills to work.** The plugin is
 self-contained: its bundled uv environment provides `insight_blueprint` (models,
 validation, lineage) and `/analysis-notebook` runs pandas/matplotlib/numpy through that same
 environment (`--extra notebook`). See [ADR-0006](docs/adr/0006-plugin-execution-model.md).
-
-Install the `insight-blueprint-lineage` package **only** if you want to import
-`tracked_pipe` directly in your own notebooks/scripts (i.e. lineage tracking outside
-`/analysis-notebook`). The import name stays `insight_blueprint`:
-
-```bash
-uv add insight-blueprint-lineage
-```
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
@@ -154,7 +145,7 @@ Skills support both English and Japanese trigger phrases.
 Skills are **invoked explicitly** (`/command`) by default and the flow is **interactive**. The
 actual analysis is run by `/analysis-notebook`, which generates a plain Python notebook cut into
 `# %% <name>` cells from the design's `methodology`, executes it, and records the results to the journal
-(`uv add "insight-blueprint-lineage[notebook]"` for the runtime deps).
+(in the plugin env, with `--extra notebook` for the runtime deps).
 
 **Guided autopilot.** `/analysis-auto` is the single entry: give it a theme and it builds the
 theme's question tree, then investigates the tree one node per round, resuming where the tree

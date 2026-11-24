@@ -214,31 +214,12 @@ class TestTestStructure:
 
 
 # ===========================================================================
-# Unit-09: data-lineage prerequisites
-# ===========================================================================
-
-
-class TestDataLineagePrerequisites:
-    """Unit-09: data-lineage SKILL.md has prerequisites check."""
-
-    def test_data_lineage_has_prerequisites_check(self) -> None:
-        """data-lineage/SKILL.md has 'Prerequisites Check' section."""
-        content = (REPO_ROOT / "skills" / "data-lineage" / "SKILL.md").read_text()
-        assert "Prerequisites Check" in content
-
-    def test_data_lineage_mentions_uv_add(self) -> None:
-        """data-lineage/SKILL.md mentions 'uv add insight-blueprint-lineage'."""
-        content = (REPO_ROOT / "skills" / "data-lineage" / "SKILL.md").read_text()
-        assert "uv add insight-blueprint-lineage" in content
-
-
-# ===========================================================================
 # Unit-10: README content
 # ===========================================================================
 
 
 class TestReadme:
-    """Unit-10: README covers plugin install and the optional lineage package."""
+    """Unit-10: README covers plugin install; Epic 31 US-3 AC 1: no PyPI package."""
 
     def test_readme_has_plugin_install(self) -> None:
         """README documents the real plugin-install flow (marketplace + install)."""
@@ -249,15 +230,12 @@ class TestReadme:
         assert "/plugin marketplace add" in content_lower
         assert "/plugin install" in content_lower
 
-    def test_readme_has_optional_python_package(self) -> None:
-        """README mentions the optional Python package (for lineage)."""
+    def test_readme_does_not_offer_the_python_package(self) -> None:
+        """The package is no longer published, so README offers no way to add it."""
         content = (REPO_ROOT / "README.md").read_text()
-        content_lower = content.lower()
-        assert "optional" in content_lower
-        assert (
-            "python package" in content_lower
-            or "uv add insight-blueprint-lineage" in content
-        )
+        assert "pypi" not in content.lower()
+        # "there is nothing to `pip install`" is a mention, not a command.
+        assert not re.search(r"\b(uv add|pip install)\s+[\w\"'\[-]", content)
 
     def test_readme_has_no_mcp_server_framing(self) -> None:
         """Post-E4: README must not describe an MCP server / server launch."""

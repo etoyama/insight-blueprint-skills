@@ -1,7 +1,9 @@
 """Check that a git tag matches the version in pyproject.toml.
 
 Usage:
-    python scripts/check_tag_version.py --tag v0.1.0 [--pyproject pyproject.toml]
+    python scripts/check_tag_version.py [--tag vX.Y.Z] [--pyproject pyproject.toml]
+
+Without --tag, the tag on HEAD is checked (``git describe --tags --exact-match``).
 """
 
 from __future__ import annotations

@@ -15,7 +15,7 @@ Claude-native + source-scoped）/ catalog 柔軟化（E5c, open string taxonomy,
   （[ADR-0015](adr/0015-host-connectors-for-optional-features.md)）。
 - 検証はプロセスではなく**ライブラリ**として埋め込む（SQLite と同じ転換）。
 - 分析設計の整合性の**正本は `validate.py` の1箇所**。hook と skill の双方が再利用する。
-- リリースは **tag 駆動**（`publish.yml` は `v*` タグで発火）。main マージ＝publish ではない。
+- リリースは **tag 駆動**。marketplace は `v*` タグの commit を配り、`ci.yml` はタグの push で `check_tag_version` を回してタグと版の一致を確かめる。main へのマージはリリースではない（[ADR-0047](adr/0047-stop-publishing-to-pypi.md)）。
 
 ## 構成（E1–E4 完了後）
 
@@ -87,7 +87,7 @@ flowchart TD
 - **notebook + lineage（`src/insight_blueprint/lineage/`）** — 分析 notebook は同梱テンプレートでなく、
   **`/analysis-notebook` skill が分析設計の `methodology` から、`# %% <名前>` で区切る7つの cell の契約に沿って生成し、`python` で1段で実行**する
   （`skills/analysis-notebook/references/notebook-contract.md`、[ADR-0045](adr/0045-notebook-is-plain-python-with-percent-cells.md)）。`lineage`（`tracked_pipe` / Mermaid export）は
-  optional な `insight-blueprint-lineage[notebook]` パッケージで、notebook 内の加工を追跡・可視化する。
+  plugin の env の中で動き（`--extra notebook`）、notebook 内の加工を追跡・可視化する。
 
 ### Skill invocation model
 
@@ -140,7 +140,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 │                                  #   + _prelude.sh（5本が読み込む共通部分。実行ビットを付けないので、コマンドにはならない）
 ├── hooks/                         # plugin 同梱 hook: hooks.json + validate-design.py
 ├── skills/                        # 全 skill + _shared/（design_io.py / catalog_io.py / tree_io.py / tree_read.py / tree_render.py / theme_report.py / tree_check.py / ids.py / config_loader.py / models.py）+ premortem/
-├── src/insight_blueprint/         # PyPI パッケージ insight-blueprint-lineage: models/ · validate.py · lineage/
+├── src/insight_blueprint/         # plugin の env の中でだけ使うライブラリ（配布名 insight-blueprint-lineage）: models/ · validate.py · lineage/
 ├── tests/  docs/  scripts/
 ├── pyproject.toml · uv.lock       # ← この uv プロジェクトが「plugin の実行環境」を供給する
 ├── .claude/                       # dev 専用: settings.json が hook をローカル配線（配布されない）
@@ -790,6 +790,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 28 | Skill layer（`/analysis-reflection`・`/analysis-notebook`・`/analysis-auto`・`/tree-upload` が分析ノートを作って示し、送る段）+ `tree_io render` の表示（論点ツリーの HTML の中に並べる分析ノートと、論点ツリーの無いテーマの単独のページ `notes/{design_id}.html`） |
 | Epic 29 | Skill layer（`/report-export` の新設、`/analysis-report` と `/report-upload` の削除、`/analysis-auto` の report と upload の段の削除）+ `tree_io report` の出力（テーマの最終報告のレポート `reports/{theme_id}.md`）。Story 29.1〜29.5 で実装した |
 | Epic 30 | Skill layer（`/analysis-notebook` の notebook の契約と実行）+ 分析ノートの cell の切り出し + plugin の env（`notebook` extra）と既定の許可リスト |
+| Epic 31 | Skill layer（`/data-lineage` の対象と実行の env）+ リリース（PyPI の公開をやめ、タグと版の照合を CI に移す） |
 
 
 ## 参照

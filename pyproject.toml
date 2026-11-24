@@ -39,7 +39,7 @@ dev = [
     "pre-commit>=4.0",
 ]
 # Runtime deps for /analysis-notebook (running the generated notebook with python).
-# Install with: uv add "insight-blueprint-lineage[notebook]"
+# The plugin env gets them via: uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook
 # Methodology-specific libraries (scikit-learn, statsmodels, …) are added per analysis.
 notebook = [
     "pandas>=3.0.1",
@@ -110,17 +110,9 @@ sequence = ["lint", "typecheck", "test"]
 sequence = ["lint", "typecheck", "test"]
 help = "Run the full CI pipeline locally"
 
-[tool.poe.tasks.verify-wheel]
-cmd = "uv run python scripts/verify_wheel.py"
-help = "Verify wheel contains py.typed"
-
 [tool.poe.tasks.check-tag-version]
 cmd = "uv run python scripts/check_tag_version.py"
 help = "Check git tag matches pyproject.toml version"
-
-[tool.poe.tasks.release-dry-run]
-sequence = [{shell = "rm -rf dist/ && uv build"}, "verify-wheel", {shell = "uvx --from twine twine check dist/*"}]
-help = "Full release dry-run: build wheel, verify, twine check"
 
 [dependency-groups]
 dev = [

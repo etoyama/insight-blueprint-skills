@@ -30,24 +30,19 @@ jobs:
       - name: Test
         run: uv run poe test
 
-  build-check:
-    needs: [python]
+  # The marketplace serves whatever commit a v* tag points at, and a pushed tag
+  # cannot be moved (ruleset protect-release-tags). Fail loudly on a tag whose
+  # pyproject.toml version differs (ADR-0047).
+  tag-version:
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
 
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Build package
-        run: uv build
-
-      - name: Verify wheel contents
-        run: python scripts/verify_wheel.py
-
-      - name: Check distribution metadata
-        run: uvx --from twine twine check dist/*
+      - name: Check tag-version consistency
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: python scripts/check_tag_version.py --tag "$TAG_NAME"
 
   plugin-validate:
     runs-on: ubuntu-latest
