@@ -30,6 +30,7 @@ PM のモデルは opus でよい。重い判断は子に任せる。
 2. 決めることを依存の順に並べ、issue に書かれていない論点を足す。
 3. 分割の仮の形（波）を出す。
 4. 人間が進め方に同意したら、ボードを作り、epic ブランチを `main` から切って push し、DesignDoc 初版を子に渡す。
+   同じターンで、波 1 の子を待機の指示で立てておく（下の5）。
 
 ## 2. ボード
 
@@ -48,7 +49,7 @@ PM のモデルは opus でよい。重い判断は子に任せる。
 | collection / doc | 項目 |
 |---|---|
 | `steps/<id>` | `order`（並び）、`key`（短い名前）、`phase`、`title`、`detail`、`status`、`owner`、`depends_on`、`action`、`issue`、`pr`、`session`、`model`、`updated` |
-| `board/summary` | `headline`、`updated_at`、`repo_name`、`repo_url`、`epic_no`、`epic_issue`、`epic_title`、`designdoc_url` |
+| `board/summary` | `headline`、`updated_at`、`repo_name`、`repo_url`、`epic_no`、`epic_issue`、`epic_title`、`designdoc_url`、`notes_dir`（共有ノートの絶対パス。ページには出さない。下の4） |
 | `log/<doc_id>` | `at`、`who`、`text` |
 
 - `status`: `done` / `in_progress` / `waiting_human` / `ready` / `blocked`
@@ -72,7 +73,7 @@ PM のモデルは opus でよい。重い判断は子に任せる。
 - 並行で走る Epic や単発の作業には、ADR の番号の範囲を先に振る（例: この Epic は 0039〜0044）。
   持ち主の Epic がマージされたら、使わなかった番号を解く。その後に書く ADR は振られた範囲ではなく、
   その時点の最大 + 1 を使う（番号を空けない）。並行で走る作業がまだあれば、範囲を振り直してボードに書く。
-- 波を始めるターンで、その波の後に続く Story も待機の指示で立てておく（下の5）。
+- 波を始めるターンで、その波の後に続く Story も待機の指示で立てておく。波 1 の子は、DesignDoc 初版の子を立てるターンで立てる（下の5）。
 
 ## 4. 子セッションの立て方
 
@@ -96,7 +97,7 @@ PM より上位のモデルで立てるときは、`start_session` の `model` �
 2. `set_session_model` で切り替える。
 3. 待機のターンが終わったら、`SendMessage` で本題を送る。
 
-前提待ちの Story を前もって立てるとき（下の5）も、同じ手順を使う。
+前提待ちの Story と波 1 の子を前もって立てるとき（下の5）も、同じ手順を使う。
 
 ### 起点のブランチ
 
@@ -120,12 +121,13 @@ PM が epic ブランチの上で作業するときは、`git switch --detach or
 - Epic の目的と、この作業の位置。
 - 前の作業が決めたこと（Decisions の slug と要点）と、呼ぶ関数や返す形。
 - 並行で走る作業と、触ってはいけないファイル。両方が DesignDoc を更新するなら、push の前に `git pull --rebase origin <epic ブランチ>` で取り込み、両方の追記を残して解くこと。
-- 共有ノートの置き場（`side-session-notes/<PM のセッション id>/`）。前の作業の引き継ぎはここにある。再開したら読み直すこと。
+- 共有ノートの置き場。ブリーフにはパスを書かず、「システムプロンプトの Shared notes folder に書く。最初の報告に、その絶対パスを1行で書く」と書く。前の作業の引き継ぎはここにある。再開したら読み直すこと。
 - ボードの URL、自分の行の id、更新の決まり（上の2）。
 
 `prompt` には次を書く。毎回すべての項目を書く。当たらない項目は「無し」と書き、項目ごと落とさない。
 
 - 何をするか（扱う AC の範囲）、先に読むもの、この作業で決めること。
+- 使う既存の helper とテストの道具の場所（例: markdown の節を切り出す関数、実行コマンドの定数）。作り直さず、足りなければ同じ場所に足すこと（[FLOW-0013](../../../docs/adr/flow/0013-write-rules-reasons-and-helpers-into-designdoc-and-brief.md)）。PM は、ブリーフを書く前にテストの共通の置き場を見て書き出す。
 - 前の Story やレビューが先送りした指摘のうち、この Story が直すもの。同じものをボードの Epic のゲートの行の `detail` にも書き、ゲートで直ったかを確かめる。
 - 守ること。TDD、構造テストを先に Red にすること、計画外の判断が2件を超えたら PM に知らせること、実物での確かめ方、確認のコマンド。
 - Domain Model 図を変えたら、そのセッションで人間の承認を取ること。PR まで溜めない。PR の説明にも変更を書く（WORKFLOW §4 の4）。
@@ -141,7 +143,13 @@ DesignDoc 初版のブリーフには、WORKFLOW §4 の2の判断の順と2段�
   - 前の Story が終わったら、完了通知のターンで、待機中の子に `SendMessage` で本題を送る。
   - 本題の最初に「`git fetch origin && git merge --ff-only origin/<epic ブランチ>` で前の Story の push を取り込む」と書く。子のワークツリーは立てた時点の epic ブランチから切られている。
   - ボードの行は本題を送るまで `blocked` にし、`session` に子の名前を書く。
+- **波 1 の子を前もって立てる**（[FLOW-0011](../../../docs/adr/flow/0011-start-wave-one-before-designdoc-approval.md)）: Story の起票は初版の承認の後なので、波 1 の子を立てるターンは必ず子の完了通知のターンになる。そこで、DesignDoc 初版の子を立てる人間のターンで、仮の分割（上の1の3）の波 1 の本数だけ、待機の指示で立てておく。
+  - Story の issue は起票の前には無い。`name` は `<Epic の issue>-w1-<n>`、`title` は `#<Epic の issue> 波1-<n>（待機）` にする。本題を送るときに `set_session_title` で `#<Story の issue> <内容>` に付け直す。`name` は変わらないので、ボードの `session` には立てたときの `name` を書く。
+  - モデルはまだ決まっていないので、仮の分割で最も重い Story に合わせる。迷ったら fable で立てる（上位のモデルの手順）。軽い Story にあてるときは、本題を送る前に `set_session_model` で下げる。
+  - 初版の承認と Story の起票の後、完了通知のターンで、待機の子に `SendMessage` で本題を送る。本題の最初の取り込みは、前提待ちの Story と同じ。
+  - 分割が変わって本数が足りなければ、足りない分のボードの行を `waiting_human` にして、`action` に「PM に『〜を立てて』と送る」と書く。初版の承認を頼むときに、承認と一緒に送ってもらう。余った子は、起票のターンで下の6の手順でアーカイブする。
 - **起動できないターン**: 前もって立てられなかったとき（波の途中で Story が増えたなど）の手段。次に立てるもののブリーフを先に用意し、ボードのその行を `waiting_human` にして、`action` に「PM に『〜を立てて』と送る」と書く。人間には一言で頼む。
+- **共有ノートの置き場を確かめる**（[FLOW-0012](../../../docs/adr/flow/0012-shared-notes-in-app-folder-checked-by-path.md)）: 置き場はアプリが作り、子のシステムプロンプトに「Shared notes folder」として絶対パスを渡す。実体は `~/Library/Application Support/Claude/side-session-notes/<最上位のセッション id>/` にある。PM は、最初の子の報告にあるパスを `ls` で確かめ、`board/summary` の `notes_dir` に入れる。見つからなければ、引き継ぎを Epic issue のコメントと Story Timeline で代え、そのことをボードの `log` に書く。
 - **人間待ちの子への伝言**: 人間待ちの子には、PM から送れない。伝えることは共有ノートに置く。人間が答えるときに添えてほしいことがあれば、ボードの `action` に書く。
 - **並行の取り込み**: 前の Story が型や項目を変えたら、後の Story のブリーフに書く。走っている子には `SendMessage` で知らせる。
 - **人間に聞く前**: 「あなたの番」が今の状態と合っているかを確かめてから報告する。
@@ -157,6 +165,8 @@ DesignDoc 初版のブリーフには、WORKFLOW §4 の2の判断の順と2段�
 
 `archive_session` の後、`git worktree remove` と `git branch -D` で消す。人間には1行で知らせる。
 後の作業で文脈を使う子、人間が開いている子、人間が自分で立てた子は、アーカイブしない。
+
+前もって立てて使わなかった待機の子は、本題を送らないと決まったターンでアーカイブする。ボードの行は無いので、条件の1は問わない（行を作っていたら消す）。
 
 ## 7. Epic のゲート
 
@@ -189,7 +199,7 @@ Epic のリリースまで終えたら、PM が振り返りを回す。人間が
    - ボードのログ（`ArtifactData` の `query` で `log` を `at` の順に読む）と、各行の最後の状態。
    - `git log origin/main` の Epic の範囲。
    - Epic issue と Story の issue のコメント（人間の判断）。
-   - 共有ノートの引き継ぎと、子の最後の報告。
+   - 共有ノート（`board/summary` の `notes_dir`）の引き継ぎと、子の最後の報告。
    - 前回の振り返り（前の Epic issue のコメント）。
 2. WORKFLOW §4 の6の4つ（事実、学び、反映の案、前回の反映の効き目）を、チャットに1回で出す。長ければ Artifact に出してもよい。
 3. 本文に表を出してから、反映する束を `AskUserQuestion` の複数選択で人間に選んでもらう。

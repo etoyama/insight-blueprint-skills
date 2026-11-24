@@ -936,3 +936,53 @@ class TestRetrospectiveFlow:
     def test_the_pm_session_skill_starts_waiting_stories_early(self) -> None:
         skill = _read(".claude/skills/pm-session/SKILL.md")
         assert "前提待ちの Story を前もって立てる" in section(skill, "## 5.")
+
+
+class TestWaveOneNotesAndBriefFlow:
+    """FLOW-0011〜0013: wave 1 started early, the shared notes path, rules and helpers in docs."""
+
+    FLOWS = (
+        "0011-start-wave-one-before-designdoc-approval.md",
+        "0012-shared-notes-in-app-folder-checked-by-path.md",
+        "0013-write-rules-reasons-and-helpers-into-designdoc-and-brief.md",
+    )
+
+    @pytest.mark.parametrize("name", FLOWS)
+    def test_the_flow_copy_is_kept_and_indexed(self, name: str) -> None:
+        copy = (REPO_ROOT / "docs/adr/flow" / name).read_text(encoding="utf-8")
+        assert copy.startswith(f"# FLOW-{name[:4]}: ")
+        assert "ADR-00" not in copy
+        assert f"]({name})" in _read("docs/adr/flow/README.md")
+
+    def test_the_pm_session_skill_starts_wave_one_with_the_first_draft(self) -> None:
+        skill = _read(".claude/skills/pm-session/SKILL.md")
+        assert "波 1 の子を待機の指示で立てておく" in unwrap(section(skill, "## 1."))
+        body = unwrap(section(skill, "## 5."))
+        assert "波 1 の子を前もって立てる" in body
+        assert "FLOW-0011" in body
+
+    def test_the_pm_session_skill_checks_the_shared_notes_path(self) -> None:
+        skill = _read(".claude/skills/pm-session/SKILL.md")
+        assert "`notes_dir`" in section(skill, "## 2.")
+        assert "Shared notes folder" in section(skill, "## 4.")
+        body = unwrap(section(skill, "## 5."))
+        assert "共有ノートの置き場を確かめる" in body
+        assert "FLOW-0012" in body
+
+    def test_the_brief_names_the_existing_helpers(self) -> None:
+        body = unwrap(section(_read(".claude/skills/pm-session/SKILL.md"), "## 4."))
+        assert "使う既存の helper とテストの道具の場所" in body
+        assert "FLOW-0013" in body
+
+    def test_the_pm_session_skill_links_resolve(self) -> None:
+        skill = REPO_ROOT / ".claude/skills/pm-session/SKILL.md"
+        targets = _LINK.findall(skill.read_text(encoding="utf-8"))
+        assert all((skill.parent / t).is_file() for t in targets if "://" not in t)
+
+    def test_the_designdoc_template_asks_for_rules_and_reasons(self) -> None:
+        text = _read(".claude/rules/design-doc-template.md")
+        stories = unwrap(section(text, "## User Stories"))
+        assert "守りたい規則で書く（FLOW-0013）" in stories
+        scope = unwrap(section(text, "## Scope"))
+        assert "触らない所" in scope
+        assert "必ず理由を書く（FLOW-0013）" in scope
