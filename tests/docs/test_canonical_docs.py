@@ -693,6 +693,14 @@ class TestReleaseProcedure:
         push = step.index("git push origin vX.Y.Z")
         assert tag < check.start() < push
 
+    def test_the_tag_is_made_on_the_pulled_main(self) -> None:
+        """A pushed v* tag cannot be moved, so it must land on the merged commit."""
+        step = section(_read("docs/RELEASE.md"), "## Step 3")
+        switch = step.index("git switch main")
+        pull = step.index("git pull")
+        tag = step.index("git tag vX.Y.Z")
+        assert switch < pull < tag
+
     def test_tag_push_names_the_ci_check(self) -> None:
         step = section(_read("docs/RELEASE.md"), "## Step 3")
         assert ".github/workflows/ci.yml" in step

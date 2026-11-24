@@ -53,7 +53,12 @@ Run the tag check before you push the tag. A pushed `v*` tag cannot be deleted o
 
 ## Step 3: Tag and push
 
+Tag the merged commit on `main`, not the version-bump branch: a pushed `v*` tag cannot be moved,
+so a tag on any other commit stays wrong.
+
 ```bash
+git switch main
+git pull --ff-only origin main
 git tag vX.Y.Z
 uv run poe check-tag-version     # no --tag: checks the tag on HEAD, so a mistyped tag fails here
 git push origin vX.Y.Z
