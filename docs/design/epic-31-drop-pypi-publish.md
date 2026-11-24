@@ -67,13 +67,13 @@ AC の正本はここ。
 
 ## Stories
 
-Story 表は PM が起票した後に issue 番号を入れる。2本は触るファイルが `CHANGELOG.md` でだけ重なるので、並行で進められる。
+2本は触るファイルが `CHANGELOG.md` でだけ重なるので、並行で進められる。
 どちらも `[Unreleased]` の Upgrade note に行を足すので、push の前に取り込んで両方の行を残す。
 
 | Story issue | User Story | 扱う AC | 触る所 | 前提 |
 |---|---|---|---|---|
-| （31.1 /data-lineage を plugin の env で走らせる） | US-1 | AC 1, AC 2, AC 3, AC 4 | `skills/data-lineage/SKILL.md`（版を上げる）、`tests/test_plugin_structure.py` の `TestDataLineagePrerequisites`、`tests/skills/test_skill_structure.py` の版、`CHANGELOG.md` | 無し。`skills/analysis-notebook/SKILL.md` には触らない |
-| （31.2 PyPI の公開を消す） | US-2、US-3 | US-2 AC 1, AC 2, AC 3、US-3 AC 1, AC 2 | `.github/workflows/publish.yml`、`.github/workflows/ci.yml`、`pyproject.toml`（poe タスクと42行目のコメント）、`scripts/verify_wheel.py`、`tests/test_verify_wheel.py`、`tests/test_packaging.py`、`docs/RELEASE.md`、`README.md`、`docs/ARCHITECTURE.md`、`tests/docs/test_canonical_docs.py`、`tests/test_plugin_structure.py` の `TestReadme`、`CHANGELOG.md` | 無し |
+| #219（31.1 /data-lineage を plugin の env で走らせる） | US-1 | AC 1, AC 2, AC 3, AC 4 | `skills/data-lineage/SKILL.md`（版を上げる）、`tests/test_plugin_structure.py` の `TestDataLineagePrerequisites`、`tests/skills/test_skill_structure.py` の版、`CHANGELOG.md` | 無し。`skills/analysis-notebook/SKILL.md` には触らない |
+| #220（31.2 PyPI の公開を消す） | US-2、US-3 | US-2 AC 1, AC 2, AC 3、US-3 AC 1, AC 2 | `.github/workflows/publish.yml`、`.github/workflows/ci.yml`、`pyproject.toml`（poe タスクと42行目のコメント）、`scripts/verify_wheel.py`、`tests/test_verify_wheel.py`、`tests/test_packaging.py`、`docs/RELEASE.md`、`README.md`、`docs/ARCHITECTURE.md`、`tests/docs/test_canonical_docs.py`、`tests/test_plugin_structure.py` の `TestReadme`、`CHANGELOG.md` | 無し |
 
 - 31.1 は `/analysis-notebook` の実行の節と同じコマンドを写す。`skills/analysis-notebook/SKILL.md` は単発の PR（#215）が触っているので、この Epic では変えない。
 - 31.2 の `tests/test_plugin_structure.py` の変更は `TestReadme` の中だけで、31.1 の `TestDataLineagePrerequisites` とは重ならない。
@@ -236,3 +236,4 @@ notebook を走らせ直すと、データの取得、verdict、図もやり直�
 - 2026-11-25 — 見本: `/data-lineage` のやり取りの文言を2通り、チャットで示した。契約の notebook を走らせ直して図を出す場合と、対象外の notebook（`setup` を含む）で `/analysis-notebook` を案内して止まる場合である。見本はコミットしていない。
   確かめていない前提が1つある。見本の notebook は実際に走らせていない。走らせ方は `/analysis-notebook` の実行の節と同じコマンドである。
 - 2026-11-25 — 人間が見本と全体の整合の直しを見て、初版と ADR-0047 を承認した。Domain Model の図は型を変えない図で、ARCHITECTURE からの変更は無い。版は 0.18.0（minor）を推奨として書いた。決めるのはリリースのとき。
+- 2026-11-25 — PM が Story を起票した（31.1 は #219、31.2 は #220）。epic ブランチに `main`（#218）を取り込んだ。
