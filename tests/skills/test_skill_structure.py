@@ -252,14 +252,15 @@ class TestSkillStructure:
         # - analysis-framing: 1.0.0 (initial, tested separately)
         # - analysis-revision: 1.0.0 (initial, added in Issue #44)
         # - analysis-design, catalog-register: 1.2.0 (rules integrated into SKILL.md)
-        # - analysis-journal, analysis-reflection, data-lineage: 1.1.0
+        # - analysis-journal, analysis-reflection: 1.1.0
+        # - data-lineage: 1.2.0 (Step 0 and setup mode removed, ADR-0047)
         expected_versions: dict[str, str] = {
             "analysis-design": "1.2.0",
             "catalog-register": "1.2.0",
             "analysis-journal": "1.1.0",
             "analysis-reflection": "1.1.0",
             "analysis-revision": "1.0.0",
-            "data-lineage": "1.1.0",
+            "data-lineage": "1.2.0",
         }
         for skill_name, expected in expected_versions.items():
             text = _read_skill(skill_name)

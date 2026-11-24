@@ -42,10 +42,10 @@ AC の正本はここ。
 
 分析者として、lineage の図を出し直したり加工の手順を見直したりするために、`/data-lineage` を plugin を入れただけで使いたい。
 
-- [ ] AC 1: `skills/data-lineage/SKILL.md` に、Step 0（import を試して入れることを勧める段）、`uv add`、`pip install`、Mode A（setup）が無い。
-- [ ] AC 2: Mode B と Mode C は `.insight/notebooks/{id}.py` を `/analysis-notebook` と同じコマンド（`uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook python .insight/notebooks/{id}.py`）で走らせると書いている。パッケージ許可リストにあって `notebook` extra に無いパッケージを `--with` で足すことも書いている。
-- [ ] AC 3: 対象が `/analysis-notebook` の作った notebook であると書いている。`.insight/notebooks/{id}.py` が無いか、`tracked_pipe` を使っていない notebook を渡されたら、対象を告げ、`/analysis-notebook` を案内して止まる。
-- [ ] AC 4: CHANGELOG の `[Unreleased]` の Upgrade note に、`/data-lineage setup` が無くなったことを書いている。Step 0 に従って `uv add insight-blueprint-lineage` したプロジェクトは `uv remove insight-blueprint-lineage` で外せることも書いている。
+- [x] AC 1: `skills/data-lineage/SKILL.md` に、Step 0（import を試して入れることを勧める段）、`uv add`、`pip install`、Mode A（setup）が無い。
+- [x] AC 2: Mode B と Mode C は `.insight/notebooks/{id}.py` を `/analysis-notebook` と同じコマンド（`uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook python .insight/notebooks/{id}.py`）で走らせると書いている。パッケージ許可リストにあって `notebook` extra に無いパッケージを `--with` で足すことも書いている。
+- [x] AC 3: 対象が `/analysis-notebook` の作った notebook であると書いている。`.insight/notebooks/{id}.py` が無いか、`tracked_pipe` を使っていない notebook を渡されたら、対象を告げ、`/analysis-notebook` を案内して止まる。
+- [x] AC 4: CHANGELOG の `[Unreleased]` の Upgrade note に、`/data-lineage setup` が無くなったことを書いている。Step 0 に従って `uv add insight-blueprint-lineage` したプロジェクトは `uv remove insight-blueprint-lineage` で外せることも書いている。
 
 ### US-2: メンテナがリリースでタグを打つだけで済み、PyPI に出す道具を抱えない
 
@@ -220,7 +220,7 @@ notebook を走らせ直すと、データの取得、verdict、図もやり直�
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| 31.1 /data-lineage を plugin の env で走らせる | ☐（`tests/test_plugin_structure.py`。Step 0・`uv add`・`pip install`・Mode A が無いこと、走らせるコマンドが `/analysis-notebook` と同じこと、対象外のときの案内） | ☐（契約の見本の notebook を Mode B のコマンドで走らせ、`.mmd` ができる。要るかは 31.1 で決める） | ☐ |
+| 31.1 /data-lineage を plugin の env で走らせる | ✓（`tests/test_plugin_structure.py` の `TestDataLineagePrerequisites`。Step 0・`uv add`・`pip install`・Mode A と argument-hint の `setup` が無いこと、走らせるコマンドが `/analysis-notebook` と同じこと、`--with`、対象外のときの案内。版は `tests/skills/test_skill_structure.py`） | —（notebook を走らせて `.mmd` を書く道は `/analysis-notebook` の Step 4 と同じで、`tests/integration/test_analysis_notebook_contract.py` が契約の見本で確かめている。違うのは `uv run --project` の包みだけで、その文字列は Unit のテストが確かめる。テストで uv を呼ぶと遅く、ネットワークに依る。実物では走らせて確かめた） | —（skill の文書だけの変更で、E2E の層を持たない） |
 | 31.2 PyPI の公開を消す | ✓（`tests/docs/test_canonical_docs.py` の `TestReleaseProcedure` と `TestPypiPublishingStopped`、`tests/test_plugin_structure.py` の `TestReadme`、`tests/test_release_tooling.py`。`ci.yml` の `tag-version` job がタグの push だけで `check_tag_version` を回すこと、消した道具が無いこと） | —（`tag-version` job はタグの push でしか走らない。代わりに手元で `uv run poe check-tag-version` を `v0.17.0` と `v0.17.1` で回し、終了コードがそれぞれ 0 と 1 になるのを確かめた） | —（リリースはタグを打つだけになり、通しで確かめるのは RELEASE.md の Step 4 の手作業である。GitHub と PyPI の設定は人間の作業） |
 
 ## Story Timeline
@@ -238,3 +238,13 @@ notebook を走らせ直すと、データの取得、verdict、図もやり直�
 - 2026-11-25 — 人間が見本と全体の整合の直しを見て、初版と ADR-0047 を承認した。Domain Model の図は型を変えない図で、ARCHITECTURE からの変更は無い。版は 0.18.0（minor）を推奨として書いた。決めるのはリリースのとき。
 - 2026-11-25 — PM が Story を起票した（31.1 は #219、31.2 は #220）。epic ブランチに `main`（#218）を取り込んだ。
 - 2026-11-25 — Story 31.2 completed: PyPI に出す道具（`publish.yml`、`build-check`、`verify_wheel`、poe の2つのタスク、テスト2つ）を消し、`ci.yml` に `tag-version` job を足した。RELEASE.md を plugin 1つを配る手順に書き直し、README と ARCHITECTURE から PyPI の記述を消した。`uv sync --all-extras` の後も、plugin の env で `insight_blueprint` を import できる。
+- 2026-11-25 — Story 31.1 completed: `/data-lineage` から Step 0 と Mode A を消し、Mode B と Mode C を `/analysis-notebook` と同じコマンドで走らせる形にした。SKILL.md の版は 1.2.0。
+  実物で確かめた。scratchpad に契約の形の notebook を置き、SKILL.md のコマンドで走らせると `.insight/lineage/{id}.mmd` ができた。許可リストに足した `tabulate` を import すると、`--with tabulate` が無いときは止まり、あるときは通った。対象外の2つ（ファイルが無い、`tracked_pipe` が無い）は、SKILL.md に書いた確かめ方でどちらも止まった。
+  初版で確かめていなかった前提（見本の notebook を走らせていない）は、これで確かめた。
+  Integration のテストは置かない（Test Design Matrix に理由）。計画に無かった小さな判断が2つある。
+  1つ目は構造テストで `setup` の語を一律に禁じず、Mode A と argument-hint に絞ったこと。`setup` を渡されたら止まる、と本文に書くためである。
+  2つ目は Chaining に `/analysis-notebook` への行を足さなかったこと。足すと `skills/analysis-notebook/SKILL.md` に逆向きの行が要り、この Epic では触らない。案内は When NOT to Use と Target の節に置いた。
+  バグ・セキュリティの観点のレビューの指摘6件を、すべて直した。主なものは3つある。
+  CHANGELOG の `uv remove` に、自分のスクリプトが `insight_blueprint` を import していれば残す、という条件を足した。
+  AC 3 の構造テストを Target の節の中だけで確かめる形にし、Mode B と Mode C がどちらも対象を確かめてから走らせることもテストにした。
+  SKILL.md の Target の節を、シーケンス図のとおり `design_io get` から始めた。

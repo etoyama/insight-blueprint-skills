@@ -214,22 +214,89 @@ class TestTestStructure:
 
 
 # ===========================================================================
-# Unit-09: data-lineage prerequisites
+# Unit-09: data-lineage runs the contract notebook in the plugin env
 # ===========================================================================
+
+DATA_LINEAGE_SKILL = REPO_ROOT / "skills" / "data-lineage" / "SKILL.md"
+NOTEBOOK_RUN_COMMAND = (
+    'uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook '
+    "python .insight/notebooks/{id}.py"
+)
+
+
+def _data_lineage_text() -> str:
+    # Join line continuations so a command wrapped with "\\" still matches as one line.
+    text = DATA_LINEAGE_SKILL.read_text()
+    return re.sub(r"\\\n\s*", "", text)
 
 
 class TestDataLineagePrerequisites:
-    """Unit-09: data-lineage SKILL.md has prerequisites check."""
+    """Unit-09: /data-lineage installs nothing outside the plugin (ADR-0047)."""
 
-    def test_data_lineage_has_prerequisites_check(self) -> None:
-        """data-lineage/SKILL.md has 'Prerequisites Check' section."""
-        content = (REPO_ROOT / "skills" / "data-lineage" / "SKILL.md").read_text()
-        assert "Prerequisites Check" in content
+    @pytest.mark.parametrize(
+        "forbidden",
+        [
+            "Step 0",
+            "uv add",
+            "pip install",
+            "Mode A",
+        ],
+    )
+    def test_data_lineage_has_no_install_path_or_setup_mode(
+        self, forbidden: str
+    ) -> None:
+        """SKILL.md has no install step and no setup mode (US-1 AC 1)."""
+        assert forbidden not in DATA_LINEAGE_SKILL.read_text()
 
-    def test_data_lineage_mentions_uv_add(self) -> None:
-        """data-lineage/SKILL.md mentions 'uv add insight-blueprint-lineage'."""
-        content = (REPO_ROOT / "skills" / "data-lineage" / "SKILL.md").read_text()
-        assert "uv add insight-blueprint-lineage" in content
+    def test_data_lineage_argument_hint_has_no_setup(self) -> None:
+        """The argument hint offers no setup subcommand (US-1 AC 1)."""
+        hint = re.search(
+            r"^argument-hint:(.*)$", DATA_LINEAGE_SKILL.read_text(), re.MULTILINE
+        )
+        assert hint is not None
+        assert "setup" not in hint.group(1)
+
+    def test_data_lineage_keeps_export_and_refactor_modes(self) -> None:
+        """Mode B (export) and Mode C (refactor) remain."""
+        content = DATA_LINEAGE_SKILL.read_text()
+        assert "### Mode B" in content
+        assert "### Mode C" in content
+
+    def test_data_lineage_runs_notebook_with_analysis_notebook_command(self) -> None:
+        """Modes B and C run the notebook with /analysis-notebook's command (US-1 AC 2)."""
+        content = _data_lineage_text()
+        assert NOTEBOOK_RUN_COMMAND in content
+
+    def test_data_lineage_supplies_allowlisted_packages_with_with(self) -> None:
+        """An allowlisted package missing from the notebook extra is added with --with."""
+        content = _data_lineage_text()
+        assert "--with <pip-name>" in content
+        assert "package_allowlist.yaml" in content
+
+    def test_data_lineage_targets_contract_notebook_and_stops_otherwise(self) -> None:
+        """Only the contract notebook is a target; others stop with a pointer (US-1 AC 3)."""
+        target = _section(DATA_LINEAGE_SKILL.read_text(), "## Target")
+        assert "design_io get --id {id}" in target
+        assert ".insight/notebooks/{id}.py` exists" in target
+        assert "uses `tracked_pipe`" in target
+        assert "/analysis-notebook {id}" in target
+        assert "**stop**" in target
+
+    @pytest.mark.parametrize("mode", ["### Mode B", "### Mode C"])
+    def test_each_mode_checks_the_target_and_runs_the_notebook(self, mode: str) -> None:
+        """Modes B and C both check the target, then run the notebook (US-1 AC 2, AC 3)."""
+        body = _section(DATA_LINEAGE_SKILL.read_text(), mode)
+        assert 'Check the target (see "Target")' in body
+        assert 'Run the notebook (see "Running the notebook")' in body
+
+
+def _section(text: str, heading: str) -> str:
+    """Body under ``heading`` up to the next heading of the same or a higher level."""
+    level = len(heading) - len(heading.lstrip("#"))
+    start = text.index(heading)
+    rest = text[start + len(heading) :]
+    end = re.search(rf"^#{{1,{level}}} ", rest, re.MULTILINE)
+    return rest[: end.start()] if end else rest
 
 
 # ===========================================================================

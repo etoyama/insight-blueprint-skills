@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The shape of the models (`src/insight_blueprint/models/`) is no longer a public contract. A
   later version may change it while still reading the YAML already saved under `.insight/`, so
   code that imports the models outside the plugin can break on an update.
+- `/data-lineage setup` is gone. `/data-lineage` now takes only the notebook `/analysis-notebook`
+  made (`.insight/notebooks/{id}.py`); for any other file, it points you to `/analysis-notebook`
+  and stops. A project that ran `uv add insight-blueprint-lineage` because `/data-lineage` asked
+  can drop it with `uv remove insight-blueprint-lineage`; the plugin no longer needs it. Keep it if
+  your own scripts import `insight_blueprint` (the removed `setup` mode added such imports)
+  ([ADR-0047](docs/adr/0047-stop-publishing-to-pypi.md), #219).
 
 ### Changed
 
@@ -26,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ci.yml` now checks a pushed `v*` tag against the `pyproject.toml` version, and
   [docs/RELEASE.md](docs/RELEASE.md) tells to run `uv run poe check-tag-version` before pushing
   the tag ([ADR-0047](docs/adr/0047-stop-publishing-to-pypi.md), #220).
+- `/data-lineage` runs the notebook in the plugin's env with the same command as
+  `/analysis-notebook` (`uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook python
+  .insight/notebooks/{id}.py`, plus `--with` for an allowlisted package outside the `notebook`
+  extra). It no longer checks your project's Python for `insight_blueprint` or offers to install it
+  ([ADR-0047](docs/adr/0047-stop-publishing-to-pypi.md), #219).
 - `/analysis-notebook` now says in its body that a standard-library module other than `json` and
   `pathlib` is checked against the allowlist like a package. The contract already said so; this
   changes no behavior (Refs #215).
