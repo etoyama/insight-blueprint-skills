@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `/analysis-notebook` now says in its body that a standard-library module other than `json` and
+  `pathlib` is checked against the allowlist like a package. The contract already said so; this
+  changes no behavior (Refs #215).
+
 ## [0.17.0] - 2026-11-23
 
 ### Changed
