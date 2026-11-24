@@ -10,6 +10,7 @@ import re
 
 import pytest
 
+from tests.docs._changelog import changelog_entry
 from tests.docs.test_canonical_docs import _read, _without_link_targets
 from tests.skills._markdown import section, unwrap
 
@@ -117,7 +118,9 @@ class TestPypiPublishingStopped:
     def test_changelog_upgrade_note_tells_what_stopping_the_upload_means(self) -> None:
         note = unwrap(
             section(
-                section(_read("CHANGELOG.md"), "## [0.18.0] - 2026-11-25"),
+                changelog_entry(
+                    _read("CHANGELOG.md"), "is no longer published to PyPI"
+                ),
                 "### Upgrade note",
             )
         )
