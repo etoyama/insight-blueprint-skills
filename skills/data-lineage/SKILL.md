@@ -39,17 +39,17 @@ own env, like `/analysis-notebook` runs it.
 If no design_id is given, list `.insight/notebooks/*.py` and ask the user which one; do not take
 `refactor` as an id.
 
-Check the target before any mode, from the project directory:
+Check the target before any mode, from the project directory, in this order; stop at the first that
+fails, so an id with no design never reaches a path or a shell command:
 
-1. Load the design with `design_io get --id {id}` (empty `{}` = no such design; the next check
-   then decides).
+1. `design_io get --id {id}` returns the design (`{}` means there is no such design).
 2. `.insight/notebooks/{id}.py` exists.
 3. The file uses `tracked_pipe` (for example, `grep -q tracked_pipe .insight/notebooks/{id}.py`).
 
-If either check fails, or the user asks for a `setup` subcommand (it was removed in 1.2.0), tell
-the user that `/data-lineage` only takes the notebook `/analysis-notebook` made at
-`.insight/notebooks/{id}.py`, point them to `/analysis-notebook {id}` (-> /analysis-notebook) to make
-or regenerate it, and **stop**. Do not add `tracked_pipe` to the file and do not run it.
+If any of the three checks fails (no design, no notebook file, or no `tracked_pipe`), or the user
+asks for a `setup` subcommand (it was removed in 1.2.0), tell the user that `/data-lineage` only
+takes the notebook `/analysis-notebook` made at `.insight/notebooks/{id}.py`, point them to
+`/analysis-notebook {id}` (-> /analysis-notebook) to make or regenerate it, and **stop**. Do not add `tracked_pipe` to the file and do not run it.
 
 ## Running the notebook
 

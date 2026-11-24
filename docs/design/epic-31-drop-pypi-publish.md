@@ -192,7 +192,7 @@ sequenceDiagram
     CC->>IO: design_io get --id {design_id}
     IO-->>CC: 分析設計（無ければ {}）
     CC->>FS: notebooks/{design_id}.py を読む
-    alt notebook が無いか、tracked_pipe を使っていない
+    alt 分析設計が無いか、notebook が無いか、tracked_pipe を使っていない
         CC-->>U: 対象は /analysis-notebook の notebook だと告げ、/analysis-notebook を案内して止まる
     else 契約の notebook
         CC->>PY: uv run --project plugin --extra notebook [--with pip名] python notebooks/{design_id}.py

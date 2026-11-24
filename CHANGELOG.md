@@ -19,8 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   later version may change it while still reading the YAML already saved under `.insight/`, so
   code that imports the models outside the plugin can break on an update.
 - `/data-lineage setup` is gone. `/data-lineage` now takes only the notebook `/analysis-notebook`
-  made (`.insight/notebooks/{id}.py`); for any other file, it points you to `/analysis-notebook`
-  and stops. A project that ran `uv add insight-blueprint-lineage` because `/data-lineage` asked
+  made (`.insight/notebooks/{id}.py`); for an id with no design, or for any other file, it points
+  you to `/analysis-notebook` and stops. A project that ran `uv add insight-blueprint-lineage` because `/data-lineage` asked
   can drop it with `uv remove insight-blueprint-lineage`; the plugin no longer needs it. Keep it if
   your own scripts import `insight_blueprint` (the removed `setup` mode added such imports)
   ([ADR-0047](docs/adr/0047-stop-publishing-to-pypi.md), #219).

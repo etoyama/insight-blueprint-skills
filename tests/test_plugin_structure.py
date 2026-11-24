@@ -288,6 +288,16 @@ class TestDataLineagePrerequisites:
         assert "/analysis-notebook {id}" in target
         assert "**stop**" in target
 
+    def test_an_id_with_no_design_stops_before_it_reaches_a_path(self) -> None:
+        """{id} goes into a path and a shell command, so the design lookup is a gate."""
+        target = _section(DATA_LINEAGE_SKILL.read_text(), "## Target")
+        checks = re.findall(r"^\d+\. (.*)$", target, re.MULTILINE)
+        assert "design_io get --id {id}" in checks[0]
+        assert "`{}`" in checks[0]
+        rule = unwrap(target)
+        assert "stop at the first that fails" in rule
+        assert "If any of the three checks fails (no design," in rule
+
     @pytest.mark.parametrize("mode", ["### Mode B", "### Mode C"])
     def test_each_mode_checks_the_target_and_runs_the_notebook(self, mode: str) -> None:
         """Modes B and C both check the target, then run the notebook (US-1 AC 2, AC 3)."""
