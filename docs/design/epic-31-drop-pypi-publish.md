@@ -248,3 +248,4 @@ notebook を走らせ直すと、データの取得、verdict、図もやり直�
   CHANGELOG の `uv remove` に、自分のスクリプトが `insight_blueprint` を import していれば残す、という条件を足した。
   AC 3 の構造テストを Target の節の中だけで確かめる形にし、Mode B と Mode C がどちらも対象を確かめてから走らせることもテストにした。
   SKILL.md の Target の節を、シーケンス図のとおり `design_io get` から始めた。
+- 2026-11-25 — Epic のゲートで、バグ・セキュリティとコードの質の2つの観点のレビューを回し、指摘を直した。`--with` の段は、`notebook` extra にも既定の許可リストにも無いパッケージだけを足し、`insight_blueprint` などの既定の許可リストのものは渡さない、と2つの SKILL.md と notebook の契約に書いた（`/analysis-notebook` の版は 1.0.1）。`/data-lineage` は分析設計が無い id で止まる。RELEASE.md は `main` を pull してからタグを打つ。構造テストは `tests/skills/test_data_lineage_structure.py` と `tests/docs/test_release_docs.py` に分け、走らせるコマンドを `/analysis-notebook` のテストと共有した。消した名前や今の文言を固定していたテストは、規則を確かめる形に絞った。
