@@ -51,18 +51,18 @@ AC の正本はここ。
 
 メンテナとして、使わない検査でリリースが止まらないように、PyPI に出す道具を消したい。タグの打ち間違いには、今までどおり CI で気づきたい。
 
-- [ ] AC 1: `publish.yml`、`ci.yml` の `build-check` job、poe の `verify-wheel` と `release-dry-run`、`scripts/verify_wheel.py`、`tests/test_verify_wheel.py`、`tests/test_packaging.py` が無い。
-- [ ] AC 2: `ci.yml` が `v*` のタグの push で `scripts/check_tag_version.py` を回す。`check_tag_version.py`、`tests/test_check_tag_version.py`、poe の `check-tag-version` は残っている。
-- [ ] AC 3: `docs/RELEASE.md` が plugin 1つを配る手順になっている。PyPI、twine、publish の action、wheel の検証の手順が無い。Step 2 でタグの push の前に `check_tag_version` を回す。
+- [x] AC 1: `publish.yml`、`ci.yml` の `build-check` job、poe の `verify-wheel` と `release-dry-run`、`scripts/verify_wheel.py`、`tests/test_verify_wheel.py`、`tests/test_packaging.py` が無い。
+- [x] AC 2: `ci.yml` が `v*` のタグの push で `scripts/check_tag_version.py` を回す。`check_tag_version.py`、`tests/test_check_tag_version.py`、poe の `check-tag-version` は残っている。
+- [x] AC 3: `docs/RELEASE.md` が plugin 1つを配る手順になっている。PyPI、twine、publish の action、wheel の検証の手順が無い。Step 2 でタグの push の前に `check_tag_version` を回す。
   Troubleshooting に、照合が落ちたらタグを動かさず patch の版を上げて打ち直すことを書いている。
 
 ### US-3: 外で使っていた人とコントリビュータが PyPI をやめたことと次の道を知れる
 
 外で `insight-blueprint-lineage` を使っていた人とコントリビュータとして、古い記述に従って古い版を入れないように、文書から PyPI の公開を前提にした記述が消えていてほしい。
 
-- [ ] AC 1: README に、PyPI のバッジ、「Optional: Python package」の節、`uv add insight-blueprint-lineage`、`uv add "insight-blueprint-lineage[notebook]"` が無い。
+- [x] AC 1: README に、PyPI のバッジ、「Optional: Python package」の節、`uv add insight-blueprint-lineage`、`uv add "insight-blueprint-lineage[notebook]"` が無い。
   ARCHITECTURE と `pyproject.toml` の `notebook` extra のコメントは、PyPI のパッケージと書いていない。
-- [ ] AC 2: CHANGELOG の `[Unreleased]` の Upgrade note に、次の3つを書いている。PyPI は 0.17.0 で止まり archive されること。
+- [x] AC 2: CHANGELOG の `[Unreleased]` の Upgrade note に、次の3つを書いている。PyPI は 0.17.0 で止まり archive されること。
   plugin の外で使い続けるなら、git のタグから入れること（`uv add "insight-blueprint-lineage @ git+https://github.com/etoyama/insight-blueprint-skills@vX.Y.Z"`）。model の形が公開の契約でなくなること。
 
 ## Stories
@@ -221,7 +221,7 @@ notebook を走らせ直すと、データの取得、verdict、図もやり直�
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
 | 31.1 /data-lineage を plugin の env で走らせる | ☐（`tests/test_plugin_structure.py`。Step 0・`uv add`・`pip install`・Mode A が無いこと、走らせるコマンドが `/analysis-notebook` と同じこと、対象外のときの案内） | ☐（契約の見本の notebook を Mode B のコマンドで走らせ、`.mmd` ができる。要るかは 31.1 で決める） | ☐ |
-| 31.2 PyPI の公開を消す | ☐（`tests/docs/test_canonical_docs.py` の RELEASE.md と README と ARCHITECTURE、`tests/test_plugin_structure.py` の `TestReadme`、CHANGELOG の Upgrade note、`ci.yml` がタグの push で `check_tag_version` を回すこと） | ☐ | ☐ |
+| 31.2 PyPI の公開を消す | ✓（`tests/docs/test_canonical_docs.py` の `TestReleaseProcedure` と `TestPypiPublishingStopped`、`tests/test_plugin_structure.py` の `TestReadme`、`tests/test_release_tooling.py`。`ci.yml` の `tag-version` job がタグの push だけで `check_tag_version` を回すこと、消した道具が無いこと） | —（`tag-version` job はタグの push でしか走らない。代わりに手元で `uv run poe check-tag-version` を `v0.17.0` と `v0.17.1` で回し、終了コードがそれぞれ 0 と 1 になるのを確かめた） | —（リリースはタグを打つだけになり、通しで確かめるのは RELEASE.md の Step 4 の手作業である。GitHub と PyPI の設定は人間の作業） |
 
 ## Story Timeline
 
@@ -237,3 +237,4 @@ notebook を走らせ直すと、データの取得、verdict、図もやり直�
   確かめていない前提が1つある。見本の notebook は実際に走らせていない。走らせ方は `/analysis-notebook` の実行の節と同じコマンドである。
 - 2026-11-25 — 人間が見本と全体の整合の直しを見て、初版と ADR-0047 を承認した。Domain Model の図は型を変えない図で、ARCHITECTURE からの変更は無い。版は 0.18.0（minor）を推奨として書いた。決めるのはリリースのとき。
 - 2026-11-25 — PM が Story を起票した（31.1 は #219、31.2 は #220）。epic ブランチに `main`（#218）を取り込んだ。
+- 2026-11-25 — Story 31.2 completed: PyPI に出す道具（`publish.yml`、`build-check`、`verify_wheel`、poe の2つのタスク、テスト2つ）を消し、`ci.yml` に `tag-version` job を足した。RELEASE.md を plugin 1つを配る手順に書き直し、README と ARCHITECTURE から PyPI の記述を消した。`uv sync --all-extras` の後も、plugin の env で `insight_blueprint` を import できる。

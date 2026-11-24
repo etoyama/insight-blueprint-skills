@@ -7,8 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upgrade note
+
+- **`insight-blueprint-lineage` is no longer published to PyPI.** The last version there is
+  0.17.0, and the PyPI project will be archived: it stays installable but gets no new versions.
+  The plugin's env never came from PyPI; it is built from the tagged source
+  ([ADR-0047](docs/adr/0047-stop-publishing-to-pypi.md), #207).
+- To keep using `insight_blueprint` outside the plugin, install it from a release tag of this
+  repository instead: `uv add "insight-blueprint-lineage @ git+https://github.com/etoyama/insight-blueprint-skills@vX.Y.Z"`.
+- The shape of the models (`src/insight_blueprint/models/`) is no longer a public contract. A
+  later version may change it while still reading the YAML already saved under `.insight/`, so
+  code that imports the models outside the plugin can break on an update.
+
 ### Changed
 
+- **A release is now a tag and nothing else.** The PyPI publish workflow, the `build-check` CI
+  job, `scripts/verify_wheel.py` and the poe tasks `verify-wheel` and `release-dry-run` are gone.
+  `ci.yml` now checks a pushed `v*` tag against the `pyproject.toml` version, and
+  [docs/RELEASE.md](docs/RELEASE.md) tells to run `uv run poe check-tag-version` before pushing
+  the tag ([ADR-0047](docs/adr/0047-stop-publishing-to-pypi.md), #220).
 - `/analysis-notebook` now says in its body that a standard-library module other than `json` and
   `pathlib` is checked against the allowlist like a package. The contract already said so; this
   changes no behavior (Refs #215).

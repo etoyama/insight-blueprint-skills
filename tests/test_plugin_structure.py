@@ -238,7 +238,7 @@ class TestDataLineagePrerequisites:
 
 
 class TestReadme:
-    """Unit-10: README covers plugin install and the optional lineage package."""
+    """Unit-10: README covers plugin install; Epic 31 US-3 AC 1: no PyPI package."""
 
     def test_readme_has_plugin_install(self) -> None:
         """README documents the real plugin-install flow (marketplace + install)."""
@@ -249,15 +249,13 @@ class TestReadme:
         assert "/plugin marketplace add" in content_lower
         assert "/plugin install" in content_lower
 
-    def test_readme_has_optional_python_package(self) -> None:
-        """README mentions the optional Python package (for lineage)."""
+    def test_readme_does_not_offer_the_python_package(self) -> None:
+        """The package is no longer published, so README offers no way to add it."""
         content = (REPO_ROOT / "README.md").read_text()
         content_lower = content.lower()
-        assert "optional" in content_lower
-        assert (
-            "python package" in content_lower
-            or "uv add insight-blueprint-lineage" in content
-        )
+        assert "pypi" not in content_lower
+        assert "python package" not in content_lower
+        assert "uv add" not in content
 
     def test_readme_has_no_mcp_server_framing(self) -> None:
         """Post-E4: README must not describe an MCP server / server launch."""

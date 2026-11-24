@@ -60,6 +60,11 @@ def _read(rel: str) -> str:
     return (REPO_ROOT / rel).read_text(encoding="utf-8")
 
 
+def _without_link_targets(text: str) -> str:
+    """Drop link targets, so citing an ADR whose file name holds a banned word stays allowed."""
+    return re.sub(r"\]\([^)]*\)", "]", text)
+
+
 def _h2_titles(text: str) -> list[str]:
     return [
         re.sub(r"^\d+\.\s*", "", line[3:].strip())
@@ -553,11 +558,6 @@ class TestCanonicalDocsPointAtPlainPythonNotebook:
     }
 
     @staticmethod
-    def _prose(text: str) -> str:
-        # ADR-0046's file name contains "marimo"; citing it must stay allowed.
-        return re.sub(r"\]\([^)]*\)", "]", text)
-
-    @staticmethod
     def _term(name: str) -> dict[str, str]:
         rows = words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
         return next(row for row in rows if row[words.TERM] == name)
@@ -583,7 +583,7 @@ class TestCanonicalDocsPointAtPlainPythonNotebook:
     def test_architecture_outside_the_epic_mapping_has_no_marimo(self) -> None:
         text = _read("docs/ARCHITECTURE.md")
         body = text.replace(section(text, "## Epic マッピング"), "")
-        assert "marimo" not in self._prose(body)
+        assert "marimo" not in _without_link_targets(body)
         assert "_flat.py" not in body
 
     def test_architecture_maps_epic_30(self) -> None:
@@ -592,7 +592,7 @@ class TestCanonicalDocsPointAtPlainPythonNotebook:
 
     @pytest.mark.parametrize("path", ["README.md", "CLAUDE.md"])
     def test_entry_docs_do_not_mention_marimo(self, path: str) -> None:
-        assert "marimo" not in self._prose(_read(path))
+        assert "marimo" not in _without_link_targets(_read(path))
 
     @pytest.mark.parametrize("adr", sorted(AMENDED_ADRS))
     def test_adr_index_status_names_the_amending_adr(self, adr: str) -> None:
@@ -662,10 +662,13 @@ class TestReleaseProcedure:
         assert error in section(release, "## Step 3")
         assert error in section(release, "## Troubleshooting")
 
-    def test_retag_keeps_one_plugin_content_under_the_version(self) -> None:
-        """The marketplace serves the first tag before a failed publish is re-tagged."""
-        trouble = section(_read("docs/RELEASE.md"), "## Troubleshooting")
-        assert "Merge nothing else in between" in trouble
+    def test_a_failed_tag_check_bumps_the_patch_instead_of_moving_the_tag(self) -> None:
+        """ADR-0047: protect-release-tags forbids moving a v* tag, so the fix is a new version."""
+        trouble = unwrap(section(_read("docs/RELEASE.md"), "### Tag/version mismatch"))
+        assert "Do not delete or move the tag" in trouble
+        assert "patch" in trouble
+        assert ".claude-plugin/marketplace.json" in trouble
+        assert "git push --delete" not in trouble
 
     def test_verification_covers_the_plugin_the_marketplace_serves(self) -> None:
         step = section(_read("docs/RELEASE.md"), "## Step 4")
@@ -674,15 +677,58 @@ class TestReleaseProcedure:
             in step
         )
 
-    def test_preflight_covers_the_publish_action(self) -> None:
-        """A local twine check does not run the twine bundled in the publish action."""
+    def test_preflight_checks_the_tag_before_it_is_pushed(self) -> None:
+        """A pushed v* tag cannot be moved, so the check runs locally first (ADR-0047)."""
         step = section(_read("docs/RELEASE.md"), "## Step 2")
-        assert "gh-action-pypi-publish" in step
-        assert "Dependabot" in step
+        assert "uv run poe check-tag-version --tag vX.Y.Z" in step
 
-    def test_troubleshooting_covers_a_rejected_metadata_version(self) -> None:
-        trouble = section(_read("docs/RELEASE.md"), "## Troubleshooting")
-        assert "not a valid metadata version" in trouble
+    def test_tag_push_names_the_ci_check(self) -> None:
+        step = section(_read("docs/RELEASE.md"), "## Step 3")
+        assert ".github/workflows/ci.yml" in step
+        assert "check_tag_version" in step
+
+    @pytest.mark.parametrize(
+        "word",
+        ["pypi", "twine", "publish.yml", "verify_wheel", "uv build", "wheel"],
+    )
+    def test_release_ships_only_the_plugin(self, word: str) -> None:
+        """Epic 31 US-2 AC 3: nothing is published to PyPI any more."""
+        assert word not in _without_link_targets(_read("docs/RELEASE.md")).lower()
+
+
+class TestPypiPublishingStopped:
+    """Epic 31 US-3: the docs no longer present a package published to PyPI."""
+
+    def test_architecture_outside_the_epic_mapping_has_no_pypi(self) -> None:
+        text = _read("docs/ARCHITECTURE.md")
+        body = text.replace(section(text, "## Epic マッピング"), "")
+        assert "pypi" not in _without_link_targets(body).lower()
+        assert "publish.yml" not in body
+
+    def test_architecture_release_invariant_names_the_ci_check(self) -> None:
+        invariants = section(_read("docs/ARCHITECTURE.md"), "## 不変条件（invariants）")
+        release = next(line for line in invariants.splitlines() if "tag 駆動" in line)
+        assert "check_tag_version" in release
+
+    def test_pyproject_does_not_tell_to_install_the_package(self) -> None:
+        text = _read("pyproject.toml")
+        assert "uv add" not in text
+        assert "pypi" not in text.lower()
+
+    def test_changelog_upgrade_note_tells_what_stopping_the_upload_means(self) -> None:
+        note = unwrap(
+            section(
+                section(_read("CHANGELOG.md"), "## [Unreleased]"), "### Upgrade note"
+            )
+        )
+        assert "0.17.0" in note
+        assert "archived" in note
+        assert (
+            'uv add "insight-blueprint-lineage @ '
+            'git+https://github.com/etoyama/insight-blueprint-skills@vX.Y.Z"' in note
+        )
+        assert "`src/insight_blueprint/models/`" in note
+        assert "no longer a public contract" in note
 
 
 class TestQuestionTreeDocs:
