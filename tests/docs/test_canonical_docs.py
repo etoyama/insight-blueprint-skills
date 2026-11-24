@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.docs._changelog import changelog_entry
 from tests.skills._markdown import section, unwrap
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -605,8 +606,7 @@ class TestCanonicalDocsPointAtPlainPythonNotebook:
         assert self.AMENDED_ADRS[adr] in status, adr
 
     def test_changelog_tells_how_to_run_an_old_notebook_by_hand(self) -> None:
-        # Epic 30 shipped in 0.17.0; the notes moved there from [Unreleased].
-        release = section(_read("CHANGELOG.md"), "## [0.17.0] - 2026-11-23")
+        release = changelog_entry(_read("CHANGELOG.md"), "marimo: marimo")
         assert "marimo: marimo" in release
         assert "--with marimo" in release
         # The other half of US-3 AC 3, written by Story 30.2.
