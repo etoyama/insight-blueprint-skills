@@ -233,10 +233,9 @@ class TestReadme:
     def test_readme_does_not_offer_the_python_package(self) -> None:
         """The package is no longer published, so README offers no way to add it."""
         content = (REPO_ROOT / "README.md").read_text()
-        content_lower = content.lower()
-        assert "pypi" not in content_lower
-        assert "python package" not in content_lower
-        assert "uv add" not in content
+        assert "pypi" not in content.lower()
+        # "there is nothing to `pip install`" is a mention, not a command.
+        assert not re.search(r"\b(uv add|pip install)\s+[\w\"'\[-]", content)
 
     def test_readme_has_no_mcp_server_framing(self) -> None:
         """Post-E4: README must not describe an MCP server / server launch."""

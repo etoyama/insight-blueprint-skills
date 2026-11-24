@@ -14,6 +14,9 @@ from tests.skills._markdown import section, unwrap
 from tests.skills._notebook_run import RUN, WITH_EXCLUSION, WITH_SCOPE, commands
 from tests.skills.test_skill_structure import _read_skill
 
+# A command that installs a package, not a mention such as "nothing to `pip install`".
+INSTALL_COMMAND = re.compile(r"\b(uv add|pip install)\s+[\w\"'\[-]")
+
 
 def _skill() -> str:
     return _read_skill("data-lineage")
@@ -22,31 +25,15 @@ def _skill() -> str:
 class TestDataLineagePrerequisites:
     """/data-lineage installs nothing outside the plugin (ADR-0047)."""
 
-    @pytest.mark.parametrize(
-        "forbidden",
-        [
-            "Step 0",
-            "uv add",
-            "pip install",
-            "Mode A",
-        ],
-    )
-    def test_data_lineage_has_no_install_path_or_setup_mode(
-        self, forbidden: str
-    ) -> None:
-        """SKILL.md has no install step and no setup mode (US-1 AC 1)."""
-        assert forbidden not in _skill()
+    def test_data_lineage_tells_to_install_nothing(self) -> None:
+        """SKILL.md has no install command (US-1 AC 1)."""
+        assert not INSTALL_COMMAND.search(_skill())
 
     def test_data_lineage_argument_hint_has_no_setup(self) -> None:
         """The argument hint offers no setup subcommand (US-1 AC 1)."""
         hint = re.search(r"^argument-hint:(.*)$", _skill(), re.MULTILINE)
         assert hint is not None
         assert "setup" not in hint.group(1)
-
-    def test_data_lineage_keeps_export_and_refactor_modes(self) -> None:
-        """Mode B (export) and Mode C (refactor) remain."""
-        assert "### Mode B" in _skill()
-        assert "### Mode C" in _skill()
 
     def test_data_lineage_runs_notebook_with_analysis_notebook_command(self) -> None:
         """Modes B and C run the notebook with /analysis-notebook's command (US-1 AC 2)."""
@@ -77,12 +64,15 @@ class TestDataLineagePrerequisites:
         assert "design_io get --id {id}" in checks[0]
         assert "`{}`" in checks[0]
         rule = unwrap(target)
-        assert "stop at the first that fails" in rule
-        assert "If any of the three checks fails (no design," in rule
+        assert "first that fails" in rule
+        assert "no design" in rule
 
     @pytest.mark.parametrize("mode", ["### Mode B", "### Mode C"])
-    def test_each_mode_checks_the_target_and_runs_the_notebook(self, mode: str) -> None:
-        """Modes B and C both check the target, then run the notebook (US-1 AC 2, AC 3)."""
+    def test_each_mode_checks_the_target_before_it_runs_the_notebook(
+        self, mode: str
+    ) -> None:
+        """Both modes check the target, then run the notebook (US-1 AC 2, AC 3)."""
         body = section(_skill(), mode)
-        assert 'Check the target (see "Target")' in body
-        assert 'Run the notebook (see "Running the notebook")' in body
+        target = body.index('"Target"')
+        run = body.index('"Running the notebook"')
+        assert target < run

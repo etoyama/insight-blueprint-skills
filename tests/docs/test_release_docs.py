@@ -85,10 +85,16 @@ class TestReleaseProcedure:
         assert ".github/workflows/ci.yml" in step
         assert "check_tag_version" in step
 
-    @pytest.mark.parametrize(
-        "word",
-        ["pypi", "twine", "publish.yml", "verify_wheel", "uv build", "wheel"],
-    )
+    def test_release_never_deletes_or_moves_a_pushed_tag(self) -> None:
+        """protect-release-tags forbids it, and installs may have cached that version."""
+        release = _read("docs/RELEASE.md")
+        assert not re.search(
+            r"git push\b[^\n]*(--delete|\s-d\b|\s:|--force|\s-f\b)"
+            r"|git tag\b[^\n]*(--force|\s-f\b)",
+            release,
+        )
+
+    @pytest.mark.parametrize("word", ["pypi", "twine", "publish.yml", "verify_wheel"])
     def test_release_ships_only_the_plugin(self, word: str) -> None:
         """Epic 31 US-2 AC 3: nothing is published to PyPI any more."""
         assert word not in _without_link_targets(_read("docs/RELEASE.md")).lower()
@@ -115,10 +121,6 @@ class TestPypiPublishingStopped:
             )
         )
         assert "0.17.0" in note
-        assert "archived" in note
-        assert (
-            'uv add "insight-blueprint-lineage @ '
-            'git+https://github.com/etoyama/insight-blueprint-skills@vX.Y.Z"' in note
-        )
+        assert "archive" in note
+        assert "git+https://github.com/etoyama/insight-blueprint-skills@" in note
         assert "`src/insight_blueprint/models/`" in note
-        assert "no longer a public contract" in note

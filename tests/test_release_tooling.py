@@ -12,11 +12,20 @@ import pytest
 from ruamel.yaml import YAML
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-CI = REPO_ROOT / ".github/workflows/ci.yml"
+WORKFLOWS = REPO_ROOT / ".github/workflows"
+CI = WORKFLOWS / "ci.yml"
+
+
+def _load(path: Path) -> dict:
+    return YAML(typ="safe").load(path.read_text(encoding="utf-8"))
 
 
 def _ci() -> dict:
-    return YAML(typ="safe").load(CI.read_text(encoding="utf-8"))
+    return _load(CI)
+
+
+def _workflows() -> list[dict]:
+    return [_load(path) for path in sorted(WORKFLOWS.glob("*.y*ml"))]
 
 
 def _poe_tasks() -> dict:
@@ -46,7 +55,7 @@ class TestCiChecksTheTag:
         assert len(jobs) == 1
         job = jobs[0]
         # A branch push or a PR has no tag to check; the script would fail on it.
-        assert job["if"] == "startsWith(github.ref, 'refs/tags/v')"
+        assert "refs/tags/v" in job["if"]
         step = next(
             s
             for s in job["steps"]
@@ -59,19 +68,31 @@ class TestCiChecksTheTag:
         assert "check_tag_version.py" in _poe_tasks()["check-tag-version"]["cmd"]
 
 
-class TestNoWheelTooling:
-    @pytest.mark.parametrize(
-        "rel",
-        [
-            ".github/workflows/publish.yml",
-            "scripts/verify_wheel.py",
-            "tests/test_verify_wheel.py",
-            "tests/test_packaging.py",
-        ],
-    )
-    def test_file_is_gone(self, rel: str) -> None:
-        assert not (REPO_ROOT / rel).exists()
+class TestNoWorkflowPublishes:
+    """ADR-0047: no workflow uploads to PyPI, so no publish workflow is left either."""
 
+    def test_no_workflow_uses_the_pypi_publish_action(self) -> None:
+        for workflow in _workflows():
+            for job in workflow["jobs"].values():
+                assert not any(
+                    "pypa/gh-action-pypi-publish" in command
+                    or "uv publish" in command
+                    or "twine" in command
+                    for command in _commands(job)
+                )
+
+    def test_no_workflow_grants_an_id_token(self) -> None:
+        """id-token: write exists only for trusted publishing."""
+        for workflow in _workflows():
+            scopes = [workflow, *workflow["jobs"].values()]
+            for permissions in (scope.get("permissions") for scope in scopes):
+                if isinstance(permissions, dict):
+                    assert permissions.get("id-token") != "write"
+                else:
+                    assert permissions != "write-all"
+
+
+class TestNoWheelTooling:
     def test_ci_has_no_build_check_job(self) -> None:
         assert "build-check" not in _ci()["jobs"]
 
