@@ -13,6 +13,7 @@ import re
 import pytest
 
 from tests.skills._markdown import section, table_rows, unwrap
+from tests.skills._notebook_run import RUN, WITH_EXCLUSION, WITH_SCOPE, commands
 from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
 
 CONTRACT = SKILLS_DIR / "analysis-notebook" / "references" / "notebook-contract.md"
@@ -33,17 +34,7 @@ CONTRACT_VARIABLES = {
     "figure_manifest": "viz",
     "verdict": "verdict",
 }
-RUN = (
-    'uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook '
-    "python .insight/notebooks/{id}.py"
-)
 TWO_STEP_WORDS = ("marimo export", "_flat.py", ".html")
-# `--with insight-blueprint-lineage` would layer the frozen PyPI copy over the plugin's
-# own source, so each place that tells when to pass `--with` names the exclusion.
-WITH_SCOPE = "in neither the `notebook` extra nor the default allowlist"
-WITH_EXCLUSION = (
-    "never pass a default-allowlist package such as `insight_blueprint` to `--with`"
-)
 
 
 def _contract() -> str:
@@ -52,18 +43,6 @@ def _contract() -> str:
 
 def _cells_table() -> list[list[str]]:
     return table_rows(section(_contract(), "## Cells"))[2:]
-
-
-def _commands(markdown: str) -> list[str]:
-    """The shell commands of the bash blocks, with ``\\`` continuations joined."""
-    blocks = re.findall(r"```bash\n(.*?)```", markdown, re.DOTALL)
-    joined = [re.sub(r"\\\n\s*", "", block) for block in blocks]
-    return [
-        line.strip()
-        for block in joined
-        for line in block.splitlines()
-        if line.strip() and not line.strip().startswith("#")
-    ]
 
 
 class TestTheContractLaysOutSevenPercentCells:
@@ -142,15 +121,15 @@ class TestTheRunIsOneStep:
     """US-1 AC 3: the contract and the SKILL.md run the notebook with one command."""
 
     def test_the_contract_runs_the_notebook_with_python(self) -> None:
-        assert _commands(section(_contract(), "## Execution")) == [RUN]
+        assert commands(section(_contract(), "## Execution")) == [RUN]
 
     def test_the_skill_runs_the_notebook_with_python(self) -> None:
         step = section(_read_skill("analysis-notebook"), "### Step 4: ")
-        assert _commands(step) == [RUN.replace("{id}", "{design_id}")]
+        assert commands(step) == [RUN.replace("{id}", "{design_id}")]
 
     def test_supplying_a_package_layers_it_onto_the_same_command(self) -> None:
         supplying = section(_contract(), "### Supplying an allowlisted package")
-        assert _commands(supplying) == [
+        assert commands(supplying) == [
             RUN.replace("--extra notebook", "--extra notebook --with scikit-learn")
         ]
 
