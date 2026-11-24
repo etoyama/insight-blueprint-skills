@@ -13,6 +13,9 @@ from pathlib import Path
 
 import pytest
 
+from tests.skills._markdown import unwrap
+from tests.skills.test_notebook_contract_structure import WITH_EXCLUSION, WITH_SCOPE
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 ALL_SKILLS = [
@@ -268,10 +271,13 @@ class TestDataLineagePrerequisites:
         assert NOTEBOOK_RUN_COMMAND in content
 
     def test_data_lineage_supplies_allowlisted_packages_with_with(self) -> None:
-        """An allowlisted package missing from the notebook extra is added with --with."""
-        content = _data_lineage_text()
-        assert "--with <pip-name>" in content
-        assert "package_allowlist.yaml" in content
+        """Only a package outside the plugin env is added with --with."""
+        running = unwrap(_section(_data_lineage_text(), "## Running the notebook"))
+        assert "--with <pip-name>" in running
+        assert "package_allowlist.yaml" in running
+        assert WITH_SCOPE in running
+        assert WITH_EXCLUSION in running
+        assert "Package allowlist — format & supplying packages" in running
 
     def test_data_lineage_targets_contract_notebook_and_stops_otherwise(self) -> None:
         """Only the contract notebook is a target; others stop with a pointer (US-1 AC 3)."""

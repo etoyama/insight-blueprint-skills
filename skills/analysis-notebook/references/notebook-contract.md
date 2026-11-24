@@ -253,9 +253,11 @@ package, list only that package in the file.
 
 The plugin env (`${CLAUDE_PLUGIN_ROOT}`) is a **read-only distributed artifact** — do not mutate it, and
 a plugin update would drop any in-place `uv add`. The packages of the default allowlist above already
-ship in the plugin env. A methodology-specific package that is *in the
-allowlist but not in the extra* is supplied **ephemerally at run time** with `--with <pip-name>`, which
-layers it onto the run without touching the cached env:
+ship in the plugin env, so never pass a default-allowlist package such as `insight_blueprint` to `--with`
+(`--with insight-blueprint-lineage` would layer a published copy over the plugin's own source). A
+methodology-specific package of the file that is in neither the `notebook` extra nor the default allowlist
+is supplied **ephemerally at run time** with `--with <pip-name>`, which layers it onto the run without
+touching the cached env:
 
 ```bash
 # e.g. a notebook that imports sklearn (allowlisted as sklearn: scikit-learn)

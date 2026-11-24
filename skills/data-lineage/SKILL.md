@@ -61,9 +61,9 @@ uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
   python .insight/notebooks/{id}.py
 ```
 
-A package that is in `.insight/rules/package_allowlist.yaml` but not in the `notebook` extra is
-supplied to the run with `--with <pip-name>` (for example,
-`… --extra notebook --with scikit-learn python .insight/notebooks/{id}.py`). Format and procedure:
+A package of `.insight/rules/package_allowlist.yaml` that is in neither the `notebook` extra nor
+the default allowlist is supplied with `--with <pip-name>`; never pass a default-allowlist package
+such as `insight_blueprint` to `--with`, since the plugin env already ships it. Procedure:
 `${CLAUDE_PLUGIN_ROOT}/skills/analysis-notebook/references/notebook-contract.md`
 ("Package allowlist — format & supplying packages").
 

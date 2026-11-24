@@ -1,6 +1,6 @@
 ---
 name: analysis-notebook
-version: "1.0.0"
+version: "1.0.1"
 description: |
   Generates a notebook (a plain Python script) from an analysis design's methodology, runs it,
   and records the results to the Insight Journal. Turns a reviewed/approved design into an
@@ -47,9 +47,11 @@ uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook \
   python -c "import pandas, matplotlib, numpy, insight_blueprint.lineage"
 ```
 
-Methodology-specific libraries (scikit-learn, statsmodels, …) that aren't in the `notebook`
-extra are declared in `.insight/rules/package_allowlist.yaml` and supplied to a run ephemerally
-with `--with <pip-name>` (e.g. `… --extra notebook --with scikit-learn …`) — the allowlist declares
+Methodology-specific libraries (scikit-learn, statsmodels, …) are declared in
+`.insight/rules/package_allowlist.yaml`; one that is in neither the `notebook` extra nor the default
+allowlist is supplied to a run ephemerally with `--with <pip-name>` (e.g.
+`… --extra notebook --with scikit-learn …`), and never pass a default-allowlist package such as
+`insight_blueprint` to `--with`, since the plugin env already ships it — the allowlist declares
 the boundary, `--with` supplies the package without mutating the read-only plugin env. Format and
 procedure: `references/notebook-contract.md` ("Package allowlist — format & supplying packages").
 The design's data sources (`source_ids`) must be registered in the catalog (else -> /catalog-register).

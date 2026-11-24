@@ -254,7 +254,9 @@ class TestSkillStructure:
         # - analysis-design, catalog-register: 1.2.0 (rules integrated into SKILL.md)
         # - analysis-journal, analysis-reflection: 1.1.0
         # - data-lineage: 1.2.0 (Step 0 and setup mode removed, ADR-0047)
+        # - analysis-notebook: 1.0.1 (--with excludes the default allowlist)
         expected_versions: dict[str, str] = {
+            "analysis-notebook": "1.0.1",
             "analysis-design": "1.2.0",
             "catalog-register": "1.2.0",
             "analysis-journal": "1.1.0",

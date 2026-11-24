@@ -38,6 +38,12 @@ RUN = (
     "python .insight/notebooks/{id}.py"
 )
 TWO_STEP_WORDS = ("marimo export", "_flat.py", ".html")
+# `--with insight-blueprint-lineage` would layer the frozen PyPI copy over the plugin's
+# own source, so each place that tells when to pass `--with` names the exclusion.
+WITH_SCOPE = "in neither the `notebook` extra nor the default allowlist"
+WITH_EXCLUSION = (
+    "never pass a default-allowlist package such as `insight_blueprint` to `--with`"
+)
 
 
 def _contract() -> str:
@@ -147,6 +153,19 @@ class TestTheRunIsOneStep:
         assert _commands(supplying) == [
             RUN.replace("--extra notebook", "--extra notebook --with scikit-learn")
         ]
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            lambda: section(_contract(), "### Supplying an allowlisted package"),
+            lambda: section(_read_skill("analysis-notebook"), "## Prerequisites"),
+        ],
+        ids=["contract", "skill"],
+    )
+    def test_with_supplies_only_packages_outside_the_plugin_env(self, text) -> None:
+        rule = unwrap(text())
+        assert WITH_SCOPE in rule
+        assert WITH_EXCLUSION in rule
 
     @pytest.mark.parametrize("word", TWO_STEP_WORDS)
     def test_the_two_step_run_is_gone(self, word: str) -> None:

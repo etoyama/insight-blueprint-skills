@@ -34,9 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the tag ([ADR-0047](docs/adr/0047-stop-publishing-to-pypi.md), #220).
 - `/data-lineage` runs the notebook in the plugin's env with the same command as
   `/analysis-notebook` (`uv run --project "${CLAUDE_PLUGIN_ROOT}" --extra notebook python
-  .insight/notebooks/{id}.py`, plus `--with` for an allowlisted package outside the `notebook`
-  extra). It no longer checks your project's Python for `insight_blueprint` or offers to install it
-  ([ADR-0047](docs/adr/0047-stop-publishing-to-pypi.md), #219).
+  .insight/notebooks/{id}.py`, plus `--with` for an allowlisted package in neither the `notebook`
+  extra nor the default allowlist). It no longer checks your project's Python for `insight_blueprint`
+  or offers to install it ([ADR-0047](docs/adr/0047-stop-publishing-to-pypi.md), #219).
+- `/analysis-notebook`, `/data-lineage` and the notebook contract now say never to pass a
+  default-allowlist package such as `insight_blueprint` to `--with`. The plugin env already ships
+  them, and `--with insight-blueprint-lineage` would layer the 0.17.0 copy from PyPI over the
+  plugin's own source (#207).
 - `/analysis-notebook` now says in its body that a standard-library module other than `json` and
   `pathlib` is checked against the allowlist like a package. The contract already said so; this
   changes no behavior (Refs #215).
