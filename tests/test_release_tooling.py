@@ -83,3 +83,9 @@ class TestNoWheelTooling:
     @pytest.mark.parametrize("task", ["verify-wheel", "release-dry-run"])
     def test_poe_has_no_wheel_task(self, task: str) -> None:
         assert task not in _poe_tasks()
+
+    def test_pyproject_does_not_tell_to_install_the_package(self) -> None:
+        """Epic 31 US-3 AC 1: the package is not published, so nothing says to add it."""
+        text = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        assert "uv add" not in text
+        assert "pypi" not in text.lower()
