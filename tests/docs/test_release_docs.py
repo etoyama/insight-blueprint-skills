@@ -117,7 +117,8 @@ class TestPypiPublishingStopped:
     def test_changelog_upgrade_note_tells_what_stopping_the_upload_means(self) -> None:
         note = unwrap(
             section(
-                section(_read("CHANGELOG.md"), "## [Unreleased]"), "### Upgrade note"
+                section(_read("CHANGELOG.md"), "## [0.18.0] - 2026-11-25"),
+                "### Upgrade note",
             )
         )
         assert "0.17.0" in note
