@@ -233,3 +233,6 @@ notebook を走らせ直すと、データの取得、verdict、図もやり直�
   d2 の結論は変わらない（照合の値は「気づける」ことで、直し方には依らない）。ADR-0032 の Decision の4つ目は、publish が無くなるので ADR-0047 が改めた。
   既定の許可リストの `insight_blueprint: insight-blueprint-lineage` は、plugin の env に入っているので `--with` で PyPI から取られない。配布名は残してよい。
   Mode A を消すことは使えていた場面を失わせる（FLOW-0008）。人間は d1 のリスクの表でそれを見て A を選んだ。
+- 2026-11-25 — 見本: `/data-lineage` のやり取りの文言を2通り、チャットで示した。契約の notebook を走らせ直して図を出す場合と、対象外の notebook（`setup` を含む）で `/analysis-notebook` を案内して止まる場合である。見本はコミットしていない。
+  確かめていない前提が1つある。見本の notebook は実際に走らせていない。走らせ方は `/analysis-notebook` の実行の節と同じコマンドである。
+- 2026-11-25 — 人間が見本と全体の整合の直しを見て、初版と ADR-0047 を承認した。Domain Model の図は型を変えない図で、ARCHITECTURE からの変更は無い。版は 0.18.0（minor）を推奨として書いた。決めるのはリリースのとき。
