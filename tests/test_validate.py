@@ -22,6 +22,7 @@ from insight_blueprint.validate import (
     validate_schema,
     validate_transition,
     validate_update,
+    with_analysis_mark,
 )
 
 CONFIRMATION = DesignForm.confirmation
@@ -610,6 +611,40 @@ class TestTheAnalysisMarkStays:
     def test_a_saved_design_concludes_without_the_mark(self) -> None:
         current = confirmation(status="analyzing")
         assert _errors(confirmation(status="supported"), current) == []
+
+
+class TestWithAnalysisMark:
+    """US-3 AC 1: the write that starts or shows the analysis puts the mark on."""
+
+    @pytest.mark.parametrize("status", STARTED_STATUSES)
+    def test_the_first_move_into_the_analysis_puts_the_mark_on(
+        self, status: DesignStatus
+    ) -> None:
+        new = _model(confirmation(status=status))
+        marked = with_analysis_mark(new, _model(confirmation()))
+        assert marked.analysis_started_at == new.updated_at
+        assert _errors(marked.model_dump(), confirmation()) == []
+
+    def test_a_saved_design_gets_the_mark_on_its_next_move(self) -> None:
+        current = _model(confirmation(status="analyzing"))
+        new = _model(confirmation(status="in_review"))
+        assert with_analysis_mark(new, current).analysis_started_at is not None
+
+    def test_a_write_that_keeps_the_status_puts_no_mark_on(self) -> None:
+        current = _model(confirmation(status="analyzing"))
+        new = _model(confirmation(status="analyzing", title="Edited"))
+        assert with_analysis_mark(new, current).analysis_started_at is None
+
+    def test_a_move_before_the_analysis_puts_no_mark_on(self) -> None:
+        new = _model(confirmation(status="revision_requested"))
+        assert (
+            with_analysis_mark(new, _model(confirmation())).analysis_started_at is None
+        )
+
+    def test_a_mark_already_there_is_kept(self) -> None:
+        new = _model(result_review(status="analyzing"))
+        marked = with_analysis_mark(new, _model(result_review()))
+        assert marked.analysis_started_at == new.analysis_started_at
 
 
 def _started(intent: str) -> list[dict]:

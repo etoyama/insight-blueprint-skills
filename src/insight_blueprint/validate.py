@@ -68,6 +68,21 @@ def analysis_started(design: AnalysisDesign) -> bool:
     )
 
 
+def with_analysis_mark(new: AnalysisDesign, current: AnalysisDesign) -> AnalysisDesign:
+    """*new* with the analysis mark, when the write over *current* puts it on.
+
+    The first move into analyzing or a conclusion starts the analysis. A design
+    saved before the mark existed shows its analysis only by its status, so its
+    next move writes the mark too, with the time of that move (ADR-0053
+    decisions 1, 2). ``_mark_errors`` holds every write to this rule.
+    """
+    moves = new.status != current.status
+    starts = new.status in ANALYSIS_STARTED_STATUSES or analysis_started(current)
+    if new.analysis_started_at is None and moves and starts:
+        return new.model_copy(update={"analysis_started_at": new.updated_at})
+    return new
+
+
 def valid_targets(current: DesignStatus, form: DesignForm) -> set[DesignStatus]:
     """The statuses a design of *form* may move to from *current*."""
     return {t for t in VALID_TRANSITIONS.get(current, set()) if form.allows(t)}
