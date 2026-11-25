@@ -26,3 +26,6 @@
 | [0011](0011-start-wave-one-before-designdoc-approval.md) | 波 1 の子は、DesignDoc 初版の子を立てるターンで、待機の指示で立てておく | Accepted |
 | [0012](0012-shared-notes-in-app-folder-checked-by-path.md) | 共有ノートはアプリの置き場に置き、子が報告した絶対パスを PM が確かめてボードに残す | Accepted |
 | [0013](0013-write-rules-reasons-and-helpers-into-designdoc-and-brief.md) | DesignDoc とブリーフには、守りたい規則、触らない理由、使う既存の道具を書く | Accepted |
+| [0014](0014-start-all-waves-in-first-human-turn.md) | 後に続く波の子は、最初に子を立てる人間のターンで、全部待機の指示で立てておく | Accepted |
+| [0015](0015-copy-pm-address-from-listagents.md) | ブリーフに書く PM の宛先は ListAgents から写し、PM のシステムプロンプトの宛先と置き場は写さない | Accepted |
+| [0016](0016-try-with-real-data-before-epic-pr.md) | 利用者が触る Epic では、ゲートの後、Epic PR の前に、実データで使ってみる | Accepted |
