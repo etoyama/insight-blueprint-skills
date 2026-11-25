@@ -167,9 +167,11 @@ def _interval(entry: dict) -> ValueInterval | None:
 
 
 def _judgment(value: object) -> MetricJudgment | None:
-    if isinstance(value, str) and value in MetricJudgment:
+    # Python 3.11 raises on ``"x" in MetricJudgment``, so the value is tried.
+    try:
         return MetricJudgment(value)
-    return None
+    except ValueError:
+        return None
 
 
 def _p(entry: dict) -> str | None:

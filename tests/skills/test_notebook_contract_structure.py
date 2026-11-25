@@ -526,9 +526,20 @@ class TestAMetricPerGroupHoldsRows:
             assert "value" not in metric
 
     def test_no_group_is_written_into_the_name_of_a_metric(self) -> None:
-        for name, metric in _grouped(_confirmation_metrics()).items():
-            for row in metric["groups"]:
-                assert not [group for group in row["group"] if str(group) in name]
+        """Not into the metric that holds the rows, and not into one beside it."""
+        examples = _results_examples().values()
+        names = [name for example in examples for name in example["metrics"]]
+        groups = {
+            str(group)
+            for example in examples
+            for metric in _grouped(example["metrics"]).values()
+            for row in metric["groups"]
+            for group in row["group"]
+        }
+        assert groups
+        for name in names:
+            assert not [group for group in groups if group in name], name
+            assert not set("[|]") & set(name), name
 
     @pytest.mark.parametrize(
         "sentence",
