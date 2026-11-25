@@ -1192,6 +1192,20 @@ class TestExplorationAndConfirmationTerms:
         second = next(ln for ln in sequence.splitlines() if "【KEEP②】" in ln)
         assert "intent" not in second
 
+    def test_architecture_autopilot_ends_a_design_by_its_form(self) -> None:
+        sequence = section(
+            _read("docs/ARCHITECTURE.md"), "### guided autopilot（`/analysis-auto`）"
+        )
+        end = next(
+            ln
+            for ln in sequence.splitlines()
+            if "/analysis-reflection {design_id}" in ln
+        )
+        # Story 32.7: a refined hypothesis goes into a derived design, not a rewrite.
+        for word in ("`explored`", "判定", "派生の分析設計"):
+            assert word in end, word
+        assert "refine" not in end
+
     @pytest.mark.parametrize(
         "phrase",
         [

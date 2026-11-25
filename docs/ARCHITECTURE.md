@@ -417,7 +417,7 @@ sequenceDiagram
             D->>U: 【KEEP】実行前に承認要求
         end
 
-        D->>U: 【KEEP】/analysis-reflection {design_id} で結論（conclude/refine/branch）+ terminal 遷移
+        D->>U: 【KEEP】/analysis-reflection {design_id} で結論（探索は `explored` で終え、検証は判定で終える。検証仮説を直すときは派生の分析設計を作る）+ terminal 遷移
         Note over D,FS: /analysis-reflection {theme_id}（テーマを横断した振り返り）
         D->>IO: tree_io answer（検査を通るまで書かない）→ tree_check → candidates / candidate → render
         D->>U: 【KEEP】論点ツリーの HTML のパスを示し、ツリーの決定（深める・親に戻る・区切る、次の論点、理由）と聞いてきた答えを聞く
