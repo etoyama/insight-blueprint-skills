@@ -817,8 +817,13 @@ def _derivation(context: _Context) -> Html:
         nodes = context.linked_by.get(design_id, [])
         facts: list[Html | str] = [
             f"{status_word(design.form, design.status)}　",
-            # A design no node links is shown only here, so the card alone misses it.
-            *_comments_after_analysis(design.comments_after_analysis),
+            # A linked design shows its count on its card; one linked to no node has
+            # no card, so its count goes here. Each count is on the page once.
+            *(
+                []
+                if nodes
+                else _comments_after_analysis(design.comments_after_analysis)
+            ),
             _note_link(design_id),
             "　",
         ]
