@@ -867,6 +867,31 @@ class TestDesignDocFirstDraftChecks:
         assert "FLOW-0005" in body
         assert "省いたら" in body
 
+    def test_the_lifecycle_diagram_puts_the_checks_between_draft_and_split(
+        self,
+    ) -> None:
+        lifecycle = re.search(
+            r"```mermaid\s*\nflowchart LR\n(.*?)```",
+            section(_read("docs/WORKFLOW.md"), "## 4."),
+            re.DOTALL,
+        )
+        assert lifecycle is not None
+        edges = lifecycle.group(1)
+        checks = re.search(r'(\w+)\["全体の整合 / 見本<br/>→ 人間の承認"\]', edges)
+        assert checks is not None
+        node = checks.group(1)
+        # The draft leads to the checks and only the checks lead to the split,
+        # so the diagram cannot show a split that skips the human's approval.
+        assert re.search(rf"\bB --> {node}\b", edges)
+        assert re.search(rf'\b{node} --> C\["Story 分割', edges)
+        assert not re.search(r"\bB --> C\b", edges)
+
+    def test_the_template_timeline_shows_how_to_record_a_skipped_mockup(self) -> None:
+        timeline = section(
+            _read(".claude/rules/design-doc-template.md"), "## Story Timeline"
+        )
+        assert "初版: 見本を省いた（" in timeline
+
 
 class TestPmSessionFlow:
     """FLOW-0006〜0008: the PM session, the Story done criteria and the narrowing rule."""

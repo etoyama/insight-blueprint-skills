@@ -184,3 +184,4 @@ AC再解釈）は `docs/adr/` の ADR に置く。
 Story 完了とキーイベントの追記専用ログ。
 
 - YYYY-MM-DD — Story N.M completed: <一行サマリ>
+- YYYY-MM-DD — 初版: 見本を省いた（<利用者から見える変化がない理由>）
