@@ -96,7 +96,9 @@ def render(markdown: str) -> dict[str, str]:
             word = _word(variant)
             regex = _pattern(word, terms)
             if word.isascii() and word.isalnum():
-                regex = rf"\b{regex}\b"
+                # \b would find no edge in このhypothesisは: Python re counts kana and
+                # kanji as word characters. Only an ASCII word character is a neighbour.
+                regex = rf"(?<![A-Za-z0-9_]){regex}(?![A-Za-z0-9_])"
             patterns.append(f"{variant}は{row[TERM]}\t{regex}")
             pattern_words.add(word)
     # yomiyasu drops a pattern's hit when the matched text is in allow.txt, so a term

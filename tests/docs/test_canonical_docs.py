@@ -647,13 +647,27 @@ class TestYomiyasuWords:
         assert "仮説" not in out["allow.txt"].splitlines()
         assert "検証仮説" in out["allow.txt"].splitlines()
 
-    def test_an_english_word_is_matched_as_a_whole_word(self) -> None:
+    @staticmethod
+    def _english_pattern() -> re.Pattern[str]:
         out = words.render(
-            self._glossary(
+            TestYomiyasuWords._glossary(
                 "| 分析設計 | — | d | hypothesis（分析設計を指すとき） | x |"
             )
         )
-        assert out["flag-patterns.txt"].endswith("\t\\bhypothesis\\b\n")
+        return re.compile(out["flag-patterns.txt"].splitlines()[-1].split("\t")[1])
+
+    @pytest.mark.parametrize(
+        "text", ["the hypothesis is", "このhypothesisは", "hypothesis。"]
+    )
+    def test_an_english_word_is_matched_next_to_japanese(self, text: str) -> None:
+        # Python re counts kana and kanji as word characters, so \b finds no edge there.
+        assert self._english_pattern().search(text), text
+
+    @pytest.mark.parametrize(
+        "text", ["hypothesis_statement", "hypotheses", "xhypothesis"]
+    )
+    def test_an_english_word_is_not_matched_inside_another(self, text: str) -> None:
+        assert not self._english_pattern().search(text), text
 
     def test_a_variant_without_a_word_is_refused(self) -> None:
         # A pattern with no literal character stops every yomiyasu run with exit code 2.
