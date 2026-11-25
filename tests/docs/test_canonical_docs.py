@@ -172,6 +172,42 @@ class TestContributing:
         assert titles == ["Setup", "Common Commands", "Testing", "Security Checklist"]
 
 
+class TestEpicBranchTrial:
+    """#217 retrospective: trying an Epic branch's plugin in another project is written down."""
+
+    HEADING = "### Trying an Epic branch in another project"
+
+    def _trial(self) -> str:
+        return unwrap(section(_read("CONTRIBUTING.md"), self.HEADING))
+
+    def test_marketplace_and_plugin_are_both_added_in_the_local_scope(self) -> None:
+        """Editing settings.local.json alone did not load the plugin in Epic 32."""
+        trial = self._trial()
+        assert "claude plugin marketplace add" in trial
+        assert (
+            "claude plugin install insight-blueprint@insight-blueprint-epic<N> --scope local"
+            in trial
+        )
+
+    def test_the_released_plugin_is_disabled_while_trying(self) -> None:
+        trial = self._trial()
+        assert "enabledPlugins" in trial
+        assert "insight-blueprint@insight-blueprint-marketplace" in trial
+
+    def test_loading_is_checked_by_the_bin_path_not_the_skill_list(self) -> None:
+        """Every skill sets disable-model-invocation, so the skill list never shows them."""
+        trial = self._trial()
+        assert "which design_io" in trial
+        assert "disable-model-invocation: true" in trial
+
+    def test_every_step_of_the_setup_is_undone(self) -> None:
+        raw = section(_read("CONTRIBUTING.md"), self.HEADING)
+        undo = unwrap(section(raw, "#### Undo"))
+        assert "claude plugin uninstall" in undo
+        assert "claude plugin marketplace remove insight-blueprint-epic<N>" in undo
+        assert "~/.claude/plugins/cache/insight-blueprint-epic<N>" in undo
+
+
 class TestRoadmap:
     """US-2 AC 1, AC 2: the PRD roadmap is the one list of Epics; ARCHITECTURE has a context map."""
 
