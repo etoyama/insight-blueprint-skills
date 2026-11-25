@@ -30,6 +30,7 @@ from insight_blueprint.models.tree import (
 from skills._shared.design_note import (
     EVENT_WORDS,
     LEGACY_NOTE,
+    VERDICT_COLUMNS,
     DesignNote,
     NoteEvent,
     NoteFigure,
@@ -422,10 +423,6 @@ _METRIC_COLUMNS = (
 )
 
 
-# The columns an exploration leaves out: it measures, and passes no verdict (ADR-0050).
-_VERDICT_COLUMNS = ("しきい値", "合否")
-
-
 def _metrics(metrics: Sequence[VerdictMetric], form: DesignForm) -> list[str]:
     if not metrics:
         return []
@@ -434,7 +431,7 @@ def _metrics(metrics: Sequence[VerdictMetric], form: DesignForm) -> list[str]:
         (heading, fill)
         for heading, fill in _METRIC_COLUMNS
         if any(fill(m) is not None for m in metrics)
-        and (form.judges or heading not in _VERDICT_COLUMNS)
+        and (form.judges or heading not in VERDICT_COLUMNS)
     ]
     return [
         _table(

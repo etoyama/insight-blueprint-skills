@@ -548,7 +548,7 @@ def _pass_mark(passed: bool | None) -> str:
 
 
 # The columns an exploration leaves out: it measures, and passes no verdict (ADR-0050).
-_VERDICT_COLUMNS = ("しきい値", "合否")
+VERDICT_COLUMNS = ("しきい値", "合否")
 _METRIC_HEADERS = ("指標", "値", "効果量", "信頼区間", "N", "しきい値", "p", "合否")
 
 
@@ -578,7 +578,7 @@ def _metric_values(metrics: tuple[VerdictMetric, ...], form: DesignForm) -> list
     keep = [
         i
         for i, h in enumerate(_METRIC_HEADERS)
-        if form.judges or h not in _VERDICT_COLUMNS
+        if form.judges or h not in VERDICT_COLUMNS
     ]
     return [
         el("h4", "指標の値"),
