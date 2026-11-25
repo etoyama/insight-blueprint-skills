@@ -95,7 +95,7 @@ Epic 32（[#217](https://github.com/etoyama/insight-blueprint-skills/issues/217)
 2. 契約の探索の `results` から、`hypothesis_direction`（予想した方向）と `decision_reason` を消す。予想に合うかで向きを付ける規則も消す。
 3. 探索の `results` と verdict の `metrics` は測った値を持つ。任意で効果量・信頼区間・標本サイズを持つ（[ADR-0013](0013-verdict-metric-optional-items.md)）。`threshold` と `pass` は置かない。p 値は書いてよいが、合否は書かない。
 4. 検証の判定の基準は分析設計の primary の指標の `comparison` に文で書く（例:「分館と本館の差が 2.0 日以上なら支持。1.0 日未満なら棄却。その間は結論しない」）。`/analysis-design` の design ② が確かめ、`/analysis-review` の観点に入れる。notebook の `threshold` は `comparison` から写し、notebook が作らない。
-5. 基準が書かれているかを、機械では検査しない。書き忘れが実際に起きてから足す。決め手は、足した検査を後から緩めるより、後から足すほうが、作れていたものを拒む判断を実データの後に回せること。
+5. 基準が書かれているかを、機械では検査しない。書き忘れが実際に起きてから足す。決め手は、作れていたものを拒む判断を実データの後に回せることである。先に足した検査を後から緩めるより、後から足すほうがそうできる。
 6. 引き継ぎの試行の q3 の正解の鍵は、根の現時点の答えが引用する出来事を、journal の `direction` ではなく、引用した文の種類で分ける。「言えること」が引用する出来事が支える証拠、「弱める証拠と留保」が引用する出来事が弱める証拠である。全体の整合で、1 の決まりと今の鍵（`direction` で分ける）がぶつかると分かり、人間が決めた。過去の試行の記録はその時点の鍵での採点として残す（[ADR-0035](0035-handoff-trial-records-keep-their-score.md)）。
 
 ## Consequences

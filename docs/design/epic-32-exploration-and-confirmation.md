@@ -5,9 +5,9 @@
 本書がこの Epic の要求と背景の正本（[FLOW-0001](../adr/flow/0001-designdoc-owns-requirements.md)）。
 Epic issue（[#217](https://github.com/etoyama/insight-blueprint-skills/issues/217)）には要約と本書へのリンクだけを置く。起票したときの本文は下の「起票の経緯」に移した。
 
-- 解く課題: 分析者と読み手が、論点（問い）と分析設計の仮説を取り違える。探索の分析にも仮説と判定が付き、論点が却下されたように読める。
-  - 課題1: 分析設計は意図にかかわらず仮説を必ず持つ。開いた問い（どれだけ違うか）を測る探索でも、分析者は仮説を書かされ、終わりに `supported` / `rejected` / `inconclusive` のどれかを付ける。
-  - 課題2: 論点ツリーの表示は論点の「根拠を開く」の中に「状態: rejected」と出す。読み手は、論点が却下されたと読む。実際は、分析設計の仮説が棄却され、論点には「説明できない」という答えが出ている。
+- 解く課題: 分析者と読み手が、論点（問い）と分析設計の検証仮説を取り違える。探索の分析にも検証仮説と判定が付き、論点が却下されたように読める。
+  - 課題1: 分析設計は意図にかかわらず検証仮説を必ず持つ。開いた問い（どれだけ違うか）を測る探索でも、分析者は検証仮説を書かされ、終わりに `supported` / `rejected` / `inconclusive` のどれかを付ける。
+  - 課題2: 論点ツリーの表示は論点の「根拠を開く」の中に「状態: rejected」と出す。読み手は、論点が却下されたと読む。実際は、分析設計の検証仮説が棄却され、論点には「説明できない」という答えが出ている。
   - 課題3: 検証は基準を先に固定して判定するものなのに、分析設計に基準を書く場所が決まっていない。閾値は notebook の中で初めて数字になり、notebook を書く AI が決めることがある。
   - 課題4: `/analysis-reflection` の3つの問いは Q1〜Q3 と呼ばれ、論点の id と紛れる。問いの範囲と、問いどうしの違いが文から読めず、分析者が聞き返す（[#211](https://github.com/etoyama/insight-blueprint-skills/issues/211)）。
   - 課題5: `/analysis-design` は、初めて出る指標を YAML とコメントで並べただけで分析者に確かめる。分析者は判断できない（[#210](https://github.com/etoyama/insight-blueprint-skills/issues/210)）。
@@ -32,14 +32,14 @@ e-Stat の実データ試行（テーマ FRN、リポジトリ `ib-notebook`）�
 
 FRN の記録から分かった事実（issue の記載。本書を書いたセッションは `ib-notebook` を読んでいない）。
 
-- Yes/No の論点は仮説の疑問形になっている。FRN-Q03「受給率の差は、年齢構成と世帯類型の違いで説明できるか」と、結んだ FRN-H02 の仮説「率比は、年齢構成をそろえると 1 に近づく」は、同じ主張で文末だけが違う。
-- FRN の3件はすべて `exploratory` だが、どれも仮説の文を持ち、判定が付いた。FRN-H01 は開いた問いを測る分析なのに、「振れ幅 1.5」という閾値を作って判定している。FRN-H02 は FRN-H01 の値から生まれた仮説の検証で、形は合っている。
+- Yes/No の論点は仮説の疑問形になっている。FRN-Q03「受給率の差は、年齢構成と世帯類型の違いで説明できるか」と、結んだ FRN-H02 の検証仮説「率比は、年齢構成をそろえると 1 に近づく」は、同じ主張で文末だけが違う。
+- FRN の3件はすべて `exploratory` だが、どれも検証仮説の文を持ち、判定が付いた。FRN-H01 は開いた問いを測る分析なのに、「振れ幅 1.5」という閾値を作って判定している。FRN-H02 は FRN-H01 の値から生まれた仮説の検証で、形は合っている。
 - 探索から次の論点が生まれる道は、今の構造にある（journal の `hypothesize` と、論点の発見元）。
 
 ### 前提にした事実（main aec5a4c、2026-11-25）
 
 - 仮説・判定の語を持つ面は13ある。記録の形（`src/insight_blueprint/models/design.py`、`src/insight_blueprint/validate.py`、`skills/_shared/design_io.py`、`hooks/validate-design.py`）、framing、design、auto、review、premortem、notebook の契約、journal、reflection、分析ノート、論点ツリー、レポート。`grep` で数えた。
-- `hypothesis_statement` と `hypothesis_background` は必須の `str` である。今ある探索の分析設計はすべて仮説を持つ。
+- `hypothesis_statement` と `hypothesis_background` は必須の `str` である。今ある探索の分析設計はすべて検証仮説を持つ。
 - 分析設計を読む道はどれも model の検査を通る（`design_io.py`、`design_note_read.py`）。hook も書き込みのたびに同じ検査をする。検査は1通りである。
 - 分析設計が1つでも読めないと、そのテーマの論点ツリーのページ全体がエラーになる（Epic 28 の決定）。
 - terminal status の集合を使う箇所は7つある。`models/tree.py`（進捗）、`tree_read.py` の2か所（巡回の現在地、レポートの未完の一覧）、`design_note_read.py`、`tree_render.py`、`tree_io.py`、`premortem/lib/risk_evaluator.py`（自前の写し）。どれも集合に入っているかだけを見る。
@@ -439,6 +439,7 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - Affected modules: `skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-notebook/SKILL.md`、`skills/analysis-journal/SKILL.md`、`tests/skills/test_skill_structure.py`。
 - Alternatives considered: 旧形式の探索を検証の形にする案は、検証仮説に対する `direction` が付くが、基準の無い判定を notebook にさせるので採らなかった。
 - Consequences: 旧形式の探索を走らせ直すと、evidence は向きを持たない。旧形式は判定で終わるので、reflection（32.7）は向きの無い証拠から判定を選ぶ。
+
 ### Decision: qualified-variants-become-yomiyasu-patterns
 
 - What: 用語集の「使わない言い換え」のうち、条件の付いた語（「仮説（分析設計の項目を指すとき）」など）を、`scripts/export_yomiyasu_words.py` が `.yomiyasu-words/flag-patterns.txt` に書き出す。パターンは、その語を含むほかの用語（検証仮説、仮説の背景、探索の問い、根の問い、未解決の問い）を後読みと先読みで外す。パターンの名前に条件と使う語を入れ、yomiyasu の指摘に出す。yomiyasu は、`allow.txt` にある文字列に当たったパターンの指摘を外す。そのため、パターンの語になる用語（仮説、アップロード）は `allow.txt` に書き出さない。英数字だけの語（hypothesis）は単語の境目で当てる。Story 32.2 の計画に無かった判断である。
@@ -462,7 +463,7 @@ review、premortem、journal への verdict の記録は、今と同じなので
 ### Decision: a-changed-hypothesis-goes-into-a-derived-design
 
 - What: `/analysis-reflection` の Step 5 は、検証仮説を直すときも別の仮説を立てるときも、派生の分析設計を作る。`design_io update` で分析を終えた分析設計の検証仮説を書き換える手順は消した。今の分析設計は `analyzing` のまま残し、後の reflection で終えてよい。
-- Why: 検証仮説は分析の前に固定する（ADR-0048）。分析の後に書き換えると、結果を見てから仮説を置いたことになる。
+- Why: 検証仮説は分析の前に固定する（ADR-0048）。分析の後に書き換えると、結果を見てから検証仮説を置いたことになる。
 - Criteria: 人間の決定（d12 の B、2026-11-25、#232 のコメント）。
 - Affected modules: `skills/analysis-reflection/SKILL.md`（Step 3 の3つ目の問いの選択肢、Step 5、design_io Reference）。
 - Alternatives considered: 書き換えを残して注意だけ添える案。人間が派生を選んだ。
@@ -472,7 +473,7 @@ review、premortem、journal への verdict の記録は、今と同じなので
 
 - What: Story 32.7 で、計画に無かった小さな判断を2つと、先送りの1つを決めた。
   1. 旧形式の探索で `direction` を持たない evidence（32.4 の後に走らせ直した notebook の分）は、Step 2 で「Without a direction」に分けて出す。1つ目の問いでは、分析者が1件ずつ検証仮説に照らして読む。AI は向きを付けず、件数で判定を選ばない。`comparison` に基準が無ければ「分析の前に固定した基準は無い」と言ってから聞く。
-  2. 派生の分析設計（Step 5 の直した仮説と、探索を終えた後の仮の答え）は `/analysis-design` で作る。`/analysis-journal` の Step 4 の分岐の手順は、意図を聞かず、検証の基準も固定しない。`branch` の出来事と `tree_io link-derived` は、そちらの手順の 3 と 4 と同じにした。
+  2. 派生の分析設計（Step 5 の直した検証仮説と、探索を終えた後の仮の答え）は `/analysis-design` で作る。`/analysis-journal` の Step 4 の分岐の手順は、意図を聞かず、検証の基準も固定しない。`branch` の出来事と `tree_io link-derived` は、そちらの手順の 3 と 4 と同じにした。
   3. `/analysis-reflection` の版を 1.2.0 に上げた（`test_existing_skills_version_bump`）。問いの見出しと、探索の終わり方が変わったため。
 - Why: 1つ目は先送りの指摘（32.4）。向きの無い証拠から AI が向きを推すと、分析者の判定を AI が下すことになる。2つ目は、派生の検証が分析の前に基準を固定するため（ADR-0050）。
 - Criteria: 判定は分析者が選ぶこと（Must、ADR-0048）。検証は基準を分析の前に固定すること（Must、ADR-0050）。決め手は両方。
@@ -531,7 +532,7 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - 2026-11-25 — Story 32.2 completed: 用語集に検証仮説・探索の問い・探索の問いの背景・分析設計の形・旧形式の探索を足し、仮説を「問いに先に置く仮の答え」に変えた。探索と検証の両方に合うように、分析設計・指標・手法・派生・terminal status・分析の意図・notebook・verdict・reflection の定義と Context の文を直した。PRD のビジョンとコアバリュー、ARCHITECTURE の検査・4ビート・シーケンス、CHANGELOG の Upgrade note も直した。計画外の判断1つは Decision `qualified-variants-become-yomiyasu-patterns` に書いた。
 - 2026-11-25 — Story 32.5 completed: 分析ノートとレポートの定型文を形で分けた。言葉は `design_note.py` の `FORM_WORDS`・`intent_word`・`status_word`・`lead_sentence` に1か所で置き、論点ツリー（32.6）も同じものを読む。探索は「探索の問いと背景」で始まり、証拠を1群で出し、指標の表にしきい値と合否の列を出さない。
 - 2026-11-25 — Story 32.3 completed: `/analysis-design` と `/analysis-auto` が最初に意図を聞き、探索なら探索の問いを、検証なら検証仮説と `comparison` の判定の基準を確かめる。Framing Brief と `/analysis-review` も意図で分けた。計画外の判断3つは Decision `entry-asks-the-intent-and-moves-the-criterion-with-it` に書いた。
-- 2026-11-25 — Story 32.5 の追加: notebook の契約が書く `p_value` を、分析ノートとレポートの読み手が読むようにした（`p` があれば `p` を先に読む）。32.4 の申し送り。前から、契約どおりの p 値が黙って落ちていた。
+- 2026-11-25 — Story 32.5 の追加: notebook の契約が書く `p_value` を、分析ノートとレポートの読み手が読むようにした（`p` があれば `p` を先に読む）。32.4 の申し送り。前から、契約どおりの p 値が気づかないうちに落ちていた。
 - 2026-11-25 — Story 32.6 completed: 論点ツリーは、論点に結んだ分析設計を論点の下の破線のカードに出し、2つ目の論点からは短い行にする。状態は `status_word` の言葉で出し、凡例に YAML の値との対応を出す。論点の答えに「現時点の答え」の見出しを付け、探索の引用には向きを出さない。合成シナリオの LIB-H01 を探索に、LIB-H02 を `supported` に直し、q3 の鍵を引用した文の種類で分けた。
-- 2026-11-25 — Story 32.7 completed: `/analysis-reflection` の3つの問いを、問いの形の見出し（結果から何が言えるか／まだ答えの出ていない問いで、判定は変わるか／この分析設計をどう終えるか）にした。検証は基準と問いの範囲を先に言い、探索は判定を選ばず `explored` で終えて、仮の答えを残せる。直した仮説は派生の分析設計にする（Decision `a-changed-hypothesis-goes-into-a-derived-design`）。計画外の判断は Decision `reflection-reads-undirected-evidence-and-derives-through-design` に書いた。
+- 2026-11-25 — Story 32.7 completed: `/analysis-reflection` の3つの問いを、問いの形の見出し（結果から何が言えるか／まだ答えの出ていない問いで、判定は変わるか／この分析設計をどう終えるか）にした。検証は基準と問いの範囲を先に言い、探索は判定を選ばず `explored` で終えて、仮の答えを残せる。直した検証仮説は派生の分析設計にする（Decision `a-changed-hypothesis-goes-into-a-derived-design`）。計画外の判断は Decision `reflection-reads-undirected-evidence-and-derives-through-design` に書いた。
 - 2026-11-25 — Story 32.8 completed: `/analysis-design` Step 2 に "Metrics explained before they are asked" を足した。すべての指標に何を表す数かの一文を添え、2つ以上の量から作る指標でテーマに初めて出るものには5項目の解説を付けてから聞く。例の数字は journal か別の群の数字で、判定する結果を使わない。検証の基準には意味と、扱いを変えると判定がどう変わるかを付ける。`/analysis-auto` の design ② の行と段にも同じ手順を書いた。先送りの2件（Chaining 表の reflection の行、Derived Hypotheses の親の状態）も直した。計画外の判断は Decision `metric-explanation-covers-default-and-later-updates` に書いた。
