@@ -71,11 +71,11 @@ AC の正本はここ。
 
 分析者として、探索の記録に判定の語が残らないように、分析設計の形と結論の状態が意図で決まっていてほしい。今ある記録は手を入れずに読めてほしい。
 
-- [ ] AC 1: `design_io create` は、探索では `exploration_question` と `exploration_background` を必須にし、`hypothesis_statement`・`hypothesis_background`・`next_action` を拒む。検証では `hypothesis_statement` と `hypothesis_background` を必須にし、探索の2項目を拒む。`mixed` の作成と、検証仮説を持つ探索の作成を拒む。
-- [ ] AC 2: 探索の分析設計が結論で進める状態は `explored` だけで、`supported`・`rejected`・`inconclusive` へは進めない。検証と旧形式の探索は `explored` へ進めない。
-- [ ] AC 3: `design_io update` で意図を変えられるのは、状態が `in_review` か `revision_requested` の間だけである。変えた後の記録は新しい意図の形を満たす。例外は1つで、旧形式の探索を `confirmatory` に直すことは、どの状態でもできる。検証仮説と状態は変わらず、意図だけが変わる。
-- [ ] AC 4: 保存済みの記録が手を入れずに検査に通る。対象は、旧形式の探索（`exploratory` で検証仮説を持つ）、`mixed`、`analysis_intent` を持たない記録の3つである。これらの状態と遷移は今までどおりである。
-- [ ] AC 5: `explored` が terminal status の正本に入る。進捗は分析済みに、巡回の現在地は `concluded` に、premortem は `SKIP` になる。premortem は自前の集合を持たず、正本を使う。
+- [x] AC 1: `design_io create` は、探索では `exploration_question` と `exploration_background` を必須にし、`hypothesis_statement`・`hypothesis_background`・`next_action` を拒む。検証では `hypothesis_statement` と `hypothesis_background` を必須にし、探索の2項目を拒む。`mixed` の作成と、検証仮説を持つ探索の作成を拒む。
+- [x] AC 2: 探索の分析設計が結論で進める状態は `explored` だけで、`supported`・`rejected`・`inconclusive` へは進めない。検証と旧形式の探索は `explored` へ進めない。
+- [x] AC 3: `design_io update` で意図を変えられるのは、状態が `in_review` か `revision_requested` の間だけである。変えた後の記録は新しい意図の形を満たす。例外は1つで、旧形式の探索を `confirmatory` に直すことは、どの状態でもできる。検証仮説と状態は変わらず、意図だけが変わる。
+- [x] AC 4: 保存済みの記録が手を入れずに検査に通る。対象は、旧形式の探索（`exploratory` で検証仮説を持つ）、`mixed`、`analysis_intent` を持たない記録の3つである。これらの状態と遷移は今までどおりである。
+- [x] AC 5: `explored` が terminal status の正本に入る。進捗は分析済みに、巡回の現在地は `concluded` に、premortem は `SKIP` になる。premortem は自前の集合を持たず、正本を使う。
 
 ### US-3: 探索の notebook は予想を持たず、測った値を残す
 
@@ -414,12 +414,13 @@ review、premortem、journal への verdict の記録は、今と同じなので
 
 ### Decision: foundation-keeps-the-readers-running
 
-- What: Story 32.1 の土台で、計画に無かった小さな判断を5つした。
+- What: Story 32.1 の土台で、計画に無かった小さな判断を6つした。
   1. 触らない約束の `theme_report.py` と `design_note.py` を1行ずつ触った。検証仮説を任意にすると ty が落ち、`LEAD_SENTENCES` に `explored` が無いと探索の分析ノートを描けないため。`explored` の文は ADR-0051 の「探索を終えた。判定はしていない。」で、検証の定型文の言い換えは 32.5 に残した。
   2. `validate_transition` は形を必須の引数に取る。`/analysis-design` の Status Flow の構造テストは、今の文が検証の流れなので `confirmation` の形で照らす。
   3. 新しく作るとき（意図を変えるときも）は、検証仮説とその背景が空白だけの値を拒む。読むときの検査は今までどおりにした。
   4. review の `target_section` に探索の2項目を足すのは 32.3 に渡した。許す節の一覧は `/analysis-review` の SKILL.md と照らすテストがあるため。
-  5. ディスク上の記録が壊れているときの `design_io update` は、新しく作る記録として検査する。直す書き込みを止めないため。
+  5. ディスク上の記録が壊れているときの `design_io update` は、新しく作る記録として検査し、状態は変えさせない。直す書き込みは止めず、形の分からない記録の遷移は通さないため。
+  6. 形の変更（旧形式の探索の項目を探索の問いに入れ替える）にも、意図の変更と同じ決まりを当てる。意図を変えずに形だけ変える道を残さないため。
 - Why: 土台の型を変えると読む側が落ちる。後の Story の領分を先取りせずに、`uv run poe all` を通すため。
 - Criteria: 後の Story の領分を先取りしないこと（Must、PM の指示）。epic ブランチの各 push で検査が通ること（Must）。決め手は両方。
 - Affected modules: `skills/_shared/theme_report.py`、`skills/_shared/design_note.py`、`skills/_shared/design_note_read.py`、`src/insight_blueprint/validate.py`、`skills/_shared/design_io.py`、`tests/skills/test_direct_conclusion_structure.py`、`tests/integration/test_premortem_report.py`。
@@ -461,4 +462,4 @@ review、premortem、journal への verdict の記録は、今と同じなので
   確かめていない前提は2つある。見本は手で書いた HTML で、`tree_render.py` が出したものではない。直した後の表示で、引き継ぎの試行は回していない。
 - 2026-11-25 — 人間が見本と、全体の整合で決め直した2点を見て、初版と ADR-0048〜0051 を承認した。Domain Model の変更（探索の2項目、`explored`、導く値の `DesignForm`）と、Story を8本にする案も承認した。Story の起票は PM が行う。
 - 2026-11-25 — PM が Story を8本起票した（#226〜#233）。Stories の表の「（未起票）」を issue の番号に書き換えた。
-- 2026-11-25 — Story 32.1 completed: 分析設計の形を意図と項目から導く `DesignForm`、`explored`、2段の検査（読むときは model、作るときは `validate_creation`）を入れた。計画外の判断5つは Decision `foundation-keeps-the-readers-running` に書いた。
+- 2026-11-25 — Story 32.1 completed: 分析設計の形を意図と項目から導く `DesignForm`、`explored`、2段の検査（読むときは model、作るときは `validate_creation`）を入れた。計画外の判断6つは Decision `foundation-keeps-the-readers-running` に書いた。

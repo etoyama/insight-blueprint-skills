@@ -288,7 +288,14 @@ def update_design(
     merged = {**current, **changes, "updated_at": now_jst().isoformat()}
 
     model = validate_schema(merged)  # raises ValidationError if invalid
-    errors = _update_errors(model, _parsed_or_none(current))
+    on_disk = _parsed_or_none(current)
+    if on_disk is None and model.status.value != current.get("status"):
+        # Without a readable design there is no form to check the move against.
+        raise ValueError(
+            f"Design '{design_id}' on disk is invalid: repair it without "
+            "changing its status, then transition"
+        )
+    errors = _update_errors(model, on_disk)
     if errors:
         raise ValueError("; ".join(errors))
     data = model.model_dump(mode="json")
@@ -461,6 +468,10 @@ def append_review_batch(
             f"Design must be reviewable to save a review batch, "
             f"current status: '{current['status']}'"
         )
+    # Checked before the batch is written: a conclusion out of the design's form
+    # must not leave a batch behind with the status unchanged.
+    on_disk = validate_schema(current)
+    validate_transition(on_disk.status, target, on_disk.form())
 
     batch = ReviewBatch(
         id=f"RB-{uuid.uuid4().hex[:8]}",

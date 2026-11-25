@@ -587,8 +587,9 @@ class TestConclusionByForm:
         self, insight: Path
     ) -> None:
         design_id = _explore(insight)["id"]
-        with pytest.raises(ValueError, match="Cannot transition"):
+        with pytest.raises(ValueError, match="ends as explored"):
             design_io.update_design(design_id, {"status": "supported"}, insight)
+        assert _on_disk(insight, design_id)["status"] == "in_review"
 
     def test_a_review_ends_an_exploration_as_explored(self, insight: Path) -> None:
         design_id = _explore(insight)["id"]
@@ -691,3 +692,35 @@ class TestSavedDesigns:
             "analysis_intent", "confirmatory"
         )
         assert after["hypothesis_statement"] == before["hypothesis_statement"]
+
+
+class TestReviewBatchByForm:
+    """A review that ends a design out of its form leaves no batch behind."""
+
+    def test_a_verdict_on_an_exploration_writes_no_batch(self, insight: Path) -> None:
+        design_id = _explore(insight)["id"]
+        with pytest.raises(ValueError, match="Cannot transition"):
+            design_io.append_review_batch(
+                design_id, "supported", [{"comment": "ok"}], base_dir=insight
+            )
+        assert design_io.list_review_batches(design_id, insight) == []
+        assert _on_disk(insight, design_id)["status"] == "in_review"
+
+
+class TestRepairingABrokenDesign:
+    """A design that no longer parses is repaired in place, without moving it."""
+
+    def test_a_repair_keeps_the_status(self, insight: Path) -> None:
+        _saved(insight, "FP-H01", status="analyzing", methodology={"method": ""})
+        design_io.update_design("FP-H01", {"methodology": {"method": "OLS"}}, insight)
+        assert _on_disk(insight, "FP-H01")["methodology"]["method"] == "OLS"
+
+    def test_a_repair_does_not_move_the_design(self, insight: Path) -> None:
+        _saved(insight, "FP-H01", status="supported", methodology={"method": ""})
+        with pytest.raises(ValueError, match="repair"):
+            design_io.update_design(
+                "FP-H01",
+                {"methodology": {"method": "OLS"}, "status": "in_review"},
+                insight,
+            )
+        assert _on_disk(insight, "FP-H01")["status"] == "supported"

@@ -18,6 +18,7 @@ from collections.abc import Sequence
 from pydantic import BaseModel, ValidationError
 
 from insight_blueprint.models.design import (
+    CONCLUSIONS_OF,
     TERMINAL_STATUSES,
     AnalysisDesign,
     AnalysisIntent,
@@ -27,7 +28,7 @@ from insight_blueprint.models.design import (
 from insight_blueprint.models.tree import QuestionTree
 
 # State-transition allow-table, for every form at once: which conclusion a
-# design may reach is narrowed by its form (CONCLUSIONS_OF). This is the
+# design may reach is narrowed by its form (CONCLUSIONS_OF in the model). This is the
 # canonical definition.
 VALID_TRANSITIONS: dict[DesignStatus, set[DesignStatus]] = {
     DesignStatus.in_review: {
@@ -48,16 +49,6 @@ VALID_TRANSITIONS: dict[DesignStatus, set[DesignStatus]] = {
     DesignStatus.supported: set(),
     DesignStatus.rejected: set(),
     DesignStatus.inconclusive: set(),
-}
-
-_VERDICTS = TERMINAL_STATUSES - {DesignStatus.explored}
-
-# An exploration measures and answers, so it ends without a verdict; a legacy
-# exploration holds a hypothesis and ends like a confirmation (ADR-0048, ADR-0049).
-CONCLUSIONS_OF: dict[DesignForm, frozenset[DesignStatus]] = {
-    DesignForm.exploration: frozenset({DesignStatus.explored}),
-    DesignForm.confirmation: _VERDICTS,
-    DesignForm.legacy_exploration: _VERDICTS,
 }
 
 # The intent is chosen before the analysis: changing it afterwards would let a
@@ -175,7 +166,10 @@ def validate_creation(
             "an exploratory design holds exploration_question and "
             "exploration_background, not hypothesis_statement"
         )
-    if current is not None and intent_changed and not _may_change_intent(current, new):
+    # Swapping the fields changes the form without touching the intent (a legacy
+    # exploration into the new form), so the form is held to the same rule.
+    reshaped = intent_changed or (current is not None and new.form() != current.form())
+    if current is not None and reshaped and not _may_change_intent(current, new):
         errors.append(
             f"analysis_intent: changes only while in_review or revision_requested "
             f"(status: {current.status.value}); derive a new design for another intent"

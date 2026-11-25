@@ -308,7 +308,7 @@ class TestConclusionFollowsTheForm:
     def test_the_hook_refuses_a_verdict_on_an_exploration(self) -> None:
         current = make_exploration(status="analyzing")
         errors = validate_design_change(make_exploration(status="supported"), current)
-        assert any("Cannot transition" in e for e in errors)
+        assert any("ends as explored" in e for e in errors)
 
     def test_the_hook_lets_an_exploration_end_as_explored(self) -> None:
         current = make_exploration(status="analyzing")
@@ -344,7 +344,7 @@ class TestSavedDesignsStillRead:
 
     def test_a_saved_design_does_not_end_as_explored(self, saved: dict) -> None:
         errors = validate_design_change({**saved, "status": "explored"}, saved)
-        assert any("Cannot transition" in e for e in errors)
+        assert any("not explored" in e for e in errors)
 
 
 def _model(data: dict) -> AnalysisDesign:
@@ -384,19 +384,13 @@ class TestValidateCreation:
         new = _model(make_exploration(status=status.value))
         assert validate_creation(new, current) == []
 
-    @pytest.mark.parametrize("status", [DesignStatus.analyzing, *VERDICTS])
-    def test_the_intent_does_not_change_once_analyzing(
-        self, status: DesignStatus
-    ) -> None:
-        current = _model(make_design(status=status.value))
-        new = _model(make_exploration(status=status.value))
+    def test_the_intent_does_not_change_once_analyzing(self) -> None:
+        # Past analyzing the pair cannot even be written: a verdict belongs to a
+        # hypothesis and explored to a question (the model refuses the record).
+        current = _model(make_design(status="analyzing"))
+        new = _model(make_exploration(status="analyzing"))
         errors = validate_creation(new, current)
         assert any("analysis_intent" in e for e in errors)
-
-    def test_an_explored_design_does_not_change_its_intent(self) -> None:
-        current = _model(make_exploration(status="explored"))
-        new = _model(make_design(status="explored"))
-        assert any("analysis_intent" in e for e in validate_creation(new, current))
 
     def test_the_intent_does_not_change_to_mixed(self) -> None:
         current = _model(make_design())
@@ -446,3 +440,18 @@ class TestValidateCreation:
 
 def test_explored_is_one_of_the_terminal_statuses() -> None:
     assert DesignStatus.explored in TERMINAL_STATUSES
+
+
+class TestFormChange:
+    """US-2 AC 3: the form changes under the same rule as the intent."""
+
+    def test_a_legacy_exploration_takes_the_new_form_before_the_analysis(self) -> None:
+        current = _model(make_design(analysis_intent="exploratory"))
+        assert validate_creation(_model(make_exploration()), current) == []
+
+    def test_a_legacy_exploration_does_not_drop_its_hypothesis_once_analyzing(
+        self,
+    ) -> None:
+        current = _model(make_design(analysis_intent="exploratory", status="analyzing"))
+        new = _model(make_exploration(status="analyzing"))
+        assert any("analysis_intent" in e for e in validate_creation(new, current))

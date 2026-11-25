@@ -65,6 +65,17 @@ class DesignForm(StrEnum):
     legacy_exploration = "legacy_exploration"
 
 
+_VERDICTS = TERMINAL_STATUSES - {DesignStatus.explored}
+
+# An exploration measures and answers, so it ends without a verdict; a legacy
+# exploration holds a hypothesis and ends like a confirmation (ADR-0048, ADR-0049).
+CONCLUSIONS_OF: dict[DesignForm, frozenset[DesignStatus]] = {
+    DesignForm.exploration: frozenset({DesignStatus.explored}),
+    DesignForm.confirmation: _VERDICTS,
+    DesignForm.legacy_exploration: _VERDICTS,
+}
+
+
 class VariableRole(StrEnum):
     """Causal role of an explanatory variable."""
 
@@ -233,15 +244,27 @@ class AnalysisDesign(BaseModel):
                 f"hypothesis_statement (a confirmation), not {held}"
             )
         if not asks:
-            return self._holds_a_hypothesis()
-        if self.analysis_intent is not AnalysisIntent.exploratory:
+            self._holds_a_hypothesis()
+        elif self.analysis_intent is not AnalysisIntent.exploratory:
             raise ValueError(
                 f"exploration_question belongs to an exploratory design, "
                 f"not a {self.analysis_intent.value} one"
             )
-        return self._holds_a_question()
+        else:
+            self._holds_a_question()
+        return self._ends_as_its_form_does()
 
-    def _holds_a_question(self) -> Self:
+    def _ends_as_its_form_does(self) -> Self:
+        allowed = CONCLUSIONS_OF[self.form()]
+        if self.status in TERMINAL_STATUSES and self.status not in allowed:
+            ends = ", ".join(sorted(s.value for s in allowed))
+            raise ValueError(
+                f"status: a design of the {self.form().value} form ends as "
+                f"{ends}, not {self.status.value}"
+            )
+        return self
+
+    def _holds_a_question(self) -> None:
         for name in ("exploration_question", "exploration_background"):
             if not (getattr(self, name) or "").strip():
                 raise ValueError(f"{name}: an exploration needs it written")
@@ -251,9 +274,8 @@ class AnalysisDesign(BaseModel):
                     f"{name}: an exploration measures and answers its question, "
                     "so it holds no hypothesis and nothing that waits on a verdict"
                 )
-        return self
 
-    def _holds_a_hypothesis(self) -> Self:
+    def _holds_a_hypothesis(self) -> None:
         if self.hypothesis_background is None:
             raise ValueError("hypothesis_background: a hypothesis needs its background")
         if self.exploration_background is not None:
@@ -261,7 +283,6 @@ class AnalysisDesign(BaseModel):
                 "exploration_background: a design with a hypothesis holds no "
                 "exploration fields"
             )
-        return self
 
     @model_serializer(mode="wrap")
     def _leave_out_the_fields_of_the_other_form(

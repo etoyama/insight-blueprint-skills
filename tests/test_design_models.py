@@ -637,3 +637,22 @@ class TestExploredIsTerminal:
     def test_a_node_whose_designs_are_explored_is_analyzed(self) -> None:
         statuses = [DesignStatus.explored, DesignStatus.supported]
         assert Progress.of(statuses) is Progress.analyzed
+
+
+class TestConclusionMatchesTheForm:
+    """US-2 AC 2: a record never pairs an exploration with a verdict, or the reverse."""
+
+    @pytest.mark.parametrize("verdict", ["supported", "rejected", "inconclusive"])
+    def test_an_exploration_with_a_verdict_is_rejected(self, verdict: str) -> None:
+        with pytest.raises(ValidationError, match="status"):
+            AnalysisDesign.model_validate(_exploration_data(status=verdict))
+
+    @pytest.mark.parametrize("intent", ["confirmatory", "exploratory", "mixed"])
+    def test_a_design_with_a_hypothesis_is_never_explored(self, intent: str) -> None:
+        data = _minimal_design_data(analysis_intent=intent, status="explored")
+        with pytest.raises(ValidationError, match="status"):
+            AnalysisDesign.model_validate(data)
+
+    def test_an_explored_exploration_reads(self) -> None:
+        design = AnalysisDesign.model_validate(_exploration_data(status="explored"))
+        assert design.status is DesignStatus.explored
