@@ -64,6 +64,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/analysis-review` reads each intent with its own lenses
   ([ADR-0048](docs/adr/0048-intent-decides-the-form-and-the-end-of-a-design.md),
   [ADR-0050](docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md), #228).
+- **`/analysis-reflection` asks whether to have the result reviewed before it records `conclude`.** Taking
+  the review records nothing yet; after it, the reflection records one `conclude` and ends the design. Before,
+  a review offered after the conclusion left two `conclude` events in the journal (#217).
+- **When an exploration's answer states no measured value, `/analysis-reflection` shows the measured values and
+  asks again.** The values come from the journal's evidence, the analyst answers the exploration question in terms
+  of them, and their words are kept as the answer (#217).
+- **A design made without a Framing Brief can be linked to a question of the theme's tree.** When the theme has a
+  question tree, `/analysis-design` shows its questions, asks which one the design answers (or none), and links it
+  with the same `tree_io link` as the Brief (#217).
 
 - **`/analysis-reflection` asks its three questions by what they ask, and an exploration ends without a verdict.**
   The headings read 「結果から何が言えるか」, 「まだ答えの出ていない問いで、判定は変わるか」 and

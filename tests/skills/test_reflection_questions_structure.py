@@ -336,3 +336,13 @@ class TestChangelogSaysTheQuestionsChanged:
         assert "結果から何が言えるか" in entry
         assert "`explored`" in entry
         assert "derived design" in entry
+
+    def test_the_entry_says_the_review_comes_before_the_conclusion(self) -> None:
+        changelog = (SKILLS_DIR.parent / "CHANGELOG.md").read_text(encoding="utf-8")
+        phrase = "asks whether to have the result reviewed before it records `conclude`"
+        assert "#217" in unwrap(changelog_entry(changelog, phrase))
+
+    def test_the_entry_says_an_answer_without_a_value_is_asked_again(self) -> None:
+        changelog = (SKILLS_DIR.parent / "CHANGELOG.md").read_text(encoding="utf-8")
+        phrase = "shows the measured values and asks again"
+        assert "#217" in unwrap(changelog_entry(changelog, phrase))

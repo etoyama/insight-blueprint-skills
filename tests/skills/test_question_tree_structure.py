@@ -14,9 +14,10 @@ from pathlib import Path
 import pytest
 
 from skills._shared import design_io, tree_io
+from tests.docs._changelog import changelog_entry
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills._shown import run_shown_commands, run_shown_line
-from tests.skills.test_skill_structure import _read_skill
+from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
 
 _COMMAND = re.compile(r"(?<![\w/])tree_io ([a-z][a-z-]*)")
 
@@ -289,6 +290,11 @@ class TestDesignLinksItselfToTheNode:
             section(_read_skill("analysis-design"), "#### Link the design")
         )
         assert re.search(r"(?i)never[^.]*`tree_io add-node`", linking)
+
+    def test_the_changelog_says_a_design_without_a_brief_can_be_linked(self) -> None:
+        changelog = (SKILLS_DIR.parent / "CHANGELOG.md").read_text(encoding="utf-8")
+        phrase = "made without a Framing Brief can be linked to a question"
+        assert "#217" in unwrap(changelog_entry(changelog, phrase))
 
     def test_the_linked_node_is_shown_at_the_end(self) -> None:
         step = section(_read_skill("analysis-design"), "### Step 4: ")
