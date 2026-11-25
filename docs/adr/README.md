@@ -54,6 +54,11 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0052](0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md) | verdict の指標は、支持の線と棄却の線、指標の判定、値の区間の種類、群の行を持つ | Accepted |
 | [0053](0053-a-started-confirmation-keeps-its-hypothesis-criterion-and-intent.md) | 分析を始めた検証の分析設計は、検証仮説・判定の基準・意図を変えない | Accepted |
 | [0054](0054-review-covers-the-result-and-its-comments-reach-the-reader.md) | review は結果も対象にし、review コメントを分析ノートと論点ツリーに出す | Accepted |
+| [0055](0055-the-root-question-is-shown-as-the-subject.md) | 分析者に見せる「根の問い」を「主題」と呼ぶ | Accepted |
+| [0056](0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md) | 答えの変化は引用の差から導き、上の論点と先の論点の両方のカードに出す | Accepted |
+| [0057](0057-a-question-without-a-design-shows-the-progress-below-it.md) | 分析設計を直接結ばない論点は、下の論点の進捗を数で出す | Accepted |
+| [0058](0058-a-tree-decision-may-cite-the-events-behind-its-reason.md) | ツリーの決定は、理由の根拠にした出来事を引用できる | Accepted |
+| [0059](0059-the-handoff-trial-has-a-second-scenario-and-a-sixth-question.md) | 引き継ぎの試行に、2本目の合成シナリオと6つ目の問いを足す | Accepted |
 
 - ADR-0001〜0008 は旧形式のまま残す。ADR-0009 からは新形式（Problem と Decision Analysis の節を持つ）で書く。
 - 開発フローの決定の出典は [flow/](flow/README.md) にある。repo-template の ADR のコピーで、`FLOW-000N` と表記する。
