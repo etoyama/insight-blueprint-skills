@@ -112,7 +112,7 @@ Epic 06 からは軽量版の上に分析の能力を足していく。
 | Epic 30 | [epic-30](design/epic-30-plain-python-notebook.md) | notebook を `# %%` で区切る素の Python にし、marimo を外す | 完了 |
 | Epic 31 | [epic-31](design/epic-31-drop-pypi-publish.md) | PyPI への公開をやめ、/data-lineage を plugin の env で走らせる | 完了 |
 | Epic 32 | [epic-32](design/epic-32-exploration-and-confirmation.md) | 探索と検証の区別を分析設計の入口から出口まで効かせる | 完了 |
-| Epic 33 | [epic-33](design/epic-33-verdict-on-record.md) | 検証の判定を記録で守る | 進行中 |
+| Epic 33 | [epic-33](design/epic-33-verdict-on-record.md) | 検証の判定を記録で守る | 完了 |
 
 各 Epic の DesignDoc は `## Scope` 節で、本書のどの要件と
 ARCHITECTURE のどのコンポーネントを前進させるかを示す。
