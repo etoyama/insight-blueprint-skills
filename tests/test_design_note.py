@@ -1245,6 +1245,13 @@ class TestIntervalKind:
 
         assert rows == [["指標", "値", "区間"], ["期限切れ率の差", "0.346", shown]]
 
+    def test_an_empty_kind_reads_as_a_dash(self) -> None:
+        metric = _metric(interval=ValueInterval("", "0.95", "0.10", "0.50"))
+
+        rows = _main_table(_note(metrics=(metric,)))
+
+        assert rows[1][2] == "— 水準 0.95: [0.10, 0.50]"
+
     def test_a_kind_the_note_has_no_word_for_is_escaped(self) -> None:
         metric = _metric(interval=ValueInterval(EVIL, "0.95", "0.10", "0.50"))
 
@@ -1356,6 +1363,15 @@ class TestGroupTables:
             ["p", "q", "1", "HDI 水準 0.9: [0.5, 1.5]", "—"],
             ["p", "r", "2", "—", "0.03"],
         ]
+
+    def test_an_empty_axis_name_reads_as_a_dash_in_the_heading(self) -> None:
+        metric = _metric(
+            name="m", value=None, by=("", "y"), groups=(_group("p", "q", value="1"),)
+        )
+
+        ((heading, _),) = _value_tables(_note(metrics=(metric,)))
+
+        assert heading == "m（— × y）"
 
     def test_three_axes_are_a_tall_table(self) -> None:
         metric = _metric(

@@ -593,7 +593,7 @@ INTERVAL_WORDS = {CONFIDENCE: "信頼区間", "hdi": "HDI", "eti": "等裾信用
 
 def interval_text(interval: ValueInterval) -> str:
     """The kind, the level and the bounds as written: the level is not made a percent."""
-    word = INTERVAL_WORDS.get(interval.kind, interval.kind)
+    word = INTERVAL_WORDS.get(interval.kind) or _cell(interval.kind)
     return f"{word} 水準 {interval.level}: [{interval.lower}, {interval.upper}]"
 
 
@@ -672,7 +672,7 @@ def _across(m: VerdictMetric) -> Html | None:
 
 def _group_table(m: VerdictMetric) -> list[Html]:
     return [
-        el("h5", f"{_cell(m.name)}（{' × '.join(m.by)}）"),
+        el("h5", f"{_cell(m.name)}（{' × '.join(map(_cell, m.by))}）"),
         _across(m)
         or _filled_table(
             m.by, [g.group for g in m.groups], [_group_cells(g) for g in m.groups]
