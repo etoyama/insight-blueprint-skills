@@ -97,12 +97,10 @@ def validate_design_change(
 
     - *new_data*: the design dict about to be written.
     - *current_data*: the design dict currently on disk, or ``None`` for a new
-      file. When given and the status actually changes, the transition is
-      checked. New files are schema-only (no transition check), matching the
-      existing ``DesignService.create_design`` behaviour.
+      file. A new file is checked by the schema only, the opening ADR-0049
+      leaves; a write over a readable design meets ``validate_update``, the
+      check ``design_io`` runs on update.
     """
-    errors: list[str] = []
-
     try:
         new_model = validate_schema(new_data)
     except ValidationError as exc:
@@ -111,25 +109,17 @@ def validate_design_change(
         return _format_validation_error(exc)
 
     if current_data is None:
-        return errors
+        return []
 
     try:
         current_model = validate_schema(current_data)
     except ValidationError:
         # The on-disk file is already invalid; we cannot derive a reliable
-        # "current status" from it. Skip the transition check rather than
+        # "current status" from it. Skip the update check rather than
         # blocking on a pre-existing corruption the user may be fixing.
-        return errors
+        return []
 
-    if new_model.status != current_model.status:
-        try:
-            validate_transition(
-                current_model.status, new_model.status, new_model.form()
-            )
-        except ValueError as exc:
-            errors.append(str(exc))
-
-    return errors
+    return validate_update(new_model, current_model)
 
 
 _MIXED_REFUSED = (

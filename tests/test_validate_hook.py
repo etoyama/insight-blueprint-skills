@@ -228,6 +228,30 @@ class TestHookSubprocessBlock:
         assert result.returncode == 2
         assert "transition" in result.stderr.lower()
 
+    def test_rewriting_an_analyzing_confirmation_as_an_exploration_blocks(
+        self, tmp_path: Path
+    ) -> None:
+        path = write_design(tmp_path, "FP-H01", design_dict(status="analyzing"))
+        exploration = {
+            "id": "FP-H01",
+            "title": "Test design",
+            "analysis_intent": "exploratory",
+            "exploration_question": "How far apart are the regions?",
+            "exploration_background": "Nobody has measured the spread",
+            "status": "explored",
+        }
+        result = run_hook(
+            {
+                "tool_name": "Write",
+                "tool_input": {
+                    "file_path": str(path),
+                    "content": dump_yaml(exploration),
+                },
+            }
+        )
+        assert result.returncode == 2
+        assert "derive a new design" in result.stderr
+
     def test_invalid_transition_via_inplace_edit_blocks(self, tmp_path: Path) -> None:
         """The headline guard: editing status: in place to a move the table refuses."""
         path = write_design(tmp_path, "FP-H01", design_dict(status="analyzing"))

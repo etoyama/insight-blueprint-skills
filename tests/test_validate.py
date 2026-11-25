@@ -246,6 +246,51 @@ class TestValidateDesignChange:
         assert errors
 
 
+class TestTheHookChecksUpdatesLikeDesignIo:
+    """A direct write over a readable design meets validate_update, as design_io does."""
+
+    @pytest.mark.parametrize(
+        "intent", ["exploratory", "mixed"], ids=["legacy-exploration", "mixed"]
+    )
+    def test_a_saved_design_is_rewritten_in_its_form(self, intent: str) -> None:
+        current = make_design(analysis_intent=intent, status="analyzing")
+        new = {**current, "title": "Edited"}
+        assert validate_design_change(new, current) == []
+
+    def test_a_legacy_exploration_is_fixed_to_confirmatory(self) -> None:
+        current = make_design(analysis_intent="exploratory", status="supported")
+        new = {**current, "analysis_intent": "confirmatory"}
+        assert validate_design_change(new, current) == []
+
+    def test_an_analyzing_confirmation_is_not_rewritten_into_an_explored_exploration(
+        self,
+    ) -> None:
+        # analyzing -> explored is a move the new form allows, so the transition
+        # check alone (given new_model.form()) lets it through: the refusal of the
+        # swap is what stops it.
+        current = make_design(status="analyzing")
+        errors = validate_design_change(make_exploration(status="explored"), current)
+        assert len(errors) == 1
+        assert "derive a new design" in errors[0]
+
+    def test_an_analyzing_exploration_does_not_take_a_hypothesis_and_a_verdict(
+        self,
+    ) -> None:
+        current = make_exploration(status="analyzing")
+        errors = validate_design_change(make_design(status="supported"), current)
+        assert len(errors) == 1
+        assert "derive a new design" in errors[0]
+
+    def test_a_new_file_is_still_checked_by_the_schema_only(self) -> None:
+        legacy = make_design(analysis_intent="exploratory", status="supported")
+        assert validate_design_change(legacy, None) == []
+
+    def test_a_design_broken_on_disk_is_still_not_compared(self) -> None:
+        broken = {"id": "FP-H01", "status": "nonsense"}
+        new = make_design(analysis_intent="mixed", status="supported")
+        assert validate_design_change(new, broken) == []
+
+
 def test_terminal_statuses_are_the_ones_nothing_follows() -> None:
     from insight_blueprint.models.design import TERMINAL_STATUSES
 

@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The design hook checks a write over a saved design the way `design_io update` does.** A direct
+  write can no longer change the intent or the form after the analysis, such as rewriting an `analyzing`
+  confirmation into an `explored` exploration; it is refused with the same message, which says to derive
+  a new design. A new file and a design broken on disk are checked as before (#217).
 - **An exploratory design holds a question, not a hypothesis, and ends as `explored`.** `design_io create`
   takes `exploration_question` and `exploration_background` for an exploration, and refuses a hypothesis,
   `next_action`, a verdict and the `mixed` intent. A new confirmatory design needs `hypothesis_statement`

@@ -492,6 +492,15 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - Alternatives considered: `DEFAULT` も他のテーマと同じに扱う案（解説が省かれる）。`design_io list` にテーマの絞り込みを足す案（コードの変更で、この Story の範囲外）。
 - Consequences: `DEFAULT` で続けて分析すると、同じ指標が毎回5項目で解説される。テーマを付ければ省ける。
 
+### Decision: hook-checks-updates-like-design-io
+
+- What: hook（`validate_design_change`）は、ディスク上の記録が読めて model になったとき、`design_io update` と同じ `validate_update` で書き込みを確かめる。新しいファイルは今までどおりスキーマだけを確かめ、壊れた記録の上への書き込みも今までどおり止めない。
+- Why: hook はスキーマと遷移しか見ていなかった。そのため、`analyzing` の検証を探索の形に書き換えて `explored` にする書き込みと、`analyzing` の探索に検証仮説を足して `supported` にする書き込みが、直書きなら通った。どちらも結果を見た後に意図を変える道で、`design_io` は拒む。レビューで分かった。
+- Criteria: 人間が A を選んだ（2026-11-25、[FLOW-0008](../adr/flow/0008-ask-before-narrowing-what-worked.md)。今まで通っていた直書きを止める）。新しいファイルの扱いは、ADR-0049 が認めた穴の範囲を変えないために据え置いた。決め手は人間の選択。
+- Affected modules: `src/insight_blueprint/validate.py`、`tests/test_validate.py`、`tests/test_validate_hook.py`、`docs/ARCHITECTURE.md`。
+- Alternatives considered: hook を今のまま残す案（直書きで形を入れ替えられる）。新しいファイルにも `validate_creation` を当てる案（ADR-0049 が認めた、保存済みの旧形式を書き直す道まで塞ぐ）。
+- Consequences: 遷移の検査には書き込む後の形を渡す。形の入れ替えは `validate_update` が先に拒むので、入れ替えた形で遷移が通っても書き込みは通らない。拒む文は `design_io` と同じで、派生の分析設計を作るよう案内する。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0048: 分析の意図が、分析設計の形と終わり方を決める](../adr/0048-intent-decides-the-form-and-the-end-of-a-design.md): 探索は探索の問いを持って `explored` で終わり、検証は検証仮説を持って判定で終わる。`mixed` は新しく作れない。意図は分析の前だけ変えられる。id の `H` は変えない。

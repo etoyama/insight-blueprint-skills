@@ -73,7 +73,7 @@ flowchart TD
   検査は2段ある。読むときの検査（`validate_schema`。hook もこれを使う）は、保存済みの旧形式の探索と `mixed` を通す。
   作るときの検査（新しく作るときは `validate_creation` を `design_io create` が、書き換えるときは `validate_update` を `design_io update` が呼ぶ。`validate_update` は遷移も確かめる）は、旧形式の探索と `mixed` を新しく作ることと、`in_review`・`revision_requested` の後に意図を変えることを拒む（[ADR-0049](adr/0049-legacy-exploration-stays-readable-and-is-marked.md)）。
   `design_io` 経由で書く skill も、書く前に Python 側で同じ検証を通す。tool の書き込み（hook）と
-  helper の書き込み（`design_io`）の両方で、読むときの検査が効く。作るときの検査は `design_io` だけが行う。
+  helper の書き込み（`design_io`）の両方で、読むときの検査が効く。書き換えるときの検査（`validate_update`）は、hook もディスク上の記録が読めるときに行う。新しく作るときの検査（`validate_creation`）は `design_io` だけが行う。
   論点ツリーの形も同じ場所で検証する（`validate_tree`。[ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md)）。
   根の問いがちょうど1つあること、論点の親が同じツリーにあって循環しないこと、根の版が1から1ずつ増えること、ツリーの決定が指す論点がツリーにあることを確かめ、モデルに無い項目を拒む。
   書き込む前の正本があれば、根の版が減っていないことと、今の版より前の版が変わっていないことも確かめる。ツリーの決定と現時点の答えは足すことだけができる。
