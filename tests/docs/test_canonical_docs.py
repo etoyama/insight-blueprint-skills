@@ -411,6 +411,44 @@ class TestReportAndUploadDocs:
         added = {"決定の文脈", "効果量", "信頼区間", "標本サイズ", "アップロード"}
         assert added - terms == set()
 
+    def test_ubiquitous_language_has_the_verdict_terms_of_epic_33(self) -> None:
+        """Story 33.1 (ADR-0052 の10): the words of the lines, the judgment and the rows."""
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        added = {
+            "支持の線": "support_line",
+            "棄却の線": "reject_line",
+            "結論しない範囲": None,
+            "指標の判定": "judgment",
+            "値の区間": "interval",
+            "群の行": "groups",
+        }
+        assert set(added) - set(rows) == set()
+        for term, code_name in added.items():
+            assert "adr/0052-" in rows[term]["初出"], term
+            if code_name:
+                assert f"`{code_name}`" in rows[term][words.CODE_NAME], term
+
+    def test_a_confidence_interval_is_one_kind_of_interval(self) -> None:
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        assert "値の区間の種類の1つ" in rows["信頼区間"][words.DEFINITION]
+        assert "`confidence_interval`" in rows["信頼区間"][words.DEFINITION]
+        assert "adr/0052-" in rows["信頼区間"]["初出"]
+
+    def test_the_verdict_holds_the_judgment_apart_from_the_pass(self) -> None:
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        definition = rows["verdict"][words.DEFINITION]
+        assert "支持の線・棄却の線・指標の判定" in definition
+        assert "adr/0052-" in rows["verdict"]["初出"]
+
     def test_keep_gate_covers_the_external_send(self) -> None:
         rows = {
             r[words.TERM]: r
