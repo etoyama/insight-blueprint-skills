@@ -61,6 +61,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([ADR-0048](docs/adr/0048-intent-decides-the-form-and-the-end-of-a-design.md),
   [ADR-0050](docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md), #228).
 
+- **`/analysis-reflection` asks its three questions by what they ask, and an exploration ends without a verdict.**
+  The headings read 「結果から何が言えるか」, 「まだ答えの出ていない問いで、判定は変わるか」 and
+  「この分析設計をどう終えるか」. A confirmation shows the criterion of its primary metric before the first, the
+  scope of the open questions and what each answer would change before the second, and that the end usually
+  follows the first answer before the third. An exploration answers its question and ends as `explored`,
+  and may leave a tentative answer to confirm in a derived design. A corrected hypothesis now goes into a
+  derived design through `/analysis-design`, instead of rewriting the analyzed design with `design_io update`
+  ([ADR-0048](docs/adr/0048-intent-decides-the-form-and-the-end-of-a-design.md), #211, #232).
+
 ### Fixed
 
 - **A p value written as the notebook contract writes it now shows in the analysis note and the report.**

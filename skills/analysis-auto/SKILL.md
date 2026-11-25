@@ -57,7 +57,7 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | premortem | **result is `HARD_BLOCK`/`HIGH`** → stop, surface the risk | running premortem; `LOW`/`MEDIUM` |
 | notebook | **non-allowlisted package / external comms beyond the declared source / other side-effects** | generate + run when premortem cleared AND it's declared-source read + allowlisted + local compute |
 | journal | — | auto-record the notebook verdict (observe/evidence/question) |
-| reflection | **the conclusion (conclude/refine/branch) + terminal transition** | presenting the evidence summary and the place of the design note (`/analysis-reflection` Step 2) |
+| reflection | **この分析設計をどう終えるか (`/analysis-reflection` Step 3) + the terminal transition** — for a confirmation a verdict, more investigation or a derived design; for an exploration `explored` or more investigation, never a verdict | presenting the evidence summary and the place of the design note (`/analysis-reflection` Step 2) |
 | theme reflection | **`/analysis-reflection {theme_id}` T7** | — |
 | tree-upload | **the file to send as an Artifact** — asked by `/tree-upload` itself, at its approval gate; the driver adds no question of its own | starting `/tree-upload` when the analyst asks to hand the tree over |
 | catalog-register | **registering a data source** (external-data side-effect); unregistered source → stop | — |
@@ -214,8 +214,9 @@ the round until the analyst closes the walk or says stop.
    (ADR-0027). If the methodology needs a non-allowlisted package, network egress beyond the
    declared source, or another side-effect, **stop** and get the user's go-ahead first.
 6. **journal**: the notebook step already records observe/evidence/question — no pause.
-7. **reflection**: run `/analysis-reflection {design_id}`; **pause at the conclusion**
-   (conclude/refine/branch) and the terminal transition. Its Step 2 読むもの says what
+7. **reflection**: run `/analysis-reflection {design_id}`; **pause at its third question,
+   この分析設計をどう終えるか**, and at the terminal transition. An exploration ends as
+   `explored` and is never asked for a verdict. Its Step 2 読むもの says what
    the analyst reads; the driver adds no list of files of its own.
 8. **theme reflection**: run `/analysis-reflection {theme_id}`. Its Step T7 is the KEEP gate
    of the round. Before that gate, show the path of the tree's HTML, so the analyst decides

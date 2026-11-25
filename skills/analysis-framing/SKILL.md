@@ -2,7 +2,7 @@
 name: analysis-framing
 version: "1.1.0"
 description: |
-  Explores existing data and analyses to help frame a hypothesis.
+  Explores existing data and analyses to help frame a question to explore or a hypothesis to confirm.
   Triggers: "framing", "何を分析する", "分析テーマ", "仮説を考えたい",
   "データを探して", "既存分析を確認", "analysis framing".
 disable-model-invocation: true
@@ -395,7 +395,7 @@ Then end with the next step:
 | /development-partner* | → /analysis-framing | 分析テーマが出て、ドメイン接地が必要: "データと既存分析を探索するなら /analysis-framing" |
 | /rq-problematization | → /analysis-framing | RQ が出てデータ接地が必要（RQ Brief 付き）: "RQ をデータに接地して検証枠組みにするなら /analysis-framing" |
 | /analysis-design | → /analysis-framing | データ不足で仮説の方向を再検討: "データを探し直すなら /analysis-framing" |
-| /analysis-reflection | → /analysis-framing | 新仮説が必要だがデータ・方向の探索が先: "新しい角度を探すなら /analysis-framing" |
+| /analysis-reflection | → /analysis-framing | 新しい探索の問いか検証仮説が要るが、データと方向を先に探す: "新しい角度を探すなら /analysis-framing" |
 | /catalog-register | → /analysis-framing | データ登録完了、フレーミングに戻る: "フレーミングに戻るなら /analysis-framing" |
 | /analysis-auto | → /analysis-framing | guided autopilot が論点ツリーを作る、次の論点の Framing Brief を得る、根の問いを変える |
 | /analysis-framing | → /analysis-design | 方向が定まった（Framing Brief 付き）: "分析設計を作るなら /analysis-design" |

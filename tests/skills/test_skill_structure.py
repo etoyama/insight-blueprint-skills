@@ -257,7 +257,8 @@ class TestSkillStructure:
         # - analysis-auto: 1.1.0 (design beat 1 asks the intent, ADR-0048)
         # - analysis-review: 1.1.0 (the lenses split by intent, ADR-0048)
         # - analysis-journal: 1.2.0 (direction is against the hypothesis, ADR-0050)
-        # - analysis-reflection: 1.1.0
+        # - analysis-reflection: 1.2.0 (the questions are headed by what they ask, and an
+        #   exploration ends without a verdict, ADR-0048)
         # - data-lineage: 1.2.0 (Step 0 and setup mode removed, ADR-0047)
         # - analysis-notebook: 1.1.0 (an exploration keeps values, no prediction, ADR-0050)
         expected_versions: dict[str, str] = {
@@ -267,7 +268,7 @@ class TestSkillStructure:
             "analysis-review": "1.1.0",
             "catalog-register": "1.2.0",
             "analysis-journal": "1.2.0",
-            "analysis-reflection": "1.1.0",
+            "analysis-reflection": "1.2.0",
             "analysis-revision": "1.0.0",
             "data-lineage": "1.2.0",
         }

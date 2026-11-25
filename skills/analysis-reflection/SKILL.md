@@ -1,9 +1,10 @@
 ---
 name: analysis-reflection
-version: "1.1.0"
+version: "1.2.0"
 description: |
   Guides structured reflection on an analysis design using its Insight Journal.
-  Helps draw conclusions, identify gaps, and decide whether to conclude, refine, or branch.
+  Helps say what the results tell, check the open questions, and decide how the design ends:
+  a verdict for a confirmation, `explored` for an exploration, or a derived design.
   Given a theme, writes the current answer of each node of its question tree across the
   designs of the theme, citing journal events, and checks it before the analyst sees it.
   Triggers: "振り返り", "reflection", "まとめ", "結論を出す", "分析を振り返る",
@@ -21,7 +22,7 @@ identify remaining gaps, or decide to branch.
 ## When to Use
 - Enough evidence has been gathered and it's time to reflect
 - Want to assess open questions and decide next steps
-- Ready to conclude (transition to supported/rejected/inconclusive)
+- Ready to end a design (an exploration to `explored`, a confirmation to supported/rejected/inconclusive)
 - Want the current answer of each node of a theme's question tree, across its designs
 
 ## When NOT to Use
@@ -53,7 +54,8 @@ Show structured overview:
 ```
 ── Reflection: {design_id} ──
 Title: {title}
-Hypothesis: {hypothesis_statement}
+Question: {exploration_question}       (an exploration)
+Hypothesis: {hypothesis_statement}     (a confirmation or a legacy exploration)
 Intent: {analysis_intent}
 Status: {status}
 
@@ -66,6 +68,8 @@ Timeline: {first_event.created_at} → {last_event.created_at}
 Supporting: {count} items
   - {content} ({created_at})
 Contradicting: {count} items
+  - {content} ({created_at})
+Without a direction: {count} items
   - {content} ({created_at})
 
 ── Decisions Made ──
@@ -83,6 +87,11 @@ Contradicting: {count} items
 論点: {node_ids}
 気づいたことはこのチャットで返せば、journal に残す。
 ```
+
+An exploration's evidence carries no `direction` (ADR-0050): show it all under
+`Without a direction` and leave out the other two lines. A legacy exploration may hold both:
+evidence recorded before Epic 32 has a direction, and evidence from a notebook run since has
+none. Show each group that is not empty.
 
 To find branches, list designs and filter by parent_id:
 ```
@@ -116,29 +125,83 @@ figures, the code and the progress of the analysis (ADR-0036).
 
 ### Step 3: Guided Reflection (3 Questions)
 
-Ask in sequence. Record each answer as a `reflect` event in the journal.
+Read the form of the design first, from `design_io get`:
 
-**Q1: Evidence Assessment**
-"証拠を総合すると、仮説「{hypothesis_statement}」についてどう言える？"
-- Supporting evidence dominant → supported direction
-- Contradicting evidence dominant → rejected direction
-- Inconclusive → inconclusive direction or more investigation
+| Form | How it reads |
+|---|---|
+| Exploration | `analysis_intent: exploratory` with `exploration_question`. It measures and answers; it never gets a verdict |
+| Confirmation | any other intent (`confirmatory`, a saved `mixed`, none). It ends on a verdict against the criterion fixed before the analysis |
+| Legacy exploration | `exploratory` with only `hypothesis_statement`, saved before Epic 32. It ends on a verdict like a confirmation (ADR-0049) |
 
-**Q2: Open Questions Check**
-If open questions exist:
-"未解決の問い ({count}件) がある。これらは結論に影響する？"
-- Affects conclusion → recommend more investigation (→ /analysis-journal)
-- Does not affect → proceed to conclusion
+Ask the three questions in order, one at a time, under the headings below: each heading is
+the question itself. Show the heading to the analyst as written; never number the questions
+or call them by a code, which reads like the id of a node. Record each answer as a `reflect`
+event in the journal. Say what you ask in plain words, with no metaphor: write "答えが出ると
+判定が変わる", not a figure of speech for it.
 
-**Q3: Conclusion or Next Step**
-"どう進める？"
-- Draw conclusion (supported / rejected / inconclusive)
-- Refine hypothesis and re-investigate (→ hypothesize event + /analysis-journal)
-- Branch to new hypothesis (→ /analysis-journal branch workflow)
+#### 結果から何が言えるか
+
+- **Confirmation** — first show the criterion fixed before the analysis: the `comparison`
+  of the primary metric (`tier: primary`), as the design writes it. Then ask:
+  「分析の前に固定した基準「{criterion}」に照らすと、検証仮説「{hypothesis_statement}」について、結果から何が言えるか」
+  - The results meet the criterion → toward `supported`
+  - The results go against it → toward `rejected`
+  - The results cannot tell → toward `inconclusive`, or more investigation
+- **Legacy exploration** — its hypothesis was written without a criterion fixed before the
+  analysis. When the `comparison` of its primary metric writes none, say
+  「分析の前に固定した基準は無い。判定は、結果を検証仮説に照らした読みで決まる」 and ask as
+  for a confirmation with the hypothesis alone. Evidence without a `direction` is a measured
+  value, not a reading: show each item and ask whether it speaks for the hypothesis, against it,
+  or neither. Never give it a direction yourself, and never count the items to choose the verdict.
+- **Exploration** — ask: 「探索の問い「{exploration_question}」に、結果から何が言えるか」.
+  The answer is what was measured and what it shows, in the analyst's words. Offer no verdict
+  and no direction toward one: an exploration has no verdict.
+
+#### まだ答えの出ていない問いで、判定は変わるか
+
+An exploration reads this heading as 「まだ答えの出ていない問いで、答えは変わるか」.
+
+Before you ask, say what the question covers and what it asks about:
+
+- The questions are the `question` events of this design's journal that no `conclude`
+  event lists in `resolves`: not the questions of the theme or of the root question.
+- 判定 is this design's verdict: `supported`, `rejected` or `inconclusive` against the
+  criterion of the first question. For an exploration, 答え is the answer to the first
+  question.
+
+For each open question, show the question and what its answer would change, then ask:
+
+```
+── まだ答えの出ていない問い ──
+- {question_content} ({event_id})
+  答えが {A} なら判定は {X} に変わる。{B} なら変わらない。
+- {question_content} ({event_id})
+  どう答えても判定は変わらない。
+```
+
+Then ask: 「この中に、答えが出ると判定（探索では答え）が変わる問いはあるか」.
+
+- When there is no open question, say so and go to the next question.
+- ある → recommend more investigation (→ /analysis-journal) before the design ends.
+- ない → go on to the next question.
+- A question whose answer changes no verdict is not dropped: it is a reservation on the root
+  question (根の問いへの留保). Say that the theme reflection (`/analysis-reflection {theme_id}`)
+  writes it as 未判別 or 弱める証拠と留保 for a node.
+
+#### この分析設計をどう終えるか
+
+Before the choices, say: 「ふつうは1つ目の答えのとおりに終える。変わるのは、2つ目で『ある』と答えたときだけ」.
+
+- **Confirmation** (and a legacy exploration) — the choices:
+  - 「判定を出して終える」 (`supported` / `rejected` / `inconclusive`) → Step 4
+  - 「調べ足す」 → /analysis-journal
+  - 「検証仮説を直すか別の仮説を立てて、派生の分析設計で調べ直す」 → Step 5
+- **Exploration** — the choices are 「探索を終える」 (→ Step 4) and 「調べ足す」
+  (→ /analysis-journal). Offer no verdict.
 
 ### Step 4: Record Conclusion
 
-If user chooses to conclude:
+When the analyst ends the design:
 
 1. Record `conclude` event in journal:
    ```yaml
@@ -150,33 +213,52 @@ If user chooses to conclude:
      created_at: "{now}"
    ```
 
-2. Suggest status transition (via design_io transition). A review of the result with
+2. Suggest the status transition (via design_io transition). A review of the result with
    /analysis-review is optional, and the analyst decides whether to ask for one. Offer it
-   before the transition: it moves the design back to `in_review`, and the conclusion comes
-   after the review. Once the design is concluded it can no longer be reviewed.
-   "結論が出た。ステータスを変更する？"
-   - supported: `design_io transition --id {design_id} --target supported`
-   - rejected: `... --target rejected`
-   - inconclusive: `... --target inconclusive`
+   before the transition: it moves the design back to `in_review`, and the design ends after
+   the review. Once the design has ended it can no longer be reviewed. Without a review the
+   design ends right after its analysis, as each form below shows (validated by
+   VALID_TRANSITIONS).
 
-   Note: without a review the design closes right after its analysis
-   (`analyzing → supported`, validated by VALID_TRANSITIONS).
+   - **Confirmation** (and a legacy exploration) — 「判定が出た。ステータスを変更する？」
+     - supported: `design_io transition --id {design_id} --target supported`
+     - rejected: `design_io transition --id {design_id} --target rejected`
+     - inconclusive: `design_io transition --id {design_id} --target inconclusive`
+     - Without a review it closes straight from its analysis (`analyzing → supported`).
+   - **Exploration** — 「探索を終える。ステータスを変更する？」
+     `design_io transition --id {design_id} --target explored`. It refuses the three verdicts.
+     Without a review it closes straight from its analysis (`analyzing → explored`).
+     Then ask 「次に確かめたい仮の答えはあるか（飛ばしてよい）」. When the analyst gives one,
+     record it as a `hypothesize` event in this journal, in the analyst's words, and say
+     「検証の分析設計を派生で起こすなら /analysis-design（`parent_id` に {design_id}）」.
+     The analyst may skip the question: then record nothing.
 
 3. Show final summary and suggest:
    - "この分析で分かったソースの再利用知識を残すなら /knowledge-extract"
    - "新しいデータソース自体を登録するなら /catalog-register"
-   - "派生仮説を立てるなら /analysis-design"
+   - "派生の分析設計を立てるなら /analysis-design"
 
    Note: 結論そのもの（finding）はここ（journal/reflection）に残す。/knowledge-extract は
    データソースに紐づく再利用可能な知見だけを抽出する。
 
-### Step 5: Record Refinement (if not concluding)
+### Step 5: Derive a Design (when the hypothesis changes)
 
-If user chooses to refine:
+When the analyst corrects the hypothesis or sets another one, the change goes into a new
+design derived from this one. The hypothesis of this design was fixed before its analysis
+ran (ADR-0048).
 
-1. Record `hypothesize` event with the refined hypothesis in journal
-2. Optionally refine the design: `echo '{"hypothesis_statement": "<refined>"}' | design_io update --id {design_id}`
-3. Suggest: "/analysis-journal {id} で追加調査を続けよう"
+1. Record a `hypothesize` event in this journal: the corrected or new hypothesis and what
+   in the results led to it.
+2. Run /analysis-design with `parent_id` set to {design_id}, the same `theme_id`, and the
+   hypothesis of step 1 as the draft. It asks the intent first and fixes the criterion of a
+   confirmation before the new analysis.
+3. With the id it returns, record a `branch` event in this journal and link the new design
+   to the nodes of this one with `tree_io link-derived --theme {theme_id} --design {new_design_id}`,
+   as /analysis-journal Step 4 does (items 3 and 4).
+4. This design stays as it is, at `analyzing`. It may end later in its own reflection.
+
+Never rewrite the hypothesis of this design to refine it. Whether `design_io` refuses such a
+rewrite after the analysis is open (#234).
 
 ## Theme Reflection
 
@@ -453,8 +535,7 @@ After a `hear` or a `decide`, run `tree_io render --theme {theme_id}` again and 
 | Command | Used for |
 |---------|----------|
 | `get --id ID` | Load design details |
-| `transition --id ID --target S` | Terminal status transition (validated) |
-| `update --id ID` (stdin JSON) | Hypothesis refinement |
+| `transition --id ID --target S` | Terminal status transition (validated against the form) |
 | `list` | Find child/sibling designs (filter the JSON by parent_id/theme_id) |
 
 ## tree_io / tree_check Reference
@@ -482,13 +563,13 @@ Both are on PATH via the plugin. JSON on stdout.
 | /analysis-notebook | → /analysis-reflection | Notebook 実行の結果が揃った: 結論づけへ |
 | /analysis-auto | → /analysis-reflection | autopilot が結果到達; 結論はユーザー判断 |
 | /analysis-reflection | → /tree-upload | 現時点の答えを書き、図（HTML）を作り直した: "論点ツリーの図を URL で渡すなら /tree-upload" |
-| /analysis-reflection | → /analysis-journal | Need more evidence or branching |
+| /analysis-reflection | → /analysis-journal | Need more evidence (調べ足す) |
 | /analysis-reflection | → /knowledge-extract | Conclusion produced reusable source knowledge |
 | /knowledge-extract | → /analysis-reflection | The learning is really a conclusion, not source knowledge |
 | /analysis-reflection | → /catalog-register | A new data source needs registering |
-| /analysis-reflection | → /analysis-framing | New hypothesis needed, explore data/direction first: "新しい角度を探すなら /analysis-framing" |
-| /analysis-reflection | → /rq-problematization | 仮説が棄却/不確定で、別角度でなく前提自体を問い直したい: "前提から問い直すなら /rq-problematization" |
-| /analysis-reflection | → /analysis-design | Derived hypothesis already clear: "派生仮説を作るなら /analysis-design" |
+| /analysis-reflection | → /analysis-framing | A new question to explore or a new hypothesis to confirm is needed, and the data or the direction comes first: "新しい角度を探すなら /analysis-framing" |
+| /analysis-reflection | → /rq-problematization | 検証仮説が棄却されたか結論できなかった、または探索の答えが前提と合わず、前提から問い直したい: "前提から問い直すなら /rq-problematization" |
+| /analysis-reflection | → /analysis-design | A derived design is clear (a corrected hypothesis, Step 5, or a tentative answer after an exploration, Step 4): "派生の分析設計を作るなら /analysis-design" |
 
 ## Language Rules
 - Follow project CLAUDE.md language settings. Default to Japanese if no setting.

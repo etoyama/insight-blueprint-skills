@@ -116,10 +116,27 @@ class TestReflectionConcludesFromAnalyzing:
     def _step(self) -> str:
         return unwrap(section(_read_skill("analysis-reflection"), "### Step 4"))
 
-    def test_it_concludes_straight_from_analyzing(self) -> None:
-        moves = _MOVE.findall(self._step())
-        _assert_allowed(moves)
+    def _form_part(self, label: str) -> str:
+        """The bullet ``- **label**`` of Step 4: the end of one form (Epic 32, ADR-0048)."""
+        found = re.search(rf"- \*\*{label}\*\*.*?(?= - \*\*|\s\d+\. |\Z)", self._step())
+        assert found, f"Step 4 has no part for {label!r}"
+        return found.group(0)
+
+    @pytest.mark.parametrize("label, form", list(_DIAGRAMS.items()))
+    def test_it_concludes_straight_from_analyzing(
+        self, label: str, form: DesignForm
+    ) -> None:
+        moves = _MOVE.findall(self._form_part(label))
+        assert moves, f"the {label} part names no move"
+        for current, target in moves:
+            validate_transition(DesignStatus(current), DesignStatus(target), form)
         assert _concludes_from_analyzing(moves)
+
+    def test_every_move_of_step_4_sits_in_the_part_of_its_form(self) -> None:
+        in_parts = sum(
+            len(_MOVE.findall(self._form_part(label))) for label in _DIAGRAMS
+        )
+        assert in_parts == len(_MOVE.findall(self._step()))
 
     def test_a_review_of_the_result_is_optional_and_offered_before_the_transition(
         self,
