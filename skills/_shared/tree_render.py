@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
@@ -43,7 +43,6 @@ from skills._shared.design_note import (
     FORM_WORDS,
     NOTE_CSS,
     direction_gloss,
-    form_word,
     intent_word,
     intent_words_of,
     note_anchor,
@@ -62,9 +61,9 @@ class DesignSummary:
     status: DesignStatus
     parent_id: str | None
     created_at: datetime
-    form: DesignForm = DesignForm.confirmation
-    intent: str = field(default_factory=lambda: form_word(DesignForm.confirmation))
-    statement: str = ""  # the question of an exploration, else the hypothesis
+    form: DesignForm
+    intent: str  # intent_word: a saved mixed design has its own word
+    statement: str  # the question of an exploration, else the hypothesis
 
     @classmethod
     def of(cls, design: AnalysisDesign) -> DesignSummary:
