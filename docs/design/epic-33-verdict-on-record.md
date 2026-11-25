@@ -83,16 +83,16 @@ AC の正本はここ。
 
 ## Stories
 
-Story は PM のセッションが起票する。issue の番号は起票の後に書く。「触る所」が重なる Story は同じ波に置かない。
+Story は PM のセッションが起票した（2026-11-25）。「触る所」が重なる Story は同じ波に置かない。
 
 | Story issue | User Story | 扱う AC | 触る所 | 前提 |
 |---|---|---|---|---|
-| 33.1 verdict の契約と読み | US-1、US-2 | US-1 AC 1, AC 2, AC 5、US-2 AC 1, AC 3 | `skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-notebook/SKILL.md`、`skills/_shared/design_note_read.py`、`skills/_shared/design_note.py` の `VerdictMetric`、`tests/integration/fixtures/sample_notebook.py`、`tests/integration/test_analysis_notebook_contract.py`、`tests/test_design_note_read.py`、`docs/UBIQUITOUS_LANGUAGE.md`、`.yomiyasu-words/` | — |
-| 33.2 分析ノートの表 | US-1、US-2 | US-1 AC 3, AC 5、US-2 AC 2, AC 4 | `skills/_shared/design_note.py` の指標の表、`tests/test_design_note.py`、`tests/tree_io/test_render_*.py` | 33.1 |
-| 33.3 レポートの表 | US-1、US-2 | US-1 AC 4, AC 5、US-2 AC 2, AC 5 | `skills/_shared/theme_report.py`、`tests/test_theme_report.py`、`tests/tree_io/test_report.py` | 33.1 |
-| 33.4 分析の印と固定 | US-3 | AC 1, AC 2, AC 3, AC 4, AC 5 | `src/insight_blueprint/models/design.py`、`src/insight_blueprint/validate.py`、`skills/_shared/design_io.py` の update と遷移、`skills/analysis-design/SKILL.md`、`skills/analysis-reflection/SKILL.md`、`docs/ARCHITECTURE.md`、`tests/test_validate.py`、`tests/test_validate_hook.py` | — |
-| 33.5 結果の review | US-4 | AC 1, AC 2, AC 3 | `skills/analysis-review/SKILL.md`、`skills/analysis-revision/SKILL.md`、`skills/_shared/design_io.py` の review batch、`src/insight_blueprint/models/review.py`、`tests/skills/`、`docs/UBIQUITOUS_LANGUAGE.md`、`.yomiyasu-words/` | 33.4 |
-| 33.6 review コメントの表示 | US-4 | AC 4, AC 5 | `skills/_shared/design_note_read.py`、`skills/_shared/design_note.py`、`skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`、`tests/test_design_note.py`、`tests/test_tree_render.py` | 33.2、33.5 |
+| #243 33.1 verdict の契約と読み | US-1、US-2 | US-1 AC 1, AC 2, AC 5、US-2 AC 1, AC 3 | `skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-notebook/SKILL.md`、`skills/_shared/design_note_read.py`、`skills/_shared/design_note.py` の `VerdictMetric`、`tests/integration/fixtures/sample_notebook.py`、`tests/integration/test_analysis_notebook_contract.py`、`tests/test_design_note_read.py`、`docs/UBIQUITOUS_LANGUAGE.md`、`.yomiyasu-words/` | — |
+| #245 33.2 分析ノートの表 | US-1、US-2 | US-1 AC 3, AC 5、US-2 AC 2, AC 4 | `skills/_shared/design_note.py` の指標の表、`tests/test_design_note.py`、`tests/tree_io/test_render_*.py` | 33.1 |
+| #246 33.3 レポートの表 | US-1、US-2 | US-1 AC 4, AC 5、US-2 AC 2, AC 5 | `skills/_shared/theme_report.py`、`tests/test_theme_report.py`、`tests/tree_io/test_report.py` | 33.1 |
+| #244 33.4 分析の印と固定 | US-3 | AC 1, AC 2, AC 3, AC 4, AC 5 | `src/insight_blueprint/models/design.py`、`src/insight_blueprint/validate.py`、`skills/_shared/design_io.py` の update と遷移、`skills/analysis-design/SKILL.md`、`skills/analysis-reflection/SKILL.md`、`docs/ARCHITECTURE.md`、`tests/test_validate.py`、`tests/test_validate_hook.py` | — |
+| #247 33.5 結果の review | US-4 | AC 1, AC 2, AC 3 | `skills/analysis-review/SKILL.md`、`skills/analysis-revision/SKILL.md`、`skills/_shared/design_io.py` の review batch、`src/insight_blueprint/models/review.py`、`tests/skills/`、`docs/UBIQUITOUS_LANGUAGE.md`、`.yomiyasu-words/` | 33.4 |
+| #248 33.6 review コメントの表示 | US-4 | AC 4, AC 5 | `skills/_shared/design_note_read.py`、`skills/_shared/design_note.py`、`skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`、`tests/test_design_note.py`、`tests/test_tree_render.py` | 33.2、33.5 |
 
 - 波 1 は 33.1 と 33.4 で、並行で進められる。触る所は重ならない。
 - 波 2 は 33.2・33.3・33.5 で、並行で進められる。33.2 と 33.3 は、33.1 が広げた `VerdictMetric` を読む。33.5 は、33.4 が入れた分析の印を review batch に写す。
@@ -377,3 +377,4 @@ sequenceDiagram
 - 2026-11-25 — 初版: 範囲の判断（分析の印、固定、review の対象、表示）と中身の判断（verdict の形、用語）を人間が選んだ。全体の整合で、基準なしの検証が行き止まる穴と、review batch の前後の持ち方を直した。
 - 2026-11-25 — 初版: 見本を Artifact で見せた（分析ノートの指標の表の案 A と案 B、値の区間、群の表、レビューの節、論点ツリーの行）。題材は合成シナリオで、コミットしていない。分かった事実: 線が数だけでも、同じページの `comparison` と並べれば読める、と人間が判断した。確かめていない前提: 実際の分析ノートの幅で、列が増えた表が読めるか。群の軸が3つ以上のときの表。
 - 2026-11-25 — 初版を人間が承認した（Domain Model 図を含む。このセッションで直接）。
+- 2026-11-25 — Story を起票した: #243（33.1）、#244（33.4）、#245（33.2）、#246（33.3）、#247（33.5）、#248（33.6）。
