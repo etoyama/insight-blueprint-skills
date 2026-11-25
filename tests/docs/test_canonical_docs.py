@@ -463,6 +463,7 @@ FIRST_EDITIONS = {
         "0050",
         "0051",
     ),
+    "docs/design/epic-33-verdict-on-record.md": ("0052", "0053", "0054"),
 }
 
 
