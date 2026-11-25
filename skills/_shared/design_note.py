@@ -15,10 +15,15 @@ one page.
 from __future__ import annotations
 
 import base64
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
-from insight_blueprint.models.design import AnalysisDesign, DesignStatus
+from insight_blueprint.models.design import (
+    AnalysisDesign,
+    AnalysisIntent,
+    DesignForm,
+    DesignStatus,
+)
 from skills._shared._html import BASE_CSS, Html, el, join, page
 
 
@@ -42,8 +47,16 @@ class NoteEvent:
     created_at: str  # as written in the journal; "" when absent
 
 
-def contradicting_evidence(events: Iterable[NoteEvent]) -> tuple[NoteEvent, ...]:
-    """The evidence events against the hypothesis, in journal order."""
+def contradicting_evidence(
+    events: Iterable[NoteEvent], form: DesignForm
+) -> tuple[NoteEvent, ...]:
+    """The evidence events against the hypothesis, in journal order.
+
+    An exploration holds no hypothesis, so nothing stands against it, whatever
+    direction an event carries (ADR-0050).
+    """
+    if form is DesignForm.exploration:
+        return ()
     return tuple(
         e for e in events if e.type == "evidence" and e.direction == "contradicts"
     )
@@ -159,14 +172,14 @@ def local_file_paths(design_id: str) -> tuple[str, ...]:
 
 _DASH = "—"
 
-_DIRECTION_GROUPS = (
-    ("supports", "仮説を支持する証拠"),
-    ("contradicts", "仮説に反する証拠"),
-)
 _NEUTRAL_GROUP = "向きの無い証拠"
+_ALL_EVIDENCE = "証拠"
 
+# The section keeps the anchor name "hypothesis" for every form, so a link
+# into a note does not change with its form; its heading comes from FormWords.
+_OPENING = "hypothesis"
 _SECTIONS = (
-    ("hypothesis", "仮説と背景"),
+    (_OPENING, ""),
     ("decision", "決定の文脈"),
     ("method", "手法"),
     ("metrics", "指標の定義"),
@@ -180,15 +193,112 @@ _SECTIONS = (
     ("files", "手元のファイル"),
 )
 
-# The fixed sentence for each terminal status. The note's conclusion opens with it,
-# and theme_report takes it from here, so the two never say it differently.
-LEAD_SENTENCES = {
-    # Worded in ADR-0051; Story 32.5 words the verdicts by form.
-    DesignStatus.explored: "探索を終えた。判定はしていない。",
-    DesignStatus.supported: "仮説は支持された。",
-    DesignStatus.rejected: "仮説は棄却された。",
-    DesignStatus.inconclusive: "仮説を支持するとも棄却するとも結論できなかった。",
+
+@dataclass(frozen=True)
+class FormWords:
+    """The words the reader sees for one form of design (ADR-0051).
+
+    The note, the report and the question tree take them from here, so the
+    three never word a form differently.
+    """
+
+    statement: str  # what the design's first field is called
+    background: str
+    # (direction, heading) of each evidence group; () shows all evidence as one
+    directed: tuple[tuple[str, str], ...]
+    against: str | None  # the heading of the evidence against; None: none can be
+    lead_sentences: Mapping[DesignStatus, str]  # one for each conclusion of the form
+
+
+def _verdict_words(statement: str) -> FormWords:
+    return FormWords(
+        statement=statement,
+        background="背景",
+        directed=(
+            ("supports", f"{statement}を支持する証拠"),
+            ("contradicts", f"{statement}に反する証拠"),
+        ),
+        against=f"{statement}に反する証拠",
+        lead_sentences={
+            DesignStatus.supported: f"{statement}は支持された。",
+            DesignStatus.rejected: f"{statement}は棄却された。",
+            DesignStatus.inconclusive: (
+                f"{statement}を支持するとも棄却するとも結論できなかった。"
+            ),
+        },
+    )
+
+
+FORM_WORDS: Mapping[DesignForm, FormWords] = {
+    DesignForm.exploration: FormWords(
+        statement="探索の問い",
+        background="背景",
+        directed=(),
+        against=None,
+        lead_sentences={DesignStatus.explored: "探索を終えた。判定はしていない。"},
+    ),
+    DesignForm.confirmation: _verdict_words("検証仮説"),
+    # A legacy exploration keeps the words it was written with (ADR-0049).
+    DesignForm.legacy_exploration: _verdict_words("仮説"),
 }
+
+LEGACY_NOTE = "旧形式の探索: 探索の分析設計に、仮説と判定が書かれている。"
+
+_INTENT_WORDS = {
+    DesignForm.exploration: "探索",
+    DesignForm.confirmation: "検証",
+    DesignForm.legacy_exploration: "探索（旧形式）",
+}
+# A saved mixed design reads as a confirmation (ADR-0049).
+_MIXED_WORD = "探索と検証（旧形式）"
+
+# The words of a status that are the same for every form (ADR-0051).
+_STATUS_WORDS = {
+    DesignStatus.in_review: "レビュー中",
+    DesignStatus.revision_requested: "修正待ち",
+    DesignStatus.analyzing: "分析中",
+    DesignStatus.explored: "探索済み（判定はしない）",
+}
+_VERDICT_WORDS = {
+    DesignStatus.supported: "支持",
+    DesignStatus.rejected: "棄却",
+    DesignStatus.inconclusive: "結論できず",
+}
+
+
+def intent_word(design: AnalysisDesign) -> str:
+    """The intent as the reader sees it: one of four words (ADR-0051)."""
+    if design.analysis_intent is AnalysisIntent.mixed:
+        return _MIXED_WORD
+    return _INTENT_WORDS[design.form()]
+
+
+def status_word(form: DesignForm, status: DesignStatus) -> str:
+    """The status as the reader sees it, worded by its role (ADR-0051)."""
+    if status in _STATUS_WORDS:
+        return _STATUS_WORDS[status]
+    return f"{FORM_WORDS[form].statement}の判定: {_VERDICT_WORDS[status]}"
+
+
+def lead_sentence(form: DesignForm, status: DesignStatus) -> str | None:
+    """The fixed sentence a conclusion opens with; None before the design concludes.
+
+    The note's conclusion and the report both take it from here.
+    """
+    return FORM_WORDS[form].lead_sentences.get(status)
+
+
+def statement_of(design: AnalysisDesign) -> tuple[str, str]:
+    """(statement, background) as the design holds them: its question or its hypothesis."""
+    if design.form() is DesignForm.exploration:
+        return design.exploration_question or "", design.exploration_background or ""
+    return design.hypothesis_statement or "", design.hypothesis_background or ""
+
+
+def opening_heading(form: DesignForm) -> str:
+    words = FORM_WORDS[form]
+    return f"{words.statement}と{words.background}"
+
 
 # The kinds of journal event (docs/UBIQUITOUS_LANGUAGE.md).
 EVENT_WORDS = {
@@ -241,9 +351,13 @@ def _status(note: DesignNote, anchor: str) -> Html:
         journal = f"載せた journal の最後の出来事の時刻: {last.created_at or '（時刻の記載なし）'}"
     verdict = "あり" if note.verdict is not None else "まだ無い"
     concluded = note.conclusion is not None
+    design = note.design
+    form = design.form()
     return el(
         "div",
-        el("p", f"状態: {note.design.status.value}"),
+        el("p", f"意図: {intent_word(design)}"),
+        el("p", LEGACY_NOTE) if form is DesignForm.legacy_exploration else None,
+        el("p", f"状態: {status_word(form, design.status)}（{design.status.value}）"),
         el("p", journal),
         el("p", f"notebook の結果（verdict）: {verdict}"),
         None
@@ -252,7 +366,14 @@ def _status(note: DesignNote, anchor: str) -> Html:
         el(
             "ul",
             *(
-                el("li", el("a", label, href=f"#{anchor}-{name}"))
+                el(
+                    "li",
+                    el(
+                        "a",
+                        opening_heading(form) if name == _OPENING else label,
+                        href=f"#{anchor}-{name}",
+                    ),
+                )
                 for name, label in _SECTIONS
                 if concluded or name != "conclusion"
             ),
@@ -262,13 +383,14 @@ def _status(note: DesignNote, anchor: str) -> Html:
     )
 
 
-def _hypothesis(design: AnalysisDesign, anchor: str) -> Html:
+def _opening(design: AnalysisDesign, anchor: str) -> Html:
+    statement, background = statement_of(design)
     return _section(
         anchor,
-        "hypothesis",
-        "仮説と背景",
-        el("p", design.hypothesis_statement),
-        el("p", design.hypothesis_background),
+        _OPENING,
+        opening_heading(design.form()),
+        el("p", statement) if statement else None,
+        el("p", background) if background else None,
     )
 
 
@@ -377,11 +499,16 @@ def _events(note: DesignNote) -> list[Html]:
     blocks: list[Html] = []
     if observed:
         blocks += [el("h4", "観察"), _event_list(observed)]
-    known = {direction for direction, _ in _DIRECTION_GROUPS}
-    groups = [
-        (label, [e for e in evidence if e.direction == direction])
-        for direction, label in _DIRECTION_GROUPS
-    ] + [(_NEUTRAL_GROUP, [e for e in evidence if e.direction not in known])]
+    directed = FORM_WORDS[note.design.form()].directed
+    if not directed:
+        # An exploration's evidence has no direction to group by (ADR-0050).
+        groups = [(_ALL_EVIDENCE, evidence)]
+    else:
+        known = {direction for direction, _ in directed}
+        groups = [
+            (label, [e for e in evidence if e.direction == direction])
+            for direction, label in directed
+        ] + [(_NEUTRAL_GROUP, [e for e in evidence if e.direction not in known])]
     for label, members in groups:
         if members:
             blocks += [el("h4", label), _event_list(members)]
@@ -392,6 +519,11 @@ def _pass_mark(passed: bool | None) -> str:
     if passed is None:
         return _DASH
     return "✓" if passed else "✗"
+
+
+# The columns an exploration leaves out: it measures, and passes no verdict (ADR-0050).
+_VERDICT_COLUMNS = ("しきい値", "合否")
+_METRIC_HEADERS = ("指標", "値", "効果量", "信頼区間", "N", "しきい値", "p", "合否")
 
 
 def _metric_row(m: VerdictMetric) -> list[str]:
@@ -414,14 +546,19 @@ def _metric_row(m: VerdictMetric) -> list[str]:
     ]
 
 
-def _metric_values(metrics: tuple[VerdictMetric, ...]) -> list[Html]:
+def _metric_values(metrics: tuple[VerdictMetric, ...], form: DesignForm) -> list[Html]:
     if not metrics:
         return [el("h4", "指標の値"), el("p", "verdict に指標の値は無い。")]
+    keep = [
+        i
+        for i, h in enumerate(_METRIC_HEADERS)
+        if form is not DesignForm.exploration or h not in _VERDICT_COLUMNS
+    ]
     return [
         el("h4", "指標の値"),
         _table(
-            ("指標", "値", "効果量", "信頼区間", "N", "しきい値", "p", "合否"),
-            (_metric_row(m) for m in metrics),
+            [_METRIC_HEADERS[i] for i in keep],
+            ([row[i] for i in keep] for row in map(_metric_row, metrics)),
         ),
     ]
 
@@ -458,7 +595,7 @@ def _results(note: DesignNote, anchor: str) -> Html:
         if note.verdict is None
         else None,
         join(_events(note)),
-        join(_metric_values(note.verdict.metrics))
+        join(_metric_values(note.verdict.metrics, note.design.form()))
         if note.verdict is not None
         else None,
         _figures(note, anchor),
@@ -491,11 +628,13 @@ def _conclusion(note: DesignNote, anchor: str) -> Html | None:
     conclusion = note.conclusion
     if conclusion is None:
         return None
+    form = note.design.form()
+    against = FORM_WORDS[form].against
     return _section(
         anchor,
         "conclusion",
         "結論",
-        el("p", LEAD_SENTENCES[conclusion.status]),
+        el("p", lead_sentence(form, conclusion.status)),
         el(
             "p",
             "この節は journal と分析設計の記録を書かれたとおりに写す。"
@@ -503,7 +642,11 @@ def _conclusion(note: DesignNote, anchor: str) -> Html | None:
         ),
         *_records("conclude の本文", conclusion.conclude_events),
         *_recommendation_sources(note.design, conclusion),
-        *_records("仮説に反する証拠", conclusion.contradicting_evidence),
+        *(
+            _records(against, conclusion.contradicting_evidence)
+            if against is not None
+            else ()
+        ),
         *_records("reflect の本文", conclusion.reflect_events),
         *_records("未解決の問い", conclusion.open_questions),
     )
@@ -638,7 +781,7 @@ def render_note(note: DesignNote) -> Html:
         "section",
         el("h2", f"分析ノート {design.id} {design.title}"),
         _status(note, anchor),
-        _hypothesis(design, anchor),
+        _opening(design, anchor),
         _decision(design, anchor),
         _method(design, anchor),
         _metric_definitions(design, anchor),

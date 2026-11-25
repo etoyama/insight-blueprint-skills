@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from insight_blueprint.models.design import DesignStatus
+from insight_blueprint.models.design import AnalysisDesign, DesignForm, DesignStatus
 from insight_blueprint.models.tree import (
     Aim,
     Answer,
@@ -20,10 +20,13 @@ from insight_blueprint.models.tree import (
     TreeDecision,
 )
 from skills._shared.design_note import (
-    LEAD_SENTENCES,
+    FORM_WORDS,
+    Conclusion,
+    DesignNote,
     NoteEvent,
     NoteFigure,
     NoteSource,
+    NoteVerdict,
     VerdictMetric,
 )
 from skills._shared.theme_report import (
@@ -101,7 +104,9 @@ def _design(design_id: str = "LIB-H01", **over: object) -> ReportDesign:
     fields: dict = {
         "id": design_id,
         "title": f"{design_id} の題",
-        "hypothesis": f"{design_id} の仮説",
+        "form": DesignForm.confirmation,
+        "intent": "検証",
+        "statement": f"{design_id} の仮説",
         "method": "2群の割合の比較",
         "package": "scipy",
         "method_reason": "2群の期限切れ率を比べるため",
@@ -368,9 +373,12 @@ class TestMethod:
         )
 
         lines = method.splitlines()
-        assert "| 分析 | 答える論点 | 仮説 | 手法 | 手法を選んだ理由 |" in lines
         assert (
-            "| LIB-H01 LIB-H01 の題 | LIB-Q02 | LIB-H01 の仮説 | 2群の割合の比較（scipy） "
+            "| 分析 | 答える論点 | 意図 | 探索の問い / 検証仮説 | 手法 | 手法を選んだ理由 |"
+        ) in lines
+        assert (
+            "| LIB-H01 LIB-H01 の題 | LIB-Q02 | 検証 | LIB-H01 の仮説 "
+            "| 2群の割合の比較（scipy） "
             "| 2群の期限切れ率を比べるため |"
         ) in lines
 
@@ -473,8 +481,8 @@ class TestResults:
         lines = results.splitlines()
         assert "**根拠となる分析: LIB-H01 LIB-H01 の題**" in lines
         assert (
-            "仮説を支持するとも棄却するとも結論できなかった。見分けられなかった（LIB-H01-E04）"
-            in lines
+            "検証仮説を支持するとも棄却するとも結論できなかった。"
+            "見分けられなかった（LIB-H01-E04）" in lines
         )
 
     def test_a_design_not_finished_says_it_has_no_conclusion_yet(self) -> None:
@@ -644,14 +652,14 @@ class TestLimitations:
         )
 
         lines = limitations.splitlines()
-        assert "LIB-H02 LIB-H02 の題 の仮説に反する証拠:" in lines
+        assert "LIB-H02 LIB-H02 の題 の検証仮説に反する証拠:" in lines
         assert "- 金曜は16%のまま（LIB-H02-E02）" in lines
         assert "LIB-H01" not in limitations
 
     def test_no_evidence_against_any_hypothesis_says_so(self) -> None:
         limitations = _discussion(_report(designs=(_design(),)), "### Limitations")
 
-        assert "仮説に反する証拠は記録されていない。" in limitations
+        assert "検証仮説に反する証拠は記録されていない。" in limitations
 
     def test_the_questions_not_answered_yet_are_in_a_table(self) -> None:
         limitations = _discussion(
@@ -923,7 +931,7 @@ def _poisoned_report(aim: Aim) -> ThemeReport:
     )
     design = _design(
         title=p,
-        hypothesis=p,
+        statement=p,
         method=p,
         package=p,
         method_reason=p,
@@ -1057,8 +1065,9 @@ class TestReaderWords:
     def test_the_lead_sentence_of_a_finished_design_is_the_one_of_the_analysis_note(
         self,
     ) -> None:
-        for status, sentence in LEAD_SENTENCES.items():
-            assert _design(status=status).lead_sentence is sentence
+        for form, words in FORM_WORDS.items():
+            for status, sentence in words.lead_sentences.items():
+                assert _design(form=form, status=status).lead_sentence is sentence
 
 
 class TestJournalIdsInTheReport:
@@ -1098,3 +1107,236 @@ class TestJournalIdsInTheReport:
         )
 
         assert "**根拠となる分析: LIB-H01**" in results.splitlines()
+
+
+# Story 32.5 (Epic 32 US-5): the report words an exploration, a confirmation and a
+# legacy exploration apart, with the words of the analysis note (ADR-0051).
+
+
+def _exploration_design(design_id: str = "LIB-H01", **over: object) -> ReportDesign:
+    fields: dict = {
+        "form": DesignForm.exploration,
+        "intent": "探索",
+        "statement": "期限切れはどの館で多いか",
+        "status": DesignStatus.explored,
+    }
+    fields.update(over)
+    return _design(design_id, **fields)
+
+
+def _legacy_design(design_id: str = "LIB-H01", **over: object) -> ReportDesign:
+    fields: dict = {
+        "form": DesignForm.legacy_exploration,
+        "intent": "探索（旧形式）",
+    }
+    fields.update(over)
+    return _design(design_id, **fields)
+
+
+def _answered(*designs: ReportDesign) -> ThemeReport:
+    return _report(
+        nodes=(_node(answer=_answer(), design_ids=tuple(d.id for d in designs)),),
+        designs=designs,
+    )
+
+
+# Words that judge a hypothesis; the part of an exploration holds none of them.
+_JUDGING = ("仮説", "支持", "棄却", "しきい値", "合否")
+
+
+class TestExplorationInTheReport:
+    def test_the_method_table_names_the_intent_and_the_question(self) -> None:
+        method = _section(render_report(_answered(_exploration_design())), "## Method")
+
+        assert (
+            "| LIB-H01 LIB-H01 の題 | LIB-Q02 | 探索 | 期限切れはどの館で多いか "
+            "| 2群の割合の比較（scipy） | 2群の期限切れ率を比べるため |"
+        ) in method.splitlines()
+
+    def test_the_question_is_escaped_as_text_from_the_records(self) -> None:
+        method = _section(
+            render_report(_answered(_exploration_design(statement=POISON))),
+            "## Method",
+        )
+
+        assert POISON_ESCAPED in method
+
+    def test_its_part_of_the_results_opens_without_a_verdict(self) -> None:
+        results = _results(
+            _answered(
+                _exploration_design(
+                    conclude_events=(_event("LIB-H01-E04", "本館が多い", "conclude"),),
+                    metrics=(_metric("館の差", "0.12", threshold="0.05", passed=True),),
+                )
+            )
+        )
+
+        lines = results.splitlines()
+        assert "探索を終えた。判定はしていない。本館が多い（LIB-H01-E04）" in lines
+        assert "| 指標 | 値 |" in lines
+        assert "| 館の差 | 0.12 |" in lines
+        rest = results.replace("探索を終えた。判定はしていない。", "")
+        for word in _JUDGING:
+            assert word not in rest, word
+
+    def test_it_has_no_evidence_against_a_hypothesis(self) -> None:
+        limitations = _discussion(
+            _report(
+                designs=(
+                    _exploration_design(
+                        contradicting_evidence=(_event("LIB-H01-E02", "分館は少ない"),),
+                    ),
+                )
+            ),
+            "### Limitations",
+        )
+
+        assert "仮説" not in limitations
+        assert "分館は少ない" not in limitations
+
+    def test_a_report_of_explorations_holds_no_judging_word(self) -> None:
+        markdown = render_report(
+            _answered(
+                _exploration_design(
+                    conclude_events=(_event("LIB-H01-E04", "本館が多い", "conclude"),),
+                    metrics=(_metric("館の差", "0.12"),),
+                ),
+            )
+        )
+        # The fixed sentence and the column heading AC 4 names are the only exceptions.
+        for allowed in ("探索を終えた。判定はしていない。", "探索の問い / 検証仮説"):
+            markdown = markdown.replace(allowed, "")
+
+        for word in _JUDGING:
+            assert word not in markdown, word
+
+
+class TestLegacyExplorationInTheReport:
+    def test_it_keeps_the_old_sentence_and_its_intent_is_marked(self) -> None:
+        markdown = render_report(
+            _answered(_legacy_design(status=DesignStatus.supported))
+        )
+
+        method = _section(markdown, "## Method")
+        assert (
+            "| LIB-H01 LIB-H01 の題 | LIB-Q02 | 探索（旧形式） | LIB-H01 の仮説 "
+            in method
+        )
+        assert (
+            "LIB-H01: 旧形式の探索: 探索の分析設計に、仮説と判定が書かれている。"
+            in method.splitlines()
+        )
+        assert (
+            "仮説は支持された。"
+            in _results(
+                _answered(_legacy_design(status=DesignStatus.supported))
+            ).splitlines()
+        )
+
+    def test_only_a_legacy_exploration_carries_the_note(self) -> None:
+        markdown = render_report(_answered(_design(), _exploration_design("LIB-H02")))
+
+        assert "旧形式の探索" not in markdown
+
+    def test_its_evidence_against_keeps_the_old_word(self) -> None:
+        limitations = _discussion(
+            _report(
+                designs=(
+                    _legacy_design(
+                        contradicting_evidence=(_event("LIB-H01-E02", "雨の週は多い"),),
+                    ),
+                )
+            ),
+            "### Limitations",
+        )
+
+        assert "LIB-H01 LIB-H01 の題 の仮説に反する証拠:" in limitations.splitlines()
+
+
+def _analysis_design(**over: object) -> AnalysisDesign:
+    data: dict = {
+        "id": "LIB-H01",
+        "theme_id": "LIB",
+        "title": "館ごとの期限切れ",
+        "status": "analyzing",
+        "created_at": "2026-11-01T09:00:00+09:00",
+        "updated_at": "2026-11-01T09:00:00+09:00",
+    }
+    data.update(over)
+    return AnalysisDesign.model_validate(data)
+
+
+def _from_note(
+    design: AnalysisDesign, events: tuple[NoteEvent, ...] = ()
+) -> ReportDesign:
+    conclusion = Conclusion(
+        status=design.status,
+        conclude_events=(),
+        next_action=(),
+        contradicting_evidence=(),
+        reflect_events=(),
+        open_questions=(),
+    )
+    return ReportDesign.of(
+        DesignNote(
+            design=design,
+            sources=(),
+            events=events,
+            verdict=NoteVerdict(metrics=(), conclusion=None),
+            figures=(),
+            cells=None,
+            lineage=None,
+            local_files=(),
+            conclusion=conclusion,
+        )
+    )
+
+
+class TestReportDesignOfANote:
+    def test_an_exploration_takes_its_question_and_no_evidence_against(self) -> None:
+        design = _analysis_design(
+            analysis_intent="exploratory",
+            exploration_question="期限切れはどの館で多いか",
+            exploration_background="館ごとの差をまだ見ていない",
+            status="explored",
+        )
+        against = NoteEvent(
+            id="LIB-H01-E02",
+            type="evidence",
+            direction="contradicts",
+            content="分館は少ない",
+            created_at="",
+        )
+
+        report_design = _from_note(design, (against,))
+
+        assert report_design.form is DesignForm.exploration
+        assert report_design.intent == "探索"
+        assert report_design.statement == "期限切れはどの館で多いか"
+        assert report_design.contradicting_evidence == ()
+        assert report_design.lead_sentence == "探索を終えた。判定はしていない。"
+
+    @pytest.mark.parametrize(
+        ("intent", "word", "form"),
+        [
+            ("confirmatory", "検証", DesignForm.confirmation),
+            ("exploratory", "探索（旧形式）", DesignForm.legacy_exploration),
+            ("mixed", "探索と検証（旧形式）", DesignForm.confirmation),
+        ],
+    )
+    def test_a_design_with_a_hypothesis_takes_it_and_its_intent_word(
+        self, intent: str, word: str, form: DesignForm
+    ) -> None:
+        design = _analysis_design(
+            analysis_intent=intent,
+            hypothesis_statement="延ばすと減る",
+            hypothesis_background="7日で多い",
+        )
+
+        report_design = _from_note(design)
+
+        assert (report_design.form, report_design.intent, report_design.statement) == (
+            form,
+            word,
+            "延ばすと減る",
+        )

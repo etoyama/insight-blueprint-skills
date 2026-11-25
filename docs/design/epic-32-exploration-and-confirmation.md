@@ -465,7 +465,7 @@ review、premortem、journal への verdict の記録は、今と同じなので
 | 32.2 用語と文書 | ✓ | ✓ | —（利用者の入口は変えない。yomiyasu の lint に `flag-patterns.txt` を読ませた。素の仮説・問い・hypothesis・アップロードに指摘が出て、検証仮説と探索の問いには出ないことを、例の文で確かめた） |
 | 32.3 入口 | ☐ | ☐ | ☐ |
 | 32.4 notebook と journal | ✓ | ✓ | —（notebook を生成するのは AI で、構造テストが契約と SKILL.md の文を照らす。探索の fixture を契約のコマンドで走らせ、verdict を分析ノートの読み手で読んで確かめた） |
-| 32.5 分析ノートとレポート | ☐ | ☐ | ☐ |
+| 32.5 分析ノートとレポート | ✓ | ✓ | —（分析者が開く入口は `tree_io render` と `tree_io report` で、どちらも Integration で通した。実物の `.insight/` に探索・検証・旧形式の探索を1つずつ作り、分析ノートとレポートを出して目で確かめた） |
 | 32.6 論点ツリー | ☐ | ☐ | ☐ |
 | 32.7 reflection | ☐ | ☐ | ☐ |
 | 32.8 新しい指標の解説 | ☐ | ☐ | ☐ |
@@ -486,3 +486,4 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - 2026-11-25 — Story 32.1 completed: 分析設計の形を意図と項目から導く `DesignForm`、`explored`、2段の検査（読むときは model、作るときは `validate_creation`）を入れた。計画外の判断6つは Decision `foundation-keeps-the-readers-running` に書いた。
 - 2026-11-25 — Story 32.4 completed: 探索の notebook は予想と合否を持たず、測った値を verdict の `metrics` に残す。検証の閾値は primary の指標の `comparison` から写す。探索の evidence は `direction` を持たない。計画外の判断4つは Decision `notebook-shape-follows-the-form` に書いた。
 - 2026-11-25 — Story 32.2 completed: 用語集に検証仮説・探索の問い・探索の問いの背景・分析設計の形・旧形式の探索を足し、仮説を「問いに先に置く仮の答え」に変えた。探索と検証の両方に合うように、分析設計・指標・手法・派生・terminal status・分析の意図・notebook・verdict・reflection の定義と Context の文を直した。PRD のビジョンとコアバリュー、ARCHITECTURE の検査・4ビート・シーケンス、CHANGELOG の Upgrade note も直した。計画外の判断1つは Decision `qualified-variants-become-yomiyasu-patterns` に書いた。
+- 2026-11-25 — Story 32.5 completed: 分析ノートとレポートの定型文を形で分けた。言葉は `design_note.py` の `FORM_WORDS`・`intent_word`・`status_word`・`lead_sentence` に1か所で置き、論点ツリー（32.6）も同じものを読む。探索は「探索の問いと背景」で始まり、証拠を1群で出し、指標の表にしきい値と合否の列を出さない。

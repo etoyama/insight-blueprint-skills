@@ -534,3 +534,46 @@ def test_no_shared_module_tells_a_marimo_cell_apart() -> None:
         text = module.read_text("utf-8")
         assert "app.cell" not in text, module
         assert "marimo" not in text, module
+
+
+# Story 32.5 (Epic 32 US-5): an exploration holds no hypothesis, so the note
+# reads no evidence as standing against one (ADR-0050).
+
+
+def test_an_explored_design_reads_no_evidence_against_a_hypothesis(
+    tmp_path: Path,
+) -> None:
+    from skills._shared import design_io
+    from skills._shared.design_note_read import load_design_note
+
+    insight = tmp_path / ".insight"
+    (insight / "designs").mkdir(parents=True)
+    design_id = design_io.create_design(
+        theme_id="LIB",
+        title="館ごとの期限切れ",
+        analysis_intent="exploratory",
+        exploration_question="期限切れはどの館で多いか",
+        exploration_background="館ごとの差をまだ見ていない",
+        base_dir=insight,
+    )["id"]
+    design_io.write_journal(
+        design_id,
+        {
+            "events": [
+                {
+                    "id": f"{design_id}-E01",
+                    "type": "evidence",
+                    "content": "分館で少ない",
+                    # An older notebook may still have written a direction.
+                    "metadata": {"direction": "contradicts"},
+                },
+            ]
+        },
+        base_dir=insight,
+    )
+    design_io.transition_status(design_id, "explored", base_dir=insight)
+
+    conclusion = load_design_note(design_id, base_dir=insight).conclusion
+
+    assert conclusion is not None
+    assert conclusion.contradicting_evidence == ()

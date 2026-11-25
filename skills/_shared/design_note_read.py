@@ -262,7 +262,7 @@ def _conclusion(
             for field in NEXT_ACTION_BRANCHES[design.status]
             if (text := _branch_text(design.next_action, field)) is not None
         ),
-        contradicting_evidence=contradicting_evidence(events),
+        contradicting_evidence=contradicting_evidence(events, design.form()),
         reflect_events=of("reflect"),
         open_questions=tuple(e for e in of(QUESTION) if e.id not in resolved),
     )

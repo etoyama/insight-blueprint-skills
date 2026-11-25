@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from insight_blueprint.models.design import TERMINAL_STATUSES
-from skills._shared.design_note import LEAD_SENTENCES
+from insight_blueprint.models.design import CONCLUSIONS_OF, TERMINAL_STATUSES
+from skills._shared.design_note import FORM_WORDS
 from skills._shared.design_note_read import (
     CONCLUDE,
     NEXT_ACTION_BRANCHES,
@@ -24,7 +24,10 @@ JOURNAL_SKILL = Path(__file__).resolve().parents[2] / "skills/analysis-journal/S
 
 
 def test_every_terminal_status_has_a_lead_sentence_and_a_recommendation() -> None:
-    assert set(LEAD_SENTENCES) == set(TERMINAL_STATUSES)
+    # Each form opens a conclusion it can reach, and only those (Epic 32, ADR-0051).
+    assert {f: set(w.lead_sentences) for f, w in FORM_WORDS.items()} == {
+        f: set(statuses) for f, statuses in CONCLUSIONS_OF.items()
+    }
     assert set(NEXT_ACTION_BRANCHES) == set(TERMINAL_STATUSES)
 
 

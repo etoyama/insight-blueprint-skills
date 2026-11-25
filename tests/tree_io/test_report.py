@@ -197,11 +197,12 @@ class TestReportContents:
         _, text = _written(answered)
 
         assert "| LIB-Q02 | LIB-Q02 の問い | LIB-Q01 |" in text
-        assert "| LIB-H01 Test | LIB-Q02 | X improves Y | OLS | — |" in text
+        assert "| LIB-H01 Test | LIB-Q02 | 検証 | X improves Y | OLS | — |" in text
         assert "### LIB-Q02 LIB-Q02 の問い" in text
         assert "**根拠となる分析: LIB-H01 Test**" in text
         assert (
-            "仮説は支持された。対象期間の期限切れは152件だった（LIB-H01-E04）" in text
+            "検証仮説は支持された。対象期間の期限切れは152件だった（LIB-H01-E04）"
+            in text
         )
         assert "- 金曜に確保した本は16%のまま（LIB-H01-E02）" in text
         assert "### LIB-Q03 " not in text
@@ -527,7 +528,7 @@ class TestReportSourceText:
         _, text = _written(answered)
 
         assert f"- {_MARKS_ESCAPED}（LIB-H01-E01）" in text.splitlines()
-        assert f"仮説は支持された。{_MARKS_ESCAPED}（LIB-H01-E01）" in text
+        assert f"検証仮説は支持された。{_MARKS_ESCAPED}（LIB-H01-E01）" in text
         assert f"| LIB-H01-E01 | 結論 | {_MARKS_ESCAPED} |" in text
         assert "<b>" not in text.replace(r"\<b>", "")
         assert "\n# w" not in text

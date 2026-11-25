@@ -39,6 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   copies its threshold from the `comparison` of the primary metric. The docstring writes the
   exploration question in place of the hypothesis
   ([ADR-0050](docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md), #229).
+- **The analysis note and the report word an exploration apart from a confirmation.** An exploration opens
+  with its question, shows its evidence as one group and its measured values without a threshold or a pass
+  mark, and concludes with 「探索を終えた。判定はしていない。」. A confirmation now says 「検証仮説」 where it
+  said 「仮説」, and the report's design table has an intent column. A legacy exploration keeps its old sentences
+  and is marked as such ([ADR-0051](docs/adr/0051-designs-nest-under-their-question-and-state-is-worded-by-role.md), #230).
 
 ## [0.18.0] - 2026-11-25
 
