@@ -69,6 +69,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and may leave a tentative answer to confirm in a derived design. A corrected hypothesis now goes into a
   derived design through `/analysis-design`, instead of rewriting the analyzed design with `design_io update`
   ([ADR-0048](docs/adr/0048-intent-decides-the-form-and-the-end-of-a-design.md), #211, #232).
+- **`/analysis-design` explains a metric before it asks about the method, and `/analysis-auto` does so at design ②.**
+  Every metric gets one sentence of what number it is. A metric built from two or more quantities that is
+  new to the theme also gets how it is made, a worked example, what is easy to get wrong and what changes with
+  the other handling, and what it cannot say. The example numbers come from the journal or from another group
+  computed the same way, never from the result to be judged. A confirmation's criterion also says what it
+  means and how the verdict changes with the handling. The analyst may ask for this on any metric (#210, #233).
 
 ### Fixed
 

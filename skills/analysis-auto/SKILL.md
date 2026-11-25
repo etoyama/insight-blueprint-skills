@@ -50,7 +50,7 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | framing ③ root revision | **`/analysis-framing` 4c** | — |
 | framing ④ next node | **`/analysis-framing` 4d** | — |
 | design ① intent | **ask the intent first (exploration or confirmation, never `mixed`), then confirm the question to explore + its background, or the hypothesis + its background, and the decision context (who decides what; skippable)** | drafting them from the Framing Brief |
-| design ② methodology | **confirm the method + metrics + explanatory roles (treatment/confounder/…), and for a confirmation the criterion of the verdict in the primary metric's `comparison`** | auto-drafting these fields from the Framing Brief |
+| design ② methodology | **confirm the method + metrics + explanatory roles (treatment/confounder/…), and for a confirmation the criterion of the verdict in the primary metric's `comparison`**, after explaining the metrics as `/analysis-design` Step 2 "Metrics explained" does: one sentence for each metric, and the five parts for a metric built from two or more quantities that is new to the theme | auto-drafting these fields from the Framing Brief |
 | design ③ data-extraction | **confirm the data-acquisition plan** — the actual query text (`methodology.steps`, with each table as `{source:ID}`) for SQL sources, or the data source id + columns + filter for CSV/others, plus expected grain & rough row scale | auto-drafting the query / column selection from the catalog schema |
 | design ④ charts | **confirm the planned `chart[]` specs (intent / type / x / y)** | auto-drafting chart specs from the direction |
 | review (optional) | **the verdict** (revision_requested vs approve) | running the critique itself |
@@ -186,7 +186,10 @@ the round until the analyst closes the walk or says stop.
       explanatory variables' causal roles (`treatment` / `confounder` / `covariate` / …); confirm. These
       shape the analysis and are genuine choices. For a confirmation, present the criterion of the
       verdict written in the `comparison` of the `primary` metric (`/analysis-design` Step 2 "Criterion")
-      and confirm it here, before the data is touched.
+      and confirm it here, before the data is touched. Explain the metrics before asking, as
+      `/analysis-design` Step 2 "Metrics explained" does: say "どの指標にも、詳しい解説を求められます。",
+      give every metric its one sentence, and give the five parts to a metric built from two or more
+      quantities that is new to the theme, with example numbers that are not the result to be judged.
    3. **data-extraction** — present the design's `source_ids` (each checked as `/analysis-design`
       "Data sources" says) and the actual **data-acquisition plan**: for a SQL source, the query text
       drafted into `methodology.steps` (see `/analysis-design` Step 2.6); for a CSV/other source, the data source id

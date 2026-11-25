@@ -500,7 +500,7 @@ review、premortem、journal への verdict の記録は、今と同じなので
 | 32.5 分析ノートとレポート | ✓ | ✓ | —（分析者が開く入口は `tree_io render` と `tree_io report` で、どちらも Integration で通した。実物の `.insight/` に探索・検証・旧形式の探索を1つずつ作り、分析ノートとレポートを出して目で確かめた） |
 | 32.6 論点ツリー | ✓ | ✓ | —（論点ツリーは `tree_io render` が出すページで、Integration は合成シナリオを `scripts/handoff_trial.py build` で組んで通した。探索・検証・旧形式の探索と、2つの論点に結んだ分析設計を持つ版を出して読んだ。直した後の表示で、引き継ぎの試行は回していない） |
 | 32.7 reflection | ✓ | ✓ | —（SKILL.md の問いは分析者との対話で、自動で回せない。Step 4 に書いた `design_io transition` を一時ディレクトリの `.insight/` で走らせ、探索は `explored` へだけ、検証は判定の3つへ進むことを確かめた） |
-| 32.8 新しい指標の解説 | ☐ | ☐ | ☐ |
+| 32.8 新しい指標の解説 | ✓ | ✓ | —（指標の解説は分析者との対話で、自動で回せない。公共図書館の予約本の合成シナリオで、2つ以上の量から作る指標1つに5項目の解説を書き、テーマに既にある指標を `design_io list` で見分ける手順を一時ディレクトリの `.insight/` で走らせた） |
 
 ## Story Timeline
 
@@ -523,3 +523,4 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - 2026-11-25 — Story 32.5 の追加: notebook の契約が書く `p_value` を、分析ノートとレポートの読み手が読むようにした（`p` があれば `p` を先に読む）。32.4 の申し送り。前から、契約どおりの p 値が黙って落ちていた。
 - 2026-11-25 — Story 32.6 completed: 論点ツリーは、論点に結んだ分析設計を論点の下の破線のカードに出し、2つ目の論点からは短い行にする。状態は `status_word` の言葉で出し、凡例に YAML の値との対応を出す。論点の答えに「現時点の答え」の見出しを付け、探索の引用には向きを出さない。合成シナリオの LIB-H01 を探索に、LIB-H02 を `supported` に直し、q3 の鍵を引用した文の種類で分けた。
 - 2026-11-25 — Story 32.7 completed: `/analysis-reflection` の3つの問いを、問いの形の見出し（結果から何が言えるか／まだ答えの出ていない問いで、判定は変わるか／この分析設計をどう終えるか）にした。検証は基準と問いの範囲を先に言い、探索は判定を選ばず `explored` で終えて、仮の答えを残せる。直した仮説は派生の分析設計にする（Decision `a-changed-hypothesis-goes-into-a-derived-design`）。計画外の判断は Decision `reflection-reads-undirected-evidence-and-derives-through-design` に書いた。
+- 2026-11-25 — Story 32.8 completed: `/analysis-design` Step 2 に "Metrics explained before they are asked" を足した。すべての指標に何を表す数かの一文を添え、2つ以上の量から作る指標でテーマに初めて出るものには5項目の解説を付けてから聞く。例の数字は journal か別の群の数字で、判定する結果を使わない。検証の基準には意味と、扱いを変えると判定がどう変わるかを付ける。`/analysis-auto` の design ② の行と段にも同じ手順を書いた。先送りの2件（Chaining 表の reflection の行、Derived Hypotheses の親の状態）も直した。計画外の判断は無し。

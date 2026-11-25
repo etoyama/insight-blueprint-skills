@@ -175,6 +175,50 @@ sources the value comes from (a column, a table, a filter). It is not read as a 
 skill. Put the ids in `source_ids`, not in `data_source`. If a value comes from a source the
 analyst could not declare (unregistered), say so in the note and tell the analyst.
 
+#### Metrics explained before they are asked
+
+An analyst shown metrics they have never seen cannot judge them, and approves a method they do
+not understand (#210). Explain the metrics before asking about them. First tell the analyst, in
+one line: "どの指標にも、詳しい解説を求められます。"
+
+- Every metric gets one sentence of what number it is (何を表す数か), next to its `target`.
+- A metric built from two or more quantities (標準化, 期待値との差, 比の比, モデルの係数,
+  合成した指数) that no design of the theme has yet gets the five parts below. To tell, run
+  `design_io list` and read the `metrics[].target` of the designs with the same `theme_id`.
+  A metric of one quantity (a mean, a share, a quantile) gets the sentence only, unless the
+  analyst asks for more.
+- The five parts, in this order:
+  1. **何を表す数か** — the one sentence above.
+  2. **作り方** — the computation in words, step by step, from the columns of the declared sources.
+  3. **実データの例** — two or three rows of a table worked through 作り方.
+  4. **迷いやすい点** — a choice in the computation that is easy to get wrong (a negative value,
+     a zero denominator, a small group), and what changes if it is handled the other way.
+  5. **言えないこと** — what the number does not show, though its name seems to say it.
+- The numbers of the example come from the journal of the theme (a value already recorded) or from
+  another group computed the same way (another year, another category). Never use the result this
+  design will judge: seen before the criterion is fixed, it lets the result pick the criterion.
+  Write 概算 on an approximation, and say where the numbers come from.
+- Then confirm the metrics with the analyst. The analyst may ask for the five parts on any metric.
+
+Sample, for a metric new to a theme on reserved library books:
+
+```text
+どの指標にも、詳しい解説を求められます。
+
+wait_excess_days（予約の待ち超過日数）
+- 何を表す数か: 予約した本が届くまでに、所蔵冊数と貸出期間から見込める日数より何日多く待ったか。
+- 作り方: 予約ごとに、見込みの日数を「予約したときの順位 ÷ 所蔵冊数 × 貸出期間 14 日」で出す。
+  実際に待った日数から見込みの日数を引き、館ごとに平均する。
+- 実データの例（概算。LIB-H01 の journal にある児童書の数字で、これから比べる一般書ではない）:
+  | 予約 | 順位 | 所蔵冊数 | 見込み | 実際 | 超過 |
+  | A | 6 | 2 | 42 日 | 50 日 | +8 日 |
+  | B | 3 | 3 | 14 日 | 9 日 | −5 日 |
+- 迷いやすい点: 見込みより早く届いた予約は、超過が負になる。負のまま平均すると、早い予約が遅い予約を
+  打ち消す。負を 0 に切ると平均は大きくなり、館の差も変わる。
+- 言えないこと: 超過は「館の対応が遅れた日数」ではない。前の人の返却の遅れや、取り置きを受け取りに
+  来なかった日数も入る。
+```
+
 #### Criterion (a confirmation fixes it now)
 
 A confirmation fixes its criterion before the analysis. Write the criterion of the verdict, as a
@@ -182,6 +226,12 @@ sentence, in the `comparison` of the `primary` metric, and confirm it with the a
 with the metrics. Example: "分館と本館の差が 2.0 日以上なら支持。1.0 日未満なら棄却。その間は結論しない".
 The notebook copies its threshold from this sentence and never makes one up
 ([ADR-0050](../../docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md)).
+
+With the criterion, tell the analyst what the criterion means in the words of the metric, and how
+the verdict changes if a handling of 迷いやすい点 changes (扱いを変えると判定がどう変わるか).
+Example: "2.0 日以上とは、分館の予約が本館より平均で2日以上、見込みより多く待つこと。負の超過を 0 に
+切ると両館の平均が上がり、差が縮めば支持が結論しないに変わりうる". The analyst then fixes the handling
+together with the criterion.
 
 An exploration's `comparison` says what is compared and how, with no threshold and no rule for
 passing: an exploration measures and answers, and gives no verdict.
@@ -437,7 +487,7 @@ same `validate.py` the pre-write hook uses. Invalid writes raise and write nothi
 | /analysis-design | → /analysis-journal | デザイン作成後: "推論過程を記録するなら /analysis-journal {id}" |
 | /analysis-design | → /analysis-framing | データ不足で仮説の方向を再検討: "データを探し直すなら /analysis-framing" |
 | /catalog-register | → /analysis-design | データ登録完了後にデザイン作成を続行 |
-| /analysis-reflection | → /analysis-design | 派生仮説が明確な場合 |
+| /analysis-reflection | → /analysis-design | 派生の分析設計を作る場合（直した検証仮説、探索の後に確かめる検証仮説、次の探索の問い） |
 | /analysis-revision | → /analysis-design | レビュー修正で大きな方針変更が必要な場合 |
 
 ## Language Rules
@@ -490,9 +540,10 @@ design. Illegal moves (e.g. `analyzing → revision_requested`, a verdict on an 
 
 ### Derived Hypotheses
 
-- A design may reference `parent_id` to indicate it derives from another hypothesis.
-- Parent must exist and be in `supported` or `active` status.
-- This creates a hypothesis tree for tracking research lineage.
+- A design may reference `parent_id` to indicate it derives from another design.
+- Write the id of a design that exists. `design_io` does not check the parent: it does not look up
+  whether the id exists or what status it is in.
+- This creates a tree of derived designs for tracking research lineage.
 
 ## YAML Format Reference
 
