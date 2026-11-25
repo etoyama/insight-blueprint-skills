@@ -13,6 +13,7 @@ import re
 
 import pytest
 
+from tests.docs._changelog import changelog_entry
 from tests.skills._markdown import section, table_rows, unwrap
 from tests.skills._notebook_run import RUN, WITH_EXCLUSION, WITH_SCOPE, commands
 from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
@@ -548,3 +549,21 @@ class TestAMetricPerGroupHoldsRows:
             "a metric measured per group holds `by` and `groups`, never a group in "
             "its name"
         ) in _skill_analysis_step()
+
+
+class TestTheChangelogTellsWhatANotebookWritesNow:
+    """Story 33.1: a notebook generated before keeps reading; a new one writes the new items."""
+
+    def _entry(self) -> str:
+        changelog = (SKILLS_DIR.parent / "CHANGELOG.md").read_text(encoding="utf-8")
+        return unwrap(
+            changelog_entry(changelog, "judges its primary metric by two lines")
+        )
+
+    def test_it_names_the_new_items(self) -> None:
+        entry = self._entry()
+        for item in ("support_line", "reject_line", "judgment", "interval", "groups"):
+            assert f"`{item}`" in entry, item
+
+    def test_it_says_a_saved_verdict_needs_no_rewrite(self) -> None:
+        assert "A verdict saved before reads as it did" in self._entry()

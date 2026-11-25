@@ -45,8 +45,8 @@ AC の正本はここ。
 
 読み手として、判定がどの基準で出たかを確かめるために、支持の線・棄却の線・指標の判定を、分析ノートとレポートの表で読みたい。
 
-- [ ] AC 1: notebook の契約は検証の notebook に次を書かせる。判定の基準を持つ primary の指標は、`comparison` から写した支持の線と棄却の線（`support_line`・`reject_line`。少なくとも一方）と、指標の判定（`judgment`。`supported`・`rejected`・`inconclusive` のどれか）を持つ。3つの判定を `pass` で表さない。
-- [ ] AC 2: secondary と guardrail の指標は、合否を `threshold` と `pass` で持つ。探索の指標は線も判定も合否も持たない。
+- [x] AC 1: notebook の契約は検証の notebook に次を書かせる。判定の基準を持つ primary の指標は、`comparison` から写した支持の線と棄却の線（`support_line`・`reject_line`。少なくとも一方）と、指標の判定（`judgment`。`supported`・`rejected`・`inconclusive` のどれか）を持つ。3つの判定を `pass` で表さない。
+- [x] AC 2: secondary と guardrail の指標は、合否を `threshold` と `pass` で持つ。探索の指標は線も判定も合否も持たない。
 - [ ] AC 3: 分析ノートの指標の表は支持の線・棄却の線・判定を、それぞれの列に出す。判定は「支持」「棄却」「結論しない」と出す。
 - [ ] AC 4: レポートの指標の表はAC 3 と同じ列と言葉で出す。
 - [ ] AC 5: 新しい項目を持たない保存済みの verdict は、この Epic の前と同じ列と値で出る。
@@ -55,9 +55,9 @@ AC の正本はここ。
 
 読み手として、区間を取り違えず、群ごとの値を見比べるために、区間の種類と、群を軸にした表を読みたい。
 
-- [ ] AC 1: notebook の契約は指標の値の区間を `interval`（`kind`・`level`・`lower`・`upper`）に書かせる。`kind` は区間の種類の名前で、open string である。
+- [x] AC 1: notebook の契約は指標の値の区間を `interval`（`kind`・`level`・`lower`・`upper`）に書かせる。`kind` は区間の種類の名前で、open string である。
 - [ ] AC 2: 分析ノートとレポートの表は、区間を「区間」の列に、種類と水準を添えて出す。保存済みの `confidence_interval` は信頼区間として出す。
-- [ ] AC 3: notebook の契約は群ごとに値を持つ指標を、軸の名前（`by`）と群の行（`groups`）で書かせる。群の行は値と任意の項目を持ち、判定と合否を持たない。群を指標の名前に埋めない。
+- [x] AC 3: notebook の契約は群ごとに値を持つ指標を、軸の名前（`by`）と群の行（`groups`）で書かせる。群の行は値と任意の項目を持ち、判定と合否を持たない。群を指標の名前に埋めない。
 - [ ] AC 4: 分析ノートは群を持つ指標を指標ごとの表に出す。軸が2つで、群の行が値だけを持つときは、軸を縦と横に置く。それ以外は群の列を持つ縦の表にする。値は並べ替えるだけで、計算しない。
 - [ ] AC 5: レポートは群を持つ指標を AC 4 と同じ分け方で出す。
 
@@ -353,6 +353,33 @@ sequenceDiagram
 - Alternatives considered: 時刻を比べる案（上の理由で落とした）。
 - Consequences: 古い batch は分析を始めた後かどうかを出さず、論点ツリーの件数にも数えない。
 
+### Decision: the-reader-holds-one-interval-and-the-tables-wait-for-the-kind
+
+- What: `VerdictMetric` の `confidence_interval` を `interval`（`ValueInterval`）に置き換えた。保存済みの `confidence_interval` は、種類が `confidence` の値の区間として同じ項目に読む。分析ノートとレポートの表は、33.2 と 33.3 が列を直すまで、種類が `confidence` の値の区間だけを「信頼区間」の列に出す。
+- Why: 区間を2つの項目で持つと、表が「どちらを出すか」を毎回決めることになる。1つにすれば、ADR-0052 の7（両方があれば `interval` を読む）は読み手の1か所で済む。列の見出しは 33.2 と 33.3 の領分なので、ここで直さない。直すまでの間に HDI を「信頼区間」の列に出すと、#237 の F17 と同じ誤りを Epic ブランチの上に作る。
+- Criteria: Domain Model（`VerdictMetric` は `interval` を1つ持つ。人間が承認した）。PRD の非機能要件「分析者に届く数と結論は、記録に書いてあるものに限る」。決め手は後者で、出さないほうが、誤った名前で出すより害が小さい。
+- Affected modules: `skills/_shared/design_note.py`、`skills/_shared/design_note_read.py`、`skills/_shared/theme_report.py`（表の1行ずつ）。
+- Alternatives considered: `confidence_interval` を残して `interval` を足す（表が2つの項目を見比べることになる）。種類を問わず今の列に出す（HDI が「信頼区間」と出る）。
+- Consequences: 33.2 と 33.3 が入るまで、種類が `confidence` でない値の区間・支持の線・棄却の線・指標の判定・群の行は、表に出ない。群だけを持つ指標は、値が「—」の行になる。Epic PR の前に 33.2 と 33.3 が直す。新しい項目には既定値（無い）を付けたので、表のテストが組む `VerdictMetric` は項目名の置き換えだけで通る。
+
+### Decision: groups-that-do-not-fit-their-axes-read-as-no-groups
+
+- What: 読み手は群の行を、全部読めるか、1つも読まないかのどちらかにする。`by` が名前の並びでない、`groups` が空か並びでない、行が object でない、行の `group` の数が `by` と違う、名前が `null` か入れ子、のどれかが1つでもあれば、その指標は `by` も `groups` も持たないものとして読む。群の名前と軸の名前は、文字・数・真偽を書かれた文字のまま読む。
+- Why: 合わない行だけを落とすと、表は欠けたまま、そろった表に見える。読み手は何が落ちたかを知る手段を持たない。ADR-0013 の「項目がそろわなければ無いものとして読む」と同じ扱いにした。
+- Criteria: Domain Model の不変条件（群の名前の数は、軸の名前の数と同じ）。PRD の非機能要件（届く数は、記録に書いてあるものに限る）。ADR-0013 の先例。決め手は不変条件で、破れた記録を部分的に出さない。
+- Affected modules: `skills/_shared/design_note_read.py`。
+- Alternatives considered: 合わない行だけを落とす（上の理由で落とした）。verdict 全体をエラーにする（1つの指標の書きまちがいで、分析ノートが作れなくなる）。
+- Consequences: 行が1つ合わないと、その指標の群の値は表に出ない。指標が `value` も持っていれば、その値だけが出る。拾うのは結果の review（33.5）である。読み手は、指標が `value` と `groups` の両方を持っていても、書かれたとおりに両方を読む。どう出すかは 33.2 と 33.3 が決める。
+
+### Decision: a-design-without-a-criterion-is-sent-by-where-it-stands
+
+- What: 基準の無い検証を止めるときの案内を、分析設計の状態で分けた。まだ `in_review` の分析設計は `/analysis-design` で基準を書く。分析を始めた分析設計は基準を足せないので、派生を作る。契約の「`results` shape」は後者だけを言い、`/analysis-notebook` の Step 1 は両方を言う。
+- Why: 33.4 の後、分析を始めた分析設計は primary の指標の組を変えられない（ADR-0053 の3）。「`/analysis-design` で書く」は行き止まりの案内になる。一方、Step 1 の検査は `analyzing` へ進める前に走るので、まだ直せる分析設計にも当たる。
+- Criteria: 初版の引き継ぎ（案内を「派生を作る」に直す）。ADR-0053 の3と4。
+- Affected modules: `skills/analysis-notebook/SKILL.md`、`skills/analysis-notebook/references/notebook-contract.md`。
+- Alternatives considered: どちらも「派生を作る」だけにする（まだ直せる分析設計に、要らない派生を作らせる）。
+- Consequences: 案内は 33.4 の検査を前提にする。33.4 が入る前の Epic ブランチでも、文は誤りにならない。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0052: verdict の指標は支持の線と棄却の線、指標の判定、値の区間の種類、群の行を持つ](../adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md): #235・F17・F09 の形を1本にまとめた。
@@ -363,7 +390,7 @@ sequenceDiagram
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| Story 33.1 | ☐ | ☐ | ☐ |
+| Story 33.1 | ✓（`tests/test_design_note_read.py`: 線・判定・値の区間・群の行の読み。`tests/skills/test_notebook_contract_structure.py`: 契約と SKILL.md の規則と例。`tests/docs/test_canonical_docs.py`: 用語） | ✓（`tests/integration/test_analysis_notebook_contract.py`: 検証と探索の fixture を走らせ、verdict を分析ノートの読み手で読み戻す。`tests/test_saved_verdicts.py`: 保存済みの verdict の8例が、Epic の前と同じ表で出る） | —（notebook を生成するのは AI で、構造テストが契約と SKILL.md の文を照らす。検証の fixture を契約のコマンド（`uv run --project … --extra notebook python`）で走らせ、verdict の JSON を読み手で読み戻して確かめた） |
 | Story 33.2 | ☐ | ☐ | ☐ |
 | Story 33.3 | ☐ | ☐ | ☐ |
 | Story 33.4 | ☐ | ☐ | ☐ |
@@ -378,3 +405,8 @@ sequenceDiagram
 - 2026-11-25 — 初版: 見本を Artifact で見せた（分析ノートの指標の表の案 A と案 B、値の区間、群の表、レビューの節、論点ツリーの行）。題材は合成シナリオで、コミットしていない。分かった事実: 線が数だけでも、同じページの `comparison` と並べれば読める、と人間が判断した。確かめていない前提: 実際の分析ノートの幅で、列が増えた表が読めるか。群の軸が3つ以上のときの表。
 - 2026-11-25 — 初版を人間が承認した（Domain Model 図を含む。このセッションで直接）。
 - 2026-11-25 — Story を起票した: #243（33.1）、#244（33.4）、#245（33.2）、#246（33.3）、#247（33.5）、#248（33.6）。
+- 2026-11-25 — Story 33.1 completed: notebook の契約に支持の線・棄却の線・指標の判定・値の区間・群の行を足し、読み手（`VerdictMetric`）が読むようにした。US-1 AC 1・AC 2 と US-2 AC 1・AC 3 を満たした。US-1 AC 5 は、読み手と今の表について満たした（保存済みの verdict の8例を、Epic の前のコードが出す行で固定した）。新しい列が入った後の AC 5 は 33.2 と 33.3 が確かめるので、チェックは付けていない。
+  Domain Model 図は変えていない。`MetricJudgment`・`ValueInterval`・`MetricGroup` は案の名前のまま使った。図が省いている項目は実装にもある（`VerdictMetric` の `p`・`effect_size`・`sample_size`、`MetricGroup` の `p`・`effect_size`）。
+  計画外の判断は2件で、Decisions に書いた（値の区間を1つの項目で持ち、表は種類の表示を待つ。軸に合わない群の行は、群を持たないものとして読む）。案内の分け方（`in_review` は基準を書く、分析を始めた後は派生）も Decisions に書いた。
+  Epic 32 のテストのうち、契約の文と fixture の形を固定していたものを、新しい契約に合わせて書き換えた（primary の `threshold` と `pass`、`confidence_interval`、基準が無いときの案内）。ADR-0052 が仕様を変えたためである。
+  残したこと: `docs/ARCHITECTURE.md` の `.insight/` の表は、verdict の任意の項目を「効果量・信頼区間・標本サイズ」と書いたままである。33.4 が同じファイルを触るので、ここでは直していない。

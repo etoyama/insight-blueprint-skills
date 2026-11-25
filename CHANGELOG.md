@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **A confirmatory notebook judges its primary metric by two lines.** The contract has the primary
+  metric hold `support_line` and `reject_line` (numbers copied from the design's `comparison`) and a
+  `judgment` of `supported`, `rejected` or `inconclusive`; `threshold` and `pass` stay with secondary
+  and guardrail metrics. The interval of a value goes in `interval` with its `kind` (`confidence`,
+  `hdi`, …), and a metric measured per group holds `by` and `groups` instead of a group in its name.
+  A verdict saved before reads as it did, `confidence_interval` included, so nothing has to be
+  rewritten; a notebook generated before writes the new items once it is generated again ([ADR-0052](docs/adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md), #243).
+
 ## [0.19.0] - 2026-11-25
 
 ### Upgrade note
