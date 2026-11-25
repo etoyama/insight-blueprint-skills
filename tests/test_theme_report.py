@@ -31,6 +31,7 @@ from skills._shared.design_note import (
     ValueInterval,
     VerdictMetric,
 )
+from skills._shared.design_note_read import load_design_note
 from skills._shared.theme_report import (
     READER_WORDS,
     ReportDesign,
@@ -40,6 +41,7 @@ from skills._shared.theme_report import (
     render_report,
 )
 from skills._shared.tree_render import CitedEvent
+from tests._saved_verdicts import SAVED_VERDICTS, save_design_with_verdict
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 # The glossary's own reader, as the documents' tests use it.
@@ -1368,3 +1370,75 @@ class TestReportDesignOfANote:
             word,
             "延ばすと減る",
         )
+
+
+# Epic 33 US-1 AC 5: a verdict saved before the Epic, as the report tabulates it.
+# None: the report has no metric table for it.
+_PRIMARY_AND_GUARDRAIL_TABLE = [
+    "| 指標 | 値 | 信頼区間 | 標本サイズ | しきい値 | 合否 |",
+    "| --- | --- | --- | --- | --- | --- |",
+    "| rho | 0.62 | 水準 0.95: [0.51, 0.69] | 412 | 0.70 | ✓ |",
+    "| 欠損の検査 | — | — | — | — | ✓ |",
+]
+REPORT_TABLES: dict[str, list[str] | None] = {
+    "no_metrics": None,
+    "p_and_p_value": [
+        "| 指標 | 値 | p 値 |",
+        "| --- | --- | --- |",
+        "| 旧い p | 1.80 | 0.040 |",
+        "| 契約の p\\_value | 1.80 | 0.030 |",
+        "| 両方 | 1.80 | 0.040 |",
+    ],
+    "optional_items": [
+        "| 指標 | 値 | 効果量 | 信頼区間 | 標本サイズ | しきい値 | p 値 | 合否 |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| 任意の項目なし | 0.346 | — | — | — | 0.050 | — | ✓ |",
+        "| 欠けた項目 | 1 | — | — | — | — | — | — |",
+        "| そろった項目 | 0.00010 | 0.30（cohens\\_d） | 水準 0.95: [0.10, 0.50] "
+        "| 1520 | 0.050 | 1e-05 | ✓ |",
+    ],
+    "exploration_with_a_pass": [
+        "| 指標 | 値 | 信頼区間 | 標本サイズ | しきい値 | 合否 |",
+        "| --- | --- | --- | --- | --- | --- |",
+        "| 待ち日数の差 | 1.80 | 水準 0.95: [0.40, 3.20] | 840 | 1.0 | ✓ |",
+    ],
+    "threshold_kinds": [
+        "| 指標 | 値 | しきい値 | 合否 |",
+        "| --- | --- | --- | --- |",
+        "| 数 | 2.10 | 2.0 | ✓ |",
+        "| 文字 | 2.10 | 2.0 日以上 | ✓ |",
+        '| その他の JSON | 2.10 | {"min": 1.0, "max": \\[2.0, NaN\\]} | — |',
+    ],
+    "pass_not_a_boolean": [
+        "| 指標 | 値 | しきい値 |",
+        "| --- | --- | --- |",
+        "| 文字の合否 | 2.10 | 2.0 |",
+        "| 数の合否 | 2.10 | 2.0 |",
+        "| null の合否 | 2.10 | 2.0 |",
+    ],
+    "mixed_design": _PRIMARY_AND_GUARDRAIL_TABLE,
+    "design_without_an_intent": _PRIMARY_AND_GUARDRAIL_TABLE,
+}
+
+
+def _tables(markdown: str) -> list[list[str]]:
+    """The lines of each table in *markdown*, in order."""
+    return [
+        table.splitlines()
+        for table in re.findall(r"(?:^\|.*\n?)+", markdown, flags=re.MULTILINE)
+    ]
+
+
+@pytest.mark.parametrize("name", SAVED_VERDICTS)
+def test_the_report_tabulates_a_saved_verdict_as_before(
+    tmp_path: Path, name: str
+) -> None:
+    insight = tmp_path / ".insight"
+    design_id = save_design_with_verdict(insight, *SAVED_VERDICTS[name])
+    design = replace(
+        ReportDesign.of(load_design_note(design_id, base_dir=insight)), id="LIB-H01"
+    )
+
+    tables = _tables(_results(_answered(design)))
+
+    assert tables == ([] if REPORT_TABLES[name] is None else [REPORT_TABLES[name]])
