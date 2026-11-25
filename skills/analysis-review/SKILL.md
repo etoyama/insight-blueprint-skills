@@ -3,7 +3,8 @@ name: analysis-review
 version: "1.1.0"
 description: |
   Produces a structured review of an analysis design and records it as a review batch.
-  Claude critiques the design (question or hypothesis, methodology, metrics, confounders, charts),
+  Claude critiques the design (question or hypothesis, methodology, metrics, confounders, charts)
+  and, after the analysis, the result (notebook, verdict, figures),
   the user confirms the comments, and they are written via design_io review-batch with a
   post-review status — feeding /analysis-revision. The producer side of the review loop
   (there is no web UI).
@@ -38,7 +39,9 @@ here (via `design_io review-batch`) rather than submitted through a dashboard.
 Primarily a **design/plan review**: the outcome is `revision_requested` (needs work) or
 `analyzing` (approved — go analyze). Terminal decisions (`explored` for an exploration,
 `supported` / `rejected` / `inconclusive` for a confirmation) are possible through the same
-mechanism, but concluding a design is the job of `/analysis-reflection`.
+mechanism, but concluding a design is the job of `/analysis-reflection`. For a confirmation
+whose analysis has not started, `supported` and `rejected` need the criterion written in the
+design, as `analyzing` does; `inconclusive` does not (Step 5).
 
 A review of the result after the analysis is optional and goes the same way: the `analyzing`
 design moves back to `in_review` (Step 2), and approving it returns it to `analyzing`. The
@@ -69,7 +72,13 @@ Review across dimensions and draft one comment per issue. Each comment targets a
 
 `exploration_question`, `exploration_background`, `hypothesis_statement`,
 `hypothesis_background`, `metrics`, `explanatory`, `chart`, `next_action`,
-`referenced_knowledge`, `methodology`, `analysis_intent`, `decision_context`.
+`referenced_knowledge`, `methodology`, `analysis_intent`, `decision_context`,
+`notebook`, `verdict`, `figures`. The last three are the result: use them only in a review
+after the analysis (Step 3b).
+
+When `.insight/notebooks/{design_id}_verdict.json` exists, the analysis has run: this is a
+review of the result. Read the design with the lenses below, then go through Step 3b before
+Step 4.
 
 Suggested lenses:
 
@@ -110,6 +119,42 @@ Contract (`BatchComment`, enforced by `design_io`): `comment` is required and no
 if you set `target_section` you MUST also set `target_content` (a snippet of what the
 comment refers to); for a comment not tied to a section, omit `target_section` entirely.
 
+### Step 3b: Critique the result (when a verdict exists)
+
+Before the critique, tell the analyst what you read, in one short list:
+
+- the notebook `.insight/notebooks/{design_id}.py`
+- the verdict `.insight/notebooks/{design_id}_verdict.json`
+- the figures `.insight/notebooks/{design_id}_fig*.png` (the ones the verdict's `figures` lists)
+- the `comparison` of each metric in the design
+
+Then read the result with these lenses, one comment per issue:
+
+- **The criterion** — do the `support_line` and the `reject_line` of each `primary` metric
+  carry the numbers its `comparison` states, and does the `judgment` follow from them? A
+  notebook that copied a line wrong still runs, so this is where it is caught.
+- **The value and the judgment** — is there a value that contradicts the judgment it sits next to
+  (a value above the support line with `judgment: reject`, an interval that crosses a line
+  with a firm judgment)? Point out the contradiction; never compute a new judgment.
+- **The figures** — does each figure state what each axis shows and how to read it, and does it
+  show what the verdict says?
+- **The guardrails** — did each guardrail metric `pass` its `threshold`? A failed guardrail
+  next to `supported` must be said.
+- **The cells** — does each cell keep one job per cell (the 7-cell contract of
+  `/analysis-notebook`), so the criterion, the computation and the verdict can be read apart?
+
+An exploration has no criterion: it carries no line, no judgment, no threshold and no pass
+(ADR-0050). Read its verdict with the figures and the cells lenses only.
+
+A design with a verdict but no `analysis_started_at` was saved before the analysis mark
+existed and reads as not started (ADR-0053). Tell the analyst so: the batch is recorded as
+before the analysis, and the design does not keep its hypothesis, criterion or intent.
+
+A comment on the result targets `notebook` (a cell), `verdict` (a metric of the verdict) or
+`figures` (a figure), with the snippet it points at as `target_content`. A comment on the
+hypothesis, the criterion or the intent of a started confirmation is still recorded, but the
+design keeps them (ADR-0053): `/analysis-revision` answers it without changing them.
+
 ### Step 4: Confirm with the user
 
 Present the draft comments as a table (section / comment) and let the user drop, edit, or add.
@@ -136,7 +181,27 @@ echo '{
 
 Use `--status analyzing` to approve instead. Show the returned batch to the user.
 
-### Step 6: Hand off
+An approval that would let a confirmation, a legacy exploration or a `mixed` design into
+`analyzing` without a `primary` metric whose `comparison` states the criterion is refused
+(ADR-0053), and no batch is recorded. Tell the analyst the criterion is missing and send them
+to `/analysis-design {design_id}` to write the `comparison`; then record the review again.
+
+The same holds for a verdict of the hypothesis: `--status supported` or `--status rejected` on
+such a design whose analysis has not started is refused, and no batch is recorded. A hypothesis
+is not supported or rejected without a criterion on record. Offer the analyst the two ways
+out: write the criterion with `/analysis-design {design_id}` and record the review again, or
+close the design without a verdict of the hypothesis with `--status inconclusive`, which
+needs no criterion.
+
+### Step 6: Rebuild the design note
+
+Run `tree_io render --design {design_id}` so that the design note shows the batch you
+recorded, and tell the analyst where the note is: read the JSON it prints as the
+`#### 読むもの` of /analysis-reflection says, and show its `分析ノート:` line. This step is
+not a gate: ask nothing. If the render exits non-zero, show its stderr; the batch of Step 5
+stays recorded.
+
+### Step 7: Hand off
 
 - `revision_requested` → "指摘に対応するなら /analysis-revision {design_id}"
 - `analyzing` → "分析を始めるなら /analysis-journal {design_id}"（結果のレビューなら "結論を出すなら /analysis-reflection {design_id}"）

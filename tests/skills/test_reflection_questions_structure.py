@@ -211,7 +211,7 @@ class TestARefinementIsADerivedDesign:
 
     def test_step_5_never_rewrites_the_hypothesis(self) -> None:
         step = unwrap(_step("### Step 5:"))
-        assert "Never rewrite" in step and "#234" in step
+        assert "Never rewrite" in step and "ADR-0053" in step
         assert "design_io update" not in step
 
     def test_the_reference_has_no_update_command(self) -> None:
@@ -243,6 +243,7 @@ EXPLORATION = (
 CONFIRMATION = (
     '{"title": "t", "analysis_intent": "confirmatory",'
     ' "hypothesis_statement": "h", "hypothesis_background": "b",'
+    ' "metrics": [{"target": "m", "tier": "primary", "comparison": "c"}],'
     ' "methodology": {"method": "m"}}'
 )
 

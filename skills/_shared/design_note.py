@@ -24,7 +24,15 @@ from insight_blueprint.models.design import (
     DesignForm,
     DesignStatus,
 )
-from skills._shared._html import BASE_CSS, Html, el, join, page
+from skills._shared._html import BASE_CSS, Html, el, join, page, table
+from skills._shared.design_note_reviews import NoteReviewBatch, review_batch
+from skills._shared.verdict_table import (
+    Fixed,
+    Text,
+    TextTable,
+    VerdictMetric,
+    metric_tables,
+)
 
 
 @dataclass(frozen=True)
@@ -60,20 +68,6 @@ def contradicting_evidence(
     return tuple(
         e for e in events if e.type == "evidence" and e.direction == "contradicts"
     )
-
-
-@dataclass(frozen=True)
-class VerdictMetric:
-    """One entry of ``verdict.metrics``. Every number is the literal JSON text."""
-
-    name: str
-    value: str | None
-    threshold: str | None
-    p: str | None
-    passed: bool | None
-    effect_size: tuple[str, str] | None  # (kind, value)
-    confidence_interval: tuple[str, str, str] | None  # (level, lower, upper)
-    sample_size: str | None
 
 
 @dataclass(frozen=True)
@@ -130,6 +124,7 @@ class DesignNote:
     lineage: str | None  # the Mermaid text of lineage/{id}.mmd
     local_files: tuple[str, ...]  # paths under .insight/ that exist, LOCAL_FILES order
     conclusion: Conclusion | None  # None: the design is not in a terminal status
+    reviews: tuple[NoteReviewBatch, ...] = ()  # newest first
 
 
 NOTE_CSS = """
@@ -186,6 +181,7 @@ _SECTIONS = (
     ("explanatory", "説明変数"),
     ("sources", "データソース"),
     ("results", "結果"),
+    ("reviews", "レビュー"),
     ("conclusion", "結論"),
     ("code", "分析コード"),
     ("lineage", "データ加工の履歴"),
@@ -339,18 +335,6 @@ def _cell(text: str) -> str:
     return text if text else _DASH
 
 
-def _table(headers: Sequence[str], rows: Iterable[Sequence[str]]) -> Html:
-    return el(
-        "div",
-        el(
-            "table",
-            el("thead", el("tr", *(el("th", h) for h in headers))),
-            el("tbody", *(el("tr", *(el("td", c) for c in row)) for row in rows)),
-        ),
-        class_="table-wrap",
-    )
-
-
 def _section(anchor: str, name: str, heading: str, *content: Html | None) -> Html:
     return el(
         "section",
@@ -446,7 +430,7 @@ def _method(design: AnalysisDesign, anchor: str) -> Html:
 
 def _metric_definitions(design: AnalysisDesign, anchor: str) -> Html:
     body = (
-        _table(
+        table(
             ("対象", "区分", "集計", "グループ", "絞り込み", "比べ方"),
             (
                 (
@@ -468,7 +452,7 @@ def _metric_definitions(design: AnalysisDesign, anchor: str) -> Html:
 
 def _explanatory(design: AnalysisDesign, anchor: str) -> Html:
     body = (
-        _table(
+        table(
             ("名前", "役割", "説明", "時点"),
             (
                 (
@@ -488,7 +472,7 @@ def _explanatory(design: AnalysisDesign, anchor: str) -> Html:
 
 def _sources(note: DesignNote, anchor: str) -> Html:
     body = (
-        _table(
+        table(
             ("名前", "種類", "説明"),
             (
                 (_cell(s.name), _cell(s.type), _cell(s.description))
@@ -533,52 +517,31 @@ def _events(note: DesignNote) -> list[Html]:
     return blocks
 
 
-def _pass_mark(passed: bool | None) -> str:
-    if passed is None:
-        return _DASH
-    return "✓" if passed else "✗"
+def _text(text: Text) -> str:
+    """A cell or a heading; one that holds no text is a dash."""
+    return "".join(text) or _DASH
 
 
-# The columns an exploration leaves out: it measures, and passes no verdict (ADR-0050).
-VERDICT_COLUMNS = ("しきい値", "合否")
-_METRIC_HEADERS = ("指標", "値", "効果量", "信頼区間", "N", "しきい値", "p", "合否")
+def _title(text: Text) -> str:
+    # The note dashes each empty name of a title, so "m（— × y）" keeps its axes.
+    return "".join(p if isinstance(p, Fixed) else _cell(p) for p in text)
 
 
-def _metric_row(m: VerdictMetric) -> list[str]:
-    effect = f"{m.effect_size[1]}（{m.effect_size[0]}）" if m.effect_size else _DASH
-    interval = (
-        f"水準 {m.confidence_interval[0]}: "
-        f"[{m.confidence_interval[1]}, {m.confidence_interval[2]}]"
-        if m.confidence_interval
-        else _DASH
-    )
+def _value_table(values: TextTable) -> list[Html]:
     return [
-        _cell(m.name),
-        m.value or _DASH,
-        effect,
-        interval,
-        m.sample_size or _DASH,
-        m.threshold or _DASH,
-        m.p or _DASH,
-        _pass_mark(m.passed),
+        *([] if values.title is None else [el("h5", _title(values.title))]),
+        table(
+            [_text(h) for h in values.headings],
+            ([_text(c) for c in row] for row in values.rows),
+        ),
     ]
 
 
 def _metric_values(metrics: tuple[VerdictMetric, ...], form: DesignForm) -> list[Html]:
     if not metrics:
         return [el("h4", "指標の値"), el("p", "verdict に指標の値は無い。")]
-    keep = [
-        i
-        for i, h in enumerate(_METRIC_HEADERS)
-        if form.judges or h not in VERDICT_COLUMNS
-    ]
-    return [
-        el("h4", "指標の値"),
-        _table(
-            [_METRIC_HEADERS[i] for i in keep],
-            ([row[i] for i in keep] for row in map(_metric_row, metrics)),
-        ),
-    ]
+    tables = metric_tables(metrics, form, sample_size="N", p="p")
+    return [el("h4", "指標の値"), *(b for t in tables for b in _value_table(t))]
 
 
 def _figure(figure: NoteFigure, number: int) -> Html:
@@ -617,6 +580,35 @@ def _results(note: DesignNote, anchor: str) -> Html:
         if note.verdict is not None
         else None,
         _figures(note, anchor),
+    )
+
+
+def _status_after(form: DesignForm, written: str) -> str:
+    try:
+        status = DesignStatus(written)
+    except ValueError:
+        return written
+    return f"{status_word(form, status)}（{status.value}）"
+
+
+def _reviews(note: DesignNote, anchor: str) -> Html:
+    body = (
+        join(
+            review_batch(b, _status_after(note.design.form(), b.status_after))
+            for b in note.reviews
+        )
+        if note.reviews
+        else el("p", "review はまだ無い。")
+    )
+    return _section(
+        anchor,
+        "reviews",
+        "レビュー",
+        el(
+            "p",
+            "review batch を新しい順に出す。review コメントと対象は書かれたとおりに写す。",
+        ),
+        body,
     )
 
 
@@ -805,6 +797,7 @@ def render_note(note: DesignNote) -> Html:
         _explanatory(design, anchor),
         _sources(note, anchor),
         _results(note, anchor),
+        _reviews(note, anchor),
         _conclusion(note, anchor),
         _code(note, anchor),
         _lineage(note, anchor),

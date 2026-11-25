@@ -65,3 +65,6 @@ class ReviewBatch(BaseModel, extra="forbid"):
     reviewer: str = Field(default="analyst", min_length=1, max_length=100)
     comments: list[BatchComment] = Field(min_length=1)
     created_at: datetime = Field(default_factory=now_jst)
+    # Held as written, not derived from the analysis mark (ADR-0054 4).
+    # None: a batch saved before Epic 33, which does not tell.
+    after_analysis_started: bool | None = None

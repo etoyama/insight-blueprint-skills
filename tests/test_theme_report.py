@@ -27,8 +27,8 @@ from skills._shared.design_note import (
     NoteFigure,
     NoteSource,
     NoteVerdict,
-    VerdictMetric,
 )
+from skills._shared.design_note_read import load_design_note
 from skills._shared.theme_report import (
     READER_WORDS,
     ReportDesign,
@@ -38,6 +38,13 @@ from skills._shared.theme_report import (
     render_report,
 )
 from skills._shared.tree_render import CitedEvent
+from skills._shared.verdict_table import (
+    CONFIDENCE,
+    MetricGroup,
+    ValueInterval,
+    VerdictMetric,
+)
+from tests._saved_verdicts import SAVED_VERDICTS, save_design_with_verdict
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 # The glossary's own reader, as the documents' tests use it.
@@ -128,7 +135,7 @@ def _metric(name: str, value: str | None, **over: object) -> VerdictMetric:
         "p": None,
         "passed": None,
         "effect_size": None,
-        "confidence_interval": None,
+        "interval": None,
         "sample_size": None,
     }
     fields.update(over)
@@ -537,7 +544,9 @@ class TestResults:
                                 p="0.01",
                                 passed=False,
                                 effect_size=("cohens_d", "0.30"),
-                                confidence_interval=("0.95", "0.10", "0.50"),
+                                interval=ValueInterval(
+                                    CONFIDENCE, "0.95", "0.10", "0.50"
+                                ),
                                 sample_size="1520",
                             ),
                         )
@@ -548,12 +557,12 @@ class TestResults:
 
         lines = results.splitlines()
         assert (
-            "| 指標 | 値 | 効果量 | 信頼区間 | 標本サイズ | しきい値 | p 値 | 合否 |"
+            "| 指標 | 値 | 効果量 | 区間 | 標本サイズ | しきい値 | p 値 | 合否 |"
             in lines
         )
         assert (
-            "| 差 | 0.1 | 0.30（cohens\\_d） | 水準 0.95: [0.10, 0.50] | 1520 | 0.05 | 0.01 | ✗ |"
-            in lines
+            "| 差 | 0.1 | 0.30（cohens\\_d） | 信頼区間 水準 0.95: [0.10, 0.50] "
+            "| 1520 | 0.05 | 0.01 | ✗ |" in lines
         )
 
     def test_figures_come_as_numbered_image_links_with_title_axes_and_how_to_read(
@@ -945,8 +954,27 @@ def _poisoned_report(aim: Aim) -> ThemeReport:
                 p=p,
                 passed=True,
                 effect_size=(p, p),
-                confidence_interval=(p, p, p),
+                interval=ValueInterval(p, p, p, p),
                 sample_size=p,
+                support_line=p,
+                reject_line=p,
+            ),
+            # Two axes of values alone, and one axis with more: both group tables.
+            _metric(p, None, by=(p, p), groups=(_group(p, p, value=p),)),
+            _metric(
+                p,
+                None,
+                by=(p,),
+                groups=(
+                    _group(
+                        p,
+                        value=p,
+                        p=p,
+                        effect_size=(p, p),
+                        interval=ValueInterval(p, p, p, p),
+                        sample_size=p,
+                    ),
+                ),
             ),
         ),
         figures=(NoteFigure(file="a_b.png", title=p, axes=p, how_to_read=p, png=b""),),
@@ -1340,3 +1368,178 @@ class TestReportDesignOfANote:
             word,
             "延ばすと減る",
         )
+
+
+# Epic 33 US-1 AC 5: a verdict saved before the Epic, as the report tabulates it.
+# The columns and values are the ones before the Epic, except that the interval
+# column is headed 区間 and names its kind (US-2 AC 2). None: no metric table.
+_PRIMARY_AND_GUARDRAIL_TABLE = [
+    "| 指標 | 値 | 区間 | 標本サイズ | しきい値 | 合否 |",
+    "| --- | --- | --- | --- | --- | --- |",
+    "| rho | 0.62 | 信頼区間 水準 0.95: [0.51, 0.69] | 412 | 0.70 | ✓ |",
+    "| 欠損の検査 | — | — | — | — | ✓ |",
+]
+REPORT_TABLES: dict[str, list[str] | None] = {
+    "no_metrics": None,
+    "p_and_p_value": [
+        "| 指標 | 値 | p 値 |",
+        "| --- | --- | --- |",
+        "| 旧い p | 1.80 | 0.040 |",
+        "| 契約の p\\_value | 1.80 | 0.030 |",
+        "| 両方 | 1.80 | 0.040 |",
+    ],
+    "optional_items": [
+        "| 指標 | 値 | 効果量 | 区間 | 標本サイズ | しきい値 | p 値 | 合否 |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| 任意の項目なし | 0.346 | — | — | — | 0.050 | — | ✓ |",
+        "| 欠けた項目 | 1 | — | — | — | — | — | — |",
+        "| そろった項目 | 0.00010 | 0.30（cohens\\_d） | 信頼区間 水準 0.95: [0.10, 0.50] "
+        "| 1520 | 0.050 | 1e-05 | ✓ |",
+    ],
+    "exploration_with_a_pass": [
+        "| 指標 | 値 | 区間 | 標本サイズ | しきい値 | 合否 |",
+        "| --- | --- | --- | --- | --- | --- |",
+        "| 待ち日数の差 | 1.80 | 信頼区間 水準 0.95: [0.40, 3.20] | 840 | 1.0 | ✓ |",
+    ],
+    "threshold_kinds": [
+        "| 指標 | 値 | しきい値 | 合否 |",
+        "| --- | --- | --- | --- |",
+        "| 数 | 2.10 | 2.0 | ✓ |",
+        "| 文字 | 2.10 | 2.0 日以上 | ✓ |",
+        '| その他の JSON | 2.10 | {"min": 1.0, "max": \\[2.0, NaN\\]} | — |',
+    ],
+    "pass_not_a_boolean": [
+        "| 指標 | 値 | しきい値 |",
+        "| --- | --- | --- |",
+        "| 文字の合否 | 2.10 | 2.0 |",
+        "| 数の合否 | 2.10 | 2.0 |",
+        "| null の合否 | 2.10 | 2.0 |",
+    ],
+    "mixed_design": _PRIMARY_AND_GUARDRAIL_TABLE,
+    "design_without_an_intent": _PRIMARY_AND_GUARDRAIL_TABLE,
+}
+
+
+def _tables(markdown: str) -> list[list[str]]:
+    """The lines of each table in *markdown*, in order."""
+    return [
+        table.splitlines()
+        for table in re.findall(r"(?:^\|.*\n?)+", markdown, flags=re.MULTILINE)
+    ]
+
+
+@pytest.mark.parametrize("name", SAVED_VERDICTS)
+def test_the_report_tabulates_a_saved_verdict_as_before(
+    tmp_path: Path, name: str
+) -> None:
+    insight = tmp_path / ".insight"
+    design_id = save_design_with_verdict(insight, *SAVED_VERDICTS[name])
+    design = replace(
+        ReportDesign.of(load_design_note(design_id, base_dir=insight)), id="LIB-H01"
+    )
+
+    tables = _tables(_results(_answered(design)))
+
+    assert tables == ([] if REPORT_TABLES[name] is None else [REPORT_TABLES[name]])
+
+
+# Story 33.3 (Epic 33 US-1 AC 4, US-2 AC 2 and AC 5): how the report draws the
+# metric tables. The rules of the tables are tested once in
+# tests/test_verdict_table.py; here, only what the report adds: its headings,
+# its dashes and its escaping.
+
+
+def _group(*names: str, value: str | None = None, **over: object) -> MetricGroup:
+    fields: dict = {
+        "group": names,
+        "value": value,
+        "p": None,
+        "effect_size": None,
+        "interval": None,
+        "sample_size": None,
+    }
+    fields.update(over)
+    return MetricGroup(**fields)
+
+
+def _metric_tables(*metrics: VerdictMetric, design: ReportDesign | None = None) -> str:
+    """The Results of a report whose one design holds *metrics*."""
+    return _results(_answered(replace(design or _design(), metrics=metrics)))
+
+
+class TestIntervalInTheReport:
+    def test_a_kind_the_report_has_no_word_for_is_escaped(self) -> None:
+        lines = _metric_tables(
+            _metric(
+                "差",
+                "0.1",
+                interval=ValueInterval("bootstrap_percentile", "0.95", "0.10", "0.50"),
+            ),
+        ).splitlines()
+
+        assert "| 指標 | 値 | 区間 |" in lines
+        assert "| 差 | 0.1 | bootstrap\\_percentile 水準 0.95: [0.10, 0.50] |" in lines
+
+    def test_an_empty_kind_reads_as_a_dash_as_in_the_note(self) -> None:
+        lines = _metric_tables(
+            _metric("差", "0.1", interval=ValueInterval("", "0.95", "0.10", "0.50")),
+        ).splitlines()
+
+        assert "| 差 | 0.1 | — 水準 0.95: [0.10, 0.50] |" in lines
+
+
+class TestGroupsInTheReport:
+    def test_two_axes_of_values_alone_make_a_table_of_rows_and_columns(
+        self,
+    ) -> None:
+        results = _metric_tables(
+            _metric(
+                "待ちの割合",
+                None,
+                by=("branch", "wait_band"),
+                groups=(
+                    _group("中央館", "3日以内", value="0.42"),
+                    _group("中央館", "8日以上", value="0.20"),
+                    _group("北分館", "3日以内", value="0.25"),
+                    _group("北分館", "8日以上", value="0.35"),
+                ),
+            ),
+        )
+
+        assert "待ちの割合（branch × wait\\_band）" in results.splitlines()
+        assert _tables(results) == [
+            [
+                "| branch | 3日以内 | 8日以上 |",
+                "| --- | --- | --- |",
+                "| 中央館 | 0.42 | 0.20 |",
+                "| 北分館 | 0.25 | 0.35 |",
+            ]
+        ]
+
+    def test_one_axis_makes_a_table_with_a_column_of_groups(self) -> None:
+        results = _metric_tables(
+            _metric(
+                "待ち日数",
+                None,
+                by=("branch",),
+                groups=(
+                    _group(
+                        "中央館",
+                        value="4.0",
+                        interval=ValueInterval(CONFIDENCE, "0.95", "3.5", "4.5"),
+                        sample_size="1200",
+                    ),
+                    _group("北分館", value="7.0", sample_size="310"),
+                ),
+            ),
+        )
+
+        assert "待ち日数（branch）" in results.splitlines()
+        assert _tables(results) == [
+            [
+                "| branch | 値 | 区間 | 標本サイズ |",
+                "| --- | --- | --- | --- |",
+                "| 中央館 | 4.0 | 信頼区間 水準 0.95: [3.5, 4.5] | 1200 |",
+                "| 北分館 | 7.0 | — | 310 |",
+            ]
+        ]

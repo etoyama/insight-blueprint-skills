@@ -12,8 +12,22 @@ from pathlib import Path
 
 import pytest
 
-from skills._shared.design_note import CodeCell
+from skills._shared.design_note import (
+    CodeCell,
+)
 from skills._shared.design_note_read import notebook_cells
+from skills._shared.design_note_reviews import (
+    NoteReviewBatch,
+    NoteReviewComment,
+)
+from skills._shared.verdict_table import (
+    CONFIDENCE,
+    MetricGroup,
+    MetricJudgment,
+    ValueInterval,
+    VerdictMetric,
+)
+from tests._saved_verdicts import OPTIONAL_ITEMS, SAVED_VERDICTS
 
 CONNECTION = "/Users/secret-analyst/data/reservations.csv"
 
@@ -583,9 +597,8 @@ def test_an_explored_design_reads_no_evidence_against_a_hypothesis(
 # before may hold "p". The note reads both, "p" first (#230, from Story 32.4).
 
 
-def _p_of(tmp_path: Path, entry: dict) -> str | None:
-    import json
-
+def _metrics_of(tmp_path: Path, verdict: str) -> tuple[VerdictMetric, ...]:
+    """The metrics the note reads from *verdict*, the text of a verdict file."""
     from skills._shared import design_io
     from skills._shared.design_note_read import load_design_note
 
@@ -600,12 +613,22 @@ def _p_of(tmp_path: Path, entry: dict) -> str | None:
     )["id"]
     notebooks = insight / "notebooks"
     notebooks.mkdir()
-    (notebooks / f"{design_id}_verdict.json").write_text(
-        json.dumps({"metrics": {"差": entry}}), encoding="utf-8"
-    )
-    verdict = load_design_note(design_id, base_dir=insight).verdict
-    assert verdict is not None
-    return verdict.metrics[0].p
+    (notebooks / f"{design_id}_verdict.json").write_text(verdict, encoding="utf-8")
+    read = load_design_note(design_id, base_dir=insight).verdict
+    assert read is not None
+    return read.metrics
+
+
+def _metric_of(tmp_path: Path, entry: str) -> VerdictMetric:
+    """The one metric read from *entry*, the JSON text of a metric entry."""
+    (metric,) = _metrics_of(tmp_path, f'{{"metrics": {{"差": {entry}}}}}')
+    return metric
+
+
+def _p_of(tmp_path: Path, entry: dict) -> str | None:
+    import json
+
+    return _metric_of(tmp_path, json.dumps(entry)).p
 
 
 @pytest.mark.parametrize(
@@ -621,3 +644,475 @@ def test_the_p_value_is_read_as_the_contract_or_an_older_verdict_writes_it(
     tmp_path: Path, entry: dict, p: str | None
 ) -> None:
     assert _p_of(tmp_path, entry) == p
+
+
+# Story 33.1 (Epic 33 US-1, US-2): a verdict metric may hold the two lines of the
+# criterion, a judgment, an interval with its kind, and rows per group (ADR-0052).
+# The reader lays out what the notebook wrote and computes nothing.
+
+
+class TestTheLinesAndTheJudgment:
+    def test_both_lines_are_read_as_the_notebook_wrote_them(
+        self, tmp_path: Path
+    ) -> None:
+        metric = _metric_of(
+            tmp_path, '{"value": 1.40, "support_line": 2.0, "reject_line": 1.00}'
+        )
+        assert (metric.support_line, metric.reject_line) == ("2.0", "1.00")
+
+    def test_a_criterion_of_one_line_holds_only_that_line(self, tmp_path: Path) -> None:
+        metric = _metric_of(tmp_path, '{"value": 1.40, "support_line": 2.0}')
+        assert (metric.support_line, metric.reject_line) == ("2.0", None)
+
+    @pytest.mark.parametrize("judgment", ["supported", "rejected", "inconclusive"])
+    def test_each_of_the_three_judgments_is_read(
+        self, tmp_path: Path, judgment: str
+    ) -> None:
+        metric = _metric_of(tmp_path, f'{{"value": 1.40, "judgment": "{judgment}"}}')
+        assert metric.judgment is MetricJudgment(judgment)
+
+    @pytest.mark.parametrize(
+        "written", ['"pass"', '"Supported"', '""', "true", "1", "null", '["supported"]']
+    )
+    def test_any_other_judgment_reads_as_none(
+        self, tmp_path: Path, written: str
+    ) -> None:
+        metric = _metric_of(tmp_path, f'{{"value": 1.40, "judgment": {written}}}')
+        assert metric.judgment is None
+
+    def test_the_judgment_is_not_derived_from_the_value_and_the_lines(
+        self, tmp_path: Path
+    ) -> None:
+        metric = _metric_of(
+            tmp_path, '{"value": 3.0, "support_line": 2.0, "reject_line": 1.0}'
+        )
+        assert metric.judgment is None
+
+    def test_a_threshold_and_a_pass_are_read_beside_the_lines(
+        self, tmp_path: Path
+    ) -> None:
+        """A notebook that mixes the two sets up is shown as it wrote them."""
+        metric = _metric_of(
+            tmp_path,
+            '{"value": 3.0, "support_line": 2.0, "judgment": "supported",'
+            ' "threshold": 2.0, "pass": true}',
+        )
+        assert (metric.threshold, metric.passed) == ("2.0", True)
+        assert metric.judgment is MetricJudgment.supported
+
+
+class TestTheIntervalOfTheValue:
+    def test_an_interval_holds_its_kind_level_and_bounds(self, tmp_path: Path) -> None:
+        metric = _metric_of(
+            tmp_path,
+            '{"value": 0.62, "interval":'
+            ' {"kind": "hdi", "level": 0.95, "lower": 0.510, "upper": 0.69}}',
+        )
+        assert metric.interval == ValueInterval("hdi", "0.95", "0.510", "0.69")
+
+    def test_the_kind_is_any_name_the_notebook_wrote(self, tmp_path: Path) -> None:
+        metric = _metric_of(
+            tmp_path,
+            '{"value": 0.62, "interval":'
+            ' {"kind": "bootstrap percentile", "level": 0.9, "lower": 0.5, "upper": 0.7}}',
+        )
+        assert metric.interval is not None
+        assert metric.interval.kind == "bootstrap percentile"
+
+    @pytest.mark.parametrize("missing", ["kind", "level", "lower", "upper"])
+    def test_an_interval_without_one_of_its_four_items_reads_as_none(
+        self, tmp_path: Path, missing: str
+    ) -> None:
+        items = {"kind": '"hdi"', "level": "0.95", "lower": "0.51", "upper": "0.69"}
+        del items[missing]
+        interval = ", ".join(f'"{key}": {value}' for key, value in items.items())
+        metric = _metric_of(tmp_path, f'{{"value": 0.62, "interval": {{{interval}}}}}')
+        assert metric.interval is None
+
+    def test_a_saved_confidence_interval_reads_as_a_confidence_interval(
+        self, tmp_path: Path
+    ) -> None:
+        metric = _metric_of(
+            tmp_path,
+            '{"value": 0.62, "confidence_interval":'
+            ' {"level": 0.95, "lower": 0.51, "upper": 0.69}}',
+        )
+        assert metric.interval == ValueInterval(CONFIDENCE, "0.95", "0.51", "0.69")
+
+    def test_the_interval_is_read_when_both_are_written(self, tmp_path: Path) -> None:
+        metric = _metric_of(
+            tmp_path,
+            '{"value": 0.62,'
+            ' "confidence_interval": {"level": 0.9, "lower": 0.1, "upper": 0.2},'
+            ' "interval": {"kind": "hdi", "level": 0.95, "lower": 0.51, "upper": 0.69}}',
+        )
+        assert metric.interval == ValueInterval("hdi", "0.95", "0.51", "0.69")
+
+    def test_a_partial_interval_leaves_the_saved_confidence_interval_readable(
+        self, tmp_path: Path
+    ) -> None:
+        metric = _metric_of(
+            tmp_path,
+            '{"value": 0.62,'
+            ' "confidence_interval": {"level": 0.9, "lower": 0.1, "upper": 0.2},'
+            ' "interval": {"kind": "hdi", "level": 0.95}}',
+        )
+        assert metric.interval == ValueInterval(CONFIDENCE, "0.9", "0.1", "0.2")
+
+
+GROUPED = """{
+  "by": ["国籍", "区分"],
+  "groups": [
+    {"group": ["JP", "A"], "value": 1.20,
+     "effect_size": {"kind": "cohens_d", "value": 0.30},
+     "interval": {"kind": "hdi", "level": 0.95, "lower": 1.00, "upper": 1.40},
+     "sample_size": 120, "p_value": 0.040},
+    {"group": ["JP", "B"], "value": 0.80},
+    {"group": ["US", 2024], "value": 1.5, "judgment": "supported", "pass": true}
+  ]
+}"""
+
+
+class TestTheRowsOfTheGroups:
+    def test_a_metric_holds_its_axes_and_one_row_per_group(
+        self, tmp_path: Path
+    ) -> None:
+        metric = _metric_of(tmp_path, GROUPED)
+
+        assert metric.by == ("国籍", "区分")
+        assert [row.group for row in metric.groups] == [
+            ("JP", "A"),
+            ("JP", "B"),
+            ("US", "2024"),
+        ]
+        assert [row.value for row in metric.groups] == ["1.20", "0.80", "1.5"]
+        assert metric.value is None
+
+    def test_a_row_may_hold_the_optional_items(self, tmp_path: Path) -> None:
+        first, second, _ = _metric_of(tmp_path, GROUPED).groups
+
+        assert first == MetricGroup(
+            group=("JP", "A"),
+            value="1.20",
+            p="0.040",
+            effect_size=("cohens_d", "0.30"),
+            interval=ValueInterval("hdi", "0.95", "1.00", "1.40"),
+            sample_size="120",
+        )
+        assert second == MetricGroup(
+            group=("JP", "B"),
+            value="0.80",
+            p=None,
+            effect_size=None,
+            interval=None,
+            sample_size=None,
+        )
+
+    def test_a_row_has_no_place_for_a_judgment_or_a_pass(self, tmp_path: Path) -> None:
+        last = _metric_of(tmp_path, GROUPED).groups[-1]
+        assert not {"judgment", "passed", "threshold"} & set(vars(last))
+
+    def test_one_axis_is_a_list_of_one_name(self, tmp_path: Path) -> None:
+        metric = _metric_of(
+            tmp_path,
+            '{"by": ["館"], "groups": ['
+            '{"group": ["本館"], "value": 3.1}, {"group": ["分館"], "value": 4.9}]}',
+        )
+        assert metric.by == ("館",)
+        assert [row.group for row in metric.groups] == [("本館",), ("分館",)]
+
+    @pytest.mark.parametrize(
+        "entry",
+        [
+            '{"value": 1, "groups": [{"group": ["JP"], "value": 1.2}]}',
+            '{"value": 1, "by": ["国籍"]}',
+            '{"value": 1, "by": ["国籍"], "groups": []}',
+            '{"value": 1, "by": [], "groups": [{"group": [], "value": 1.2}]}',
+            '{"value": 1, "by": "国籍", "groups": [{"group": "JP", "value": 1.2}]}',
+            '{"value": 1, "by": ["国籍"], "groups": {"JP": 1.2}}',
+            '{"value": 1, "by": ["国籍"], "groups": [1.2]}',
+            '{"value": 1, "by": ["国籍"], "groups": [{"value": 1.2}]}',
+            '{"value": 1, "by": ["国籍", "区分"], "groups": ['
+            '{"group": ["JP", "A"], "value": 1.2}, {"group": ["JP"], "value": 0.8}]}',
+            '{"value": 1, "by": ["国籍"], "groups": [{"group": [null], "value": 1.2}]}',
+            '{"value": 1, "by": ["国籍"], "groups": [{"group": [["JP"]], "value": 1}]}',
+            '{"value": 1, "by": [{"axis": "国籍"}], "groups": ['
+            '{"group": ["JP"], "value": 1.2}]}',
+        ],
+        ids=[
+            "no-by",
+            "no-groups",
+            "no-row",
+            "no-axis",
+            "names-not-in-a-list",
+            "groups-not-a-list",
+            "row-not-an-object",
+            "row-without-a-group",
+            "one-row-with-too-few-names",
+            "null-name",
+            "nested-name",
+            "axis-not-a-name",
+        ],
+    )
+    def test_groups_that_do_not_fit_their_axes_read_as_no_groups(
+        self, tmp_path: Path, entry: str
+    ) -> None:
+        """Dropping one bad row would show a table that looks whole and is not."""
+        metric = _metric_of(tmp_path, entry)
+        assert (metric.by, metric.groups) == ((), ())
+        assert metric.value == "1"
+
+
+class TestASavedVerdictReadsAsBefore:
+    """Epic 33 US-1 AC 5: every new item is optional."""
+
+    @pytest.mark.parametrize("name", SAVED_VERDICTS)
+    def test_it_holds_none_of_the_new_items(self, tmp_path: Path, name: str) -> None:
+        for metric in _metrics_of(tmp_path, SAVED_VERDICTS[name][1]):
+            assert (metric.support_line, metric.reject_line) == (None, None)
+            assert metric.judgment is None
+            assert (metric.by, metric.groups) == ((), ())
+            assert metric.interval is None or metric.interval.kind == CONFIDENCE
+
+    def test_its_items_keep_the_text_the_notebook_wrote(self, tmp_path: Path) -> None:
+        plain, partial, full = _metrics_of(tmp_path, OPTIONAL_ITEMS)
+
+        assert plain == VerdictMetric(
+            name="任意の項目なし",
+            value="0.346",
+            threshold="0.050",
+            p=None,
+            passed=True,
+            effect_size=None,
+            interval=None,
+            sample_size=None,
+        )
+        assert (partial.effect_size, partial.interval) == (None, None)
+        assert full == VerdictMetric(
+            name="そろった項目",
+            value="0.00010",
+            threshold="0.050",
+            p="1e-05",
+            passed=True,
+            effect_size=("cohens_d", "0.30"),
+            interval=ValueInterval(CONFIDENCE, "0.95", "0.10", "0.50"),
+            sample_size="1520",
+        )
+
+
+# The review batches of {id}_reviews.yaml (Story 33.6, US-4 AC 4). The note
+# copies each batch as written; a line it cannot read is skipped, never fatal.
+
+
+def _reviews_of(tmp_path: Path, text: str | None) -> tuple[NoteReviewBatch, ...]:
+    """The review batches the note reads when ``_reviews.yaml`` holds *text*."""
+    from skills._shared import design_io
+    from skills._shared.design_note_read import load_design_note
+
+    insight = tmp_path / ".insight"
+    (insight / "designs").mkdir(parents=True)
+    design_id = design_io.create_design(
+        theme_id="LIB",
+        title="館ごとの期限切れ",
+        hypothesis_statement="延ばすと減る",
+        hypothesis_background="7日で多い",
+        base_dir=insight,
+    )["id"]
+    if text is not None:
+        path = insight / "designs" / f"{design_id}_reviews.yaml"
+        path.write_text(text, encoding="utf-8")
+    return load_design_note(design_id, base_dir=insight).reviews
+
+
+_TWO_BATCHES = """\
+batches:
+- id: RB-old
+  design_id: LIB-H01
+  status_after: analyzing
+  reviewer: analyst
+  created_at: '2026-11-20T10:00:00+09:00'
+  comments:
+  - comment: 比較の向きは合っている
+    target_section: hypothesis_statement
+    target_content: 延ばすと減る
+- id: RB-new
+  design_id: LIB-H01
+  status_after: revision_requested
+  reviewer: 館長
+  created_at: '2026-11-24T10:00:00+09:00'
+  after_analysis_started: true
+  comments:
+  - comment: 区間が広すぎる
+    target_section: verdict
+    target_content: {metric: 期限切れ率の差, lower: 0.25}
+  - comment: 全体として図が足りない
+"""
+
+
+class TestTheReviewBatches:
+    def test_a_design_without_a_reviews_file_has_no_batches(
+        self, tmp_path: Path
+    ) -> None:
+        assert _reviews_of(tmp_path, None) == ()
+
+    def test_the_batches_come_newest_first_with_each_item_as_written(
+        self, tmp_path: Path
+    ) -> None:
+        new, old = _reviews_of(tmp_path, _TWO_BATCHES)
+
+        assert new == NoteReviewBatch(
+            id="RB-new",
+            created_at="2026-11-24T10:00:00+09:00",
+            after_analysis_started=True,
+            status_after="revision_requested",
+            reviewer="館長",
+            comments=(
+                NoteReviewComment(
+                    comment="区間が広すぎる",
+                    target_section="verdict",
+                    target_content='{"metric": "期限切れ率の差", "lower": 0.25}',
+                ),
+                NoteReviewComment(
+                    comment="全体として図が足りない",
+                    target_section=None,
+                    target_content=None,
+                ),
+            ),
+        )
+        assert old.id == "RB-old"
+        assert old.comments[0].target_content == "延ばすと減る"
+
+    def test_the_batches_come_by_their_time_whatever_the_order_of_the_file(
+        self, tmp_path: Path
+    ) -> None:
+        text = "batches:\n" + "".join(
+            f"- id: {i}\n  created_at: '{at}'\n  comments: [{{comment: x}}]\n"
+            for i, at in (
+                ("RB-mid", "2026-11-22T10:00:00+09:00"),
+                ("RB-new", "2026-11-24T10:00:00+09:00"),
+                ("RB-old", "2026-11-20T10:00:00+09:00"),
+            )
+        )
+
+        assert [b.id for b in _reviews_of(tmp_path, text)] == [
+            "RB-new",
+            "RB-mid",
+            "RB-old",
+        ]
+
+    def test_a_time_yaml_reads_as_a_date_is_ordered_by_its_iso_text(
+        self, tmp_path: Path
+    ) -> None:
+        text = _TWO_BATCHES.replace(
+            "batches:\n",
+            "batches:\n- id: RB-unquoted\n  created_at: 2026-11-22T10:00:00+09:00\n"
+            "  comments: [{comment: x}]\n",
+        )
+
+        batches = _reviews_of(tmp_path, text)
+
+        assert [b.id for b in batches] == ["RB-new", "RB-unquoted", "RB-old"]
+        assert batches[1].created_at == "2026-11-22T10:00:00+09:00"
+
+    def test_batches_of_the_same_time_keep_the_order_of_the_file(
+        self, tmp_path: Path
+    ) -> None:
+        text = "batches:\n" + "".join(
+            f"- id: {i}\n  created_at: '2026-11-24T10:00:00+09:00'\n"
+            "  comments: [{comment: x}]\n"
+            for i in ("RB-b", "RB-a")
+        )
+
+        assert [b.id for b in _reviews_of(tmp_path, text)] == ["RB-b", "RB-a"]
+
+    def test_a_batch_saved_without_the_item_does_not_tell_when_it_came(
+        self, tmp_path: Path
+    ) -> None:
+        _, old = _reviews_of(tmp_path, _TWO_BATCHES)
+
+        assert old.after_analysis_started is None
+
+    @pytest.mark.parametrize(
+        ("written", "read"),
+        [("false", False), ("true", True), ("'yes'", None), ("1", None)],
+    )
+    def test_only_a_boolean_tells_whether_the_analysis_had_started(
+        self, tmp_path: Path, written: str, read: bool | None
+    ) -> None:
+        text = _TWO_BATCHES.replace(
+            "after_analysis_started: true", f"after_analysis_started: {written}"
+        )
+        new, _ = _reviews_of(tmp_path, text)
+
+        assert new.after_analysis_started is read
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "batches: [unclosed\n",
+            "- just a list\n",
+            "batches: not a list\n",
+            "batches:\n- just text\n",
+            "batches:\n- id: RB-x\n  comments: not a list\n",
+            "batches:\n- id: RB-x\n  comments:\n  - just text\n  - target_section: x\n",
+            "\x00",
+            "batches:\n- created_at: 2026-13-45T09:00:00\n  comments: [{comment: x}]\n",
+            "batches:\n- created_at: 2026-02-30\n  comments: [{comment: x}]\n",
+        ],
+    )
+    def test_a_file_or_line_that_cannot_be_read_gives_no_batch_and_no_error(
+        self, tmp_path: Path, text: str
+    ) -> None:
+        assert _reviews_of(tmp_path, text) == ()
+
+    def test_an_unreadable_batch_is_skipped_and_the_others_stay(
+        self, tmp_path: Path
+    ) -> None:
+        text = _TWO_BATCHES.replace("batches:\n", "batches:\n- broken\n- {id: RB-x}\n")
+
+        assert [b.id for b in _reviews_of(tmp_path, text)] == ["RB-new", "RB-old"]
+
+    def test_a_link_in_place_of_the_reviews_file_is_not_read(
+        self, tmp_path: Path
+    ) -> None:
+        outside = tmp_path / "outside.yaml"
+        outside.write_text(_TWO_BATCHES, encoding="utf-8")
+        from skills._shared import design_io
+        from skills._shared.design_note_read import load_design_note
+
+        insight = tmp_path / ".insight"
+        (insight / "designs").mkdir(parents=True)
+        design_id = design_io.create_design(
+            theme_id="LIB",
+            title="館ごとの期限切れ",
+            hypothesis_statement="延ばすと減る",
+            hypothesis_background="7日で多い",
+            base_dir=insight,
+        )["id"]
+        (insight / "designs" / f"{design_id}_reviews.yaml").symlink_to(outside)
+
+        assert load_design_note(design_id, base_dir=insight).reviews == ()
+
+
+def test_a_reviews_file_the_analyst_cannot_open_gives_no_batch(
+    tmp_path: Path,
+) -> None:
+    from skills._shared import design_io
+    from skills._shared.design_note_read import load_design_note
+
+    insight = tmp_path / ".insight"
+    (insight / "designs").mkdir(parents=True)
+    design_id = design_io.create_design(
+        theme_id="LIB",
+        title="館ごとの期限切れ",
+        hypothesis_statement="延ばすと減る",
+        hypothesis_background="7日で多い",
+        base_dir=insight,
+    )["id"]
+    path = insight / "designs" / f"{design_id}_reviews.yaml"
+    path.write_text(_TWO_BATCHES, encoding="utf-8")
+    path.chmod(0)
+    try:
+        assert load_design_note(design_id, base_dir=insight).reviews == ()
+    finally:
+        path.chmod(0o644)

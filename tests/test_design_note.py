@@ -16,11 +16,23 @@ from skills._shared.design_note import (
     NoteFigure,
     NoteSource,
     NoteVerdict,
-    VerdictMetric,
     note_anchor,
     render_note,
     render_note_page,
 )
+from skills._shared.design_note_reviews import (
+    NoteReviewBatch,
+    NoteReviewComment,
+    comments_after_analysis,
+)
+from skills._shared.verdict_table import (
+    CONFIDENCE,
+    MetricGroup,
+    MetricJudgment,
+    ValueInterval,
+    VerdictMetric,
+)
+from tests._saved_verdicts import table_rows
 
 PNG = b"\x89PNG\r\n\x1a\nnot-really-a-png"
 EVIL = '<script>alert(1)</script>"'
@@ -75,7 +87,7 @@ def _metric(**over: object) -> VerdictMetric:
         "p": None,
         "passed": None,
         "effect_size": None,
-        "confidence_interval": None,
+        "interval": None,
         "sample_size": None,
     }
     fields.update(over)
@@ -141,6 +153,7 @@ class TestSections:
                 "explanatory",
                 "sources",
                 "results",
+                "reviews",
                 "code",
                 "lineage",
                 "progress",
@@ -344,21 +357,22 @@ class TestResults:
     def test_effect_size_and_interval_are_formatted_with_their_labels(self) -> None:
         metric = _metric(
             effect_size=("cohens_d", "0.30"),
-            confidence_interval=("0.95", "0.10", "0.50"),
+            interval=ValueInterval(CONFIDENCE, "0.95", "0.10", "0.50"),
         )
 
         html = str(render_note(_note(metrics=(metric,))))
 
         assert "<td>0.30（cohens_d）</td>" in html
-        assert "<td>水準 0.95: [0.10, 0.50]</td>" in html
+        assert "<td>信頼区間 水準 0.95: [0.10, 0.50]</td>" in html
 
     def test_a_missing_item_is_a_dash_and_a_failed_metric_is_a_cross(self) -> None:
-        metric = _metric(passed=False)
+        failed = _metric(passed=False)
+        measured = _metric(name="件数", p="0.01")
 
-        html = str(render_note(_note(metrics=(metric,))))
+        html = str(render_note(_note(metrics=(failed, measured))))
 
         assert "<td>✗</td>" in html
-        assert html.count("<td>—</td>") == 5
+        assert html.count("<td>—</td>") == 2  # 合否 of 件数, p of the failed one
 
     def test_a_metric_with_no_pass_verdict_is_a_dash(self) -> None:
         html = str(render_note(_note(metrics=(_metric(passed=None),))))
@@ -697,7 +711,7 @@ def test_code_lineage_verdict_conclusion_and_journal_text_are_escaped() -> None:
 def test_the_status_block_links_to_the_new_sections() -> None:
     html = _section_of(str(render_note(_note())), "status")
 
-    for name in ("code", "lineage", "progress", "files"):
+    for name in ("reviews", "code", "lineage", "progress", "files"):
         assert f'href="#note-LIB-H01-{name}"' in html
 
 
@@ -1110,3 +1124,238 @@ class TestStatusByForm:
 
         for word in VERDICT_WORDS:
             assert word not in html, word
+
+
+# Epic 33 Story 33.2: how the note draws the metric tables. The rules of the
+# tables are tested once in tests/test_verdict_table.py; here, only what the
+# note adds: its headings, its dashes and its escaping.
+
+
+def _value_tables(note: DesignNote) -> list[tuple[str | None, list[list[str]]]]:
+    """Each table under 指標の値, with the h5 heading just before it (None if none)."""
+    values = _section_of(str(render_note(note)), "results").split("指標の値", 1)[1]
+    return [
+        (heading or None, table_rows(table))
+        for heading, table in re.findall(
+            r"(?:<h5>(.*?)</h5>\s*)?<div class=\"table-wrap\">(<table>.*?</table>)",
+            values,
+            re.S,
+        )
+    ]
+
+
+def _main_table(note: DesignNote) -> list[list[str]]:
+    (first_heading, rows), *_ = _value_tables(note)
+    assert first_heading is None
+    return rows
+
+
+def _group(*names: str, value: str | None = None, **over: object) -> MetricGroup:
+    fields: dict = {
+        "group": names,
+        "value": value,
+        "p": None,
+        "effect_size": None,
+        "interval": None,
+        "sample_size": None,
+    }
+    fields.update(over)
+    return MetricGroup(**fields)
+
+
+class TestMetricTablesInTheNote:
+    def test_an_empty_cell_is_a_dash(self) -> None:
+        primary = _metric(
+            name="待ち日数の差",
+            value="1.4",
+            support_line="2.0",
+            reject_line="1.0",
+            judgment=MetricJudgment.inconclusive,
+        )
+        guardrail = _metric(name="欠損率", value="0.02", threshold="0.05", passed=True)
+
+        rows = _main_table(_note(metrics=(primary, guardrail)))
+
+        assert rows == [
+            ["指標", "値", "支持の線", "棄却の線", "判定", "しきい値", "合否"],
+            ["待ち日数の差", "1.4", "2.0", "1.0", "結論しない", "—", "—"],
+            ["欠損率", "0.02", "—", "—", "—", "0.05", "✓"],
+        ]
+
+    def test_the_sample_size_and_p_columns_are_headed_n_and_p(self) -> None:
+        rows = _main_table(
+            _note(metrics=(_metric(sample_size="840"), _metric(name="件数", p="0.01")))
+        )
+
+        assert rows == [
+            ["指標", "値", "N", "p"],
+            ["期限切れ率の差", "0.346", "840", "—"],
+            ["件数", "0.346", "—", "0.01"],
+        ]
+
+    def test_a_missing_value_in_a_two_axis_table_is_a_dash(self) -> None:
+        metric = _metric(
+            value=None,
+            by=("x", "y"),
+            groups=(_group("p", "q", value=None), _group("r", "s", value="5")),
+        )
+
+        ((_, rows),) = _value_tables(_note(metrics=(metric,)))
+
+        assert rows == [["x", "q", "s"], ["p", "—", "—"], ["r", "—", "5"]]
+
+    def test_a_group_table_comes_under_its_metric_and_axes(self) -> None:
+        metric = _metric(
+            name="待ち日数",
+            value=None,
+            by=("branch",),
+            groups=(
+                _group("中央館", value="4.0", sample_size="1200"),
+                _group("北分館", value="7.0", sample_size="310"),
+            ),
+        )
+
+        tables = _value_tables(_note(metrics=(metric,)))
+
+        assert tables == [
+            (
+                "待ち日数（branch）",
+                [
+                    ["branch", "値", "N"],
+                    ["中央館", "4.0", "1200"],
+                    ["北分館", "7.0", "310"],
+                ],
+            )
+        ]
+
+    def test_an_empty_axis_name_reads_as_a_dash_in_the_title(self) -> None:
+        metric = _metric(
+            name="m", value=None, by=("", "y"), groups=(_group("p", "q", value="1"),)
+        )
+
+        ((heading, _),) = _value_tables(_note(metrics=(metric,)))
+
+        assert heading == "m（— × y）"
+
+    def test_an_empty_axis_name_reads_as_a_dash_above_its_column(self) -> None:
+        metric = _metric(
+            name="m", value=None, by=("",), groups=(_group("p", value="1"),)
+        )
+
+        ((_, rows),) = _value_tables(_note(metrics=(metric,)))
+
+        assert rows[0] == ["—", "値"]
+
+    def test_a_kind_the_note_has_no_word_for_is_escaped(self) -> None:
+        metric = _metric(interval=ValueInterval(EVIL, "0.95", "0.10", "0.50"))
+
+        html = str(render_note(_note(metrics=(metric,))))
+
+        assert "<script>" not in html
+        assert "&lt;script&gt;" in html
+
+    def test_names_of_the_metric_the_axes_and_the_groups_are_escaped(self) -> None:
+        metric = _metric(
+            name=EVIL, value=None, by=(EVIL,), groups=(_group(EVIL, value="1"),)
+        )
+
+        html = str(render_note(_note(metrics=(metric,))))
+
+        assert "<script>" not in html
+        assert html.count("&lt;script&gt;") == 4  # heading twice, axis, group
+
+
+# The review section (Story 33.6, US-4 AC 4, ADR-0054 5).
+
+
+def _batch(**over: object) -> NoteReviewBatch:
+    fields: dict = {
+        "id": "RB-new",
+        "created_at": "2026-11-24T10:00:00+09:00",
+        "after_analysis_started": True,
+        "status_after": "revision_requested",
+        "reviewer": "館長",
+        "comments": (
+            NoteReviewComment("区間が広すぎる", "verdict", '{"lower": 0.25}'),
+            NoteReviewComment("全体として図が足りない", None, None),
+        ),
+    }
+    fields.update(over)
+    return NoteReviewBatch(**fields)
+
+
+def _reviews(*batches: NoteReviewBatch) -> str:
+    return _section_of(str(render_note(_note(reviews=batches))), "reviews")
+
+
+class TestReviews:
+    def test_a_note_without_a_batch_says_there_is_no_review_yet(self) -> None:
+        html = _reviews()
+
+        assert "<h3>レビュー</h3>" in html
+        assert "review はまだ無い。" in html
+
+    def test_each_batch_shows_its_time_status_and_comments_with_their_targets(
+        self,
+    ) -> None:
+        html = _reviews(_batch())
+
+        assert "2026-11-24T10:00:00+09:00" in html
+        assert "review の後の状態: 修正待ち（revision_requested）" in html
+        assert "reviewer: 館長" in html
+        assert table_rows(html) == [
+            ["review コメント", "対象", "対象の中身"],
+            ["区間が広すぎる", "verdict", '{"lower": 0.25}'],
+            ["全体として図が足りない", "—", "—"],
+        ]
+
+    def test_the_batches_come_in_the_order_they_are_given_newest_first(
+        self,
+    ) -> None:
+        html = _reviews(_batch(), _batch(id="RB-old", created_at="2026-11-20"))
+
+        assert _position(html, "RB-new") < _position(html, "RB-old")
+
+    @pytest.mark.parametrize(
+        ("after", "shown"),
+        [(True, "分析を始めた後の review"), (False, "分析を始める前の review")],
+    )
+    def test_a_batch_that_tells_says_whether_it_came_after_the_analysis(
+        self, after: bool, shown: str
+    ) -> None:
+        assert shown in _reviews(_batch(after_analysis_started=after))
+
+    def test_a_saved_batch_that_does_not_tell_shows_neither(self) -> None:
+        html = _reviews(_batch(after_analysis_started=None))
+
+        assert "分析を始めた後" not in html
+        assert "分析を始める前" not in html
+
+    def test_a_status_the_note_does_not_know_shows_as_written(self) -> None:
+        assert "review の後の状態: odd" in _reviews(_batch(status_after="odd"))
+
+    def test_the_analysts_text_is_escaped(self) -> None:
+        html = _reviews(
+            _batch(
+                id=EVIL,
+                created_at=EVIL,
+                status_after=EVIL,
+                reviewer=EVIL,
+                comments=(NoteReviewComment(EVIL, EVIL, EVIL),),
+            )
+        )
+
+        assert "<script>" not in html
+        assert html.count("&lt;script&gt;") == 7
+
+
+def test_only_the_comments_of_batches_written_after_the_analysis_are_counted() -> None:
+    reviews = (
+        _batch(),  # 2 comments, after
+        _batch(after_analysis_started=False),
+        _batch(after_analysis_started=None),
+        _batch(comments=(NoteReviewComment("図の軸が無い", "figures", "fig1.png"),)),
+    )
+
+    assert comments_after_analysis(reviews) == 3
+    assert comments_after_analysis(reviews[1:3]) == 0

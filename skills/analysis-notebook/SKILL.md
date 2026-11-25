@@ -65,8 +65,10 @@ The design's data sources (`source_ids`) must be registered in the catalog (else
    If `source_ids` is empty, stop before any transition and suggest declaring the sources with
    /analysis-design (Step 3b).
    If a confirmation has no primary metric whose `comparison` states its criterion, stop before any
-   transition and suggest writing it with /analysis-design: the notebook copies the threshold from
-   there and never makes one up (the contract's "`results` shape").
+   transition: the notebook copies the lines of the criterion from there and never makes one up
+   (the contract's "`results` shape"). A design still `in_review` writes it with /analysis-design;
+   a design that began its analysis cannot take a criterion any more, so suggest deriving a new
+   design with /analysis-design (`parent_id`).
 3. Status: needs `analyzing`. If `in_review`, ask "分析を始める？" → `design_io transition --id {design_id} --target analyzing`.
    If the design is terminal (`supported`/`rejected`/`inconclusive`/`explored`), it can't be analyzed — don't force a
    transition (there is no edge back to `analyzing`); tell the user to branch a new design (/analysis-design)
@@ -124,11 +126,16 @@ A notebook with any other cell shows no code in the analysis note. Drive the con
 - `# %% data_prep`: methodology-independent cleaning, each step via `tracked_pipe`
 - `# %% analysis`: from `methodology.method` + `methodology.steps` (code patterns) + `analysis_intent`;
   build the `results` dict in the shape of the design's form (the contract's "`results` shape"):
-  an exploration has no `hypothesis_direction`, no `decision_reason`, and no `threshold` or `pass`
-  in its metrics, and keeps every value it measured in `metrics`. In a confirmation, copy each
-  metric's `threshold` from that metric's own `comparison`; the notebook never makes up a threshold. For each metric, add the optional `effect_size`,
-  `confidence_interval`, and `sample_size` when the method defines them — see the contract's
-  "Optional metric items" (leave a key out rather than writing a placeholder)
+  an exploration has no `hypothesis_direction`, no `decision_reason`, and no line, judgment,
+  `threshold` or `pass` in its metrics, and keeps every value it measured in `metrics`. In a
+  confirmation, copy the primary metric's `support_line` and `reject_line`, and each other metric's
+  `threshold`, from that metric's own `comparison`; the notebook never makes up a line or a
+  threshold. In a confirmation the primary metric holds `support_line` and `reject_line` (at least
+  one) and its `judgment`, never a `threshold` or a `pass`; a secondary or guardrail metric holds a
+  `threshold` and a `pass`, never a line or a `judgment`. In both forms a metric measured per group
+  holds `by` and `groups`, never a group in its name. For each metric, add the optional
+  `effect_size`, `interval` (with its `kind`) and `sample_size` when the method defines them — see
+  the contract's "Optional metric items" (leave a key out rather than writing a placeholder)
 - `# %% viz`: from `chart[]` (type/description); **save each figure** to
   `.insight/notebooks/{design_id}_fig{NN:02d}.png` and build `figure_manifest`
   (`file`/`title`/`axes`/`how_to_read`) so the analysis note and the report can embed it — see the contract's

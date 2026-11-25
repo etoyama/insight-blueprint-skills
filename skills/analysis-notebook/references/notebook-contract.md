@@ -122,28 +122,66 @@ confirmation).
 # confirmation
 results = {
     "hypothesis_direction": "supported|rejected|inconclusive",
-    "observed_direction": "<observed vs threshold summary>",
+    "observed_direction": "<observed vs the lines summary>",
     "confidence_level": "high|medium|low|ambiguous",
-    "decision_reason": "<which criteria passed/failed>",
+    "decision_reason": "<where the value fell against the lines>",
     "metrics": {
-        "ATT": {
-            "value": 1676.9, "threshold": 0, "p_value": 0.0001, "pass": True,
+        # primary — the two lines of the criterion and the judgment
+        "wait_days_gap": {
+            "value": 1.4, "support_line": 2.0, "reject_line": 1.0,
+            "judgment": "inconclusive", "p_value": 0.0001,
             # optional — see "Optional metric items" below
             "effect_size": {"kind": "cohens_d", "value": 0.42},
-            "confidence_interval": {"level": 0.95, "lower": 1200.3, "upper": 2153.5},
+            "interval": {"kind": "confidence", "level": 0.95, "lower": 0.9, "upper": 1.9},
             "sample_size": 1200,
-        }
+        },
+        # secondary or guardrail — one threshold and whether it passed
+        "missing_rate": {"value": 0.01, "threshold": 0.05, "pass": True},
+        # measured per group — the axes in "by", one row per group
+        "wait_days_by_branch": {
+            "by": ["branch", "weekday"],
+            "groups": [
+                {"group": ["main", "Mon"], "value": 3.1, "sample_size": 300},
+                {
+                    "group": ["annex", "Mon"], "value": 4.9,
+                    "interval": {"kind": "hdi", "level": 0.95, "lower": 4.1, "upper": 5.8},
+                },
+            ],
+        },
     },
 }
 ```
 
-- In a confirmation, copy each metric's `threshold` from that metric's own `comparison` in the
-  design's `metrics`, where `/analysis-design` writes the criterion before the analysis runs. The
-  primary metric (`tier: primary`) carries the criterion of the judgment; the notebook never makes
-  up a threshold. If the design has no primary metric, or its `comparison` states no criterion, stop
-  and suggest /analysis-design rather than choosing one; a secondary or guardrail metric whose
-  `comparison` states none is reported with its value and no `threshold` or `pass`
-  ([ADR-0050](../../../docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md)).
+- In a confirmation, copy the primary metric's `support_line` and `reject_line`, and each other
+  metric's `threshold`, from that metric's own `comparison` in the design's `metrics`, where
+  `/analysis-design` writes the criterion before the analysis runs; the notebook never makes up a
+  line or a threshold
+  ([ADR-0050](../../../docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md),
+  [ADR-0052](../../../docs/adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md)).
+- The primary metric (`tier: primary`) carries the criterion of the judgment. The primary metric
+  holds the criterion as `support_line` and `reject_line`, both numbers, and its `judgment`. Write
+  at least one of the two lines; a criterion of one line writes only `support_line`.
+- `judgment` is `supported`, `rejected` or `inconclusive`. A value between the two lines is
+  `inconclusive`. Never say one of the three judgments with `pass`: a `pass` of false cannot tell
+  a rejection from no conclusion. `hypothesis_direction` never disagrees with the `judgment` of the
+  primary metric.
+- The lines keep only the numbers. Which way a line points, and whether the value or an end of its
+  interval is held against it, stays in the `comparison`, which the analysis note shows beside the
+  table.
+- A secondary or guardrail metric holds one `threshold` and whether it passed (`pass`), and no line
+  and no `judgment`. Never write a `threshold` or a `pass` in the primary metric. A secondary or
+  guardrail metric whose `comparison` states no criterion is reported with its value and no
+  `threshold` or `pass`.
+- If the design has no primary metric, or its `comparison` states no criterion, stop rather than
+  choosing one: a design that began its analysis cannot take a criterion any more, so suggest
+  deriving a new design with /analysis-design (`parent_id`)
+  ([ADR-0053](../../../docs/adr/0053-a-started-confirmation-keeps-its-hypothesis-criterion-and-intent.md)).
+- A metric measured per group holds the names of its axes in `by` and one row per group in
+  `groups`. Each row holds as many names in `group` as `by` has axes, its `value`, and any of the
+  optional items and a `p_value`. A row holds no `judgment`, no line, no `threshold` and no `pass`:
+  a group is measured, and the metric as a whole is judged elsewhere. A metric holds either one
+  `value` or `groups`, never both. Never write a group into the name of a metric
+  (`wait_days[annex|Mon]`): the analysis note and the report lay the rows out by their axes.
 
 ```python
 # exploration
@@ -156,7 +194,7 @@ results = {
             "value": 1.8, "p_value": 0.03,
             # optional — see "Optional metric items" below
             "effect_size": {"kind": "cohens_d", "value": 0.35},
-            "confidence_interval": {"level": 0.95, "lower": 0.4, "upper": 3.2},
+            "interval": {"kind": "confidence", "level": 0.95, "lower": 0.4, "upper": 3.2},
             "sample_size": 840,
         }
     },
@@ -165,7 +203,8 @@ results = {
 
 - An exploration answers its question by measuring, so it holds no expectation and judges
   nothing: its `results` have no `hypothesis_direction` and no `decision_reason`, and its metrics
-  have no `threshold` and no `pass`. Put every value it measured in `metrics`.
+  have no line, no `judgment`, no `threshold` and no `pass`. Put every value it measured in
+  `metrics`; a metric measured per group holds `by` and `groups` as in a confirmation.
 - An exploration may write a p-value but never a pass or fail, and never calls a value
   significant against a cut-off of its own.
 
@@ -185,31 +224,39 @@ Path(".insight/notebooks/{id}_verdict.json").write_text(
 ```
 
 The verdict keeps `metrics` in both forms, so the analysis note and the report lay out what an
-exploration measured as well as what a confirmation judged. A verdict saved before this rule may
-lack `metrics`, or carry a `threshold` and a `pass` in an exploration; the consumers read it as
+exploration measured as well as what a confirmation judged. A verdict saved before these rules may
+lack `metrics`, carry a `threshold` and a `pass` in an exploration or in a primary metric, or hold
+none of the lines, the `judgment`, the `interval` and the `groups`; the consumers read it as
 written.
 
-## Optional metric items (`analysis` cell) — effect size, confidence interval, sample size (ADR-0013)
+## Optional metric items (`analysis` cell) — effect size, interval, sample size (ADR-0013, ADR-0052)
 
-Each entry of `results["metrics"]` may carry three **optional** items, so a reader of the report
-can tell how large and how certain an effect is, not only whether it passed. The notebook (the
-producer) computes them; the analysis note and the report (`tree_io render` and `tree_io report`,
-read-only consumers) only lay them out and never
-computes a missing one ([ADR-0013](../../../docs/adr/0013-verdict-metric-optional-items.md)).
+Each entry of `results["metrics"]`, and each row of its `groups`, may carry three **optional**
+items, so a reader of the report can tell how large and how certain an effect is, not only how it
+was judged. The notebook (the producer) computes them; the analysis note and the report
+(`tree_io render` and `tree_io report`, read-only consumers) only lay them out and never
+compute a missing one ([ADR-0013](../../../docs/adr/0013-verdict-metric-optional-items.md)).
 
 | Key | Shape | Meaning |
 |---|---|---|
 | `effect_size` | `{"kind": str, "value": float}` | Standardized size of the effect. `kind` names the measure (`cohens_d`, `r`, `odds_ratio`, …) — an open string, because the measure depends on the method |
-| `confidence_interval` | `{"level": float, "lower": float, "upper": float}` | Interval of **this metric's `value`** (not of the effect size). `level` is a proportion (`0.95`), `lower <= value <= upper` |
+| `interval` | `{"kind": str, "level": float, "lower": float, "upper": float}` | Interval of **this metric's `value`** (not of the effect size). `kind` names the interval (`confidence`, `hdi`, `eti`, …) — an open string, because the interval depends on the method. `level` is a proportion (`0.95`), `lower <= value <= upper` |
 | `sample_size` | `int` | Number of observations the metric was computed from (after data_prep) |
 
 - **Each item is independent and optional.** Some methods define no effect size or no interval —
   then leave that key out. Never write `null`, `0`, or a placeholder for an item you cannot compute.
-- **An item is all-or-nothing.** `effect_size` without `kind`, or `confidence_interval` without
-  `level`, cannot be read correctly, so the consumer treats a partial item as absent.
+- **An item is all-or-nothing.** `effect_size` without `kind`, or `interval` without `kind` or
+  without `level`, cannot be read correctly, so the consumer treats a partial item as absent.
+- Write the interval of a value in `interval`, with its `kind`; never write `confidence_interval`,
+  which has no place for the kind, so a Bayesian interval in it would read as a confidence interval
+  ([ADR-0052](../../../docs/adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md)).
+  Name the kind as the method does: `confidence` for a confidence interval, `hdi` for a highest
+  density interval, `eti` for an equal-tailed interval.
 - Compute them in the `analysis` cell from the same data as `value`. Do not copy a number from elsewhere.
 - A verdict written before this contract simply lacks the keys; the report then comes out in its
-  earlier form (graceful degrade).
+  earlier form (graceful degrade). A verdict saved before ADR-0052 may hold `confidence_interval`;
+  the consumer reads it as an `interval` of the kind `confidence`, and reads `interval` when a
+  metric holds both.
 
 ## `figure_manifest` shape (`viz` cell) — figures for the analysis note and the report (ADR-0008)
 

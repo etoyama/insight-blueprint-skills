@@ -112,8 +112,7 @@ Before any other field of the design, ask one question:
   `hypothesis_background` and `next_action` out of the payload: `design_io create` refuses them.
 - A confirmation: confirm `hypothesis_statement` and `hypothesis_background`. Leave the two
   exploration fields out of the payload.
-- The intent can be changed later only while the design is `in_review` or
-  `revision_requested` (Step 3b).
+- The intent can be changed later only before the analysis starts (Step 3b).
 
 #### Fields of the design
 
@@ -399,8 +398,10 @@ echo '{"next_action": {"if_supported": "パネルFEへ進む", "if_rejected": {"
 echo '{"source_ids": ["sales_monthly", "stores"]}' | design_io update --id FP-H01
 ```
 
-To change the intent, the design must be `in_review` or `revision_requested`, and the change
-sends the fields of the other form as `null` so they are dropped:
+The intent and the form change only before the analysis starts, that is, while the design has
+no `analysis_started_at` and is `in_review` or `revision_requested` (Status Flow). After that,
+derive a new design for another intent. The change sends the fields of the other form as `null`
+so they are dropped:
 
 ```bash
 echo '{"analysis_intent": "exploratory", "exploration_question": "<question>", "exploration_background": "<background>", "hypothesis_statement": null, "hypothesis_background": null, "next_action": null, "metrics": [{"target": "<metric>", "tier": "primary", "comparison": "<what is compared, no threshold>"}]}' \
@@ -417,9 +418,14 @@ can be set to `confirmatory` in any status:
 `echo '{"analysis_intent": "confirmatory"}' | design_io update --id FP-H01`
 ([ADR-0049](../../docs/adr/0049-legacy-exploration-stays-readable-and-is-marked.md)).
 If it is refused because `hypothesis_background` is blank, a confirmation needs it written: ask
-the analyst for it and send it in the same update. That works only while the design is
-`in_review` or `revision_requested`; in any other status the hypothesis and its background must
-stay as they are.
+the analyst for it and send it in the same update. That works only before the analysis starts.
+Once it has started, leave the design marked as a legacy exploration: a background written
+after the result would read as one written before it.
+
+Once the analysis of a confirmation has started, `design_io update` refuses a change of
+`hypothesis_statement`, of the `primary` metrics (their `target` and `comparison`, adding or
+removing one, changing a `tier`) and of `analysis_intent` (Status Flow). Do not retry the
+update: tell the analyst what is held and offer to derive a new design with `parent_id`.
 
 To change `source_ids`, ask and check the ids as "Data sources" (Step 2) says first. `source_ids`
 is replaced as a whole, so send every id the design uses, not only the new ones.
@@ -541,6 +547,29 @@ Status transitions MUST go through `design_io transition` (or `append_review_bat
 which validates the move against `VALID_TRANSITIONS` in `validate.py` and the form of the
 design. Illegal moves (e.g. `analyzing → revision_requested`, a verdict on an exploration,
 `explored` for a confirmation, or any exit from a terminal state) are rejected.
+
+**The analysis mark.** When a design first enters `analyzing` or a terminal status,
+`design_io` writes `analysis_started_at` on it. The mark is written once: it stays when the
+design goes back to `in_review` or `revision_requested` for a review of its result, and a
+write that removes or changes it is refused. A design saved without the mark is read as
+started while it is `analyzing` or terminal, and gets the mark on its next transition
+([ADR-0053](../../docs/adr/0053-a-started-confirmation-keeps-its-hypothesis-criterion-and-intent.md)).
+
+- A confirmation (also a saved `mixed` and a legacy exploration) whose analysis has not
+  started enters `analyzing`, `supported` or `rejected` only when it has a `primary` metric and
+  every `primary` metric has a non-empty `comparison`. Write the criterion while the design is
+  `in_review` (Step 2 "Criterion"). `inconclusive` is open without a criterion, to close a
+  design whose analysis will not be run. The check does not read the words: whether they
+  state a criterion is for the review.
+- Once the analysis has started, a confirmation keeps `hypothesis_statement`, its `primary`
+  metrics (`target` and `comparison`; none is added, removed or given another `tier`) and
+  `analysis_intent`. An exploration keeps `analysis_intent` and its form. To change any of
+  them, derive a new design with `parent_id` and leave this one as it was analyzed.
+- Everything else can still be edited after the analysis has started: `hypothesis_background`,
+  the `secondary` and `guardrail` metrics, the other fields of a `primary` metric,
+  `explanatory`, `chart`, `methodology`, `decision_context` and `next_action`.
+
+The pre-write hook runs the same checks on a direct Write or Edit of the file.
 
 ### Theme ID Rules
 

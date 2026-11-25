@@ -305,3 +305,28 @@ class TestReviewBatch:
                 comments=[BatchComment(comment="Test")],
                 unknown_field="should fail",
             )
+
+
+class TestReviewBatchAfterAnalysisStarted:
+    """Epic 33 US-4 AC 1: a batch holds whether it came after the analysis started."""
+
+    def _batch(self, **over: object) -> ReviewBatch:
+        data: dict = {
+            "id": "RB-a1b2c3d4",
+            "design_id": "DES-001",
+            "status_after": "revision_requested",
+            "comments": [{"comment": "The verdict misreads the comparison"}],
+            "created_at": "2026-11-25T10:00:00+09:00",
+        }
+        data.update(over)
+        return ReviewBatch(**data)
+
+    def test_a_batch_saved_before_the_field_existed_reads_without_it(self) -> None:
+        assert self._batch().after_analysis_started is None
+
+    @pytest.mark.parametrize("after", [True, False])
+    def test_a_batch_keeps_the_value_it_was_written_with(self, after: bool) -> None:
+        restored = ReviewBatch(
+            **self._batch(after_analysis_started=after).model_dump(mode="json")
+        )
+        assert restored.after_analysis_started is after

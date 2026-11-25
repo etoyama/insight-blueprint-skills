@@ -46,6 +46,29 @@ def design_dict(**overrides: object) -> dict:
     return base
 
 
+CRITERION = "supported at 2.0 days or more, rejected under 1.0 day"
+MARK = "2026-11-25T10:00:00+09:00"
+
+
+def started_design(**overrides: object) -> dict:
+    """A confirmation with its criterion, as one whose analysis may start."""
+    metrics = [{"target": "lead time", "tier": "primary", "comparison": CRITERION}]
+    return design_dict(metrics=metrics) | overrides
+
+
+def edit(path: Path, old: str, new: str) -> subprocess.CompletedProcess[str]:
+    return run_hook(
+        {
+            "tool_name": "Edit",
+            "tool_input": {
+                "file_path": str(path),
+                "old_string": old,
+                "new_string": new,
+            },
+        }
+    )
+
+
 def dump_yaml(data: dict) -> str:
     from io import StringIO
 
@@ -174,13 +197,13 @@ class TestHookSubprocessAllow:
         assert result.returncode == 0, result.stderr
 
     def test_valid_transition_via_write_allowed(self, tmp_path: Path) -> None:
-        path = write_design(tmp_path, "FP-H01", design_dict(status="in_review"))
+        path = write_design(tmp_path, "FP-H01", started_design(status="in_review"))
         result = run_hook(
             {
                 "tool_name": "Write",
                 "tool_input": {
                     "file_path": str(path),
-                    "content": dump_yaml(design_dict(status="analyzing")),
+                    "content": dump_yaml(started_design(status="analyzing")),
                 },
             }
         )
@@ -317,6 +340,127 @@ def test_hook_handles_all_three_tools(tmp_path: Path, tool_name: str) -> None:
         }
     result = run_hook({"tool_name": tool_name, "tool_input": tool_input})
     assert result.returncode == 0, result.stderr
+
+
+class TestHookKeepsAStartedAnalysis:
+    """Epic 33 US-3 AC 5: a direct write meets the checks design_io meets."""
+
+    @pytest.fixture(params=["analyzing", "in_review", "revision_requested"])
+    def started(self, tmp_path: Path, request: pytest.FixtureRequest) -> Path:
+        design = started_design(status=request.param, analysis_started_at=MARK)
+        return write_design(tmp_path, "FP-H01", design)
+
+    def test_the_hypothesis_is_not_rewritten(self, started: Path) -> None:
+        result = edit(started, "X improves Y", "X improves Y a little")
+        assert result.returncode == 2
+        assert "hypothesis_statement" in result.stderr
+        assert "derive a new design" in result.stderr
+
+    def test_the_criterion_is_not_rewritten(self, started: Path) -> None:
+        result = edit(started, "2.0 days", "0.5 days")
+        assert result.returncode == 2
+        assert "metrics" in result.stderr
+        assert "derive a new design" in result.stderr
+
+    def test_the_mark_is_not_taken_away(self, started: Path) -> None:
+        result = edit(started, f"analysis_started_at: '{MARK}'\n", "")
+        assert result.returncode == 2
+        assert "analysis_started_at" in result.stderr
+
+    def test_the_background_is_still_edited(self, started: Path) -> None:
+        result = edit(started, "Because Z", "Because Z, as surveyed")
+        assert result.returncode == 0, result.stderr
+
+    def test_a_saved_design_does_not_leave_the_analysis_without_the_mark(
+        self, tmp_path: Path
+    ) -> None:
+        path = write_design(tmp_path, "FP-H01", started_design(status="analyzing"))
+        result = edit(path, "status: analyzing", "status: in_review")
+        assert result.returncode == 2
+        assert "analysis_started_at" in result.stderr
+
+    def test_a_design_without_a_criterion_is_not_moved_into_the_analysis(
+        self, tmp_path: Path
+    ) -> None:
+        path = write_design(tmp_path, "FP-H01", design_dict())
+        result = edit(path, "status: in_review", "status: analyzing")
+        assert result.returncode == 2
+        assert "comparison" in result.stderr
+
+    @pytest.mark.parametrize("verdict", ["supported", "rejected"])
+    def test_a_design_without_a_criterion_takes_no_verdict_of_its_hypothesis(
+        self, tmp_path: Path, verdict: str
+    ) -> None:
+        path = write_design(tmp_path, "FP-H01", design_dict())
+        result = edit(path, "status: in_review", f"status: {verdict}")
+        assert result.returncode == 2
+        assert "comparison" in result.stderr and "inconclusive" in result.stderr
+
+    def test_a_design_without_a_criterion_is_closed_as_inconclusive(
+        self, tmp_path: Path
+    ) -> None:
+        path = write_design(tmp_path, "FP-H01", design_dict())
+        result = edit(path, "status: in_review", "status: inconclusive")
+        assert result.returncode == 0, result.stderr
+
+    def test_a_design_with_a_criterion_takes_its_verdict(self, tmp_path: Path) -> None:
+        path = write_design(tmp_path, "FP-H01", started_design())
+        result = edit(path, "status: in_review", "status: supported")
+        assert result.returncode == 0, result.stderr
+
+
+BROKEN = started_design(
+    status="in_review", analysis_started_at=MARK, methodology={"method": ""}
+)
+
+
+def repair(path: Path, **changes: object) -> subprocess.CompletedProcess[str]:
+    """Write the broken design back repaired, with *changes* in the same write."""
+    data = BROKEN | {"methodology": {"method": "OLS"}} | changes
+    return run_hook(write_tool(path, {k: v for k, v in data.items() if v is not None}))
+
+
+class TestHookKeepsAStartedAnalysisOnABrokenRecord:
+    """US-3 AC 5: a write over a broken record does not lift what is held."""
+
+    @pytest.fixture
+    def broken(self, tmp_path: Path) -> Path:
+        return write_design(tmp_path, "FP-H01", BROKEN)
+
+    def test_a_repair_alone_still_goes_through(self, broken: Path) -> None:
+        result = repair(broken)
+        assert result.returncode == 0, result.stderr
+
+    def test_the_hypothesis_is_not_rewritten(self, broken: Path) -> None:
+        result = repair(broken, hypothesis_statement="X improves Y a little")
+        assert result.returncode == 2
+        assert "hypothesis_statement" in result.stderr
+        assert "derive a new design" in result.stderr
+
+    def test_the_criterion_is_not_rewritten(self, broken: Path) -> None:
+        looser = [{"target": "lead time", "comparison": "supported at 0.5 days"}]
+        result = repair(broken, metrics=looser)
+        assert result.returncode == 2
+        assert "metrics" in result.stderr
+
+    def test_the_primary_metric_is_not_lowered(self, broken: Path) -> None:
+        lowered = [
+            {"target": "lead time", "tier": "secondary", "comparison": CRITERION}
+        ]
+        result = repair(broken, metrics=lowered)
+        assert result.returncode == 2
+        assert "metrics" in result.stderr
+
+    def test_the_mark_is_not_taken_away(self, broken: Path) -> None:
+        result = repair(broken, analysis_started_at=None)
+        assert result.returncode == 2
+        assert "analysis_started_at" in result.stderr
+
+    def test_a_primary_tier_left_out_is_the_same_criterion(self, broken: Path) -> None:
+        result = repair(
+            broken, metrics=[{"target": "lead time", "comparison": CRITERION}]
+        )
+        assert result.returncode == 0, result.stderr
 
 
 class TestFailClosed:

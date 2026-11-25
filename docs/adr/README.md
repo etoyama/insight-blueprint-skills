@@ -18,7 +18,7 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0010](0010-skill-tdd-structure-tests.md) | skill の TDD は構造テストを先に書くことと読む | Accepted |
 | [0011](0011-domain-model-overview-in-architecture.md) | Domain Model の全体図を ARCHITECTURE に置く | Accepted |
 | [0012](0012-single-pr-scope.md) | Epic 以外の PR は、定めた振る舞いを変えない変更に限る | Accepted |
-| [0013](0013-verdict-metric-optional-items.md) | verdict の指標に、任意の効果量・信頼区間・標本サイズを持たせる | Accepted |
+| [0013](0013-verdict-metric-optional-items.md) | verdict の指標に、任意の効果量・信頼区間・標本サイズを持たせる | Accepted（区間の項目は ADR-0052 が改めた。新しい verdict は `interval` に種類つきで書く） |
 | [0014](0014-analysis-design-decision-context.md) | 分析設計に、任意の決定の文脈を入れ子の型で持たせる | Accepted |
 | [0015](0015-host-connectors-for-optional-features.md) | 不変条件を「同梱しない」と書き、ホストのコネクタは任意の機能に限って使う | Accepted |
 | [0016](0016-approval-before-external-send.md) | skill が `.insight/` の中身を外部へ送るときは、KEEP ゲートで承認を待つ | Accepted |
@@ -47,10 +47,13 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0045](0045-notebook-is-plain-python-with-percent-cells.md) | notebook は `# %%` で cell を区切る素の Python にし、marimo の書式をやめる | Accepted |
 | [0046](0046-marimo-leaves-the-plugin-env-and-the-default-allowlist.md) | plugin の env と既定の許可リストから marimo を外す | Accepted |
 | [0047](0047-stop-publishing-to-pypi.md) | `insight-blueprint-lineage` を PyPI に公開するのをやめ、`/data-lineage` を plugin の env で走らせる | Accepted |
-| [0048](0048-intent-decides-the-form-and-the-end-of-a-design.md) | 分析の意図が、分析設計の形と終わり方を決める | Accepted |
+| [0048](0048-intent-decides-the-form-and-the-end-of-a-design.md) | 分析の意図が、分析設計の形と終わり方を決める | Accepted（意図を変えられる間の境目は ADR-0053 が改めた。状態ではなく、分析の印で区切る） |
 | [0049](0049-legacy-exploration-stays-readable-and-is-marked.md) | 旧形式の探索は読めるままにし、印を付ける | Accepted |
-| [0050](0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md) | 探索は予想を持たずに測った値を残し、検証は基準を分析設計に書く | Accepted |
+| [0050](0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md) | 探索は予想を持たずに測った値を残し、検証は基準を分析設計に書く | Accepted（primary の指標が写すのは支持の線と棄却の線だと ADR-0052 が改めた。基準が空でないことは、`analyzing` に入るときに確かめると ADR-0053 が改めた） |
 | [0051](0051-designs-nest-under-their-question-and-state-is-worded-by-role.md) | 論点ツリーは分析設計を論点の下の枝に出し、状態を役割つきの言葉で言う | Accepted |
+| [0052](0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md) | verdict の指標は、支持の線と棄却の線、指標の判定、値の区間の種類、群の行を持つ | Accepted |
+| [0053](0053-a-started-confirmation-keeps-its-hypothesis-criterion-and-intent.md) | 分析を始めた検証の分析設計は、検証仮説・判定の基準・意図を変えない | Accepted |
+| [0054](0054-review-covers-the-result-and-its-comments-reach-the-reader.md) | review は結果も対象にし、review コメントを分析ノートと論点ツリーに出す | Accepted |
 
 - ADR-0001〜0008 は旧形式のまま残す。ADR-0009 からは新形式（Problem と Decision Analysis の節を持つ）で書く。
 - 開発フローの決定の出典は [flow/](flow/README.md) にある。repo-template の ADR のコピーで、`FLOW-000N` と表記する。

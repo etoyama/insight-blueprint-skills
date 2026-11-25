@@ -31,10 +31,13 @@ from insight_blueprint.models.design import AnalysisDesign, DesignStatus
 from insight_blueprint.models.review import BatchComment, ReviewBatch
 from insight_blueprint.validate import (
     VALID_TRANSITIONS,
+    analysis_started,
     validate_creation,
+    validate_repair,
     validate_schema,
     validate_transition,
     validate_update,
+    with_analysis_mark,
 )
 from skills._shared._atomic import atomic_write_yaml
 from skills._shared._stdin import read_payload
@@ -89,6 +92,10 @@ ALLOWED_TARGET_SECTIONS: set[str] = {
     "methodology",
     "analysis_intent",
     "decision_context",
+    # The result, for a review after the analysis (ADR-0054 1).
+    "notebook",
+    "verdict",
+    "figures",
 }
 
 _REVIEWABLE = {DesignStatus.in_review, DesignStatus.revision_requested}
@@ -298,10 +305,13 @@ def update_design(
             f"Design '{design_id}' on disk is invalid: repair it without "
             "changing its status, then transition"
         )
-    # A design broken on disk is checked as a new one, so an update may repair it.
-    errors = (
-        validate_creation(model) if on_disk is None else validate_update(model, on_disk)
-    )
+    # A design broken on disk is checked as a new one, so an update may repair
+    # it, but it keeps what a started analysis holds.
+    if on_disk is None:
+        errors = validate_creation(model) + validate_repair(model, current)
+    else:
+        model = with_analysis_mark(model, on_disk)
+        errors = validate_update(model, on_disk)
     if errors:
         raise ValueError("; ".join(errors))
     data = model.model_dump(mode="json")
@@ -319,17 +329,27 @@ def _parsed_or_none(data: dict) -> AnalysisDesign | None:
 def transition_status(
     design_id: str, target: str, base_dir: Path = DEFAULT_BASE_DIR
 ) -> dict:
-    """Transition a design's status, guarded by validate_transition."""
+    """Transition a design's status, under the checks an update meets."""
     current = load_design(design_id, base_dir)
     if not current:
         raise ValueError(f"Design '{design_id}' not found")
-    on_disk = validate_schema(current)
-    validate_transition(on_disk.status, DesignStatus(target), on_disk.form())
-    merged = {**current, "status": target, "updated_at": now_jst().isoformat()}
-    model = validate_schema(merged)
-    data = model.model_dump(mode="json")
+    data = _moved(current, validate_schema(current), target)
     atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml", data)
     return data
+
+
+def _moved(current: dict, on_disk: AnalysisDesign, target: str) -> dict:
+    """*current*, read as *on_disk*, moved to *target* and ready to write.
+
+    Raises ValueError if refused.
+    """
+    validate_transition(on_disk.status, DesignStatus(target), on_disk.form())
+    merged = {**current, "status": target, "updated_at": now_jst().isoformat()}
+    model = with_analysis_mark(validate_schema(merged), on_disk)
+    errors = validate_update(model, on_disk)
+    if errors:
+        raise ValueError("; ".join(errors))
+    return model.model_dump(mode="json")
 
 
 # ---------------------------------------------------------------------------
@@ -463,10 +483,10 @@ def append_review_batch(
             f"Design must be reviewable to save a review batch, "
             f"current status: '{current['status']}'"
         )
-    # Checked before the batch is written: a conclusion out of the design's form
-    # must not leave a batch behind with the status unchanged.
     on_disk = validate_schema(current)
-    validate_transition(on_disk.status, target, on_disk.form())
+    # Moved before the batch is written: a move the design cannot make must
+    # not leave a batch behind with the status unchanged.
+    moved = _moved(current, on_disk, status_after)
 
     batch = ReviewBatch(
         id=f"RB-{uuid.uuid4().hex[:8]}",
@@ -474,13 +494,16 @@ def append_review_batch(
         status_after=target,
         reviewer=reviewer,
         comments=[BatchComment(**c) for c in comments],
+        # Read before the move: the approval that first enters analyzing
+        # writes the mark, yet its review came before the analysis.
+        after_analysis_started=analysis_started(on_disk),
     )
-    reviews_path = _designs_dir(base_dir) / f"{design_id}_reviews.yaml"
+    designs = _designs_dir(base_dir)
+    reviews_path = designs / f"{design_id}_reviews.yaml"
     existing = read_yaml(reviews_path)
     batches = [*existing.get("batches", []), batch.model_dump(mode="json")]
     atomic_write_yaml(reviews_path, {**existing, "batches": batches})
-
-    transition_status(design_id, status_after, base_dir)
+    atomic_write_yaml(designs / f"{design_id}_hypothesis.yaml", moved)
     return batch.model_dump(mode="json")
 
 

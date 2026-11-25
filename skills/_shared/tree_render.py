@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 
 from insight_blueprint.models.design import (
     TERMINAL_STATUSES,
-    AnalysisDesign,
     DesignForm,
     DesignStatus,
 )
@@ -41,12 +40,17 @@ from skills._shared.design_io import design_number
 from skills._shared.design_note import (
     FORM_WORDS,
     NOTE_CSS,
+    DesignNote,
     direction_gloss,
     intent_word,
     intent_words_of,
     note_anchor,
     statement_of,
     status_word,
+)
+from skills._shared.design_note_reviews import (
+    AFTER_ANALYSIS,
+    comments_after_analysis,
 )
 
 if TYPE_CHECKING:  # tree_check imports this module (CitedEvent)
@@ -63,10 +67,12 @@ class DesignSummary:
     form: DesignForm
     intent: str  # intent_word: a saved mixed design has its own word
     statement: str  # the question of an exploration, else the hypothesis
+    comments_after_analysis: int = 0  # review comments of the result review
 
     @classmethod
-    def of(cls, design: AnalysisDesign) -> DesignSummary:
+    def of(cls, note: DesignNote) -> DesignSummary:
         """The words come from design_note, as the note's do (ADR-0051)."""
+        design = note.design
         return cls(
             design.id,
             design.title,
@@ -76,6 +82,7 @@ class DesignSummary:
             form=design.form(),
             intent=intent_word(design),
             statement=statement_of(design)[0],
+            comments_after_analysis=comments_after_analysis(note.reviews),
         )
 
 
@@ -582,6 +589,11 @@ def _question_tree(context: _Context) -> Html:
     )
 
 
+def _comments_after_analysis(count: int) -> list[str]:
+    """The count of the result review's comments; nothing when there is none."""
+    return [f"{AFTER_ANALYSIS} コメント: {count} 件", "　"] if count else []
+
+
 def _design_card(context: _Context, node: QuestionNode, design: DesignSummary) -> Html:
     """The full card under the first node on the page; a short row under the others."""
     word = status_word(design.form, design.status)
@@ -608,7 +620,14 @@ def _design_card(context: _Context, node: QuestionNode, design: DesignSummary) -
             f" {design.title}",
         ),
         el("p", f"{statement}: {design.statement}") if design.statement else None,
-        el("p", word, "　", _note_link(design.id), class_="meta"),
+        el(
+            "p",
+            word,
+            "　",
+            *_comments_after_analysis(design.comments_after_analysis),
+            _note_link(design.id),
+            class_="meta",
+        ),
         class_=f"branch form-{design.form.value}",
     )
 
@@ -798,6 +817,13 @@ def _derivation(context: _Context) -> Html:
         nodes = context.linked_by.get(design_id, [])
         facts: list[Html | str] = [
             f"{status_word(design.form, design.status)}　",
+            # A linked design shows its count on its card; one linked to no node has
+            # no card, so its count goes here. Each count is on the page once.
+            *(
+                []
+                if nodes
+                else _comments_after_analysis(design.comments_after_analysis)
+            ),
             _note_link(design_id),
             "　",
         ]

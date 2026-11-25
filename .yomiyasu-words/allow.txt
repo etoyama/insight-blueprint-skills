@@ -9,6 +9,7 @@
 状態
 terminal status
 分析の意図
+分析の印
 手法
 決定の文脈
 指標
@@ -53,10 +54,16 @@ notebook
 cell
 データ取得の cell
 verdict
+支持の線
+棄却の線
+結論しない範囲
+指標の判定
 figures manifest
 効果量
+値の区間
 信頼区間
 標本サイズ
+群の行
 レポート
 export
 データ由来の文

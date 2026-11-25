@@ -30,12 +30,10 @@ from insight_blueprint.models.tree import (
 from skills._shared.design_note import (
     EVENT_WORDS,
     LEGACY_NOTE,
-    VERDICT_COLUMNS,
     DesignNote,
     NoteEvent,
     NoteFigure,
     NoteSource,
-    VerdictMetric,
     against_heading,
     contradicting_evidence,
     intent_word,
@@ -43,6 +41,7 @@ from skills._shared.design_note import (
     statement_of,
 )
 from skills._shared.tree_render import PROGRESS_WORDS, CitedEvent
+from skills._shared.verdict_table import Fixed, Text, VerdictMetric, metric_tables
 
 _DASH = "—"
 
@@ -394,51 +393,23 @@ def _method(report: ThemeReport) -> list[str]:
     return blocks
 
 
-def _or_none(text: str | None) -> str | None:
-    return None if text is None else _e(text)
-
-
-# Each column of the metric table: its heading and how a metric fills it.
-_METRIC_COLUMNS = (
-    ("値", lambda m: _or_none(m.value)),
-    (
-        "効果量",
-        lambda m: f"{_e(m.effect_size[1])}（{_e(m.effect_size[0])}）"
-        if m.effect_size
-        else None,
-    ),
-    (
-        "信頼区間",
-        lambda m: (
-            f"水準 {_e(m.confidence_interval[0])}: "
-            f"[{_e(m.confidence_interval[1])}, {_e(m.confidence_interval[2])}]"
-        )
-        if m.confidence_interval
-        else None,
-    ),
-    ("標本サイズ", lambda m: _or_none(m.sample_size)),
-    ("しきい値", lambda m: _or_none(m.threshold)),
-    ("p 値", lambda m: _or_none(m.p)),
-    ("合否", lambda m: None if m.passed is None else ("✓" if m.passed else "✗")),
-)
+def _text(text: Text) -> str:
+    """Each piece the verdict wrote, escaped on its own; the table's words as they are."""
+    return "".join(p if isinstance(p, Fixed) else _e(p) for p in text)
 
 
 def _metrics(metrics: Sequence[VerdictMetric], form: DesignForm) -> list[str]:
-    if not metrics:
-        return []
-    # A column no metric fills would be a column of dashes.
-    columns = [
-        (heading, fill)
-        for heading, fill in _METRIC_COLUMNS
-        if any(fill(m) is not None for m in metrics)
-        and (form.judges or heading not in VERDICT_COLUMNS)
-    ]
-    return [
-        _table(
-            ("指標", *(heading for heading, _ in columns)),
-            ([_e(m.name), *(fill(m) or "" for _, fill in columns)] for m in metrics),
+    blocks: list[str] = []
+    for table in metric_tables(metrics, form, sample_size="標本サイズ", p="p 値"):
+        if table.title is not None:
+            blocks.append(_text(table.title))
+        blocks.append(
+            _table(
+                [_text(h) for h in table.headings],
+                ([_text(c) for c in row] for row in table.rows),
+            )
         )
-    ]
+    return blocks
 
 
 @dataclass

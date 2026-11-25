@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **A confirmatory notebook judges its primary metric by two lines.** The contract has the primary
+  metric hold `support_line` and `reject_line` (numbers copied from the design's `comparison`) and a
+  `judgment` of `supported`, `rejected` or `inconclusive`; `threshold` and `pass` stay with secondary
+  and guardrail metrics. The interval of a value goes in `interval` with its `kind` (`confidence`,
+  `hdi`, …), and a metric measured per group holds `by` and `groups` instead of a group in its name.
+  A verdict saved before reads as it did, `confidence_interval` included, so nothing has to be
+  rewritten; a notebook generated before writes the new items once it is generated again ([ADR-0052](docs/adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md), #243).
+- **A design whose analysis has started keeps its hypothesis, its criterion and its intent.** When a
+  design first enters `analyzing` or a terminal status, `design_io` writes `analysis_started_at` on it,
+  and the mark stays through a review of the result. From then on a confirmation (also a saved `mixed`
+  and a legacy exploration) refuses a change of `hypothesis_statement`, of its `primary` metrics (their
+  `target` and `comparison`; adding, removing or re-tiering one) and of `analysis_intent`, in
+  `design_io update` and in a direct write alike, also after the design went back to `in_review`. To
+  test another hypothesis or criterion, derive a new design with `parent_id`. The background and the
+  other fields can still be edited. A confirmation now enters `analyzing` only when it has a `primary`
+  metric and every `primary` metric has its `comparison` written, so write the criterion before the review approves the design.
+  The same holds for a write that concludes such a design as `supported` or `rejected` without analyzing it; to
+  end it without a criterion, close it as `inconclusive`. A repair of a design whose saved record no
+  longer reads keeps the same items fixed once its analysis has started. Designs
+  already saved still read; one that is `analyzing` or concluded counts as started
+  ([ADR-0053](docs/adr/0053-a-started-confirmation-keeps-its-hypothesis-criterion-and-intent.md), #244).
+- **The report's metric table shows the two lines, the judgment and the kind of an interval.** A
+  confirmation's table gains 支持の線, 棄却の線 and 判定 (支持, 棄却 or 結論しない) when a metric holds
+  them; the interval column is headed 区間 and names its kind (信頼区間, HDI, 等裾信用区間, or the kind as
+  written) before its level. A metric measured per group gets a table of its own: rows by one axis
+  and columns by the other when it has two axes of values alone, else a column per axis. Values are
+  shown as written and never sorted as numbers. A verdict saved before shows the same columns and
+  values, its interval now under 区間 as 信頼区間 ([ADR-0052](docs/adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md), #246).
+- **The analysis note's metric table shows the two lines, the judgment and the kind of interval, and
+  gives a metric measured per group a table of its own.** The judgment reads 支持, 棄却 or 結論しない;
+  the interval column is headed 区間 and names its kind (信頼区間, HDI, 等裾信用区間, or the kind as
+  written). Two axes of values only lay one axis down and one across; any other groups come in a tall
+  table. A column no metric fills is left out, so a saved verdict keeps its values with fewer columns
+  ([ADR-0052](docs/adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md), #245).
+- **A review after the analysis reads the result.** When the design has a verdict, `/analysis-review`
+  tells the analyst what it reads (the notebook, the verdict, the figures) and checks the lines and
+  the judgment against `comparison`, values against judgments, the figures' axes, the guardrails and
+  the cells. A review comment may now target `notebook`, `verdict` or `figures`, and each review batch
+  records `after_analysis_started`; batches saved before read as they were, without it.
+  `/analysis-revision` fixes a comment on the result in the notebook and re-runs it, and answers a
+  comment on what a started design keeps with a reason or a derived design instead of
+  `design_io update` ([ADR-0054](docs/adr/0054-review-covers-the-result-and-its-comments-reach-the-reader.md), #247).
+- **Review comments reach the reader.** The analysis note gains a "レビュー" section that lists every
+  review batch of `{id}_reviews.yaml`, newest first, with its time, whether it came after the
+  analysis started (left out for a batch saved without it), the status after the review, and each
+  comment with its target as written. The question tree shows, on a design's card, how many review
+  comments came after the analysis started, or on its row under the derivations when the design is linked
+  to no node; none shows nothing. `/analysis-review` rebuilds the design note after it records a batch. A `_reviews.yaml` that cannot be
+  read leaves both pages as they were, and the report does not show review comments
+  ([ADR-0054](docs/adr/0054-review-covers-the-result-and-its-comments-reach-the-reader.md), #248).
+
 ## [0.19.0] - 2026-11-25
 
 ### Upgrade note

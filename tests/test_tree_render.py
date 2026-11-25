@@ -263,6 +263,7 @@ def summary(
     form: DesignForm | None = None,
     intent: str | None = None,
     statement: str = "",
+    comments_after_analysis: int = 0,
 ) -> DesignSummary:
     """A design as the page sees it. An explored design is an exploration unless told."""
     if form is None:
@@ -278,6 +279,7 @@ def summary(
         form=form,
         intent=intent_words_of(form)[0] if intent is None else intent,
         statement=statement,
+        comments_after_analysis=comments_after_analysis,
     )
 
 
@@ -1518,3 +1520,83 @@ class TestEveryKindHasItsWord:
     )
     def test_the_table_covers_the_enum(self, words: dict, kinds: type) -> None:
         assert set(words) == set(kinds)
+
+
+class TestReviewCommentsAfterTheAnalysis:
+    """Story 33.6, US-4 AC 5: the row of a design counts the comments of its result review."""
+
+    @staticmethod
+    def _card(count: int) -> str:
+        designs = make_designs()
+        designs["LIB-H01"] = summary(
+            "LIB-H01",
+            "取消を除く数え方",
+            "supported",
+            None,
+            comments_after_analysis=count,
+        )
+        root = page(designs=designs)
+        (node_id,) = {
+            n["id"]
+            for n in make_tree()["nodes"]
+            if "LIB-H01" in n.get("design_ids", [])
+        }
+        return card_of(root, node_id, "LIB-H01")
+
+    def test_the_row_shows_how_many_comments_came_after_the_analysis(self) -> None:
+        assert "分析を始めた後の review コメント: 3 件" in self._card(3)
+
+    def test_the_row_shows_no_count_when_there_is_none(self) -> None:
+        assert "review コメント" not in self._card(0)
+
+
+class TestReviewCommentsInTheDerivation:
+    """US-4 AC 5: a design linked to no node shows its count in the derivation.
+
+    A design no node links appears only in the derivation, so a count on the card
+    alone never reaches it (the trial finding G08).
+    """
+
+    @staticmethod
+    def _row(design_id: str, count: int) -> str:
+        designs = make_designs()
+        old = designs[design_id]
+        designs[design_id] = summary(
+            old.id,
+            old.title,
+            old.status.value,
+            old.parent_id,
+            comments_after_analysis=count,
+        )
+        (row,) = [
+            e
+            for e in by_id(page(designs=designs), f"design-{design_id}").children
+            if e.tag == "div"
+        ]
+        return row.text()
+
+    def test_a_design_linked_to_no_node_shows_the_count(self) -> None:
+        row = self._row("LIB-H04", 4)
+
+        assert "論点に結んでいない" in row
+        assert "分析を始めた後の review コメント: 4 件" in row
+
+    def test_a_linked_design_shows_its_count_once_on_its_card(self) -> None:
+        """A linked design has a card; its derivation row leaves the count to it."""
+        designs = make_designs()
+        old = designs["LIB-H01"]
+        designs["LIB-H01"] = summary(
+            old.id,
+            old.title,
+            old.status.value,
+            old.parent_id,
+            comments_after_analysis=3,
+        )
+
+        html = render(designs=designs)
+
+        assert html.count("分析を始めた後の review コメント: 3 件") == 1
+        assert "review コメント" not in self._row("LIB-H01", 3)
+
+    def test_the_derivation_row_shows_no_count_when_there_is_none(self) -> None:
+        assert "review コメント" not in self._row("LIB-H04", 0)

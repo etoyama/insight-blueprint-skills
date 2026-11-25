@@ -71,9 +71,12 @@ flowchart TD
   状態遷移ガード（`VALID_TRANSITIONS`。例: `analyzing → supported` は許し、`analyzing → revision_requested` は拒む。結果を見た後のレビューで `in_review` へ戻すのは任意（[ADR-0029](adr/0029-analyzing-reaches-conclusion-directly.md)）。terminal status からはどこへも遷移しない）。分析設計の整合性の単一正本。
   遷移は分析設計の形（`DesignForm`。分析の意図と項目から導き、保存しない）を受け取る。結論の状態は形で決まり、探索は `explored` で、検証と旧形式の探索は `supported`・`rejected`・`inconclusive` で終わる。それより前の遷移は形で変わらない（`valid_targets`。[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md)）。
   検査は2段ある。読むときの検査（`validate_schema`。hook もこれを使う）は、保存済みの旧形式の探索と `mixed` を通す。
-  作るときの検査（新しく作るときは `validate_creation` を `design_io create` が、書き換えるときは `validate_update` を `design_io update` が呼ぶ。`validate_update` は遷移も確かめる）は、旧形式の探索と `mixed` を新しく作ることと、`in_review`・`revision_requested` の後に意図を変えることを拒む（[ADR-0049](adr/0049-legacy-exploration-stays-readable-and-is-marked.md)）。
+  作るときの検査（新しく作るときは `validate_creation` を `design_io create` が、書き換えるときは `validate_update` を `design_io update` が呼ぶ。`validate_update` は遷移も確かめる）は、旧形式の探索と `mixed` を新しく作ることを拒む（[ADR-0049](adr/0049-legacy-exploration-stays-readable-and-is-marked.md)）。
+  `validate_update` は分析を始めた分析設計の固定も確かめる（[ADR-0053](adr/0053-a-started-confirmation-keeps-its-hypothesis-criterion-and-intent.md)）。分析を始めたかは `analysis_started` が答える。分析の印（`analysis_started_at`）があるか、状態が `analyzing` か terminal status なら、分析を始めている。印は初めて `analyzing` か terminal status に入る書き込みで `design_io` が付ける。印を消す書き込みと変える書き込みは通らない。印の無い保存済みの分析設計が、印を持たずに `analyzing` から `in_review` へ戻る書き込みも通らない（結論へ進む書き込みは通る）。
+  分析を始めた検証・旧形式の探索・`mixed` は、検証仮説と、primary の指標の組（`target` と `comparison`。足す・消す・`tier` の変更を含む）と、意図を変えない。分析を始めた探索は、意図と形を変えない。背景とほかの項目は直せる。
+  分析を始めていない検証・旧形式の探索・`mixed` が `analyzing` か `supported`・`rejected` に入る書き込みは、primary の指標があり、どの primary の指標も `comparison` が空でないときだけ通る。基準が無くても `inconclusive` には入れる（分析をせずに閉じる道）。
   `design_io` 経由で書く skill も、書く前に Python 側で同じ検証を通す。tool の書き込み（hook）と
-  helper の書き込み（`design_io`）の両方で、読むときの検査が効く。書き換えるときの検査（`validate_update`）は、hook もディスク上の記録が読めるときに行う。新しく作るときの検査（`validate_creation`）は `design_io` だけが行う。
+  helper の書き込み（`design_io`）の両方で、読むときの検査が効く。書き換えるときの検査（`validate_update`）は、hook もディスク上の記録が読めるときに行う。読めないときも、生の記録が分析を始めていれば、固定の項目だけを `validate_repair` が確かめる（ADR-0053 の9）。新しく作るときの検査（`validate_creation`）は `design_io` だけが行う。
   論点ツリーの形も同じ場所で検証する（`validate_tree`。[ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md)）。
   根の問いがちょうど1つあること、論点の親が同じツリーにあって循環しないこと、根の版が1から1ずつ増えること、ツリーの決定が指す論点がツリーにあることを確かめ、モデルに無い項目を拒む。
   書き込む前の正本があれば、根の版が減っていないことと、今の版より前の版が変わっていないことも確かめる。ツリーの決定と現時点の答えは足すことだけができる。
@@ -768,7 +771,7 @@ classDiagram
 |---|---|---|
 | `designs/{id}_journal.yaml` | journal（観察・証拠・人に聞いた答え・決定・問い） | [skills/analysis-journal/SKILL.md](../skills/analysis-journal/SKILL.md) |
 | `designs/{id}_revision.yaml` | review コメントへの対応の追跡 | [skills/analysis-revision/SKILL.md](../skills/analysis-revision/SKILL.md) |
-| `notebooks/{id}_verdict.json` | notebook の verdict と figures manifest（`figures[]`）。指標は任意で効果量・信頼区間・標本サイズを持つ | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md)、[ADR-0008](adr/0008-notebook-figure-manifest.md)、[ADR-0013](adr/0013-verdict-metric-optional-items.md) |
+| `notebooks/{id}_verdict.json` | notebook の verdict と figures manifest（`figures[]`）。指標は任意で効果量・値の区間・標本サイズを持ち、群の行で群ごとの値を持てる。検証の primary の指標は支持の線・棄却の線・指標の判定を持つ（[ADR-0052](adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md)） | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md)、[ADR-0008](adr/0008-notebook-figure-manifest.md)、[ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | `rules/package_allowlist.yaml` | notebook が使ってよいパッケージ | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md) |
 | `config.yaml` | premortem の閾値（読み込むと `PremortemConfig` になる） | [skills/_shared/config_loader.py](../skills/_shared/config_loader.py) |
 
@@ -807,6 +810,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 30 | Skill layer（`/analysis-notebook` の notebook の契約と実行）+ 分析ノートの cell の切り出し + plugin の env（`notebook` extra）と既定の許可リスト |
 | Epic 31 | Skill layer（`/data-lineage` の対象と実行の env）+ リリース（PyPI の公開をやめ、タグと版の照合を CI に移す） |
 | Epic 32 | Validation library（分析設計の形、`explored`、意図を見る遷移）+ Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-auto`・`/analysis-review`・`/analysis-notebook`・`/analysis-journal`・`/analysis-reflection`・`/premortem` の意図による分け方）+ `tree_io render` と `tree_io report` の表示（論点の下の分析設計の枝、状態の言葉、定型文） |
+| Epic 33 | notebook の契約（verdict の指標の形）+ Validation library（分析の印、分析を始めた後の固定）+ Skill layer（`/analysis-review`・`/analysis-revision` の結果の review）+ `tree_io render` と `tree_io report` の表示（指標の表、レビューの節、review コメントの件数） |
 
 
 ## 参照

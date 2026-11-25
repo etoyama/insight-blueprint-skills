@@ -13,9 +13,13 @@ dicts in.
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Sequence
+from datetime import datetime
+from enum import Enum
+from typing import Any, TypeVar
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from insight_blueprint.models.design import (
     TERMINAL_STATUSES,
@@ -23,6 +27,7 @@ from insight_blueprint.models.design import (
     AnalysisIntent,
     DesignForm,
     DesignStatus,
+    MetricTier,
 )
 from insight_blueprint.models.tree import QuestionTree
 
@@ -50,9 +55,36 @@ VALID_TRANSITIONS: dict[DesignStatus, set[DesignStatus]] = {
     DesignStatus.inconclusive: set(),
 }
 
-# The intent is chosen before the analysis: changing it afterwards would let a
-# hypothesis be set after seeing the result (ADR-0048).
-INTENT_CHANGEABLE = frozenset({DesignStatus.in_review, DesignStatus.revision_requested})
+# The statuses a design takes only once its analysis has started.
+ANALYSIS_STARTED_STATUSES = frozenset({DesignStatus.analyzing, *TERMINAL_STATUSES})
+
+
+def analysis_started(design: AnalysisDesign) -> bool:
+    """Whether the analysis of *design* has started (ADR-0053).
+
+    The mark tells it in any status, so a review of the result that sends the
+    design back to in_review does not hide it. A design saved before the mark
+    existed is read by its status.
+    """
+    return (
+        design.analysis_started_at is not None
+        or design.status in ANALYSIS_STARTED_STATUSES
+    )
+
+
+def with_analysis_mark(new: AnalysisDesign, current: AnalysisDesign) -> AnalysisDesign:
+    """*new* with the analysis mark, when the write over *current* puts it on.
+
+    The first move into analyzing or a conclusion starts the analysis. A design
+    saved before the mark existed shows its analysis only by its status, so its
+    next move writes the mark too, with the time of that move (ADR-0053
+    decisions 1, 2). ``_mark_errors`` holds every write to this rule.
+    """
+    moves = new.status != current.status
+    starts = new.status in ANALYSIS_STARTED_STATUSES or analysis_started(current)
+    if new.analysis_started_at is None and moves and starts:
+        return new.model_copy(update={"analysis_started_at": new.updated_at})
+    return new
 
 
 def valid_targets(current: DesignStatus, form: DesignForm) -> set[DesignStatus]:
@@ -99,7 +131,8 @@ def validate_design_change(
     - *current_data*: the design dict currently on disk, or ``None`` for a new
       file. A new file is checked by the schema only, the opening ADR-0049
       leaves; a write over a readable design meets ``validate_update``, the
-      check ``design_io`` runs on update.
+      check ``design_io`` runs on update, and one over a broken design meets
+      ``validate_repair``.
     """
     try:
         new_model = validate_schema(new_data)
@@ -114,14 +147,17 @@ def validate_design_change(
     try:
         current_model = validate_schema(current_data)
     except ValidationError:
-        # The on-disk file is already invalid; we cannot derive a reliable
-        # "current status" from it. Skip the update check rather than
-        # blocking on a pre-existing corruption the user may be fixing.
-        return []
+        # The on-disk file is already invalid and the write may be repairing
+        # it: only what a started analysis holds is compared.
+        return validate_repair(new_model, current_data)
 
     return validate_update(new_model, current_model)
 
 
+_INTENT_HELD = (
+    "analysis_intent: the intent and the form change only before the "
+    "analysis starts; derive a new design (parent_id) for another intent"
+)
 _MIXED_REFUSED = (
     "analysis_intent: 'mixed' cannot be chosen any more; "
     "choose exploratory or confirmatory"
@@ -154,8 +190,10 @@ def validate_update(new: AnalysisDesign, current: AnalysisDesign) -> list[str]:
 
     A saved legacy exploration or mixed design is updated in its form, but no
     design is turned into one; the intent and the form change only before the
-    analysis, and a status change follows the transitions of the new form. Never
-    raises: returns human-readable error strings.
+    analysis, and a status change follows the transitions of the new form. Once
+    the analysis has started, the mark of it stays and a design that judges a
+    hypothesis keeps that hypothesis and its criterion (ADR-0053). Never raises:
+    returns human-readable error strings.
     """
     errors: list[str] = []
     intent_changed = new.analysis_intent != current.analysis_intent
@@ -170,10 +208,7 @@ def validate_update(new: AnalysisDesign, current: AnalysisDesign) -> list[str]:
     # exploration into the new form), so the form is held to the same rule.
     reshaped = intent_changed or new.form() != current.form()
     if reshaped and not _may_change_intent(current, new):
-        errors.append(
-            f"analysis_intent: changes only while in_review or revision_requested "
-            f"(status: {current.status.value}); derive a new design for another intent"
-        )
+        errors.append(_INTENT_HELD)
     if new.form() is DesignForm.confirmation and intent_changed:
         errors += _unwritten_hypothesis(new)
     if new.status != current.status:
@@ -181,7 +216,244 @@ def validate_update(new: AnalysisDesign, current: AnalysisDesign) -> list[str]:
             validate_transition(current.status, new.status, new.form())
         except ValueError as exc:
             errors.append(str(exc))
+    return (
+        errors
+        + _mark_errors(new, current)
+        + _held_errors(new, current)
+        + _criterion_errors(new, current)
+    )
+
+
+_MARK_HELD = (
+    "analysis_started_at: the mark of a started analysis is neither removed nor changed"
+)
+
+
+def _left_without_the_mark(status: DesignStatus) -> str:
+    return (
+        f"analysis_started_at: a design that leaves {status.value} keeps the "
+        "mark of its analysis; move it with design_io transition, which writes "
+        "the mark"
+    )
+
+
+def _mark_errors(new: AnalysisDesign, current: AnalysisDesign) -> list[str]:
+    was, now = current.analysis_started_at, new.analysis_started_at
+    if was is not None:
+        return [] if now == was else [_MARK_HELD]
+    if analysis_started(current) and not analysis_started(new):
+        # A design saved before the mark existed shows its analysis only by its
+        # status: leaving that status without the mark would erase the trace.
+        return [_left_without_the_mark(current.status)]
+    entered = analysis_started(current) or new.status in ANALYSIS_STARTED_STATUSES
+    if now is not None and not entered:
+        return [
+            "analysis_started_at: the mark is written when the design first "
+            "enters analyzing or a conclusion, not before"
+        ]
+    return []
+
+
+_DERIVE = "derive a new design (parent_id) and leave this one as it was analyzed"
+_HYPOTHESIS_HELD = (
+    "hypothesis_statement: the hypothesis does not change once the analysis "
+    f"has started; {_DERIVE}"
+)
+_CRITERIA_HELD = (
+    "metrics: the primary metrics (target, comparison, tier) do not change "
+    f"once the analysis has started; {_DERIVE}"
+)
+
+
+def _held_errors(new: AnalysisDesign, current: AnalysisDesign) -> list[str]:
+    """What a started design that judges a hypothesis keeps (ADR-0053 decision 3)."""
+    if not (analysis_started(current) and current.form().judges):
+        return []
+    errors: list[str] = []
+    # Dropping the hypothesis altogether is a change of form, refused as one.
+    reworded = new.form().judges and (
+        new.hypothesis_statement != current.hypothesis_statement
+    )
+    if reworded:
+        errors.append(_HYPOTHESIS_HELD)
+    if _criteria(new) != _criteria(current):
+        errors.append(_CRITERIA_HELD)
     return errors
+
+
+def _criteria(design: AnalysisDesign) -> list[tuple[str, str]]:
+    """The primary metrics as what the judgment rests on, whatever their order."""
+    return sorted(
+        (m.target, m.comparison) for m in design.metrics if m.tier is MetricTier.primary
+    )
+
+
+def validate_repair(new: AnalysisDesign, current: dict) -> list[str]:
+    """The check of a write over *current*, a design on disk that no longer reads.
+
+    The write may be repairing it, so the update check does not run. Yet a
+    broken record that tells its analysis started, by the mark or by its
+    status, keeps what a readable one keeps: the mark, the intent, the
+    hypothesis and, when it judges a hypothesis, its primary metrics (ADR-0053
+    decisions 1, 3, 5). Without that, breaking a record would lift the hold.
+    The record may be broken anywhere, so each item is compared only when it
+    still reads, and an item that does not read is not taken as unchanged
+    either. Never raises: returns human-readable error strings.
+    """
+    if not _record_started(current):
+        return []
+    errors = _record_mark_errors(new, current)
+    if _record_intent_changed(new, current):
+        errors.append(_INTENT_HELD)
+    was = current.get("hypothesis_statement")
+    if (was is None or isinstance(was, str)) and new.hypothesis_statement != was:
+        errors.append(_HYPOTHESIS_HELD)
+    if _record_judges(current) and _record_criteria_changed(new, current):
+        errors.append(_CRITERIA_HELD)
+    return errors
+
+
+_MARK_READER = TypeAdapter(datetime)
+_E = TypeVar("_E", bound=Enum)
+
+
+def _read_as(kind: type[_E], value: Any) -> _E | None:
+    """*value* as a member of *kind*, or None when the record does not read so."""
+    try:
+        return kind(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def _record_status(record: dict) -> DesignStatus | None:
+    return _read_as(DesignStatus, record.get("status", DesignStatus.in_review))
+
+
+def _record_intent(record: dict) -> AnalysisIntent | None:
+    return _read_as(
+        AnalysisIntent, record.get("analysis_intent", AnalysisIntent.confirmatory)
+    )
+
+
+def _record_started(record: dict) -> bool:
+    return (
+        record.get("analysis_started_at") is not None
+        or _record_status(record) in ANALYSIS_STARTED_STATUSES
+    )
+
+
+def _record_mark_errors(new: AnalysisDesign, record: dict) -> list[str]:
+    was = record.get("analysis_started_at")
+    if was is None:
+        # Started by its status alone, as a design saved before the mark.
+        status = _record_status(record)
+        if analysis_started(new) or status is None:
+            return []
+        return [_left_without_the_mark(status)]
+    if new.analysis_started_at is None:
+        return [_MARK_HELD]
+    try:
+        mark = _MARK_READER.validate_python(was)
+    except ValidationError:
+        return []  # only that the mark is there reads
+    return [] if mark == new.analysis_started_at else [_MARK_HELD]
+
+
+def _record_intent_changed(new: AnalysisDesign, record: dict) -> bool:
+    was = _record_intent(record)
+    if was is None or was is new.analysis_intent:
+        return False
+    # ADR-0049 decision 6, as _may_change_intent allows it on a readable record.
+    fixed_as_confirmation = (
+        was is AnalysisIntent.exploratory
+        and record.get("exploration_question") is None
+        and new.analysis_intent is AnalysisIntent.confirmatory
+        and _record_status(record) == new.status
+        and record.get("hypothesis_statement") == new.hypothesis_statement
+        and record.get("hypothesis_background") == new.hypothesis_background
+    )
+    return not fixed_as_confirmation
+
+
+def _record_judges(record: dict) -> bool:
+    """Whether the record is not an exploration; one that does not read is held."""
+    asks = record.get("exploration_question") is not None
+    return not (asks and _record_intent(record) is AnalysisIntent.exploratory)
+
+
+def _record_criteria_changed(new: AnalysisDesign, record: dict) -> bool:
+    read = _record_criteria(record)
+    if read is None:
+        return False
+    held, unread = read
+    now = Counter(_criteria(new))
+    # A metric that does not read may be the one the write repairs into a
+    # primary one, so it may stand for one criterion of the write, no more.
+    return bool(held - now) or (now - held).total() > unread
+
+
+def _record_criteria(
+    record: dict,
+) -> tuple[Counter[tuple[str, str]], int] | None:
+    """The primary metrics the record reads as, and how many metrics do not read.
+
+    None when the metrics do not read at all. A metric without tier is primary,
+    as the schema reads it; the legacy shapes are the ones the schema migrates.
+    """
+    metrics = record.get("metrics", [])
+    if metrics is None or metrics == {}:
+        metrics = []
+    elif isinstance(metrics, dict) and "target" in metrics:
+        metrics = [metrics]
+    if not isinstance(metrics, list):
+        return None
+    held: Counter[tuple[str, str]] = Counter()
+    unread = 0
+    for metric in metrics:
+        tier = (
+            _read_as(MetricTier, metric.get("tier", MetricTier.primary))
+            if isinstance(metric, dict)
+            else None
+        )
+        if tier is None:
+            unread += 1
+        elif tier is MetricTier.primary:
+            target, comparison = metric.get("target"), metric.get("comparison", "")
+            if isinstance(target, str) and isinstance(comparison, str):
+                held[(target, comparison)] += 1
+            else:
+                unread += 1
+    return held, unread
+
+
+_NEEDS_CRITERION = frozenset(
+    {DesignStatus.analyzing, DesignStatus.supported, DesignStatus.rejected}
+)
+
+
+def _criterion_errors(new: AnalysisDesign, current: AnalysisDesign) -> list[str]:
+    """A judging design starts with its criterion written (decisions 4 and 8).
+
+    Without one it is neither analyzed nor given a verdict of its hypothesis; it
+    may still be closed as inconclusive, the way out of an analysis not run.
+    Only the first entry is checked: a started design can no longer write its
+    criterion, so asking again would leave a saved one nowhere to go.
+    """
+    entering = new.status in _NEEDS_CRITERION and not analysis_started(current)
+    if not (entering and new.form().judges):
+        return []
+    criteria = _criteria(new)
+    unwritten = [target for target, comparison in criteria if not comparison.strip()]
+    if criteria and not unwritten:
+        return []
+    lacking = f" (comparison is empty: {', '.join(unwritten)})" if unwritten else ""
+    return [
+        f"metrics: a design that judges a hypothesis enters {new.status.value} "
+        "only when it has a primary metric and every primary metric (a metric "
+        "without tier is primary) states the criterion in its comparison"
+        f"{lacking}; write it with /analysis-design before any result is seen, "
+        "or close the design as inconclusive"
+    ]
 
 
 def _unwritten_hypothesis(new: AnalysisDesign) -> list[str]:
@@ -193,7 +465,7 @@ def _unwritten_hypothesis(new: AnalysisDesign) -> list[str]:
 
 
 def _may_change_intent(current: AnalysisDesign, new: AnalysisDesign) -> bool:
-    if current.status in INTENT_CHANGEABLE:
+    if not analysis_started(current):
         return True
     # A legacy exploration whose substance is a confirmation is fixed in any
     # status, since only the intent changes: the hypothesis and the status stay

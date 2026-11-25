@@ -296,8 +296,7 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     design_notes = _design_notes(theme_id, base_dir)
     _require_linked_designs_exist(tree, design_notes)
     designs = {
-        design_id: DesignSummary.of(note.design)
-        for design_id, note in design_notes.items()
+        design_id: DesignSummary.of(note) for design_id, note in design_notes.items()
     }
     # Every round is read, since the page shows the history of each answer.
     events, duplicated = cited_events(
