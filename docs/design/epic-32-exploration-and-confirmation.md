@@ -480,6 +480,17 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - Alternatives considered: 向きの無い証拠を旧形式でも1群として扱い、件数を示さずに聞く案は、記録の前と後で証拠の見え方が分かれるので採らなかった（向きのある分は今までどおり分けて出す）。派生を `/analysis-journal` の Step 4 で作る案は、基準を固定しないまま検証が作られるので採らなかった。
 - Consequences: `/analysis-journal` の Step 4 の分岐の手順は、意図と基準を聞かないまま残る（この Story の範囲外）。派生の検証を作る道は `/analysis-design` に寄せた。
 
+### Decision: metric-explanation-covers-default-and-later-updates
+
+- What: Story 32.8 で、計画に無かった小さな判断を2つした。
+  1. `theme_id` が `DEFAULT` の分析設計では、2つ以上の量から作る指標を、いつも初めて出る指標として扱う。
+  2. Step 3b の `design_io update` で足したり差し替えたりした指標も、同じ手順で解説する。1つの量の指標が検証の primary なら、5項目の代わりに、判定を最も動かす扱い（どの行を外すか、閾値ちょうどの値をどう読むか）を基準に添える。
+- Why: `DEFAULT` には関係の無い分析設計がたまり、同じ名前の `target` が1つあるだけで解説が省かれる。指標は作成の後にも `design_io update` で入るので、その道に手順が無いと解説なしで入る。どちらもレビューで分かった。
+- Criteria: 分析者が知らない指標が解説なしで聞かれないこと（Decision `explain-a-composite-metric-that-is-new-to-the-theme` の決め手）。決め手はこれ1つ。
+- Affected modules: `skills/analysis-design/SKILL.md`。
+- Alternatives considered: `DEFAULT` も他のテーマと同じに扱う案（解説が省かれる）。`design_io list` にテーマの絞り込みを足す案（コードの変更で、この Story の範囲外）。
+- Consequences: `DEFAULT` で続けて分析すると、同じ指標が毎回5項目で解説される。テーマを付ければ省ける。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0048: 分析の意図が、分析設計の形と終わり方を決める](../adr/0048-intent-decides-the-form-and-the-end-of-a-design.md): 探索は探索の問いを持って `explored` で終わり、検証は検証仮説を持って判定で終わる。`mixed` は新しく作れない。意図は分析の前だけ変えられる。id の `H` は変えない。
@@ -523,4 +534,4 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - 2026-11-25 — Story 32.5 の追加: notebook の契約が書く `p_value` を、分析ノートとレポートの読み手が読むようにした（`p` があれば `p` を先に読む）。32.4 の申し送り。前から、契約どおりの p 値が黙って落ちていた。
 - 2026-11-25 — Story 32.6 completed: 論点ツリーは、論点に結んだ分析設計を論点の下の破線のカードに出し、2つ目の論点からは短い行にする。状態は `status_word` の言葉で出し、凡例に YAML の値との対応を出す。論点の答えに「現時点の答え」の見出しを付け、探索の引用には向きを出さない。合成シナリオの LIB-H01 を探索に、LIB-H02 を `supported` に直し、q3 の鍵を引用した文の種類で分けた。
 - 2026-11-25 — Story 32.7 completed: `/analysis-reflection` の3つの問いを、問いの形の見出し（結果から何が言えるか／まだ答えの出ていない問いで、判定は変わるか／この分析設計をどう終えるか）にした。検証は基準と問いの範囲を先に言い、探索は判定を選ばず `explored` で終えて、仮の答えを残せる。直した仮説は派生の分析設計にする（Decision `a-changed-hypothesis-goes-into-a-derived-design`）。計画外の判断は Decision `reflection-reads-undirected-evidence-and-derives-through-design` に書いた。
-- 2026-11-25 — Story 32.8 completed: `/analysis-design` Step 2 に "Metrics explained before they are asked" を足した。すべての指標に何を表す数かの一文を添え、2つ以上の量から作る指標でテーマに初めて出るものには5項目の解説を付けてから聞く。例の数字は journal か別の群の数字で、判定する結果を使わない。検証の基準には意味と、扱いを変えると判定がどう変わるかを付ける。`/analysis-auto` の design ② の行と段にも同じ手順を書いた。先送りの2件（Chaining 表の reflection の行、Derived Hypotheses の親の状態）も直した。計画外の判断は無し。
+- 2026-11-25 — Story 32.8 completed: `/analysis-design` Step 2 に "Metrics explained before they are asked" を足した。すべての指標に何を表す数かの一文を添え、2つ以上の量から作る指標でテーマに初めて出るものには5項目の解説を付けてから聞く。例の数字は journal か別の群の数字で、判定する結果を使わない。検証の基準には意味と、扱いを変えると判定がどう変わるかを付ける。`/analysis-auto` の design ② の行と段にも同じ手順を書いた。先送りの2件（Chaining 表の reflection の行、Derived Hypotheses の親の状態）も直した。計画外の判断は Decision `metric-explanation-covers-default-and-later-updates` に書いた。

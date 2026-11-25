@@ -185,6 +185,7 @@ one line: "どの指標にも、詳しい解説を求められます。"
 - A metric built from two or more quantities (標準化, 期待値との差, 比の比, モデルの係数,
   合成した指数) that no design of the theme has yet gets the five parts below. To tell, run
   `design_io list` and read the `metrics[].target` of the designs with the same `theme_id`.
+  A design under `DEFAULT` treats every such metric as new: unrelated designs gather there.
   A metric of one quantity (a mean, a share, a quantile) gets the sentence only, unless the
   analyst asks for more.
 - The five parts, in this order:
@@ -199,6 +200,7 @@ one line: "どの指標にも、詳しい解説を求められます。"
   design will judge: seen before the criterion is fixed, it lets the result pick the criterion.
   Write 概算 on an approximation, and say where the numbers come from.
 - Then confirm the metrics with the analyst. The analyst may ask for the five parts on any metric.
+- A metric added or replaced later with `design_io update` (Step 3b) is explained the same way.
 
 Sample, for a metric new to a theme on reserved library books:
 
@@ -209,7 +211,8 @@ wait_excess_days（予約の待ち超過日数）
 - 何を表す数か: 予約した本が届くまでに、所蔵冊数と貸出期間から見込める日数より何日多く待ったか。
 - 作り方: 予約ごとに、見込みの日数を「予約したときの順位 ÷ 所蔵冊数 × 貸出期間 14 日」で出す。
   実際に待った日数から見込みの日数を引き、館ごとに平均する。
-- 実データの例（概算。LIB-H01 の journal にある児童書の数字で、これから比べる一般書ではない）:
+- 実データの例（概算。LIB-H01 の journal にある児童書の順位・所蔵冊数・待った日数から、作り方どおりに計算した。
+  これから比べる一般書ではない）:
   | 予約 | 順位 | 所蔵冊数 | 見込み | 実際 | 超過 |
   | A | 6 | 2 | 42 日 | 50 日 | +8 日 |
   | B | 3 | 3 | 14 日 | 9 日 | −5 日 |
@@ -229,8 +232,10 @@ The notebook copies its threshold from this sentence and never makes one up
 
 With the criterion, tell the analyst what the criterion means in the words of the metric, and how
 the verdict changes if a handling of 迷いやすい点 changes (扱いを変えると判定がどう変わるか).
+A metric of one quantity has no 迷いやすい点: name the handling that moves its verdict most instead
+(which rows are left out, how a value on the threshold is read).
 Example: "2.0 日以上とは、分館の予約が本館より平均で2日以上、見込みより多く待つこと。負の超過を 0 に
-切ると両館の平均が上がり、差が縮めば支持が結論しないに変わりうる". The analyst then fixes the handling
+切ると両館の平均が上がり、差が縮めば支持から結論しないに変わりうる". The analyst then fixes the handling
 together with the criterion.
 
 An exploration's `comparison` says what is compared and how, with no threshold and no rule for

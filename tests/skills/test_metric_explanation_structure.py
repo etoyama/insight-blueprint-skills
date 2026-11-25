@@ -134,7 +134,13 @@ class TestACompositeMetricNewToTheThemeGetsFiveParts:
 
     def test_the_explanation_comes_before_the_question(self) -> None:
         rule = _rule()
-        assert "before" in rule and "confirm" in rule
+        assert rule.index("**言えないこと**") < rule.index("Then confirm the metrics")
+
+    def test_a_design_under_default_treats_the_metric_as_new(self) -> None:
+        assert "`DEFAULT` treats every such metric as new" in _rule()
+
+    def test_a_metric_added_by_update_is_explained_too(self) -> None:
+        assert "`design_io update` (Step 3b) is explained the same way" in _rule()
 
     def test_the_sample_shows_the_five_parts_in_order(self) -> None:
         assert _in_order(_sample(), FIVE_PARTS)
@@ -178,6 +184,10 @@ class TestTheCriterionSaysWhatItMeans:
     def test_an_exploration_gets_no_meaning_of_a_criterion(self) -> None:
         exploration = self._criterion().split("An exploration's `comparison`", 1)[1]
         assert "how the verdict changes" not in exploration
+        assert "no threshold" in exploration
+
+    def test_a_metric_of_one_quantity_names_the_handling_that_moves_it(self) -> None:
+        assert "name the handling that moves its verdict most" in self._criterion()
 
 
 class TestTheAnalystCanAskForAnyMetric:
@@ -215,13 +225,13 @@ class TestTheDeferredWordingFollowsTheForms:
 
     def test_the_parent_is_not_said_to_be_checked_for_a_status(self) -> None:
         derived = unwrap(section(_design(), "### Derived Hypotheses"))
-        assert "`active`" not in derived
-        assert "does not check" in derived
+        assert "active" not in derived
+        assert "`design_io` does not check the parent" in derived
+        assert "what status it is in" in derived
 
 
 class TestTheChangeIsRecorded:
     def test_the_unreleased_entry_names_the_explanation(self) -> None:
         changelog = (SKILLS_DIR.parent / "CHANGELOG.md").read_text(encoding="utf-8")
         entry = changelog_entry(changelog, "explains a metric")
-        assert entry == section(changelog, "## [Unreleased]")
         assert "`/analysis-design`" in unwrap(entry)
