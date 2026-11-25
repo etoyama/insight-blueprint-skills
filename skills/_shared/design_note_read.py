@@ -519,7 +519,7 @@ def _review_comment(item: object) -> NoteReviewComment | None:
     section = entry.get("target_section")
     try:
         content = _target_content(entry.get("target_content"))
-    except ValueError:  # a YAML alias that holds itself
+    except ValueError:  # json.dumps refuses a value that holds itself
         return None
     return NoteReviewComment(
         comment=comment,
@@ -561,7 +561,8 @@ def _read_reviews(path: Path) -> tuple[NoteReviewBatch, ...]:
         return ()
     try:
         entries = read_yaml(path).get("batches")
-    except (YAMLError, UnicodeDecodeError, RecursionError):
+    # ValueError: a timestamp that is no date, such as 2026-02-30.
+    except (YAMLError, UnicodeDecodeError, RecursionError, ValueError, OSError):
         return ()
     if not isinstance(entries, list):
         return ()

@@ -1009,6 +1009,8 @@ class TestTheReviewBatches:
             "batches:\n- id: RB-x\n  comments: not a list\n",
             "batches:\n- id: RB-x\n  comments:\n  - just text\n  - target_section: x\n",
             "\x00",
+            "batches:\n- created_at: 2026-13-45T09:00:00\n  comments: [{comment: x}]\n",
+            "batches:\n- created_at: 2026-02-30\n  comments: [{comment: x}]\n",
         ],
     )
     def test_a_file_or_line_that_cannot_be_read_gives_no_batch_and_no_error(
@@ -1043,3 +1045,27 @@ class TestTheReviewBatches:
         (insight / "designs" / f"{design_id}_reviews.yaml").symlink_to(outside)
 
         assert load_design_note(design_id, base_dir=insight).reviews == ()
+
+
+def test_a_reviews_file_the_analyst_cannot_open_gives_no_batch(
+    tmp_path: Path,
+) -> None:
+    from skills._shared import design_io
+    from skills._shared.design_note_read import load_design_note
+
+    insight = tmp_path / ".insight"
+    (insight / "designs").mkdir(parents=True)
+    design_id = design_io.create_design(
+        theme_id="LIB",
+        title="館ごとの期限切れ",
+        hypothesis_statement="延ばすと減る",
+        hypothesis_background="7日で多い",
+        base_dir=insight,
+    )["id"]
+    path = insight / "designs" / f"{design_id}_reviews.yaml"
+    path.write_text(_TWO_BATCHES, encoding="utf-8")
+    path.chmod(0)
+    try:
+        assert load_design_note(design_id, base_dir=insight).reviews == ()
+    finally:
+        path.chmod(0o644)

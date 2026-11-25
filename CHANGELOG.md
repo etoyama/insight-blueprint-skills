@@ -48,6 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/analysis-revision` fixes a comment on the result in the notebook and re-runs it, and answers a
   comment on what a started design keeps with a reason or a derived design instead of
   `design_io update` ([ADR-0054](docs/adr/0054-review-covers-the-result-and-its-comments-reach-the-reader.md), #247).
+- **Review comments reach the reader.** The analysis note gains a "レビュー" section that lists every
+  review batch of `{id}_reviews.yaml`, newest first, with its time, whether it came after the
+  analysis started (left out for a batch saved without it), the status after the review, and each
+  comment with its target as written. The question tree shows, on a design's card, how many review
+  comments came after the analysis started; none shows nothing. A `_reviews.yaml` that cannot be
+  read leaves both pages as they were, and the report does not show review comments
+  ([ADR-0054](docs/adr/0054-review-covers-the-result-and-its-comments-reach-the-reader.md), #248).
 
 ## [0.19.0] - 2026-11-25
 

@@ -78,8 +78,8 @@ AC の正本はここ。
 - [x] AC 1: review コメントは分析設計の項目に加えて、notebook・verdict・図（`notebook`・`verdict`・`figures`）を対象にできる。review batch は分析を始めた後に書かれたかどうかを自分で持つ。保存済みの `{id}_reviews.yaml` は読める。
 - [x] AC 2: `/analysis-review` は、verdict があるとき、結果の観点で読む。観点は、支持の線・棄却の線・指標の判定が `comparison` と合うか、値と判定が食い違わないか、図の軸の説明と読み方、guardrail の合否、cell ごとの責務である。批評の前に、何を読むかを分析者に言う。
 - [x] AC 3: 結果の review が `revision_requested` で終わったとき、`/analysis-revision` は、notebook・verdict・図への review コメントでは、notebook を直して回し直す道を案内する。US-3 が固定する項目への review コメントでは、分析設計を直さず、理由を付けて対応しないか、派生を作るかを選ばせる。
-- [ ] AC 4: 分析ノートは「レビュー」の節に、すべての review batch を新しい順に出す。batch ごとに、時刻、分析を始めた後かどうか、review の後の状態、review コメントと対象を、書かれたとおりに出す。分析を始めた後かどうかを持たない保存済みの batch では、その表示を出さない。
-- [ ] AC 5: 論点ツリーは分析設計の行に、分析を始めた後の review batch の review コメントの件数を出す。0件のときは出さない。
+- [x] AC 4: 分析ノートは「レビュー」の節に、すべての review batch を新しい順に出す。batch ごとに、時刻、分析を始めた後かどうか、review の後の状態、review コメントと対象を、書かれたとおりに出す。分析を始めた後かどうかを持たない保存済みの batch では、その表示を出さない。
+- [x] AC 5: 論点ツリーは分析設計の行に、分析を始めた後の review batch の review コメントの件数を出す。0件のときは出さない。
 
 ## Stories
 
@@ -443,6 +443,24 @@ sequenceDiagram
 - Alternatives considered: batch の `after_analysis_started` で分ける（batch は review を書いた後にしか無いので、批評の前には使えない）。分析設計の印で分ける（verdict を書く前に `analyzing` に入っただけの分析設計まで結果の review になり、読むものが無い）。
 - Consequences: verdict のファイルを消した分析設計は、分析を始めていても設計の review として読む。notebook を回し直すと前の verdict は残らない（ADR-0054 の Negative のとおり）。
 
+### Decision: reviews-sit-after-the-results-and-skip-what-cannot-be-read
+
+- What: 分析ノートの「レビュー」の節は「結果」の節の後、「結論」の前に置く。`_reviews.yaml` が無い、壊れている、`batches` が並びでない、またはリンクのときは、batch を1つも読まない。batch は、読める review コメントを1つも持たなければ飛ばす。review コメントは、空でない文字列の `comment` を持たなければ飛ばす。`target_content` は文字列ならそのまま、それ以外の JSON の値は JSON の文字で出す。新しい順は `created_at` の文字の降順で、`list_review_batches` と同じ。
+- Why: AC 4 は節の場所と、読めない記録の扱いを決めていない。review は分析ノートに足すだけの記録なので、1つの壊れたファイルで分析ノートと論点ツリーが作れなくなると、読み手は判定まで読めなくなる。分析ノートは手元を離れうるので、リンクの先は読まない（notebook と verdict の読みと同じ）。
+- Criteria: AC 4、ADR-0054 の5、PM の指示（壊れた `_reviews.yaml` でも今と同じに出る）、33.2 の引き継ぎ（結果の節の切り出しに入らない場所）。決め手は、読み手が判定を読めることを review より先に守ること。
+- Affected modules: `skills/_shared/design_note_read.py`（`_read_reviews`・`_review_batch`・`_review_comment`）、`skills/_shared/design_note.py`（`_reviews`・`_review_batch`）。
+- Alternatives considered: 壊れたファイルで分析ノートを止める（verdict と同じ扱い。review のために判定まで読めなくなるので落とした）。節を「分析の経過」の後に置く（判定と並んで読む、という US-4 の目的から遠いので落とした）。
+- Consequences: 壊れた `_reviews.yaml` は、どのページにも知らせが出ない。分析者は `design_io list-reviews` の失敗で気づく。
+
+### Decision: the-count-sits-on-the-card-of-the-design
+
+- What: 論点ツリーの件数は、分析設計のカード（最初に繋いだ論点の下）の状態の行に「分析を始めた後の review コメント: N 件」と出す。2つ目以降の論点の下の短い行と、「分析設計の派生」の行には出さない。件数は `design_note.comments_after_analysis` が数え、`DesignSummary.comments_after_analysis` が持つ。
+- Why: AC 5 の「分析設計の行」が、カード・短い行・派生の行のどれかを決めていない。短い行はカードへのリンクで、同じ件数を何度も出すと読み手が別の review と取りうる。
+- Criteria: AC 5、ADR-0054 の6。決め手は、1つの分析設計の件数がページに1回だけ出ること。
+- Affected modules: `skills/_shared/design_note.py`、`skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`。
+- Alternatives considered: どの行にも出す（上の理由で落とした）。
+- Consequences: `DesignSummary.of` は `AnalysisDesign` ではなく `DesignNote` を受け取る。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0052: verdict の指標は支持の線と棄却の線、指標の判定、値の区間の種類、群の行を持つ](../adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md): #235・F17・F09 の形を1本にまとめた。
@@ -458,7 +476,7 @@ sequenceDiagram
 | Story 33.3 | ✓（`tests/test_theme_report.py`: 線・判定の列と言葉、区間の種類の言葉、群の縦横の表と縦の表、群の初出順、探索で線と判定を出さないこと、利用者の文の escape、保存済みの verdict の8例の表） | ✓（`tests/tree_io/test_report.py`: 線・判定・HDI・軸が2つの群を持つ verdict が、`tree_io report` の書いたファイルの表に出る） | —（レポートは code が書く Markdown で、統合テストがファイルの表を照らす。検証と探索の fixture を回して読んだ verdict と、保存済みの8例と、軸が2つの群（縦横と縦）のレポートの表を、ブラウザで目で確かめた） |
 | Story 33.4 | ✓ | ✓ | —（分析者の入口の SKILL.md は対話で、自動で回せない。一時ディレクトリの `.insight/` で `design_io` の CLI を走らせ、基準の無い検証の `transition analyzing` が拒まれること、`analyzing` と結果の review の `in_review` で検証仮説と基準の書き換えが拒まれること、背景の直しが通ることを確かめた。hook にも同じ直書きを渡して確かめた） |
 | Story 33.5 | ✓（`tests/test_review_models.py`: 保存済みの batch が `after_analysis_started` を持たずに読めること、書いた値を持ち続けること。`tests/skills/test_result_review_structure.py`: 結果の観点、批評の前に読むもの、基準が無いときの案内、notebook を直す道、固定の項目に update を試さないこと。`tests/docs/test_canonical_docs.py`: 用語） | ✓（`tests/test_design_io.py`: 対象 `notebook`・`verdict`・`figures` の batch、承認の batch は分析の前で結果の review の batch は後、保存済みの `_reviews.yaml` の batch が項目を持たずに並ぶこと） | —（review と revision は対話の SKILL.md で、自動で回せない。一時ディレクトリの `.insight/` で `design_io` の CLI を走らせ、設計の review の batch（分析の前）、承認、`in_review` に戻した後の `verdict` への batch（分析の後）を記録し、`list-reviews` で両方の項目を確かめた） |
-| Story 33.6 | ☐ | ☐ | ☐ |
+| Story 33.6 | ✓（`tests/test_design_note_read.py`: `_reviews.yaml` の batch を新しい順に、項目を書かれたとおりに読む。項目を持たない batch、真偽でない値、壊れたファイル・batch・review コメント、リンク。`tests/test_design_note.py`: 節の場所、時刻・前か後か・状態・表、前か後かを持たない batch、知らない状態、escape、件数の数え方。`tests/test_tree_render.py`: カードの件数と0件） | ✓（`tests/tree_io/test_render_reviews.py`: `design_io` で設計の review・承認・結果の review を記録し、`tree_io render` の分析ノートの節と論点ツリーの件数を読む。壊れた `_reviews.yaml` でページが無いときと同じになる） | —（表示は code が書く HTML で、統合テストがページを照らす。一時ディレクトリの `.insight/` で `design_io` の CLI を回し、`tree_io render` のページをブラウザで開いて、節の2つの batch と「分析を始めた後の review コメント: 2 件」を目で確かめた） |
 
 完了時に ✓ を付ける。このマトリクスが Epic PR のレビューゲート。
 
@@ -487,3 +505,7 @@ sequenceDiagram
   計画外の判断は2件で、Decisions に書いた（水準を百分率に直さない。探索は線と判定の列も出さない）。Domain Model 図は変えていない。
   fixture の notebook 2本と、軸が2つの群を持つ verdict と、保存済みの verdict の分析ノートを `tree_io render --design` で作り、ブラウザで表を見た。分かった事実: fixture の長い浮動小数で11列近くになっても、60rem の幅の中で cell が折り返して読める。確かめていない前提: 実データの軸が3つ以上の表。
   バグ・セキュリティの観点のレビューを1本回した（中以上の指摘なし。Low 3件のうち、空の区間の種類と空の軸名の2件を直した）。
+- 2026-11-25 — Story 33.6 completed: 分析ノートに「レビュー」の節を足し、`{id}_reviews.yaml` の batch を新しい順に、時刻・分析の前か後か・review の後の状態・review コメントと対象で出すようにした。論点ツリーは分析設計のカードに、分析を始めた後の batch の review コメントの件数を出す（0件は出さない）。US-4 AC 4・AC 5 を満たした。レポートは触っていない（ADR-0054 の7）。
+  Domain Model 図は変えていない。分析ノートの読みの型 `NoteReviewBatch`・`NoteReviewComment` を足し、用語集の「分析ノート」に書いた。計画外の判断は2件で、Decisions に書いた（節の場所と読めない記録の扱い、件数を出す行）。
+  一時ディレクトリの `.insight/` で `design_io` の CLI を回し（承認の batch は分析の前、`in_review` に戻した後の `verdict`・`figures` への batch は後）、`tree_io render` のページをブラウザで開いて、節と「分析を始めた後の review コメント: 2 件」を目で確かめた。
+  バグ・セキュリティの観点のレビューを1本回した（High 1件、Low 3件）。High: 日付として無い timestamp（`2026-02-30`）を手で書いた `_reviews.yaml` で、論点ツリーのページ全体が作れなかった。Low: 読む権限の無いファイルで traceback が出た。どちらもテストを足して直した（読めないファイルとして飛ばす）。直していない Low: 新しい順は `created_at` の文字の順で、時差の違う時刻を手で混ぜると前後しうる（`list_review_batches` と同じ順。書き手は1つの時差で書く）。自分を指す YAML の alias は、round-trip の読みで中身が空になって出る（落ちない）。
