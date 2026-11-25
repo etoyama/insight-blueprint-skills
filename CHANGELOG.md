@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **An exploratory design holds a question, not a hypothesis, and ends as `explored`.** `design_io create`
   takes `exploration_question` and `exploration_background` for an exploration, and refuses a hypothesis,
-  `next_action`, a verdict and the `mixed` intent. Designs already saved (an exploration with a hypothesis,
+  `next_action`, a verdict and the `mixed` intent. A new confirmatory design needs `hypothesis_statement`
+  and `hypothesis_background` written: a blank one, which used to pass, is refused. Designs already saved (an exploration with a hypothesis,
   `mixed`, or no intent) still read and conclude on a verdict as before
   ([ADR-0048](docs/adr/0048-intent-decides-the-form-and-the-end-of-a-design.md),
   [ADR-0049](docs/adr/0049-legacy-exploration-stays-readable-and-is-marked.md), #226).
