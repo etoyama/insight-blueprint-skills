@@ -982,6 +982,49 @@ class TestTheReviewBatches:
         assert old.id == "RB-old"
         assert old.comments[0].target_content == "延ばすと減る"
 
+    def test_the_batches_come_by_their_time_whatever_the_order_of_the_file(
+        self, tmp_path: Path
+    ) -> None:
+        text = "batches:\n" + "".join(
+            f"- id: {i}\n  created_at: '{at}'\n  comments: [{{comment: x}}]\n"
+            for i, at in (
+                ("RB-mid", "2026-11-22T10:00:00+09:00"),
+                ("RB-new", "2026-11-24T10:00:00+09:00"),
+                ("RB-old", "2026-11-20T10:00:00+09:00"),
+            )
+        )
+
+        assert [b.id for b in _reviews_of(tmp_path, text)] == [
+            "RB-new",
+            "RB-mid",
+            "RB-old",
+        ]
+
+    def test_a_time_yaml_reads_as_a_date_is_ordered_by_its_iso_text(
+        self, tmp_path: Path
+    ) -> None:
+        text = _TWO_BATCHES.replace(
+            "batches:\n",
+            "batches:\n- id: RB-unquoted\n  created_at: 2026-11-22T10:00:00+09:00\n"
+            "  comments: [{comment: x}]\n",
+        )
+
+        batches = _reviews_of(tmp_path, text)
+
+        assert [b.id for b in batches] == ["RB-new", "RB-unquoted", "RB-old"]
+        assert batches[1].created_at == "2026-11-22T10:00:00+09:00"
+
+    def test_batches_of_the_same_time_keep_the_order_of_the_file(
+        self, tmp_path: Path
+    ) -> None:
+        text = "batches:\n" + "".join(
+            f"- id: {i}\n  created_at: '2026-11-24T10:00:00+09:00'\n"
+            "  comments: [{comment: x}]\n"
+            for i in ("RB-b", "RB-a")
+        )
+
+        assert [b.id for b in _reviews_of(tmp_path, text)] == ["RB-b", "RB-a"]
+
     def test_a_batch_saved_without_the_item_does_not_tell_when_it_came(
         self, tmp_path: Path
     ) -> None:

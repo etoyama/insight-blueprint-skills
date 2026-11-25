@@ -559,7 +559,9 @@ def _read_reviews(path: Path) -> tuple[NoteReviewBatch, ...]:
     """The batches of *path*, newest first; none when the file cannot be read.
 
     Reviews only add to the note, so a broken file leaves the rest of it as it
-    was. The order is that of ``design_io.list_review_batches``.
+    was. Newest first means by the text of ``created_at``, a timestamp YAML read
+    as a date taken as its ISO text; batches of the same time keep the file's
+    order.
     """
     if not _is_own_file(path):
         return ()
