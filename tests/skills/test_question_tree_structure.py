@@ -344,7 +344,7 @@ class TestFramingRendersTheTree:
 
     def test_the_run_still_ends_on_the_design(self) -> None:
         step = unwrap(_framing("#### 5c: "))
-        assert step.rstrip().endswith('"仮説を設計するなら `/analysis-design`"')
+        assert step.rstrip().endswith('"分析設計を作るなら `/analysis-design`"')
 
     def test_framing_sends_the_html_nowhere(self) -> None:
         step = unwrap(_framing("#### 5c: "))

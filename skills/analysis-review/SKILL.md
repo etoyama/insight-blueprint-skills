@@ -3,7 +3,7 @@ name: analysis-review
 version: "1.0.0"
 description: |
   Produces a structured review of an analysis design and records it as a review batch.
-  Claude critiques the design (hypothesis, methodology, metrics, confounders, charts),
+  Claude critiques the design (question or hypothesis, methodology, metrics, confounders, charts),
   the user confirms the comments, and they are written via design_io review-batch with a
   post-review status — feeding /analysis-revision. The producer side of the review loop
   (there is no web UI).
@@ -36,9 +36,9 @@ here (via `design_io review-batch`) rather than submitted through a dashboard.
 ## Scope
 
 Primarily a **design/plan review**: the outcome is `revision_requested` (needs work) or
-`analyzing` (approved — go analyze). Terminal decisions (`supported` / `rejected` /
-`inconclusive`) are possible through the same mechanism, but concluding a hypothesis is the
-job of `/analysis-reflection`.
+`analyzing` (approved — go analyze). Terminal decisions (`explored` for an exploration,
+`supported` / `rejected` / `inconclusive` for a confirmation) are possible through the same
+mechanism, but concluding a design is the job of `/analysis-reflection`.
 
 A review of the result after the analysis is optional and goes the same way: the `analyzing`
 design moves back to `in_review` (Step 2), and approving it returns it to `analyzing`. The

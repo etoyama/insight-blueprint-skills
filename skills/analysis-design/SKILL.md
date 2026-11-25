@@ -2,7 +2,8 @@
 name: analysis-design
 version: "1.2.0"
 description: |
-  Guides Claude through creating analysis design documents for hypothesis-driven EDA.
+  Guides Claude through creating analysis design documents for hypothesis-driven EDA:
+  an exploration (a question to measure) or a confirmation (a hypothesis to judge).
   Use when the user wants to create, manage, or review analysis designs.
   Triggers: "create analysis design", "hypothesis document", "new hypothesis",
   "分析設計を作りたい", "仮説を立てたい", "新しい仮説", "仮説ドキュメント".
@@ -28,8 +29,8 @@ design_io list [--status in_review]
 ```
 
 ## When to Use
-- Starting a new exploratory analysis (user wants to formalize a hypothesis)
-- Deriving a sub-hypothesis after a parent hypothesis is rejected
+- Starting a new analysis: a question to explore, or a hypothesis to confirm
+- Deriving a design from a finished one (an explored question, or a judged hypothesis)
 - Reviewing or listing existing analysis designs
 
 ## When NOT to Use
@@ -343,7 +344,7 @@ To change the intent, the design must be `in_review` or `revision_requested`, an
 sends the fields of the other form as `null` so they are dropped:
 
 ```bash
-echo '{"analysis_intent": "exploratory", "exploration_question": "<question>", "exploration_background": "<background>", "hypothesis_statement": null, "hypothesis_background": null, "next_action": null}' \
+echo '{"analysis_intent": "exploratory", "exploration_question": "<question>", "exploration_background": "<background>", "hypothesis_statement": null, "hypothesis_background": null, "next_action": null, "metrics": [{"target": "<metric>", "tier": "primary", "comparison": "<what is compared, no threshold>"}]}' \
   | design_io update --id FP-H01
 ```
 
@@ -356,6 +357,10 @@ A legacy exploration (`exploratory` with a `hypothesis_statement`) that is in fa
 can be set to `confirmatory` in any status:
 `echo '{"analysis_intent": "confirmatory"}' | design_io update --id FP-H01`
 ([ADR-0049](../../docs/adr/0049-legacy-exploration-stays-readable-and-is-marked.md)).
+If it is refused because `hypothesis_background` is blank, a confirmation needs it written: ask
+the analyst for it and send it in the same update. That works only while the design is
+`in_review` or `revision_requested`; in any other status the hypothesis and its background must
+stay as they are.
 
 To change `source_ids`, ask and check the ids as "Data sources" (Step 2) says first. `source_ids`
 is replaced as a whole, so send every id the design uses, not only the new ones.
@@ -418,7 +423,7 @@ same `validate.py` the pre-write hook uses. Invalid writes raise and write nothi
 | `Design 'FP-H99' not found` | Non-existent design_id | Confirm ID via `design_io list` |
 | pydantic `ValidationError` (e.g. empty `methodology.method`) | Schema violation | Fix the payload; nothing was written |
 | pydantic `ValidationError` on `decision_context.decision_maker` / `decision_context.decision` | Only one side of the decision context was given | Ask for the missing side, or drop `decision_context`; nothing was written |
-| pydantic `ValidationError` naming `exploration_question` / `hypothesis_statement` | The payload does not match its intent: an exploration with a hypothesis or `next_action`, a confirmation without its hypothesis, or neither | Send only the fields of the chosen intent; nothing was written |
+| pydantic `ValidationError` naming `exploration_question`, `exploration_background`, `hypothesis_statement`, `hypothesis_background` or `next_action` | The payload does not match its intent: an exploration with a hypothesis or `next_action`, a confirmation without its hypothesis, or neither | Send only the fields of the chosen intent; nothing was written |
 | `ValueError` naming `mixed` or a legacy exploration | A new design chose `mixed`, or an exploration with a hypothesis | Ask the intent again (探索 or 検証); nothing was written |
 
 ## Chaining

@@ -17,7 +17,7 @@ from skills._shared import design_io, tree_io
 
 PIPED = re.compile(r"echo '(?P<payload>\{.*?\})' \| tree_io (?P<args>[^\n]+)", re.S)
 DESIGN_PIPED = re.compile(
-    r"echo '(?P<payload>\{.*?\})' \| design_io (?P<args>[^\n]+)", re.S
+    r"echo '(?P<payload>\{.*?\})'(?: \\\n\s*)? \| design_io (?P<args>[^\n]+)", re.S
 )
 
 

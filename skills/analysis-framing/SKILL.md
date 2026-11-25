@@ -136,7 +136,7 @@ If `catalog_io list` returns no sources or no relevant data:
 
 ### Step 4: Direction Dialogue
 
-Discuss with the user to narrow the hypothesis direction:
+Discuss with the user to narrow the direction (a question to explore, or a hypothesis to confirm):
 - New angles building on conclusions of existing analyses
 - Hypothesis directions verifiable with available data
 - How to fill missing data (guide toward `/catalog-register`)
@@ -386,7 +386,7 @@ its `path`. Tell the analyst that path: "論点ツリーの図: {path}（ブラ�
   start it.
 
 Then end with the next step:
-"仮説を設計するなら `/analysis-design`"
+"分析設計を作るなら `/analysis-design`"
 
 ## Chaining
 
@@ -398,7 +398,7 @@ Then end with the next step:
 | /analysis-reflection | → /analysis-framing | 新仮説が必要だがデータ・方向の探索が先: "新しい角度を探すなら /analysis-framing" |
 | /catalog-register | → /analysis-framing | データ登録完了、フレーミングに戻る: "フレーミングに戻るなら /analysis-framing" |
 | /analysis-auto | → /analysis-framing | guided autopilot が論点ツリーを作る、次の論点の Framing Brief を得る、根の問いを変える |
-| /analysis-framing | → /analysis-design | 仮説の方向性が定まった（Framing Brief 付き）: "仮説を設計するなら /analysis-design" |
+| /analysis-framing | → /analysis-design | 方向が定まった（Framing Brief 付き）: "分析設計を作るなら /analysis-design" |
 | /analysis-framing | → /tree-upload | 論点ツリーを書き、図（HTML）を作った: "論点ツリーの図を URL で渡すなら /tree-upload" |
 | /analysis-framing | → /catalog-register | 必要なデータが未登録: "データを登録するなら /catalog-register" |
 | /analysis-framing | → /development-partner* | テーマが分析ドメインを超えて漠然: "問題を整理するなら /development-partner" |

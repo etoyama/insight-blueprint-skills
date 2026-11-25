@@ -9,6 +9,7 @@ whether the analyst writes a question to explore or a hypothesis to confirm, and
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -77,7 +78,8 @@ class TestAnalysisDesignAsksTheIntentFirst:
             assert f"`{field}`" in intent
 
     def test_mixed_is_never_offered(self) -> None:
-        assert "mixed" not in table_row(_design("### Step 2: "), "`analysis_intent`")[3]
+        row = table_row(_design("### Step 2: "), "`analysis_intent`")
+        assert all("mixed" not in cell for cell in row[1:])
         assert "Never offer `mixed`" in _intent()
 
     def test_a_drafted_intent_is_still_asked(self) -> None:
@@ -117,6 +119,51 @@ class TestAChangedIntentChangesItsCriterion:
         assert "in_review" in update and "revision_requested" in update
         assert "`metrics` with it" in update
         assert "`comparison`" in update
+
+
+class TestTheShownIntentChangeWorks:
+    """US-1 AC 4 (integration): Step 3b's intent change makes an exploration with no criterion."""
+
+    def _change(self) -> str:
+        found = [
+            m[0]
+            for m in DESIGN_PIPED.finditer(_design("### Step 3b: "))
+            if '"analysis_intent": "exploratory"' in m["payload"]
+        ]
+        assert len(found) == 1, "Step 3b shows no single change to an exploration"
+        return found[0]
+
+    def test_it_sends_the_metrics_without_a_criterion(self) -> None:
+        payload = json.loads(DESIGN_PIPED.match(self._change())["payload"])
+        assert "metrics" in payload
+        for metric in payload["metrics"]:
+            assert "no threshold" in metric["comparison"]
+
+    def test_it_turns_a_confirmation_into_an_exploration(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        insight = tmp_path / ".insight"
+        (insight / "designs").mkdir(parents=True)
+        design_io.create_design(
+            theme_id="FP",
+            title="t",
+            analysis_intent="confirmatory",
+            hypothesis_statement="h",
+            hypothesis_background="b",
+            methodology={"method": "m"},
+            metrics=[
+                {"target": "d", "tier": "primary", "comparison": "2.0 日以上なら支持"}
+            ],
+            base_dir=insight,
+        )
+        [changed] = run_shown_design_commands(
+            self._change(), insight, monkeypatch, capsys
+        )
+        assert AnalysisDesign(**changed).form() is DesignForm.exploration
+        assert "支持" not in changed["metrics"][0]["comparison"]
 
 
 class TestAutopilotAsksTheIntentAtDesignBeatOne:
