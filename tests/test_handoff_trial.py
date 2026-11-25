@@ -20,6 +20,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
+from insight_blueprint.models.design import AnalysisDesign, DesignForm, DesignStatus
 from insight_blueprint.models.tree import Progress, QuestionTree, StatementKind
 from scripts import handoff_trial
 from scripts.handoff_trial import (
@@ -33,7 +34,7 @@ from scripts.handoff_trial import (
     prompt_for,
     score,
 )
-from skills._shared import tree_io, tree_read
+from skills._shared import design_io, tree_io
 from skills._shared.tree_check import check_theme
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -225,23 +226,25 @@ class TestTheKeyHoldsForTheTree:
         assert set(key.answers.q2.analyzed_undetermined) == undetermined
         assert undetermined, "the scenario needs an analyzed but undetermined node"
 
-    def test_q3_names_the_events_the_root_answer_cites_by_direction(
+    def test_q3_splits_the_cited_events_by_the_kind_of_the_citing_statement(
         self, built: Path, scenario: handoff_trial.Scenario, key: handoff_trial.Key
     ) -> None:
+        """Not by the journal direction: an exploration's evidence has none (ADR-0050)."""
         root = tree_io.load_tree_model(scenario.theme_id, built).root()
         answer = root.current_answer()
         assert answer is not None
-        cited = {e for s in answer.statements for e in s.cites}
-        by_direction: dict[str, set[tuple[str, str]]] = {}
-        for event in tree_read.cited_journal_events(cited, built):
-            pair = (event["id"], tree_io.design_id_of(event["id"]))
-            by_direction.setdefault(event["metadata"]["direction"], set()).add(pair)
+        by_kind: dict[StatementKind, set[tuple[str, str]]] = {}
+        for statement in answer.statements:
+            for cite in statement.cites:
+                by_kind.setdefault(statement.kind, set()).add(
+                    (cite, tree_io.design_id_of(cite))
+                )
         q3 = key.answers.q3
-        assert {(r.event_id, r.design_id) for r in q3.supports} == by_direction[
-            "supports"
+        assert {(r.event_id, r.design_id) for r in q3.supports} == by_kind[
+            StatementKind.claim
         ]
-        assert {(r.event_id, r.design_id) for r in q3.weakens} == by_direction[
-            "contradicts"
+        assert {(r.event_id, r.design_id) for r in q3.weakens} == by_kind[
+            StatementKind.weakening
         ]
 
     def test_q4_names_the_answers_rewritten_in_the_last_round(
@@ -278,6 +281,52 @@ class TestTheKeyHoldsForTheTree:
         tree = tree_io.load_tree_model(scenario.theme_id, built)
         assert key.answers.q5.node_id == tree.decisions[-1].node_id
         assert key.answers.q5.reason_events
+
+
+class TestTheScenarioHasBothForms:
+    """US-4 AC 5: the tree shows an exploration, a confirmation and a verdict apart
+    from the answer of its node."""
+
+    def _designs(self, built: Path) -> list[AnalysisDesign]:
+        return [
+            AnalysisDesign.model_validate(
+                design_io.load_design(p.stem.split("_")[0], built)
+            )
+            for p in sorted((built / "designs").glob("*_hypothesis.yaml"))
+        ]
+
+    def test_the_scenario_holds_an_exploration_and_a_confirmation(
+        self, built: Path
+    ) -> None:
+        forms = {d.form() for d in self._designs(built)}
+        assert {DesignForm.exploration, DesignForm.confirmation} <= forms
+
+    def test_a_node_has_a_verdict_that_differs_from_its_current_answer(
+        self, built: Path, scenario: handoff_trial.Scenario
+    ) -> None:
+        tree = tree_io.load_tree_model(scenario.theme_id, built)
+        designs = {d.id: d for d in self._designs(built)}
+        decided = {DesignStatus.supported, DesignStatus.rejected}
+        differing = [
+            n.id
+            for n in tree.nodes
+            if (a := n.current_answer()) is not None
+            and any(s.kind is StatementKind.undetermined for s in a.statements)
+            and any(
+                designs[d].form() is DesignForm.confirmation
+                and designs[d].status in decided
+                for d in n.design_ids
+            )
+        ]
+        assert len(differing) == 1
+
+    def test_the_page_words_each_design_by_its_form(self, built: Path) -> None:
+        html = (built / "themes" / "LIB_tree.html").read_text()
+
+        assert "分析設計・探索" in html
+        assert "探索済み（判定はしない）" in html
+        assert "分析設計・検証" in html
+        assert "検証仮説の判定: 支持" in html
 
 
 class TestTheKey:

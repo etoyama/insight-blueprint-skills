@@ -44,6 +44,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mark, and concludes with 「探索を終えた。判定はしていない。」. A confirmation now says 「検証仮説」 where it
   said 「仮説」, and the report's design table has an intent column. A legacy exploration keeps its old sentences
   and is marked as such ([ADR-0051](docs/adr/0051-designs-nest-under-their-question-and-state-is-worded-by-role.md), #230).
+- **The question tree shows each analysis design under the question it is linked to.** The design is a
+  dashed card of its own, before the child questions, with its intent, its question or hypothesis, its status
+  and a link to its note; a second question that links it shows a short row pointing to the first. The status
+  is worded by its role (「探索済み（判定はしない）」, 「検証仮説の判定: 支持」, ...), and the legend maps each word
+  to its YAML value. The answer of a question is headed 「現時点の答え」, and an exploration's cited evidence shows
+  no direction. The handoff trial's scenario now holds an exploration, and its q3 key splits the cited events
+  by the kind of the citing statement ([ADR-0051](docs/adr/0051-designs-nest-under-their-question-and-state-is-worded-by-role.md), #231).
 
 - **`/analysis-design` and `/analysis-auto` ask the intent first.** Before anything else of the design,
   the analyst chooses exploration or confirmation (`mixed` is no longer offered), and then writes

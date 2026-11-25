@@ -198,8 +198,8 @@ _SECTIONS = (
 class FormWords:
     """The words the reader sees for one form of design (ADR-0051).
 
-    The note and the report take them from here, so the two never word a form
-    differently; the question tree is to read them too (Story 32.6).
+    The note, the report and the question tree take them from here, so no two of
+    them word a form differently.
     """
 
     statement: str  # what the design's first field is called
@@ -266,11 +266,34 @@ _VERDICT_WORDS = {
 }
 
 
+def form_word(form: DesignForm) -> str:
+    """The intent word of a form; a saved mixed design has its own (``intent_word``)."""
+    return _INTENT_WORDS[form]
+
+
 def intent_word(design: AnalysisDesign) -> str:
     """The intent as the reader sees it: one of four words (ADR-0051)."""
     if design.analysis_intent is AnalysisIntent.mixed:
         return _MIXED_WORD
-    return _INTENT_WORDS[design.form()]
+    return form_word(design.form())
+
+
+def intent_words_of(form: DesignForm) -> tuple[str, ...]:
+    """Every intent word a design of *form* may be shown with, ``intent_word`` order."""
+    if form is DesignForm.confirmation:
+        return (form_word(form), _MIXED_WORD)
+    return (form_word(form),)
+
+
+def direction_gloss(form: DesignForm, direction: str) -> str | None:
+    """What a cited event's direction means for its design (ADR-0051).
+
+    None when the form holds no hypothesis to lean on, or the direction is unknown.
+    """
+    headings = dict(FORM_WORDS[form].directed)
+    if direction not in headings:
+        return None
+    return headings[direction].removesuffix("証拠")
 
 
 def status_word(form: DesignForm, status: DesignStatus) -> str:

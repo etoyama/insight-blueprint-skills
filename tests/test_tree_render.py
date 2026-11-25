@@ -16,7 +16,12 @@ from typing import get_args
 
 import pytest
 
-from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
+from insight_blueprint.models.design import (
+    CONCLUSIONS_OF,
+    TERMINAL_STATUSES,
+    DesignForm,
+    DesignStatus,
+)
 from insight_blueprint.models.tree import (
     AimKind,
     Progress,
@@ -27,6 +32,7 @@ from insight_blueprint.models.tree import (
 from insight_blueprint.validate import validate_tree_schema
 from skills._shared import tree_render
 from skills._shared._html import Html
+from skills._shared.design_note import form_word, status_word
 from skills._shared.tree_check import Violation, ViolationKind
 from skills._shared.tree_render import (
     CheckFailed,
@@ -253,8 +259,26 @@ def summary(
     status: str,
     parent_id: str | None,
     created_at: datetime = T0,
+    *,
+    form: DesignForm | None = None,
+    intent: str | None = None,
+    statement: str = "",
 ) -> DesignSummary:
-    return DesignSummary(id, title, DesignStatus(status), parent_id, created_at)
+    """A design as the page sees it. An explored design is an exploration unless told."""
+    if form is None:
+        form = (
+            DesignForm.exploration if status == "explored" else DesignForm.confirmation
+        )
+    return DesignSummary(
+        id,
+        title,
+        DesignStatus(status),
+        parent_id,
+        created_at,
+        form=form,
+        intent=form_word(form) if intent is None else intent,
+        statement=statement,
+    )
 
 
 def stub_design_notes(designs: dict[str, DesignSummary]) -> dict[str, Html]:
@@ -852,7 +876,7 @@ class TestEvidence:
         assert "LIB-H01-E01" in folded
         assert "期限切れは取消除外で 346 件" in folded
         assert "design: LIB-H01" in folded
-        assert "direction: supports（仮説を支持する）" in folded
+        assert "direction: supports（検証仮説を支持する）" in folded
         assert "type: evidence" in folded
 
     def test_the_cited_design_is_an_in_page_link(self) -> None:
@@ -882,13 +906,39 @@ class TestEvidence:
 
         assert "direction: mixed" in details_text(page(events=events), "LIB-Q02")
 
-    def test_the_details_list_the_linked_designs_with_title_and_status(self) -> None:
+    def test_a_legacy_exploration_glosses_the_direction_with_its_hypothesis(
+        self,
+    ) -> None:
+        designs = make_designs()
+        designs["LIB-H01"] = summary(
+            "LIB-H01", "t", "supported", None, form=DesignForm.legacy_exploration
+        )
+
+        folded = details_text(page(designs=designs), "LIB-Q02")
+
+        assert "direction: supports（仮説を支持する）" in folded
+
+    def test_an_exploration_shows_no_direction_even_when_its_event_has_one(
+        self,
+    ) -> None:
+        designs = make_designs()
+        designs["LIB-H01"] = summary("LIB-H01", "t", "explored", None)
+        events = make_events()
+        events["LIB-H01-E01"] = CitedEvent(
+            "LIB-H01-E01", "evidence", "contradicts", "期限切れは取消除外で 346 件"
+        )
+
+        folded = details_text(page(designs=designs, events=events), "LIB-Q02")
+
+        assert "type: evidence" in folded
+        assert "direction" not in folded
+        assert "反する" not in folded
+
+    def test_the_details_no_longer_list_the_linked_designs(self) -> None:
         folded = details_text(page(), "LIB-Q03")
 
-        assert "結んだ分析設計" in folded
-        assert "LIB-H02" in folded
-        assert "通知の遅れを測る" in folded
-        assert "analyzing" in folded
+        assert "結んだ分析設計" not in folded
+        assert "LIB-H02" not in folded
 
 
 class TestStructure:
@@ -953,6 +1003,239 @@ class TestStructure:
         assert by_id(root, "design-LIB-H02") is not None
 
 
+def branch_cards(root: Element, node_id: str) -> list[Element]:
+    """The cards of the designs shown under a node, in page order (ADR-0051)."""
+    node = by_id(root, node_id)
+    nested = [e for e in node.children if e.tag == "ul"]
+    return [
+        card
+        for listing in nested
+        for item in listing.children
+        if item.tag == "li" and "id" not in item.attrs
+        for card in item.children
+        if card.tag == "div"
+    ]
+
+
+def card_text(card: Element) -> str:
+    return squash(card.text())
+
+
+def card_of(root: Element, node_id: str, design_id: str) -> str:
+    (text,) = [
+        card_text(c) for c in branch_cards(root, node_id) if design_id in card_text(c)
+    ]
+    return text
+
+
+def forms_page() -> Element:
+    """LIB-Q02 links an exploration and LIB-Q03 a confirmation and a legacy one.
+
+    LIB-H03 is linked to LIB-Q03 and LIB-Q05, so LIB-Q05 shows it as a short row.
+    """
+    tree = make_tree()
+    tree["nodes"][2]["design_ids"] = ["LIB-H02", "LIB-H03"]
+    tree["nodes"][4]["design_ids"] = ["LIB-H03"]
+    designs = {
+        "LIB-H01": summary(
+            "LIB-H01",
+            "期限切れの数え方",
+            "explored",
+            None,
+            statement="取消を除くと、期限切れは何件か",
+        ),
+        "LIB-H02": summary(
+            "LIB-H02",
+            "通知の遅れと期限切れ",
+            "supported",
+            None,
+            statement="通知が翌日以降の予約は期限切れが多い",
+        ),
+        "LIB-H03": summary(
+            "LIB-H03",
+            "曜日の差",
+            "rejected",
+            "LIB-H02",
+            form=DesignForm.legacy_exploration,
+            statement="金曜に確保した本は期限切れが多い",
+        ),
+        "LIB-H04": summary("LIB-H04", "貸出の季節差", "in_review", "LIB-H99"),
+    }
+    return page(tree=tree, designs=designs)
+
+
+class TestDesignsUnderTheirNode:
+    """US-4 AC 1, 3, 4: a design is a branch of the node that links it."""
+
+    def test_a_linked_design_is_a_card_under_its_node_not_inside_the_node_card(
+        self,
+    ) -> None:
+        root = forms_page()
+
+        (card,) = branch_cards(root, "LIB-Q02")
+        assert card.is_inside(by_id(root, "LIB-Q02"))
+        assert card.is_inside(by_id(root, "question-tree"))
+        assert "LIB-H01" not in node_text(root, "LIB-Q02")
+        node_card = next(e for e in by_id(root, "LIB-Q02").children if e.tag == "div")
+        assert card.attrs["class"] != node_card.attrs["class"]
+
+    def test_the_designs_come_before_the_child_nodes(self) -> None:
+        root = forms_page()
+        (listing,) = [e for e in by_id(root, "LIB-Q02").children if e.tag == "ul"]
+
+        items = [e for e in listing.children if e.tag == "li"]
+        assert "id" not in items[0].attrs
+        assert items[1].attrs["id"] == "LIB-Q04"
+
+    def test_an_exploration_card_holds_id_title_intent_question_status_and_note(
+        self,
+    ) -> None:
+        (card,) = branch_cards(forms_page(), "LIB-Q02")
+        text = card_text(card)
+
+        assert "LIB-H01" in text
+        assert "期限切れの数え方" in text
+        assert "分析設計・探索" in text
+        assert "探索の問い: 取消を除くと、期限切れは何件か" in text
+        assert "探索済み（判定はしない）" in text
+        assert "分析ノートを開く" in text
+        assert "判定:" not in text
+        assert "支持" not in text
+
+    def test_a_confirmation_card_names_whose_verdict_it_is(self) -> None:
+        text = card_of(forms_page(), "LIB-Q03", "LIB-H02")
+
+        assert "分析設計・検証" in text
+        assert "検証仮説: 通知が翌日以降の予約は期限切れが多い" in text
+        assert "検証仮説の判定: 支持" in text
+
+    def test_a_legacy_exploration_shows_its_hypothesis_and_verdict_as_written(
+        self,
+    ) -> None:
+        text = card_of(forms_page(), "LIB-Q03", "LIB-H03")
+
+        assert "分析設計・探索（旧形式）" in text
+        assert "仮説: 金曜に確保した本は期限切れが多い" in text
+        assert "仮説の判定: 棄却" in text
+        assert "検証仮説" not in text
+
+    def test_a_saved_mixed_design_reads_as_exploration_and_confirmation(
+        self,
+    ) -> None:
+        designs = make_designs()
+        designs["LIB-H01"] = summary(
+            "LIB-H01", "t", "supported", None, intent="探索と検証（旧形式）"
+        )
+
+        (card,) = branch_cards(page(designs=designs), "LIB-Q02")
+
+        assert "分析設計・探索と検証（旧形式）" in card_text(card)
+        assert "検証仮説の判定: 支持" in card_text(card)
+
+    @pytest.mark.parametrize(
+        ("status", "word"),
+        [
+            ("in_review", "レビュー中"),
+            ("revision_requested", "修正待ち"),
+            ("analyzing", "分析中"),
+        ],
+    )
+    def test_a_design_before_its_conclusion_says_where_it_is(
+        self, status: str, word: str
+    ) -> None:
+        designs = make_designs()
+        designs["LIB-H01"] = summary("LIB-H01", "t", status, None)
+
+        (card,) = branch_cards(page(designs=designs), "LIB-Q02")
+
+        assert word in card_text(card)
+        assert status not in card_text(card)
+
+    def test_a_design_linked_to_a_second_node_is_a_short_row_there(self) -> None:
+        root = forms_page()
+
+        (row,) = branch_cards(root, "LIB-Q05")
+        assert card_text(row) == "LIB-H03 仮説の判定: 棄却 LIB-Q03 の下に出ている"
+        assert [e.attrs["href"] for e in row.walk() if e.tag == "a"] == ["#LIB-Q03"]
+
+    def test_the_first_node_is_the_first_on_the_page_not_in_the_file(self) -> None:
+        tree = make_tree()
+        # LIB-Q04 sits under LIB-Q02, so it comes before LIB-Q03 on the page.
+        tree["nodes"][2]["design_ids"] = ["LIB-H02"]
+        tree["nodes"][3]["design_ids"] = ["LIB-H02"]
+        assert [n["id"] for n in tree["nodes"]].index("LIB-Q03") < 3
+
+        root = page(tree=tree)
+
+        assert len(branch_cards(root, "LIB-Q04")[0].children) > 1
+        (row,) = branch_cards(root, "LIB-Q03")
+        assert card_text(row).endswith("LIB-Q04 の下に出ている")
+
+    def test_a_node_without_designs_has_no_design_card(self) -> None:
+        assert branch_cards(forms_page(), "LIB-Q04") == []
+
+
+class TestStatusWords:
+    """US-4 AC 2: the status is worded by its role, with the YAML value in the legend."""
+
+    def test_the_legend_maps_each_word_to_its_yaml_value_and_form(self) -> None:
+        legend = by_id(page(), "legend")
+        rows = [
+            [squash(c.text()) for c in row.children if c.tag == "td"]
+            for row in legend.walk()
+            if row.tag == "tr"
+        ]
+        rows = [r for r in rows if r]
+
+        expected = {
+            ("レビュー中", "in_review"),
+            ("修正待ち", "revision_requested"),
+            ("分析中", "analyzing"),
+            ("探索済み（判定はしない）", "explored"),
+            ("検証仮説の判定: 支持", "supported"),
+            ("検証仮説の判定: 棄却", "rejected"),
+            ("検証仮説の判定: 結論できず", "inconclusive"),
+            ("仮説の判定: 支持", "supported"),
+            ("仮説の判定: 棄却", "rejected"),
+            ("仮説の判定: 結論できず", "inconclusive"),
+        }
+        assert {(r[0], r[1]) for r in rows} == expected
+        forms = {r[0]: r[2] for r in rows}
+        assert forms["探索済み（判定はしない）"] == "探索"
+        assert forms["検証仮説の判定: 支持"] == "検証、探索と検証（旧形式）"
+        assert forms["仮説の判定: 支持"] == "探索（旧形式）"
+        assert forms["分析中"] == "探索、検証、探索と検証（旧形式）、探索（旧形式）"
+
+    @pytest.mark.parametrize("form", list(DesignForm))
+    def test_every_status_a_form_can_take_has_a_row(self, form: DesignForm) -> None:
+        legend = squash(by_id(page(), "legend").text())
+
+        reachable = (set(DesignStatus) - TERMINAL_STATUSES) | CONCLUSIONS_OF[form]
+        for status in reachable:
+            assert status_word(form, status) in legend
+
+    def test_the_derivation_words_the_status_by_its_role(self) -> None:
+        root = forms_page()
+
+        assert "探索済み（判定はしない）" in squash(
+            by_id(root, "design-LIB-H01").text()
+        )
+        derived = squash(by_id(root, "design-LIB-H03").text())
+        assert "仮説の判定: 棄却" in derived
+        assert "rejected" not in squash(by_id(root, "derivation").text())
+
+    def test_a_node_card_heads_its_answer_with_the_current_answer(self) -> None:
+        root = page()
+        card = next(e for e in by_id(root, "LIB-Q02").children if e.tag == "div")
+        paragraphs = [squash(e.text()) for e in card.children if e.tag in ("p", "ul")]
+
+        heading = paragraphs.index("現時点の答え")
+        assert paragraphs[heading + 1].startswith("言えること")
+
+    def test_a_node_without_an_answer_has_no_heading(self) -> None:
+        assert "現時点の答え" not in node_text(page(), "LIB-Q03")
+
+
 def linking(design_ids: list[str]) -> dict:
     """The tree where only LIB-Q03 links designs, so a test names every design it uses."""
     tree = make_tree()
@@ -971,9 +1254,9 @@ class TestOrderOfLinkedDesigns:
         """The ids on the card of LIB-Q03, in the order the card lists them."""
         designs = {i: summary(i, "t", status, None, at) for i, status, at in specs}
         root = page(tree=linking([i for i, _, _ in specs]), designs=designs)
-        (card,) = [e for e in by_id(root, "LIB-Q03").children if e.tag == "div"]
         return [
             e.attrs["href"].removeprefix("#design-")  # type: ignore[union-attr]
+            for card in branch_cards(root, "LIB-Q03")
             for e in card.walk()
             if e.tag == "a" and str(e.attrs["href"]).startswith("#design-")
         ]
@@ -1068,23 +1351,16 @@ class TestOrderOfLinkedDesigns:
 class TestAnchorsToTheNotes:
     OPEN = "分析ノートを開く"
 
-    def _card(self, root: Element, node_id: str) -> Element:
-        (card,) = [e for e in by_id(root, node_id).children if e.tag == "div"]
-        return card
-
     def _hrefs(self, element: Element) -> list[str]:
         return [e.attrs["href"] for e in element.walk() if e.tag == "a"]  # type: ignore[misc]
 
-    def test_each_linked_design_on_a_card_keeps_its_link_and_gains_one_to_its_note(
+    def test_each_design_under_a_node_links_its_derivation_and_its_note(
         self,
     ) -> None:
-        card = self._card(page(), "LIB-Q02")
+        (card,) = branch_cards(page(), "LIB-Q02")
 
-        (item,) = [
-            e for e in card.walk() if e.tag == "li" and e.text().startswith("LIB-H01 ")
-        ]
-        assert self._hrefs(item) == ["#design-LIB-H01", "#note-LIB-H01"]
-        open_link = [e for e in item.walk() if e.tag == "a"][1]
+        assert self._hrefs(card) == ["#design-LIB-H01", "#note-LIB-H01"]
+        open_link = [e for e in card.walk() if e.tag == "a"][1]
         assert open_link.text() == self.OPEN
 
     def test_each_design_in_the_derivation_has_a_link_to_its_note(self) -> None:

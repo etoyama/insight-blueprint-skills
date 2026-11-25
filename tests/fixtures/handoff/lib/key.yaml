@@ -16,7 +16,7 @@ answers:
       - {event_id: LIB-H02-E01, design_id: LIB-H02}
     weakens:
       - {event_id: LIB-H02-E02, design_id: LIB-H02}
-    note: 根の今の答えが引用する出来事を、journal の direction で分ける。
+    note: 根の今の答えが引用する出来事を、引用した文の種類で分ける。言えることが引用する出来事が支える証拠、弱める証拠と留保が引用する出来事が弱める証拠である。
   q4:
     changed_nodes: [LIB-Q01]
     evidence: [LIB-H02-E01, LIB-H02-E02]

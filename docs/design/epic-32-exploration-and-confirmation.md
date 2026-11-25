@@ -477,7 +477,7 @@ review、premortem、journal への verdict の記録は、今と同じなので
 | 32.3 入口 | ✓ | ✓ | —（SKILL.md の文は分析者との対話で、自動で回せない。Step 3 と Step 3b に書いた `design_io` のコマンドを一時ディレクトリの `.insight/` で走らせ、探索と検証の作成と拒否を確かめた） |
 | 32.4 notebook と journal | ✓ | ✓ | —（notebook を生成するのは AI で、構造テストが契約と SKILL.md の文を照らす。探索の fixture を契約のコマンドで走らせ、verdict を分析ノートの読み手で読んで確かめた） |
 | 32.5 分析ノートとレポート | ✓ | ✓ | —（分析者が開く入口は `tree_io render` と `tree_io report` で、どちらも Integration で通した。実物の `.insight/` に探索・検証・旧形式の探索を1つずつ作り、分析ノートとレポートを出して目で確かめた） |
-| 32.6 論点ツリー | ☐ | ☐ | ☐ |
+| 32.6 論点ツリー | ✓ | ✓ | —（論点ツリーは `tree_io render` が出すページで、Integration は合成シナリオを `scripts/handoff_trial.py build` で組んで通した。探索・検証・旧形式の探索と、2つの論点に結んだ分析設計を持つ版を出して読んだ。直した後の表示で、引き継ぎの試行は回していない） |
 | 32.7 reflection | ☐ | ☐ | ☐ |
 | 32.8 新しい指標の解説 | ☐ | ☐ | ☐ |
 
@@ -500,3 +500,4 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - 2026-11-25 — Story 32.5 completed: 分析ノートとレポートの定型文を形で分けた。言葉は `design_note.py` の `FORM_WORDS`・`intent_word`・`status_word`・`lead_sentence` に1か所で置き、論点ツリー（32.6）も同じものを読む。探索は「探索の問いと背景」で始まり、証拠を1群で出し、指標の表にしきい値と合否の列を出さない。
 - 2026-11-25 — Story 32.3 completed: `/analysis-design` と `/analysis-auto` が最初に意図を聞き、探索なら探索の問いを、検証なら検証仮説と `comparison` の判定の基準を確かめる。Framing Brief と `/analysis-review` も意図で分けた。計画外の判断3つは Decision `entry-asks-the-intent-and-moves-the-criterion-with-it` に書いた。
 - 2026-11-25 — Story 32.5 の追加: notebook の契約が書く `p_value` を、分析ノートとレポートの読み手が読むようにした（`p` があれば `p` を先に読む）。32.4 の申し送り。前から、契約どおりの p 値が黙って落ちていた。
+- 2026-11-25 — Story 32.6 completed: 論点ツリーは、論点に結んだ分析設計を論点の下の破線のカードに出し、2つ目の論点からは短い行にする。状態は `status_word` の言葉で出し、凡例に YAML の値との対応を出す。論点の答えに「現時点の答え」の見出しを付け、探索の引用には向きを出さない。合成シナリオの LIB-H01 を探索に、LIB-H02 を `supported` に直し、q3 の鍵を引用した文の種類で分けた。
