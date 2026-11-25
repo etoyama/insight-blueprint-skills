@@ -49,6 +49,7 @@ from skills._shared.design_note import (
     status_word,
 )
 from skills._shared.design_note_reviews import (
+    AFTER_ANALYSIS,
     comments_after_analysis,
 )
 
@@ -588,6 +589,11 @@ def _question_tree(context: _Context) -> Html:
     )
 
 
+def _comments_after_analysis(count: int) -> list[str]:
+    """The count of the result review's comments; nothing when there is none."""
+    return [f"{AFTER_ANALYSIS} コメント: {count} 件", "　"] if count else []
+
+
 def _design_card(context: _Context, node: QuestionNode, design: DesignSummary) -> Html:
     """The full card under the first node on the page; a short row under the others."""
     word = status_word(design.form, design.status)
@@ -618,11 +624,7 @@ def _design_card(context: _Context, node: QuestionNode, design: DesignSummary) -
             "p",
             word,
             "　",
-            *(
-                [f"分析を始めた後の review コメント: {count} 件", "　"]
-                if (count := design.comments_after_analysis)
-                else []
-            ),
+            *_comments_after_analysis(design.comments_after_analysis),
             _note_link(design.id),
             class_="meta",
         ),
