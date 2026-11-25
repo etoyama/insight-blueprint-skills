@@ -71,7 +71,7 @@ flowchart TD
   状態遷移ガード（`VALID_TRANSITIONS`。例: `analyzing → supported` は許し、`analyzing → revision_requested` は拒む。結果を見た後のレビューで `in_review` へ戻すのは任意（[ADR-0029](adr/0029-analyzing-reaches-conclusion-directly.md)）。terminal status からはどこへも遷移しない）。分析設計の整合性の単一正本。
   遷移は分析設計の形（`DesignForm`。分析の意図と項目から導き、保存しない）を受け取る。結論の状態は形で決まり、探索は `explored` で、検証と旧形式の探索は `supported`・`rejected`・`inconclusive` で終わる。それより前の遷移は形で変わらない（`valid_targets`。[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md)）。
   検査は2段ある。読むときの検査（`validate_schema`。hook もこれを使う）は、保存済みの旧形式の探索と `mixed` を通す。
-  作るときの検査（`validate_creation`。`design_io create` と `update` が呼ぶ）は、旧形式の探索と `mixed` を新しく作ることと、`in_review`・`revision_requested` の後に意図を変えることを拒む（[ADR-0049](adr/0049-legacy-exploration-stays-readable-and-is-marked.md)）。
+  作るときの検査（新しく作るときは `validate_creation` を `design_io create` が、書き換えるときは `validate_update` を `design_io update` が呼ぶ。`validate_update` は遷移も確かめる）は、旧形式の探索と `mixed` を新しく作ることと、`in_review`・`revision_requested` の後に意図を変えることを拒む（[ADR-0049](adr/0049-legacy-exploration-stays-readable-and-is-marked.md)）。
   `design_io` 経由で書く skill も、書く前に Python 側で同じ検証を通す。tool の書き込み（hook）と
   helper の書き込み（`design_io`）の両方で、読むときの検査が効く。作るときの検査は `design_io` だけが行う。
   論点ツリーの形も同じ場所で検証する（`validate_tree`。[ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md)）。

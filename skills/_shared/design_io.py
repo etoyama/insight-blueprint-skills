@@ -34,6 +34,7 @@ from insight_blueprint.validate import (
     validate_creation,
     validate_schema,
     validate_transition,
+    validate_update,
 )
 from skills._shared._atomic import atomic_write_yaml
 from skills._shared._stdin import read_payload
@@ -297,7 +298,10 @@ def update_design(
             f"Design '{design_id}' on disk is invalid: repair it without "
             "changing its status, then transition"
         )
-    errors = _update_errors(model, on_disk)
+    # A design broken on disk is checked as a new one, so an update may repair it.
+    errors = (
+        validate_creation(model) if on_disk is None else validate_update(model, on_disk)
+    )
     if errors:
         raise ValueError("; ".join(errors))
     data = model.model_dump(mode="json")
@@ -306,21 +310,10 @@ def update_design(
 
 
 def _parsed_or_none(data: dict) -> AnalysisDesign | None:
-    # A design broken on disk is checked as a new one, so an update may repair it.
     try:
         return validate_schema(data)
     except ValidationError:
         return None
-
-
-def _update_errors(new: AnalysisDesign, current: AnalysisDesign | None) -> list[str]:
-    errors = validate_creation(new, current)
-    if current is not None and new.status != current.status:
-        try:
-            validate_transition(current.status, new.status, new.form())
-        except ValueError as exc:
-            errors.append(str(exc))
-    return errors
 
 
 def transition_status(

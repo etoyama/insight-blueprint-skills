@@ -132,50 +132,74 @@ def validate_design_change(
     return errors
 
 
-def validate_creation(
-    new: AnalysisDesign, current: AnalysisDesign | None = None
-) -> list[str]:
-    """The check of the create path: only the new forms are written (ADR-0049).
+_MIXED_REFUSED = (
+    "analysis_intent: 'mixed' cannot be chosen any more; "
+    "choose exploratory or confirmatory"
+)
+_LEGACY_REFUSED = (
+    "an exploratory design holds exploration_question and "
+    "exploration_background, not hypothesis_statement"
+)
 
-    ``design_io`` runs it on create (*current* is ``None``) and on update
-    (*current* is the design on disk), after the schema has passed. The read
-    check (the schema, which the hook runs) lets a legacy exploration and a
-    mixed design through, so saved designs still read; this one refuses to
-    make either. Never raises: returns human-readable error strings.
+
+def validate_creation(new: AnalysisDesign) -> list[str]:
+    """The check of a new design: only the new forms are written (ADR-0049).
+
+    Runs after the schema has passed. The read check (the schema) lets a legacy
+    exploration and a mixed design through, so saved designs still read; this
+    one refuses to make either. Never raises: returns human-readable error strings.
     """
     errors: list[str] = []
-    intent_changed = current is not None and new.analysis_intent != (
-        current.analysis_intent
-    )
-    if new.analysis_intent is AnalysisIntent.mixed and (
-        current is None or intent_changed
+    if new.analysis_intent is AnalysisIntent.mixed:
+        errors.append(_MIXED_REFUSED)
+    if new.form() is DesignForm.legacy_exploration:
+        errors.append(_LEGACY_REFUSED)
+    if new.form() is DesignForm.confirmation:
+        errors += _unwritten_hypothesis(new)
+    return errors
+
+
+def validate_update(new: AnalysisDesign, current: AnalysisDesign) -> list[str]:
+    """The check of a write over *current*, the design on disk (ADR-0048, ADR-0049).
+
+    A saved legacy exploration or mixed design is updated in its form, but no
+    design is turned into one; the intent and the form change only before the
+    analysis, and a status change follows the transitions of the new form. Never
+    raises: returns human-readable error strings.
+    """
+    errors: list[str] = []
+    intent_changed = new.analysis_intent != current.analysis_intent
+    if new.analysis_intent is AnalysisIntent.mixed and intent_changed:
+        errors.append(_MIXED_REFUSED)
+    if (
+        new.form() is DesignForm.legacy_exploration
+        and current.form() is not DesignForm.legacy_exploration
     ):
-        errors.append(
-            "analysis_intent: 'mixed' cannot be chosen any more; "
-            "choose exploratory or confirmatory"
-        )
-    if new.form() is DesignForm.legacy_exploration and (
-        current is None or current.form() is not DesignForm.legacy_exploration
-    ):
-        errors.append(
-            "an exploratory design holds exploration_question and "
-            "exploration_background, not hypothesis_statement"
-        )
+        errors.append(_LEGACY_REFUSED)
     # Swapping the fields changes the form without touching the intent (a legacy
     # exploration into the new form), so the form is held to the same rule.
-    reshaped = intent_changed or (current is not None and new.form() != current.form())
-    if current is not None and reshaped and not _may_change_intent(current, new):
+    reshaped = intent_changed or new.form() != current.form()
+    if reshaped and not _may_change_intent(current, new):
         errors.append(
             f"analysis_intent: changes only while in_review or revision_requested "
             f"(status: {current.status.value}); derive a new design for another intent"
         )
-    if new.form() is DesignForm.confirmation and (current is None or intent_changed):
-        errors += [
-            f"{name}: a confirmation needs it written"
-            for name in ("hypothesis_statement", "hypothesis_background")
-            if not (getattr(new, name) or "").strip()
-        ]
+    if new.form() is DesignForm.confirmation and intent_changed:
+        errors += _unwritten_hypothesis(new)
+    if new.status != current.status:
+        try:
+            validate_transition(current.status, new.status, new.form())
+        except ValueError as exc:
+            errors.append(str(exc))
     return errors
+
+
+def _unwritten_hypothesis(new: AnalysisDesign) -> list[str]:
+    return [
+        f"{name}: a confirmation needs it written"
+        for name in ("hypothesis_statement", "hypothesis_background")
+        if not (getattr(new, name) or "").strip()
+    ]
 
 
 def _may_change_intent(current: AnalysisDesign, new: AnalysisDesign) -> bool:
