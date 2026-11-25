@@ -454,12 +454,12 @@ sequenceDiagram
 
 ### Decision: the-count-sits-on-the-card-of-the-design
 
-- What: 論点ツリーの件数は分析設計のカード（最初に繋いだ論点の下）の状態の行に「分析を始めた後の review コメント: N 件」と出す。2つ目以降の論点の下の短い行と、「分析設計の派生」の行には出さない。件数は `design_note.comments_after_analysis` が数え、`DesignSummary.comments_after_analysis` が持つ。
+- What: 論点ツリーの件数は分析設計のカード（最初に繋いだ論点の下）の状態の行に「分析を始めた後の review コメント: N 件」と出す。2つ目以降の論点の下の短い行には出さない。「分析設計の派生」の行には、論点に結んでいない分析設計（カードを持たないもの）のときだけ出す（実データの試行の G08 で改めた。2026-11-26、人間が Epic で直すと決めた）。件数は `design_note.comments_after_analysis` が数え、`DesignSummary.comments_after_analysis` が持つ。
 - Why: AC 5 の「分析設計の行」が、カード・短い行・派生の行のどれかを決めていない。短い行はカードへのリンクで、同じ件数を何度も出すと読み手が別の review と取りうる。
 - Criteria: AC 5、ADR-0054 の6。決め手は、1つの分析設計の件数がページに1回だけ出ること。
 - Affected modules: `skills/_shared/design_note.py`、`skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`。
 - Alternatives considered: どの行にも出す（上の理由で落とした）。
-- Consequences: `DesignSummary.of` は `AnalysisDesign` ではなく `DesignNote` を受け取る。
+- Consequences: `DesignSummary.of` は `AnalysisDesign` ではなく `DesignNote` を受け取る。どの分析設計の件数も、ページにちょうど1回出る。後で論点に結ぶと、件数は派生の行からカードへ移る。
 
 ### Decision: the-table-rules-live-once-in-verdict-table
 
@@ -539,3 +539,4 @@ sequenceDiagram
 - 2026-11-25 — d9 の直し（Story 33.4 の続き）: 分析を始めていない検証・旧形式の探索・`mixed` が、基準の無いまま `supported` か `rejected` に入る書き込みを拒むようにした。`inconclusive` は通る（ADR-0053 の8。人間が C を選んだ）。拒む文は `/analysis-design` で基準を書く道と、`inconclusive` で閉じる道を案内する。`/analysis-review` の Scope と Step 5、`/analysis-design` の Status Flow、ARCHITECTURE、CHANGELOG を合わせた。合成シナリオ（`tests/fixtures/handoff/lib/stages.yaml`）の検証に基準を足した。基準を持たずに `supported` へ直接進んでいたためである。
 - 2026-11-25 — d9 の直しのレビュー: バグ・セキュリティの観点のレビューを1本回した（High なし、Medium 1件、Low 4件）。`/analysis-reflection` の Step 4 に、分析を始めていない基準なしの検証を閉じるときの案内を足した（結果の後なので基準を書かず、`inconclusive` か派生）。拒む文に「結果を見る前に」を足した。探索を検証に組み替えて `supported` にする書き込みを固定するテストを足し、構造テストの表明と CHANGELOG・ADR の文を直した。
 - 2026-11-25 — Epic のゲート: AC と Test Design Matrix を照らし、バグ・セキュリティとコード品質のレビュー（High・Medium 0件）と yomiyasu の推敲を回した。人間が仕分けを承認し、表の規則の一本化、`design_note.py` の分割、`append_review_batch` の1回の計算、印を書く規則の `validate.py` への移動、壊れた記録の修復での固定（Low 1、FLOW-0008 で B）を直した。Low 2 は Decisions に書いた。issue にしたもの: #252、#253、#254。
+- 2026-11-26 — 実データで使ってみた: findings 10 件（Epic で直した 2 件、issue #255、#256、#257、#258、#259）。場所は ib-notebook の FRN のワークツリー（人間が決めた）で、epic ブランチの版（cbbcbcd）が読まれていることを `which design_io` で確かめた。F09・F16・F17・F19・#234 は直っていた。直した2件は、`/analysis-review` が記録の後に分析ノートを作り直すこと（G07）と、論点に結んでいない分析設計の件数を派生の行に出すこと（G08）。対応しなかった2件: 終わった分析設計を新しい契約で作り直せないこと（G05、仕様どおり）と、印の無い旧い分析設計に遷移の時刻が印として入ること（G06、ADR-0053 の Negative に書いてある）。findings の全文は PM の共有ノートの `242-trial-findings.md`。
