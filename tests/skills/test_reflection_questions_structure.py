@@ -81,6 +81,16 @@ class TestAConfirmationShowsWhatEachAnswerChanges:
         assert "`comparison`" in part and "`tier: primary`" in part
         assert part.find("`comparison`") < part.find("「")
 
+    def test_a_confirmation_without_a_criterion_is_not_given_one(self) -> None:
+        part = _part(WHAT_THE_RESULTS_SAY, "Confirmation")
+        assert "分析の前に固定した基準は無い" in part
+        assert "Never write a criterion yourself" in part
+
+    def test_an_exploration_is_shown_no_verdict_for_an_open_question(self) -> None:
+        beat = _beat(OPEN_QUESTIONS)
+        assert "For an exploration, write 答え for 判定" in beat
+        assert "never `supported`, `rejected` or `inconclusive`" in beat
+
     def test_the_second_beat_says_its_scope_before_it_asks(self) -> None:
         beat = _beat(OPEN_QUESTIONS)
         assert "`question` events of this design's journal" in beat
@@ -117,7 +127,7 @@ class TestAnExplorationIsNotAskedForAVerdict:
     def test_the_third_beat_offers_only_to_end_or_to_look_further(self) -> None:
         part = _part(HOW_TO_END, "Exploration")
         options = re.findall(r"「([^」]+)」", part)
-        assert options[:2] == ["探索を終える", "調べ足す"]
+        assert options == ["探索を終える", "調べ足す"]
         for verdict in ("supported", "rejected", "inconclusive"):
             assert verdict not in part
 
@@ -142,6 +152,17 @@ class TestAnExplorationCanLeaveATentativeAnswer:
         part = _part("### Step 4:", "Exploration")
         assert "/analysis-design" in part
         assert "`parent_id`" in part
+
+    def test_the_derived_confirmation_is_linked_and_recorded_like_step_5(
+        self,
+    ) -> None:
+        part = _part("### Step 4:", "Exploration")
+        assert "Step 5 items 3 and 4" in part
+        assert "`branch`" in part
+
+    def test_the_tentative_answer_is_kept_before_the_design_ends(self) -> None:
+        part = _part("### Step 4:", "Exploration")
+        assert part.find("`hypothesize`") < part.find("--target explored")
 
 
 class TestAnAnswerThatChangesNoVerdictGoesToTheTheme:
@@ -179,11 +200,12 @@ class TestARefinementIsADerivedDesign:
         assert "/analysis-design" in step and "`parent_id`" in step
         assert "`tree_io link-derived" in step
         assert "`branch`" in step
+        assert "`forked_from: {design_id}`" in step
 
     def test_step_5_never_rewrites_the_hypothesis(self) -> None:
         step = unwrap(_step("### Step 5:"))
         assert "Never rewrite" in step and "#234" in step
-        assert "| design_io update" not in step
+        assert "design_io update" not in step
 
     def test_the_reference_has_no_update_command(self) -> None:
         reference = section(_skill(), "## design_io Reference")
@@ -287,14 +309,13 @@ class TestFramingSpeaksOfAQuestionOrAHypothesis:
 
     def test_reflection_rows_name_both_forms(self) -> None:
         chaining = section(_skill(), "## Chaining")
-        for cells in (
-            row
-            for row in (
-                line.strip().strip("|").split("|")
-                for line in chaining.splitlines()
-                if line.startswith("| /analysis-reflection |")
-            )
-        ):
+        rows = [
+            line.strip().strip("|").split("|")
+            for line in chaining.splitlines()
+            if line.startswith("| /analysis-reflection |")
+        ]
+        assert len(rows) >= 5, "the Chaining table lost the rows from reflection"
+        for cells in rows:
             assert "New hypothesis" not in cells[2]
             assert "Derived hypothesis" not in cells[2]
 

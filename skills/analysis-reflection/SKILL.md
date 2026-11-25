@@ -134,15 +134,19 @@ Read the form of the design first, from `design_io get`:
 | Legacy exploration | `exploratory` with only `hypothesis_statement`, saved before Epic 32. It ends on a verdict like a confirmation (ADR-0049) |
 
 Ask the three questions in order, one at a time, under the headings below: each heading is
-the question itself. Show the heading to the analyst as written; never number the questions
-or call them by a code, which reads like the id of a node. Record each answer as a `reflect`
+the question itself. Show the heading to the analyst as written for the form of the design;
+never call the questions by a letter and a number, which reads like the id of a node. Record each answer as a `reflect`
 event in the journal. Say what you ask in plain words, with no metaphor: write "答えが出ると
 判定が変わる", not a figure of speech for it.
 
 #### 結果から何が言えるか
 
 - **Confirmation** — first show the criterion fixed before the analysis: the `comparison`
-  of the primary metric (`tier: primary`), as the design writes it. Then ask:
+  of the primary metric (`tier: primary`), as the design writes it. With more than one
+  primary metric, show the `comparison` of each. A confirmation saved before Epic 32 may
+  have no primary metric or an empty `comparison`: then say
+  「分析の前に固定した基準は無い。判定は、結果を検証仮説に照らした読みで決まる」 and ask with
+  the hypothesis alone. Never write a criterion yourself after the result is known. Then ask:
   「分析の前に固定した基準「{criterion}」に照らすと、検証仮説「{hypothesis_statement}」について、結果から何が言えるか」
   - The results meet the criterion → toward `supported`
   - The results go against it → toward `rejected`
@@ -178,6 +182,9 @@ For each open question, show the question and what its answer would change, then
 - {question_content} ({event_id})
   どう答えても判定は変わらない。
 ```
+
+For an exploration, write 答え for 判定 in every line, and {X} is how the answer to the
+first question would read: never `supported`, `rejected` or `inconclusive`.
 
 Then ask: 「この中に、答えが出ると判定（探索では答え）が変わる問いはあるか」.
 
@@ -225,13 +232,15 @@ When the analyst ends the design:
      - rejected: `design_io transition --id {design_id} --target rejected`
      - inconclusive: `design_io transition --id {design_id} --target inconclusive`
      - Without a review it closes straight from its analysis (`analyzing → supported`).
-   - **Exploration** — 「探索を終える。ステータスを変更する？」
+   - **Exploration** — before the transition, ask 「次に確かめたい仮の答えはあるか（飛ばしてよい）」.
+     When the analyst gives one, record it as a `hypothesize` event in this journal, in the
+     analyst's words: the journal is the record the design ends on. The analyst may skip the
+     question: then record nothing. Then 「探索を終える。ステータスを変更する？」
      `design_io transition --id {design_id} --target explored`. It refuses the three verdicts.
      Without a review it closes straight from its analysis (`analyzing → explored`).
-     Then ask 「次に確かめたい仮の答えはあるか（飛ばしてよい）」. When the analyst gives one,
-     record it as a `hypothesize` event in this journal, in the analyst's words, and say
-     「検証の分析設計を派生で起こすなら /analysis-design（`parent_id` に {design_id}）」.
-     The analyst may skip the question: then record nothing.
+     With a tentative answer, say 「検証の分析設計を派生で起こすなら /analysis-design（`parent_id` に {design_id}）」.
+     When the analyst does, link it and record it as Step 5 items 3 and 4 do; the journal
+     gets the `branch` event as the link to the new design.
 
 3. Show final summary and suggest:
    - "この分析で分かったソースの再利用知識を残すなら /knowledge-extract"
@@ -252,9 +261,10 @@ ran (ADR-0048).
 2. Run /analysis-design with `parent_id` set to {design_id}, the same `theme_id`, and the
    hypothesis of step 1 as the draft. It asks the intent first and fixes the criterion of a
    confirmation before the new analysis.
-3. With the id it returns, record a `branch` event in this journal and link the new design
-   to the nodes of this one with `tree_io link-derived --theme {theme_id} --design {new_design_id}`,
-   as /analysis-journal Step 4 does (items 3 and 4).
+3. With the id it returns, link the new design to the nodes of this one with
+   `tree_io link-derived --theme {theme_id} --design {new_design_id}`, record a `branch` event
+   in this journal, and start the new design's journal with a `hypothesize` event that has
+   `forked_from: {design_id}`, as /analysis-journal Step 4 does (items 3, 4 and 5).
 4. This design stays as it is, at `analyzing`. It may end later in its own reflection.
 
 Never rewrite the hypothesis of this design to refine it. Whether `design_io` refuses such a
