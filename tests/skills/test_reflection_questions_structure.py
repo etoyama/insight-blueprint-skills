@@ -118,6 +118,19 @@ class TestAnExplorationIsNotAskedForAVerdict:
         assert "{exploration_question}" in part
         assert "no verdict" in part
 
+    def test_an_answer_with_no_measured_value_is_asked_again_with_the_values(
+        self,
+    ) -> None:
+        """Trial F12: 「特になし」 became the conclusion, and the values stayed in the evidence."""
+        part = _part(WHAT_THE_RESULTS_SAY, "Exploration")
+        assert "states no measured value" in part
+        assert "`evidence` events" in part
+        assert part.find("states no measured value") < part.find("`evidence` events")
+
+    def test_the_answer_asked_again_is_kept_in_the_analysts_words(self) -> None:
+        part = _part(WHAT_THE_RESULTS_SAY, "Exploration")
+        assert "Keep the analyst's words" in part
+
     def test_the_third_beat_offers_only_to_end_or_to_look_further(self) -> None:
         part = _part(HOW_TO_END, "Exploration")
         options = re.findall(r"「([^」]+)」", part)

@@ -158,7 +158,10 @@ event in the journal. Say what you ask in plain words, with no metaphor: write "
   value, not a reading: show each item and ask whether it speaks for the hypothesis, against it,
   or neither. Never give it a direction yourself, and never count the items to choose the verdict.
 - **Exploration** — ask: 「探索の問い「{exploration_question}」に、結果から何が言えるか」.
-  The answer is what was measured and what it shows, in the analyst's words. Offer no verdict
+  The answer is what was measured and what it shows, in the analyst's words. When the answer
+  states no measured value (「特になし」, say), show the measured values of the journal's
+  `evidence` events and ask once more: 「測った値はこのとおり。この値から、探索の問いにどう答えるか」.
+  Keep the analyst's words as the answer, and do not write one for them. Offer no verdict
   and no direction toward one: an exploration has no verdict.
 
 #### まだ答えの出ていない問いで、判定は変わるか
