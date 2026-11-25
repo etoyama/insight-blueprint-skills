@@ -3,7 +3,8 @@ name: analysis-review
 version: "1.1.0"
 description: |
   Produces a structured review of an analysis design and records it as a review batch.
-  Claude critiques the design (question or hypothesis, methodology, metrics, confounders, charts),
+  Claude critiques the design (question or hypothesis, methodology, metrics, confounders, charts)
+  and, after the analysis, the result (notebook, verdict, figures),
   the user confirms the comments, and they are written via design_io review-batch with a
   post-review status — feeding /analysis-revision. The producer side of the review loop
   (there is no web UI).
@@ -69,7 +70,13 @@ Review across dimensions and draft one comment per issue. Each comment targets a
 
 `exploration_question`, `exploration_background`, `hypothesis_statement`,
 `hypothesis_background`, `metrics`, `explanatory`, `chart`, `next_action`,
-`referenced_knowledge`, `methodology`, `analysis_intent`, `decision_context`.
+`referenced_knowledge`, `methodology`, `analysis_intent`, `decision_context`,
+`notebook`, `verdict`, `figures`. The last three are the result: use them only in a review
+after the analysis (Step 3b).
+
+When `.insight/notebooks/{design_id}_verdict.json` exists, the analysis has run: this is a
+review of the result. Read the design with the lenses below, then go through Step 3b before
+Step 4.
 
 Suggested lenses:
 
@@ -110,6 +117,38 @@ Contract (`BatchComment`, enforced by `design_io`): `comment` is required and no
 if you set `target_section` you MUST also set `target_content` (a snippet of what the
 comment refers to); for a comment not tied to a section, omit `target_section` entirely.
 
+### Step 3b: Critique the result (when a verdict exists)
+
+Before the critique, tell the analyst what you read, in one short list:
+
+- the notebook `.insight/notebooks/{design_id}.py`
+- the verdict `.insight/notebooks/{design_id}_verdict.json`
+- the figures `.insight/notebooks/{design_id}_fig*.png` (the ones the verdict's `figures` lists)
+- the `comparison` of each metric in the design
+
+Then read the result with these lenses, one comment per issue:
+
+- **The criterion** — do the `support_line` and the `reject_line` of each `primary` metric
+  carry the numbers its `comparison` states, and does the `judgment` follow from them? A
+  notebook that copied a line wrong still runs, so this is where it is caught.
+- **The value and the judgment** — is there a value that contradicts the judgment it sits next to
+  (a value above the support line with `judgment: reject`, an interval that crosses a line
+  with a firm judgment)? Point out the contradiction; never compute a new judgment.
+- **The figures** — does each figure state what each axis shows and how to read it, and does it
+  show what the verdict says?
+- **The guardrails** — did each guardrail metric `pass` its `threshold`? A failed guardrail
+  next to `supported` must be said.
+- **The cells** — does each cell keep one job per cell (the 7-cell contract of
+  `/analysis-notebook`), so the criterion, the computation and the verdict can be read apart?
+
+An exploration has no criterion: it carries no line, no judgment and no pass (ADR-0050).
+Read its verdict with the last three lenses only.
+
+A comment on the result targets `notebook` (a cell), `verdict` (a metric of the verdict) or
+`figures` (a figure), with the snippet it points at as `target_content`. A comment on the
+hypothesis, the criterion or the intent of a started confirmation is still recorded, but the
+design keeps them (ADR-0053): `/analysis-revision` answers it without changing them.
+
 ### Step 4: Confirm with the user
 
 Present the draft comments as a table (section / comment) and let the user drop, edit, or add.
@@ -135,6 +174,11 @@ echo '{
 ```
 
 Use `--status analyzing` to approve instead. Show the returned batch to the user.
+
+An approval that would let a confirmation into `analyzing` without a `primary` metric whose
+`comparison` states the criterion is refused (ADR-0053), and no batch is recorded. Tell the
+analyst the criterion is missing and send them to `/analysis-design {design_id}` to write the
+`comparison`; then record the review again.
 
 ### Step 6: Hand off
 

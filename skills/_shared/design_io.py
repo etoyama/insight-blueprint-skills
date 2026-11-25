@@ -91,6 +91,10 @@ ALLOWED_TARGET_SECTIONS: set[str] = {
     "methodology",
     "analysis_intent",
     "decision_context",
+    # The result, for a review after the analysis (ADR-0054 1).
+    "notebook",
+    "verdict",
+    "figures",
 }
 
 _REVIEWABLE = {DesignStatus.in_review, DesignStatus.revision_requested}
@@ -501,6 +505,9 @@ def append_review_batch(
         status_after=target,
         reviewer=reviewer,
         comments=[BatchComment(**c) for c in comments],
+        # Read before the move: the approval that first enters analyzing
+        # writes the mark, yet its review came before the analysis.
+        after_analysis_started=analysis_started(validate_schema(current)),
     )
     reviews_path = _designs_dir(base_dir) / f"{design_id}_reviews.yaml"
     existing = read_yaml(reviews_path)

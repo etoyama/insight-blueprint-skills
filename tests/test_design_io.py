@@ -416,6 +416,96 @@ class TestReviewBatch:
                 d["id"], status_after="analyzing", comments=[], base_dir=insight
             )
 
+    @pytest.mark.parametrize("section", ["notebook", "verdict", "figures"])
+    def test_comment_may_target_the_result(self, insight: Path, section: str) -> None:
+        """Epic 33 US-4 AC 1: a review of the result points at what it read."""
+        d = _create(insight)
+        design_io.transition_status(d["id"], "analyzing", base_dir=insight)
+        design_io.transition_status(d["id"], "in_review", base_dir=insight)
+        batch = design_io.append_review_batch(
+            d["id"],
+            status_after="revision_requested",
+            comments=[
+                {
+                    "comment": "the support line is not the one in comparison",
+                    "target_section": section,
+                    "target_content": "support_line: 1.5",
+                }
+            ],
+            base_dir=insight,
+        )
+        assert batch["comments"][0]["target_section"] == section
+
+
+class TestReviewBatchKnowsWhetherTheAnalysisStarted:
+    """Epic 33 US-4 AC 1: the batch holds it, read from the design before its move."""
+
+    _COMMENTS = [{"comment": "reads well"}]
+
+    def test_the_review_that_approves_the_design_comes_before_the_analysis(
+        self, insight: Path
+    ) -> None:
+        d = _create(insight)
+        batch = design_io.append_review_batch(
+            d["id"], "analyzing", self._COMMENTS, base_dir=insight
+        )
+        assert batch["after_analysis_started"] is False
+        listed = design_io.list_review_batches(d["id"], base_dir=insight)
+        assert listed[0]["after_analysis_started"] is False
+
+    def test_a_review_of_the_result_comes_after_the_analysis(
+        self, insight: Path
+    ) -> None:
+        d = _create(insight)
+        design_io.append_review_batch(
+            d["id"], "analyzing", self._COMMENTS, base_dir=insight
+        )
+        design_io.transition_status(d["id"], "in_review", base_dir=insight)
+        batch = design_io.append_review_batch(
+            d["id"], "revision_requested", self._COMMENTS, base_dir=insight
+        )
+        assert batch["after_analysis_started"] is True
+        listed = design_io.list_review_batches(d["id"], base_dir=insight)
+        by_id = {b["id"]: b["after_analysis_started"] for b in listed}
+        assert sorted(by_id.values()) == [False, True]
+        assert by_id[batch["id"]] is True
+
+    def test_a_revision_before_the_analysis_stays_before_it(
+        self, insight: Path
+    ) -> None:
+        d = _create(insight)
+        batch = design_io.append_review_batch(
+            d["id"], "revision_requested", self._COMMENTS, base_dir=insight
+        )
+        assert batch["after_analysis_started"] is False
+
+    def test_saved_batches_without_the_field_are_still_listed(
+        self, insight: Path
+    ) -> None:
+        """ADR-0047: a _reviews.yaml written before Epic 33 reads as it was."""
+        d = _create(insight)
+        saved = {
+            "id": "RB-0000aaaa",
+            "design_id": d["id"],
+            "status_after": "analyzing",
+            "reviewer": "analyst",
+            "comments": [
+                {"comment": "ok", "target_section": None, "target_content": None}
+            ],
+            "created_at": "2026-01-01T09:00:00+09:00",
+        }
+        path = insight / "designs" / f"{d['id']}_reviews.yaml"
+        atomic_write_yaml(path, {"batches": [saved]})
+        design_io.append_review_batch(
+            d["id"], "revision_requested", self._COMMENTS, base_dir=insight
+        )
+        old = next(
+            b
+            for b in design_io.list_review_batches(d["id"], base_dir=insight)
+            if b["id"] == "RB-0000aaaa"
+        )
+        assert "after_analysis_started" not in old
+
 
 # ---------------------------------------------------------------------------
 # journal

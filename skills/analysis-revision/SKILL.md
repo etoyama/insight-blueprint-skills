@@ -136,6 +136,17 @@ For each item in the tracking file where `status == "open"`:
    the field matching `target_section` (e.g., if `target_section == "hypothesis_statement"`,
    show `design["hypothesis_statement"]`).
 
+   A comment on the result targets `notebook`, `verdict` or `figures` (a review after the
+   analysis, ADR-0054). It has no field of the design: show the cell, the metric of
+   `.insight/notebooks/{design_id}_verdict.json` or the figure it points at as the current
+   value instead.
+
+   When the design has `analysis_started_at`, its analysis has started, and the design keeps
+   what the verdict was judged against (ADR-0053): the `hypothesis_statement` and the
+   `primary` metrics (their `target`, `comparison` and `tier`) of a confirmation, a legacy
+   exploration or a `mixed` design, and the `analysis_intent` of any design. Say so when the
+   comment targets one of them.
+
 2. **Ask user for direction**:
    ```
    どう対応する？
@@ -148,6 +159,21 @@ For each item in the tracking file where `status == "open"`:
    - Discuss the fix with the user
    - Apply the change: `echo '{<changed fields>}' | design_io update --id {design_id}`
    - Update tracking item: `status: "addressed"`, `addressed_at: "{now_jst}"`
+
+   **A comment on the result** (`notebook`, `verdict`, `figures`) is fixed in the notebook,
+   not in the design:
+   - Edit only the cell the comment points at in `.insight/notebooks/{design_id}.py`. Seeing
+     the result must not change the analysis beyond what the comment asked for.
+   - The `support_line` and the `reject_line` are copied again from the `comparison` of the
+     design, never set from the result.
+   - Then re-run the notebook with the command of `/analysis-notebook` (Step 4), and record the
+     new verdict to the journal as its Step 6 does. The earlier verdict is overwritten.
+
+   **A comment on what a started design keeps**: do not try `design_io update`; the write is
+   refused. Offer two choices instead:
+   - wontfix with a reason, said in the analyst's words (the comment stays on record), or
+   - derive a new design (`parent_id`) with `/analysis-design`, which holds the changed
+     hypothesis, criterion or intent, and leave this one as it was analyzed.
 
 4. **If skip (wontfix)**:
    - Confirm with user: "このコメントを wontfix にする。理由を一言で?"
