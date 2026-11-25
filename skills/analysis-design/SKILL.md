@@ -1,6 +1,6 @@
 ---
 name: analysis-design
-version: "1.2.0"
+version: "1.3.0"
 description: |
   Guides Claude through creating analysis design documents for hypothesis-driven EDA:
   an exploration (a question to measure) or a confirmation (a hypothesis to judge).

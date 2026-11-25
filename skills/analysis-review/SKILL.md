@@ -1,6 +1,6 @@
 ---
 name: analysis-review
-version: "1.0.0"
+version: "1.1.0"
 description: |
   Produces a structured review of an analysis design and records it as a review batch.
   Claude critiques the design (question or hypothesis, methodology, metrics, confounders, charts),

@@ -1,6 +1,6 @@
 ---
 name: analysis-framing
-version: "1.0.0"
+version: "1.1.0"
 description: |
   Explores existing data and analyses to help frame a hypothesis.
   Triggers: "framing", "何を分析する", "分析テーマ", "仮説を考えたい",

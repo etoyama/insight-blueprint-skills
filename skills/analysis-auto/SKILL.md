@@ -1,6 +1,6 @@
 ---
 name: analysis-auto
-version: "1.0.0"
+version: "1.1.0"
 description: |
   Guided autopilot and the analyst's single entry. Takes a theme, builds its question tree
   (or resumes at the node the latest tree decision names) and walks the tree one node per round:
