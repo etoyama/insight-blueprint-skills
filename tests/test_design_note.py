@@ -17,10 +17,13 @@ from skills._shared.design_note import (
     MetricJudgment,
     NoteEvent,
     NoteFigure,
+    NoteReviewBatch,
+    NoteReviewComment,
     NoteSource,
     NoteVerdict,
     ValueInterval,
     VerdictMetric,
+    comments_after_analysis,
     note_anchor,
     render_note,
     render_note_page,
@@ -146,6 +149,7 @@ class TestSections:
                 "explanatory",
                 "sources",
                 "results",
+                "reviews",
                 "code",
                 "lineage",
                 "progress",
@@ -703,7 +707,7 @@ def test_code_lineage_verdict_conclusion_and_journal_text_are_escaped() -> None:
 def test_the_status_block_links_to_the_new_sections() -> None:
     html = _section_of(str(render_note(_note())), "status")
 
-    for name in ("code", "lineage", "progress", "files"):
+    for name in ("reviews", "code", "lineage", "progress", "files"):
         assert f'href="#note-LIB-H01-{name}"' in html
 
 
@@ -1441,3 +1445,99 @@ class TestGroupTables:
 
         assert "<script>" not in html
         assert html.count("&lt;script&gt;") == 4  # heading twice, axis, group
+
+
+# The review section (Story 33.6, US-4 AC 4, ADR-0054 5).
+
+
+def _batch(**over: object) -> NoteReviewBatch:
+    fields: dict = {
+        "id": "RB-new",
+        "created_at": "2026-11-24T10:00:00+09:00",
+        "after_analysis_started": True,
+        "status_after": "revision_requested",
+        "reviewer": "館長",
+        "comments": (
+            NoteReviewComment("区間が広すぎる", "verdict", '{"lower": 0.25}'),
+            NoteReviewComment("全体として図が足りない", None, None),
+        ),
+    }
+    fields.update(over)
+    return NoteReviewBatch(**fields)
+
+
+def _reviews(*batches: NoteReviewBatch) -> str:
+    return _section_of(str(render_note(_note(reviews=batches))), "reviews")
+
+
+class TestReviews:
+    def test_a_note_without_a_batch_says_there_is_no_review_yet(self) -> None:
+        html = _reviews()
+
+        assert "<h3>レビュー</h3>" in html
+        assert "review はまだ無い。" in html
+
+    def test_each_batch_shows_its_time_status_and_comments_with_their_targets(
+        self,
+    ) -> None:
+        html = _reviews(_batch())
+
+        assert "2026-11-24T10:00:00+09:00" in html
+        assert "review の後の状態: 修正待ち（revision_requested）" in html
+        assert "reviewer: 館長" in html
+        assert table_rows(html) == [
+            ["review コメント", "対象", "対象の中身"],
+            ["区間が広すぎる", "verdict", '{"lower": 0.25}'],
+            ["全体として図が足りない", "—", "—"],
+        ]
+
+    def test_the_batches_come_in_the_order_they_are_given_newest_first(
+        self,
+    ) -> None:
+        html = _reviews(_batch(), _batch(id="RB-old", created_at="2026-11-20"))
+
+        assert _position(html, "RB-new") < _position(html, "RB-old")
+
+    @pytest.mark.parametrize(
+        ("after", "shown"),
+        [(True, "分析を始めた後の review"), (False, "分析を始める前の review")],
+    )
+    def test_a_batch_that_tells_says_whether_it_came_after_the_analysis(
+        self, after: bool, shown: str
+    ) -> None:
+        assert shown in _reviews(_batch(after_analysis_started=after))
+
+    def test_a_saved_batch_that_does_not_tell_shows_neither(self) -> None:
+        html = _reviews(_batch(after_analysis_started=None))
+
+        assert "分析を始めた後" not in html
+        assert "分析を始める前" not in html
+
+    def test_a_status_the_note_does_not_know_shows_as_written(self) -> None:
+        assert "review の後の状態: odd" in _reviews(_batch(status_after="odd"))
+
+    def test_the_analysts_text_is_escaped(self) -> None:
+        html = _reviews(
+            _batch(
+                id=EVIL,
+                created_at=EVIL,
+                status_after=EVIL,
+                reviewer=EVIL,
+                comments=(NoteReviewComment(EVIL, EVIL, EVIL),),
+            )
+        )
+
+        assert "<script>" not in html
+        assert html.count("&lt;script&gt;") == 7
+
+
+def test_only_the_comments_of_batches_written_after_the_analysis_are_counted() -> None:
+    reviews = (
+        _batch(),  # 2 comments, after
+        _batch(after_analysis_started=False),
+        _batch(after_analysis_started=None),
+        _batch(comments=(NoteReviewComment("図の軸が無い", "figures", "fig1.png"),)),
+    )
+
+    assert comments_after_analysis(reviews) == 3
+    assert comments_after_analysis(reviews[1:3]) == 0

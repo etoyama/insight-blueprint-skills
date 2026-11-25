@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 
 from insight_blueprint.models.design import (
     TERMINAL_STATUSES,
-    AnalysisDesign,
     DesignForm,
     DesignStatus,
 )
@@ -41,6 +40,8 @@ from skills._shared.design_io import design_number
 from skills._shared.design_note import (
     FORM_WORDS,
     NOTE_CSS,
+    DesignNote,
+    comments_after_analysis,
     direction_gloss,
     intent_word,
     intent_words_of,
@@ -63,10 +64,12 @@ class DesignSummary:
     form: DesignForm
     intent: str  # intent_word: a saved mixed design has its own word
     statement: str  # the question of an exploration, else the hypothesis
+    comments_after_analysis: int = 0  # review comments of the result review
 
     @classmethod
-    def of(cls, design: AnalysisDesign) -> DesignSummary:
+    def of(cls, note: DesignNote) -> DesignSummary:
         """The words come from design_note, as the note's do (ADR-0051)."""
+        design = note.design
         return cls(
             design.id,
             design.title,
@@ -76,6 +79,7 @@ class DesignSummary:
             form=design.form(),
             intent=intent_word(design),
             statement=statement_of(design)[0],
+            comments_after_analysis=comments_after_analysis(note.reviews),
         )
 
 
@@ -608,7 +612,18 @@ def _design_card(context: _Context, node: QuestionNode, design: DesignSummary) -
             f" {design.title}",
         ),
         el("p", f"{statement}: {design.statement}") if design.statement else None,
-        el("p", word, "　", _note_link(design.id), class_="meta"),
+        el(
+            "p",
+            word,
+            "　",
+            *(
+                [f"分析を始めた後の review コメント: {count} 件", "　"]
+                if (count := design.comments_after_analysis)
+                else []
+            ),
+            _note_link(design.id),
+            class_="meta",
+        ),
         class_=f"branch form-{design.form.value}",
     )
 

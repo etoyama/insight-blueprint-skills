@@ -17,6 +17,8 @@ from skills._shared.design_note import (
     CodeCell,
     MetricGroup,
     MetricJudgment,
+    NoteReviewBatch,
+    NoteReviewComment,
     ValueInterval,
     VerdictMetric,
 )
@@ -892,3 +894,152 @@ class TestASavedVerdictReadsAsBefore:
             interval=ValueInterval(CONFIDENCE, "0.95", "0.10", "0.50"),
             sample_size="1520",
         )
+
+
+# The review batches of {id}_reviews.yaml (Story 33.6, US-4 AC 4). The note
+# copies each batch as written; a line it cannot read is skipped, never fatal.
+
+
+def _reviews_of(tmp_path: Path, text: str | None) -> tuple[NoteReviewBatch, ...]:
+    """The review batches the note reads when ``_reviews.yaml`` holds *text*."""
+    from skills._shared import design_io
+    from skills._shared.design_note_read import load_design_note
+
+    insight = tmp_path / ".insight"
+    (insight / "designs").mkdir(parents=True)
+    design_id = design_io.create_design(
+        theme_id="LIB",
+        title="館ごとの期限切れ",
+        hypothesis_statement="延ばすと減る",
+        hypothesis_background="7日で多い",
+        base_dir=insight,
+    )["id"]
+    if text is not None:
+        path = insight / "designs" / f"{design_id}_reviews.yaml"
+        path.write_text(text, encoding="utf-8")
+    return load_design_note(design_id, base_dir=insight).reviews
+
+
+_TWO_BATCHES = """\
+batches:
+- id: RB-old
+  design_id: LIB-H01
+  status_after: analyzing
+  reviewer: analyst
+  created_at: '2026-11-20T10:00:00+09:00'
+  comments:
+  - comment: 比較の向きは合っている
+    target_section: hypothesis_statement
+    target_content: 延ばすと減る
+- id: RB-new
+  design_id: LIB-H01
+  status_after: revision_requested
+  reviewer: 館長
+  created_at: '2026-11-24T10:00:00+09:00'
+  after_analysis_started: true
+  comments:
+  - comment: 区間が広すぎる
+    target_section: verdict
+    target_content: {metric: 期限切れ率の差, lower: 0.25}
+  - comment: 全体として図が足りない
+"""
+
+
+class TestTheReviewBatches:
+    def test_a_design_without_a_reviews_file_has_no_batches(
+        self, tmp_path: Path
+    ) -> None:
+        assert _reviews_of(tmp_path, None) == ()
+
+    def test_the_batches_come_newest_first_with_each_item_as_written(
+        self, tmp_path: Path
+    ) -> None:
+        new, old = _reviews_of(tmp_path, _TWO_BATCHES)
+
+        assert new == NoteReviewBatch(
+            id="RB-new",
+            created_at="2026-11-24T10:00:00+09:00",
+            after_analysis_started=True,
+            status_after="revision_requested",
+            reviewer="館長",
+            comments=(
+                NoteReviewComment(
+                    comment="区間が広すぎる",
+                    target_section="verdict",
+                    target_content='{"metric": "期限切れ率の差", "lower": 0.25}',
+                ),
+                NoteReviewComment(
+                    comment="全体として図が足りない",
+                    target_section=None,
+                    target_content=None,
+                ),
+            ),
+        )
+        assert old.id == "RB-old"
+        assert old.comments[0].target_content == "延ばすと減る"
+
+    def test_a_batch_saved_without_the_item_does_not_tell_when_it_came(
+        self, tmp_path: Path
+    ) -> None:
+        _, old = _reviews_of(tmp_path, _TWO_BATCHES)
+
+        assert old.after_analysis_started is None
+
+    @pytest.mark.parametrize(
+        ("written", "read"),
+        [("false", False), ("true", True), ("'yes'", None), ("1", None)],
+    )
+    def test_only_a_boolean_tells_whether_the_analysis_had_started(
+        self, tmp_path: Path, written: str, read: bool | None
+    ) -> None:
+        text = _TWO_BATCHES.replace(
+            "after_analysis_started: true", f"after_analysis_started: {written}"
+        )
+        new, _ = _reviews_of(tmp_path, text)
+
+        assert new.after_analysis_started is read
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "batches: [unclosed\n",
+            "- just a list\n",
+            "batches: not a list\n",
+            "batches:\n- just text\n",
+            "batches:\n- id: RB-x\n  comments: not a list\n",
+            "batches:\n- id: RB-x\n  comments:\n  - just text\n  - target_section: x\n",
+            "\x00",
+        ],
+    )
+    def test_a_file_or_line_that_cannot_be_read_gives_no_batch_and_no_error(
+        self, tmp_path: Path, text: str
+    ) -> None:
+        assert _reviews_of(tmp_path, text) == ()
+
+    def test_an_unreadable_batch_is_skipped_and_the_others_stay(
+        self, tmp_path: Path
+    ) -> None:
+        text = _TWO_BATCHES.replace("batches:\n", "batches:\n- broken\n- {id: RB-x}\n")
+
+        assert [b.id for b in _reviews_of(tmp_path, text)] == ["RB-new", "RB-old"]
+
+    def test_a_link_in_place_of_the_reviews_file_is_not_read(
+        self, tmp_path: Path
+    ) -> None:
+        outside = tmp_path / "outside.yaml"
+        outside.write_text(_TWO_BATCHES, encoding="utf-8")
+        from skills._shared import design_io
+        from skills._shared.design_note_read import load_design_note
+
+        insight = tmp_path / ".insight"
+        (insight / "designs").mkdir(parents=True)
+        design_id = design_io.create_design(
+            theme_id="LIB",
+            title="館ごとの期限切れ",
+            hypothesis_statement="延ばすと減る",
+            hypothesis_background="7日で多い",
+            base_dir=insight,
+        )["id"]
+        (insight / "designs" / f"{design_id}_reviews.yaml").symlink_to(outside)
+
+        assert load_design_note(design_id, base_dir=insight).reviews == ()

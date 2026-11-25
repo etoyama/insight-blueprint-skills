@@ -164,6 +164,28 @@ class Conclusion:
 
 
 @dataclass(frozen=True)
+class NoteReviewComment:
+    """One review comment of a batch, as written: the analyst's own text."""
+
+    comment: str
+    target_section: str | None
+    target_content: str | None  # a JSON value: a string bare, anything else as JSON
+
+
+@dataclass(frozen=True)
+class NoteReviewBatch:
+    """One review batch of ``{id}_reviews.yaml``, as written (ADR-0054 5)."""
+
+    id: str
+    created_at: str
+    # None: a batch saved before Epic 33, which does not tell (ADR-0054 4).
+    after_analysis_started: bool | None
+    status_after: str
+    reviewer: str
+    comments: tuple[NoteReviewComment, ...]
+
+
+@dataclass(frozen=True)
 class DesignNote:
     design: AnalysisDesign
     sources: tuple[NoteSource, ...]
@@ -175,6 +197,7 @@ class DesignNote:
     lineage: str | None  # the Mermaid text of lineage/{id}.mmd
     local_files: tuple[str, ...]  # paths under .insight/ that exist, LOCAL_FILES order
     conclusion: Conclusion | None  # None: the design is not in a terminal status
+    reviews: tuple[NoteReviewBatch, ...] = ()  # newest first
 
 
 NOTE_CSS = """
@@ -231,6 +254,7 @@ _SECTIONS = (
     ("explanatory", "説明変数"),
     ("sources", "データソース"),
     ("results", "結果"),
+    ("reviews", "レビュー"),
     ("conclusion", "結論"),
     ("code", "分析コード"),
     ("lineage", "データ加工の履歴"),
@@ -746,6 +770,71 @@ def _results(note: DesignNote, anchor: str) -> Html:
     )
 
 
+def comments_after_analysis(reviews: Iterable[NoteReviewBatch]) -> int:
+    """The review comments of the batches written after the analysis started.
+
+    A batch that does not tell is not counted: the count says only what the
+    records hold (ADR-0054 6).
+    """
+    return sum(len(b.comments) for b in reviews if b.after_analysis_started is True)
+
+
+_AFTER_ANALYSIS_WORDS = {
+    True: "分析を始めた後の review",
+    False: "分析を始める前の review",
+}
+
+
+def _status_after(form: DesignForm, written: str) -> str:
+    try:
+        status = DesignStatus(written)
+    except ValueError:
+        return written
+    return f"{status_word(form, status)}（{status.value}）"
+
+
+def _review_batch(batch: NoteReviewBatch, form: DesignForm) -> Html:
+    after = batch.after_analysis_started
+    return join(
+        [
+            el("h4", f"{batch.created_at} {batch.id}"),
+            # A batch saved before Epic 33 does not tell, so nothing is said.
+            el("p", _AFTER_ANALYSIS_WORDS[after]) if after is not None else None,
+            el("p", f"review の後の状態: {_status_after(form, batch.status_after)}"),
+            el("p", f"reviewer: {batch.reviewer}"),
+            _table(
+                ("review コメント", "対象", "対象の中身"),
+                (
+                    (
+                        c.comment,
+                        _cell(c.target_section or ""),
+                        _cell(c.target_content or ""),
+                    )
+                    for c in batch.comments
+                ),
+            ),
+        ]
+    )
+
+
+def _reviews(note: DesignNote, anchor: str) -> Html:
+    body = (
+        join(_review_batch(b, note.design.form()) for b in note.reviews)
+        if note.reviews
+        else el("p", "review はまだ無い。")
+    )
+    return _section(
+        anchor,
+        "reviews",
+        "レビュー",
+        el(
+            "p",
+            "review batch を新しい順に出す。review コメントと対象は書かれたとおりに写す。",
+        ),
+        body,
+    )
+
+
 def _recommendation_sources(
     design: AnalysisDesign, conclusion: Conclusion
 ) -> list[Html]:
@@ -931,6 +1020,7 @@ def render_note(note: DesignNote) -> Html:
         _explanatory(design, anchor),
         _sources(note, anchor),
         _results(note, anchor),
+        _reviews(note, anchor),
         _conclusion(note, anchor),
         _code(note, anchor),
         _lineage(note, anchor),

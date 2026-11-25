@@ -263,6 +263,7 @@ def summary(
     form: DesignForm | None = None,
     intent: str | None = None,
     statement: str = "",
+    comments_after_analysis: int = 0,
 ) -> DesignSummary:
     """A design as the page sees it. An explored design is an exploration unless told."""
     if form is None:
@@ -278,6 +279,7 @@ def summary(
         form=form,
         intent=intent_words_of(form)[0] if intent is None else intent,
         statement=statement,
+        comments_after_analysis=comments_after_analysis,
     )
 
 
@@ -1518,3 +1520,31 @@ class TestEveryKindHasItsWord:
     )
     def test_the_table_covers_the_enum(self, words: dict, kinds: type) -> None:
         assert set(words) == set(kinds)
+
+
+class TestReviewCommentsAfterTheAnalysis:
+    """Story 33.6, US-4 AC 5: the row of a design counts the comments of its result review."""
+
+    @staticmethod
+    def _card(count: int) -> str:
+        designs = make_designs()
+        designs["LIB-H01"] = summary(
+            "LIB-H01",
+            "取消を除く数え方",
+            "supported",
+            None,
+            comments_after_analysis=count,
+        )
+        root = page(designs=designs)
+        (node_id,) = {
+            n["id"]
+            for n in make_tree()["nodes"]
+            if "LIB-H01" in n.get("design_ids", [])
+        }
+        return card_of(root, node_id, "LIB-H01")
+
+    def test_the_row_shows_how_many_comments_came_after_the_analysis(self) -> None:
+        assert "分析を始めた後の review コメント: 3 件" in self._card(3)
+
+    def test_the_row_shows_no_count_when_there_is_none(self) -> None:
+        assert "review コメント" not in self._card(0)

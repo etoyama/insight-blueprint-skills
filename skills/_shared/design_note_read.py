@@ -2,7 +2,7 @@
 
 Reads ``.insight/designs/{id}_hypothesis.yaml``, its journal, the catalog,
 ``.insight/notebooks/{id}_verdict.json`` with the figures it lists, the notebook
-``.py`` and ``.insight/lineage/{id}.mmd``. Nothing here
+``.py``, ``.insight/lineage/{id}.mmd`` and ``.insight/designs/{id}_reviews.yaml``. Nothing here
 writes a canonical file: ``render_design_note`` writes only the generated page
 ``.insight/notes/{id}.html``, which is built by ``design_note`` and never edited.
 
@@ -18,9 +18,12 @@ import io
 import json
 import re
 import tokenize
+from datetime import datetime
 from itertools import pairwise
 from pathlib import Path
 from typing import cast
+
+from ruamel.yaml import YAMLError
 
 from insight_blueprint.models.design import (
     TERMINAL_STATUSES,
@@ -29,7 +32,12 @@ from insight_blueprint.models.design import (
 )
 from skills._shared._atomic import atomic_write_text
 from skills._shared.catalog_io import describe
-from skills._shared.design_io import DEFAULT_BASE_DIR, journal_events, load_design
+from skills._shared.design_io import (
+    DEFAULT_BASE_DIR,
+    journal_events,
+    load_design,
+    read_yaml,
+)
 from skills._shared.design_note import (
     CONFIDENCE,
     CodeCell,
@@ -39,6 +47,8 @@ from skills._shared.design_note import (
     MetricJudgment,
     NoteEvent,
     NoteFigure,
+    NoteReviewBatch,
+    NoteReviewComment,
     NoteSource,
     NoteVerdict,
     ValueInterval,
@@ -485,6 +495,80 @@ def _read_verdict(path: Path) -> dict:
     return verdict
 
 
+def _review_text(value: object) -> str:
+    # An unquoted timestamp loads as a datetime; its text keeps the ISO form.
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return "" if value is None else str(value)
+
+
+def _target_content(value: object) -> str | None:
+    """The target of a comment as text: a string bare, any other JSON value as JSON."""
+    if value is None or isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False, default=str)
+
+
+def _review_comment(item: object) -> NoteReviewComment | None:
+    if not isinstance(item, dict):
+        return None
+    entry = cast(dict[str, object], item)
+    comment = entry.get("comment")
+    if not isinstance(comment, str) or not comment.strip():
+        return None
+    section = entry.get("target_section")
+    try:
+        content = _target_content(entry.get("target_content"))
+    except ValueError:  # a YAML alias that holds itself
+        return None
+    return NoteReviewComment(
+        comment=comment,
+        target_section=None if section is None else str(section),
+        target_content=content,
+    )
+
+
+def _review_batch(item: object) -> NoteReviewBatch | None:
+    """One batch as written; None when it holds no comment the note can read."""
+    if not isinstance(item, dict):
+        return None
+    entry = cast(dict[str, object], item)
+    listed = entry.get("comments")
+    if not isinstance(listed, list):
+        return None
+    comments = tuple(c for c in map(_review_comment, listed) if c is not None)
+    if not comments:
+        return None
+    after = entry.get("after_analysis_started")
+    return NoteReviewBatch(
+        id=_review_text(entry.get("id")),
+        created_at=_review_text(entry.get("created_at")),
+        # Held as written, never derived from the analysis mark (ADR-0054 4).
+        after_analysis_started=after if isinstance(after, bool) else None,
+        status_after=_review_text(entry.get("status_after")),
+        reviewer=_review_text(entry.get("reviewer")),
+        comments=comments,
+    )
+
+
+def _read_reviews(path: Path) -> tuple[NoteReviewBatch, ...]:
+    """The batches of *path*, newest first; none when the file cannot be read.
+
+    Reviews only add to the note, so a broken file leaves the rest of it as it
+    was. The order is that of ``design_io.list_review_batches``.
+    """
+    if not _is_own_file(path):
+        return ()
+    try:
+        entries = read_yaml(path).get("batches")
+    except (YAMLError, UnicodeDecodeError, RecursionError):
+        return ()
+    if not isinstance(entries, list):
+        return ()
+    batches = [b for b in map(_review_batch, entries) if b is not None]
+    return tuple(sorted(batches, key=lambda b: b.created_at, reverse=True))
+
+
 def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> DesignNote:
     """The note of *design_id*, read from the files of the design.
 
@@ -534,6 +618,7 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
         lineage=lineage,
         local_files=local_files,
         conclusion=_conclusion(design, raw, events),
+        reviews=_read_reviews(base / "designs" / f"{design_id}_reviews.yaml"),
     )
 
 
