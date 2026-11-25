@@ -48,7 +48,7 @@ AC の正本はここ。
 - [x] AC 1: notebook の契約は検証の notebook に次を書かせる。判定の基準を持つ primary の指標は、`comparison` から写した支持の線と棄却の線（`support_line`・`reject_line`。少なくとも一方）と、指標の判定（`judgment`。`supported`・`rejected`・`inconclusive` のどれか）を持つ。3つの判定を `pass` で表さない。
 - [x] AC 2: secondary と guardrail の指標は、合否を `threshold` と `pass` で持つ。探索の指標は線も判定も合否も持たない。
 - [ ] AC 3: 分析ノートの指標の表は支持の線・棄却の線・判定を、それぞれの列に出す。判定は「支持」「棄却」「結論しない」と出す。
-- [ ] AC 4: レポートの指標の表はAC 3 と同じ列と言葉で出す。
+- [x] AC 4: レポートの指標の表はAC 3 と同じ列と言葉で出す。
 - [ ] AC 5: 新しい項目を持たない保存済みの verdict は、この Epic の前と同じ列と値で出る。
 
 ### US-2: 読み手が、区間の種類と群ごとの値を表から読める
@@ -59,7 +59,7 @@ AC の正本はここ。
 - [ ] AC 2: 分析ノートとレポートの表は、区間を「区間」の列に、種類と水準を添えて出す。保存済みの `confidence_interval` は信頼区間として出す。
 - [x] AC 3: notebook の契約は群ごとに値を持つ指標を、軸の名前（`by`）と群の行（`groups`）で書かせる。群の行は値と任意の項目を持ち、判定と合否を持たない。群を指標の名前に埋めない。
 - [ ] AC 4: 分析ノートは群を持つ指標を指標ごとの表に出す。軸が2つで、群の行が値だけを持つときは、軸を縦と横に置く。それ以外は群の列を持つ縦の表にする。値は並べ替えるだけで、計算しない。
-- [ ] AC 5: レポートは群を持つ指標を AC 4 と同じ分け方で出す。
+- [x] AC 5: レポートは群を持つ指標を AC 4 と同じ分け方で出す。
 
 ### US-3: 分析を始めた検証の分析設計は、検証仮説・判定の基準・意図が変わらない
 
@@ -407,6 +407,15 @@ sequenceDiagram
 - Alternatives considered: 戻る書き込みでも確かめる案（保存済みの基準なしの検証は、結果の review から結論へ直接進むか、派生を作るしかなくなる）。primary のどれか1つに基準があれば通す案（基準の無い primary の指標が判定に入る）。
 - Consequences: 保存済みの基準なしの検証は、今までどおり `analyzing` と `in_review` を行き来できる。notebook は基準が無いと止まる（契約のまま）。基準の無い検証が `in_review` から結論へ直接進む書き込み（ADR-0029）は、今までどおり通る。ADR-0053 の4は `analyzing` に入る書き込みだけを決めたので、拒む範囲を広げるかは人間に聞く（FLOW-0008。Story のレビューで見つかった）。初めて付く印の時刻は確かめない。印の時刻は表示にも判定にも使わない（Decision `a-batch-holds-whether-it-came-after-the-analysis`）。
 
+### Decision: the-report-gives-each-metric-of-groups-its-own-table
+
+- What: レポートは、群を持つ指標を本の表の後に、指標ごとの表で出す。表の上に「指標名（軸 × 軸）」の行を置く。縦横の表にするのは、軸が2つ、どの群の行も値だけ、群の組が重ならない、の3つがそろうときだけである。組が重なれば、行を落とさずに縦の表にする。群だけを持つ指標（本の表の列に出すものが無い）は本の表に行を出さない。値や線も持つ指標は、本の表の行と群の表の両方に出す。表示の言葉（判定・区間の種類）と列の順は、33.2 と知らせ合って同じ規則にし、`theme_report.py` に自前で持つ。
+- Why: 組が重なる群の行を縦横の表に入れると、1つのセルに1つしか入らず、値が黙って消える。値と群の両方を持つ指標は読み手が両方を読む（Decision `groups-that-do-not-fit-their-axes-read-as-no-groups`）ので、どちらかを捨てると記録にある数が届かない。
+- Criteria: PRD の非機能要件「分析者に届く数と結論は、記録に書いてあるものに限る」。ADR-0052 の8と9。決め手は前者で、記録にある数を表から落とさない。
+- Affected modules: `skills/_shared/theme_report.py`。
+- Alternatives considered: 組が重なれば後の値で上書きする（数が黙って消える）。値と群の両方を持つ指標は群だけ出す（指標の値が消える）。表示の言葉を `design_note.py` と共通にする（33.2 と同じファイルを同時に触る。2か所なので Rule of Three に届かない。Epic のゲートで揃いを確かめる）。
+- Consequences: 探索で出さない列（線・判定・しきい値・合否）は、`VERDICT_COLUMNS` に線と判定の3語を足した集合で決める。33.2 が `VERDICT_COLUMNS` に3語を足すと、足した分は重なるだけで振る舞いは変わらない。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0052: verdict の指標は支持の線と棄却の線、指標の判定、値の区間の種類、群の行を持つ](../adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md): #235・F17・F09 の形を1本にまとめた。
@@ -419,7 +428,7 @@ sequenceDiagram
 |---|---|---|---|
 | Story 33.1 | ✓（`tests/test_design_note_read.py`: 線・判定・値の区間・群の行の読み。`tests/skills/test_notebook_contract_structure.py`: 契約と SKILL.md の規則と例。`tests/docs/test_canonical_docs.py`: 用語） | ✓（`tests/integration/test_analysis_notebook_contract.py`: 検証と探索の fixture を走らせ、verdict を分析ノートの読み手で読み戻す。`tests/test_saved_verdicts.py`: 保存済みの verdict の8例が、Epic の前と同じ表で出る） | —（notebook を生成するのは AI で、構造テストが契約と SKILL.md の文を照らす。検証の fixture を契約のコマンド（`uv run --project … --extra notebook python`）で走らせ、verdict の JSON を読み手で読み戻して確かめた） |
 | Story 33.2 | ☐ | ☐ | ☐ |
-| Story 33.3 | ☐ | ☐ | ☐ |
+| Story 33.3 | ✓（`tests/test_theme_report.py`: 線・判定の列と言葉、区間の種類の言葉、群の縦横の表と縦の表、群の初出順、探索で線と判定を出さないこと、利用者の文の escape、保存済みの verdict の8例の表） | ✓（`tests/tree_io/test_report.py`: 線・判定・HDI・軸が2つの群を持つ verdict が、`tree_io report` の書いたファイルの表に出る） | —（レポートは code が書く Markdown で、統合テストがファイルの表を照らす。検証と探索の fixture を回して読んだ verdict と、保存済みの8例と、軸が2つの群（縦横と縦）のレポートの表を、ブラウザで目で確かめた） |
 | Story 33.4 | ✓ | ✓ | —（分析者の入口の SKILL.md は対話で、自動で回せない。一時ディレクトリの `.insight/` で `design_io` の CLI を走らせ、基準の無い検証の `transition analyzing` が拒まれること、`analyzing` と結果の review の `in_review` で検証仮説と基準の書き換えが拒まれること、背景の直しが通ることを確かめた。hook にも同じ直書きを渡して確かめた） |
 | Story 33.5 | ☐ | ☐ | ☐ |
 | Story 33.6 | ☐ | ☐ | ☐ |
@@ -440,3 +449,7 @@ sequenceDiagram
   バグ・セキュリティの観点のレビューを1本回した（指摘2件、どちらも直した）。Python 3.11 では、指標の判定を持つ verdict を読むと `TypeError` で止まった（`in` で enum の値を照らしていた）。値を作ってみる書き方に直し、3.11 でも読み手と契約のテストを回した。「群を指標の名前に埋めない」の構造テストは、群を持つ指標の名前しか見ていなかったので、例のすべての指標の名前を見るように直した。
 
 - 2026-11-25 — Story 33.4 completed: 分析の印（`analysis_started_at`）を分析設計に足し、`validate_update` が、分析を始めた検証の検証仮説・primary の指標の組・意図の変更と、基準の無い検証が `analyzing` に入る書き込みを拒むようにした。`design_io` は状態を変える書き込みで印を付け、`transition` と `review-batch` も同じ検査を通る。Domain Model 図は変えていない（分析を始めたかは `validate.py` の `analysis_started` が答える）。計画外の判断は3件で、Decisions に書いた（組の比べ方、印を先に付けない、基準を確かめるのは初めて入るときだけ）。`/analysis-review` と `/analysis-revision` の案内は 33.5 が直す。
+- 2026-11-25 — Story 33.3 completed: レポートの指標の表に、支持の線・棄却の線・判定・区間の種類を出し、群を持つ指標を指標ごとの表（縦横か縦）で出すようにした（`theme_report.py` の `_metrics`・`_group_table`・`_cross_table`）。US-1 AC 4 と US-2 AC 5 を満たした。US-1 AC 5 と US-2 AC 2 は、レポートについて満たした（保存済みの verdict の8例を、Epic の前のコードが出した表で先に固定し、区間の列の見出しと種類の言葉だけを変えた）。分析ノートは 33.2 が確かめるので、チェックは付けていない。
+  33.1 が置いた暫定の条件（種類が `confidence` の値の区間だけを「信頼区間」の列に出す）と、そのテストを消した。
+  表示の言葉・区間の cell の形・列の順・群の表の規則は、33.2 と知らせ合って同じにした。計画外の判断は2件で、Decisions に1つにまとめて書いた（組が重なる群は縦の表、値と群の両方を持つ指標は両方を出す）。Domain Model 図は変えていない。
+  バグ・セキュリティの観点のレビューを1本回した（中以上の指摘なし）。軽微な2件は直していない。escape すると同じ文字になる群の名前（`"a"` と `"a "`）は、見分けのつかない2つの列になる。値を1つも持たない群の行だけの指標は、縦横の表が「—」だけになる。Python 3.11 でもレポートのテストを回した。

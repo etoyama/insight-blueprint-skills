@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   metric and every `primary` metric has its `comparison` written, so write the criterion before the review approves the design. Designs
   already saved still read; one that is `analyzing` or concluded counts as started
   ([ADR-0053](docs/adr/0053-a-started-confirmation-keeps-its-hypothesis-criterion-and-intent.md), #244).
+- **The report's metric table shows the two lines, the judgment and the kind of an interval.** A
+  confirmation's table gains 支持の線, 棄却の線 and 判定 (支持, 棄却 or 結論しない) when a metric holds
+  them; the interval column is headed 区間 and names its kind (信頼区間, HDI, 等裾信用区間, or the kind as
+  written) before its level. A metric measured per group gets a table of its own: rows by one axis
+  and columns by the other when it has two axes of values alone, else a column per axis. Values are
+  shown as written and never sorted as numbers. A verdict saved before shows the same columns and
+  values, its interval now under 区間 as 信頼区間 ([ADR-0052](docs/adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md), #246).
 
 ## [0.19.0] - 2026-11-25
 
