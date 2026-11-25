@@ -449,6 +449,26 @@ class TestReportAndUploadDocs:
         assert "支持の線・棄却の線・指標の判定" in definition
         assert "adr/0052-" in rows["verdict"]["初出"]
 
+    def test_ubiquitous_language_has_the_review_terms_of_epic_33(self) -> None:
+        """Story 33.5 (ADR-0053, ADR-0054): the mark, and the review of the result."""
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        mark = rows["分析の印"]
+        assert "`analysis_started_at`" in mark[words.CODE_NAME]
+        assert "adr/0053-" in mark["初出"]
+        assert "notebook・verdict・図" in rows["review"][words.DEFINITION]
+        assert "adr/0054-" in rows["review"]["初出"]
+        for target in ("`notebook`", "`verdict`", "`figures`"):
+            assert target in rows["review コメント"][words.DEFINITION]
+        batch = rows["review batch"]
+        assert "`after_analysis_started`" in batch[words.CODE_NAME]
+        assert "分析を始めた後" in batch[words.DEFINITION]
+        assert "分析の印" in rows["検証仮説"][words.DEFINITION]
+        assert "分析の印" in rows["分析の意図"][words.DEFINITION]
+        assert "adr/0053-" in rows["分析の意図"]["初出"]
+
     def test_keep_gate_covers_the_external_send(self) -> None:
         rows = {
             r[words.TERM]: r
