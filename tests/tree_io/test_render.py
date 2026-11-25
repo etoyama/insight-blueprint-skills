@@ -76,6 +76,25 @@ class TestRender:
         assert ROOT_QUESTION in text
         assert "<script" not in text
 
+    def test_a_saved_tree_keeps_its_keys_and_is_shown_in_the_analysts_words(
+        self, tree: Path
+    ) -> None:
+        """Epic 34 US-5 AC 3: the words change on the page, not in the YAML."""
+        insight = tree
+        self._answered(insight)
+        saved = (insight / "themes" / "LIB_tree.yaml").read_text(encoding="utf-8")
+
+        tree_io.render("LIB", base_dir=insight)
+
+        page = (insight / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
+        shown = by_id(parse(page), "header").text() + _tree_text(insight)
+        assert "主題: " in shown
+        assert "これまでわかっていること" in shown
+        after = (insight / "themes" / "LIB_tree.yaml").read_text(encoding="utf-8")
+        assert after == saved
+        assert "root_revisions:" in after
+        assert "kind: claim" in after
+
     def test_a_stale_answer_that_no_longer_matches_the_record_is_marked(
         self, tree: Path
     ) -> None:

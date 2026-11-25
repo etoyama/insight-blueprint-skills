@@ -101,9 +101,9 @@ _e = escape_source_text
 
 # The order of this table is the order of the groups in the report.
 _KIND_HEADINGS: dict[StatementKind, str] = {
-    StatementKind.claim: "言えること",
-    StatementKind.weakening: "留保すべきこと",
-    StatementKind.undetermined: "まだ分からないこと",
+    StatementKind.claim: "これまでわかっていること",
+    StatementKind.weakening: "注意すべきこと",
+    StatementKind.undetermined: "まだ決められないこと",
 }
 
 # The fields of an aim are texts from the records; the sentences escape them.

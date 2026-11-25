@@ -162,12 +162,20 @@ PROGRESS_WORDS = {
     Progress.analyzed: ("分析済み", "結んだ分析設計がすべて終わっている。"),
 }
 
+# The words shown to the analyst are not the glossary's terms (ADR-0055): the
+# kinds keep their YAML values, the page says what each one tells the analyst.
 _KIND_WORDS = {
-    StatementKind.claim: ("言えること", "引用する出来事が支える主張。"),
-    StatementKind.undetermined: ("未判別", "記録からは決められないこと。"),
+    StatementKind.claim: (
+        "これまでわかっていること",
+        "根拠にした分析結果から言えること。",
+    ),
+    StatementKind.undetermined: (
+        "まだ決められないこと",
+        "分析をしても、分析結果からは決められないこと。",
+    ),
     StatementKind.weakening: (
-        "弱める証拠と留保",
-        "主張を弱める証拠や、言える範囲の限定。",
+        "注意すべきこと",
+        "これまでわかっていることを弱める分析結果や、言える範囲の限定。",
     ),
 }
 
@@ -182,8 +190,8 @@ _MARK_WORDS = {
         "最も新しい振り返りの回（N）で、初めて書いた答え。",
     ),
     Mark.before_root_change: (
-        "根の変更前の答え",
-        "根の問いか到達点が変わる前の根の版に対して書いた答え。",
+        "見直す前の主題への答え",
+        "主題か到達点を見直す前の、古い主題の版に対して書いた答え。",
     ),
     Mark.violating: (
         "記録と合わない答え",
@@ -241,9 +249,9 @@ def _header(tree: QuestionTree) -> Html:
     revision = tree.current_revision()
     parts = [
         el("h1", f"論点ツリー {tree.theme_id}"),
-        el("p", el("strong", "根の問い: "), revision.question),
+        el("p", el("strong", "主題: "), revision.question),
         *(el("p", line) for line in _aim_lines(revision.aim)),
-        el("p", f"根の版 {revision.revision}", class_="meta"),
+        el("p", f"主題の版 {revision.revision}", class_="meta"),
     ]
     if len(tree.root_revisions) > 1:
         parts.append(_root_history(tree))
@@ -261,13 +269,13 @@ def _root_history(tree: QuestionTree) -> Html:
         rows.append(
             el(
                 "li",
-                f"根の版 {revision.revision}: {revision.question}（{aim}）",
+                f"主題の版 {revision.revision}: {revision.question}（{aim}）",
                 f" 理由: {revision.reason}" if revision.reason else "",
             )
         )
     return el(
         "details",
-        el("summary", "根の版の履歴"),
+        el("summary", "主題の版の履歴"),
         el("ul", join(rows)),
         id="root-history",
     )
@@ -677,7 +685,7 @@ def _node_card(context: _Context, node: QuestionNode) -> Html:
 def _mark_text(mark: Mark, answer: Answer) -> str:
     word = _MARK_WORDS[mark][0].format(round=answer.round)
     if mark is Mark.before_root_change:
-        return f"{word}（根の版 {answer.root_revision} への答え）"
+        return f"{word}（主題の版 {answer.root_revision} への答え）"
     return word
 
 
@@ -708,7 +716,7 @@ def _heard_word(context: _Context, statement: AnswerStatement) -> tuple[str, ...
 def _round_meta(answer: Answer) -> Html:
     return el(
         "p",
-        f"振り返りの回 {answer.round}（根の版 {answer.root_revision}）",
+        f"振り返りの回 {answer.round}（主題の版 {answer.root_revision}）",
         class_="meta",
     )
 

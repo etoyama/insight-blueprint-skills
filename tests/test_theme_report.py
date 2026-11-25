@@ -262,17 +262,19 @@ class TestRenderReport:
             )
         )
 
-        assert markdown.index("**言えること**") < markdown.index("**留保すべきこと**")
-        assert markdown.index("**留保すべきこと**") < markdown.index(
-            "**まだ分からないこと**"
+        assert markdown.index("**これまでわかっていること**") < markdown.index(
+            "**注意すべきこと**"
+        )
+        assert markdown.index("**注意すべきこと**") < markdown.index(
+            "**まだ決められないこと**"
         )
 
     def test_a_kind_with_no_statement_has_no_heading(self) -> None:
         markdown = render_report(_report(_statement("claim", "期限切れは152件")))
 
-        assert "**言えること**" in markdown
-        assert "**留保すべきこと**" not in markdown
-        assert "**まだ分からないこと**" not in markdown
+        assert "**これまでわかっていること**" in markdown
+        assert "**注意すべきこと**" not in markdown
+        assert "**まだ決められないこと**" not in markdown
 
     def test_the_order_within_a_kind_is_kept(self) -> None:
         markdown = render_report(
@@ -466,7 +468,9 @@ class TestResults:
         assert "### LIB-Q02 LIB-Q02 の問い" in results.splitlines()
         assert "LIB-Q03" not in results
         assert "- 期限切れは152件（LIB-H01-E01）" in results.splitlines()
-        assert results.index("**言えること**") < results.index("**留保すべきこと**")
+        assert results.index("**これまでわかっていること**") < results.index(
+            "**注意すべきこと**"
+        )
 
     def test_a_finished_design_gives_its_lead_sentence_and_conclude_text(
         self,
