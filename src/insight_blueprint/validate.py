@@ -18,7 +18,6 @@ from collections.abc import Sequence
 from pydantic import BaseModel, ValidationError
 
 from insight_blueprint.models.design import (
-    CONCLUSIONS_OF,
     TERMINAL_STATUSES,
     AnalysisDesign,
     AnalysisIntent,
@@ -28,7 +27,7 @@ from insight_blueprint.models.design import (
 from insight_blueprint.models.tree import QuestionTree
 
 # State-transition allow-table, for every form at once: which conclusion a
-# design may reach is narrowed by its form (CONCLUSIONS_OF in the model). This is the
+# design may reach is narrowed by its form (DesignForm.allows). This is the
 # canonical definition.
 VALID_TRANSITIONS: dict[DesignStatus, set[DesignStatus]] = {
     DesignStatus.in_review: {
@@ -58,11 +57,7 @@ INTENT_CHANGEABLE = frozenset({DesignStatus.in_review, DesignStatus.revision_req
 
 def valid_targets(current: DesignStatus, form: DesignForm) -> set[DesignStatus]:
     """The statuses a design of *form* may move to from *current*."""
-    return {
-        target
-        for target in VALID_TRANSITIONS.get(current, set())
-        if target not in TERMINAL_STATUSES or target in CONCLUSIONS_OF[form]
-    }
+    return {t for t in VALID_TRANSITIONS.get(current, set()) if form.allows(t)}
 
 
 def validate_transition(

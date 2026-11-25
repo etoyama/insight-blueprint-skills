@@ -64,15 +64,26 @@ class DesignForm(StrEnum):
     confirmation = "confirmation"
     legacy_exploration = "legacy_exploration"
 
+    @property
+    def judges(self) -> bool:
+        """Whether the form holds a hypothesis that a verdict answers.
+
+        An exploration measures and answers its question; a legacy exploration
+        holds a hypothesis like a confirmation (ADR-0048, ADR-0049).
+        """
+        return self is not DesignForm.exploration
+
+    def allows(self, status: DesignStatus) -> bool:
+        """Whether a design of this form may take *status*: every status before
+        the end, and of the terminal ones only the conclusions of the form."""
+        return status not in TERMINAL_STATUSES or status in CONCLUSIONS_OF[self]
+
 
 _VERDICTS = TERMINAL_STATUSES - {DesignStatus.explored}
 
-# An exploration measures and answers, so it ends without a verdict; a legacy
-# exploration holds a hypothesis and ends like a confirmation (ADR-0048, ADR-0049).
 CONCLUSIONS_OF: dict[DesignForm, frozenset[DesignStatus]] = {
-    DesignForm.exploration: frozenset({DesignStatus.explored}),
-    DesignForm.confirmation: _VERDICTS,
-    DesignForm.legacy_exploration: _VERDICTS,
+    form: _VERDICTS if form.judges else frozenset({DesignStatus.explored})
+    for form in DesignForm
 }
 
 
@@ -255,9 +266,8 @@ class AnalysisDesign(BaseModel):
         return self._ends_as_its_form_does()
 
     def _ends_as_its_form_does(self) -> Self:
-        allowed = CONCLUSIONS_OF[self.form()]
-        if self.status in TERMINAL_STATUSES and self.status not in allowed:
-            ends = ", ".join(sorted(s.value for s in allowed))
+        if not self.form().allows(self.status):
+            ends = ", ".join(sorted(s.value for s in CONCLUSIONS_OF[self.form()]))
             raise ValueError(
                 f"status: a design of the {self.form().value} form ends as "
                 f"{ends}, not {self.status.value}"

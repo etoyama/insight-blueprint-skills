@@ -656,3 +656,23 @@ class TestConclusionMatchesTheForm:
     def test_an_explored_exploration_reads(self) -> None:
         design = AnalysisDesign.model_validate(_exploration_data(status="explored"))
         assert design.status is DesignStatus.explored
+
+
+class TestWhatAFormAllows:
+    """One predicate each for what a form is judged by and how it may end."""
+
+    def test_only_an_exploration_is_not_judged(self) -> None:
+        assert {f for f in DesignForm if not f.judges} == {DesignForm.exploration}
+
+    @pytest.mark.parametrize("form", list(DesignForm))
+    def test_a_form_allows_every_status_before_the_end(self, form: DesignForm) -> None:
+        for status in set(DesignStatus) - TERMINAL_STATUSES:
+            assert form.allows(status)
+
+    @pytest.mark.parametrize("form", list(DesignForm))
+    def test_a_form_ends_with_a_verdict_exactly_when_it_is_judged(
+        self, form: DesignForm
+    ) -> None:
+        ends = {s for s in TERMINAL_STATUSES if form.allows(s)}
+        verdicts = TERMINAL_STATUSES - {DesignStatus.explored}
+        assert ends == (verdicts if form.judges else {DesignStatus.explored})

@@ -19,7 +19,6 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from insight_blueprint.models.design import (
-    CONCLUSIONS_OF,
     TERMINAL_STATUSES,
     AnalysisDesign,
     DesignForm,
@@ -328,7 +327,7 @@ def _status_rows() -> list[tuple[str, DesignStatus, list[str]]]:
     rows: dict[str, tuple[DesignStatus, list[str]]] = {}
     for status in DesignStatus:
         for form in DesignForm:
-            if status in TERMINAL_STATUSES and status not in CONCLUSIONS_OF[form]:
+            if not form.allows(status):
                 continue
             word = status_word(form, status)
             rows.setdefault(word, (status, []))[1].extend(intent_words_of(form))
