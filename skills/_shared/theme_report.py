@@ -13,9 +13,8 @@ Appendix lists exactly the records the report cites.
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Protocol, TypeVar
 
 from insight_blueprint.models.design import DesignForm, DesignStatus
 from insight_blueprint.models.tree import (
@@ -29,18 +28,12 @@ from insight_blueprint.models.tree import (
     TreeDecisionKind,
 )
 from skills._shared.design_note import (
-    CONFIDENCE,
     EVENT_WORDS,
     LEGACY_NOTE,
-    VERDICT_COLUMNS,
     DesignNote,
-    MetricGroup,
-    MetricJudgment,
     NoteEvent,
     NoteFigure,
     NoteSource,
-    ValueInterval,
-    VerdictMetric,
     against_heading,
     contradicting_evidence,
     intent_word,
@@ -48,6 +41,7 @@ from skills._shared.design_note import (
     statement_of,
 )
 from skills._shared.tree_render import PROGRESS_WORDS, CitedEvent
+from skills._shared.verdict_table import Fixed, Text, VerdictMetric, metric_tables
 
 _DASH = "—"
 
@@ -399,148 +393,22 @@ def _method(report: ThemeReport) -> list[str]:
     return blocks
 
 
-def _or_none(text: str | None) -> str | None:
-    return None if text is None else _e(text)
-
-
-# The words of the analysis note for a judgment and for the kinds of interval it
-# names; any other kind is shown as written (ADR-0052).
-_JUDGMENT_WORDS: Mapping[MetricJudgment, str] = {
-    MetricJudgment.supported: "支持",
-    MetricJudgment.rejected: "棄却",
-    MetricJudgment.inconclusive: "結論しない",
-}
-_INTERVAL_WORDS: Mapping[str, str] = {
-    CONFIDENCE: "信頼区間",
-    "hdi": "HDI",
-    "eti": "等裾信用区間",
-}
-
-
-def _interval(interval: ValueInterval | None) -> str | None:
-    if interval is None:
-        return None
-    word = _INTERVAL_WORDS.get(interval.kind) or _e(interval.kind)
-    return (
-        f"{word} 水準 {_e(interval.level)}: "
-        f"[{_e(interval.lower)}, {_e(interval.upper)}]"
-    )
-
-
-def _effect(effect_size: tuple[str, str] | None) -> str | None:
-    if effect_size is None:
-        return None
-    return f"{_e(effect_size[1])}（{_e(effect_size[0])}）"
-
-
-class _Measured(Protocol):
-    """What a metric and a row of its groups both hold."""
-
-    @property
-    def value(self) -> str | None: ...
-    @property
-    def p(self) -> str | None: ...
-    @property
-    def effect_size(self) -> tuple[str, str] | None: ...
-    @property
-    def interval(self) -> ValueInterval | None: ...
-    @property
-    def sample_size(self) -> str | None: ...
-
-
-_M = TypeVar("_M", bound=_Measured)
-_Column = tuple[str, Callable[[_M], str | None]]
-
-# The columns a metric and a row of its groups share, in the order of the table.
-_VALUE_COLUMNS: tuple[_Column[_Measured], ...] = (
-    ("値", lambda g: _or_none(g.value)),
-    ("効果量", lambda g: _effect(g.effect_size)),
-    ("区間", lambda g: _interval(g.interval)),
-    ("標本サイズ", lambda g: _or_none(g.sample_size)),
-)
-_P_COLUMN: _Column[_Measured] = ("p 値", lambda g: _or_none(g.p))
-
-# Each column of the metric table: its heading and how a metric fills it.
-_METRIC_COLUMNS: tuple[_Column[VerdictMetric], ...] = (
-    *_VALUE_COLUMNS,
-    ("支持の線", lambda m: _or_none(m.support_line)),
-    ("棄却の線", lambda m: _or_none(m.reject_line)),
-    ("判定", lambda m: None if m.judgment is None else _JUDGMENT_WORDS[m.judgment]),
-    ("しきい値", lambda m: _or_none(m.threshold)),
-    _P_COLUMN,
-    ("合否", lambda m: None if m.passed is None else ("✓" if m.passed else "✗")),
-)
-_GROUP_COLUMNS: tuple[_Column[MetricGroup], ...] = (*_VALUE_COLUMNS, _P_COLUMN)
-
-# The columns an exploration leaves out: it measures, and judges nothing (ADR-0050).
-_JUDGING_COLUMNS = frozenset((*VERDICT_COLUMNS, "支持の線", "棄却の線", "判定"))
-
-
-def _in_use(columns: Sequence[_Column[_M]], items: Sequence[_M]) -> list[_Column[_M]]:
-    # A column no item fills would be a column of dashes.
-    return [c for c in columns if any(c[1](i) is not None for i in items)]
-
-
-def _cross_table(metric: VerdictMetric) -> str | None:
-    """Two axes of values alone, as rows by the first and columns by the second.
-
-    None when the groups do not fit: another axis count, an item besides the
-    value, or a pair of groups written twice. Rows and columns keep the order
-    the verdict first names them; nothing is sorted as a number.
-    """
-    if len(metric.by) != 2:
-        return None
-    if any(
-        fill(g) is not None for g in metric.groups for _, fill in _GROUP_COLUMNS[1:]
-    ):
-        return None
-    cells = {(g.group[0], g.group[1]): g.value for g in metric.groups}
-    if len(cells) != len(metric.groups):
-        return None
-    rows = dict.fromkeys(g.group[0] for g in metric.groups)
-    columns = dict.fromkeys(g.group[1] for g in metric.groups)
-    return _table(
-        (_e(metric.by[0]), *(_e(c) for c in columns)),
-        ([_e(r), *(_or_none(cells.get((r, c))) or "" for c in columns)] for r in rows),
-    )
-
-
-def _group_table(metric: VerdictMetric) -> list[str]:
-    """The groups of *metric* in a table of its own, under its name and axes."""
-    title = f"{_e(metric.name)}（{' × '.join(_e(a) for a in metric.by)}）"
-    table = _cross_table(metric)
-    if table is None:
-        columns = _in_use(_GROUP_COLUMNS, metric.groups)
-        table = _table(
-            (*(_e(a) for a in metric.by), *(heading for heading, _ in columns)),
-            (
-                [*(_e(n) for n in g.group), *(fill(g) or "" for _, fill in columns)]
-                for g in metric.groups
-            ),
-        )
-    return [title, table]
+def _text(text: Text) -> str:
+    """Each piece the verdict wrote, escaped on its own; the table's words as they are."""
+    return "".join(p if isinstance(p, Fixed) else _e(p) for p in text)
 
 
 def _metrics(metrics: Sequence[VerdictMetric], form: DesignForm) -> list[str]:
-    columns = [
-        c for c in _METRIC_COLUMNS if form.judges or c[0] not in _JUDGING_COLUMNS
-    ]
-    # A metric of groups alone has its groups' table and no row of dashes here.
-    rows = [
-        m for m in metrics if not m.groups or any(f(m) is not None for _, f in columns)
-    ]
     blocks: list[str] = []
-    if rows:
-        used = _in_use(columns, rows)
+    for table in metric_tables(metrics, form, sample_size="標本サイズ", p="p 値"):
+        if table.title is not None:
+            blocks.append(_text(table.title))
         blocks.append(
             _table(
-                ("指標", *(heading for heading, _ in used)),
-                ([_e(m.name), *(fill(m) or "" for _, fill in used)] for m in rows),
+                [_text(h) for h in table.headings],
+                ([_text(c) for c in row] for row in table.rows),
             )
         )
-    for metric in metrics:
-        if metric.groups:
-            blocks += _group_table(metric)
     return blocks
 
 

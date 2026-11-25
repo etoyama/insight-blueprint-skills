@@ -15,9 +15,8 @@ one page.
 from __future__ import annotations
 
 import base64
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from enum import StrEnum
 
 from insight_blueprint.models.design import (
     AnalysisDesign,
@@ -26,6 +25,13 @@ from insight_blueprint.models.design import (
     DesignStatus,
 )
 from skills._shared._html import BASE_CSS, Html, el, join, page
+from skills._shared.verdict_table import (
+    Fixed,
+    Text,
+    TextTable,
+    VerdictMetric,
+    metric_tables,
+)
 
 
 @dataclass(frozen=True)
@@ -61,64 +67,6 @@ def contradicting_evidence(
     return tuple(
         e for e in events if e.type == "evidence" and e.direction == "contradicts"
     )
-
-
-class MetricJudgment(StrEnum):
-    """What a confirmation's primary metric says of the hypothesis (ADR-0052)."""
-
-    supported = "supported"
-    rejected = "rejected"
-    inconclusive = "inconclusive"
-
-
-# The kind of an interval saved as ``confidence_interval``, before intervals named theirs.
-CONFIDENCE = "confidence"
-
-
-@dataclass(frozen=True)
-class ValueInterval:
-    """The interval of a metric's value. ``kind`` is the name the notebook gave it."""
-
-    kind: str
-    level: str
-    lower: str
-    upper: str
-
-
-@dataclass(frozen=True)
-class MetricGroup:
-    """The value of a metric in one group. It is measured, never judged."""
-
-    group: tuple[str, ...]  # one name per axis of the metric's ``by``
-    value: str | None
-    p: str | None
-    effect_size: tuple[str, str] | None  # (kind, value)
-    interval: ValueInterval | None
-    sample_size: str | None
-
-
-@dataclass(frozen=True)
-class VerdictMetric:
-    """One entry of ``verdict.metrics``. Every number is the literal JSON text.
-
-    The lines and the judgment belong to a confirmation's primary metric; the
-    threshold and the pass to a secondary or guardrail metric. Nothing here
-    enforces that: a metric shows what the notebook wrote.
-    """
-
-    name: str
-    value: str | None
-    threshold: str | None
-    p: str | None
-    passed: bool | None
-    effect_size: tuple[str, str] | None  # (kind, value)
-    interval: ValueInterval | None
-    sample_size: str | None
-    support_line: str | None = None
-    reject_line: str | None = None
-    judgment: MetricJudgment | None = None
-    by: tuple[str, ...] = ()  # the axes of ``groups``; empty when there are none
-    groups: tuple[MetricGroup, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -602,104 +550,22 @@ def _events(note: DesignNote) -> list[Html]:
     return blocks
 
 
-# The columns an exploration leaves out: it measures, and passes no verdict (ADR-0050).
-VERDICT_COLUMNS = ("支持の線", "棄却の線", "判定", "しきい値", "合否")
-
-JUDGMENT_WORDS = {
-    MetricJudgment.supported: "支持",
-    MetricJudgment.rejected: "棄却",
-    MetricJudgment.inconclusive: "結論しない",
-}
-
-# The kinds of interval the note has a word for; any other shows as written (ADR-0052 8).
-INTERVAL_WORDS = {CONFIDENCE: "信頼区間", "hdi": "HDI", "eti": "等裾信用区間"}
+def _text(text: Text) -> str:
+    """A cell or a heading; one that holds no text is a dash."""
+    return "".join(text) or _DASH
 
 
-def interval_text(interval: ValueInterval) -> str:
-    """The kind, the level and the bounds as written: the level is not made a percent."""
-    word = INTERVAL_WORDS.get(interval.kind) or _cell(interval.kind)
-    return f"{word} 水準 {interval.level}: [{interval.lower}, {interval.upper}]"
+def _title(text: Text) -> str:
+    # The note dashes each empty name of a title, so "m（— × y）" keeps its axes.
+    return "".join(p if isinstance(p, Fixed) else _cell(p) for p in text)
 
 
-# A row's cells as (column heading, text); None where the verdict holds nothing.
-_Cells = tuple[tuple[str, str | None], ...]
-
-
-def _measured(item: VerdictMetric | MetricGroup) -> _Cells:
-    """The cells a metric and a group share: what was measured."""
-    effect = item.effect_size
-    return (
-        ("値", item.value),
-        ("効果量", f"{effect[1]}（{effect[0]}）" if effect else None),
-        ("区間", interval_text(item.interval) if item.interval else None),
-        ("N", item.sample_size),
-    )
-
-
-def _metric_cells(m: VerdictMetric) -> _Cells:
-    return (
-        *_measured(m),
-        ("支持の線", m.support_line),
-        ("棄却の線", m.reject_line),
-        ("判定", JUDGMENT_WORDS[m.judgment] if m.judgment else None),
-        ("しきい値", m.threshold),
-        ("p", m.p),
-        ("合否", None if m.passed is None else ("✓" if m.passed else "✗")),
-    )
-
-
-def _group_cells(g: MetricGroup) -> _Cells:
-    return (*_measured(g), ("p", g.p))
-
-
-def _filled_table(
-    leading: Sequence[str],
-    names: Sequence[Sequence[str]],
-    rows: Sequence[_Cells],
-    shown: Callable[[str], bool] = lambda heading: True,
-) -> Html:
-    """Each row's *names*, then its cells; a column of cells no row fills is left out."""
-    keep = [
-        i
-        for i, (heading, _) in enumerate(rows[0])
-        if shown(heading) and any(row[i][1] is not None for row in rows)
-    ]
-    return _table(
-        [*leading, *(rows[0][i][0] for i in keep)],
-        (
-            [*map(_cell, row_names), *(row[i][1] or _DASH for i in keep)]
-            for row_names, row in zip(names, rows, strict=True)
-        ),
-    )
-
-
-def _across(m: VerdictMetric) -> Html | None:
-    """Two axes of values only: the first axis down, the second across (ADR-0052 9).
-
-    The names keep the order they were first written in: sorting could put "10"
-    before "9". None when a pair is written twice, since one value would hide.
-    """
-    if len(m.by) != 2 or any(
-        v is not None for g in m.groups for _, v in _group_cells(g)[1:]
-    ):
-        return None
-    values = {g.group: g.value for g in m.groups}
-    if len(values) != len(m.groups):
-        return None
-    down = dict.fromkeys(g.group[0] for g in m.groups)
-    across = dict.fromkeys(g.group[1] for g in m.groups)
-    return _table(
-        [_cell(m.by[0]), *map(_cell, across)],
-        ([_cell(d), *(values.get((d, a)) or _DASH for a in across)] for d in down),
-    )
-
-
-def _group_table(m: VerdictMetric) -> list[Html]:
+def _value_table(table: TextTable) -> list[Html]:
     return [
-        el("h5", f"{_cell(m.name)}（{' × '.join(map(_cell, m.by))}）"),
-        _across(m)
-        or _filled_table(
-            m.by, [g.group for g in m.groups], [_group_cells(g) for g in m.groups]
+        *([] if table.title is None else [el("h5", _title(table.title))]),
+        _table(
+            [_text(h) for h in table.headings],
+            ([_text(c) for c in row] for row in table.rows),
         ),
     ]
 
@@ -707,28 +573,8 @@ def _group_table(m: VerdictMetric) -> list[Html]:
 def _metric_values(metrics: tuple[VerdictMetric, ...], form: DesignForm) -> list[Html]:
     if not metrics:
         return [el("h4", "指標の値"), el("p", "verdict に指標の値は無い。")]
-
-    def shown(heading: str) -> bool:
-        return form.judges or heading not in VERDICT_COLUMNS
-
-    # A metric that shows nothing but groups is shown in its own table only.
-    listed = [
-        m
-        for m in metrics
-        if not m.groups or any(v is not None and shown(h) for h, v in _metric_cells(m))
-    ]
-    main = (
-        _filled_table(
-            ["指標"],
-            [[m.name] for m in listed],
-            [_metric_cells(m) for m in listed],
-            shown,
-        )
-        if listed
-        else None
-    )
-    grouped = [block for m in metrics if m.groups for block in _group_table(m)]
-    return [el("h4", "指標の値"), *([main] if main else []), *grouped]
+    tables = metric_tables(metrics, form, sample_size="N", p="p")
+    return [el("h4", "指標の値"), *(b for t in tables for b in _value_table(t))]
 
 
 def _figure(figure: NoteFigure, number: int) -> Html:

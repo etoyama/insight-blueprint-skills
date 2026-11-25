@@ -22,8 +22,6 @@ import pytest
 
 from skills._shared.design_note import (
     CodeCell,
-    MetricJudgment,
-    VerdictMetric,
     render_note,
 )
 from skills._shared.design_note_read import (
@@ -31,6 +29,10 @@ from skills._shared.design_note_read import (
     DATA_LOAD_CELL,
     load_design_note,
     notebook_cells,
+)
+from skills._shared.verdict_table import (
+    MetricJudgment,
+    VerdictMetric,
 )
 from tests._saved_verdicts import save_design_with_verdict, table_rows
 

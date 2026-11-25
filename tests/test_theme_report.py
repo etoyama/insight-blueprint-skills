@@ -20,18 +20,13 @@ from insight_blueprint.models.tree import (
     TreeDecision,
 )
 from skills._shared.design_note import (
-    CONFIDENCE,
     FORM_WORDS,
     Conclusion,
     DesignNote,
-    MetricGroup,
-    MetricJudgment,
     NoteEvent,
     NoteFigure,
     NoteSource,
     NoteVerdict,
-    ValueInterval,
-    VerdictMetric,
 )
 from skills._shared.design_note_read import load_design_note
 from skills._shared.theme_report import (
@@ -43,6 +38,12 @@ from skills._shared.theme_report import (
     render_report,
 )
 from skills._shared.tree_render import CitedEvent
+from skills._shared.verdict_table import (
+    CONFIDENCE,
+    MetricGroup,
+    ValueInterval,
+    VerdictMetric,
+)
 from tests._saved_verdicts import SAVED_VERDICTS, save_design_with_verdict
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -1442,8 +1443,10 @@ def test_the_report_tabulates_a_saved_verdict_as_before(
     assert tables == ([] if REPORT_TABLES[name] is None else [REPORT_TABLES[name]])
 
 
-# Story 33.3 (Epic 33 US-1 AC 4, US-2 AC 2 and AC 5): the report's metric table
-# shows the two lines, the judgment, the kind of an interval and the groups.
+# Story 33.3 (Epic 33 US-1 AC 4, US-2 AC 2 and AC 5): how the report draws the
+# metric tables. The rules of the tables are tested once in
+# tests/test_verdict_table.py; here, only what the report adds: its headings,
+# its dashes and its escaping.
 
 
 def _group(*names: str, value: str | None = None, **over: object) -> MetricGroup:
@@ -1464,85 +1467,25 @@ def _metric_tables(*metrics: VerdictMetric, design: ReportDesign | None = None) 
     return _results(_answered(replace(design or _design(), metrics=metrics)))
 
 
-class TestLinesAndJudgmentInTheReport:
-    @pytest.mark.parametrize(
-        ("judgment", "word"),
-        [
-            (MetricJudgment.supported, "支持"),
-            (MetricJudgment.rejected, "棄却"),
-            (MetricJudgment.inconclusive, "結論しない"),
-        ],
-    )
-    def test_the_lines_and_the_judgment_have_their_columns_and_words(
-        self, judgment: MetricJudgment, word: str
-    ) -> None:
-        lines = _metric_tables(
-            _metric(
-                "待ち日数の差",
-                "1.4",
-                support_line="2.0",
-                reject_line="1.0",
-                judgment=judgment,
-            ),
-            _metric("欠損率", "0.03", threshold="0.05", passed=True),
-        ).splitlines()
-
-        assert "| 指標 | 値 | 支持の線 | 棄却の線 | 判定 | しきい値 | 合否 |" in lines
-        assert f"| 待ち日数の差 | 1.4 | 2.0 | 1.0 | {word} | — | — |" in lines
-        assert "| 欠損率 | 0.03 | — | — | — | 0.05 | ✓ |" in lines
-
-    def test_a_criterion_of_one_line_has_no_column_of_the_other(self) -> None:
-        lines = _metric_tables(
-            _metric("差", "2.4", support_line="2.0", judgment=MetricJudgment.supported),
-        ).splitlines()
-
-        assert "| 指標 | 値 | 支持の線 | 判定 |" in lines
-        assert "| 差 | 2.4 | 2.0 | 支持 |" in lines
-
-    def test_lines_are_shown_as_written(self) -> None:
-        lines = _metric_tables(
-            _metric("差", "1.40", support_line="2.00", reject_line="1e-1"),
-        ).splitlines()
-
-        assert "| 差 | 1.40 | 2.00 | 1e-1 |" in lines
-
-    def test_an_exploration_shows_no_line_and_no_judgment(self) -> None:
-        results = _metric_tables(
-            _metric(
-                "館の差",
-                "0.12",
-                support_line="0.1",
-                reject_line="0.0",
-                judgment=MetricJudgment.supported,
-            ),
-            design=_exploration_design(),
-        )
-
-        assert "| 指標 | 値 |" in results.splitlines()
-        assert "| 館の差 | 0.12 |" in results.splitlines()
-        for word in ("線", "判定", "支持"):
-            assert word not in results.replace("判定はしていない", ""), word
-
-
 class TestIntervalInTheReport:
-    @pytest.mark.parametrize(
-        ("kind", "word"),
-        [
-            (CONFIDENCE, "信頼区間"),
-            ("hdi", "HDI"),
-            ("eti", "等裾信用区間"),
-            ("bootstrap_percentile", "bootstrap\\_percentile"),
-        ],
-    )
-    def test_the_interval_is_named_by_its_kind_beside_its_level(
-        self, kind: str, word: str
-    ) -> None:
+    def test_a_kind_the_report_has_no_word_for_is_escaped(self) -> None:
         lines = _metric_tables(
-            _metric("差", "0.1", interval=ValueInterval(kind, "0.95", "0.10", "0.50")),
+            _metric(
+                "差",
+                "0.1",
+                interval=ValueInterval("bootstrap_percentile", "0.95", "0.10", "0.50"),
+            ),
         ).splitlines()
 
         assert "| 指標 | 値 | 区間 |" in lines
-        assert f"| 差 | 0.1 | {word} 水準 0.95: [0.10, 0.50] |" in lines
+        assert "| 差 | 0.1 | bootstrap\\_percentile 水準 0.95: [0.10, 0.50] |" in lines
+
+    def test_an_empty_kind_reads_as_a_dash_as_in_the_note(self) -> None:
+        lines = _metric_tables(
+            _metric("差", "0.1", interval=ValueInterval("", "0.95", "0.10", "0.50")),
+        ).splitlines()
+
+        assert "| 差 | 0.1 | — 水準 0.95: [0.10, 0.50] |" in lines
 
 
 class TestGroupsInTheReport:
@@ -1573,29 +1516,6 @@ class TestGroupsInTheReport:
             ]
         ]
 
-    def test_the_rows_and_columns_keep_the_order_first_written(self) -> None:
-        results = _metric_tables(
-            _metric(
-                "件数",
-                None,
-                by=("year", "month"),
-                groups=(
-                    _group("2024", "10", value="3"),
-                    _group("2023", "9", value="4"),
-                    _group("2024", "9", value="5"),
-                ),
-            ),
-        )
-
-        assert _tables(results) == [
-            [
-                "| year | 10 | 9 |",
-                "| --- | --- | --- |",
-                "| 2024 | 3 | 5 |",
-                "| 2023 | — | 4 |",
-            ]
-        ]
-
     def test_one_axis_makes_a_table_with_a_column_of_groups(self) -> None:
         results = _metric_tables(
             _metric(
@@ -1623,90 +1543,3 @@ class TestGroupsInTheReport:
                 "| 北分館 | 7.0 | — | 310 |",
             ]
         ]
-
-    def test_two_axes_with_more_than_values_make_a_table_with_a_column_per_axis(
-        self,
-    ) -> None:
-        results = _metric_tables(
-            _metric(
-                "待ち日数",
-                None,
-                by=("branch", "weekday"),
-                groups=(
-                    _group("中央館", "月", value="4.0", p="0.01"),
-                    _group("中央館", "火", value="5.0"),
-                ),
-            ),
-        )
-
-        assert _tables(results) == [
-            [
-                "| branch | weekday | 値 | p 値 |",
-                "| --- | --- | --- | --- |",
-                "| 中央館 | 月 | 4.0 | 0.01 |",
-                "| 中央館 | 火 | 5.0 | — |",
-            ]
-        ]
-
-    def test_two_axes_with_a_group_written_twice_keep_every_row(self) -> None:
-        results = _metric_tables(
-            _metric(
-                "待ち日数",
-                None,
-                by=("branch", "weekday"),
-                groups=(
-                    _group("中央館", "月", value="4.0"),
-                    _group("中央館", "月", value="4.5"),
-                ),
-            ),
-        )
-
-        assert _tables(results) == [
-            [
-                "| branch | weekday | 値 |",
-                "| --- | --- | --- |",
-                "| 中央館 | 月 | 4.0 |",
-                "| 中央館 | 月 | 4.5 |",
-            ]
-        ]
-
-    def test_a_metric_of_groups_alone_has_no_row_in_the_metric_table(self) -> None:
-        results = _metric_tables(
-            _metric("差", "0.1"),
-            _metric(
-                "待ち日数",
-                None,
-                by=("branch",),
-                groups=(_group("中央館", value="4.0"),),
-            ),
-        )
-
-        assert _tables(results) == [
-            ["| 指標 | 値 |", "| --- | --- |", "| 差 | 0.1 |"],
-            ["| branch | 値 |", "| --- | --- |", "| 中央館 | 4.0 |"],
-        ]
-
-    def test_a_metric_with_a_value_and_groups_shows_both(self) -> None:
-        results = _metric_tables(
-            _metric(
-                "待ち日数",
-                "5.0",
-                by=("branch",),
-                groups=(_group("中央館", value="4.0"),),
-            ),
-        )
-
-        assert _tables(results) == [
-            ["| 指標 | 値 |", "| --- | --- |", "| 待ち日数 | 5.0 |"],
-            ["| branch | 値 |", "| --- | --- |", "| 中央館 | 4.0 |"],
-        ]
-
-    def test_each_metric_of_groups_has_its_own_table_in_order(self) -> None:
-        results = _metric_tables(
-            _metric("A", None, by=("x",), groups=(_group("a", value="1"),)),
-            _metric("B", None, by=("y",), groups=(_group("b", value="2"),)),
-        )
-
-        lines = results.splitlines()
-        assert lines.index("A（x）") < lines.index("B（y）")
-        assert [t[0] for t in _tables(results)] == ["| x | 値 |", "| y | 値 |"]

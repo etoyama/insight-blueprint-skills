@@ -13,16 +13,18 @@ from pathlib import Path
 import pytest
 
 from skills._shared.design_note import (
-    CONFIDENCE,
     CodeCell,
-    MetricGroup,
-    MetricJudgment,
     NoteReviewBatch,
     NoteReviewComment,
+)
+from skills._shared.design_note_read import notebook_cells
+from skills._shared.verdict_table import (
+    CONFIDENCE,
+    MetricGroup,
+    MetricJudgment,
     ValueInterval,
     VerdictMetric,
 )
-from skills._shared.design_note_read import notebook_cells
 from tests._saved_verdicts import OPTIONAL_ITEMS, SAVED_VERDICTS
 
 CONNECTION = "/Users/secret-analyst/data/reservations.csv"

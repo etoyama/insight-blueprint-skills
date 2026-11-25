@@ -39,23 +39,25 @@ from skills._shared.design_io import (
     read_yaml,
 )
 from skills._shared.design_note import (
-    CONFIDENCE,
     CodeCell,
     Conclusion,
     DesignNote,
-    MetricGroup,
-    MetricJudgment,
     NoteEvent,
     NoteFigure,
     NoteReviewBatch,
     NoteReviewComment,
     NoteSource,
     NoteVerdict,
-    ValueInterval,
-    VerdictMetric,
     contradicting_evidence,
     local_file_paths,
     render_note_page,
+)
+from skills._shared.verdict_table import (
+    CONFIDENCE,
+    MetricGroup,
+    MetricJudgment,
+    ValueInterval,
+    VerdictMetric,
 )
 
 # A figure is a bare file name: it becomes a path under notebooks/.
