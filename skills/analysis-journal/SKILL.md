@@ -91,22 +91,18 @@ Ask only when the user's statement implies a connection. Default to empty/null.
 
 ### Step 4: Branch Workflow
 
-When user wants to branch to an alternative hypothesis:
+When the analyst wants to look again in a design derived from this one:
 
-1. Ask for: new `title`, new `hypothesis_statement`, optional `hypothesis_background`
-2. Create the child design via design_io (inherits parent's `theme_id`; `methodology`
-   is required — carry over the source's or ask the user):
-   ```bash
-   echo '{
-     "title": "<new_title>",
-     "hypothesis_statement": "<new_hypothesis>",
-     "hypothesis_background": "<source.hypothesis_background if not provided>",
-     "parent_id": "<source_design_id>",
-     "theme_id": "<source.theme_id>",
-     "methodology": {"method": "<carry over or ask>"}
-   }' | design_io create
-   ```
-3. Link the derived design to the question tree, with the `id` that `design_io create`
+1. Ask what the derived design should look at, in the analyst's words. It is the draft that
+   step 2 starts from.
+2. Run /analysis-design with `parent_id` set to the source's id, the source's `theme_id`, and
+   the answer of step 1 as the draft. It asks the intent first, writes a question to explore
+   or a hypothesis to confirm with its own background, and fixes the criterion of a
+   confirmation before the new analysis
+   ([ADR-0048](../../docs/adr/0048-intent-decides-the-form-and-the-end-of-a-design.md)).
+   Never create the design here with `design_io create`: it would default to `confirmatory`
+   without a criterion, and an exploration has no `hypothesis_background` to carry over.
+3. Link the derived design to the question tree, with the `id` that /analysis-design
    returned:
    ```bash
    tree_io link-derived --theme LIB --design LIB-H02
@@ -131,7 +127,8 @@ When user wants to branch to an alternative hypothesis:
        new_design_id: "{new_design_id}"
        reason: "{why branching}"
    ```
-5. Initialize new journal with `hypothesize` event:
+5. Initialize new journal with `hypothesize` event. When /analysis-design already started
+   it (a `hearing` event copied from the node), append the event instead:
    ```yaml
    metadata:
      design_id: "{new_design_id}"
@@ -140,7 +137,7 @@ When user wants to branch to an alternative hypothesis:
    events:
      - id: "{new_id}-E01"
        type: hypothesize
-       content: "{new_hypothesis_statement}"
+       content: "{the new design's hypothesis_statement or exploration_question}"
        metadata:
          forked_from: "{source_design_id}"
        created_at: "{now}"
@@ -237,7 +234,6 @@ open_questions = [q for q in questions if q.id not in resolved_ids]
 |---------|----------|
 | `get --id ID` | Load target design |
 | `list [--status S]` | Find designs for tree/sibling queries (filter by parent_id/theme_id in the JSON) |
-| `create` (stdin JSON) | Branch workflow (create child design) |
 
 ## tree_io Reference
 
@@ -263,6 +259,7 @@ open_questions = [q for q in questions if q.id not in resolved_ids]
 | /analysis-review | → /analysis-journal | Design approved (analyzing): "分析を始めるなら /analysis-journal {id}" |
 | /analysis-notebook | → /analysis-journal | Notebook を実行後に手動の推論を追記 |
 | /analysis-journal | → /analysis-reflection | Evidence gathered: "振り返りと結論は /analysis-reflection {id}" |
+| /analysis-journal | → /analysis-design | Branch: "派生の分析設計は /analysis-design（`parent_id` に {design_id}）" |
 | /analysis-journal | → /analysis-journal | After branch: "分岐先のジャーナル: /analysis-journal {new_id}" |
 | /analysis-reflection | → /analysis-journal | Need more evidence: "追加調査は /analysis-journal {id}" |
 | /data-lineage | → /analysis-journal | Lineage diagram generated: "リネージ結果を証拠として記録するなら /analysis-journal {id}" |

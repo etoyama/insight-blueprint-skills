@@ -75,6 +75,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the other handling, and what it cannot say. The example numbers come from the journal or from another group
   computed the same way, never from the result to be judged. A confirmation's criterion also says what it
   means and how the verdict changes with the handling. The analyst may ask for this on any metric (#210, #233).
+- **A branch in `/analysis-journal` now derives its design through `/analysis-design`.** The branch used to
+  write the child with `design_io create`, which left its intent `confirmatory` without a criterion and carried
+  over the source's hypothesis background. Now `/analysis-design` asks the intent, writes a question to explore
+  or a hypothesis to confirm, and fixes the criterion before the new analysis. The `branch` event and
+  `tree_io link-derived` stay as before
+  ([ADR-0048](docs/adr/0048-intent-decides-the-form-and-the-end-of-a-design.md), #217).
 
 ### Fixed
 

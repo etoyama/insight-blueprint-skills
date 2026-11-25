@@ -494,6 +494,7 @@ same `validate.py` the pre-write hook uses. Invalid writes raise and write nothi
 | /catalog-register | → /analysis-design | データ登録完了後にデザイン作成を続行 |
 | /analysis-reflection | → /analysis-design | 派生の分析設計を作る場合（直した検証仮説、探索の後に確かめる検証仮説、次の探索の問い） |
 | /analysis-revision | → /analysis-design | レビュー修正で大きな方針変更が必要な場合 |
+| /analysis-journal | → /analysis-design | 分岐で派生の分析設計を作る場合（`parent_id` に分岐元） |
 
 ## Language Rules
 - Follow project CLAUDE.md language settings. Default to Japanese if no setting.
