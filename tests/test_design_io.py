@@ -35,10 +35,18 @@ def _create(insight: Path, **over: object) -> dict:
         "hypothesis_statement": "X improves Y",
         "hypothesis_background": "because Z",
         "methodology": {"method": "OLS"},
+        "metrics": [_PRIMARY],
         "base_dir": insight,
     }
     kwargs.update(over)
     return design_io.create_design(**kwargs)
+
+
+_PRIMARY = {
+    "target": "lead time",
+    "tier": "primary",
+    "comparison": "supported at 2.0 days or more, rejected under 1.0 day",
+}
 
 
 def _explore(insight: Path, **over: object) -> dict:
@@ -724,3 +732,157 @@ class TestRepairingABrokenDesign:
                 insight,
             )
         assert _on_disk(insight, "FP-H01")["status"] == "supported"
+
+
+class TestAnalysisMark:
+    """Epic 33 US-3 AC 1, AC 5: the mark is written once and stays."""
+
+    @pytest.mark.parametrize("target", ["analyzing", "supported"])
+    def test_the_first_move_into_the_analysis_writes_the_mark(
+        self, insight: Path, target: str
+    ) -> None:
+        design_id = _create(insight)["id"]
+        out = design_io.transition_status(design_id, target, base_dir=insight)
+        assert out["analysis_started_at"] == out["updated_at"]
+        assert _on_disk(insight, design_id)["analysis_started_at"]
+
+    def test_an_update_that_moves_the_status_writes_the_mark(
+        self, insight: Path
+    ) -> None:
+        design_id = _create(insight)["id"]
+        design_io.update_design(design_id, {"status": "analyzing"}, insight)
+        assert _on_disk(insight, design_id)["analysis_started_at"]
+
+    def test_a_review_that_approves_writes_the_mark(self, insight: Path) -> None:
+        design_id = _create(insight)["id"]
+        design_io.append_review_batch(
+            design_id, "analyzing", [{"comment": "ok"}], base_dir=insight
+        )
+        assert _on_disk(insight, design_id)["analysis_started_at"]
+
+    def test_a_design_before_its_analysis_has_no_mark(self, insight: Path) -> None:
+        design_id = _create(insight)["id"]
+        design_io.transition_status(design_id, "revision_requested", base_dir=insight)
+        design_io.update_design(design_id, {"title": "Edited"}, insight)
+        assert "analysis_started_at" not in _on_disk(insight, design_id)
+
+    def test_the_mark_stays_through_a_review_of_the_result(self, insight: Path) -> None:
+        design_id = _create(insight)["id"]
+        first = design_io.transition_status(design_id, "analyzing", base_dir=insight)
+        for target in ("in_review", "revision_requested", "in_review", "analyzing"):
+            design_io.transition_status(design_id, target, base_dir=insight)
+        design_io.update_design(design_id, {"title": "Edited"}, insight)
+        last = design_io.transition_status(design_id, "supported", base_dir=insight)
+        assert last["analysis_started_at"] == first["analysis_started_at"]
+
+    def test_an_update_does_not_take_the_mark_away(self, insight: Path) -> None:
+        design_id = _create(insight)["id"]
+        design_io.transition_status(design_id, "analyzing", base_dir=insight)
+        with pytest.raises(ValueError, match="analysis_started_at"):
+            design_io.update_design(design_id, {"analysis_started_at": None}, insight)
+        assert _on_disk(insight, design_id)["analysis_started_at"]
+
+    def test_a_saved_design_gets_the_mark_on_its_next_move(self, insight: Path) -> None:
+        _saved(insight, "FP-H01", status="analyzing")
+        design_io.update_design("FP-H01", {"title": "Edited"}, insight)
+        assert "analysis_started_at" not in _on_disk(insight, "FP-H01")
+        design_io.transition_status("FP-H01", "in_review", base_dir=insight)
+        assert _on_disk(insight, "FP-H01")["analysis_started_at"]
+
+
+class TestStartedConfirmation:
+    """Epic 33 US-3 AC 2, AC 3: design_io refuses what validate_update refuses."""
+
+    @pytest.fixture(params=["analyzing", "in_review", "revision_requested"])
+    def started(self, insight: Path, request: pytest.FixtureRequest) -> str:
+        design_id = _create(insight)["id"]
+        path = {
+            "analyzing": ["analyzing"],
+            "in_review": ["analyzing", "in_review"],
+            "revision_requested": ["analyzing", "in_review", "revision_requested"],
+        }[request.param]
+        for target in path:
+            design_io.transition_status(design_id, target, base_dir=insight)
+        return design_id
+
+    def test_the_hypothesis_is_not_rewritten(self, insight: Path, started: str) -> None:
+        with pytest.raises(ValueError, match="hypothesis_statement.*derive"):
+            design_io.update_design(
+                started, {"hypothesis_statement": "X improves Y a little"}, insight
+            )
+        assert _on_disk(insight, started)["hypothesis_statement"] == "X improves Y"
+
+    def test_the_criterion_is_not_rewritten(self, insight: Path, started: str) -> None:
+        looser = [{**_PRIMARY, "comparison": "supported at 0.5 days or more"}]
+        with pytest.raises(ValueError, match="metrics.*derive"):
+            design_io.update_design(started, {"metrics": looser}, insight)
+        assert (
+            _on_disk(insight, started)["metrics"][0]["comparison"]
+            == (_PRIMARY["comparison"])
+        )
+
+    def test_the_background_is_still_edited(self, insight: Path, started: str) -> None:
+        design_io.update_design(
+            started, {"hypothesis_background": "because Z, as surveyed"}, insight
+        )
+        assert _on_disk(insight, started)["hypothesis_background"].endswith("surveyed")
+
+    def test_a_saved_design_sent_back_keeps_its_hypothesis(self, insight: Path) -> None:
+        _saved(insight, "FP-H01", status="analyzing")
+        design_io.transition_status("FP-H01", "in_review", base_dir=insight)
+        with pytest.raises(ValueError, match="hypothesis_statement"):
+            design_io.update_design(
+                "FP-H01", {"hypothesis_statement": "Written after the result"}, insight
+            )
+
+
+class TestCriterionBeforeTheAnalysis:
+    """Epic 33 US-3 AC 4: a judging design is analyzed only with its criterion."""
+
+    def test_a_transition_without_a_criterion_is_refused(self, insight: Path) -> None:
+        design_id = _create(insight, metrics=[])["id"]
+        with pytest.raises(ValueError, match="comparison"):
+            design_io.transition_status(design_id, "analyzing", base_dir=insight)
+        written = _on_disk(insight, design_id)
+        assert written["status"] == "in_review"
+        assert "analysis_started_at" not in written
+
+    def test_an_update_without_a_criterion_is_refused(self, insight: Path) -> None:
+        design_id = _create(insight, metrics=[])["id"]
+        with pytest.raises(ValueError, match="comparison"):
+            design_io.update_design(design_id, {"status": "analyzing"}, insight)
+        assert _on_disk(insight, design_id)["status"] == "in_review"
+
+    def test_an_approval_without_a_criterion_writes_no_batch(
+        self, insight: Path
+    ) -> None:
+        design_id = _create(insight, metrics=[])["id"]
+        with pytest.raises(ValueError, match="comparison"):
+            design_io.append_review_batch(
+                design_id, "analyzing", [{"comment": "ok"}], base_dir=insight
+            )
+        assert design_io.list_review_batches(design_id, insight) == []
+        assert _on_disk(insight, design_id)["status"] == "in_review"
+
+    def test_the_criterion_written_in_review_opens_the_analysis(
+        self, insight: Path
+    ) -> None:
+        design_id = _create(insight, metrics=[])["id"]
+        design_io.update_design(design_id, {"metrics": [_PRIMARY]}, insight)
+        design_io.transition_status(design_id, "analyzing", base_dir=insight)
+        assert _on_disk(insight, design_id)["status"] == "analyzing"
+
+    def test_an_exploration_is_analyzed_without_a_criterion(
+        self, insight: Path
+    ) -> None:
+        design_id = _explore(insight)["id"]
+        design_io.transition_status(design_id, "analyzing", base_dir=insight)
+        assert _on_disk(insight, design_id)["analysis_started_at"]
+
+    def test_a_saved_design_without_a_criterion_returns_to_the_analysis(
+        self, insight: Path
+    ) -> None:
+        _saved(insight, "FP-H01", status="analyzing")
+        design_io.transition_status("FP-H01", "in_review", base_dir=insight)
+        design_io.transition_status("FP-H01", "analyzing", base_dir=insight)
+        assert _on_disk(insight, "FP-H01")["status"] == "analyzing"

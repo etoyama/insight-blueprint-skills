@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `hdi`, …), and a metric measured per group holds `by` and `groups` instead of a group in its name.
   A verdict saved before reads as it did, `confidence_interval` included, so nothing has to be
   rewritten; a notebook generated before writes the new items once it is generated again ([ADR-0052](docs/adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md), #243).
+- **A design whose analysis has started keeps its hypothesis, its criterion and its intent.** When a
+  design first enters `analyzing` or a terminal status, `design_io` writes `analysis_started_at` on it,
+  and the mark stays through a review of the result. From then on a confirmation (also a saved `mixed`
+  and a legacy exploration) refuses a change of `hypothesis_statement`, of its `primary` metrics (their
+  `target` and `comparison`; adding, removing or re-tiering one) and of `analysis_intent`, in
+  `design_io update` and in a direct write alike, also after the design went back to `in_review`. To
+  test another hypothesis or criterion, derive a new design with `parent_id`. The background and the
+  other fields can still be edited. A confirmation now enters `analyzing` only with a `primary` metric
+  whose `comparison` is written, so write the criterion before the review approves the design. Designs
+  already saved still read; one that is `analyzing` or concluded counts as started
+  ([ADR-0053](docs/adr/0053-a-started-confirmation-keeps-its-hypothesis-criterion-and-intent.md), #244).
 
 ## [0.19.0] - 2026-11-25
 

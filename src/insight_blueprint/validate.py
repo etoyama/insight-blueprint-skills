@@ -23,6 +23,7 @@ from insight_blueprint.models.design import (
     AnalysisIntent,
     DesignForm,
     DesignStatus,
+    MetricTier,
 )
 from insight_blueprint.models.tree import QuestionTree
 
@@ -50,9 +51,21 @@ VALID_TRANSITIONS: dict[DesignStatus, set[DesignStatus]] = {
     DesignStatus.inconclusive: set(),
 }
 
-# The intent is chosen before the analysis: changing it afterwards would let a
-# hypothesis be set after seeing the result (ADR-0048).
-INTENT_CHANGEABLE = frozenset({DesignStatus.in_review, DesignStatus.revision_requested})
+# The statuses a design takes only once its analysis has started.
+ANALYSIS_STARTED_STATUSES = frozenset({DesignStatus.analyzing, *TERMINAL_STATUSES})
+
+
+def analysis_started(design: AnalysisDesign) -> bool:
+    """Whether the analysis of *design* has started (ADR-0053).
+
+    The mark tells it in any status, so a review of the result that sends the
+    design back to in_review does not hide it. A design saved before the mark
+    existed is read by its status.
+    """
+    return (
+        design.analysis_started_at is not None
+        or design.status in ANALYSIS_STARTED_STATUSES
+    )
 
 
 def valid_targets(current: DesignStatus, form: DesignForm) -> set[DesignStatus]:
@@ -154,8 +167,10 @@ def validate_update(new: AnalysisDesign, current: AnalysisDesign) -> list[str]:
 
     A saved legacy exploration or mixed design is updated in its form, but no
     design is turned into one; the intent and the form change only before the
-    analysis, and a status change follows the transitions of the new form. Never
-    raises: returns human-readable error strings.
+    analysis, and a status change follows the transitions of the new form. Once
+    the analysis has started, the mark of it stays and a design that judges a
+    hypothesis keeps that hypothesis and its criterion (ADR-0053). Never raises:
+    returns human-readable error strings.
     """
     errors: list[str] = []
     intent_changed = new.analysis_intent != current.analysis_intent
@@ -171,8 +186,8 @@ def validate_update(new: AnalysisDesign, current: AnalysisDesign) -> list[str]:
     reshaped = intent_changed or new.form() != current.form()
     if reshaped and not _may_change_intent(current, new):
         errors.append(
-            f"analysis_intent: changes only while in_review or revision_requested "
-            f"(status: {current.status.value}); derive a new design for another intent"
+            "analysis_intent: the intent and the form change only before the "
+            "analysis starts; derive a new design (parent_id) for another intent"
         )
     if new.form() is DesignForm.confirmation and intent_changed:
         errors += _unwritten_hypothesis(new)
@@ -181,7 +196,89 @@ def validate_update(new: AnalysisDesign, current: AnalysisDesign) -> list[str]:
             validate_transition(current.status, new.status, new.form())
         except ValueError as exc:
             errors.append(str(exc))
+    return (
+        errors
+        + _mark_errors(new, current)
+        + _held_errors(new, current)
+        + _criterion_errors(new, current)
+    )
+
+
+def _mark_errors(new: AnalysisDesign, current: AnalysisDesign) -> list[str]:
+    was, now = current.analysis_started_at, new.analysis_started_at
+    if was is not None:
+        if now == was:
+            return []
+        return [
+            "analysis_started_at: the mark of a started analysis is neither "
+            "removed nor changed"
+        ]
+    if analysis_started(current) and not analysis_started(new):
+        # A design saved before the mark existed shows its analysis only by its
+        # status: leaving that status without the mark would erase the trace.
+        return [
+            f"analysis_started_at: a design that leaves {current.status.value} "
+            "keeps the mark of its analysis; move it with design_io transition, "
+            "which writes the mark"
+        ]
+    entered = analysis_started(current) or new.status in ANALYSIS_STARTED_STATUSES
+    if now is not None and not entered:
+        return [
+            "analysis_started_at: the mark is written when the design first "
+            "enters analyzing or a conclusion, not before"
+        ]
+    return []
+
+
+_DERIVE = "derive a new design (parent_id) and leave this one as it was analyzed"
+
+
+def _held_errors(new: AnalysisDesign, current: AnalysisDesign) -> list[str]:
+    """What a started design that judges a hypothesis keeps (ADR-0053 decision 3)."""
+    if not (analysis_started(current) and current.form().judges):
+        return []
+    errors: list[str] = []
+    # Dropping the hypothesis altogether is a change of form, refused as one.
+    reworded = new.form().judges and (
+        new.hypothesis_statement != current.hypothesis_statement
+    )
+    if reworded:
+        errors.append(
+            "hypothesis_statement: the hypothesis does not change once the "
+            f"analysis has started; {_DERIVE}"
+        )
+    if _criteria(new) != _criteria(current):
+        errors.append(
+            "metrics: the primary metrics (target, comparison, tier) do not "
+            f"change once the analysis has started; {_DERIVE}"
+        )
     return errors
+
+
+def _criteria(design: AnalysisDesign) -> list[tuple[str, str]]:
+    """The primary metrics as what the judgment rests on, whatever their order."""
+    return sorted(
+        (m.target, m.comparison) for m in design.metrics if m.tier is MetricTier.primary
+    )
+
+
+def _criterion_errors(new: AnalysisDesign, current: AnalysisDesign) -> list[str]:
+    """A judging design is first analyzed with its criterion written (decision 4).
+
+    Only the first entry is checked: a started design can no longer write its
+    criterion, so asking again would keep a saved one from returning to analyzing.
+    """
+    entering = new.status is DesignStatus.analyzing and not analysis_started(current)
+    if not (entering and new.form().judges):
+        return []
+    criteria = _criteria(new)
+    if criteria and all(comparison.strip() for _, comparison in criteria):
+        return []
+    return [
+        "metrics: a design that judges a hypothesis enters analyzing only with a "
+        "primary metric whose comparison states the criterion; write it before "
+        "the review approves the design"
+    ]
 
 
 def _unwritten_hypothesis(new: AnalysisDesign) -> list[str]:
@@ -193,7 +290,7 @@ def _unwritten_hypothesis(new: AnalysisDesign) -> list[str]:
 
 
 def _may_change_intent(current: AnalysisDesign, new: AnalysisDesign) -> bool:
-    if current.status in INTENT_CHANGEABLE:
+    if not analysis_started(current):
         return True
     # A legacy exploration whose substance is a confirmation is fixed in any
     # status, since only the intent changes: the hypothesis and the status stay

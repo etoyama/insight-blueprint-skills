@@ -65,11 +65,11 @@ AC の正本はここ。
 
 読み手として、基準が結果の前に置かれたと信じられるように、分析を始めた後は、検証仮説と判定の基準と意図が記録の上で変わらないでほしい。
 
-- [ ] AC 1: 分析設計が初めて `analyzing` か terminal status に入るとき、分析の印（`analysis_started_at`）が分析設計に残る。印は、状態が `in_review` や `revision_requested` に戻っても残り、消す書き込みも変える書き込みも通らない。
-- [ ] AC 2: 分析を始めた検証・旧形式の探索・`mixed` の分析設計では、検証仮説、primary の指標の組（`target` と `comparison`。足す・消す・`tier` を変えることを含む）、意図を変える書き込みが通らない。拒む文は派生の分析設計を作るよう案内する。分析を始めた探索の分析設計では、意図と形を変える書き込みが通らない。
-- [ ] AC 3: 分析を始めた後でも、AC 2 に挙げていない項目（背景、secondary と guardrail の指標、説明変数、図の仕様、手法、決定の文脈、`next_action`）を変える書き込みは通る。
-- [ ] AC 4: 検証・旧形式の探索・`mixed` の分析設計が `analyzing` に入る書き込みは、primary の指標があり、その `comparison` が空でないときだけ通る。
-- [ ] AC 5: AC 1〜AC 4 は`design_io` と直書き（hook）の両方に同じ検査で効く。分析の印を持たない保存済みの分析設計は読め、状態が `analyzing` か terminal status なら、分析を始めたものとして扱う。旧形式の探索を `confirmatory` に直す例外（[ADR-0049](../adr/0049-legacy-exploration-stays-readable-and-is-marked.md) の6）は残る。
+- [x] AC 1: 分析設計が初めて `analyzing` か terminal status に入るとき、分析の印（`analysis_started_at`）が分析設計に残る。印は、状態が `in_review` や `revision_requested` に戻っても残り、消す書き込みも変える書き込みも通らない。
+- [x] AC 2: 分析を始めた検証・旧形式の探索・`mixed` の分析設計では、検証仮説、primary の指標の組（`target` と `comparison`。足す・消す・`tier` を変えることを含む）、意図を変える書き込みが通らない。拒む文は派生の分析設計を作るよう案内する。分析を始めた探索の分析設計では、意図と形を変える書き込みが通らない。
+- [x] AC 3: 分析を始めた後でも、AC 2 に挙げていない項目（背景、secondary と guardrail の指標、説明変数、図の仕様、手法、決定の文脈、`next_action`）を変える書き込みは通る。
+- [x] AC 4: 検証・旧形式の探索・`mixed` の分析設計が `analyzing` に入る書き込みは、primary の指標があり、その `comparison` が空でないときだけ通る。
+- [x] AC 5: AC 1〜AC 4 は`design_io` と直書き（hook）の両方に同じ検査で効く。分析の印を持たない保存済みの分析設計は読め、状態が `analyzing` か terminal status なら、分析を始めたものとして扱う。旧形式の探索を `confirmatory` に直す例外（[ADR-0049](../adr/0049-legacy-exploration-stays-readable-and-is-marked.md) の6）は残る。
 
 ### US-4: 結果の review が notebook・verdict・図を見て、review コメントが読み手に届く
 
@@ -380,6 +380,33 @@ sequenceDiagram
 - Alternatives considered: どちらも「派生を作る」だけにする（まだ直せる分析設計に、要らない派生を作らせる）。
 - Consequences: 案内は 33.4 の検査を前提にする。33.4 が入る前の Epic ブランチでも、文は誤りにならない。
 
+### Decision: primary-criteria-are-compared-as-a-set-of-pairs
+
+- What: 分析を始めた分析設計の primary の指標は、`target` と `comparison` の組を並べ替えた列で比べる。文字は1字でも違えば変更とみなす。並び順と、primary の指標のほかの項目（`data_source`・`grouping`・`filter`・`aggregation`）は比べない。
+- Why: ADR-0053 の3は、組を足す・消す・`tier` を変えることを拒むと決めた。比べ方は Story に委ねた。
+- Criteria: 拒む範囲を、人間が決めた範囲より広げない（[FLOW-0008](../adr/flow/0008-ask-before-narrowing-what-worked.md)）。判定を左右するのは基準の文と、それが掛かる指標である。並び順は判定を変えない。誤字かどうかは機械で見分けられない（ADR-0053 の Alternatives）。
+- Affected modules: `src/insight_blueprint/validate.py` の `_criteria` と `_held_errors`。
+- Alternatives considered: 並び順も比べる案（判定に効かない並べ替えを拒む）。空白を詰めて比べる案（YAML の折り返しの違いは通るが、どこまでを同じとみなすかの線が増える）。
+- Consequences: primary の指標の `filter` や `aggregation` は、分析を始めた後も変えられる。測り方を結果の後に変える道は残る（ADR-0053 の Negative と同じ穴）。YAML を手で折り返して `comparison` の空白が変わると拒まれる。
+
+### Decision: a-started-design-never-reads-as-not-started
+
+- What: 分析を始めた分析設計を、分析を始めていないと読める形にする書き込みを拒む。印の無い保存済みの分析設計が、印を持たずに `analyzing` を離れる直書きが当たる。`design_io` は、状態を変える書き込みで印を付ける（`transition`、状態を含む `update`、`review-batch`）。分析を始めていない分析設計に、状態を進めずに印だけを付ける書き込みも拒む。
+- Why: AC 1 の「消す書き込みも変える書き込みも通らない」から導いた。印の無い記録は状態だけが跡なので、状態が戻ると跡が消える。逆に、先に付いた印は、後の review batch に「分析を始めた後」と誤って写る（Story 33.5）。
+- Criteria: AC 1。印は記録に書いてあることだけを言う（PRD の非機能要件）。
+- Affected modules: `src/insight_blueprint/validate.py` の `_mark_errors`、`skills/_shared/design_io.py` の `_with_analysis_mark`。
+- Alternatives considered: 直書きで `analyzing` に入るときも印を求める案（新しいファイルへの直書きはスキーマだけを確かめるので、印の無い `analyzing` はどのみち作れる。ADR-0053 の Negative）。
+- Consequences: 印の無い保存済みの分析設計を結果の review に戻すには、`design_io transition` を使う。拒む文がそう案内する。`transition` は `validate_update` を通るようになり、`update` と同じ検査を受ける。`review-batch` は batch を書く前に同じ検査をするので、拒まれた承認は batch を残さない。
+
+### Decision: the-criterion-is-asked-on-the-first-entry-only
+
+- What: `comparison` が空でないことを確かめるのは、分析を始めていない分析設計が `analyzing` に入る書き込みだけにする。分析を始めた分析設計が結果の review から `analyzing` に戻る書き込みでは確かめない。primary の指標が複数あれば、どれも空でないことを求める。
+- Why: 分析を始めた検証は基準を書き足せない（ADR-0053 の3）。保存済みの、基準を持たない検証が結果の review に入ると、基準を求めるかぎり `analyzing` に戻れない。ADR-0053 の D3 の決め手は「書き忘れた分析者が、測る前に直せる」で、戻るときには直せるものが無い。
+- Criteria: 拒む範囲を、人間が決めた範囲より広げない（FLOW-0008）。AC 4 の文は「`analyzing` に入る書き込み」で、戻る書き込みも含むと読める。狭く読んだので、PM に知らせ、Epic PR で人間に確かめる。
+- Affected modules: `src/insight_blueprint/validate.py` の `_criterion_errors`。
+- Alternatives considered: 戻る書き込みでも確かめる案（保存済みの基準なしの検証は、結果の review から結論へ直接進むか、派生を作るしかなくなる）。primary のどれか1つに基準があれば通す案（基準の無い primary の指標が判定に入る）。
+- Consequences: 保存済みの基準なしの検証は、今までどおり `analyzing` と `in_review` を行き来できる。notebook は基準が無いと止まる（契約のまま）。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0052: verdict の指標は支持の線と棄却の線、指標の判定、値の区間の種類、群の行を持つ](../adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md): #235・F17・F09 の形を1本にまとめた。
@@ -393,7 +420,7 @@ sequenceDiagram
 | Story 33.1 | ✓（`tests/test_design_note_read.py`: 線・判定・値の区間・群の行の読み。`tests/skills/test_notebook_contract_structure.py`: 契約と SKILL.md の規則と例。`tests/docs/test_canonical_docs.py`: 用語） | ✓（`tests/integration/test_analysis_notebook_contract.py`: 検証と探索の fixture を走らせ、verdict を分析ノートの読み手で読み戻す。`tests/test_saved_verdicts.py`: 保存済みの verdict の8例が、Epic の前と同じ表で出る） | —（notebook を生成するのは AI で、構造テストが契約と SKILL.md の文を照らす。検証の fixture を契約のコマンド（`uv run --project … --extra notebook python`）で走らせ、verdict の JSON を読み手で読み戻して確かめた） |
 | Story 33.2 | ☐ | ☐ | ☐ |
 | Story 33.3 | ☐ | ☐ | ☐ |
-| Story 33.4 | ☐ | ☐ | ☐ |
+| Story 33.4 | ✓ | ✓ | —（分析者の入口の SKILL.md は対話で、自動で回せない。一時ディレクトリの `.insight/` で `design_io` の CLI を走らせ、基準の無い検証の `transition analyzing` が拒まれること、`analyzing` と結果の review の `in_review` で検証仮説と基準の書き換えが拒まれること、背景の直しが通ることを確かめた。hook にも同じ直書きを渡して確かめた） |
 | Story 33.5 | ☐ | ☐ | ☐ |
 | Story 33.6 | ☐ | ☐ | ☐ |
 
@@ -411,3 +438,5 @@ sequenceDiagram
   Epic 32 のテストのうち、契約の文と fixture の形を固定していたものを、新しい契約に合わせて書き換えた（primary の `threshold` と `pass`、`confidence_interval`、基準が無いときの案内）。ADR-0052 が仕様を変えたためである。
   残したこと: `docs/ARCHITECTURE.md` の `.insight/` の表は、verdict の任意の項目を「効果量・信頼区間・標本サイズ」と書いたままである。33.4 が同じファイルを触るので、ここでは直していない。
   バグ・セキュリティの観点のレビューを1本回した（指摘2件、どちらも直した）。Python 3.11 では、指標の判定を持つ verdict を読むと `TypeError` で止まった（`in` で enum の値を照らしていた）。値を作ってみる書き方に直し、3.11 でも読み手と契約のテストを回した。「群を指標の名前に埋めない」の構造テストは、群を持つ指標の名前しか見ていなかったので、例のすべての指標の名前を見るように直した。
+
+- 2026-11-25 — Story 33.4 completed: 分析の印（`analysis_started_at`）を分析設計に足し、`validate_update` が、分析を始めた検証の検証仮説・primary の指標の組・意図の変更と、基準の無い検証が `analyzing` に入る書き込みを拒むようにした。`design_io` は状態を変える書き込みで印を付け、`transition` と `review-batch` も同じ検査を通る。Domain Model 図は変えていない（分析を始めたかは `validate.py` の `analysis_started` が答える）。計画外の判断は3件で、Decisions に書いた（組の比べ方、印を先に付けない、基準を確かめるのは初めて入るときだけ）。`/analysis-review` と `/analysis-revision` の案内は 33.5 が直す。

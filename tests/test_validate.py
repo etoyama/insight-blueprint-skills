@@ -15,6 +15,7 @@ from insight_blueprint.models.design import (
 )
 from insight_blueprint.validate import (
     VALID_TRANSITIONS,
+    analysis_started,
     valid_targets,
     validate_creation,
     validate_design_change,
@@ -221,8 +222,8 @@ class TestValidateDesignChange:
         assert any("decision_context.decision_maker" in e for e in errors)
 
     def test_existing_valid_transition_returns_no_errors(self) -> None:
-        current = make_design(status="in_review")
-        new = make_design(status="analyzing")
+        current = confirmation(status="in_review")
+        new = confirmation(status="analyzing")
         assert validate_design_change(new, current) == []
 
     def test_existing_invalid_transition_returns_errors(self) -> None:
@@ -509,3 +510,289 @@ class TestFormChange:
         current = _model(make_design(analysis_intent="exploratory", status="analyzing"))
         new = _model(make_exploration(status="analyzing"))
         assert any("analysis_intent" in e for e in validate_update(new, current))
+
+
+# ---------------------------------------------------------------------------
+# Epic 33 US-3: the analysis mark and what a started confirmation keeps
+# ---------------------------------------------------------------------------
+
+MARK = "2026-11-25T10:00:00+09:00"
+CRITERION = "supported at 2.0 days or more, rejected under 1.0 day"
+STARTED_STATUSES = [DesignStatus.analyzing, *VERDICTS]
+
+
+def primary(**overrides: object) -> dict:
+    return {"target": "lead time", "tier": "primary", "comparison": CRITERION} | (
+        overrides
+    )
+
+
+def confirmation(**overrides: object) -> dict:
+    """A confirmation that states its criterion, as it must to be analyzed."""
+    return make_design(metrics=[primary()]) | overrides
+
+
+def result_review(**overrides: object) -> dict:
+    """A confirmation sent back to in_review after its analysis started."""
+    return confirmation(status="in_review", analysis_started_at=MARK) | overrides
+
+
+def _errors(new: dict, current: dict) -> list[str]:
+    return validate_update(_model(new), _model(current))
+
+
+class TestAnalysisStarted:
+    """US-3 AC 1, AC 5: what tells that the analysis of a design has started."""
+
+    @pytest.mark.parametrize("status", ["in_review", "revision_requested"])
+    def test_a_design_before_its_analysis_has_not_started(self, status: str) -> None:
+        assert not analysis_started(_model(make_design(status=status)))
+
+    @pytest.mark.parametrize("status", ["in_review", "revision_requested"])
+    def test_the_mark_tells_it_in_any_status(self, status: str) -> None:
+        assert analysis_started(_model(result_review(status=status)))
+
+    @pytest.mark.parametrize("status", STARTED_STATUSES)
+    def test_a_saved_design_without_the_mark_is_read_by_its_status(
+        self, status: DesignStatus
+    ) -> None:
+        assert analysis_started(_model(make_design(status=status)))
+
+    def test_a_saved_design_without_the_mark_still_reads(self) -> None:
+        assert _model(make_design()).analysis_started_at is None
+
+    def test_a_design_without_the_mark_writes_no_mark(self) -> None:
+        assert "analysis_started_at" not in _model(make_design()).model_dump()
+
+
+class TestTheAnalysisMarkStays:
+    """US-3 AC 1: the mark is put on entering the analysis and never leaves."""
+
+    @pytest.mark.parametrize("status", STARTED_STATUSES)
+    def test_the_mark_is_put_on_entering_the_analysis(
+        self, status: DesignStatus
+    ) -> None:
+        new = confirmation(status=status, analysis_started_at=MARK)
+        assert _errors(new, confirmation()) == []
+
+    def test_the_mark_is_not_put_on_a_design_that_stays_before_its_analysis(
+        self,
+    ) -> None:
+        new = confirmation(status="revision_requested", analysis_started_at=MARK)
+        errors = _errors(new, confirmation())
+        assert any("analysis_started_at" in e for e in errors)
+
+    @pytest.mark.parametrize("status", ["in_review", "analyzing", "supported"])
+    def test_the_mark_is_not_removed(self, status: str) -> None:
+        current = result_review(status=status)
+        new = confirmation(status=status)
+        assert any("analysis_started_at" in e for e in _errors(new, current))
+
+    def test_the_mark_is_not_changed(self) -> None:
+        new = result_review(analysis_started_at="2026-11-26T10:00:00+09:00")
+        assert any("analysis_started_at" in e for e in _errors(new, result_review()))
+
+    def test_the_mark_stays_through_a_review_of_the_result(self) -> None:
+        analyzing = confirmation(status="analyzing", analysis_started_at=MARK)
+        assert _errors(result_review(), analyzing) == []
+        back = result_review(status="revision_requested")
+        assert _errors(back, result_review()) == []
+
+    def test_a_saved_design_does_not_leave_the_analysis_without_the_mark(self) -> None:
+        current = confirmation(status="analyzing")
+        errors = _errors(confirmation(status="in_review"), current)
+        assert any("analysis_started_at" in e for e in errors)
+
+    def test_a_saved_design_leaves_the_analysis_with_the_mark(self) -> None:
+        current = confirmation(status="analyzing")
+        assert _errors(result_review(), current) == []
+
+    def test_a_saved_design_concludes_without_the_mark(self) -> None:
+        current = confirmation(status="analyzing")
+        assert _errors(confirmation(status="supported"), current) == []
+
+
+def _started(intent: str) -> list[dict]:
+    """A started design of *intent* in each shape the record can take."""
+    return [
+        confirmation(analysis_intent=intent, status="analyzing"),
+        result_review(analysis_intent=intent),
+        result_review(analysis_intent=intent, status="revision_requested"),
+        confirmation(analysis_intent=intent, status="supported"),
+    ]
+
+
+JUDGING_AND_STARTED = [
+    pytest.param(
+        d, id=f"{d['analysis_intent']}-{d['status']}-{'analysis_started_at' in d}"
+    )
+    for intent in ("confirmatory", "exploratory", "mixed")
+    for d in _started(intent)
+]
+
+
+class TestAStartedConfirmationKeepsItsHypothesisAndCriterion:
+    """US-3 AC 2: nothing the judgment rests on changes after the analysis starts."""
+
+    @pytest.mark.parametrize("current", JUDGING_AND_STARTED)
+    def test_the_hypothesis_does_not_change(self, current: dict) -> None:
+        new = current | {"hypothesis_statement": "X improves Y a little"}
+        errors = _errors(new, current)
+        assert any("hypothesis_statement" in e and "derive" in e for e in errors)
+
+    @pytest.mark.parametrize(
+        "metrics",
+        [
+            [primary(comparison="supported at 0.5 days or more")],
+            [primary(target="median lead time")],
+            [primary(), primary(target="return rate")],
+            [],
+            [primary(tier="secondary")],
+            [primary(), {"target": "return rate", "tier": "secondary"}]
+            + [primary(target="return rate")],
+        ],
+        ids=["comparison", "target", "added", "removed", "demoted", "promoted-copy"],
+    )
+    @pytest.mark.parametrize("current", JUDGING_AND_STARTED)
+    def test_the_primary_metrics_do_not_change(
+        self, current: dict, metrics: list[dict]
+    ) -> None:
+        errors = _errors(current | {"metrics": metrics}, current)
+        assert any("metrics" in e and "derive" in e for e in errors)
+
+    def test_a_secondary_metric_is_not_promoted(self) -> None:
+        current = result_review(
+            metrics=[primary(), {"target": "return rate", "tier": "secondary"}]
+        )
+        new = current | {
+            "metrics": [primary(), {"target": "return rate", "tier": "primary"}]
+        }
+        assert any("metrics" in e for e in _errors(new, current))
+
+    @pytest.mark.parametrize("status", ["in_review", "revision_requested"])
+    def test_the_intent_does_not_change_after_a_review_of_the_result(
+        self, status: str
+    ) -> None:
+        current = result_review(status=status)
+        new = make_exploration(status=status, analysis_started_at=MARK)
+        errors = _errors(new, current)
+        assert any("analysis_intent" in e and "derive" in e for e in errors)
+
+    @pytest.mark.parametrize("status", ["in_review", "revision_requested"])
+    def test_a_started_exploration_keeps_its_intent_and_form(self, status: str) -> None:
+        current = make_exploration(status=status, analysis_started_at=MARK)
+        new = result_review(status=status)
+        assert any("analysis_intent" in e for e in _errors(new, current))
+
+    def test_a_started_exploration_may_reword_its_question(self) -> None:
+        current = make_exploration(status="in_review", analysis_started_at=MARK)
+        new = current | {"exploration_question": "How far apart are the regions now?"}
+        assert _errors(new, current) == []
+
+    def test_before_the_analysis_everything_may_change(self) -> None:
+        new = confirmation(
+            hypothesis_statement="X improves Y a little",
+            metrics=[primary(comparison="supported at 0.5 days or more")],
+        )
+        assert _errors(new, confirmation(status="revision_requested")) == []
+
+    def test_a_started_legacy_exploration_is_still_fixed_to_confirmatory(self) -> None:
+        current = result_review(analysis_intent="exploratory")
+        new = result_review(analysis_intent="confirmatory")
+        assert _errors(new, current) == []
+
+
+class TestAStartedConfirmationStillTakesOtherChanges:
+    """US-3 AC 3: only what the judgment rests on is held."""
+
+    @pytest.mark.parametrize(
+        "changes",
+        [
+            {"hypothesis_background": "Because Z, as the 2025 survey shows"},
+            {
+                "metrics": [
+                    primary(),
+                    {"target": "return rate", "tier": "secondary"},
+                    {"target": "cost", "tier": "guardrail", "comparison": "< 5%"},
+                ]
+            },
+            {"metrics": [primary(aggregation="median", filter="region == 'east'")]},
+            {"explanatory": [{"name": "region", "role": "confounder"}]},
+            {"chart": [{"intent": "trend", "type": "line"}]},
+            {"methodology": {"method": "difference in means"}},
+            {"decision_context": {"decision_maker": "ops lead", "decision": "roll"}},
+            {"next_action": {"if_supported": "roll out"}},
+            {"title": "Edited"},
+        ],
+        ids=[
+            "background",
+            "secondary-and-guardrail",
+            "other-fields-of-the-primary",
+            "explanatory",
+            "chart",
+            "methodology",
+            "decision-context",
+            "next-action",
+            "title",
+        ],
+    )
+    @pytest.mark.parametrize("current", JUDGING_AND_STARTED)
+    def test_a_field_outside_the_judgment_changes(
+        self, current: dict, changes: dict
+    ) -> None:
+        assert _errors(current | changes, current) == []
+
+    def test_the_primary_metrics_may_be_reordered(self) -> None:
+        both = [primary(), primary(target="return rate")]
+        current = result_review(metrics=both)
+        assert _errors(current | {"metrics": both[::-1]}, current) == []
+
+
+class TestEnteringTheAnalysisNeedsACriterion:
+    """US-3 AC 4: a judging design is analyzed only with its criterion written."""
+
+    @pytest.mark.parametrize("intent", ["confirmatory", "exploratory", "mixed"])
+    @pytest.mark.parametrize(
+        "metrics",
+        [
+            [],
+            [{"target": "return rate", "tier": "secondary", "comparison": "< 5%"}],
+            [primary(comparison="")],
+            [primary(comparison="  ")],
+            [primary(), primary(target="return rate", comparison="")],
+        ],
+        ids=["no-metric", "no-primary", "empty", "blank", "one-of-two-empty"],
+    )
+    @pytest.mark.parametrize("status", ["in_review", "revision_requested"])
+    def test_a_judging_design_without_a_criterion_is_not_analyzed(
+        self, intent: str, metrics: list[dict], status: str
+    ) -> None:
+        current = make_design(analysis_intent=intent, metrics=metrics, status=status)
+        new = current | {"status": "analyzing", "analysis_started_at": MARK}
+        errors = _errors(new, current)
+        assert any("comparison" in e and "primary" in e for e in errors)
+
+    def test_a_judging_design_with_a_criterion_is_analyzed(self) -> None:
+        new = confirmation(status="analyzing", analysis_started_at=MARK)
+        assert _errors(new, confirmation()) == []
+
+    def test_the_words_of_the_criterion_are_not_read(self) -> None:
+        current = make_design(metrics=[primary(comparison="see the review")])
+        new = current | {"status": "analyzing", "analysis_started_at": MARK}
+        assert _errors(new, current) == []
+
+    def test_an_exploration_is_analyzed_without_a_criterion(self) -> None:
+        new = make_exploration(status="analyzing", analysis_started_at=MARK)
+        assert _errors(new, make_exploration()) == []
+
+    def test_a_saved_design_without_a_criterion_returns_from_a_review_of_its_result(
+        self,
+    ) -> None:
+        # Its criterion can no longer be written, so asking for it would leave
+        # the design with no way back to analyzing.
+        current = make_design(status="in_review", analysis_started_at=MARK)
+        assert _errors(current | {"status": "analyzing"}, current) == []
+
+    def test_a_saved_design_without_a_criterion_is_still_updated(self) -> None:
+        current = make_design(status="analyzing")
+        assert _errors(current | {"title": "Edited"}, current) == []

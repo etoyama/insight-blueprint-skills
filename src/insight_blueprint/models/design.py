@@ -219,6 +219,10 @@ class AnalysisDesign(BaseModel):
     referenced_knowledge: dict[str, list[str]] = Field(default_factory=dict)
     methodology: Methodology | None = None
     decision_context: DecisionContext | None = None
+    # Written once, when the design first enters analyzing or a conclusion, and
+    # kept through a review of the result. A design saved before Epic 33 has
+    # none and is read by its status (ADR-0053).
+    analysis_started_at: datetime | None = None
     created_at: datetime = Field(default_factory=now_jst)
     updated_at: datetime = Field(default_factory=now_jst)
 
@@ -299,7 +303,7 @@ class AnalysisDesign(BaseModel):
         self, handler: SerializerFunctionWrapHandler
     ) -> dict[str, Any]:
         data = handler(self)
-        for name in _FORM_FIELDS:
+        for name in (*_FORM_FIELDS, "analysis_started_at"):
             if data.get(name, "") is None:
                 del data[name]
         return data
