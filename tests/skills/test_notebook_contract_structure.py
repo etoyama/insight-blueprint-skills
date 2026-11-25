@@ -8,6 +8,7 @@ SKILL.md to the plain form and to the one-step run.
 
 from __future__ import annotations
 
+import ast
 import re
 
 import pytest
@@ -73,7 +74,7 @@ class TestTheContractLaysOutSevenPercentCells:
     def test_the_file_opens_with_a_docstring_of_the_design(self) -> None:
         layout = unwrap(section(_contract(), "## File layout"))
         assert "opens with a docstring" in layout
-        assert "the design's id, title, hypothesis and intent" in layout
+        assert "the design's id, title and intent" in layout
         assert "Only the docstring comes before the first `# %%` line" in layout
 
     def test_the_docstring_escapes_what_would_end_it(self) -> None:
@@ -158,3 +159,149 @@ class TestTheRunIsOneStep:
         step = unwrap(section(_read_skill("analysis-notebook"), "### Step 3: "))
         listed = re.findall(r"^- `# %% (\w+)`", step.replace(" - ", "\n- "), re.M)
         assert listed == CELL_NAMES
+
+
+def _results_examples() -> dict[str, dict]:
+    """The `results` examples of the contract, keyed by the comment that opens each block."""
+    blocks = re.findall(
+        r"```python\n(.*?)```", section(_contract(), "## `results` shape"), re.DOTALL
+    )
+    examples: dict[str, dict] = {}
+    for block in blocks:
+        label = block.splitlines()[0].removeprefix("# ").strip()
+        tree = ast.parse(block)
+        (assign,) = [
+            node
+            for node in tree.body
+            if isinstance(node, ast.Assign)
+            and [t.id for t in node.targets if isinstance(t, ast.Name)] == ["results"]
+        ]
+        examples[label] = ast.literal_eval(assign.value)
+    return examples
+
+
+def _docstring_lines(block_label: str) -> list[str]:
+    """The lines of the docstring example whose block opens with ``block_label``."""
+    for block in re.findall(r"```python\n(.*?)```", _contract(), re.DOTALL):
+        if block.startswith(f"# {block_label}\n"):
+            docstring = ast.get_docstring(ast.parse(block), clean=False)
+            assert docstring is not None
+            return docstring.splitlines()
+    raise AssertionError(f"no python block opens with # {block_label}")
+
+
+class TestAnExplorationKeepsWhatItMeasured:
+    """Epic 32 US-3 AC 1: no prediction and no pass in an exploration's results."""
+
+    def test_the_contract_shows_one_results_example_per_form(self) -> None:
+        assert set(_results_examples()) == {"confirmation", "exploration"}
+
+    @pytest.mark.parametrize(
+        "key", ["hypothesis_direction", "decision_reason", "threshold", "pass"]
+    )
+    def test_the_exploration_results_carry_no_prediction_and_no_pass(
+        self, key: str
+    ) -> None:
+        exploration = _results_examples()["exploration"]
+        assert key not in exploration
+        for metric in exploration["metrics"].values():
+            assert key not in metric
+
+    def test_each_exploration_metric_holds_the_measured_value(self) -> None:
+        metrics = _results_examples()["exploration"]["metrics"]
+        assert metrics
+        assert all("value" in metric for metric in metrics.values())
+
+    def test_an_exploration_metric_may_carry_the_optional_items(self) -> None:
+        (metric,) = _results_examples()["exploration"]["metrics"].values()
+        assert {"effect_size", "confidence_interval", "sample_size"} <= set(metric)
+
+    def test_the_confirmation_results_keep_the_judgment(self) -> None:
+        confirmation = _results_examples()["confirmation"]
+        assert "hypothesis_direction" in confirmation
+        (metric,) = confirmation["metrics"].values()
+        assert {"value", "threshold", "pass"} <= set(metric)
+
+    def test_the_results_follow_the_form_of_the_design(self) -> None:
+        """A saved `mixed` design reads as a confirmation; an old exploration as one."""
+        rule = unwrap(section(_contract(), "## `results` shape"))
+        assert "Choose the shape by the form of the design" in rule
+        assert (
+            "`exploratory` intent, an old exploration with a hypothesis included"
+            in rule
+        )
+
+    def test_an_exploration_writes_no_pass_even_with_a_p_value(self) -> None:
+        rule = unwrap(section(_contract(), "## `results` shape"))
+        assert "An exploration may write a p-value but never a pass or fail" in rule
+
+    def test_the_verdict_keeps_the_metrics_in_both_forms(self) -> None:
+        verdict = unwrap(section(_contract(), "## `verdict` shape"))
+        assert "The verdict keeps `metrics` in both forms" in verdict
+        assert "confirmatory: persist" not in verdict
+
+    def test_the_skill_asks_the_exploration_for_no_prediction(self) -> None:
+        step = unwrap(section(_read_skill("analysis-notebook"), "### Step 3: "))
+        assert "four required fields" not in step
+        assert (
+            "an exploration has no `hypothesis_direction`, no `decision_reason`, "
+            "and no `threshold` or `pass` in its metrics"
+        ) in step
+
+
+class TestAConfirmationTakesItsCriterionFromTheDesign:
+    """Epic 32 US-3 AC 3: the notebook copies the threshold and never makes one up."""
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            lambda: section(_contract(), "## `results` shape"),
+            lambda: section(_read_skill("analysis-notebook"), "### Step 3: "),
+        ],
+        ids=["contract", "skill"],
+    )
+    def test_the_threshold_is_copied_from_the_primary_comparison(self, text) -> None:
+        rule = unwrap(text())
+        assert (
+            "copy each `threshold` from the `comparison` of the design's primary metric"
+        ) in rule
+        assert "the notebook never makes up a threshold" in rule
+
+    def test_a_comparison_without_a_criterion_stops_the_generation(self) -> None:
+        rule = unwrap(section(_contract(), "## `results` shape"))
+        assert "states no criterion, stop and suggest /analysis-design" in rule
+
+
+class TestTheDocstringStatesWhatTheDesignAnswers:
+    """Epic 32 US-3 AC 4: the question for an exploration, the hypothesis otherwise."""
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            lambda: section(_contract(), "## File layout"),
+            lambda: section(_read_skill("analysis-notebook"), "### Step 3: "),
+        ],
+        ids=["contract", "skill"],
+    )
+    def test_the_docstring_names_the_question_or_the_hypothesis(self, text) -> None:
+        rule = unwrap(text())
+        assert "`- Question:` line with `exploration_question`" in rule
+        assert "`- Hypothesis:` line with `hypothesis_statement`" in rule
+
+    def test_the_question_and_the_hypothesis_take_the_title_escape(self) -> None:
+        layout = unwrap(section(_contract(), "## File layout"))
+        assert (
+            "Apply the same escape to the title, the question and the hypothesis"
+            in (layout)
+        )
+
+    def test_the_exploration_example_writes_the_question(self) -> None:
+        lines = _docstring_lines("exploration")
+        assert any(line.startswith("- Question: ") for line in lines)
+        assert not any(line.startswith("- Hypothesis: ") for line in lines)
+        assert "- Intent: exploratory" in lines
+
+    def test_the_confirmation_example_writes_the_hypothesis(self) -> None:
+        lines = _docstring_lines("confirmation")
+        assert any(line.startswith("- Hypothesis: ") for line in lines)
+        assert not any(line.startswith("- Question: ") for line in lines)

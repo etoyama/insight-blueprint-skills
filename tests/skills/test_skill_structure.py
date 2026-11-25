@@ -252,14 +252,15 @@ class TestSkillStructure:
         # - analysis-framing: 1.0.0 (initial, tested separately)
         # - analysis-revision: 1.0.0 (initial, added in Issue #44)
         # - analysis-design, catalog-register: 1.2.0 (rules integrated into SKILL.md)
-        # - analysis-journal, analysis-reflection: 1.1.0
+        # - analysis-journal: 1.2.0 (direction is against the hypothesis, ADR-0050)
+        # - analysis-reflection: 1.1.0
         # - data-lineage: 1.2.0 (Step 0 and setup mode removed, ADR-0047)
-        # - analysis-notebook: 1.0.1 (--with excludes the default allowlist)
+        # - analysis-notebook: 1.1.0 (an exploration keeps values, no prediction, ADR-0050)
         expected_versions: dict[str, str] = {
-            "analysis-notebook": "1.0.1",
+            "analysis-notebook": "1.1.0",
             "analysis-design": "1.2.0",
             "catalog-register": "1.2.0",
-            "analysis-journal": "1.1.0",
+            "analysis-journal": "1.2.0",
             "analysis-reflection": "1.1.0",
             "analysis-revision": "1.0.0",
             "data-lineage": "1.2.0",

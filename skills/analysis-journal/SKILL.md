@@ -1,6 +1,6 @@
 ---
 name: analysis-journal
-version: "1.1.0"
+version: "1.2.0"
 description: |
   Records reasoning steps during hypothesis-driven analysis as an Insight Journal.
   Supports observation logging, evidence tracking, method decisions, question management,
@@ -169,7 +169,7 @@ Next: /analysis-reflection {design_id} で振り返りと結論導出
 |------|-------------|-----------------|
 | `observe` | Raw data observation, pattern noticed | — |
 | `hypothesize` | Hypothesis formed or refined | `{forked_from?: design_id}` |
-| `evidence` | Evidence found from data analysis | `{direction: "supports" \| "contradicts"}` |
+| `evidence` | Evidence found from data analysis | `{direction?: "supports" \| "contradicts"}` — the lean against `hypothesis_statement`; an exploration's evidence has no `direction` |
 | `hearing` | What a person answered when asked | `{answered_by: str, answered_at: "YYYY-MM-DD", ask?: str, node_id?: str}` |
 | `question` | New question or uncertainty raised | `{priority?: "high" \| "medium" \| "low"}` |
 | `decide` | Method, tool, or approach chosen | `{method: str, package?: str, reason?: str}` |
@@ -179,6 +179,8 @@ Next: /analysis-reflection {design_id} で振り返りと結論導出
 | `reflect` | Meta-level thinking about the analysis | — |
 | `conclude` | Conclusion drawn from evidence | `{resolves?: event_id \| [event_id]}` |
 | `branch` | Fork to alternative hypothesis | `{new_design_id: str, reason?: str}` |
+
+> **direction**: `direction` says whether the evidence supports or contradicts the design's hypothesis (`hypothesis_statement`), so it exists only for a design that holds one. An exploration answers its question without an expectation, so leave `direction` out of its evidence ([ADR-0050](../../docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md)). A guess formed during an exploration is a `hypothesize` event, not a `direction`: record the guess in its own words, and test it with a confirmation later.
 
 > **hearing**: a `hearing` event is what a person said, not an `observe` of the data and not `evidence` from an analysis. Ask who answered and when, and keep the answer in their words. `tree_io copy-hearing` writes one when a design is made on a question node whose next candidate holds a heard answer; it adds `ask` and `node_id` ([ADR-0028](../../docs/adr/0028-hearing-is-its-own-journal-event.md)).
 

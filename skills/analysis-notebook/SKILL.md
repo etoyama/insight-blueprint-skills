@@ -1,6 +1,6 @@
 ---
 name: analysis-notebook
-version: "1.0.1"
+version: "1.1.0"
 description: |
   Generates a notebook (a plain Python script) from an analysis design's methodology, runs it,
   and records the results to the Insight Journal. Turns a reviewed/approved design into an
@@ -65,7 +65,7 @@ The design's data sources (`source_ids`) must be registered in the catalog (else
    If `source_ids` is empty, stop before any transition and suggest declaring the sources with
    /analysis-design (Step 3b).
 3. Status: needs `analyzing`. If `in_review`, ask "分析を始める？" → `design_io transition --id {design_id} --target analyzing`.
-   If the design is terminal (`supported`/`rejected`/`inconclusive`), it can't be analyzed — don't force a
+   If the design is terminal (`supported`/`rejected`/`inconclusive`/`explored`), it can't be analyzed — don't force a
    transition (there is no edge back to `analyzing`); tell the user to branch a new design (/analysis-design)
    or pick another id instead.
 
@@ -96,8 +96,10 @@ exactly these seven cells, in this order, each starting at its `# %% <name>` lin
 each cell assigns). Write no other `# %%` line; read a second source inside the `data_load` cell.
 A notebook with any other cell shows no code in the analysis note. Drive the content from the design:
 
-- docstring: `id` / `title` / `hypothesis_statement` / `analysis_intent`; nothing else comes before
-  the first `# %%` line
+- docstring: `id` / `title` / `analysis_intent`, and what the design answers: an exploration writes
+  a `- Question:` line with `exploration_question`, and a design that holds a hypothesis writes a
+  `- Hypothesis:` line with `hypothesis_statement`. Escape each `\` and `"` as the contract's
+  "File layout" says; nothing else comes before the first `# %%` line
 - `# %% imports`: pandas / matplotlib / numpy + `insight_blueprint.lineage` + `json` / `pathlib`
   — and every other import the notebook needs (the source's client library, methodology packages)
   Any standard-library module other than `json` and `pathlib` is checked against the allowlist like a
@@ -118,8 +120,11 @@ A notebook with any other cell shows no code in the analysis note. Drive the con
   unannounced divergence. This is the only cell that assigns `raw_df`.
 - `# %% data_prep`: methodology-independent cleaning, each step via `tracked_pipe`
 - `# %% analysis`: from `methodology.method` + `methodology.steps` (code patterns) + `analysis_intent`;
-  build the `results` dict with the four required fields (`hypothesis_direction`, `observed_direction`,
-  `confidence_level`, `decision_reason`). For each metric, add the optional `effect_size`,
+  build the `results` dict in the shape of the design's form (the contract's "`results` shape"):
+  an exploration has no `hypothesis_direction`, no `decision_reason`, and no `threshold` or `pass`
+  in its metrics, and keeps every value it measured in `metrics`. In a confirmation, copy each
+  `threshold` from the `comparison` of the design's primary metric; the notebook never makes up a
+  threshold. For each metric, add the optional `effect_size`,
   `confidence_interval`, and `sample_size` when the method defines them — see the contract's
   "Optional metric items" (leave a key out rather than writing a placeholder)
 - `# %% viz`: from `chart[]` (type/description); **save each figure** to

@@ -427,6 +427,19 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - Alternatives considered: 1 で ty を抑える注記を付ける案は、型の穴を隠すので採らなかった。2 で形を省略できる引数にする案は、呼ぶ側が形を渡し忘れても通るので採らなかった。
 - Consequences: 探索の分析ノートとレポートは、32.5 が直すまで仮説の欄が空で出る。
 
+### Decision: notebook-shape-follows-the-form
+
+- What: Story 32.4 で、計画に無かった小さな判断を4つした。
+  1. notebook の `results` の形は、意図ではなく形（`DesignForm`）で選ぶ。旧形式の探索も探索の形で、`direction` の無い evidence を作る。保存済みの `mixed` と意図の無い記録は検証の形になる。
+  2. 検証の primary の指標の `comparison` に基準が書かれていなければ、notebook は閾値を選ばずに止まり、`/analysis-design` を勧める。
+  3. docstring は、探索の問いを持つ分析設計では `- Question:`、検証仮説を持つ分析設計（旧形式の探索も）では `- Hypothesis:` の行を書く。両方は書かない。
+  4. `/analysis-notebook` を 1.1.0、`/analysis-journal` を 1.2.0 に上げた（`test_existing_skills_version_bump` の決まり）。
+- Why: ADR-0050 は探索と検証の2つを書き、旧形式と `mixed` の扱いを書いていない。旧形式の探索は `comparison` に基準を持たないことが多く、検証の形にすると 2 で止まる。
+- Criteria: 探索の契約に予想が残らないこと（Must、ADR-0050 の M1）。保存済みの記録が notebook を作れること（Must、ADR-0049）。決め手は両方。
+- Affected modules: `skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-notebook/SKILL.md`、`skills/analysis-journal/SKILL.md`、`tests/skills/test_skill_structure.py`。
+- Alternatives considered: 旧形式の探索を検証の形にする案は、検証仮説に対する `direction` が付くが、基準の無い判定を notebook にさせるので採らなかった。
+- Consequences: 旧形式の探索を走らせ直すと、evidence は向きを持たない。旧形式は判定で終わるので、reflection（32.7）は向きの無い証拠から判定を選ぶ。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0048: 分析の意図が、分析設計の形と終わり方を決める](../adr/0048-intent-decides-the-form-and-the-end-of-a-design.md): 探索は探索の問いを持って `explored` で終わり、検証は検証仮説を持って判定で終わる。`mixed` は新しく作れない。意図は分析の前だけ変えられる。id の `H` は変えない。
@@ -443,7 +456,7 @@ review、premortem、journal への verdict の記録は、今と同じなので
 | 32.1 土台 | ✓ | ✓ | —（利用者の入口の SKILL.md は 32.3 で変わる。実物の `.insight/` で `design_io` の CLI を走らせて確かめた） |
 | 32.2 用語と文書 | ☐ | ☐ | ☐ |
 | 32.3 入口 | ☐ | ☐ | ☐ |
-| 32.4 notebook と journal | ☐ | ☐ | ☐ |
+| 32.4 notebook と journal | ✓ | ✓ | —（notebook を生成するのは AI で、構造テストが契約と SKILL.md の文を照らす。探索の fixture を契約のコマンドで走らせ、verdict を分析ノートの読み手で読んで確かめた） |
 | 32.5 分析ノートとレポート | ☐ | ☐ | ☐ |
 | 32.6 論点ツリー | ☐ | ☐ | ☐ |
 | 32.7 reflection | ☐ | ☐ | ☐ |
@@ -463,3 +476,4 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - 2026-11-25 — 人間が見本と、全体の整合で決め直した2点を見て、初版と ADR-0048〜0051 を承認した。Domain Model の変更（探索の2項目、`explored`、導く値の `DesignForm`）と、Story を8本にする案も承認した。Story の起票は PM が行う。
 - 2026-11-25 — PM が Story を8本起票した（#226〜#233）。Stories の表の「（未起票）」を issue の番号に書き換えた。
 - 2026-11-25 — Story 32.1 completed: 分析設計の形を意図と項目から導く `DesignForm`、`explored`、2段の検査（読むときは model、作るときは `validate_creation`）を入れた。計画外の判断6つは Decision `foundation-keeps-the-readers-running` に書いた。
+- 2026-11-25 — Story 32.4 completed: 探索の notebook は予想と合否を持たず、測った値を verdict の `metrics` に残す。検証の閾値は primary の指標の `comparison` から写す。探索の evidence は `direction` を持たない。計画外の判断4つは Decision `notebook-shape-follows-the-form` に書いた。

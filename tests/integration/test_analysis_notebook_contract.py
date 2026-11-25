@@ -28,6 +28,9 @@ from skills._shared.design_note_read import (
 )
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_notebook.py"
+EXPLORATION_FIXTURE = (
+    Path(__file__).parent / "fixtures" / "sample_exploration_notebook.py"
+)
 CONTRACT = (
     Path(__file__).parents[2]
     / "skills"
@@ -37,14 +40,14 @@ CONTRACT = (
 )
 
 
-def _run_fixture(tmp_path: Path) -> dict:
-    """Run the reference notebook in ``tmp_path`` with one ``python`` command — the
+def _run_fixture(tmp_path: Path, fixture: Path = FIXTURE) -> dict:
+    """Run a reference notebook in ``tmp_path`` with one ``python`` command — the
     skill's execution mechanism — and return the verdict side-effect.
     """
     pytest.importorskip("pandas")
     pytest.importorskip("matplotlib")
-    nb = tmp_path / "SAMPLE.py"
-    shutil.copy(FIXTURE, nb)
+    nb = tmp_path / fixture.name
+    shutil.copy(fixture, nb)
     run = subprocess.run(
         [sys.executable, str(nb)], cwd=tmp_path, capture_output=True, text=True
     )
@@ -52,9 +55,9 @@ def _run_fixture(tmp_path: Path) -> dict:
     return json.loads((tmp_path / "verdict.json").read_text(encoding="utf-8"))
 
 
-def _shown_cells() -> tuple[CodeCell, ...]:
+def _shown_cells(fixture: Path = FIXTURE) -> tuple[CodeCell, ...]:
     """The fixture's cells as the analysis note cuts them (data_load left out)."""
-    cells = notebook_cells(FIXTURE.read_text(encoding="utf-8"))
+    cells = notebook_cells(fixture.read_text(encoding="utf-8"))
     assert cells is not None, "the cut found the fixture out of the contract's shape"
     return cells
 
@@ -177,3 +180,64 @@ def test_verdict_metric_keeps_the_existing_keys(tmp_path: Path) -> None:
     """The three items are additions: the pre-ADR-0013 keys stay as they were."""
     metric = _run_fixture(tmp_path)["metrics"]["mean_diff"]
     assert {"value", "threshold", "pass"} <= set(metric)
+
+
+def _docstring(fixture: Path) -> list[str]:
+    docstring = ast.get_docstring(ast.parse(fixture.read_text(encoding="utf-8")))
+    assert docstring is not None
+    return docstring.splitlines()
+
+
+def _results_keys(fixture: Path) -> set[str]:
+    """The keys of the ``results`` dict the analysis cell assigns."""
+    (analysis,) = [c for c in _shown_cells(fixture) if c.name == "analysis"]
+    for node in ast.walk(ast.parse(analysis.source)):
+        if (
+            isinstance(node, ast.Assign)
+            and isinstance(node.value, ast.Dict)
+            and [t.id for t in node.targets if isinstance(t, ast.Name)] == ["results"]
+        ):
+            return {ast.literal_eval(k) for k in node.value.keys if k is not None}
+    raise AssertionError("the analysis cell assigns no results dict")
+
+
+class TestTheExplorationSampleKeepsWhatItMeasured:
+    """Epic 32 US-3 AC 1, AC 4: an exploration runs without a prediction or a pass."""
+
+    def test_the_note_cuts_it_into_the_six_cells_but_data_load(self) -> None:
+        assert [c.name for c in _shown_cells(EXPLORATION_FIXTURE)] == [
+            name for name in CONTRACT_CELLS if name != DATA_LOAD_CELL
+        ]
+
+    def test_its_results_hold_no_prediction(self) -> None:
+        keys = _results_keys(EXPLORATION_FIXTURE)
+        assert "metrics" in keys
+        assert not keys & {"hypothesis_direction", "decision_reason"}
+
+    def test_its_verdict_keeps_the_measured_values(self, tmp_path: Path) -> None:
+        metrics = _run_fixture(tmp_path, EXPLORATION_FIXTURE)["metrics"]
+        assert metrics
+        for metric in metrics.values():
+            assert isinstance(metric["value"], float)
+            assert not {"threshold", "pass"} & set(metric)
+
+    def test_its_verdict_carries_no_direction(self, tmp_path: Path) -> None:
+        verdict = _run_fixture(tmp_path, EXPLORATION_FIXTURE)
+        assert "direction" not in json.dumps(verdict)
+
+    def test_its_docstring_states_the_question(self) -> None:
+        lines = _docstring(EXPLORATION_FIXTURE)
+        assert "- Intent: exploratory" in lines
+        assert any(line.startswith("- Question: ") for line in lines)
+        assert not any(line.startswith("- Hypothesis: ") for line in lines)
+
+    def test_its_docstring_escapes_the_quote_in_the_question(self) -> None:
+        """The escape lets a quote stand in the question without ending the docstring."""
+        assert '- Question: how are "wait days" spread across branches?' in (
+            _docstring(EXPLORATION_FIXTURE)
+        )
+
+    def test_the_confirmation_docstring_states_the_hypothesis(self) -> None:
+        lines = _docstring(FIXTURE)
+        assert any(line.startswith("- Hypothesis: ") for line in lines)
+        assert not any(line.startswith("- Question: ") for line in lines)

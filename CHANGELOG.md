@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `mixed`, or no intent) still read and conclude on a verdict as before
   ([ADR-0048](docs/adr/0048-intent-decides-the-form-and-the-end-of-a-design.md),
   [ADR-0049](docs/adr/0049-legacy-exploration-stays-readable-and-is-marked.md), #226).
+- **An exploratory notebook keeps what it measured and predicts nothing.** Its `results` have no
+  `hypothesis_direction` or `decision_reason`, its metrics no `threshold` or `pass`, and the verdict
+  keeps the measured values in `metrics`; its journal evidence carries no `direction`. A confirmation
+  copies its threshold from the `comparison` of the primary metric. The docstring writes the
+  exploration question in place of the hypothesis
+  ([ADR-0050](docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md), #229).
 
 ## [0.18.0] - 2026-11-25
 
