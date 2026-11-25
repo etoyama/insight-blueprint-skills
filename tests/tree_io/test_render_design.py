@@ -194,7 +194,40 @@ class TestRenderDesignNote:
         for cell in ("0.00010", "0.050", "1e-05", "1520", "✓"):
             assert f"<td>{cell}</td>" in html
         assert "<td>0.30（cohens_d）</td>" in html
-        assert "<td>水準 0.95: [0.10, 0.50]</td>" in html
+        assert "<td>信頼区間 水準 0.95: [0.10, 0.50]</td>" in html
+
+    def test_lines_a_judgment_a_kind_and_groups_appear_as_written(
+        self, insight: Path
+    ) -> None:
+        """Epic 33 US-1 AC 3, US-2 AC 2, AC 4 (Story 33.2), through the command."""
+        design_id = _design(insight)
+        _write_verdict(
+            insight,
+            design_id,
+            """{"metrics": {
+              "待ち日数の差": {
+                "value": 1.40, "support_line": 2.0, "reject_line": 1.0,
+                "judgment": "inconclusive",
+                "interval": {"kind": "hdi", "level": 0.95, "lower": 0.90, "upper": 1.90}
+              },
+              "予約の割合": {
+                "by": ["branch", "wait_band"],
+                "groups": [
+                  {"group": ["中央館", "3日以内"], "value": 0.42},
+                  {"group": ["北分館", "3日以内"], "value": 0.25}
+                ]
+              }
+            }}""",
+        )
+
+        html = _note_html(insight, design_id)
+
+        values = html.split("指標の値")[1].split(f'id="note-{design_id}-figures"')[0]
+        for cell in ("1.40", "2.0", "1.0", "結論しない", "HDI 水準 0.95: [0.90, 1.90]"):
+            assert f"<td>{cell}</td>" in values
+        assert "<h5>予約の割合（branch × wait_band）</h5>" in values
+        assert "<tr><th>branch</th><th>3日以内</th></tr>" in values
+        assert "<tr><td>北分館</td><td>0.25</td></tr>" in values
 
     def test_a_json_constant_appears_as_written(self, insight: Path) -> None:
         design_id = _design(insight)

@@ -20,14 +20,19 @@ from pathlib import Path
 
 import pytest
 
-from skills._shared.design_note import CodeCell, MetricJudgment, VerdictMetric
+from skills._shared.design_note import (
+    CodeCell,
+    MetricJudgment,
+    VerdictMetric,
+    render_note,
+)
 from skills._shared.design_note_read import (
     CONTRACT_CELLS,
     DATA_LOAD_CELL,
     load_design_note,
     notebook_cells,
 )
-from tests._saved_verdicts import save_design_with_verdict
+from tests._saved_verdicts import save_design_with_verdict, table_rows
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_notebook.py"
 EXPLORATION_FIXTURE = (
@@ -193,6 +198,56 @@ def _read_back(tmp_path: Path, fixture: Path, intent: str) -> dict[str, VerdictM
     verdict = load_design_note(design_id, base_dir=insight).verdict
     assert verdict is not None
     return {metric.name: metric for metric in verdict.metrics}
+
+
+def _note_tables(tmp_path: Path, fixture: Path, intent: str) -> list[list[list[str]]]:
+    """The tables under 指標の値 of the note made from the verdict the fixture wrote."""
+    _run_fixture(tmp_path, fixture)
+    insight = tmp_path / ".insight"
+    design_id = save_design_with_verdict(
+        insight, intent, (tmp_path / "verdict.json").read_text(encoding="utf-8")
+    )
+    note = str(render_note(load_design_note(design_id, base_dir=insight)))
+    values = note.split("指標の値", 1)[1].split("<h3", 1)[0]
+    return [table_rows(t) for t in re.findall(r"<table>.*?</table>", values, re.S)]
+
+
+class TestTheNoteTabulatesWhatTheSampleWrote:
+    """Epic 33 US-1 AC 3, US-2 AC 2, AC 4 (Story 33.2): the sample's verdict, in the note."""
+
+    def test_the_primary_metric_shows_its_lines_and_judgment_beside_the_guardrail(
+        self, tmp_path: Path
+    ) -> None:
+        main, _ = _note_tables(tmp_path, FIXTURE, "confirmatory")
+
+        rows = {row[0]: dict(zip(main[0], row, strict=True)) for row in main[1:]}
+        assert set(rows) == {"mean_diff", "null_rate"}
+        primary = rows["mean_diff"]
+        assert (primary["支持の線"], primary["棄却の線"], primary["判定"]) == (
+            "5.0",
+            "1.0",
+            "支持",
+        )
+        assert primary["区間"].startswith("信頼区間 水準 0.95: [")
+        guardrail = rows["null_rate"]
+        assert (guardrail["しきい値"], guardrail["合否"], guardrail["判定"]) == (
+            "0.5",
+            "✓",
+            "—",
+        )
+
+    def test_the_groups_come_in_a_table_of_their_own(self, tmp_path: Path) -> None:
+        _, grouped = _note_tables(tmp_path, FIXTURE, "confirmatory")
+
+        assert grouped == [["group", "値", "N"], ["A", "11.0", "2"], ["B", "20.0", "1"]]
+
+    def test_the_exploration_measures_without_lines_or_a_judgment(
+        self, tmp_path: Path
+    ) -> None:
+        main, grouped = _note_tables(tmp_path, EXPLORATION_FIXTURE, "exploratory")
+
+        assert main[0] == ["指標", "値", "効果量", "区間", "N"]
+        assert grouped[0] == ["branch", "値", "N"]
 
 
 class TestTheSampleJudgesItsPrimaryMetricByTwoLines:

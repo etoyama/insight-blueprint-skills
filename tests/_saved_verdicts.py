@@ -104,32 +104,33 @@ SAVED_VERDICTS: dict[str, tuple[str | None, str]] = {
     "design_without_an_intent": (None, PRIMARY_AND_GUARDRAIL),
 }
 
-_HEADERS = ["指標", "値", "効果量", "信頼区間", "N", "しきい値", "p", "合否"]
 _PRIMARY_AND_GUARDRAIL_ROWS = [
-    _HEADERS,
-    ["rho", "0.62", "—", "水準 0.95: [0.51, 0.69]", "412", "0.70", "—", "✓"],
-    ["欠損の検査", "—", "—", "—", "—", "—", "—", "✓"],
+    ["指標", "値", "区間", "N", "しきい値", "合否"],
+    ["rho", "0.62", "信頼区間 水準 0.95: [0.51, 0.69]", "412", "0.70", "✓"],
+    ["欠損の検査", "—", "—", "—", "—", "✓"],
 ]
 
-# The rows of the note's metric table for each saved verdict, header first, as
-# the code before Epic 33 laid them out (main 09fc48a). None: the note has no table.
+# The rows of the note's metric table for each saved verdict, header first. None:
+# the note has no table. The values are those the code before Epic 33 laid out
+# (main 09fc48a); the columns no metric fills are left out and the interval names
+# its kind (ADR-0052 8), as Story 33.2 reads US-1 AC 5.
 NOTE_TABLES: dict[str, list[list[str]] | None] = {
     "no_metrics": None,
     "p_and_p_value": [
-        _HEADERS,
-        ["旧い p", "1.80", "—", "—", "—", "—", "0.040", "—"],
-        ["契約の p_value", "1.80", "—", "—", "—", "—", "0.030", "—"],
-        ["両方", "1.80", "—", "—", "—", "—", "0.040", "—"],
+        ["指標", "値", "p"],
+        ["旧い p", "1.80", "0.040"],
+        ["契約の p_value", "1.80", "0.030"],
+        ["両方", "1.80", "0.040"],
     ],
     "optional_items": [
-        _HEADERS,
+        ["指標", "値", "効果量", "区間", "N", "しきい値", "p", "合否"],
         ["任意の項目なし", "0.346", "—", "—", "—", "0.050", "—", "✓"],
         ["欠けた項目", "1", "—", "—", "—", "—", "—", "—"],
         [
             "そろった項目",
             "0.00010",
             "0.30（cohens_d）",
-            "水準 0.95: [0.10, 0.50]",
+            "信頼区間 水準 0.95: [0.10, 0.50]",
             "1520",
             "0.050",
             "1e-05",
@@ -137,38 +138,27 @@ NOTE_TABLES: dict[str, list[list[str]] | None] = {
         ],
     ],
     "exploration_with_a_pass": [
-        _HEADERS,
+        ["指標", "値", "区間", "N", "しきい値", "合否"],
         [
             "待ち日数の差",
             "1.80",
-            "—",
-            "水準 0.95: [0.40, 3.20]",
+            "信頼区間 水準 0.95: [0.40, 3.20]",
             "840",
             "1.0",
-            "—",
             "✓",
         ],
     ],
     "threshold_kinds": [
-        _HEADERS,
-        ["数", "2.10", "—", "—", "—", "2.0", "—", "✓"],
-        ["文字", "2.10", "—", "—", "—", "2.0 日以上", "—", "✓"],
-        [
-            "その他の JSON",
-            "2.10",
-            "—",
-            "—",
-            "—",
-            '{"min": 1.0, "max": [2.0, NaN]}',
-            "—",
-            "—",
-        ],
+        ["指標", "値", "しきい値", "合否"],
+        ["数", "2.10", "2.0", "✓"],
+        ["文字", "2.10", "2.0 日以上", "✓"],
+        ["その他の JSON", "2.10", '{"min": 1.0, "max": [2.0, NaN]}', "—"],
     ],
     "pass_not_a_boolean": [
-        _HEADERS,
-        ["文字の合否", "2.10", "—", "—", "—", "2.0", "—", "—"],
-        ["数の合否", "2.10", "—", "—", "—", "2.0", "—", "—"],
-        ["null の合否", "2.10", "—", "—", "—", "2.0", "—", "—"],
+        ["指標", "値", "しきい値"],
+        ["文字の合否", "2.10", "2.0"],
+        ["数の合否", "2.10", "2.0"],
+        ["null の合否", "2.10", "2.0"],
     ],
     "mixed_design": _PRIMARY_AND_GUARDRAIL_ROWS,
     "design_without_an_intent": _PRIMARY_AND_GUARDRAIL_ROWS,

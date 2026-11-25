@@ -13,6 +13,8 @@ from skills._shared.design_note import (
     CodeCell,
     Conclusion,
     DesignNote,
+    MetricGroup,
+    MetricJudgment,
     NoteEvent,
     NoteFigure,
     NoteSource,
@@ -23,6 +25,7 @@ from skills._shared.design_note import (
     render_note,
     render_note_page,
 )
+from tests._saved_verdicts import table_rows
 
 PNG = b"\x89PNG\r\n\x1a\nnot-really-a-png"
 EVIL = '<script>alert(1)</script>"'
@@ -352,25 +355,16 @@ class TestResults:
         html = str(render_note(_note(metrics=(metric,))))
 
         assert "<td>0.30（cohens_d）</td>" in html
-        assert "<td>水準 0.95: [0.10, 0.50]</td>" in html
-
-    def test_an_interval_of_another_kind_is_not_called_a_confidence_interval(
-        self,
-    ) -> None:
-        """Until Story 33.2 names the kind, an HDI stays out of the 信頼区間 column."""
-        metric = _metric(interval=ValueInterval("hdi", "0.95", "0.10", "0.50"))
-
-        html = str(render_note(_note(metrics=(metric,))))
-
-        assert "水準 0.95" not in html
+        assert "<td>信頼区間 水準 0.95: [0.10, 0.50]</td>" in html
 
     def test_a_missing_item_is_a_dash_and_a_failed_metric_is_a_cross(self) -> None:
-        metric = _metric(passed=False)
+        failed = _metric(passed=False)
+        measured = _metric(name="件数", p="0.01")
 
-        html = str(render_note(_note(metrics=(metric,))))
+        html = str(render_note(_note(metrics=(failed, measured))))
 
         assert "<td>✗</td>" in html
-        assert html.count("<td>—</td>") == 5
+        assert html.count("<td>—</td>") == 2  # 合否 of 件数, p of the failed one
 
     def test_a_metric_with_no_pass_verdict_is_a_dash(self) -> None:
         html = str(render_note(_note(metrics=(_metric(passed=None),))))
@@ -1122,3 +1116,312 @@ class TestStatusByForm:
 
         for word in VERDICT_WORDS:
             assert word not in html, word
+
+
+# Epic 33 Story 33.2: the lines, the judgment, the kind of interval and the
+# groups in the note's metric table (US-1 AC 3, US-2 AC 2, AC 4, ADR-0052 8, 9).
+
+
+def _value_tables(note: DesignNote) -> list[tuple[str | None, list[list[str]]]]:
+    """Each table under 指標の値, with the h5 heading just before it (None if none)."""
+    values = _section_of(str(render_note(note)), "results").split("指標の値", 1)[1]
+    return [
+        (heading or None, table_rows(table))
+        for heading, table in re.findall(
+            r"(?:<h5>(.*?)</h5>\s*)?<div class=\"table-wrap\">(<table>.*?</table>)",
+            values,
+            re.S,
+        )
+    ]
+
+
+def _main_table(note: DesignNote) -> list[list[str]]:
+    (first_heading, rows), *_ = _value_tables(note)
+    assert first_heading is None
+    return rows
+
+
+def _group(*names: str, value: str | None = None, **over: object) -> MetricGroup:
+    fields: dict = {
+        "group": names,
+        "value": value,
+        "p": None,
+        "effect_size": None,
+        "interval": None,
+        "sample_size": None,
+    }
+    fields.update(over)
+    return MetricGroup(**fields)
+
+
+class TestLinesAndJudgment:
+    """US-1 AC 3: the lines and the judgment, each in its own column."""
+
+    def test_the_lines_and_the_judgment_come_in_their_own_columns(self) -> None:
+        primary = _metric(
+            name="待ち日数の差",
+            value="1.4",
+            support_line="2.0",
+            reject_line="1.0",
+            judgment=MetricJudgment.inconclusive,
+        )
+        guardrail = _metric(name="欠損率", value="0.02", threshold="0.05", passed=True)
+
+        rows = _main_table(_note(metrics=(primary, guardrail)))
+
+        assert rows == [
+            ["指標", "値", "支持の線", "棄却の線", "判定", "しきい値", "合否"],
+            ["待ち日数の差", "1.4", "2.0", "1.0", "結論しない", "—", "—"],
+            ["欠損率", "0.02", "—", "—", "—", "0.05", "✓"],
+        ]
+
+    @pytest.mark.parametrize(
+        ("judgment", "word"),
+        [
+            (MetricJudgment.supported, "支持"),
+            (MetricJudgment.rejected, "棄却"),
+            (MetricJudgment.inconclusive, "結論しない"),
+        ],
+    )
+    def test_each_judgment_reads_as_its_word(
+        self, judgment: MetricJudgment, word: str
+    ) -> None:
+        rows = _main_table(_note(metrics=(_metric(judgment=judgment),)))
+
+        assert rows[1][rows[0].index("判定")] == word
+
+    def test_one_line_alone_leaves_the_other_line_out(self) -> None:
+        metric = _metric(support_line="2.0", judgment=MetricJudgment.supported)
+
+        rows = _main_table(_note(metrics=(metric,)))
+
+        assert rows[0] == ["指標", "値", "支持の線", "判定"]
+
+    def test_an_exploration_shows_no_line_and_no_judgment(self) -> None:
+        metric = _metric(
+            support_line="2.0", reject_line="1.0", judgment=MetricJudgment.supported
+        )
+
+        rows = _main_table(_note(design=_exploration(), metrics=(metric,)))
+
+        assert rows == [["指標", "値"], ["期限切れ率の差", "0.346"]]
+
+
+class TestColumnsNoMetricFills:
+    """ADR-0052 8: a column no metric fills is left out; one metric fills it, the rest dash."""
+
+    def test_only_the_columns_some_metric_fills_come_out(self) -> None:
+        rows = _main_table(_note(metrics=(_metric(), _metric(name="件数", value="12"))))
+
+        assert rows == [["指標", "値"], ["期限切れ率の差", "0.346"], ["件数", "12"]]
+
+    def test_a_column_one_metric_fills_shows_a_dash_for_the_others(self) -> None:
+        rows = _main_table(
+            _note(metrics=(_metric(sample_size="840"), _metric(name="件数")))
+        )
+
+        assert rows[0] == ["指標", "値", "N"]
+        assert rows[2] == ["件数", "0.346", "—"]
+
+
+class TestIntervalKind:
+    """US-2 AC 2: the interval comes under 区間, with its kind and level."""
+
+    @pytest.mark.parametrize(
+        ("kind", "shown"),
+        [
+            (CONFIDENCE, "信頼区間 水準 0.95: [0.10, 0.50]"),
+            ("hdi", "HDI 水準 0.95: [0.10, 0.50]"),
+            ("eti", "等裾信用区間 水準 0.95: [0.10, 0.50]"),
+            ("bootstrap_percentile", "bootstrap_percentile 水準 0.95: [0.10, 0.50]"),
+        ],
+    )
+    def test_the_kind_is_named_beside_the_level_and_the_bounds(
+        self, kind: str, shown: str
+    ) -> None:
+        metric = _metric(interval=ValueInterval(kind, "0.95", "0.10", "0.50"))
+
+        rows = _main_table(_note(metrics=(metric,)))
+
+        assert rows == [["指標", "値", "区間"], ["期限切れ率の差", "0.346", shown]]
+
+    def test_a_kind_the_note_has_no_word_for_is_escaped(self) -> None:
+        metric = _metric(interval=ValueInterval(EVIL, "0.95", "0.10", "0.50"))
+
+        html = str(render_note(_note(metrics=(metric,))))
+
+        assert "<script>" not in html
+        assert "&lt;script&gt;" in html
+
+
+class TestGroupTables:
+    """US-2 AC 4: a metric with groups gets a table of its own; nothing is computed."""
+
+    def test_two_axes_of_values_only_lay_one_axis_down_and_one_across(self) -> None:
+        metric = _metric(
+            name="予約の割合",
+            value=None,
+            by=("branch", "wait_band"),
+            groups=(
+                _group("中央館", "3日以内", value="0.42"),
+                _group("中央館", "8日以上", value="0.20"),
+                _group("北分館", "3日以内", value="0.25"),
+                _group("北分館", "8日以上", value="0.35"),
+            ),
+        )
+
+        tables = _value_tables(_note(metrics=(metric,)))
+
+        assert tables == [
+            (
+                "予約の割合（branch × wait_band）",
+                [
+                    ["branch", "3日以内", "8日以上"],
+                    ["中央館", "0.42", "0.20"],
+                    ["北分館", "0.25", "0.35"],
+                ],
+            )
+        ]
+
+    def test_the_names_keep_the_order_they_were_written_in(self) -> None:
+        """Sorting would turn "10" before "9"; the note does not sort at all."""
+        metric = _metric(
+            value=None,
+            by=("月", "区分"),
+            groups=(
+                _group("9", "b", value="1"),
+                _group("10", "a", value="2"),
+                _group("9", "a", value="3"),
+            ),
+        )
+
+        ((_, rows),) = _value_tables(_note(metrics=(metric,)))
+
+        assert rows == [["月", "b", "a"], ["9", "1", "3"], ["10", "—", "2"]]
+
+    def test_a_missing_value_in_a_two_axis_table_is_a_dash(self) -> None:
+        metric = _metric(
+            value=None,
+            by=("x", "y"),
+            groups=(_group("p", "q", value=None), _group("r", "s", value="5")),
+        )
+
+        ((_, rows),) = _value_tables(_note(metrics=(metric,)))
+
+        assert rows == [["x", "q", "s"], ["p", "—", "—"], ["r", "—", "5"]]
+
+    def test_one_axis_is_a_tall_table_with_a_column_for_the_group(self) -> None:
+        metric = _metric(
+            name="待ち日数",
+            value=None,
+            by=("branch",),
+            groups=(
+                _group("中央館", value="4.0", sample_size="1200"),
+                _group("北分館", value="7.0", sample_size="310"),
+            ),
+        )
+
+        tables = _value_tables(_note(metrics=(metric,)))
+
+        assert tables == [
+            (
+                "待ち日数（branch）",
+                [
+                    ["branch", "値", "N"],
+                    ["中央館", "4.0", "1200"],
+                    ["北分館", "7.0", "310"],
+                ],
+            )
+        ]
+
+    def test_two_axes_with_more_than_a_value_are_a_tall_table(self) -> None:
+        metric = _metric(
+            value=None,
+            by=("x", "y"),
+            groups=(
+                _group(
+                    "p",
+                    "q",
+                    value="1",
+                    interval=ValueInterval("hdi", "0.9", "0.5", "1.5"),
+                ),
+                _group("p", "r", value="2", p="0.03"),
+            ),
+        )
+
+        ((_, rows),) = _value_tables(_note(metrics=(metric,)))
+
+        assert rows == [
+            ["x", "y", "値", "区間", "p"],
+            ["p", "q", "1", "HDI 水準 0.9: [0.5, 1.5]", "—"],
+            ["p", "r", "2", "—", "0.03"],
+        ]
+
+    def test_three_axes_are_a_tall_table(self) -> None:
+        metric = _metric(
+            value=None,
+            by=("a", "b", "c"),
+            groups=(_group("1", "2", "3", value="4"),),
+        )
+
+        ((_, rows),) = _value_tables(_note(metrics=(metric,)))
+
+        assert rows == [["a", "b", "c", "値"], ["1", "2", "3", "4"]]
+
+    def test_a_pair_written_twice_is_a_tall_table_so_no_value_is_hidden(self) -> None:
+        metric = _metric(
+            value=None,
+            by=("x", "y"),
+            groups=(_group("p", "q", value="1"), _group("p", "q", value="2")),
+        )
+
+        ((_, rows),) = _value_tables(_note(metrics=(metric,)))
+
+        assert rows == [["x", "y", "値"], ["p", "q", "1"], ["p", "q", "2"]]
+
+    def test_a_metric_with_only_groups_has_no_row_in_the_main_table(self) -> None:
+        grouped = _metric(
+            name="群だけ", value=None, by=("x",), groups=(_group("p", value="1"),)
+        )
+
+        tables = _value_tables(_note(metrics=(_metric(), grouped)))
+
+        assert [heading for heading, _ in tables] == [None, "群だけ（x）"]
+        assert tables[0][1] == [["指標", "値"], ["期限切れ率の差", "0.346"]]
+
+    def test_an_exploration_metric_whose_only_cells_are_hidden_is_not_listed(
+        self,
+    ) -> None:
+        grouped = _metric(
+            name="群だけ",
+            value=None,
+            threshold="1.0",
+            by=("x",),
+            groups=(_group("p", value="1"),),
+        )
+
+        tables = _value_tables(_note(design=_exploration(), metrics=(grouped,)))
+
+        assert tables == [("群だけ（x）", [["x", "値"], ["p", "1"]])]
+
+    def test_a_metric_with_a_value_and_groups_shows_both(self) -> None:
+        metric = _metric(
+            name="両方", value="9", by=("x",), groups=(_group("p", value="1"),)
+        )
+
+        tables = _value_tables(_note(metrics=(metric,)))
+
+        assert tables == [
+            (None, [["指標", "値"], ["両方", "9"]]),
+            ("両方（x）", [["x", "値"], ["p", "1"]]),
+        ]
+
+    def test_names_of_the_metric_the_axes_and_the_groups_are_escaped(self) -> None:
+        metric = _metric(
+            name=EVIL, value=None, by=(EVIL,), groups=(_group(EVIL, value="1"),)
+        )
+
+        html = str(render_note(_note(metrics=(metric,))))
+
+        assert "<script>" not in html
+        assert html.count("&lt;script&gt;") == 4  # heading twice, axis, group

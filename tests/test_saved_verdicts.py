@@ -1,7 +1,8 @@
-"""A verdict saved before Epic 33 comes out as it did (Epic 33 US-1 AC 5, ADR-0052).
+"""A verdict saved before Epic 33 comes out with the values it had (Epic 33 US-1 AC 5, ADR-0052).
 
 The new items of a metric are all optional, so a project's saved verdicts need
-no rewrite. The expected rows were taken from the code before the Epic.
+no rewrite. The expected values were taken from the code before the Epic; the
+columns are those ADR-0052 8 keeps (Story 33.2).
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ def _metric_table(insight: Path, design_id: str) -> list[list[str]] | None:
 
 
 @pytest.mark.parametrize("name", SAVED_VERDICTS)
-def test_the_note_tabulates_a_saved_verdict_as_before(
+def test_the_note_tabulates_a_saved_verdict_with_the_values_it_had(
     tmp_path: Path, name: str
 ) -> None:
     insight = tmp_path / ".insight"
