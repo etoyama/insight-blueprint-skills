@@ -138,18 +138,18 @@ AC の正本はここ。
 
 ## Stories
 
-Story は PM のセッションが起票する。下は初版の案で、起票したら issue の番号を書く。「触る所」が重なる Story は並行で進めない。
+Story は PM のセッションが起票した。「触る所」が重なる Story は並行で進めない。
 
 | Story issue | User Story | 扱う AC | 触る所 | 前提 |
 |---|---|---|---|---|
-| 32.1 土台（未起票） | US-2 | AC 1, AC 2, AC 3, AC 4, AC 5 | `src/insight_blueprint/models/design.py`、`src/insight_blueprint/validate.py`、`skills/_shared/design_io.py`、`skills/premortem/lib/risk_evaluator.py`、`skills/premortem/SKILL.md`、`docs/ARCHITECTURE.md` の Domain Model 図（テストが model と照らす）、`tests/test_design_models.py`、`tests/test_validate.py`、`tests/test_design_io.py` | 無し |
-| 32.2 用語と文書（未起票） | US-8 | AC 1, AC 2, AC 3, AC 4 | `docs/UBIQUITOUS_LANGUAGE.md`、`.yomiyasu-words/`、`docs/PRD.md`、`docs/ARCHITECTURE.md`、`CHANGELOG.md`、`tests/docs/test_canonical_docs.py` | 32.1 |
-| 32.3 入口（未起票） | US-1 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/analysis-design/SKILL.md`、`skills/analysis-auto/SKILL.md`、`skills/analysis-framing/SKILL.md`、`skills/analysis-review/SKILL.md`、`tests/skills/` | 32.1 |
-| 32.4 notebook と journal（未起票） | US-3 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-notebook/SKILL.md`、`skills/analysis-journal/SKILL.md`、`tests/integration/fixtures/sample_notebook.py`、`tests/integration/test_analysis_notebook_contract.py` | 32.1 |
-| 32.5 分析ノートとレポート（未起票） | US-5 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/design_note.py`、`skills/_shared/design_note_read.py`、`skills/_shared/theme_report.py`、`tests/test_design_note.py`、`tests/test_theme_report.py` | 32.1 |
-| 32.6 論点ツリー（未起票） | US-4 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`、`tests/fixtures/handoff/lib/`、`tests/test_tree_render.py`、`tests/test_handoff_trial.py`、`docs/HANDOFF_TRIAL.md` | 32.5 |
-| 32.7 reflection（未起票） | US-6 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/analysis-reflection/SKILL.md`、`skills/analysis-auto/SKILL.md` の reflection の行、`tests/skills/` | 32.3、32.4 |
-| 32.8 新しい指標の解説（未起票） | US-7 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/analysis-design/SKILL.md`、`skills/analysis-auto/SKILL.md` の design ② の行、`tests/skills/` | 32.3 |
+| #226（32.1 土台） | US-2 | AC 1, AC 2, AC 3, AC 4, AC 5 | `src/insight_blueprint/models/design.py`、`src/insight_blueprint/validate.py`、`skills/_shared/design_io.py`、`skills/premortem/lib/risk_evaluator.py`、`skills/premortem/SKILL.md`、`docs/ARCHITECTURE.md` の Domain Model 図（テストが model と照らす）、`tests/test_design_models.py`、`tests/test_validate.py`、`tests/test_design_io.py` | 無し |
+| #227（32.2 用語と文書） | US-8 | AC 1, AC 2, AC 3, AC 4 | `docs/UBIQUITOUS_LANGUAGE.md`、`.yomiyasu-words/`、`docs/PRD.md`、`docs/ARCHITECTURE.md`、`CHANGELOG.md`、`tests/docs/test_canonical_docs.py` | 32.1 |
+| #228（32.3 入口） | US-1 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/analysis-design/SKILL.md`、`skills/analysis-auto/SKILL.md`、`skills/analysis-framing/SKILL.md`、`skills/analysis-review/SKILL.md`、`tests/skills/` | 32.1 |
+| #229（32.4 notebook と journal） | US-3 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-notebook/SKILL.md`、`skills/analysis-journal/SKILL.md`、`tests/integration/fixtures/sample_notebook.py`、`tests/integration/test_analysis_notebook_contract.py` | 32.1 |
+| #230（32.5 分析ノートとレポート） | US-5 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/design_note.py`、`skills/_shared/design_note_read.py`、`skills/_shared/theme_report.py`、`tests/test_design_note.py`、`tests/test_theme_report.py` | 32.1 |
+| #231（32.6 論点ツリー） | US-4 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`、`tests/fixtures/handoff/lib/`、`tests/test_tree_render.py`、`tests/test_handoff_trial.py`、`docs/HANDOFF_TRIAL.md` | 32.5 |
+| #232（32.7 reflection） | US-6 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/analysis-reflection/SKILL.md`、`skills/analysis-auto/SKILL.md` の reflection の行、`tests/skills/` | 32.3、32.4 |
+| #233（32.8 新しい指標の解説） | US-7 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/analysis-design/SKILL.md`、`skills/analysis-auto/SKILL.md` の design ② の行、`tests/skills/` | 32.3 |
 
 - 波 1 は 32.1 である。分析設計の形（下の Domain Model の `DesignForm`）と `explored` を、ほかの Story が読む。
 - 波 2 は 32.2・32.3・32.4・32.5 で、並行で進められる。重なるのは `CHANGELOG.md` だけである。
@@ -446,3 +446,4 @@ review、premortem、journal への verdict の記録は、今と同じなので
   分かった事実は2つある。合成シナリオの LIB-H01 は開いた問いに仮説と `supported` を付けた形だった（Background に書いた）。1つの論点に判定が2つ並び、論点の答えは未判別という場面を作れた（US-4 AC 5 に書いた）。
   確かめていない前提は2つある。見本は手で書いた HTML で、`tree_render.py` が出したものではない。直した後の表示で、引き継ぎの試行は回していない。
 - 2026-11-25 — 人間が見本と、全体の整合で決め直した2点を見て、初版と ADR-0048〜0051 を承認した。Domain Model の変更（探索の2項目、`explored`、導く値の `DesignForm`）と、Story を8本にする案も承認した。Story の起票は PM が行う。
+- 2026-11-25 — PM が Story を8本起票した（#226〜#233）。Stories の表の「（未起票）」を issue の番号に書き換えた。
