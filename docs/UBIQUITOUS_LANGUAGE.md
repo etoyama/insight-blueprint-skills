@@ -29,10 +29,10 @@
 | 探索の問い | `exploration_question` | 探索の分析設計が測って答える問いの文。論点ツリーの無いテーマでも、何に答えるかを分析設計だけで読めるように持つ。検証仮説と `next_action` は持たない | 問い（分析設計の項目を指すとき） | [ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md) |
 | 探索の問いの背景 | `exploration_background` | 探索の問いを立てた理由と前提 | — | [ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md) |
 | 分析設計の形 | `DesignForm` | 分析の意図と項目から導く分析設計の区別。探索（`exploration`）・検証（`confirmation`）・旧形式の探索（`legacy_exploration`）の3つで、保存しない。検査・遷移・表示は形を見て分ける | — | [ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md) |
-| 旧形式の探索 | `legacy_exploration` | 分析の意図が探索（`exploratory`）なのに検証仮説を持つ分析設計。分析設計の形が意図で決まる前に作られた。読めて、検証と同じ検査と遷移で判定で終わり、意図は「探索（旧形式）」と出す。新しく作れない。`confirmatory` に直すことは、どの状態でもできる | — | [ADR-0049](adr/0049-legacy-exploration-stays-readable-and-is-marked.md) |
+| 旧形式の探索 | `legacy_exploration` | 分析の意図が探索（`exploratory`）なのに検証仮説を持つ分析設計。分析設計の形が意図で決まる前に作られた。読めて、検証と同じ検査と遷移で判定で終わり、意図は「探索（旧形式）」と出す。新しく作れない。検証仮説とその背景が書かれていれば、`confirmatory` に直すことはどの状態でもできる | — | [ADR-0049](adr/0049-legacy-exploration-stays-readable-and-is-marked.md) |
 | 状態 | `DesignStatus` | 分析設計がライフサイクルのどこにいるか。`VALID_TRANSITIONS` の遷移でだけ変わる | ステータス | fork 前 |
 | terminal status | `explored`、`supported`、`rejected`、`inconclusive` | 結論を出した分析設計の状態。これ以上遷移しない。探索は `explored` でだけ終わり、判定しない。検証と旧形式の探索は判定の3つ（`supported`・`rejected`・`inconclusive`）でだけ終わる | 終端状態 | fork 前、[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md) |
-| 分析の意図 | `AnalysisIntent` | 探索（`exploratory`）・検証（`confirmatory`）・両方（`mixed`）の区別。分析設計の形を決める。`mixed` は新しく作れない。保存済みの `mixed` は検証として読む。意図を変えられるのは状態が `in_review` か `revision_requested` の間だけで、分析の後は派生で別の意図の分析設計を作る | — | fork 前、[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md) |
+| 分析の意図 | `AnalysisIntent` | 探索（`exploratory`）・検証（`confirmatory`）・両方（`mixed`）の区別。分析設計の形を決める。`mixed` は新しく作れない。保存済みの `mixed` は検証として読む。意図を変えられるのは状態が `in_review` か `revision_requested` の間だけで、分析の後は派生で別の意図の分析設計を作る。例外は旧形式の探索を `confirmatory` に直すことで、どの状態でもできる | — | fork 前、[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md) |
 | 手法 | `Methodology` | 探索の問いに答えるか、検証仮説を判定するのに使う統計手法とパッケージと選んだ理由。手法名は空にできない | — | fork 前 |
 | 決定の文脈 | `DecisionContext`、`decision_context` | 分析設計が任意で持つ、誰が（`decision_maker`）何を決めるための分析か（`decision`）の組。あるときは両方が空でない | 意思決定コンテキスト | [ADR-0014](adr/0014-analysis-design-decision-context.md) |
 | 指標 | `Metric` | 探索では問いに答えるために、検証では検証仮説を判定するために測る量 | — | fork 前、[ADR-0050](adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md) |

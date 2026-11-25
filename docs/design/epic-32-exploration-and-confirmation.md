@@ -441,12 +441,12 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - Consequences: 旧形式の探索を走らせ直すと、evidence は向きを持たない。旧形式は判定で終わるので、reflection（32.7）は向きの無い証拠から判定を選ぶ。
 ### Decision: qualified-variants-become-yomiyasu-patterns
 
-- What: 用語集の「使わない言い換え」のうち、条件の付いた語（「仮説（分析設計の項目を指すとき）」など）を、`scripts/export_yomiyasu_words.py` が `.yomiyasu-words/flag-patterns.txt` に書き出す。パターンは、その語を含むほかの用語（検証仮説、仮説の背景、探索の問い、根の問い、未解決の問い）を後読みと先読みで外す。パターンの名前に条件と使う語を入れ、yomiyasu の指摘に出す。Story 32.2 の計画に無かった判断である。
+- What: 用語集の「使わない言い換え」のうち、条件の付いた語（「仮説（分析設計の項目を指すとき）」など）を、`scripts/export_yomiyasu_words.py` が `.yomiyasu-words/flag-patterns.txt` に書き出す。パターンは、その語を含むほかの用語（検証仮説、仮説の背景、探索の問い、根の問い、未解決の問い）を後読みと先読みで外す。パターンの名前に条件と使う語を入れ、yomiyasu の指摘に出す。yomiyasu は、`allow.txt` にある文字列に当たったパターンの指摘を外す。そのため、パターンの語になる用語（仮説、アップロード）は `allow.txt` に書き出さない。英数字だけの語（hypothesis）は単語の境目で当てる。Story 32.2 の計画に無かった判断である。
 - Why: US-8 AC 2 は、素の「仮説」と素の「問い」が `.yomiyasu-words/` に出ることを求める。今までの書き出しは条件の付いた語を捨てていた。`flag.txt` は漢字だけの語を熟語の中にも当てるので、「仮説」を書くと正しい「検証仮説」にも指摘が出る。yomiyasu 3.0.0 の `flag-patterns.txt` は後読みを使えるので、ほかの用語の中では当てずに済む。
 - Criteria: AC 2 を満たすこと（Must）。用語集を正本のままにし、`.yomiyasu-words/` を手で書かないこと（Must、[docs/WORKFLOW.md §8](../WORKFLOW.md)）。正しい用語に指摘を出さないこと（Want）。決め手は Must の2つ。
 - Affected modules: `scripts/export_yomiyasu_words.py`、`.yomiyasu-words/flag-patterns.txt`、`tests/docs/test_canonical_docs.py`。
 - Alternatives considered: `flag.txt` に「仮説」と書く案は、「検証仮説」と「仮説の背景」のすべてに指摘が出るので採らなかった。AC 2 の2語だけを特別に扱う案は、条件の付いたほかの語（「ノート」「公開」「共有」「アップロード」「hypothesis」）と決まりが分かれるので採らなかった。
-- Consequences: 条件の付いた既存の5語にも、yomiyasu の指摘（info）が出るようになる。「公開」「共有」「アップロード」は、ほかの用語の中に無いので、正しい使い方にも指摘が出る。指摘は info で、推敲する人がパターンの名前の条件を見て決める。
+- Consequences: 条件の付いた既存の5語にも、yomiyasu の指摘（info）が出るようになる。「公開」「共有」「アップロード」は、ほかの用語の中に無いので、正しい使い方にも指摘が出る。「公開」と「共有」は `flag.txt`（使う語は export）にもあるので、使う語が2つ並ぶ。指摘は info で、推敲する人がパターンの名前の条件を見て決める。「仮説」と「アップロード」は `allow.txt` から外れるので、型で拾う直訳語の指摘から外れなくなる。
 
 ### Cross-epic decisions (links to ADR)
 
@@ -462,7 +462,7 @@ review、premortem、journal への verdict の記録は、今と同じなので
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
 | 32.1 土台 | ✓ | ✓ | —（利用者の入口の SKILL.md は 32.3 で変わる。実物の `.insight/` で `design_io` の CLI を走らせて確かめた） |
-| 32.2 用語と文書 | ✓ | ✓ | —（利用者の入口は変えない。yomiyasu の lint に `flag-patterns.txt` を読ませ、終了コード0で用語集にパターンが当たることを確かめた） |
+| 32.2 用語と文書 | ✓ | ✓ | —（利用者の入口は変えない。yomiyasu の lint に `flag-patterns.txt` を読ませた。素の仮説・問い・hypothesis・アップロードに指摘が出て、検証仮説と探索の問いには出ないことを、例の文で確かめた） |
 | 32.3 入口 | ☐ | ☐ | ☐ |
 | 32.4 notebook と journal | ✓ | ✓ | —（notebook を生成するのは AI で、構造テストが契約と SKILL.md の文を照らす。探索の fixture を契約のコマンドで走らせ、verdict を分析ノートの読み手で読んで確かめた） |
 | 32.5 分析ノートとレポート | ☐ | ☐ | ☐ |

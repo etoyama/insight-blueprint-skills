@@ -69,11 +69,19 @@ def _pattern(word: str, terms: list[str]) -> str:
     )
 
 
+def _word(variant: str) -> str:
+    word = variant.split("（", 1)[0].strip()
+    if not word:
+        raise ValueError(f"variant {variant!r} has no word before its condition")
+    return word
+
+
 def render(markdown: str) -> dict[str, str]:
     rows = terms_rows(markdown)
-    allow = [row[TERM] for row in rows]
+    terms = [row[TERM] for row in rows]
     flag: list[str] = []
     patterns: list[str] = []
+    pattern_words: set[str] = set()
     for row in rows:
         for variant in row[AVOID].split("、"):
             if variant in ("", "—"):
@@ -85,8 +93,15 @@ def render(markdown: str) -> dict[str, str]:
             # contexts. A flag.txt word would also match inside the terms that contain it
             # (仮説 in 検証仮説), so it goes to flag-patterns.txt with those terms skipped,
             # and the pattern's name carries the condition for the reader.
-            word = variant.split("（", 1)[0]
-            patterns.append(f"{variant}は{row[TERM]}\t{_pattern(word, allow)}")
+            word = _word(variant)
+            regex = _pattern(word, terms)
+            if word.isascii() and word.isalnum():
+                regex = rf"\b{regex}\b"
+            patterns.append(f"{variant}は{row[TERM]}\t{regex}")
+            pattern_words.add(word)
+    # yomiyasu drops a pattern's hit when the matched text is in allow.txt, so a term
+    # that is also a pattern's word (仮説, アップロード) is left out of it.
+    allow = [term for term in terms if term not in pattern_words]
     return {
         "allow.txt": HEADER + "\n".join(allow) + "\n",
         "flag.txt": HEADER + "\n".join(flag) + "\n",

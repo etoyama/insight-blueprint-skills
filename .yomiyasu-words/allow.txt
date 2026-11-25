@@ -1,6 +1,5 @@
 # Generated from docs/UBIQUITOUS_LANGUAGE.md by scripts/export_yomiyasu_words.py. Do not edit.
 分析設計
-仮説
 検証仮説
 仮説の背景
 探索の問い
@@ -59,7 +58,6 @@ figures manifest
 信頼区間
 標本サイズ
 レポート
-アップロード
 export
 データ由来の文
 違反

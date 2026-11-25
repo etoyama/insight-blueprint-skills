@@ -1,5 +1,5 @@
 # Generated from docs/UBIQUITOUS_LANGUAGE.md by scripts/export_yomiyasu_words.py. Do not edit.
-hypothesis（分析設計そのものを指すとき）は分析設計	hypothesis
+hypothesis（分析設計そのものを指すとき）は分析設計	\bhypothesis\b
 仮説（分析設計の項目を指すとき）は検証仮説	(?<!検証)仮説(?!の背景)
 問い（分析設計の項目を指すとき）は探索の問い	(?<!探索の)(?<!未解決の)(?<!根の)問い
 ノート（分析ノートを指して単独で使うとき）は分析ノート	(?<!分析)ノート

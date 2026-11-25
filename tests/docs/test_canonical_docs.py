@@ -700,6 +700,31 @@ class TestYomiyasuWords:
         )
         assert "\t(?<!探索の)(?<!根の)(?<!未解決の)問い\n" in out["flag-patterns.txt"]
 
+    def test_a_pattern_word_is_not_allowed(self) -> None:
+        # yomiyasu drops a pattern's hit when the matched text is in allow.txt, so a word
+        # in both lists is never flagged.
+        out = words.render(
+            self._glossary(
+                "| 仮説 | — | d | — | x |",
+                "| 検証仮説 | — | d | 仮説（分析設計の項目を指すとき） | x |",
+            )
+        )
+        assert "仮説" not in out["allow.txt"].splitlines()
+        assert "検証仮説" in out["allow.txt"].splitlines()
+
+    def test_an_english_word_is_matched_as_a_whole_word(self) -> None:
+        out = words.render(
+            self._glossary(
+                "| 分析設計 | — | d | hypothesis（分析設計を指すとき） | x |"
+            )
+        )
+        assert out["flag-patterns.txt"].endswith("\t\\bhypothesis\\b\n")
+
+    def test_a_variant_without_a_word_is_refused(self) -> None:
+        # A pattern with no literal character stops every yomiyasu run with exit code 2.
+        with pytest.raises(ValueError, match="no word"):
+            words.render(self._glossary("| 分析設計 | — | d | （…のとき） | x |"))
+
     def test_every_pattern_fits_the_limits_of_yomiyasu(self) -> None:
         # yomiyasu stops with exit code 2 on a name over 40 characters or a regex over 200.
         lines = words.render(_read("docs/UBIQUITOUS_LANGUAGE.md"))["flag-patterns.txt"]
