@@ -28,6 +28,9 @@ Epic issue には1〜2行の要約と本書へのリンクだけを置く。
 ## User Stories
 
 AC の正本はここ。AC は各ユーザーストーリーの下に書く。
+AC は、何が無いか（消したファイル、旧い語）ではなく、守りたい規則で書く（FLOW-0013）。
+「X が無い」と書くと、Story は X の不在を固定するテストを書き、同じ穴が別の名前で開いても気づけない。
+例: 「`publish.yml` が無い」ではなく、「どの workflow も publish の action を使わない」と書く。
 
 ### US-1: <短い名前>
 
@@ -60,6 +63,10 @@ Story issue とユーザーストーリーの対応。Story issue は対応す�
 
 - Epic 範囲内: <…>
 - Epic 範囲外: <…（どの Epic に委ねるか）>
+- 触らない所: <パスやモジュール>（理由: <…>）
+
+触らない所には、必ず理由を書く（FLOW-0013）。理由が消えたら（例: 重なっていた別の PR がマージされた）触ってよい。
+触ると決めたら、この DesignDoc の Decisions に書く（[docs/WORKFLOW.md §6](../../docs/WORKFLOW.md) の2）。
 
 ## Architecture
 
