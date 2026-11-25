@@ -9,6 +9,7 @@ import pytest
 
 from insight_blueprint.models.design import AnalysisDesign, DesignStatus
 from skills._shared.design_note import (
+    CONFIDENCE,
     CodeCell,
     Conclusion,
     DesignNote,
@@ -16,6 +17,7 @@ from skills._shared.design_note import (
     NoteFigure,
     NoteSource,
     NoteVerdict,
+    ValueInterval,
     VerdictMetric,
     note_anchor,
     render_note,
@@ -75,7 +77,7 @@ def _metric(**over: object) -> VerdictMetric:
         "p": None,
         "passed": None,
         "effect_size": None,
-        "confidence_interval": None,
+        "interval": None,
         "sample_size": None,
     }
     fields.update(over)
@@ -344,13 +346,23 @@ class TestResults:
     def test_effect_size_and_interval_are_formatted_with_their_labels(self) -> None:
         metric = _metric(
             effect_size=("cohens_d", "0.30"),
-            confidence_interval=("0.95", "0.10", "0.50"),
+            interval=ValueInterval(CONFIDENCE, "0.95", "0.10", "0.50"),
         )
 
         html = str(render_note(_note(metrics=(metric,))))
 
         assert "<td>0.30（cohens_d）</td>" in html
         assert "<td>水準 0.95: [0.10, 0.50]</td>" in html
+
+    def test_an_interval_of_another_kind_is_not_called_a_confidence_interval(
+        self,
+    ) -> None:
+        """Until Story 33.2 names the kind, an HDI stays out of the 信頼区間 column."""
+        metric = _metric(interval=ValueInterval("hdi", "0.95", "0.10", "0.50"))
+
+        html = str(render_note(_note(metrics=(metric,))))
+
+        assert "水準 0.95" not in html
 
     def test_a_missing_item_is_a_dash_and_a_failed_metric_is_a_cross(self) -> None:
         metric = _metric(passed=False)

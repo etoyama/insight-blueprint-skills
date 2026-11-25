@@ -12,8 +12,16 @@ from pathlib import Path
 
 import pytest
 
-from skills._shared.design_note import CodeCell
+from skills._shared.design_note import (
+    CONFIDENCE,
+    CodeCell,
+    MetricGroup,
+    MetricJudgment,
+    ValueInterval,
+    VerdictMetric,
+)
 from skills._shared.design_note_read import notebook_cells
+from tests._saved_verdicts import OPTIONAL_ITEMS, SAVED_VERDICTS
 
 CONNECTION = "/Users/secret-analyst/data/reservations.csv"
 
@@ -583,9 +591,8 @@ def test_an_explored_design_reads_no_evidence_against_a_hypothesis(
 # before may hold "p". The note reads both, "p" first (#230, from Story 32.4).
 
 
-def _p_of(tmp_path: Path, entry: dict) -> str | None:
-    import json
-
+def _metrics_of(tmp_path: Path, verdict: str) -> tuple[VerdictMetric, ...]:
+    """The metrics the note reads from *verdict*, the text of a verdict file."""
     from skills._shared import design_io
     from skills._shared.design_note_read import load_design_note
 
@@ -600,12 +607,22 @@ def _p_of(tmp_path: Path, entry: dict) -> str | None:
     )["id"]
     notebooks = insight / "notebooks"
     notebooks.mkdir()
-    (notebooks / f"{design_id}_verdict.json").write_text(
-        json.dumps({"metrics": {"差": entry}}), encoding="utf-8"
-    )
-    verdict = load_design_note(design_id, base_dir=insight).verdict
-    assert verdict is not None
-    return verdict.metrics[0].p
+    (notebooks / f"{design_id}_verdict.json").write_text(verdict, encoding="utf-8")
+    read = load_design_note(design_id, base_dir=insight).verdict
+    assert read is not None
+    return read.metrics
+
+
+def _metric_of(tmp_path: Path, entry: str) -> VerdictMetric:
+    """The one metric read from *entry*, the JSON text of a metric entry."""
+    (metric,) = _metrics_of(tmp_path, f'{{"metrics": {{"差": {entry}}}}}')
+    return metric
+
+
+def _p_of(tmp_path: Path, entry: dict) -> str | None:
+    import json
+
+    return _metric_of(tmp_path, json.dumps(entry)).p
 
 
 @pytest.mark.parametrize(
@@ -621,3 +638,257 @@ def test_the_p_value_is_read_as_the_contract_or_an_older_verdict_writes_it(
     tmp_path: Path, entry: dict, p: str | None
 ) -> None:
     assert _p_of(tmp_path, entry) == p
+
+
+# Story 33.1 (Epic 33 US-1, US-2): a verdict metric may hold the two lines of the
+# criterion, a judgment, an interval with its kind, and rows per group (ADR-0052).
+# The reader lays out what the notebook wrote and computes nothing.
+
+
+class TestTheLinesAndTheJudgment:
+    def test_both_lines_are_read_as_the_notebook_wrote_them(
+        self, tmp_path: Path
+    ) -> None:
+        metric = _metric_of(
+            tmp_path, '{"value": 1.40, "support_line": 2.0, "reject_line": 1.00}'
+        )
+        assert (metric.support_line, metric.reject_line) == ("2.0", "1.00")
+
+    def test_a_criterion_of_one_line_holds_only_that_line(self, tmp_path: Path) -> None:
+        metric = _metric_of(tmp_path, '{"value": 1.40, "support_line": 2.0}')
+        assert (metric.support_line, metric.reject_line) == ("2.0", None)
+
+    @pytest.mark.parametrize("judgment", ["supported", "rejected", "inconclusive"])
+    def test_each_of_the_three_judgments_is_read(
+        self, tmp_path: Path, judgment: str
+    ) -> None:
+        metric = _metric_of(tmp_path, f'{{"value": 1.40, "judgment": "{judgment}"}}')
+        assert metric.judgment is MetricJudgment(judgment)
+
+    @pytest.mark.parametrize(
+        "written", ['"pass"', '"Supported"', '""', "true", "1", "null", '["supported"]']
+    )
+    def test_any_other_judgment_reads_as_none(
+        self, tmp_path: Path, written: str
+    ) -> None:
+        metric = _metric_of(tmp_path, f'{{"value": 1.40, "judgment": {written}}}')
+        assert metric.judgment is None
+
+    def test_the_judgment_is_not_derived_from_the_value_and_the_lines(
+        self, tmp_path: Path
+    ) -> None:
+        metric = _metric_of(
+            tmp_path, '{"value": 3.0, "support_line": 2.0, "reject_line": 1.0}'
+        )
+        assert metric.judgment is None
+
+    def test_a_threshold_and_a_pass_are_read_beside_the_lines(
+        self, tmp_path: Path
+    ) -> None:
+        """A notebook that mixes the two sets up is shown as it wrote them."""
+        metric = _metric_of(
+            tmp_path,
+            '{"value": 3.0, "support_line": 2.0, "judgment": "supported",'
+            ' "threshold": 2.0, "pass": true}',
+        )
+        assert (metric.threshold, metric.passed) == ("2.0", True)
+        assert metric.judgment is MetricJudgment.supported
+
+
+class TestTheIntervalOfTheValue:
+    def test_an_interval_holds_its_kind_level_and_bounds(self, tmp_path: Path) -> None:
+        metric = _metric_of(
+            tmp_path,
+            '{"value": 0.62, "interval":'
+            ' {"kind": "hdi", "level": 0.95, "lower": 0.510, "upper": 0.69}}',
+        )
+        assert metric.interval == ValueInterval("hdi", "0.95", "0.510", "0.69")
+
+    def test_the_kind_is_any_name_the_notebook_wrote(self, tmp_path: Path) -> None:
+        metric = _metric_of(
+            tmp_path,
+            '{"value": 0.62, "interval":'
+            ' {"kind": "bootstrap percentile", "level": 0.9, "lower": 0.5, "upper": 0.7}}',
+        )
+        assert metric.interval is not None
+        assert metric.interval.kind == "bootstrap percentile"
+
+    @pytest.mark.parametrize("missing", ["kind", "level", "lower", "upper"])
+    def test_an_interval_without_one_of_its_four_items_reads_as_none(
+        self, tmp_path: Path, missing: str
+    ) -> None:
+        items = {"kind": '"hdi"', "level": "0.95", "lower": "0.51", "upper": "0.69"}
+        del items[missing]
+        interval = ", ".join(f'"{key}": {value}' for key, value in items.items())
+        metric = _metric_of(tmp_path, f'{{"value": 0.62, "interval": {{{interval}}}}}')
+        assert metric.interval is None
+
+    def test_a_saved_confidence_interval_reads_as_a_confidence_interval(
+        self, tmp_path: Path
+    ) -> None:
+        metric = _metric_of(
+            tmp_path,
+            '{"value": 0.62, "confidence_interval":'
+            ' {"level": 0.95, "lower": 0.51, "upper": 0.69}}',
+        )
+        assert metric.interval == ValueInterval(CONFIDENCE, "0.95", "0.51", "0.69")
+
+    def test_the_interval_is_read_when_both_are_written(self, tmp_path: Path) -> None:
+        metric = _metric_of(
+            tmp_path,
+            '{"value": 0.62,'
+            ' "confidence_interval": {"level": 0.9, "lower": 0.1, "upper": 0.2},'
+            ' "interval": {"kind": "hdi", "level": 0.95, "lower": 0.51, "upper": 0.69}}',
+        )
+        assert metric.interval == ValueInterval("hdi", "0.95", "0.51", "0.69")
+
+    def test_a_partial_interval_leaves_the_saved_confidence_interval_readable(
+        self, tmp_path: Path
+    ) -> None:
+        metric = _metric_of(
+            tmp_path,
+            '{"value": 0.62,'
+            ' "confidence_interval": {"level": 0.9, "lower": 0.1, "upper": 0.2},'
+            ' "interval": {"kind": "hdi", "level": 0.95}}',
+        )
+        assert metric.interval == ValueInterval(CONFIDENCE, "0.9", "0.1", "0.2")
+
+
+GROUPED = """{
+  "by": ["国籍", "区分"],
+  "groups": [
+    {"group": ["JP", "A"], "value": 1.20,
+     "effect_size": {"kind": "cohens_d", "value": 0.30},
+     "interval": {"kind": "hdi", "level": 0.95, "lower": 1.00, "upper": 1.40},
+     "sample_size": 120, "p_value": 0.040},
+    {"group": ["JP", "B"], "value": 0.80},
+    {"group": ["US", 2024], "value": 1.5, "judgment": "supported", "pass": true}
+  ]
+}"""
+
+
+class TestTheRowsOfTheGroups:
+    def test_a_metric_holds_its_axes_and_one_row_per_group(
+        self, tmp_path: Path
+    ) -> None:
+        metric = _metric_of(tmp_path, GROUPED)
+
+        assert metric.by == ("国籍", "区分")
+        assert [row.group for row in metric.groups] == [
+            ("JP", "A"),
+            ("JP", "B"),
+            ("US", "2024"),
+        ]
+        assert [row.value for row in metric.groups] == ["1.20", "0.80", "1.5"]
+        assert metric.value is None
+
+    def test_a_row_may_hold_the_optional_items(self, tmp_path: Path) -> None:
+        first, second, _ = _metric_of(tmp_path, GROUPED).groups
+
+        assert first == MetricGroup(
+            group=("JP", "A"),
+            value="1.20",
+            p="0.040",
+            effect_size=("cohens_d", "0.30"),
+            interval=ValueInterval("hdi", "0.95", "1.00", "1.40"),
+            sample_size="120",
+        )
+        assert second == MetricGroup(
+            group=("JP", "B"),
+            value="0.80",
+            p=None,
+            effect_size=None,
+            interval=None,
+            sample_size=None,
+        )
+
+    def test_a_row_has_no_place_for_a_judgment_or_a_pass(self, tmp_path: Path) -> None:
+        last = _metric_of(tmp_path, GROUPED).groups[-1]
+        assert not {"judgment", "passed", "threshold"} & set(vars(last))
+
+    def test_one_axis_is_a_list_of_one_name(self, tmp_path: Path) -> None:
+        metric = _metric_of(
+            tmp_path,
+            '{"by": ["館"], "groups": ['
+            '{"group": ["本館"], "value": 3.1}, {"group": ["分館"], "value": 4.9}]}',
+        )
+        assert metric.by == ("館",)
+        assert [row.group for row in metric.groups] == [("本館",), ("分館",)]
+
+    @pytest.mark.parametrize(
+        "entry",
+        [
+            '{"value": 1, "groups": [{"group": ["JP"], "value": 1.2}]}',
+            '{"value": 1, "by": ["国籍"]}',
+            '{"value": 1, "by": ["国籍"], "groups": []}',
+            '{"value": 1, "by": [], "groups": [{"group": [], "value": 1.2}]}',
+            '{"value": 1, "by": "国籍", "groups": [{"group": "JP", "value": 1.2}]}',
+            '{"value": 1, "by": ["国籍"], "groups": {"JP": 1.2}}',
+            '{"value": 1, "by": ["国籍"], "groups": [1.2]}',
+            '{"value": 1, "by": ["国籍"], "groups": [{"value": 1.2}]}',
+            '{"value": 1, "by": ["国籍", "区分"], "groups": ['
+            '{"group": ["JP", "A"], "value": 1.2}, {"group": ["JP"], "value": 0.8}]}',
+            '{"value": 1, "by": ["国籍"], "groups": [{"group": [null], "value": 1.2}]}',
+            '{"value": 1, "by": ["国籍"], "groups": [{"group": [["JP"]], "value": 1}]}',
+            '{"value": 1, "by": [{"axis": "国籍"}], "groups": ['
+            '{"group": ["JP"], "value": 1.2}]}',
+        ],
+        ids=[
+            "no-by",
+            "no-groups",
+            "no-row",
+            "no-axis",
+            "names-not-in-a-list",
+            "groups-not-a-list",
+            "row-not-an-object",
+            "row-without-a-group",
+            "one-row-with-too-few-names",
+            "null-name",
+            "nested-name",
+            "axis-not-a-name",
+        ],
+    )
+    def test_groups_that_do_not_fit_their_axes_read_as_no_groups(
+        self, tmp_path: Path, entry: str
+    ) -> None:
+        """Dropping one bad row would show a table that looks whole and is not."""
+        metric = _metric_of(tmp_path, entry)
+        assert (metric.by, metric.groups) == ((), ())
+        assert metric.value == "1"
+
+
+class TestASavedVerdictReadsAsBefore:
+    """Epic 33 US-1 AC 5: every new item is optional."""
+
+    @pytest.mark.parametrize("name", SAVED_VERDICTS)
+    def test_it_holds_none_of_the_new_items(self, tmp_path: Path, name: str) -> None:
+        for metric in _metrics_of(tmp_path, SAVED_VERDICTS[name][1]):
+            assert (metric.support_line, metric.reject_line) == (None, None)
+            assert metric.judgment is None
+            assert (metric.by, metric.groups) == ((), ())
+            assert metric.interval is None or metric.interval.kind == CONFIDENCE
+
+    def test_its_items_keep_the_text_the_notebook_wrote(self, tmp_path: Path) -> None:
+        plain, partial, full = _metrics_of(tmp_path, OPTIONAL_ITEMS)
+
+        assert plain == VerdictMetric(
+            name="任意の項目なし",
+            value="0.346",
+            threshold="0.050",
+            p=None,
+            passed=True,
+            effect_size=None,
+            interval=None,
+            sample_size=None,
+        )
+        assert (partial.effect_size, partial.interval) == (None, None)
+        assert full == VerdictMetric(
+            name="そろった項目",
+            value="0.00010",
+            threshold="0.050",
+            p="1e-05",
+            passed=True,
+            effect_size=("cohens_d", "0.30"),
+            interval=ValueInterval(CONFIDENCE, "0.95", "0.10", "0.50"),
+            sample_size="1520",
+        )

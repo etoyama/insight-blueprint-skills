@@ -28,6 +28,7 @@ from insight_blueprint.models.tree import (
     TreeDecisionKind,
 )
 from skills._shared.design_note import (
+    CONFIDENCE,
     EVENT_WORDS,
     LEGACY_NOTE,
     VERDICT_COLUMNS,
@@ -409,11 +410,12 @@ _METRIC_COLUMNS = (
     ),
     (
         "信頼区間",
+        # Headed 信頼区間 until Story 33.3 names the kind beside the bounds.
         lambda m: (
-            f"水準 {_e(m.confidence_interval[0])}: "
-            f"[{_e(m.confidence_interval[1])}, {_e(m.confidence_interval[2])}]"
+            f"水準 {_e(m.interval.level)}: "
+            f"[{_e(m.interval.lower)}, {_e(m.interval.upper)}]"
         )
-        if m.confidence_interval
+        if m.interval and m.interval.kind == CONFIDENCE
         else None,
     ),
     ("標本サイズ", lambda m: _or_none(m.sample_size)),

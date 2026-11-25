@@ -20,6 +20,7 @@ from insight_blueprint.models.tree import (
     TreeDecision,
 )
 from skills._shared.design_note import (
+    CONFIDENCE,
     FORM_WORDS,
     Conclusion,
     DesignNote,
@@ -27,6 +28,7 @@ from skills._shared.design_note import (
     NoteFigure,
     NoteSource,
     NoteVerdict,
+    ValueInterval,
     VerdictMetric,
 )
 from skills._shared.theme_report import (
@@ -128,7 +130,7 @@ def _metric(name: str, value: str | None, **over: object) -> VerdictMetric:
         "p": None,
         "passed": None,
         "effect_size": None,
-        "confidence_interval": None,
+        "interval": None,
         "sample_size": None,
     }
     fields.update(over)
@@ -523,6 +525,30 @@ class TestResults:
         assert "| 期限切れ率（当日） | 0.090 | 1210 | — |" in lines
         assert "| 期限切れ率（翌日以降） | 0.18 | 640 | 1e-05 |" in lines
 
+    def test_an_interval_of_another_kind_is_not_called_a_confidence_interval(
+        self,
+    ) -> None:
+        """Until Story 33.3 names the kind, an HDI stays out of the 信頼区間 column."""
+        results = _results(
+            _report(
+                nodes=(_node(answer=_answer(), design_ids=("LIB-H01",)),),
+                designs=(
+                    _design(
+                        metrics=(
+                            _metric(
+                                "差",
+                                "0.1",
+                                interval=ValueInterval("hdi", "0.95", "0.10", "0.50"),
+                            ),
+                        )
+                    ),
+                ),
+            )
+        )
+
+        assert "信頼区間" not in results
+        assert "水準 0.95" not in results
+
     def test_every_kind_of_metric_value_has_its_column(self) -> None:
         results = _results(
             _report(
@@ -537,7 +563,9 @@ class TestResults:
                                 p="0.01",
                                 passed=False,
                                 effect_size=("cohens_d", "0.30"),
-                                confidence_interval=("0.95", "0.10", "0.50"),
+                                interval=ValueInterval(
+                                    CONFIDENCE, "0.95", "0.10", "0.50"
+                                ),
                                 sample_size="1520",
                             ),
                         )
@@ -945,7 +973,7 @@ def _poisoned_report(aim: Aim) -> ThemeReport:
                 p=p,
                 passed=True,
                 effect_size=(p, p),
-                confidence_interval=(p, p, p),
+                interval=ValueInterval(CONFIDENCE, p, p, p),
                 sample_size=p,
             ),
         ),

@@ -31,13 +31,17 @@ from skills._shared._atomic import atomic_write_text
 from skills._shared.catalog_io import describe
 from skills._shared.design_io import DEFAULT_BASE_DIR, journal_events, load_design
 from skills._shared.design_note import (
+    CONFIDENCE,
     CodeCell,
     Conclusion,
     DesignNote,
+    MetricGroup,
+    MetricJudgment,
     NoteEvent,
     NoteFigure,
     NoteSource,
     NoteVerdict,
+    ValueInterval,
     VerdictMetric,
     contradicting_evidence,
     local_file_paths,
@@ -149,26 +153,87 @@ def _effect_size(item: object) -> tuple[str, str] | None:
     return (kind_and_value[0], kind_and_value[1]) if kind_and_value else None
 
 
-def _interval(item: object) -> tuple[str, str, str] | None:
-    parts = _all_of(item, "level", "lower", "upper")
-    return (parts[0], parts[1], parts[2]) if parts else None
+def _interval(entry: dict) -> ValueInterval | None:
+    """The interval of the value in *entry*, a metric or a group row.
+
+    A verdict saved before ADR-0052 holds ``confidence_interval``, with no
+    kind; ``interval`` wins when both can be read.
+    """
+    named = _all_of(entry.get("interval"), "kind", "level", "lower", "upper")
+    if named:
+        return ValueInterval(*named)
+    saved = _all_of(entry.get("confidence_interval"), "level", "lower", "upper")
+    return ValueInterval(CONFIDENCE, *saved) if saved else None
+
+
+def _judgment(value: object) -> MetricJudgment | None:
+    if isinstance(value, str) and value in MetricJudgment:
+        return MetricJudgment(value)
+    return None
+
+
+def _p(entry: dict) -> str | None:
+    # The contract writes "p_value"; a verdict saved before may hold "p".
+    p = entry.get("p")
+    return _verdict_text(entry.get("p_value") if p is None else p)
+
+
+def _names(value: object, count: int | None = None) -> tuple[str, ...] | None:
+    """The names in *value*, a list of *count* JSON scalars; None for anything else."""
+    if not isinstance(value, list) or not value:
+        return None
+    if count is not None and len(value) != count:
+        return None
+    if any(name is None or isinstance(name, dict | list) for name in value):
+        return None
+    return tuple(cast(str, _verdict_text(name)) for name in value)
+
+
+def _groups(entry: dict) -> tuple[tuple[str, ...], tuple[MetricGroup, ...]]:
+    """The axes of *entry* and its rows, or no axes and no rows.
+
+    One row that does not fit the axes voids them all: a table short of a row
+    would read as the whole set of groups.
+    """
+    by = _names(entry.get("by"))
+    rows = entry.get("groups")
+    if by is None or not isinstance(rows, list) or not rows:
+        return (), ()
+    groups: list[MetricGroup] = []
+    for row in rows:
+        group = _names(row.get("group"), len(by)) if isinstance(row, dict) else None
+        if group is None:
+            return (), ()
+        groups.append(
+            MetricGroup(
+                group=group,
+                value=_verdict_text(row.get("value")),
+                p=_p(row),
+                effect_size=_effect_size(row.get("effect_size")),
+                interval=_interval(row),
+                sample_size=_verdict_text(row.get("sample_size")),
+            )
+        )
+    return by, tuple(groups)
 
 
 def _metric(name: object, entry: dict) -> VerdictMetric:
     passed = entry.get("pass")
-    # The contract writes "p_value"; a verdict saved before may hold "p".
-    p = entry.get("p")
-    if p is None:
-        p = entry.get("p_value")
+    by, groups = _groups(entry)
     return VerdictMetric(
         name=str(name),
         value=_verdict_text(entry.get("value")),
         threshold=_verdict_text(entry.get("threshold")),
-        p=_verdict_text(p),
+        p=_p(entry),
         passed=passed if isinstance(passed, bool) else None,
         effect_size=_effect_size(entry.get("effect_size")),
-        confidence_interval=_interval(entry.get("confidence_interval")),
+        interval=_interval(entry),
         sample_size=_verdict_text(entry.get("sample_size")),
+        support_line=_verdict_text(entry.get("support_line")),
+        reject_line=_verdict_text(entry.get("reject_line")),
+        judgment=_judgment(entry.get("judgment")),
+        by=by,
+        groups=groups,
     )
 
 

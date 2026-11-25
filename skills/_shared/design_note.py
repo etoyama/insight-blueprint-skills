@@ -17,6 +17,7 @@ from __future__ import annotations
 import base64
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 
 from insight_blueprint.models.design import (
     AnalysisDesign,
@@ -62,9 +63,48 @@ def contradicting_evidence(
     )
 
 
+class MetricJudgment(StrEnum):
+    """What a confirmation's primary metric says of the hypothesis (ADR-0052)."""
+
+    supported = "supported"
+    rejected = "rejected"
+    inconclusive = "inconclusive"
+
+
+# The kind of an interval saved as ``confidence_interval``, before intervals named theirs.
+CONFIDENCE = "confidence"
+
+
+@dataclass(frozen=True)
+class ValueInterval:
+    """The interval of a metric's value. ``kind`` is the name the notebook gave it."""
+
+    kind: str
+    level: str
+    lower: str
+    upper: str
+
+
+@dataclass(frozen=True)
+class MetricGroup:
+    """The value of a metric in one group. It is measured, never judged."""
+
+    group: tuple[str, ...]  # one name per axis of the metric's ``by``
+    value: str | None
+    p: str | None
+    effect_size: tuple[str, str] | None  # (kind, value)
+    interval: ValueInterval | None
+    sample_size: str | None
+
+
 @dataclass(frozen=True)
 class VerdictMetric:
-    """One entry of ``verdict.metrics``. Every number is the literal JSON text."""
+    """One entry of ``verdict.metrics``. Every number is the literal JSON text.
+
+    The lines and the judgment belong to a confirmation's primary metric; the
+    threshold and the pass to a secondary or guardrail metric. Nothing here
+    enforces that: a metric shows what the notebook wrote.
+    """
 
     name: str
     value: str | None
@@ -72,8 +112,13 @@ class VerdictMetric:
     p: str | None
     passed: bool | None
     effect_size: tuple[str, str] | None  # (kind, value)
-    confidence_interval: tuple[str, str, str] | None  # (level, lower, upper)
+    interval: ValueInterval | None
     sample_size: str | None
+    support_line: str | None = None
+    reject_line: str | None = None
+    judgment: MetricJudgment | None = None
+    by: tuple[str, ...] = ()  # the axes of ``groups``; empty when there are none
+    groups: tuple[MetricGroup, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -546,10 +591,10 @@ _METRIC_HEADERS = ("指標", "値", "効果量", "信頼区間", "N", "しきい
 
 def _metric_row(m: VerdictMetric) -> list[str]:
     effect = f"{m.effect_size[1]}（{m.effect_size[0]}）" if m.effect_size else _DASH
+    # The column is headed 信頼区間 until Story 33.2 names the kind beside the bounds.
     interval = (
-        f"水準 {m.confidence_interval[0]}: "
-        f"[{m.confidence_interval[1]}, {m.confidence_interval[2]}]"
-        if m.confidence_interval
+        f"水準 {m.interval.level}: [{m.interval.lower}, {m.interval.upper}]"
+        if m.interval and m.interval.kind == CONFIDENCE
         else _DASH
     )
     return [
