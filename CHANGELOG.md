@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test another hypothesis or criterion, derive a new design with `parent_id`. The background and the
   other fields can still be edited. A confirmation now enters `analyzing` only when it has a `primary`
   metric and every `primary` metric has its `comparison` written, so write the criterion before the review approves the design.
-  The same holds for a review that concludes such a design as `supported` or `rejected` without analyzing it; to
+  The same holds for a write that concludes such a design as `supported` or `rejected` without analyzing it; to
   end it without a criterion, close it as `inconclusive`. Designs
   already saved still read; one that is `analyzing` or concluded counts as started
   ([ADR-0053](docs/adr/0053-a-started-confirmation-keeps-its-hypothesis-criterion-and-intent.md), #244).

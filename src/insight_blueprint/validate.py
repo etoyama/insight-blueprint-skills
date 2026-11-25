@@ -287,8 +287,8 @@ def _criterion_errors(new: AnalysisDesign, current: AnalysisDesign) -> list[str]
         f"metrics: a design that judges a hypothesis enters {new.status.value} "
         "only when it has a primary metric and every primary metric (a metric "
         "without tier is primary) states the criterion in its comparison"
-        f"{lacking}; write it with /analysis-design, or close the design as "
-        "inconclusive"
+        f"{lacking}; write it with /analysis-design before any result is seen, "
+        "or close the design as inconclusive"
     ]
 
 

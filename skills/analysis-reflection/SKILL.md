@@ -241,6 +241,15 @@ When the analyst ends the design:
      - rejected: `design_io transition --id {design_id} --target rejected`
      - inconclusive: `design_io transition --id {design_id} --target inconclusive`
      - Without a review it closes straight from its analysis (`analyzing → supported`).
+     - A design whose analysis never started (still `in_review` or `revision_requested`, no
+       `analysis_started_at`) and that has no criterion (no `primary` metric, or an empty
+       `comparison`) is refused `supported` and `rejected`
+       ([ADR-0053](../../docs/adr/0053-a-started-confirmation-keeps-its-hypothesis-criterion-and-intent.md)).
+       Check for this before recording `conclude` in item 2. The refusal names
+       `/analysis-design`, but the result is known here, so do not write a criterion now.
+       Tell the analyst the hypothesis has no criterion fixed before the result, and offer
+       the two ways on: close the design as `inconclusive`, or derive a design that fixes its
+       criterion first (Step 5).
    - **Exploration** — before the transition, ask 「次に確かめたい仮の答えはあるか（飛ばしてよい）」.
      When the analyst gives one, record it as a `hypothesize` event in this journal, in the
      analyst's words: the journal is the record the design ends on. The analyst may skip the

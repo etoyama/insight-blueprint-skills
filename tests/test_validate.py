@@ -807,6 +807,12 @@ class TestEnteringTheAnalysisNeedsACriterion:
         new = confirmation(status=verdict, analysis_started_at=MARK)
         assert _errors(new, confirmation()) == []
 
+    def test_an_exploration_is_not_turned_into_a_supported_confirmation(self) -> None:
+        # The form of the design as written decides, not the one on disk.
+        new = make_design(status="supported", analysis_started_at=MARK)
+        errors = _errors(new, make_exploration())
+        assert any("comparison" in e for e in errors)
+
     def test_an_exploration_ends_as_explored_without_a_criterion(self) -> None:
         new = make_exploration(status="explored", analysis_started_at=MARK)
         assert _errors(new, make_exploration()) == []

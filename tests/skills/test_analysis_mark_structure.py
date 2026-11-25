@@ -128,12 +128,22 @@ class TestAVerdictNeedsItsCriterion:
             for line in text.split("\n- ")
             if line.startswith("**Validation library")
         )
-        assert (
-            "`supported`・`rejected`" in entry and "`inconclusive` には入れる" in entry
-        )
+        assert "`analyzing` か `supported`・`rejected` に入る書き込み" in entry
+        assert "`inconclusive` には入れる" in entry
 
     def test_the_changelog_names_it(self) -> None:
         changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         notes = unwrap(changelog_entry(changelog, "`analysis_started_at`"))
-        assert "`supported` or `rejected`" in notes
+        assert (
+            "a write that concludes such a design as `supported` or `rejected`" in notes
+        )
         assert "close it as `inconclusive`" in notes
+
+    def test_the_reflection_does_not_write_a_criterion_to_pass_the_refusal(
+        self,
+    ) -> None:
+        step = unwrap(section(_read_skill("analysis-reflection"), "### Step 4:"))
+        assert "is refused `supported` and `rejected`" in step
+        assert "before recording `conclude`" in step
+        assert "do not write a criterion now" in step
+        assert "`inconclusive`" in step and "Step 5" in step
