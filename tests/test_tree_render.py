@@ -32,7 +32,7 @@ from insight_blueprint.models.tree import (
 from insight_blueprint.validate import validate_tree_schema
 from skills._shared import tree_render
 from skills._shared._html import Html
-from skills._shared.design_note import form_word, status_word
+from skills._shared.design_note import intent_words_of, status_word
 from skills._shared.tree_check import Violation, ViolationKind
 from skills._shared.tree_render import (
     CheckFailed,
@@ -276,7 +276,7 @@ def summary(
         parent_id,
         created_at,
         form=form,
-        intent=form_word(form) if intent is None else intent,
+        intent=intent_words_of(form)[0] if intent is None else intent,
         statement=statement,
     )
 

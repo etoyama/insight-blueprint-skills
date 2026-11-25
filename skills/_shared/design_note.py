@@ -241,13 +241,14 @@ FORM_WORDS: Mapping[DesignForm, FormWords] = {
 
 LEGACY_NOTE = "旧形式の探索: 探索の分析設計に、仮説と判定が書かれている。"
 
-_INTENT_WORDS = {
-    DesignForm.exploration: "探索",
-    DesignForm.confirmation: "検証",
-    DesignForm.legacy_exploration: "探索（旧形式）",
+# The intent as the reader sees it, one word for each (intent, form) a design can
+# hold; a saved mixed design reads as a confirmation (ADR-0049, ADR-0051).
+_INTENT_WORDS: Mapping[tuple[AnalysisIntent, DesignForm], str] = {
+    (AnalysisIntent.exploratory, DesignForm.exploration): "探索",
+    (AnalysisIntent.confirmatory, DesignForm.confirmation): "検証",
+    (AnalysisIntent.mixed, DesignForm.confirmation): "探索と検証（旧形式）",
+    (AnalysisIntent.exploratory, DesignForm.legacy_exploration): "探索（旧形式）",
 }
-# A saved mixed design reads as a confirmation (ADR-0049).
-_MIXED_WORD = "探索と検証（旧形式）"
 
 # The words of a status that are the same for every form (ADR-0051).
 _STATUS_WORDS = {
@@ -263,23 +264,14 @@ _VERDICT_WORDS = {
 }
 
 
-def form_word(form: DesignForm) -> str:
-    """The intent word of a form; a saved mixed design has its own (``intent_word``)."""
-    return _INTENT_WORDS[form]
-
-
 def intent_word(design: AnalysisDesign) -> str:
     """The intent as the reader sees it: one of four words (ADR-0051)."""
-    if design.analysis_intent is AnalysisIntent.mixed:
-        return _MIXED_WORD
-    return form_word(design.form())
+    return _INTENT_WORDS[design.analysis_intent, design.form()]
 
 
 def intent_words_of(form: DesignForm) -> tuple[str, ...]:
-    """Every intent word a design of *form* may be shown with, ``intent_word`` order."""
-    if form is DesignForm.confirmation:
-        return (form_word(form), _MIXED_WORD)
-    return (form_word(form),)
+    """Every intent word a design of *form* may be shown with; the first is its own."""
+    return tuple(word for (_, f), word in _INTENT_WORDS.items() if f is form)
 
 
 def direction_gloss(form: DesignForm, direction: str) -> str | None:
