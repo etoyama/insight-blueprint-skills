@@ -156,11 +156,15 @@ def _interval(item: object) -> tuple[str, str, str] | None:
 
 def _metric(name: object, entry: dict) -> VerdictMetric:
     passed = entry.get("pass")
+    # The contract writes "p_value"; a verdict saved before may hold "p".
+    p = entry.get("p")
+    if p is None:
+        p = entry.get("p_value")
     return VerdictMetric(
         name=str(name),
         value=_verdict_text(entry.get("value")),
         threshold=_verdict_text(entry.get("threshold")),
-        p=_verdict_text(entry.get("p")),
+        p=_verdict_text(p),
         passed=passed if isinstance(passed, bool) else None,
         effect_size=_effect_size(entry.get("effect_size")),
         confidence_interval=_interval(entry.get("confidence_interval")),
