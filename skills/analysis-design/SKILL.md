@@ -356,8 +356,12 @@ tree_io link --theme FP --node FP-Q02 --design FP-H01
 - `--theme` and `--node` come from the Brief's `theme_id` and `node_id`. The node belongs to
   that theme, so a design the analyst moved to another theme is not linked: say so, and that
   `/analysis-framing` can place it in the other theme's tree.
-- If the Brief has no `node_id`, or there is no Framing Brief, skip this step. The design is
-  created unlinked, as before.
+- When no `node_id` came in (no Framing Brief, or a Brief without one), run
+  `tree_io get --theme {theme_id}`. When it prints a tree, show its questions with their ids
+  and ask which question this design answers, or none. Link the design to the one the analyst
+  picks with the same `tree_io link` command, that question's id as `--node`.
+- With no `node_id` and no question tree (`tree_io get` prints `{}`), or when the analyst picks
+  none, skip this step. The design is created unlinked, as before.
 - If `tree_io link` exits non-zero, show the error. The design stays as written; do not
   create it again.
 - Never run `tree_io add-node` or write the tree file here. Nodes are made by `/analysis-framing`.

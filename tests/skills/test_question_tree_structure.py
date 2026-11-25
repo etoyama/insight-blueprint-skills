@@ -259,11 +259,24 @@ class TestDesignLinksItselfToTheNode:
         step = section(_read_skill("analysis-design"), "### Step 3: ")
         assert step.index("design_io create") < step.index("#### Link the design")
 
-    def test_a_brief_without_a_node_creates_the_design_unlinked(self) -> None:
+    def test_without_a_node_or_a_tree_the_design_is_created_unlinked(self) -> None:
         linking = unwrap(
             section(_read_skill("analysis-design"), "#### Link the design")
         )
-        assert re.search(r"no `node_id`[^.]*skip", linking)
+        assert re.search(r"no `node_id`[^.]*no question tree[^.]*skip", linking)
+
+    def test_without_a_node_the_analyst_picks_a_question_of_the_tree(self) -> None:
+        """Trial F05: a design made without a Brief never sat under a question."""
+        linking = unwrap(
+            section(_read_skill("analysis-design"), "#### Link the design")
+        )
+        assert "`tree_io get --theme {theme_id}`" in linking
+        assert re.search(r"which question[^.]*or none", linking)
+
+    def test_the_picked_question_is_linked_with_the_one_shown_command(self) -> None:
+        linking = section(_read_skill("analysis-design"), "#### Link the design")
+        assert len(re.findall(r"^tree_io link ", linking, re.M)) == 1
+        assert "the same `tree_io link` command" in unwrap(linking)
 
     def test_a_changed_theme_is_not_linked_to_the_node(self) -> None:
         linking = unwrap(
