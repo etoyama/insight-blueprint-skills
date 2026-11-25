@@ -198,8 +198,8 @@ _SECTIONS = (
 class FormWords:
     """The words the reader sees for one form of design (ADR-0051).
 
-    The note, the report and the question tree take them from here, so the
-    three never word a form differently.
+    The note and the report take them from here, so the two never word a form
+    differently; the question tree is to read them too (Story 32.6).
     """
 
     statement: str  # what the design's first field is called
