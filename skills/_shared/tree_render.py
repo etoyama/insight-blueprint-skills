@@ -761,7 +761,7 @@ def _cited_event(context: _Context, event_id: str) -> Html:
     design = context.designs.get(design_id)
     form = None if design is None else design.form
     # An exploration holds no hypothesis, so no direction leans on one (ADR-0051).
-    if event.direction and form is not DesignForm.exploration:
+    if event.direction and (form is None or form.judges):
         gloss = None if form is None else direction_gloss(form, event.direction)
         parts.append(
             f" direction: {event.direction}" + (f"（{gloss}）" if gloss else "")

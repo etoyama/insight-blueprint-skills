@@ -29,13 +29,13 @@ from insight_blueprint.models.tree import (
 )
 from skills._shared.design_note import (
     EVENT_WORDS,
-    FORM_WORDS,
     LEGACY_NOTE,
     DesignNote,
     NoteEvent,
     NoteFigure,
     NoteSource,
     VerdictMetric,
+    against_heading,
     contradicting_evidence,
     intent_word,
     lead_sentence,
@@ -434,7 +434,7 @@ def _metrics(metrics: Sequence[VerdictMetric], form: DesignForm) -> list[str]:
         (heading, fill)
         for heading, fill in _METRIC_COLUMNS
         if any(fill(m) is not None for m in metrics)
-        and (form is not DesignForm.exploration or heading not in _VERDICT_COLUMNS)
+        and (form.judges or heading not in _VERDICT_COLUMNS)
     ]
     return [
         _table(
@@ -509,17 +509,17 @@ def _event_items(events: Sequence[NoteEvent], cites: _Cites) -> str:
 def _limitations(report: ThemeReport, cites: _Cites) -> list[str]:
     blocks = ["### Limitations"]
     # An exploration holds no hypothesis, so it has no part here (ADR-0051).
-    words = {d.id: FORM_WORDS[d.form].against for d in report.designs}
-    against = [d for d in report.designs if d.contradicting_evidence and words[d.id]]
+    judged = [d for d in report.designs if d.form.judges]
+    against = [d for d in judged if d.contradicting_evidence]
     for design in against:
         blocks += [
-            f"{design.id} {_e(design.title)} の{words[design.id]}:",
+            f"{design.id} {_e(design.title)} の{against_heading(design.form)}:",
             _event_items(design.contradicting_evidence, cites),
         ]
     if not against:
         blocks += [
             f"{word}は記録されていない。"
-            for word in dict.fromkeys(w for w in words.values() if w)
+            for word in dict.fromkeys(against_heading(d.form) for d in judged)
         ]
     unanswered = [n for n in report.nodes if n.answer is None]
     if unanswered:

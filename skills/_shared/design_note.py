@@ -55,7 +55,7 @@ def contradicting_evidence(
     An exploration holds no hypothesis, so nothing stands against it, whatever
     direction an event carries (ADR-0050).
     """
-    if form is DesignForm.exploration:
+    if not form.judges:
         return ()
     return tuple(
         e for e in events if e.type == "evidence" and e.direction == "contradicts"
@@ -204,9 +204,8 @@ class FormWords:
 
     statement: str  # what the design's first field is called
     background: str
-    # (direction, heading) of each evidence group; () shows all evidence as one
+    # (direction, heading) of each evidence group; () for a form that is not judged
     directed: tuple[tuple[str, str], ...]
-    against: str | None  # the heading of the evidence against; None: none can be
     lead_sentences: Mapping[DesignStatus, str]  # one for each conclusion of the form
 
 
@@ -218,7 +217,6 @@ def _verdict_words(statement: str) -> FormWords:
             ("supports", f"{statement}を支持する証拠"),
             ("contradicts", f"{statement}に反する証拠"),
         ),
-        against=f"{statement}に反する証拠",
         lead_sentences={
             DesignStatus.supported: f"{statement}は支持された。",
             DesignStatus.rejected: f"{statement}は棄却された。",
@@ -234,7 +232,6 @@ FORM_WORDS: Mapping[DesignForm, FormWords] = {
         statement="探索の問い",
         background="背景",
         directed=(),
-        against=None,
         lead_sentences={DesignStatus.explored: "探索を終えた。判定はしていない。"},
     ),
     DesignForm.confirmation: _verdict_words("検証仮説"),
@@ -296,6 +293,11 @@ def direction_gloss(form: DesignForm, direction: str) -> str | None:
     return headings[direction].removesuffix("証拠")
 
 
+def against_heading(form: DesignForm) -> str:
+    """The heading of the evidence against the hypothesis of a judged *form*."""
+    return dict(FORM_WORDS[form].directed)["contradicts"]
+
+
 def status_word(form: DesignForm, status: DesignStatus) -> str:
     """The status as the reader sees it, worded by its role (ADR-0051)."""
     if status in _STATUS_WORDS:
@@ -313,7 +315,7 @@ def lead_sentence(form: DesignForm, status: DesignStatus) -> str | None:
 
 def statement_of(design: AnalysisDesign) -> tuple[str, str]:
     """(statement, background) as the design holds them: its question or its hypothesis."""
-    if design.form() is DesignForm.exploration:
+    if not design.form().judges:
         return design.exploration_question or "", design.exploration_background or ""
     return design.hypothesis_statement or "", design.hypothesis_background or ""
 
@@ -522,11 +524,12 @@ def _events(note: DesignNote) -> list[Html]:
     blocks: list[Html] = []
     if observed:
         blocks += [el("h4", "観察"), _event_list(observed)]
-    directed = FORM_WORDS[note.design.form()].directed
-    if not directed:
+    form = note.design.form()
+    if not form.judges:
         # An exploration's evidence has no direction to group by (ADR-0050).
         groups = [(_ALL_EVIDENCE, evidence)]
     else:
+        directed = FORM_WORDS[form].directed
         known = {direction for direction, _ in directed}
         groups = [
             (label, [e for e in evidence if e.direction == direction])
@@ -575,7 +578,7 @@ def _metric_values(metrics: tuple[VerdictMetric, ...], form: DesignForm) -> list
     keep = [
         i
         for i, h in enumerate(_METRIC_HEADERS)
-        if form is not DesignForm.exploration or h not in _VERDICT_COLUMNS
+        if form.judges or h not in _VERDICT_COLUMNS
     ]
     return [
         el("h4", "指標の値"),
@@ -652,7 +655,6 @@ def _conclusion(note: DesignNote, anchor: str) -> Html | None:
     if conclusion is None:
         return None
     form = note.design.form()
-    against = FORM_WORDS[form].against
     return _section(
         anchor,
         "conclusion",
@@ -666,8 +668,8 @@ def _conclusion(note: DesignNote, anchor: str) -> Html | None:
         *_records("conclude の本文", conclusion.conclude_events),
         *_recommendation_sources(note.design, conclusion),
         *(
-            _records(against, conclusion.contradicting_evidence)
-            if against is not None
+            _records(against_heading(form), conclusion.contradicting_evidence)
+            if form.judges
             else ()
         ),
         *_records("reflect の本文", conclusion.reflect_events),
