@@ -114,7 +114,7 @@ Epic 33（[#242](https://github.com/etoyama/insight-blueprint-skills/issues/242)
 
 ### Negative
 
-- 論点ツリーの HTML を `/tree-upload` で外へ出すと、review コメントの文も一緒に出る。止めるのは、今ある KEEP ゲートである。
+- 論点ツリーの HTML を `/tree-upload` で外へ出すと、review コメントの文も一緒に出る。止めるのは今ある KEEP ゲートである。
 - 分析ノートは review コメントへの対応の状況を出さない。直した review コメントと、残した review コメントが、同じ見え方になる。
 - 保存済みの review batch は分析を始めた後かどうかを持たない。分析ノートはその表示を出さず、論点ツリーは件数に数えない。
 - レポートだけを読む人には、review コメントが届かない。

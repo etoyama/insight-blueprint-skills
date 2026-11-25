@@ -290,7 +290,7 @@ stateDiagram-v2
     analyzing --> [*]: reflection が結論を出す
 ```
 
-印なしの間は、意図と項目を直せる。印ありの間は、状態が `in_review` や `revision_requested` に戻っていても、検証仮説・判定の基準・意図は変わらない。
+印なしの間は意図と項目を直せる。印ありの間は、状態が `in_review` や `revision_requested` に戻っていても、検証仮説・判定の基準・意図は変わらない。
 図は主な道だけを描いた。`in_review` と `revision_requested` から terminal status へ進む道（ADR-0029）も残り、そのときも分析の印が付く。
 
 ## Sequence Diagram
@@ -383,7 +383,7 @@ sequenceDiagram
 ### Decision: primary-criteria-are-compared-as-a-set-of-pairs
 
 - What: 分析を始めた分析設計の primary の指標は、`target` と `comparison` の組を並べ替えた列で比べる。文字は1字でも違えば変更とみなす。並び順と、primary の指標のほかの項目（`data_source`・`grouping`・`filter`・`aggregation`）は比べない。
-- Why: ADR-0053 の3は、組を足す・消す・`tier` を変えることを拒むと決めた。比べ方は Story に委ねた。
+- Why: ADR-0053 の3は組を足す・消す・`tier` を変えることを拒むと決めた。比べ方は Story に委ねた。
 - Criteria: 拒む範囲を、人間が決めた範囲より広げない（[FLOW-0008](../adr/flow/0008-ask-before-narrowing-what-worked.md)）。判定を左右するのは基準の文と、それが掛かる指標である。並び順は判定を変えない。誤字かどうかは機械で見分けられない（ADR-0053 の Alternatives）。
 - Affected modules: `src/insight_blueprint/validate.py` の `_criteria` と `_held_errors`。
 - Alternatives considered: 並び順も比べる案（判定に効かない並べ替えを拒む）。空白を詰めて比べる案（YAML の折り返しの違いは通るが、どこまでを同じとみなすかの線が増える）。
@@ -392,7 +392,7 @@ sequenceDiagram
 ### Decision: a-started-design-never-reads-as-not-started
 
 - What: 分析を始めた分析設計を、分析を始めていないと読める形にする書き込みを拒む。印の無い保存済みの分析設計が、印を持たずに `analyzing` を離れる直書きが当たる。`design_io` は、状態を変える書き込みで印を付ける（`transition`、状態を含む `update`、`review-batch`）。分析を始めていない分析設計に、状態を進めずに印だけを付ける書き込みも拒む。
-- Why: AC 1 の「消す書き込みも変える書き込みも通らない」から導いた。印の無い記録は状態だけが跡なので、状態が戻ると跡が消える。逆に、先に付いた印は、後の review batch に「分析を始めた後」と誤って写る（Story 33.5）。
+- Why: AC 1 の「消す書き込みも変える書き込みも通らない」から導いた。印の無い記録は状態だけが跡なので、状態が戻ると跡が消える。逆に、先に付いた印は後の review batch に「分析を始めた後」と誤って写る（Story 33.5）。
 - Criteria: AC 1。印は記録に書いてあることだけを言う（PRD の非機能要件）。
 - Affected modules: `src/insight_blueprint/validate.py` の `_mark_errors`、`skills/_shared/design_io.py` の `_with_analysis_mark`。
 - Alternatives considered: 直書きで `analyzing` に入るときも印を求める案（新しいファイルへの直書きはスキーマだけを確かめるので、印の無い `analyzing` はどのみち作れる。ADR-0053 の Negative）。
@@ -405,11 +405,11 @@ sequenceDiagram
 - Criteria: 拒む範囲を、人間が決めた範囲より広げない（FLOW-0008）。AC 4 の文は「`analyzing` に入る書き込み」で、戻る書き込みも含むと読める。狭く読んだので、PM に知らせ、Epic PR で人間に確かめる。
 - Affected modules: `src/insight_blueprint/validate.py` の `_criterion_errors`。
 - Alternatives considered: 戻る書き込みでも確かめる案（保存済みの基準なしの検証は、結果の review から結論へ直接進むか、派生を作るしかなくなる）。primary のどれか1つに基準があれば通す案（基準の無い primary の指標が判定に入る）。
-- Consequences: 保存済みの基準なしの検証は、今までどおり `analyzing` と `in_review` を行き来できる。notebook は基準が無いと止まる（契約のまま）。基準の無い検証が `in_review` や `revision_requested` から結論へ直接進む書き込み（ADR-0029）は、Story のレビューで見つかり、人間に聞いた（FLOW-0008）。人間は、`supported` と `rejected` に入る書き込みを拒み、`inconclusive` は通すと決めた（2026-11-25、PM のセッションで直接。ボードの d9 の C。ADR-0053 の8）。確かめるのは、ここでも分析を始めていない分析設計だけである。分析の印を持たないまま結果の review で `in_review` に戻っている保存済みの検証は、分析の前として読むので、基準が無ければ拒む。初めて付く印の時刻は確かめない。印の時刻は表示にも判定にも使わない（Decision `a-batch-holds-whether-it-came-after-the-analysis`）。
+- Consequences: 保存済みの基準なしの検証は今までどおり `analyzing` と `in_review` を行き来できる。notebook は基準が無いと止まる（契約のまま）。基準の無い検証が `in_review` や `revision_requested` から結論へ直接進む書き込み（ADR-0029）は、Story のレビューで見つかり、人間に聞いた（FLOW-0008）。人間は、`supported` と `rejected` に入る書き込みを拒み、`inconclusive` は通すと決めた（2026-11-25、PM のセッションで直接。ボードの d9 の C。ADR-0053 の8）。確かめるのは、ここでも分析を始めていない分析設計だけである。分析の印を持たないまま結果の review で `in_review` に戻っている保存済みの検証は、分析の前として読むので、基準が無ければ拒む。初めて付く印の時刻は確かめない。印の時刻は表示にも判定にも使わない（Decision `a-batch-holds-whether-it-came-after-the-analysis`）。
 
 ### Decision: the-report-gives-each-metric-of-groups-its-own-table
 
-- What: レポートは、群を持つ指標を本の表の後に、指標ごとの表で出す。表の上に「指標名（軸 × 軸）」の行を置く。縦横の表にするのは、軸が2つ、どの群の行も値だけ、群の組が重ならない、の3つがそろうときだけである。組が重なれば、行を落とさずに縦の表にする。群だけを持つ指標（本の表の列に出すものが無い）は本の表に行を出さない。値や線も持つ指標は、本の表の行と群の表の両方に出す。表示の言葉（判定・区間の種類）と列の順は、33.2 と知らせ合って同じ規則にし、`theme_report.py` に自前で持つ。
+- What: レポートは群を持つ指標を本の表の後に、指標ごとの表で出す。表の上に「指標名（軸 × 軸）」の行を置く。縦横の表にするのは、軸が2つ、どの群の行も値だけ、群の組が重ならない、の3つがそろうときだけである。組が重なれば、行を落とさずに縦の表にする。群だけを持つ指標（本の表の列に出すものが無い）は本の表に行を出さない。値や線も持つ指標は、本の表の行と群の表の両方に出す。表示の言葉（判定・区間の種類）と列の順は、33.2 と知らせ合って同じ規則にし、`theme_report.py` に自前で持つ。
 - Why: 組が重なる群の行を縦横の表に入れると、1つのセルに1つしか入らず、値が黙って消える。値と群の両方を持つ指標は読み手が両方を読む（Decision `groups-that-do-not-fit-their-axes-read-as-no-groups`）ので、どちらかを捨てると記録にある数が届かない。
 - Criteria: PRD の非機能要件「分析者に届く数と結論は、記録に書いてあるものに限る」。ADR-0052 の8と9。決め手は前者で、記録にある数を表から落とさない。
 - Affected modules: `skills/_shared/theme_report.py`。
@@ -427,7 +427,7 @@ sequenceDiagram
 
 ### Decision: the-note-lays-groups-out-as-written
 
-- What: 群を持つ指標は、結果の節の「指標の値」の下に、指標ごとの表（見出しは `h5`。「指標名（軸 × 軸）」）で出す。軸が2つで、どの群の行も値だけを持ち、同じ組が2回書かれていないときは、第1軸を縦、第2軸を横に置く（`_across`）。名前は、初めて書かれた順に並べる。無い組は「—」。それ以外は、軸ごとの列と、値・効果量・区間・N・p の列を持つ縦の表にする（`_filled_table`）。どちらの表も、どの行も値を持たない列は出さない。群だけを持つ指標（出す列に値が1つも無い指標）は、主の表に行を出さない。探索の表は、しきい値・合否に加えて、支持の線・棄却の線・判定の列も出さない（`VERDICT_COLUMNS`）。区間の cell は「種類の言葉 水準 {level}: [{lower}, {upper}]」で、水準を百分率に直さない。
+- What: 群を持つ指標は結果の節の「指標の値」の下に、指標ごとの表（見出しは `h5`。「指標名（軸 × 軸）」）で出す。軸が2つで、どの群の行も値だけを持ち、同じ組が2回書かれていないときは、第1軸を縦、第2軸を横に置く（`_across`）。名前は初めて書かれた順に並べる。無い組は「—」。それ以外は、軸ごとの列と、値・効果量・区間・N・p の列を持つ縦の表にする（`_filled_table`）。どちらの表も、どの行も値を持たない列は出さない。群だけを持つ指標（出す列に値が1つも無い指標）は、主の表に行を出さない。探索の表は、しきい値・合否に加えて、支持の線・棄却の線・判定の列も出さない（`VERDICT_COLUMNS`）。区間の cell は「種類の言葉 水準 {level}: [{lower}, {upper}]」で、水準を百分率に直さない。
 - Why: 名前を数として並べ替えると「10」が「9」より前に来る。書かれた順なら計算も解釈もしない。同じ組が2回あると縦横の表は片方の値を隠すので、縦の表に戻す。見本の「95%」は level を百分率に直す計算になる。
 - Criteria: ADR-0052 の9（計算しない）、PRD の非機能要件（届く数は、記録に書いてあるものに限る）、ADR-0050（探索は判定しない）。
 - Affected modules: `skills/_shared/design_note.py`（`interval_text`・`_metric_cells`・`_group_cells`・`_filled_table`・`_across`・`_group_table`・`_metric_values`）。`skills/_shared/theme_report.py` は `VERDICT_COLUMNS` を読む。
@@ -436,16 +436,16 @@ sequenceDiagram
 
 ### Decision: the-result-lenses-start-when-a-verdict-exists
 
-- What: `/analysis-review` は、`.insight/notebooks/{design_id}_verdict.json` があるとき、結果の review として、分析設計の観点の後に Step 3b（結果の観点）を通る。探索の verdict は、線・判定・しきい値・合否を持たないので、図と cell の2つの観点で読む。`/analysis-revision` は、分析設計に `analysis_started_at` があるとき、固定の項目への review コメントで `design_io update` を試さない。結果への review コメントは、指した cell だけを直し、線は `comparison` から写し直し、`/analysis-notebook` の Step 4 のコマンドで回し直して、Step 6 のとおり journal に書く。
+- What: `/analysis-review` は、`.insight/notebooks/{design_id}_verdict.json` があるとき、結果の review として、分析設計の観点の後に Step 3b（結果の観点）を通る。探索の verdict は線・判定・しきい値・合否を持たないので、図と cell の2つの観点で読む。`/analysis-revision` は、分析設計に `analysis_started_at` があるとき、固定の項目への review コメントで `design_io update` を試さない。結果への review コメントは、指した cell だけを直し、線は `comparison` から写し直し、`/analysis-notebook` の Step 4 のコマンドで回し直して、Step 6 のとおり journal に書く。
 - Why: ADR-0054 の2は「verdict があるとき」と決めたが、何で verdict の有無を見るかは決めていない。状態では分けられない（結果の review も設計の review も `in_review` で記録する）。固定の項目は ADR-0053 の3で、拒まれる書き込みを skill が送ると、分析者は traceback を見る（33.4 の follow-up）。
-- Criteria: ADR-0054 の2と3、ADR-0050 の3（探索は線も判定も合否も持たない）、33.4 の引き継ぎ。決め手は、記録にあるファイルだけで分けられること。
+- Criteria: ADR-0054 の2と3、ADR-0050 の3（探索は線も判定も合否も持たない）、33.4 の引き継ぎ。決め手は記録にあるファイルだけで分けられること。
 - Affected modules: `skills/analysis-review/SKILL.md`、`skills/analysis-revision/SKILL.md`。
 - Alternatives considered: batch の `after_analysis_started` で分ける（batch は review を書いた後にしか無いので、批評の前には使えない）。分析設計の印で分ける（verdict を書く前に `analyzing` に入っただけの分析設計まで結果の review になり、読むものが無い）。
 - Consequences: verdict のファイルを消した分析設計は、分析を始めていても設計の review として読む。notebook を回し直すと前の verdict は残らない（ADR-0054 の Negative のとおり）。
 
 ### Decision: reviews-sit-after-the-results-and-skip-what-cannot-be-read
 
-- What: 分析ノートの「レビュー」の節は「結果」の節の後、「結論」の前に置く。`_reviews.yaml` が無い、壊れている、`batches` が並びでない、またはリンクのときは、batch を1つも読まない。batch は、読める review コメントを1つも持たなければ飛ばす。review コメントは、空でない文字列の `comment` を持たなければ飛ばす。`target_content` は文字列ならそのまま、それ以外の JSON の値は JSON の文字で出す。新しい順は `created_at` の文字の降順で、`list_review_batches` と同じ。
+- What: 分析ノートの「レビュー」の節は「結果」の節の後、「結論」の前に置く。`_reviews.yaml` が無い、壊れている、`batches` が並びでない、またはリンクのときは、batch を1つも読まない。batch は読める review コメントを1つも持たなければ飛ばす。review コメントは空でない文字列の `comment` を持たなければ飛ばす。`target_content` は文字列ならそのまま、それ以外の JSON の値は JSON の文字で出す。新しい順は `created_at` の文字の降順で、`list_review_batches` と同じ。
 - Why: AC 4 は節の場所と、読めない記録の扱いを決めていない。review は分析ノートに足すだけの記録なので、1つの壊れたファイルで分析ノートと論点ツリーが作れなくなると、読み手は判定まで読めなくなる。分析ノートは手元を離れうるので、リンクの先は読まない（notebook と verdict の読みと同じ）。
 - Criteria: AC 4、ADR-0054 の5、PM の指示（壊れた `_reviews.yaml` でも今と同じに出る）、33.2 の引き継ぎ（結果の節の切り出しに入らない場所）。決め手は、読み手が判定を読めることを review より先に守ること。
 - Affected modules: `skills/_shared/design_note_read.py`（`_read_reviews`・`_review_batch`・`_review_comment`）、`skills/_shared/design_note.py`（`_reviews`・`_review_batch`）。
@@ -454,7 +454,7 @@ sequenceDiagram
 
 ### Decision: the-count-sits-on-the-card-of-the-design
 
-- What: 論点ツリーの件数は、分析設計のカード（最初に繋いだ論点の下）の状態の行に「分析を始めた後の review コメント: N 件」と出す。2つ目以降の論点の下の短い行と、「分析設計の派生」の行には出さない。件数は `design_note.comments_after_analysis` が数え、`DesignSummary.comments_after_analysis` が持つ。
+- What: 論点ツリーの件数は分析設計のカード（最初に繋いだ論点の下）の状態の行に「分析を始めた後の review コメント: N 件」と出す。2つ目以降の論点の下の短い行と、「分析設計の派生」の行には出さない。件数は `design_note.comments_after_analysis` が数え、`DesignSummary.comments_after_analysis` が持つ。
 - Why: AC 5 の「分析設計の行」が、カード・短い行・派生の行のどれかを決めていない。短い行はカードへのリンクで、同じ件数を何度も出すと読み手が別の review と取りうる。
 - Criteria: AC 5、ADR-0054 の6。決め手は、1つの分析設計の件数がページに1回だけ出ること。
 - Affected modules: `skills/_shared/design_note.py`、`skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`。
@@ -486,7 +486,7 @@ sequenceDiagram
 - 2026-11-25 — 初版: 見本を Artifact で見せた（分析ノートの指標の表の案 A と案 B、値の区間、群の表、レビューの節、論点ツリーの行）。題材は合成シナリオで、コミットしていない。分かった事実: 線が数だけでも、同じページの `comparison` と並べれば読める、と人間が判断した。確かめていない前提: 実際の分析ノートの幅で、列が増えた表が読めるか。群の軸が3つ以上のときの表。
 - 2026-11-25 — 初版を人間が承認した（Domain Model 図を含む。このセッションで直接）。
 - 2026-11-25 — Story を起票した: #243（33.1）、#244（33.4）、#245（33.2）、#246（33.3）、#247（33.5）、#248（33.6）。
-- 2026-11-25 — Story 33.1 completed: notebook の契約に支持の線・棄却の線・指標の判定・値の区間・群の行を足し、読み手（`VerdictMetric`）が読むようにした。US-1 AC 1・AC 2 と US-2 AC 1・AC 3 を満たした。US-1 AC 5 は、読み手と今の表について満たした（保存済みの verdict の8例を、Epic の前のコードが出す行で固定した）。新しい列が入った後の AC 5 は 33.2 と 33.3 が確かめるので、チェックは付けていない。
+- 2026-11-25 — Story 33.1 completed: notebook の契約に支持の線・棄却の線・指標の判定・値の区間・群の行を足し、読み手（`VerdictMetric`）が読むようにした。US-1 AC 1・AC 2 と US-2 AC 1・AC 3 を満たした。US-1 AC 5 は読み手と今の表について満たした（保存済みの verdict の8例を、Epic の前のコードが出す行で固定した）。新しい列が入った後の AC 5 は 33.2 と 33.3 が確かめるので、チェックは付けていない。
   Domain Model 図は変えていない。`MetricJudgment`・`ValueInterval`・`MetricGroup` は案の名前のまま使った。図が省いている項目は実装にもある（`VerdictMetric` の `p`・`effect_size`・`sample_size`、`MetricGroup` の `p`・`effect_size`）。
   計画外の判断は2件で、Decisions に書いた（値の区間を1つの項目で持ち、表は種類の表示を待つ。軸に合わない群の行は、群を持たないものとして読む）。案内の分け方（`in_review` は基準を書く、分析を始めた後は派生）も Decisions に書いた。
   Epic 32 のテストのうち、契約の文と fixture の形を固定していたものを、新しい契約に合わせて書き換えた（primary の `threshold` と `pass`、`confidence_interval`、基準が無いときの案内）。ADR-0052 が仕様を変えたためである。
@@ -494,7 +494,7 @@ sequenceDiagram
   バグ・セキュリティの観点のレビューを1本回した（指摘2件、どちらも直した）。Python 3.11 では、指標の判定を持つ verdict を読むと `TypeError` で止まった（`in` で enum の値を照らしていた）。値を作ってみる書き方に直し、3.11 でも読み手と契約のテストを回した。「群を指標の名前に埋めない」の構造テストは、群を持つ指標の名前しか見ていなかったので、例のすべての指標の名前を見るように直した。
 
 - 2026-11-25 — Story 33.4 completed: 分析の印（`analysis_started_at`）を分析設計に足し、`validate_update` が、分析を始めた検証の検証仮説・primary の指標の組・意図の変更と、基準の無い検証が `analyzing` に入る書き込みを拒むようにした。`design_io` は状態を変える書き込みで印を付け、`transition` と `review-batch` も同じ検査を通る。Domain Model 図は変えていない（分析を始めたかは `validate.py` の `analysis_started` が答える）。計画外の判断は3件で、Decisions に書いた（組の比べ方、印を先に付けない、基準を確かめるのは初めて入るときだけ）。`/analysis-review` と `/analysis-revision` の案内は 33.5 が直す。
-- 2026-11-25 — Story 33.3 completed: レポートの指標の表に、支持の線・棄却の線・判定・区間の種類を出し、群を持つ指標を指標ごとの表（縦横か縦）で出すようにした（`theme_report.py` の `_metrics`・`_group_table`・`_cross_table`）。US-1 AC 4 と US-2 AC 5 を満たした。US-1 AC 5 と US-2 AC 2 は、レポートについて満たした（保存済みの verdict の8例を、Epic の前のコードが出した表で先に固定し、区間の列の見出しと種類の言葉だけを変えた）。分析ノートは 33.2 が確かめるので、チェックは付けていない。
+- 2026-11-25 — Story 33.3 completed: レポートの指標の表に、支持の線・棄却の線・判定・区間の種類を出し、群を持つ指標を指標ごとの表（縦横か縦）で出すようにした（`theme_report.py` の `_metrics`・`_group_table`・`_cross_table`）。US-1 AC 4 と US-2 AC 5 を満たした。US-1 AC 5 と US-2 AC 2 はレポートについて満たした（保存済みの verdict の8例を、Epic の前のコードが出した表で先に固定し、区間の列の見出しと種類の言葉だけを変えた）。分析ノートは 33.2 が確かめるので、チェックは付けていない。
 - 2026-11-25 — Story 33.5 completed: review コメントの対象に `notebook`・`verdict`・`figures` を足し、`ReviewBatch` に任意の `after_analysis_started` を足した。`append_review_batch` は遷移の前のディスク上の分析設計を `analysis_started()` で読んで書く。`/analysis-review` は verdict があるとき Step 3b の結果の観点で読み、`/analysis-revision` は結果への review コメントを notebook で直し、固定の項目には `design_io update` を試さない。US-4 AC 1〜3 を満たした。Domain Model 図は変えていない（案の名前と型のまま）。計画外の判断は1件で、Decisions に書いた（`the-result-lenses-start-when-a-verdict-exists`）。
   バグ・セキュリティの観点のレビューを1本回した（High・Medium は無し、Low 3件をすべて直した）。探索の verdict に guardrail の観点を当てさせていたので、図と cell の観点だけにした。印の無い保存済みの分析設計に verdict があるとき、batch が分析の前として残ることを分析者に言うようにした（ADR-0053 の Negative の穴を、分析者に見えるようにしただけで、塞いではいない）。基準が無いときに拒まれる分析設計の形と、旧形式の探索が分析の後も `confirmatory` に直せる例外（ADR-0049 の6）を、コードに合わせて書いた。
   33.1 が置いた暫定の条件（種類が `confidence` の値の区間だけを「信頼区間」の列に出す）と、そのテストを消した。
@@ -509,5 +509,5 @@ sequenceDiagram
   Domain Model 図は変えていない。分析ノートの読みの型 `NoteReviewBatch`・`NoteReviewComment` を足し、用語集の「分析ノート」に書いた。計画外の判断は2件で、Decisions に書いた（節の場所と読めない記録の扱い、件数を出す行）。
   一時ディレクトリの `.insight/` で `design_io` の CLI を回し（承認の batch は分析の前、`in_review` に戻した後の `verdict`・`figures` への batch は後）、`tree_io render` のページをブラウザで開いて、節と「分析を始めた後の review コメント: 2 件」を目で確かめた。
   バグ・セキュリティの観点のレビューを1本回した（High 1件、Low 3件）。High: 日付として無い timestamp（`2026-02-30`）を手で書いた `_reviews.yaml` で、論点ツリーのページ全体が作れなかった。Low: 読む権限の無いファイルで traceback が出た。どちらもテストを足して直した（読めないファイルとして飛ばす）。直していない Low: 新しい順は `created_at` の文字の順で、時差の違う時刻を手で混ぜると前後しうる（`list_review_batches` と同じ順。書き手は1つの時差で書く）。自分を指す YAML の alias は、round-trip の読みで中身が空になって出る（落ちない）。
-- 2026-11-25 — d9 の直し（Story 33.4 の続き）: 分析を始めていない検証・旧形式の探索・`mixed` が、基準の無いまま `supported` か `rejected` に入る書き込みを拒むようにした。`inconclusive` は通る（ADR-0053 の8。人間が C を選んだ）。拒む文は、`/analysis-design` で基準を書く道と、`inconclusive` で閉じる道を案内する。`/analysis-review` の Scope と Step 5、`/analysis-design` の Status Flow、ARCHITECTURE、CHANGELOG を合わせた。合成シナリオ（`tests/fixtures/handoff/lib/stages.yaml`）の検証に基準を足した。基準を持たずに `supported` へ直接進んでいたためである。
+- 2026-11-25 — d9 の直し（Story 33.4 の続き）: 分析を始めていない検証・旧形式の探索・`mixed` が、基準の無いまま `supported` か `rejected` に入る書き込みを拒むようにした。`inconclusive` は通る（ADR-0053 の8。人間が C を選んだ）。拒む文は `/analysis-design` で基準を書く道と、`inconclusive` で閉じる道を案内する。`/analysis-review` の Scope と Step 5、`/analysis-design` の Status Flow、ARCHITECTURE、CHANGELOG を合わせた。合成シナリオ（`tests/fixtures/handoff/lib/stages.yaml`）の検証に基準を足した。基準を持たずに `supported` へ直接進んでいたためである。
 - 2026-11-25 — d9 の直しのレビュー: バグ・セキュリティの観点のレビューを1本回した（High なし、Medium 1件、Low 4件）。`/analysis-reflection` の Step 4 に、分析を始めていない基準なしの検証を閉じるときの案内を足した（結果の後なので基準を書かず、`inconclusive` か派生）。拒む文に「結果を見る前に」を足した。探索を検証に組み替えて `supported` にする書き込みを固定するテストを足し、構造テストの表明と CHANGELOG・ADR の文を直した。
