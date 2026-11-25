@@ -146,6 +146,16 @@ class TestReflectionConcludesFromAnalyzing:
             "--target supported"
         )
 
+    def test_the_review_is_asked_before_the_conclude_is_recorded(self) -> None:
+        """Trial F20: a review after `conclude` brings the design back for a second one."""
+        step = self._step()
+        assert step.index("/analysis-review") < step.index("type: conclude")
+
+    def test_taking_the_review_leaves_one_conclude_for_after_it(self) -> None:
+        step = self._step()
+        assert "record no `conclude` yet" in step
+        assert "one `conclude`" in step
+
     def test_it_offers_no_review_once_the_design_is_concluded(self) -> None:
         """/analysis-review exits on a terminal status, so offering it after is a dead end."""
         after = self._step().split("--target inconclusive", 1)[1]

@@ -210,7 +210,17 @@ Before the choices, say: 「ふつうは1つ目の答えのとおりに終える
 
 When the analyst ends the design:
 
-1. Record `conclude` event in journal:
+1. Ask whether to have the result reviewed first. A review of the result with /analysis-review
+   is optional, and the analyst decides whether to ask for one. It comes before the conclusion
+   is recorded: it moves the design back to `in_review`, and approving it returns the design to
+   `analyzing`. Once the design has ended it can no longer be reviewed.
+   - The analyst takes the review → record no `conclude` yet, and send them to
+     `/analysis-review {design_id}`. After the review, `/analysis-reflection {design_id}` comes
+     back to this step and records one `conclude` for the design. Do not ask about a review
+     again then.
+   - The analyst declines → go on.
+
+2. Record `conclude` event in journal:
    ```yaml
    - id: "{design_id}-E{nn}"
      type: conclude
@@ -220,12 +230,8 @@ When the analyst ends the design:
      created_at: "{now}"
    ```
 
-2. Suggest the status transition (via design_io transition). A review of the result with
-   /analysis-review is optional, and the analyst decides whether to ask for one. Offer it
-   before the transition: it moves the design back to `in_review`, and the design ends after
-   the review. Once the design has ended it can no longer be reviewed. Without a review the
-   design ends right after its analysis, as each form below shows (validated by
-   VALID_TRANSITIONS).
+3. Suggest the status transition (via design_io transition). Without a review the design ends
+   right after its analysis, as each form below shows (validated by VALID_TRANSITIONS).
 
    - **Confirmation** (and a legacy exploration) — 「判定が出た。ステータスを変更する？」
      - supported: `design_io transition --id {design_id} --target supported`
@@ -242,7 +248,7 @@ When the analyst ends the design:
      When the analyst does, link it and record it as Step 5 items 3 and 4 do; the journal
      gets the `branch` event as the link to the new design.
 
-3. Show final summary and suggest:
+4. Show final summary and suggest:
    - "この分析で分かったソースの再利用知識を残すなら /knowledge-extract"
    - "新しいデータソース自体を登録するなら /catalog-register"
    - "派生の分析設計を立てるなら /analysis-design"
