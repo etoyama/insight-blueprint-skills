@@ -272,12 +272,15 @@ def _criterion_errors(new: AnalysisDesign, current: AnalysisDesign) -> list[str]
     if not (entering and new.form().judges):
         return []
     criteria = _criteria(new)
-    if criteria and all(comparison.strip() for _, comparison in criteria):
+    unwritten = [target for target, comparison in criteria if not comparison.strip()]
+    if criteria and not unwritten:
         return []
+    lacking = f" (comparison is empty: {', '.join(unwritten)})" if unwritten else ""
     return [
-        "metrics: a design that judges a hypothesis enters analyzing only with a "
-        "primary metric whose comparison states the criterion; write it before "
-        "the review approves the design"
+        "metrics: a design that judges a hypothesis enters analyzing only when it "
+        "has a primary metric and every primary metric (a metric without tier is "
+        f"primary) states the criterion in its comparison{lacking}; write it "
+        "before the review approves the design"
     ]
 
 

@@ -772,6 +772,14 @@ class TestEnteringTheAnalysisNeedsACriterion:
         errors = _errors(new, current)
         assert any("comparison" in e and "primary" in e for e in errors)
 
+    def test_the_refusal_names_the_primary_metric_without_a_criterion(self) -> None:
+        # A metric without a tier is primary, which the analyst may not expect.
+        current = make_design(metrics=[primary(), {"target": "return rate"}])
+        new = current | {"status": "analyzing", "analysis_started_at": MARK}
+        (error,) = _errors(new, current)
+        assert "comparison is empty: return rate" in error
+        assert "without tier is primary" in error
+
     def test_a_judging_design_with_a_criterion_is_analyzed(self) -> None:
         new = confirmation(status="analyzing", analysis_started_at=MARK)
         assert _errors(new, confirmation()) == []

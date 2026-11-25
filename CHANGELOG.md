@@ -23,8 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `target` and `comparison`; adding, removing or re-tiering one) and of `analysis_intent`, in
   `design_io update` and in a direct write alike, also after the design went back to `in_review`. To
   test another hypothesis or criterion, derive a new design with `parent_id`. The background and the
-  other fields can still be edited. A confirmation now enters `analyzing` only with a `primary` metric
-  whose `comparison` is written, so write the criterion before the review approves the design. Designs
+  other fields can still be edited. A confirmation now enters `analyzing` only when it has a `primary`
+  metric and every `primary` metric has its `comparison` written, so write the criterion before the review approves the design. Designs
   already saved still read; one that is `analyzing` or concluded counts as started
   ([ADR-0053](docs/adr/0053-a-started-confirmation-keeps-its-hypothesis-criterion-and-intent.md), #244).
 

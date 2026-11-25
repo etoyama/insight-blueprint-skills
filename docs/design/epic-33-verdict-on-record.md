@@ -405,7 +405,7 @@ sequenceDiagram
 - Criteria: 拒む範囲を、人間が決めた範囲より広げない（FLOW-0008）。AC 4 の文は「`analyzing` に入る書き込み」で、戻る書き込みも含むと読める。狭く読んだので、PM に知らせ、Epic PR で人間に確かめる。
 - Affected modules: `src/insight_blueprint/validate.py` の `_criterion_errors`。
 - Alternatives considered: 戻る書き込みでも確かめる案（保存済みの基準なしの検証は、結果の review から結論へ直接進むか、派生を作るしかなくなる）。primary のどれか1つに基準があれば通す案（基準の無い primary の指標が判定に入る）。
-- Consequences: 保存済みの基準なしの検証は、今までどおり `analyzing` と `in_review` を行き来できる。notebook は基準が無いと止まる（契約のまま）。
+- Consequences: 保存済みの基準なしの検証は、今までどおり `analyzing` と `in_review` を行き来できる。notebook は基準が無いと止まる（契約のまま）。基準の無い検証が `in_review` から結論へ直接進む書き込み（ADR-0029）は、今までどおり通る。ADR-0053 の4は `analyzing` に入る書き込みだけを決めたので、拒む範囲を広げるかは人間に聞く（FLOW-0008。Story のレビューで見つかった）。初めて付く印の時刻は確かめない。印の時刻は表示にも判定にも使わない（Decision `a-batch-holds-whether-it-came-after-the-analysis`）。
 
 ### Cross-epic decisions (links to ADR)
 
