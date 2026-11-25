@@ -193,7 +193,15 @@ out: write the criterion with `/analysis-design {design_id}` and record the revi
 close the design without a verdict of the hypothesis with `--status inconclusive`, which
 needs no criterion.
 
-### Step 6: Hand off
+### Step 6: Rebuild the design note
+
+Run `tree_io render --design {design_id}` so that the design note shows the batch you
+recorded, and tell the analyst where the note is: read the JSON it prints as the
+`#### 読むもの` of /analysis-reflection says, and show its `分析ノート:` line. This step is
+not a gate: ask nothing. If the render exits non-zero, show its stderr; the batch of Step 5
+stays recorded.
+
+### Step 7: Hand off
 
 - `revision_requested` → "指摘に対応するなら /analysis-revision {design_id}"
 - `analyzing` → "分析を始めるなら /analysis-journal {design_id}"（結果のレビューなら "結論を出すなら /analysis-reflection {design_id}"）

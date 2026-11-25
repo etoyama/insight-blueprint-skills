@@ -136,3 +136,30 @@ class TestRevisionDoesNotRewriteWhatTheAnalysisHolds:
         phase = _revision("### Phase 3: ")
         assert "wontfix with a reason" in phase
         assert "derive a new design" in phase and "`parent_id`" in phase
+
+
+class TestReviewRebuildsTheNote:
+    """US-4 AC 4: a recorded batch reaches the design note without a manual render.
+
+    The note is a file ``tree_io render`` writes. A review that records a batch and
+    stops leaves the note as it was, so the approved comments stay hidden until
+    someone renders again (the trial finding G07).
+    """
+
+    _RENDER = "`tree_io render --design {design_id}`"
+
+    def test_the_step_after_the_record_renders_the_design(self) -> None:
+        assert self._RENDER in _review("### Step 6: ")
+
+    def test_it_renders_after_the_record_and_before_the_hand_off(self) -> None:
+        workflow = _review("## Workflow")
+        record = workflow.index("### Step 5: Record the review batch")
+        render = workflow.index(self._RENDER)
+        hand_off = workflow.index("### Step 7: Hand off")
+        assert record < render < hand_off
+
+    def test_it_is_not_a_gate_and_shows_a_failure(self) -> None:
+        step = _review("### Step 6: ")
+        assert "not a gate: ask nothing" in step
+        assert "exits non-zero, show its stderr" in step
+        assert "the batch of Step 5 stays recorded" in step
