@@ -525,11 +525,11 @@ review、premortem、journal への verdict の記録は、今と同じなので
 
 ### Decision: trial-findings-fixed-before-the-epic-pr
 
-- What: ib-notebook の使用感の確認で見つけた3件を、Epic PR の前に直す。F20: `/analysis-reflection` Step 4 は、レビューを受けるかを `conclude` の記録の前に聞く。受けるときは何も記録せずに `/analysis-review` に送り、レビューの後の reflection が `conclude` を1つ記録して状態を変える。F05: `/analysis-design` は、`node_id` が来ずテーマに論点ツリーがあるとき、論点を見せてどれに答えるか（どれにも答えないか）を聞き、Brief と同じ `tree_io link` で結ぶ。F12: 探索の1つ目の問いで、答えに測った値が無いときは journal の evidence の値を見せて探索の問いへの答えを聞き直し、分析者の言葉のまま残す。判定の言葉は出さない。
+- What: ib-notebook の使用感の確認で見つけた3件を、Epic PR の前に直す。F20: `/analysis-reflection` Step 4 は、レビューを受けるかを `conclude` の記録の前に聞く。受けるときは何も記録せずに `/analysis-review` に送り、レビューの後の reflection が `conclude` を1つ記録して状態を変える。F05: `/analysis-design` は、`node_id` が来ずテーマに論点ツリーがあるとき、論点を見せてどれに答えるか（どれにも答えないか）を聞き、Brief と同じ `tree_io link` で結ぶ。F12: 探索の reflection の1つ目の問いで、答えに測った値が無いときは journal の evidence の値を見せて探索の問いへの答えを聞き直し、分析者の言葉のまま残す。判定の言葉は出さない。
 - Why: F20 では、レビューを受けると `analyzing → in_review → analyzing` と戻り、`conclude` が2つ並んだ。F05 では、Brief を通さずに作った探索が論点に結ばれず、論点ツリーの入れ子の表示（US-4）が効かなかった。F12 では、「方向づけるものは特になし」がそのまま結論になり、測った値は証拠の節にだけ残った。
-- Criteria: 人間が ib-notebook の使用感の確認の後に、Epic で直すと選んだ（2026-11-25）。F16・F04 は issue にした。
+- Criteria: ib-notebook で使用感を確かめた後に、人間が Epic で直す方を選んだ（2026-11-25）。F16・F04 は issue にした。
 - Affected modules: `skills/analysis-reflection/SKILL.md`、`skills/analysis-design/SKILL.md`、`tests/skills/test_direct_conclusion_structure.py`、`tests/skills/test_reflection_questions_structure.py`、`tests/skills/test_question_tree_structure.py`、`CHANGELOG.md`。
-- Alternatives considered: 3件とも issue にして次の Epic に回す案。3件とも、この Epic で作り直した reflection の問いと論点ツリーの入れ子の表示を、実データで使ったときの穴に当たる。人間はリリースの前に直す方を選んだ。
+- Alternatives considered: 3件とも issue にして次の Epic に回す案。3件とも、この Epic で作り直した reflection の問いと論点ツリーの入れ子の表示を実データで使ったときの穴に当たる。人間はリリースの前に直す方を選んだ。
 - Consequences: `/analysis-auto` の reflection の段は `conclude` とレビューの順を書いていないので変えない。レビューの後に reflection を回し直すと、1つ目と2つ目の問いの `reflect` は改めて記録される。
 
 ### Cross-epic decisions (links to ADR)
@@ -577,4 +577,4 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - 2026-11-25 — Story 32.7 completed: `/analysis-reflection` の3つの問いを、問いの形の見出し（結果から何が言えるか／まだ答えの出ていない問いで、判定は変わるか／この分析設計をどう終えるか）にした。検証は基準と問いの範囲を先に言い、探索は判定を選ばず `explored` で終えて、仮の答えを残せる。直した検証仮説は派生の分析設計にする（Decision `a-changed-hypothesis-goes-into-a-derived-design`）。計画外の判断は Decision `reflection-reads-undirected-evidence-and-derives-through-design` に書いた。
 - 2026-11-25 — Story 32.8 completed: `/analysis-design` Step 2 に "Metrics explained before they are asked" を足した。すべての指標に何を表す数かの一文を添え、2つ以上の量から作る指標でテーマに初めて出るものには5項目の解説を付けてから聞く。例の数字は journal か別の群の数字で、判定する結果を使わない。検証の基準には意味と、扱いを変えると判定がどう変わるかを付ける。`/analysis-auto` の design ② の行と段にも同じ手順を書いた。先送りの2件（Chaining 表の reflection の行、Derived Hypotheses の親の状態）も直した。計画外の判断は Decision `metric-explanation-covers-default-and-later-updates` に書いた。
 - 2026-11-25 — Epic のゲート: thermos（バグ・セキュリティと品質の2観点）、AC とテストの照合、yomiyasu の推敲を回した。直したもの: 形の述語の一本化（`DesignForm.judges`・`allows`）、作る検査と書き換える検査の分割、hook も書き換えの検査を通す（人間が A を選んだ）、テストの helper の集約、`/analysis-journal` の分岐、yomiyasu のパターンの境界、ARCHITECTURE の古い行。32.5・32.6 の計画外の判断を Decisions に書き、AC のチェックを付けた。
-- 2026-11-25 — 使用感の確認（ib-notebook）の3件を直した。F20 はレビューを `conclude` の前に聞く、F05 は Brief 無しの分析設計を論点に結べる、F12 は測った値の無い探索の答えを値を見せて聞き直す。Decision `trial-findings-fixed-before-the-epic-pr` に書いた。
+- 2026-11-25 — 使用感の確認（ib-notebook）で見つけた3件を直した。F20 ではレビューを受けるかを `conclude` の前に聞く。F05 では Brief 無しの分析設計を論点に結べる。F12 では測った値の無い探索の答えを、値を見せて聞き直す。Decision `trial-findings-fixed-before-the-epic-pr` に書いた。
