@@ -10,7 +10,6 @@ whether the analyst writes a question to explore or a hypothesis to confirm, and
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 import pytest
@@ -18,8 +17,8 @@ import pytest
 from insight_blueprint.models.design import AnalysisDesign, DesignForm
 from skills._shared import design_io
 from tests.docs._changelog import changelog_entry
-from tests.skills._auto import gate_row
-from tests.skills._markdown import section, table_row, unwrap
+from tests.skills._auto import design_beat, gate_row
+from tests.skills._markdown import bold_item, section, table_row, unwrap
 from tests.skills._shown import DESIGN_PIPED, run_shown_design_commands
 from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
 
@@ -35,22 +34,9 @@ def _intent() -> str:
     return unwrap(_design("#### Intent"))
 
 
-def _beat(name: str) -> str:
-    """The numbered design beat ``N. **name**`` of /analysis-auto's design item."""
-    found = re.search(
-        rf"^\s+\d\. \*\*{re.escape(name)}\*\*.*?(?=^\s+\d\. \*\*|^\s*After all)",
-        _read_skill("analysis-auto"),
-        re.M | re.S,
-    )
-    assert found, f"no design beat named {name!r}"
-    return unwrap(found.group(0))
-
-
 def _lens(name: str) -> str:
     step = section(_read_skill("analysis-review"), "### Step 3: ")
-    found = re.search(rf"^- \*\*{name}\*\*.*?(?=^- \*\*|^\S)", step, re.M | re.S)
-    assert found, f"no {name} lens"
-    return unwrap(found.group(0))
+    return unwrap(bold_item(step, name))
 
 
 class TestAnalysisDesignAsksTheIntentFirst:
@@ -180,14 +166,14 @@ class TestAutopilotAsksTheIntentAtDesignBeatOne:
     def test_beat_one_asks_the_intent_before_the_question_or_the_hypothesis(
         self,
     ) -> None:
-        beat = _beat("intent")
+        beat = design_beat("intent")
         first = beat.index("`analysis_intent`")
         for field in (*EXPLORATION_FIELDS, *CONFIRMATION_FIELDS):
             assert first < beat.index(f"`{field}`"), field
         assert "never `mixed`" in beat
 
     def test_beat_two_does_not_ask_the_intent(self) -> None:
-        assert "analysis_intent" not in _beat("methodology")
+        assert "analysis_intent" not in design_beat("methodology")
 
 
 class TestFramingBriefDraftsByIntent:
@@ -236,7 +222,7 @@ class TestAConfirmationFixesItsCriterionInTheDesign:
         assert "no threshold" in criterion
 
     def test_autopilot_beat_two_confirms_it(self) -> None:
-        beat = _beat("methodology")
+        beat = design_beat("methodology")
         assert "`comparison`" in beat and "criterion" in beat
         assert "confirm" in gate_row("design ② methodology")[1]
         assert "criterion" in gate_row("design ② methodology")[1]

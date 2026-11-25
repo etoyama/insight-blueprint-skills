@@ -18,7 +18,7 @@ import pytest
 
 from skills._shared import design_io
 from tests.docs._changelog import changelog_entry
-from tests.skills._auto import gate_row, round_item
+from tests.skills._auto import design_beat, gate_row, round_item
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
 
@@ -45,17 +45,6 @@ def _sample() -> str:
     found = re.search(r"Sample.*?```text\n(.*?)```", _explained(), re.S)
     assert found, "the section shows no sample of the explanation"
     return found.group(1)
-
-
-def _beat(name: str) -> str:
-    """The numbered design beat ``N. **name**`` of /analysis-auto's design item."""
-    found = re.search(
-        rf"^\s+\d\. \*\*{re.escape(name)}\*\*.*?(?=^\s+\d\. \*\*|^\s*After all)",
-        _read_skill("analysis-auto"),
-        re.M | re.S,
-    )
-    assert found, f"no design beat named {name!r}"
-    return unwrap(found.group(0))
 
 
 def _in_order(text: str, parts: tuple[str, ...]) -> bool:
@@ -204,7 +193,7 @@ class TestTheAnalystCanAskForAnyMetric:
         assert "one sentence" in keep and "five parts" in keep
 
     def test_the_methodology_beat_names_the_explanation(self) -> None:
-        beat = _beat("methodology")
+        beat = design_beat("methodology")
         assert '"Metrics explained"' in beat
         assert TOLD_FIRST in beat
 

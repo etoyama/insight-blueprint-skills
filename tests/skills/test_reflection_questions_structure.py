@@ -21,7 +21,7 @@ import pytest
 from skills._shared import design_io
 from tests.docs._changelog import changelog_entry
 from tests.skills._auto import gate_row, round_item
-from tests.skills._markdown import section, table_row, unwrap
+from tests.skills._markdown import bold_item, section, table_row, table_rows, unwrap
 from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
 
 WHAT_THE_RESULTS_SAY = "#### 結果から何が言えるか"
@@ -42,14 +42,8 @@ def _beat(heading: str) -> str:
 
 
 def _part(beat: str, label: str) -> str:
-    """The bullet ``- **label**`` of a step or a beat, up to the next bold bullet or item."""
-    found = re.search(
-        rf"^\s*- \*\*{re.escape(label)}\*\*.*?(?=^\s*- \*\*|^\d+\. |^#|\Z)",
-        section(_skill(), beat),
-        re.M | re.S,
-    )
-    assert found, f"{beat!r} has no part {label!r}"
-    return unwrap(found.group(0))
+    """The bullet ``- **label**`` of a step or a beat."""
+    return unwrap(bold_item(section(_skill(), beat), label))
 
 
 class TestTheHeadingsAreTheQuestions:
@@ -310,9 +304,9 @@ class TestFramingSpeaksOfAQuestionOrAHypothesis:
     def test_reflection_rows_name_both_forms(self) -> None:
         chaining = section(_skill(), "## Chaining")
         rows = [
-            line.strip().strip("|").split("|")
-            for line in chaining.splitlines()
-            if line.startswith("| /analysis-reflection |")
+            cells
+            for cells in table_rows(chaining)
+            if cells[0] == "/analysis-reflection"
         ]
         assert len(rows) >= 5, "the Chaining table lost the rows from reflection"
         for cells in rows:

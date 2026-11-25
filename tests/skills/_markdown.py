@@ -51,6 +51,30 @@ def section(markdown: str, heading: str) -> str:
     return "".join(body)
 
 
+def bold_item(markdown: str, label: str) -> str:
+    """The first list item ``- **label**`` of ``markdown``, with its nested lines.
+
+    The item ends at the first non-blank line indented no deeper than its ``-``: its
+    next sibling, an item or paragraph further out, or a heading. Nested bullets and
+    paragraphs indented under the item stay inside it.
+    """
+    lines = markdown.splitlines(keepends=True)
+    opener = re.compile(rf"^ *- \*\*{re.escape(label)}\*\*")
+    start = next((i for i, line in enumerate(lines) if opener.match(line)), None)
+    if start is None:
+        raise AssertionError(f"no list item - **{label}**")
+    indent = len(lines[start]) - len(lines[start].lstrip(" "))
+    end = next(
+        (
+            i
+            for i in range(start + 1, len(lines))
+            if lines[i].strip() and len(lines[i]) - len(lines[i].lstrip(" ")) <= indent
+        ),
+        len(lines),
+    )
+    return "".join(lines[start:end])
+
+
 def table_rows(markdown: str) -> list[list[str]]:
     """The cells of every table row in ``markdown``, header and separator rows included."""
     return [

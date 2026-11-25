@@ -20,7 +20,7 @@ from insight_blueprint.models.design import (
     DesignStatus,
 )
 from insight_blueprint.validate import valid_targets, validate_transition
-from tests.skills._markdown import section, unwrap
+from tests.skills._markdown import bold_item, section, unwrap
 from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
 
 _STATUS = "|".join(s.value for s in DesignStatus)
@@ -118,9 +118,8 @@ class TestReflectionConcludesFromAnalyzing:
 
     def _form_part(self, label: str) -> str:
         """The bullet ``- **label**`` of Step 4: the end of one form (Epic 32, ADR-0048)."""
-        found = re.search(rf"- \*\*{label}\*\*.*?(?= - \*\*|\s\d+\. |\Z)", self._step())
-        assert found, f"Step 4 has no part for {label!r}"
-        return found.group(0)
+        step = section(_read_skill("analysis-reflection"), "### Step 4")
+        return unwrap(bold_item(step, label))
 
     @pytest.mark.parametrize("label, form", list(_DIAGRAMS.items()))
     def test_it_concludes_straight_from_analyzing(

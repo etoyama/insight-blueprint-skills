@@ -23,6 +23,17 @@ def round_item(name: str) -> str:
     return unwrap(found.group(0))
 
 
+def design_beat(name: str) -> str:
+    """The numbered design beat ``N. **name**`` of the round's design item."""
+    found = re.search(
+        rf"^\s+\d\. \*\*{re.escape(name)}\*\*.*?(?=^\s+\d\. \*\*|^\s*After all)",
+        auto(),
+        re.M | re.S,
+    )
+    assert found, f"no design beat named {name!r}"
+    return unwrap(found.group(0))
+
+
 def gate_row(step: str) -> list[str]:
     """The cells of the Gate policy row whose first cell is ``step``."""
     return table_row(split_sections(auto())["Gate policy"], step)
