@@ -430,8 +430,8 @@ review、premortem、journal への verdict の記録は、今と同じなので
 ### Decision: notebook-shape-follows-the-form
 
 - What: Story 32.4 で、計画に無かった小さな判断を4つした。
-  1. notebook の `results` の形は、意図ではなく形（`DesignForm`）で選ぶ。旧形式の探索も探索の形で、`direction` の無い evidence を作る。保存済みの `mixed` と意図の無い記録は検証の形になる。
-  2. 検証の primary の指標の `comparison` に基準が書かれていなければ、notebook は閾値を選ばずに止まり、`/analysis-design` を勧める。
+  1. notebook の `results` の形は、意図ではなく形（`DesignForm`）で選ぶ。旧形式の探索も探索の形で、`direction` の無い evidence を作る。検証仮説を持っていても `direction` を付けるのは検証の形だけで、journal に手で足す evidence も同じである。保存済みの `mixed` と意図の無い記録は検証の形になる。
+  2. 検証の各指標の `threshold` は、その指標自身の `comparison` から写す。primary の指標が無いか、その `comparison` に基準が書かれていなければ、notebook は閾値を選ばない。`analyzing` へ遷移する前（Step 1）に止まり、`/analysis-design` を勧める。secondary と guardrail の指標で基準が無いものは、値だけを出す。
   3. docstring は、探索の問いを持つ分析設計では `- Question:`、検証仮説を持つ分析設計（旧形式の探索も）では `- Hypothesis:` の行を書く。両方は書かない。
   4. `/analysis-notebook` を 1.1.0、`/analysis-journal` を 1.2.0 に上げた（`test_existing_skills_version_bump` の決まり）。
 - Why: ADR-0050 は探索と検証の2つを書き、旧形式と `mixed` の扱いを書いていない。旧形式の探索は `comparison` に基準を持たないことが多く、検証の形にすると 2 で止まる。

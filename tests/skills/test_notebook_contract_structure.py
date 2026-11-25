@@ -263,13 +263,27 @@ class TestAConfirmationTakesItsCriterionFromTheDesign:
     def test_the_threshold_is_copied_from_the_primary_comparison(self, text) -> None:
         rule = unwrap(text())
         assert (
-            "copy each `threshold` from the `comparison` of the design's primary metric"
-        ) in rule
+            "copy each metric's `threshold` from that metric's own `comparison`" in rule
+        )
         assert "the notebook never makes up a threshold" in rule
 
-    def test_a_comparison_without_a_criterion_stops_the_generation(self) -> None:
+    def test_a_confirmation_without_a_criterion_stops_before_the_analysis(
+        self,
+    ) -> None:
         rule = unwrap(section(_contract(), "## `results` shape"))
-        assert "states no criterion, stop and suggest /analysis-design" in rule
+        assert (
+            "If the design has no primary metric, or its `comparison` states no "
+            "criterion, stop and suggest /analysis-design"
+        ) in rule
+        step = unwrap(section(_read_skill("analysis-notebook"), "### Step 1: "))
+        assert (
+            "If a confirmation has no primary metric whose `comparison` states its "
+            "criterion, stop before any transition"
+        ) in step
+
+    def test_the_example_labels_are_not_part_of_a_notebook(self) -> None:
+        layout = unwrap(section(_contract(), "## File layout"))
+        assert "only labels the example; a notebook starts with its docstring" in layout
 
 
 class TestTheDocstringStatesWhatTheDesignAnswers:

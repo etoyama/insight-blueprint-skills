@@ -29,6 +29,12 @@ class TestAnExplorationsEvidenceHasNoDirection:
             "exploration: leave `metadata.direction` out of every evidence event"
         ) in rule
 
+    def test_only_the_confirmation_form_sets_a_direction(self) -> None:
+        """An old exploration holds a hypothesis, yet its evidence has no direction."""
+        rule = unwrap(_mapping())
+        assert "only a design of the confirmation form sets it" in rule
+        assert "an old exploration with a hypothesis included" in rule
+
     def test_no_rule_leans_the_evidence_by_a_prediction(self) -> None:
         """A rule like "matches prediction → supports" would bring the guess back."""
         assert not re.search(
@@ -55,6 +61,13 @@ class TestTheJournalSaysWhatDirectionLeansAgainst:
 
     def test_direction_is_the_lean_against_the_hypothesis(self) -> None:
         assert "lean against `hypothesis_statement`" in self._evidence_row()
+
+    def test_an_old_exploration_sets_no_direction_either(self) -> None:
+        convention = unwrap(
+            section(_read_skill("analysis-journal"), "## InsightType Convention")
+        )
+        assert "only for a design of the confirmation form" in convention
+        assert "an exploration saved with a hypothesis included" in convention
 
     def test_an_explorations_evidence_has_no_direction(self) -> None:
         assert "an exploration's evidence has no `direction`" in self._evidence_row()

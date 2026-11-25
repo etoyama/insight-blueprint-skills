@@ -67,7 +67,9 @@ session = LineageSession(name="H01-analysis", design_id="H01")
 ...
 ```
 
-An exploration opens the same way, with the question in place of the hypothesis:
+An exploration opens the same way, with the question in place of the hypothesis. The
+`# confirmation` or `# exploration` comment above each example only labels the example; a notebook
+starts with its docstring.
 
 ```python
 # exploration
@@ -135,10 +137,12 @@ results = {
 }
 ```
 
-- In a confirmation, copy each `threshold` from the `comparison` of the design's primary metric
-  (the entry of `metrics` with `tier: primary`), where `/analysis-design` writes the criterion
-  before the analysis runs; the notebook never makes up a threshold. If that `comparison` states
-  no criterion, stop and suggest /analysis-design rather than choosing one
+- In a confirmation, copy each metric's `threshold` from that metric's own `comparison` in the
+  design's `metrics`, where `/analysis-design` writes the criterion before the analysis runs. The
+  primary metric (`tier: primary`) carries the criterion of the judgment; the notebook never makes
+  up a threshold. If the design has no primary metric, or its `comparison` states no criterion, stop
+  and suggest /analysis-design rather than choosing one; a secondary or guardrail metric whose
+  `comparison` states none is reported with its value and no `threshold` or `pass`
   ([ADR-0050](../../../docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md)).
 
 ```python
@@ -339,7 +343,8 @@ Map the verdict into `observe` / `evidence` / `question` events appended to
 
 - `observe` — data characteristics (from the `data_load` and `data_prep` cells).
 - `evidence` — each item of `evidence_summary`. `metadata.direction` is the lean against the
-  design's `hypothesis_statement`, so only a design with a hypothesis sets it:
+  design's `hypothesis_statement`, and only a design of the confirmation form sets it (an
+  exploration never does, an old exploration with a hypothesis included):
   - confirmation: `supported`→`supports`, `rejected`→`contradicts`, `inconclusive`→(question)
   - exploration: leave `metadata.direction` out of every evidence event. An exploration has no
     hypothesis for the evidence to lean against; a guess formed along the way is a `hypothesize`

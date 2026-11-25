@@ -180,7 +180,7 @@ Next: /analysis-reflection {design_id} で振り返りと結論導出
 | `conclude` | Conclusion drawn from evidence | `{resolves?: event_id \| [event_id]}` |
 | `branch` | Fork to alternative hypothesis | `{new_design_id: str, reason?: str}` |
 
-> **direction**: `direction` says whether the evidence supports or contradicts the design's hypothesis (`hypothesis_statement`), so it exists only for a design that holds one. An exploration answers its question without an expectation, so leave `direction` out of its evidence ([ADR-0050](../../docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md)). A guess formed during an exploration is a `hypothesize` event, not a `direction`: record the guess in its own words, and test it with a confirmation later.
+> **direction**: `direction` says whether the evidence supports or contradicts the design's hypothesis (`hypothesis_statement`), so it exists only for a design of the confirmation form. An exploration answers its question without an expectation, so leave `direction` out of its evidence, an exploration saved with a hypothesis included ([ADR-0050](../../docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md)). A guess formed during an exploration is a `hypothesize` event, not a `direction`: record the guess in its own words, and test it with a confirmation later.
 
 > **hearing**: a `hearing` event is what a person said, not an `observe` of the data and not `evidence` from an analysis. Ask who answered and when, and keep the answer in their words. `tree_io copy-hearing` writes one when a design is made on a question node whose next candidate holds a heard answer; it adds `ask` and `node_id` ([ADR-0028](../../docs/adr/0028-hearing-is-its-own-journal-event.md)).
 

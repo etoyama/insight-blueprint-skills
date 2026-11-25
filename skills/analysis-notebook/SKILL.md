@@ -64,6 +64,9 @@ The design's data sources (`source_ids`) must be registered in the catalog (else
 2. `design_io get --id {design_id}` — read methodology / intent / `source_ids`.
    If `source_ids` is empty, stop before any transition and suggest declaring the sources with
    /analysis-design (Step 3b).
+   If a confirmation has no primary metric whose `comparison` states its criterion, stop before any
+   transition and suggest writing it with /analysis-design: the notebook copies the threshold from
+   there and never makes one up (the contract's "`results` shape").
 3. Status: needs `analyzing`. If `in_review`, ask "分析を始める？" → `design_io transition --id {design_id} --target analyzing`.
    If the design is terminal (`supported`/`rejected`/`inconclusive`/`explored`), it can't be analyzed — don't force a
    transition (there is no edge back to `analyzing`); tell the user to branch a new design (/analysis-design)
@@ -123,8 +126,7 @@ A notebook with any other cell shows no code in the analysis note. Drive the con
   build the `results` dict in the shape of the design's form (the contract's "`results` shape"):
   an exploration has no `hypothesis_direction`, no `decision_reason`, and no `threshold` or `pass`
   in its metrics, and keeps every value it measured in `metrics`. In a confirmation, copy each
-  `threshold` from the `comparison` of the design's primary metric; the notebook never makes up a
-  threshold. For each metric, add the optional `effect_size`,
+  metric's `threshold` from that metric's own `comparison`; the notebook never makes up a threshold. For each metric, add the optional `effect_size`,
   `confidence_interval`, and `sample_size` when the method defines them — see the contract's
   "Optional metric items" (leave a key out rather than writing a placeholder)
 - `# %% viz`: from `chart[]` (type/description); **save each figure** to

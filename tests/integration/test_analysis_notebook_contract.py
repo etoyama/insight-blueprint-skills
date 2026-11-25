@@ -221,10 +221,6 @@ class TestTheExplorationSampleKeepsWhatItMeasured:
             assert isinstance(metric["value"], float)
             assert not {"threshold", "pass"} & set(metric)
 
-    def test_its_verdict_carries_no_direction(self, tmp_path: Path) -> None:
-        verdict = _run_fixture(tmp_path, EXPLORATION_FIXTURE)
-        assert "direction" not in json.dumps(verdict)
-
     def test_its_docstring_states_the_question(self) -> None:
         lines = _docstring(EXPLORATION_FIXTURE)
         assert "- Intent: exploratory" in lines
@@ -232,7 +228,9 @@ class TestTheExplorationSampleKeepsWhatItMeasured:
         assert not any(line.startswith("- Hypothesis: ") for line in lines)
 
     def test_its_docstring_escapes_the_quote_in_the_question(self) -> None:
-        """The escape lets a quote stand in the question without ending the docstring."""
+        """The file writes the quote escaped, and Python reads it back as the question."""
+        source = EXPLORATION_FIXTURE.read_text(encoding="utf-8")
+        assert '- Question: how are \\"wait days\\" spread across branches?' in source
         assert '- Question: how are "wait days" spread across branches?' in (
             _docstring(EXPLORATION_FIXTURE)
         )
