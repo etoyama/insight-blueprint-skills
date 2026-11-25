@@ -436,7 +436,7 @@ sequenceDiagram
 
 ### Decision: the-result-lenses-start-when-a-verdict-exists
 
-- What: `/analysis-review` は、`.insight/notebooks/{design_id}_verdict.json` があるとき、結果の review として、分析設計の観点の後に Step 3b（結果の観点）を通る。探索の verdict は、線・判定・合否を持たないので、図・guardrail・cell の3つの観点で読む。`/analysis-revision` は、分析設計に `analysis_started_at` があるとき、固定の項目への review コメントで `design_io update` を試さない。結果への review コメントは、指した cell だけを直し、線は `comparison` から写し直し、`/analysis-notebook` の Step 4 のコマンドで回し直して、Step 6 のとおり journal に書く。
+- What: `/analysis-review` は、`.insight/notebooks/{design_id}_verdict.json` があるとき、結果の review として、分析設計の観点の後に Step 3b（結果の観点）を通る。探索の verdict は、線・判定・しきい値・合否を持たないので、図と cell の2つの観点で読む。`/analysis-revision` は、分析設計に `analysis_started_at` があるとき、固定の項目への review コメントで `design_io update` を試さない。結果への review コメントは、指した cell だけを直し、線は `comparison` から写し直し、`/analysis-notebook` の Step 4 のコマンドで回し直して、Step 6 のとおり journal に書く。
 - Why: ADR-0054 の2は「verdict があるとき」と決めたが、何で verdict の有無を見るかは決めていない。状態では分けられない（結果の review も設計の review も `in_review` で記録する）。固定の項目は ADR-0053 の3で、拒まれる書き込みを skill が送ると、分析者は traceback を見る（33.4 の follow-up）。
 - Criteria: ADR-0054 の2と3、ADR-0050 の3（探索は線も判定も合否も持たない）、33.4 の引き継ぎ。決め手は、記録にあるファイルだけで分けられること。
 - Affected modules: `skills/analysis-review/SKILL.md`、`skills/analysis-revision/SKILL.md`。
