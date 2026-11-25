@@ -9,7 +9,7 @@ placed inside the tree page is not escaped a second time.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from html import escape
 
 
@@ -33,6 +33,19 @@ def el(tag: str, *children: str | None, **attrs: str | None) -> Html:
         if child is not None
     )
     return Html(f"<{tag}{rendered}>{inner}</{tag}>")
+
+
+def table(headers: Sequence[str], rows: Iterable[Sequence[str]]) -> Html:
+    """A table in a ``table-wrap`` box, which scrolls when the table is wide."""
+    return el(
+        "div",
+        el(
+            "table",
+            el("thead", el("tr", *(el("th", h) for h in headers))),
+            el("tbody", *(el("tr", *(el("td", c) for c in row)) for row in rows)),
+        ),
+        class_="table-wrap",
+    )
 
 
 def join(blocks: Iterable[Html | None]) -> Html:

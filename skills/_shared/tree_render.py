@@ -41,13 +41,15 @@ from skills._shared.design_note import (
     FORM_WORDS,
     NOTE_CSS,
     DesignNote,
-    comments_after_analysis,
     direction_gloss,
     intent_word,
     intent_words_of,
     note_anchor,
     statement_of,
     status_word,
+)
+from skills._shared.design_note_reviews import (
+    comments_after_analysis,
 )
 
 if TYPE_CHECKING:  # tree_check imports this module (CitedEvent)

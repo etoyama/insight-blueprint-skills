@@ -44,13 +44,15 @@ from skills._shared.design_note import (
     DesignNote,
     NoteEvent,
     NoteFigure,
-    NoteReviewBatch,
-    NoteReviewComment,
     NoteSource,
     NoteVerdict,
     contradicting_evidence,
     local_file_paths,
     render_note_page,
+)
+from skills._shared.design_note_reviews import (
+    NoteReviewBatch,
+    NoteReviewComment,
 )
 from skills._shared.verdict_table import (
     CONFIDENCE,

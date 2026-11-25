@@ -14,10 +14,12 @@ import pytest
 
 from skills._shared.design_note import (
     CodeCell,
+)
+from skills._shared.design_note_read import notebook_cells
+from skills._shared.design_note_reviews import (
     NoteReviewBatch,
     NoteReviewComment,
 )
-from skills._shared.design_note_read import notebook_cells
 from skills._shared.verdict_table import (
     CONFIDENCE,
     MetricGroup,

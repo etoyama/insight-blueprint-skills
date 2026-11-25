@@ -24,7 +24,8 @@ from insight_blueprint.models.design import (
     DesignForm,
     DesignStatus,
 )
-from skills._shared._html import BASE_CSS, Html, el, join, page
+from skills._shared._html import BASE_CSS, Html, el, join, page, table
+from skills._shared.design_note_reviews import NoteReviewBatch, review_batch
 from skills._shared.verdict_table import (
     Fixed,
     Text,
@@ -109,28 +110,6 @@ class Conclusion:
     contradicting_evidence: tuple[NoteEvent, ...]
     reflect_events: tuple[NoteEvent, ...]
     open_questions: tuple[NoteEvent, ...]
-
-
-@dataclass(frozen=True)
-class NoteReviewComment:
-    """One review comment of a batch, as written: the analyst's own text."""
-
-    comment: str
-    target_section: str | None
-    target_content: str | None  # a JSON value: a string bare, anything else as JSON
-
-
-@dataclass(frozen=True)
-class NoteReviewBatch:
-    """One review batch of ``{id}_reviews.yaml``, as written (ADR-0054 5)."""
-
-    id: str
-    created_at: str
-    # None: a batch saved before Epic 33, which does not tell (ADR-0054 4).
-    after_analysis_started: bool | None
-    status_after: str
-    reviewer: str
-    comments: tuple[NoteReviewComment, ...]
 
 
 @dataclass(frozen=True)
@@ -356,18 +335,6 @@ def _cell(text: str) -> str:
     return text if text else _DASH
 
 
-def _table(headers: Sequence[str], rows: Iterable[Sequence[str]]) -> Html:
-    return el(
-        "div",
-        el(
-            "table",
-            el("thead", el("tr", *(el("th", h) for h in headers))),
-            el("tbody", *(el("tr", *(el("td", c) for c in row)) for row in rows)),
-        ),
-        class_="table-wrap",
-    )
-
-
 def _section(anchor: str, name: str, heading: str, *content: Html | None) -> Html:
     return el(
         "section",
@@ -463,7 +430,7 @@ def _method(design: AnalysisDesign, anchor: str) -> Html:
 
 def _metric_definitions(design: AnalysisDesign, anchor: str) -> Html:
     body = (
-        _table(
+        table(
             ("対象", "区分", "集計", "グループ", "絞り込み", "比べ方"),
             (
                 (
@@ -485,7 +452,7 @@ def _metric_definitions(design: AnalysisDesign, anchor: str) -> Html:
 
 def _explanatory(design: AnalysisDesign, anchor: str) -> Html:
     body = (
-        _table(
+        table(
             ("名前", "役割", "説明", "時点"),
             (
                 (
@@ -505,7 +472,7 @@ def _explanatory(design: AnalysisDesign, anchor: str) -> Html:
 
 def _sources(note: DesignNote, anchor: str) -> Html:
     body = (
-        _table(
+        table(
             ("名前", "種類", "説明"),
             (
                 (_cell(s.name), _cell(s.type), _cell(s.description))
@@ -560,12 +527,12 @@ def _title(text: Text) -> str:
     return "".join(p if isinstance(p, Fixed) else _cell(p) for p in text)
 
 
-def _value_table(table: TextTable) -> list[Html]:
+def _value_table(values: TextTable) -> list[Html]:
     return [
-        *([] if table.title is None else [el("h5", _title(table.title))]),
-        _table(
-            [_text(h) for h in table.headings],
-            ([_text(c) for c in row] for row in table.rows),
+        *([] if values.title is None else [el("h5", _title(values.title))]),
+        table(
+            [_text(h) for h in values.headings],
+            ([_text(c) for c in row] for row in values.rows),
         ),
     ]
 
@@ -616,21 +583,6 @@ def _results(note: DesignNote, anchor: str) -> Html:
     )
 
 
-def comments_after_analysis(reviews: Iterable[NoteReviewBatch]) -> int:
-    """The review comments of the batches written after the analysis started.
-
-    A batch that does not tell is not counted: the count says only what the
-    records hold (ADR-0054 6).
-    """
-    return sum(len(b.comments) for b in reviews if b.after_analysis_started is True)
-
-
-_AFTER_ANALYSIS_WORDS = {
-    True: "分析を始めた後の review",
-    False: "分析を始める前の review",
-}
-
-
 def _status_after(form: DesignForm, written: str) -> str:
     try:
         status = DesignStatus(written)
@@ -639,33 +591,12 @@ def _status_after(form: DesignForm, written: str) -> str:
     return f"{status_word(form, status)}（{status.value}）"
 
 
-def _review_batch(batch: NoteReviewBatch, form: DesignForm) -> Html:
-    after = batch.after_analysis_started
-    return join(
-        [
-            el("h4", f"{batch.created_at} {batch.id}"),
-            # A batch saved before Epic 33 does not tell, so nothing is said.
-            el("p", _AFTER_ANALYSIS_WORDS[after]) if after is not None else None,
-            el("p", f"review の後の状態: {_status_after(form, batch.status_after)}"),
-            el("p", f"reviewer: {batch.reviewer}"),
-            _table(
-                ("review コメント", "対象", "対象の中身"),
-                (
-                    (
-                        c.comment,
-                        _cell(c.target_section or ""),
-                        _cell(c.target_content or ""),
-                    )
-                    for c in batch.comments
-                ),
-            ),
-        ]
-    )
-
-
 def _reviews(note: DesignNote, anchor: str) -> Html:
     body = (
-        join(_review_batch(b, note.design.form()) for b in note.reviews)
+        join(
+            review_batch(b, _status_after(note.design.form(), b.status_after))
+            for b in note.reviews
+        )
         if note.reviews
         else el("p", "review はまだ無い。")
     )

@@ -14,14 +14,16 @@ from skills._shared.design_note import (
     DesignNote,
     NoteEvent,
     NoteFigure,
-    NoteReviewBatch,
-    NoteReviewComment,
     NoteSource,
     NoteVerdict,
-    comments_after_analysis,
     note_anchor,
     render_note,
     render_note_page,
+)
+from skills._shared.design_note_reviews import (
+    NoteReviewBatch,
+    NoteReviewComment,
+    comments_after_analysis,
 )
 from skills._shared.verdict_table import (
     CONFIDENCE,
