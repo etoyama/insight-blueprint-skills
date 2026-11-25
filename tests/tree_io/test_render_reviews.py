@@ -14,7 +14,7 @@ import pytest
 from skills._shared import design_io, tree_io
 from skills._shared.design_note import note_anchor
 from tests._saved_verdicts import table_rows
-from tests.test_tree_render import branch_cards, card_text, parse
+from tests.test_tree_render import branch_cards, by_id, card_text, parse
 from tests.tree_io._support import _add, _rendered
 from tests.tree_io.test_render_design import VERDICT_TEXT, _write_verdict
 
@@ -26,8 +26,8 @@ _PRIMARY = {
 _COUNT = "分析を始めた後の review コメント"
 
 
-def _reviewed(insight: Path) -> str:
-    """A design linked to LIB-Q02, approved, analysed, then reviewed on its result."""
+def _reviewed(insight: Path, *, linked: bool = True) -> str:
+    """A design approved, analysed, then reviewed on its result; linked to LIB-Q02."""
     _add(insight)
     design_id = design_io.create_design(
         theme_id="LIB",
@@ -37,7 +37,8 @@ def _reviewed(insight: Path) -> str:
         metrics=[_PRIMARY],
         base_dir=insight,
     )["id"]
-    tree_io.link_design("LIB", "LIB-Q02", design_id, base_dir=insight)
+    if linked:
+        tree_io.link_design("LIB", "LIB-Q02", design_id, base_dir=insight)
     design_io.append_review_batch(
         design_id,
         "analyzing",
@@ -77,6 +78,14 @@ def _card(html: str) -> str:
     return text
 
 
+def _derivation_row(html: str, design_id: str) -> str:
+    """The text of the design's own row in the derivation, without its children."""
+    (row,) = [
+        e for e in by_id(parse(html), f"design-{design_id}").children if e.tag == "div"
+    ]
+    return row.text()
+
+
 class TestReviewsOnTheTreePage:
     def test_the_note_lists_every_batch_newest_first_with_its_comments(
         self, tree: Path
@@ -102,6 +111,16 @@ class TestReviewsOnTheTreePage:
         _reviewed(tree)
 
         assert f"{_COUNT}: 2 件" in _card(_rendered(tree))
+
+    def test_a_design_linked_to_no_node_counts_them_in_the_derivation(
+        self, tree: Path
+    ) -> None:
+        design_id = _reviewed(tree, linked=False)
+
+        row = _derivation_row(_rendered(tree), design_id)
+
+        assert "論点に結んでいない" in row
+        assert f"{_COUNT}: 2 件" in row
 
     def test_a_design_reviewed_only_before_the_analysis_shows_no_count(
         self, tree: Path

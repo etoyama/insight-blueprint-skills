@@ -1548,3 +1548,41 @@ class TestReviewCommentsAfterTheAnalysis:
 
     def test_the_row_shows_no_count_when_there_is_none(self) -> None:
         assert "review コメント" not in self._card(0)
+
+
+class TestReviewCommentsInTheDerivation:
+    """US-4 AC 5: a design linked to no node shows its count in the derivation.
+
+    A design no node links appears only in the derivation, so a count on the card
+    alone never reaches it (the trial finding G08).
+    """
+
+    @staticmethod
+    def _row(design_id: str, count: int) -> str:
+        designs = make_designs()
+        old = designs[design_id]
+        designs[design_id] = summary(
+            old.id,
+            old.title,
+            old.status.value,
+            old.parent_id,
+            comments_after_analysis=count,
+        )
+        (row,) = [
+            e
+            for e in by_id(page(designs=designs), f"design-{design_id}").children
+            if e.tag == "div"
+        ]
+        return row.text()
+
+    def test_a_design_linked_to_no_node_shows_the_count(self) -> None:
+        row = self._row("LIB-H04", 4)
+
+        assert "論点に結んでいない" in row
+        assert "分析を始めた後の review コメント: 4 件" in row
+
+    def test_a_linked_design_shows_the_count_in_its_derivation_row_too(self) -> None:
+        assert "分析を始めた後の review コメント: 3 件" in self._row("LIB-H01", 3)
+
+    def test_the_derivation_row_shows_no_count_when_there_is_none(self) -> None:
+        assert "review コメント" not in self._row("LIB-H04", 0)
