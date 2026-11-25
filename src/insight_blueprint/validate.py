@@ -262,13 +262,20 @@ def _criteria(design: AnalysisDesign) -> list[tuple[str, str]]:
     )
 
 
-def _criterion_errors(new: AnalysisDesign, current: AnalysisDesign) -> list[str]:
-    """A judging design is first analyzed with its criterion written (decision 4).
+_NEEDS_CRITERION = frozenset(
+    {DesignStatus.analyzing, DesignStatus.supported, DesignStatus.rejected}
+)
 
+
+def _criterion_errors(new: AnalysisDesign, current: AnalysisDesign) -> list[str]:
+    """A judging design starts with its criterion written (decisions 4 and 8).
+
+    Without one it is neither analyzed nor given a verdict of its hypothesis; it
+    may still be closed as inconclusive, the way out of an analysis not run.
     Only the first entry is checked: a started design can no longer write its
-    criterion, so asking again would keep a saved one from returning to analyzing.
+    criterion, so asking again would leave a saved one nowhere to go.
     """
-    entering = new.status is DesignStatus.analyzing and not analysis_started(current)
+    entering = new.status in _NEEDS_CRITERION and not analysis_started(current)
     if not (entering and new.form().judges):
         return []
     criteria = _criteria(new)
@@ -277,10 +284,11 @@ def _criterion_errors(new: AnalysisDesign, current: AnalysisDesign) -> list[str]
         return []
     lacking = f" (comparison is empty: {', '.join(unwritten)})" if unwritten else ""
     return [
-        "metrics: a design that judges a hypothesis enters analyzing only when it "
-        "has a primary metric and every primary metric (a metric without tier is "
-        f"primary) states the criterion in its comparison{lacking}; write it "
-        "before the review approves the design"
+        f"metrics: a design that judges a hypothesis enters {new.status.value} "
+        "only when it has a primary metric and every primary metric (a metric "
+        "without tier is primary) states the criterion in its comparison"
+        f"{lacking}; write it with /analysis-design, or close the design as "
+        "inconclusive"
     ]
 
 

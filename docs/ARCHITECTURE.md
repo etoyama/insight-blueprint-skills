@@ -74,7 +74,7 @@ flowchart TD
   作るときの検査（新しく作るときは `validate_creation` を `design_io create` が、書き換えるときは `validate_update` を `design_io update` が呼ぶ。`validate_update` は遷移も確かめる）は、旧形式の探索と `mixed` を新しく作ることを拒む（[ADR-0049](adr/0049-legacy-exploration-stays-readable-and-is-marked.md)）。
   `validate_update` は、分析を始めた分析設計の固定も確かめる（[ADR-0053](adr/0053-a-started-confirmation-keeps-its-hypothesis-criterion-and-intent.md)）。分析を始めたかは `analysis_started` が答える。分析の印（`analysis_started_at`）があるか、状態が `analyzing` か terminal status なら、分析を始めている。印は、初めて `analyzing` か terminal status に入る書き込みで `design_io` が付ける。印を消す書き込みと変える書き込みは通らない。印の無い保存済みの分析設計が、印を持たずに `analyzing` から `in_review` へ戻る書き込みも通らない（結論へ進む書き込みは通る）。
   分析を始めた検証・旧形式の探索・`mixed` は、検証仮説と、primary の指標の組（`target` と `comparison`。足す・消す・`tier` の変更を含む）と、意図を変えない。分析を始めた探索は、意図と形を変えない。背景とほかの項目は直せる。
-  検証・旧形式の探索・`mixed` が初めて `analyzing` に入る書き込みは、primary の指標があり、どの primary の指標も `comparison` が空でないときだけ通る。
+  分析を始めていない検証・旧形式の探索・`mixed` が `analyzing` か `supported`・`rejected` に入る書き込みは、primary の指標があり、どの primary の指標も `comparison` が空でないときだけ通る。基準が無くても `inconclusive` には入れる（分析をせずに閉じる道）。
   `design_io` 経由で書く skill も、書く前に Python 側で同じ検証を通す。tool の書き込み（hook）と
   helper の書き込み（`design_io`）の両方で、読むときの検査が効く。書き換えるときの検査（`validate_update`）は、hook もディスク上の記録が読めるときに行う。新しく作るときの検査（`validate_creation`）は `design_io` だけが行う。
   論点ツリーの形も同じ場所で検証する（`validate_tree`。[ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md)）。

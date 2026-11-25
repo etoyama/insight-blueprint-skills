@@ -76,6 +76,10 @@ stages:
           title: 通知の遅れと期限切れ
           hypothesis_statement: 通知が翌日以降になった予約は期限切れが多い
           hypothesis_background: 本を確保してから通知するまでの日数が予約ごとに違う
+          metrics:
+            - target: 期限切れの割合の差（翌日以降の通知 − 当日の通知）
+              tier: primary
+              comparison: 差が5ポイント以上なら支持。2ポイント未満なら棄却。その間は結論しない
       - link_design: {node_id: LIB-Q03, design_id: LIB-H02}
       - append_journal_event:
           design_id: LIB-H02

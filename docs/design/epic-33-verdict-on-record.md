@@ -405,7 +405,7 @@ sequenceDiagram
 - Criteria: 拒む範囲を、人間が決めた範囲より広げない（FLOW-0008）。AC 4 の文は「`analyzing` に入る書き込み」で、戻る書き込みも含むと読める。狭く読んだので、PM に知らせ、Epic PR で人間に確かめる。
 - Affected modules: `src/insight_blueprint/validate.py` の `_criterion_errors`。
 - Alternatives considered: 戻る書き込みでも確かめる案（保存済みの基準なしの検証は、結果の review から結論へ直接進むか、派生を作るしかなくなる）。primary のどれか1つに基準があれば通す案（基準の無い primary の指標が判定に入る）。
-- Consequences: 保存済みの基準なしの検証は、今までどおり `analyzing` と `in_review` を行き来できる。notebook は基準が無いと止まる（契約のまま）。基準の無い検証が `in_review` から結論へ直接進む書き込み（ADR-0029）は、今までどおり通る。ADR-0053 の4は `analyzing` に入る書き込みだけを決めたので、拒む範囲を広げるかは人間に聞く（FLOW-0008。Story のレビューで見つかった）。初めて付く印の時刻は確かめない。印の時刻は表示にも判定にも使わない（Decision `a-batch-holds-whether-it-came-after-the-analysis`）。
+- Consequences: 保存済みの基準なしの検証は、今までどおり `analyzing` と `in_review` を行き来できる。notebook は基準が無いと止まる（契約のまま）。基準の無い検証が `in_review` や `revision_requested` から結論へ直接進む書き込み（ADR-0029）は、Story のレビューで見つかり、人間に聞いた（FLOW-0008）。人間は、`supported` と `rejected` に入る書き込みを拒み、`inconclusive` は通すと決めた（2026-11-25、PM のセッションで直接。ボードの d9 の C。ADR-0053 の8）。確かめるのは、ここでも分析を始めていない分析設計だけである。初めて付く印の時刻は確かめない。印の時刻は表示にも判定にも使わない（Decision `a-batch-holds-whether-it-came-after-the-analysis`）。
 
 ### Decision: the-report-gives-each-metric-of-groups-its-own-table
 
@@ -509,3 +509,4 @@ sequenceDiagram
   Domain Model 図は変えていない。分析ノートの読みの型 `NoteReviewBatch`・`NoteReviewComment` を足し、用語集の「分析ノート」に書いた。計画外の判断は2件で、Decisions に書いた（節の場所と読めない記録の扱い、件数を出す行）。
   一時ディレクトリの `.insight/` で `design_io` の CLI を回し（承認の batch は分析の前、`in_review` に戻した後の `verdict`・`figures` への batch は後）、`tree_io render` のページをブラウザで開いて、節と「分析を始めた後の review コメント: 2 件」を目で確かめた。
   バグ・セキュリティの観点のレビューを1本回した（High 1件、Low 3件）。High: 日付として無い timestamp（`2026-02-30`）を手で書いた `_reviews.yaml` で、論点ツリーのページ全体が作れなかった。Low: 読む権限の無いファイルで traceback が出た。どちらもテストを足して直した（読めないファイルとして飛ばす）。直していない Low: 新しい順は `created_at` の文字の順で、時差の違う時刻を手で混ぜると前後しうる（`list_review_batches` と同じ順。書き手は1つの時差で書く）。自分を指す YAML の alias は、round-trip の読みで中身が空になって出る（落ちない）。
+- 2026-11-25 — d9 の直し（Story 33.4 の続き）: 分析を始めていない検証・旧形式の探索・`mixed` が、基準の無いまま `supported` か `rejected` に入る書き込みを拒むようにした。`inconclusive` は通る（ADR-0053 の8。人間が C を選んだ）。拒む文は、`/analysis-design` で基準を書く道と、`inconclusive` で閉じる道を案内する。`/analysis-review` の Scope と Step 5、`/analysis-design` の Status Flow、ARCHITECTURE、CHANGELOG を合わせた。合成シナリオ（`tests/fixtures/handoff/lib/stages.yaml`）の検証に基準を足した。基準を持たずに `supported` へ直接進んでいたためである。

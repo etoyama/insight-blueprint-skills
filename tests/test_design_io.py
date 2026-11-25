@@ -976,3 +976,46 @@ class TestCriterionBeforeTheAnalysis:
         design_io.transition_status("FP-H01", "in_review", base_dir=insight)
         design_io.transition_status("FP-H01", "analyzing", base_dir=insight)
         assert _on_disk(insight, "FP-H01")["status"] == "analyzing"
+
+    @pytest.mark.parametrize("verdict", ["supported", "rejected"])
+    def test_a_verdict_without_a_criterion_is_refused(
+        self, insight: Path, verdict: str
+    ) -> None:
+        design_id = _create(insight, metrics=[])["id"]
+        with pytest.raises(ValueError, match="comparison.*inconclusive"):
+            design_io.transition_status(design_id, verdict, base_dir=insight)
+        with pytest.raises(ValueError, match="comparison.*inconclusive"):
+            design_io.append_review_batch(
+                design_id, verdict, [{"comment": "ok"}], base_dir=insight
+            )
+        assert design_io.list_review_batches(design_id, insight) == []
+        written = _on_disk(insight, design_id)
+        assert written["status"] == "in_review"
+        assert "analysis_started_at" not in written
+
+    def test_a_design_without_a_criterion_is_closed_as_inconclusive(
+        self, insight: Path
+    ) -> None:
+        design_id = _create(insight, metrics=[])["id"]
+        design_io.append_review_batch(
+            design_id,
+            "inconclusive",
+            [{"comment": "not worth running"}],
+            base_dir=insight,
+        )
+        assert _on_disk(insight, design_id)["status"] == "inconclusive"
+
+    @pytest.mark.parametrize("verdict", ["supported", "rejected", "inconclusive"])
+    def test_a_design_with_a_criterion_takes_its_verdict_from_in_review(
+        self, insight: Path, verdict: str
+    ) -> None:
+        design_id = _create(insight)["id"]
+        design_io.transition_status(design_id, verdict, base_dir=insight)
+        assert _on_disk(insight, design_id)["status"] == verdict
+
+    def test_an_exploration_ends_as_explored_without_a_criterion(
+        self, insight: Path
+    ) -> None:
+        design_id = _explore(insight)["id"]
+        design_io.transition_status(design_id, "explored", base_dir=insight)
+        assert _on_disk(insight, design_id)["status"] == "explored"

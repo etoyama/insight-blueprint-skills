@@ -37,6 +37,8 @@ def _design(insight: Path, theme_id: str = "LIB", parent_id: str | None = None) 
         hypothesis_statement="X improves Y",
         hypothesis_background="because Z",
         methodology={"method": "OLS"},
+        # A confirmation takes a verdict only with its criterion written (ADR-0053).
+        metrics=[{"target": "Y", "tier": "primary", "comparison": "Y rises by 5%"}],
         parent_id=parent_id,
         base_dir=insight,
     )

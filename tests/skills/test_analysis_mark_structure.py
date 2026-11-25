@@ -44,7 +44,7 @@ class TestStatusFlowTellsWhatAStartedDesignKeeps:
 
     def test_it_asks_for_the_criterion_before_analyzing(self) -> None:
         flow = _design("### Status Flow")
-        assert "enters `analyzing` only when" in flow
+        assert "enters `analyzing`, `supported` or `rejected` only when" in flow
         assert "`primary` metric" in flow and "non-empty `comparison`" in flow
 
 
@@ -99,3 +99,41 @@ class TestChangelogTellsWhatIsNowRefused:
         assert "`comparison`" in notes
         assert "derive a new design" in notes
         assert "ADR-0053" in notes and "#244" in notes
+
+
+class TestAVerdictNeedsItsCriterion:
+    """d9 C: a hypothesis is not supported or rejected without a criterion on record."""
+
+    def test_the_review_tells_both_ways_out_of_a_refused_verdict(self) -> None:
+        step = unwrap(section(_read_skill("analysis-review"), "### Step 5:"))
+        assert "`--status supported` or `--status rejected`" in step
+        assert "is refused" in step and "no batch is recorded" in step
+        assert "/analysis-design {design_id}" in step
+        assert "`--status inconclusive`" in step
+
+    def test_the_scope_names_the_condition_of_a_direct_verdict(self) -> None:
+        scope = unwrap(section(_read_skill("analysis-review"), "## Scope"))
+        assert "`supported` and `rejected` need the criterion" in scope
+        assert "`inconclusive` does not" in scope
+
+    def test_the_status_flow_names_it(self) -> None:
+        flow = _design("### Status Flow")
+        assert "enters `analyzing`, `supported` or `rejected` only when" in flow
+        assert "`inconclusive` is open without a criterion" in flow
+
+    def test_the_architecture_names_it(self) -> None:
+        text = (REPO_ROOT / "docs" / "ARCHITECTURE.md").read_text(encoding="utf-8")
+        entry = next(
+            line
+            for line in text.split("\n- ")
+            if line.startswith("**Validation library")
+        )
+        assert (
+            "`supported`・`rejected`" in entry and "`inconclusive` には入れる" in entry
+        )
+
+    def test_the_changelog_names_it(self) -> None:
+        changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        notes = unwrap(changelog_entry(changelog, "`analysis_started_at`"))
+        assert "`supported` or `rejected`" in notes
+        assert "close it as `inconclusive`" in notes

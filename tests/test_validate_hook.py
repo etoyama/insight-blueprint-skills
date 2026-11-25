@@ -387,6 +387,27 @@ class TestHookKeepsAStartedAnalysis:
         assert result.returncode == 2
         assert "comparison" in result.stderr
 
+    @pytest.mark.parametrize("verdict", ["supported", "rejected"])
+    def test_a_design_without_a_criterion_takes_no_verdict_of_its_hypothesis(
+        self, tmp_path: Path, verdict: str
+    ) -> None:
+        path = write_design(tmp_path, "FP-H01", design_dict())
+        result = edit(path, "status: in_review", f"status: {verdict}")
+        assert result.returncode == 2
+        assert "comparison" in result.stderr and "inconclusive" in result.stderr
+
+    def test_a_design_without_a_criterion_is_closed_as_inconclusive(
+        self, tmp_path: Path
+    ) -> None:
+        path = write_design(tmp_path, "FP-H01", design_dict())
+        result = edit(path, "status: in_review", "status: inconclusive")
+        assert result.returncode == 0, result.stderr
+
+    def test_a_design_with_a_criterion_takes_its_verdict(self, tmp_path: Path) -> None:
+        path = write_design(tmp_path, "FP-H01", started_design())
+        result = edit(path, "status: in_review", "status: supported")
+        assert result.returncode == 0, result.stderr
+
 
 class TestFailClosed:
     """On an internal error, design writes fail CLOSED; others fail open (M2)."""

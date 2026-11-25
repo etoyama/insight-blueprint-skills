@@ -555,10 +555,12 @@ write that removes or changes it is refused. A design saved without the mark is 
 started while it is `analyzing` or terminal, and gets the mark on its next transition
 ([ADR-0053](../../docs/adr/0053-a-started-confirmation-keeps-its-hypothesis-criterion-and-intent.md)).
 
-- A confirmation (also a saved `mixed` and a legacy exploration) enters `analyzing` only when
-  it has a `primary` metric and every `primary` metric has a non-empty `comparison`. Write the
-  criterion while the design is `in_review` (Step 2 "Criterion"). The check does not read
-  the words: whether they state a criterion is for the review.
+- A confirmation (also a saved `mixed` and a legacy exploration) whose analysis has not
+  started enters `analyzing`, `supported` or `rejected` only when it has a `primary` metric and
+  every `primary` metric has a non-empty `comparison`. Write the criterion while the design is
+  `in_review` (Step 2 "Criterion"). `inconclusive` is open without a criterion, to close a
+  design whose analysis will not be run. The check does not read the words: whether they
+  state a criterion is for the review.
 - Once the analysis has started, a confirmation keeps `hypothesis_statement`, its `primary`
   metrics (`target` and `comparison`; none is added, removed or given another `tier`) and
   `analysis_intent`. An exploration keeps `analysis_intent` and its form. To change any of

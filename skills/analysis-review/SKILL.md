@@ -39,7 +39,9 @@ here (via `design_io review-batch`) rather than submitted through a dashboard.
 Primarily a **design/plan review**: the outcome is `revision_requested` (needs work) or
 `analyzing` (approved — go analyze). Terminal decisions (`explored` for an exploration,
 `supported` / `rejected` / `inconclusive` for a confirmation) are possible through the same
-mechanism, but concluding a design is the job of `/analysis-reflection`.
+mechanism, but concluding a design is the job of `/analysis-reflection`. For a confirmation
+whose analysis has not started, `supported` and `rejected` need the criterion written in the
+design, as `analyzing` does; `inconclusive` does not (Step 5).
 
 A review of the result after the analysis is optional and goes the same way: the `analyzing`
 design moves back to `in_review` (Step 2), and approving it returns it to `analyzing`. The
@@ -183,6 +185,13 @@ An approval that would let a confirmation, a legacy exploration or a `mixed` des
 `analyzing` without a `primary` metric whose `comparison` states the criterion is refused
 (ADR-0053), and no batch is recorded. Tell the analyst the criterion is missing and send them
 to `/analysis-design {design_id}` to write the `comparison`; then record the review again.
+
+The same holds for a verdict of the hypothesis: `--status supported` or `--status rejected` on
+such a design whose analysis has not started is refused, and no batch is recorded. A hypothesis
+is not supported or rejected without a criterion on record. Offer the analyst the two ways
+out: write the criterion with `/analysis-design {design_id}` and record the review again, or
+close the design without a verdict of the hypothesis with `--status inconclusive`, which
+needs no criterion.
 
 ### Step 6: Hand off
 

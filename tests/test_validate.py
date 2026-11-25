@@ -424,8 +424,8 @@ class TestValidateCreation:
     # --- an update (validate_update: the current design on disk is given) ---
 
     def test_an_update_checks_the_move_of_its_status(self) -> None:
-        current = _model(make_design(status="in_review"))
-        new = _model(make_design(status="supported"))
+        current = _model(confirmation(status="in_review"))
+        new = _model(confirmation(status="supported"))
         assert validate_update(new, current) == []
         concluded = _model(make_design(status="supported"))
         errors = validate_update(_model(make_design(status="analyzing")), concluded)
@@ -779,6 +779,53 @@ class TestEnteringTheAnalysisNeedsACriterion:
         (error,) = _errors(new, current)
         assert "comparison is empty: return rate" in error
         assert "without tier is primary" in error
+
+    @pytest.mark.parametrize("intent", ["confirmatory", "exploratory", "mixed"])
+    @pytest.mark.parametrize("verdict", ["supported", "rejected"])
+    @pytest.mark.parametrize("status", ["in_review", "revision_requested"])
+    def test_a_judging_design_without_a_criterion_takes_no_verdict_of_its_hypothesis(
+        self, intent: str, verdict: str, status: str
+    ) -> None:
+        current = make_design(analysis_intent=intent, status=status)
+        new = current | {"status": verdict, "analysis_started_at": MARK}
+        (error,) = _errors(new, current)
+        assert "comparison" in error and "primary" in error
+        assert "inconclusive" in error and "/analysis-design" in error
+
+    @pytest.mark.parametrize("status", ["in_review", "revision_requested"])
+    def test_a_judging_design_without_a_criterion_is_closed_as_inconclusive(
+        self, status: str
+    ) -> None:
+        current = make_design(status=status)
+        new = current | {"status": "inconclusive", "analysis_started_at": MARK}
+        assert _errors(new, current) == []
+
+    @pytest.mark.parametrize("verdict", VERDICTS)
+    def test_a_judging_design_with_a_criterion_takes_any_verdict(
+        self, verdict: DesignStatus
+    ) -> None:
+        new = confirmation(status=verdict, analysis_started_at=MARK)
+        assert _errors(new, confirmation()) == []
+
+    def test_an_exploration_ends_as_explored_without_a_criterion(self) -> None:
+        new = make_exploration(status="explored", analysis_started_at=MARK)
+        assert _errors(new, make_exploration()) == []
+
+    @pytest.mark.parametrize("verdict", ["supported", "rejected"])
+    @pytest.mark.parametrize(
+        "current",
+        [
+            make_design(status="analyzing"),
+            make_design(status="in_review", analysis_started_at=MARK),
+        ],
+        ids=["analyzing", "result-review"],
+    )
+    def test_a_started_design_without_a_criterion_still_takes_its_verdict(
+        self, current: dict, verdict: str
+    ) -> None:
+        # It was analyzed before the criterion was asked for and cannot write one
+        # now: refusing the verdict would leave it only inconclusive.
+        assert _errors(current | {"status": verdict}, current) == []
 
     def test_a_judging_design_with_a_criterion_is_analyzed(self) -> None:
         new = confirmation(status="analyzing", analysis_started_at=MARK)
