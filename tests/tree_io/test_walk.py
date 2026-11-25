@@ -71,6 +71,22 @@ class TestPosition:
         position = tree_io.position("LIB", base_dir=started)
         assert (position["state"], position["design_ids"]) == ("concluded", [design_id])
 
+    def test_an_exploration_ended_as_explored_is_concluded(self, started: Path) -> None:
+        """Epic 32 US-2 AC 5: explored is a terminal status for the walk."""
+        design_id = design_io.create_design(
+            theme_id="LIB",
+            title="Test",
+            analysis_intent="exploratory",
+            exploration_question="How many loans expire each month?",
+            exploration_background="Nobody has counted them",
+            base_dir=started,
+        )["id"]
+        tree_io.link_design("LIB", "LIB-Q02", design_id, base_dir=started)
+        design_io.transition_status(design_id, "explored", base_dir=started)
+
+        position = tree_io.position("LIB", base_dir=started)
+        assert (position["state"], position["design_ids"]) == ("concluded", [design_id])
+
     def test_deciding_to_deepen_the_same_node_makes_it_not_started_again(
         self, started: Path
     ) -> None:

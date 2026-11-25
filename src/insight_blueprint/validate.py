@@ -17,54 +17,73 @@ from collections.abc import Sequence
 
 from pydantic import BaseModel, ValidationError
 
-from insight_blueprint.models.design import AnalysisDesign, DesignStatus
+from insight_blueprint.models.design import (
+    TERMINAL_STATUSES,
+    AnalysisDesign,
+    AnalysisIntent,
+    DesignForm,
+    DesignStatus,
+)
 from insight_blueprint.models.tree import QuestionTree
 
-# State-transition allow-table. This is the canonical definition; core/reviews.py
-# imports it from here to avoid duplication.
+# State-transition allow-table, for every form at once: which conclusion a
+# design may reach is narrowed by its form (CONCLUSIONS_OF). This is the
+# canonical definition.
 VALID_TRANSITIONS: dict[DesignStatus, set[DesignStatus]] = {
     DesignStatus.in_review: {
         DesignStatus.revision_requested,
         DesignStatus.analyzing,
-        DesignStatus.supported,
-        DesignStatus.rejected,
-        DesignStatus.inconclusive,
+        *TERMINAL_STATUSES,
     },
     DesignStatus.revision_requested: {
         DesignStatus.in_review,
         DesignStatus.revision_requested,
         DesignStatus.analyzing,
-        DesignStatus.supported,
-        DesignStatus.rejected,
-        DesignStatus.inconclusive,
+        *TERMINAL_STATUSES,
     },
     # A reflection concludes an analyzed design directly; in_review stays for an
     # optional review of the result (ADR-0029).
-    DesignStatus.analyzing: {
-        DesignStatus.in_review,
-        DesignStatus.supported,
-        DesignStatus.rejected,
-        DesignStatus.inconclusive,
-    },
+    DesignStatus.analyzing: {DesignStatus.in_review, *TERMINAL_STATUSES},
+    DesignStatus.explored: set(),
     DesignStatus.supported: set(),
     DesignStatus.rejected: set(),
     DesignStatus.inconclusive: set(),
 }
 
+_VERDICTS = TERMINAL_STATUSES - {DesignStatus.explored}
 
-def validate_transition(current: DesignStatus, target: DesignStatus) -> None:
-    """Validate that a transition from *current* to *target* is allowed.
+# An exploration measures and answers, so it ends without a verdict; a legacy
+# exploration holds a hypothesis and ends like a confirmation (ADR-0048, ADR-0049).
+CONCLUSIONS_OF: dict[DesignForm, frozenset[DesignStatus]] = {
+    DesignForm.exploration: frozenset({DesignStatus.explored}),
+    DesignForm.confirmation: _VERDICTS,
+    DesignForm.legacy_exploration: _VERDICTS,
+}
 
-    Raises ValueError with the same message as the former
-    ``reviews._validate_transition`` so MCP-path behaviour is unchanged.
+# The intent is chosen before the analysis: changing it afterwards would let a
+# hypothesis be set after seeing the result (ADR-0048).
+INTENT_CHANGEABLE = frozenset({DesignStatus.in_review, DesignStatus.revision_requested})
+
+
+def valid_targets(current: DesignStatus, form: DesignForm) -> set[DesignStatus]:
+    """The statuses a design of *form* may move to from *current*."""
+    return {
+        target
+        for target in VALID_TRANSITIONS.get(current, set())
+        if target not in TERMINAL_STATUSES or target in CONCLUSIONS_OF[form]
+    }
+
+
+def validate_transition(
+    current: DesignStatus, target: DesignStatus, form: DesignForm
+) -> None:
+    """Validate that a design of *form* may move from *current* to *target*.
+
+    Raises ValueError naming the valid targets of that form.
     """
-    valid_targets = VALID_TRANSITIONS.get(current, set())
-    if target not in valid_targets:
-        valid_str = (
-            ", ".join(sorted(s.value for s in valid_targets))
-            if valid_targets
-            else "none"
-        )
+    targets = valid_targets(current, form)
+    if target not in targets:
+        valid_str = ", ".join(sorted(s.value for s in targets)) if targets else "none"
         raise ValueError(
             f"Cannot transition from '{current.value}' to '{target.value}'. "
             f"Valid targets: {valid_str}"
@@ -118,11 +137,71 @@ def validate_design_change(
 
     if new_model.status != current_model.status:
         try:
-            validate_transition(current_model.status, new_model.status)
+            validate_transition(
+                current_model.status, new_model.status, new_model.form()
+            )
         except ValueError as exc:
             errors.append(str(exc))
 
     return errors
+
+
+def validate_creation(
+    new: AnalysisDesign, current: AnalysisDesign | None = None
+) -> list[str]:
+    """The check of the create path: only the new forms are written (ADR-0049).
+
+    ``design_io`` runs it on create (*current* is ``None``) and on update
+    (*current* is the design on disk), after the schema has passed. The read
+    check (the schema, which the hook runs) lets a legacy exploration and a
+    mixed design through, so saved designs still read; this one refuses to
+    make either. Never raises: returns human-readable error strings.
+    """
+    errors: list[str] = []
+    intent_changed = current is not None and new.analysis_intent != (
+        current.analysis_intent
+    )
+    if new.analysis_intent is AnalysisIntent.mixed and (
+        current is None or intent_changed
+    ):
+        errors.append(
+            "analysis_intent: 'mixed' cannot be chosen any more; "
+            "choose exploratory or confirmatory"
+        )
+    if new.form() is DesignForm.legacy_exploration and (
+        current is None or current.form() is not DesignForm.legacy_exploration
+    ):
+        errors.append(
+            "an exploratory design holds exploration_question and "
+            "exploration_background, not hypothesis_statement"
+        )
+    if current is not None and intent_changed and not _may_change_intent(current, new):
+        errors.append(
+            f"analysis_intent: changes only while in_review or revision_requested "
+            f"(status: {current.status.value}); derive a new design for another intent"
+        )
+    if new.form() is DesignForm.confirmation and (current is None or intent_changed):
+        errors += [
+            f"{name}: a confirmation needs it written"
+            for name in ("hypothesis_statement", "hypothesis_background")
+            if not (getattr(new, name) or "").strip()
+        ]
+    return errors
+
+
+def _may_change_intent(current: AnalysisDesign, new: AnalysisDesign) -> bool:
+    if current.status in INTENT_CHANGEABLE:
+        return True
+    # A legacy exploration whose substance is a confirmation is fixed in any
+    # status, since only the intent changes: the hypothesis and the status stay
+    # as they were written before the result (ADR-0049 decision 6).
+    return (
+        current.form() is DesignForm.legacy_exploration
+        and new.analysis_intent is AnalysisIntent.confirmatory
+        and new.status == current.status
+        and new.hypothesis_statement == current.hypothesis_statement
+        and new.hypothesis_background == current.hypothesis_background
+    )
 
 
 def validate_tree_schema(data: dict) -> QuestionTree:

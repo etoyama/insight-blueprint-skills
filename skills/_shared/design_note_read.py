@@ -68,6 +68,8 @@ CONTRACT_CELLS = (
 # The next_action fields the note's recommendation takes for each terminal
 # status. A dot steps into a mapping.
 NEXT_ACTION_BRANCHES = {
+    # An exploration holds no next_action: nothing waits on a verdict (ADR-0048).
+    DesignStatus.explored: (),
     DesignStatus.supported: ("if_supported",),
     DesignStatus.rejected: ("if_rejected.reason", "if_rejected.pivot"),
     DesignStatus.inconclusive: (),

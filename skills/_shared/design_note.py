@@ -183,6 +183,8 @@ _SECTIONS = (
 # The fixed sentence for each terminal status. The note's conclusion opens with it,
 # and theme_report takes it from here, so the two never say it differently.
 LEAD_SENTENCES = {
+    # Worded in ADR-0051; Story 32.5 words the verdicts by form.
+    DesignStatus.explored: "探索を終えた。判定はしていない。",
     DesignStatus.supported: "仮説は支持された。",
     DesignStatus.rejected: "仮説は棄却された。",
     DesignStatus.inconclusive: "仮説を支持するとも棄却するとも結論できなかった。",

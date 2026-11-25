@@ -183,7 +183,8 @@ class ReportDesign:
         return cls(
             id=design.id,
             title=design.title,
-            hypothesis=design.hypothesis_statement,
+            # An exploration holds no hypothesis; Story 32.5 words it (ADR-0051).
+            hypothesis=design.hypothesis_statement or "",
             method="" if methodology is None else methodology.method,
             package="" if methodology is None else methodology.package,
             method_reason="" if methodology is None else methodology.reason,

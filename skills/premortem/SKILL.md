@@ -70,7 +70,7 @@ It does **not** issue tokens, gate execution, or write to disk — it advises.
 | `HIGH` | `estimated_rows` > `static_rows_high`, or a source check errored (location API error, or an allowlist file that exists but cannot be read) | Reconsider before expensive access |
 | `MEDIUM` | `estimated_rows` > `static_rows_medium` | Proceed with awareness |
 | `LOW` | Small/unknown row count, all checks pass | Happy path |
-| `SKIP` | Terminal status (`supported` / `rejected` / `inconclusive`) | Not evaluated |
+| `SKIP` | Terminal status (`explored` / `supported` / `rejected` / `inconclusive`) | Not evaluated |
 
 Thresholds live in `.insight/config.yaml` under `premortem.*`
 (`static_rows_high`, `static_rows_medium`; see `.insight/config.example.yaml`).

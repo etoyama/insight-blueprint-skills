@@ -412,6 +412,20 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - Alternatives considered: 常に全部の指標を解説する案。先に「解説が要る指標はあるか」を分析者に聞く案。
 - Consequences: 単一の列の指標でも馴染みの無いもの（分位点など）は、一文だけで出る。分析者が解説を求めれば付く。
 
+### Decision: foundation-keeps-the-readers-running
+
+- What: Story 32.1 の土台で、計画に無かった小さな判断を5つした。
+  1. 触らない約束の `theme_report.py` と `design_note.py` を1行ずつ触った。検証仮説を任意にすると ty が落ち、`LEAD_SENTENCES` に `explored` が無いと探索の分析ノートを描けないため。`explored` の文は ADR-0051 の「探索を終えた。判定はしていない。」で、検証の定型文の言い換えは 32.5 に残した。
+  2. `validate_transition` は形を必須の引数に取る。`/analysis-design` の Status Flow の構造テストは、今の文が検証の流れなので `confirmation` の形で照らす。
+  3. 新しく作るとき（意図を変えるときも）は、検証仮説とその背景が空白だけの値を拒む。読むときの検査は今までどおりにした。
+  4. review の `target_section` に探索の2項目を足すのは 32.3 に渡した。許す節の一覧は `/analysis-review` の SKILL.md と照らすテストがあるため。
+  5. ディスク上の記録が壊れているときの `design_io update` は、新しく作る記録として検査する。直す書き込みを止めないため。
+- Why: 土台の型を変えると読む側が落ちる。後の Story の領分を先取りせずに、`uv run poe all` を通すため。
+- Criteria: 後の Story の領分を先取りしないこと（Must、PM の指示）。epic ブランチの各 push で検査が通ること（Must）。決め手は両方。
+- Affected modules: `skills/_shared/theme_report.py`、`skills/_shared/design_note.py`、`skills/_shared/design_note_read.py`、`src/insight_blueprint/validate.py`、`skills/_shared/design_io.py`、`tests/skills/test_direct_conclusion_structure.py`、`tests/integration/test_premortem_report.py`。
+- Alternatives considered: 1 で ty を抑える注記を付ける案は、型の穴を隠すので採らなかった。2 で形を省略できる引数にする案は、呼ぶ側が形を渡し忘れても通るので採らなかった。
+- Consequences: 探索の分析ノートとレポートは、32.5 が直すまで仮説の欄が空で出る。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0048: 分析の意図が、分析設計の形と終わり方を決める](../adr/0048-intent-decides-the-form-and-the-end-of-a-design.md): 探索は探索の問いを持って `explored` で終わり、検証は検証仮説を持って判定で終わる。`mixed` は新しく作れない。意図は分析の前だけ変えられる。id の `H` は変えない。
@@ -425,7 +439,7 @@ review、premortem、journal への verdict の記録は、今と同じなので
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| 32.1 土台 | ☐ | ☐ | ☐ |
+| 32.1 土台 | ✓ | ✓ | —（利用者の入口の SKILL.md は 32.3 で変わる。実物の `.insight/` で `design_io` の CLI を走らせて確かめた） |
 | 32.2 用語と文書 | ☐ | ☐ | ☐ |
 | 32.3 入口 | ☐ | ☐ | ☐ |
 | 32.4 notebook と journal | ☐ | ☐ | ☐ |
@@ -447,3 +461,4 @@ review、premortem、journal への verdict の記録は、今と同じなので
   確かめていない前提は2つある。見本は手で書いた HTML で、`tree_render.py` が出したものではない。直した後の表示で、引き継ぎの試行は回していない。
 - 2026-11-25 — 人間が見本と、全体の整合で決め直した2点を見て、初版と ADR-0048〜0051 を承認した。Domain Model の変更（探索の2項目、`explored`、導く値の `DesignForm`）と、Story を8本にする案も承認した。Story の起票は PM が行う。
 - 2026-11-25 — PM が Story を8本起票した（#226〜#233）。Stories の表の「（未起票）」を issue の番号に書き換えた。
+- 2026-11-25 — Story 32.1 completed: 分析設計の形を意図と項目から導く `DesignForm`、`explored`、2段の検査（読むときは model、作るときは `validate_creation`）を入れた。計画外の判断5つは Decision `foundation-keeps-the-readers-running` に書いた。

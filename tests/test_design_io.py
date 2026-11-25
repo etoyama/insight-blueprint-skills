@@ -17,6 +17,7 @@ import pytest
 from pydantic import ValidationError
 
 from skills._shared import design_io
+from skills._shared._atomic import atomic_write_yaml
 
 
 @pytest.fixture
@@ -38,6 +39,38 @@ def _create(insight: Path, **over: object) -> dict:
     }
     kwargs.update(over)
     return design_io.create_design(**kwargs)
+
+
+def _explore(insight: Path, **over: object) -> dict:
+    """An exploratory design: a question and its background, no hypothesis."""
+    kwargs: dict = {
+        "theme_id": "FP",
+        "title": "Test",
+        "analysis_intent": "exploratory",
+        "exploration_question": "How far apart are the regions?",
+        "exploration_background": "Nobody has measured the spread",
+        "methodology": {"method": "describe"},
+        "base_dir": insight,
+    }
+    kwargs.update(over)
+    return design_io.create_design(**kwargs)
+
+
+def _saved(insight: Path, design_id: str, **fields: object) -> None:
+    """Write a design as an older plugin left it, without going through create."""
+    body: dict = {
+        "id": design_id,
+        "theme_id": "FP",
+        "title": "Saved",
+        "hypothesis_statement": "X improves Y",
+        "hypothesis_background": "because Z",
+        "status": "analyzing",
+        "next_action": None,
+        "created_at": "2026-10-01T10:00:00+09:00",
+        "updated_at": "2026-10-01T10:00:00+09:00",
+    }
+    body.update(fields)
+    atomic_write_yaml(insight / "designs" / f"{design_id}_hypothesis.yaml", body)
 
 
 _BAD_IDS = ["../evil", "a/b", "..", "x/../y", "", "with space"]
@@ -426,3 +459,235 @@ class TestCli:
         out = json.loads(res.stdout)
         assert out["id"] == "FP-H01"
         assert (insight / "designs" / "FP-H01_hypothesis.yaml").exists()
+
+
+# ---------------------------------------------------------------------------
+# Epic 32, Story 32.1: the intent decides the form and the end (ADR-0048, ADR-0049)
+# ---------------------------------------------------------------------------
+
+
+def _on_disk(insight: Path, design_id: str) -> dict:
+    return design_io.read_yaml(insight / "designs" / f"{design_id}_hypothesis.yaml")
+
+
+class TestCreateByIntent:
+    """US-2 AC 1: create writes an exploration or a confirmation, and nothing else."""
+
+    def test_an_exploration_is_written_without_a_hypothesis(
+        self, insight: Path
+    ) -> None:
+        design = _explore(insight)
+        written = _on_disk(insight, design["id"])
+        assert written["exploration_question"] == "How far apart are the regions?"
+        assert written["exploration_background"] == "Nobody has measured the spread"
+        for absent in ("hypothesis_statement", "hypothesis_background"):
+            assert absent not in written
+
+    def test_a_confirmation_is_written_without_a_question(self, insight: Path) -> None:
+        written = _on_disk(insight, _create(insight)["id"])
+        assert written["analysis_intent"] == "confirmatory"
+        assert "exploration_question" not in written
+
+    @pytest.mark.parametrize(
+        "over",
+        [
+            {"exploration_question": None},
+            {"exploration_background": None},
+            {"hypothesis_statement": "X", "hypothesis_background": "Y"},
+            {"hypothesis_background": "Y"},
+            {"next_action": {"if_supported": "go", "if_rejected": "stop"}},
+        ],
+        ids=[
+            "no-question",
+            "no-background",
+            "hypothesis",
+            "hypothesis-background",
+            "next-action",
+        ],
+    )
+    def test_an_exploration_out_of_its_form_writes_nothing(
+        self, insight: Path, over: dict
+    ) -> None:
+        with pytest.raises((ValidationError, ValueError)):
+            _explore(insight, **over)
+        assert not list((insight / "designs").iterdir())
+
+    @pytest.mark.parametrize(
+        "over",
+        [
+            {"exploration_question": "Q?"},
+            {"exploration_background": "B"},
+            {"hypothesis_statement": None},
+            {"hypothesis_background": ""},
+        ],
+        ids=["question", "background", "no-hypothesis", "blank-background"],
+    )
+    def test_a_confirmation_out_of_its_form_writes_nothing(
+        self, insight: Path, over: dict
+    ) -> None:
+        with pytest.raises((ValidationError, ValueError)):
+            _create(insight, **over)
+        assert not list((insight / "designs").iterdir())
+
+    def test_a_mixed_design_is_not_created(self, insight: Path) -> None:
+        with pytest.raises(ValueError, match="mixed"):
+            _create(insight, analysis_intent="mixed")
+        assert not list((insight / "designs").iterdir())
+
+    def test_an_exploration_with_a_hypothesis_is_not_created(
+        self, insight: Path
+    ) -> None:
+        with pytest.raises(ValueError, match="exploration_question"):
+            _create(insight, analysis_intent="exploratory")
+        assert not list((insight / "designs").iterdir())
+
+    def test_the_cli_creates_an_exploration(self, insight: Path) -> None:
+        payload = {
+            "theme_id": "FP",
+            "title": "CLI exploration",
+            "analysis_intent": "exploratory",
+            "exploration_question": "How far apart?",
+            "exploration_background": "Not measured",
+        }
+        res = subprocess.run(
+            [sys.executable, "-m", "skills._shared.design_io", "create"]
+            + ["--base-dir", str(insight)],
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            cwd=str(Path(__file__).resolve().parents[1]),
+        )
+        assert res.returncode == 0, res.stderr
+        assert "hypothesis_statement" not in json.loads(res.stdout)
+
+
+class TestConclusionByForm:
+    """US-2 AC 2: an exploration ends as explored, the others on a verdict."""
+
+    def test_an_exploration_ends_as_explored(self, insight: Path) -> None:
+        design_id = _explore(insight)["id"]
+        design_io.transition_status(design_id, "analyzing", base_dir=insight)
+        design_io.transition_status(design_id, "explored", base_dir=insight)
+        assert _on_disk(insight, design_id)["status"] == "explored"
+
+    @pytest.mark.parametrize("verdict", ["supported", "rejected", "inconclusive"])
+    def test_an_exploration_takes_no_verdict(self, insight: Path, verdict: str) -> None:
+        design_id = _explore(insight)["id"]
+        design_io.transition_status(design_id, "analyzing", base_dir=insight)
+        with pytest.raises(ValueError, match="Cannot transition"):
+            design_io.transition_status(design_id, verdict, base_dir=insight)
+        assert _on_disk(insight, design_id)["status"] == "analyzing"
+
+    def test_a_confirmation_does_not_end_as_explored(self, insight: Path) -> None:
+        design_id = _create(insight)["id"]
+        with pytest.raises(ValueError, match="Cannot transition"):
+            design_io.transition_status(design_id, "explored", base_dir=insight)
+
+    def test_an_update_does_not_give_an_exploration_a_verdict(
+        self, insight: Path
+    ) -> None:
+        design_id = _explore(insight)["id"]
+        with pytest.raises(ValueError, match="Cannot transition"):
+            design_io.update_design(design_id, {"status": "supported"}, insight)
+
+    def test_a_review_ends_an_exploration_as_explored(self, insight: Path) -> None:
+        design_id = _explore(insight)["id"]
+        design_io.append_review_batch(
+            design_id, "explored", [{"comment": "measured"}], base_dir=insight
+        )
+        assert _on_disk(insight, design_id)["status"] == "explored"
+
+
+class TestIntentChange:
+    """US-2 AC 3: the intent changes only before the analysis, or to fix a legacy one."""
+
+    _TO_EXPLORATION = {
+        "analysis_intent": "exploratory",
+        "exploration_question": "How far apart?",
+        "exploration_background": "Not measured",
+        "hypothesis_statement": None,
+        "hypothesis_background": None,
+    }
+
+    @pytest.mark.parametrize("status", ["in_review", "revision_requested"])
+    def test_the_intent_changes_before_the_analysis(
+        self, insight: Path, status: str
+    ) -> None:
+        design_id = _create(insight)["id"]
+        if status != "in_review":
+            design_io.transition_status(design_id, status, base_dir=insight)
+        design_io.update_design(design_id, self._TO_EXPLORATION, insight)
+        written = _on_disk(insight, design_id)
+        assert written["analysis_intent"] == "exploratory"
+        assert "hypothesis_statement" not in written
+
+    def test_the_changed_design_must_take_the_new_form(self, insight: Path) -> None:
+        design_id = _create(insight)["id"]
+        with pytest.raises(ValueError, match="exploration_question"):
+            design_io.update_design(
+                design_id, {"analysis_intent": "exploratory"}, insight
+            )
+        assert _on_disk(insight, design_id)["analysis_intent"] == "confirmatory"
+
+    def test_the_intent_does_not_change_once_analyzing(self, insight: Path) -> None:
+        design_id = _create(insight)["id"]
+        design_io.transition_status(design_id, "analyzing", base_dir=insight)
+        with pytest.raises(ValueError, match="analysis_intent"):
+            design_io.update_design(design_id, self._TO_EXPLORATION, insight)
+        assert _on_disk(insight, design_id)["analysis_intent"] == "confirmatory"
+
+    @pytest.mark.parametrize("status", ["analyzing", "supported", "rejected"])
+    def test_a_legacy_exploration_is_fixed_to_confirmatory_in_any_status(
+        self, insight: Path, status: str
+    ) -> None:
+        _saved(insight, "FP-H01", analysis_intent="exploratory", status=status)
+        design_io.update_design("FP-H01", {"analysis_intent": "confirmatory"}, insight)
+        written = _on_disk(insight, "FP-H01")
+        assert written["analysis_intent"] == "confirmatory"
+        assert written["status"] == status
+        assert written["hypothesis_statement"] == "X improves Y"
+
+    def test_the_fix_does_not_rewrite_the_hypothesis(self, insight: Path) -> None:
+        _saved(insight, "FP-H01", analysis_intent="exploratory", status="supported")
+        with pytest.raises(ValueError, match="analysis_intent"):
+            design_io.update_design(
+                "FP-H01",
+                {"analysis_intent": "confirmatory", "hypothesis_statement": "Later"},
+                insight,
+            )
+
+
+class TestSavedDesigns:
+    """US-2 AC 4: designs an older plugin wrote are read and moved as before."""
+
+    @pytest.fixture(
+        params=[{"analysis_intent": "exploratory"}, {"analysis_intent": "mixed"}, {}],
+        ids=["legacy-exploration", "mixed", "no-intent"],
+    )
+    def saved(self, insight: Path, request: pytest.FixtureRequest) -> str:
+        _saved(insight, "FP-H01", **request.param)
+        return "FP-H01"
+
+    def test_it_is_listed(self, insight: Path, saved: str) -> None:
+        assert [d["id"] for d in design_io.list_designs(insight)] == [saved]
+
+    @pytest.mark.parametrize("verdict", ["supported", "rejected", "inconclusive"])
+    def test_it_concludes_on_a_verdict(
+        self, insight: Path, saved: str, verdict: str
+    ) -> None:
+        design_io.transition_status(saved, verdict, base_dir=insight)
+        assert _on_disk(insight, saved)["status"] == verdict
+
+    def test_it_does_not_end_as_explored(self, insight: Path, saved: str) -> None:
+        with pytest.raises(ValueError, match="Cannot transition"):
+            design_io.transition_status(saved, "explored", base_dir=insight)
+
+    def test_it_is_updated_in_its_own_form(self, insight: Path, saved: str) -> None:
+        before = _on_disk(insight, saved)
+        design_io.update_design(saved, {"title": "Edited"}, insight)
+        after = _on_disk(insight, saved)
+        assert after["title"] == "Edited"
+        assert after.get("analysis_intent", "confirmatory") == before.get(
+            "analysis_intent", "confirmatory"
+        )
+        assert after["hypothesis_statement"] == before["hypothesis_statement"]

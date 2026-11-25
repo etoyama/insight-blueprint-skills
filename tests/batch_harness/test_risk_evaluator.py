@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import pytest
 
+from insight_blueprint.models.design import TERMINAL_STATUSES
 from skills._shared.models import PremortemConfig, RiskLevel, SourceChecks
 from skills.premortem.lib.risk_evaluator import evaluate
 
@@ -29,9 +30,22 @@ def _checks(**over: object) -> SourceChecks:
     return SourceChecks(**base)  # type: ignore[arg-type]
 
 
-@pytest.mark.parametrize("status", ["supported", "rejected", "inconclusive"])
+@pytest.mark.parametrize("status", sorted(TERMINAL_STATUSES))
 def test_terminal_status_skips(status: str) -> None:
+    """Epic 32 US-2 AC 5: every status of the canonical set skips, explored too."""
     assert evaluate({"status": status}, CONFIG, _checks()).level is RiskLevel.SKIP
+
+
+def test_an_explored_design_skips() -> None:
+    assert evaluate({"status": "explored"}, CONFIG, _checks()).level is RiskLevel.SKIP
+
+
+def test_the_evaluator_keeps_no_copy_of_the_terminal_statuses() -> None:
+    """A copy drifts when the canonical set grows, as it did for explored."""
+    from skills.premortem.lib import risk_evaluator
+
+    assert not hasattr(risk_evaluator, "_TERMINAL_STATUSES")
+    assert risk_evaluator.TERMINAL_STATUSES is TERMINAL_STATUSES
 
 
 def test_source_not_registered_hard_blocks() -> None:

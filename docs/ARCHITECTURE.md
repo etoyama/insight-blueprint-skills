@@ -456,12 +456,15 @@ classDiagram
         <<Aggregate Root>>
         id
         title
+        exploration_question
+        exploration_background
         hypothesis_statement
         hypothesis_background
         status
         analysis_intent
         parent_id
         source_ids
+        +form() DesignForm
     }
     class Methodology {
         <<Value Object>>
@@ -496,6 +499,7 @@ classDiagram
         in_review
         revision_requested
         analyzing
+        explored
         supported
         rejected
         inconclusive
@@ -505,6 +509,12 @@ classDiagram
         exploratory
         confirmatory
         mixed
+    }
+    class DesignForm {
+        <<enumeration>>
+        exploration
+        confirmation
+        legacy_exploration
     }
     class MetricTier {
         <<enumeration>>
@@ -698,6 +708,7 @@ classDiagram
     AnalysisDesign "1" *-- "*" ChartSpec
     AnalysisDesign --> DesignStatus
     AnalysisDesign --> AnalysisIntent
+    AnalysisDesign ..> DesignForm : 導く（保存しない）
     AnalysisDesign ..> AnalysisDesign : parent_id
     AnalysisDesign ..> DataSource : source_ids
     Metric --> MetricTier
@@ -736,10 +747,11 @@ classDiagram
 実線の矢印（`-->`）は「その enum の値を持つ」を表す。破線の矢印（`..>`）は型で結ばれていない参照で、ラベルが参照に使うフィールドを表す（ID のほか、`schema_info` のように dict に入れた形もある）。
 `RiskDecision`・`SourceChecks`・`PremortemConfig` は `/premortem` の入出力で、ファイルには保存しない。
 `Progress` も保存しない。論点に結んだ分析設計の `status` から導く。
+`DesignForm` も保存しない。分析設計の意図と項目から導く（[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md)）。
 
 | 型 | 種類 | 不変条件 |
 |---|---|---|
-| `AnalysisDesign` | 集約ルート | `status` は `VALID_TRANSITIONS` の遷移でだけ変わる。`methodology` があれば `method` は空でない。`decision_context` があれば `decision_maker` と `decision` はどちらも空でない（[ADR-0014](adr/0014-analysis-design-decision-context.md)） |
+| `AnalysisDesign` | 集約ルート | `status` は `VALID_TRANSITIONS` の遷移でだけ変わる。`methodology` があれば `method` は空でない。`decision_context` があれば `decision_maker` と `decision` はどちらも空でない（[ADR-0014](adr/0014-analysis-design-decision-context.md)）。探索の問いと検証仮説のどちらか一方だけを持ち、形が1つに決まる。探索は `explored` でだけ終わり、検証と旧形式の探索は判定の3つでだけ終わる（[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md)、[ADR-0049](adr/0049-legacy-exploration-stays-readable-and-is-marked.md)） |
 | `ReviewBatch` | 集約ルート | `comments` は1件以上。1つのバッチは `status_after` への遷移を1回だけ起こす |
 | `DataSource` | 集約ルート | `type` は空でない open string（[ADR-0004](adr/0004-open-string-catalog-taxonomy.md)） |
 | `DomainKnowledge` | 集約ルート | 1つの `source_id` に属する。`category` は空でない open string |

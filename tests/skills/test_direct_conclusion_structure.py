@@ -13,26 +13,29 @@ import re
 
 import pytest
 
-from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
-from insight_blueprint.validate import VALID_TRANSITIONS, validate_transition
+from insight_blueprint.models.design import TERMINAL_STATUSES, DesignForm, DesignStatus
+from insight_blueprint.validate import valid_targets, validate_transition
 from tests.skills._markdown import section, unwrap
 from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
 
 _STATUS = "|".join(s.value for s in DesignStatus)
 _MOVE = re.compile(rf"`({_STATUS}) → ({_STATUS})`")
+# The prose below names the moves of a design that concludes on a verdict.
+# Epic 32 adds explored for an exploration (ADR-0048); Story 32.3 words it.
+_FORM = DesignForm.confirmation
 
 
 def _assert_allowed(moves: list[tuple[str, str]]) -> None:
     assert moves, "the prose names no allowed move"
     for current, target in moves:
-        validate_transition(DesignStatus(current), DesignStatus(target))
+        validate_transition(DesignStatus(current), DesignStatus(target), _FORM)
 
 
 def _assert_refused(moves: list[tuple[str, str]]) -> None:
     assert moves, "the prose names no refused move"
     for current, target in moves:
         with pytest.raises(ValueError):
-            validate_transition(DesignStatus(current), DesignStatus(target))
+            validate_transition(DesignStatus(current), DesignStatus(target), _FORM)
 
 
 def _concludes_from_analyzing(moves: list[tuple[str, str]]) -> bool:
@@ -52,7 +55,7 @@ class TestAnalysisDesignStatusFlow:
         line = next(line for line in self._flow().splitlines() if "analyzing →" in line)
         after = line.split("analyzing →", 1)[1]
         targets = {DesignStatus(word) for word in re.findall(_STATUS, after)}
-        assert targets == VALID_TRANSITIONS[DesignStatus.analyzing]
+        assert targets == valid_targets(DesignStatus.analyzing, _FORM)
 
     def test_every_illegal_example_is_refused_by_the_table(self) -> None:
         _assert_refused(_MOVE.findall(unwrap(self._flow())))
@@ -110,3 +113,13 @@ class TestAnalysisReviewCoversTheResult:
         scope = unwrap(section(_read_skill("analysis-review"), "## Scope"))
         assert "review of the result" in scope
         assert "/analysis-reflection" in scope
+
+
+class TestPremortemSkipsEveryTerminalStatus:
+    """Epic 32 US-2 AC 5: premortem's SKIP row names the canonical terminal set."""
+
+    def test_the_skip_row_lists_exactly_the_terminal_statuses(self) -> None:
+        levels = section(_read_skill("premortem"), "## Risk Levels")
+        row = next(line for line in levels.splitlines() if "`SKIP`" in line)
+        named = set(re.findall(rf"`({_STATUS})`", row))
+        assert named == {s.value for s in TERMINAL_STATUSES}

@@ -23,13 +23,15 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
 from ruamel.yaml import YAML
 
 from insight_blueprint.models.common import THEME_ID_PATTERN, now_jst
-from insight_blueprint.models.design import DesignStatus
+from insight_blueprint.models.design import AnalysisDesign, DesignStatus
 from insight_blueprint.models.review import BatchComment, ReviewBatch
 from insight_blueprint.validate import (
     VALID_TRANSITIONS,
+    validate_creation,
     validate_schema,
     validate_transition,
 )
@@ -197,8 +199,10 @@ def next_design_id(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> str:
 def create_design(
     *,
     title: str,
-    hypothesis_statement: str,
-    hypothesis_background: str,
+    hypothesis_statement: str | None = None,
+    hypothesis_background: str | None = None,
+    exploration_question: str | None = None,
+    exploration_background: str | None = None,
     theme_id: str = "DEFAULT",
     parent_id: str | None = None,
     analysis_intent: str = "confirmatory",
@@ -214,7 +218,10 @@ def create_design(
 ) -> dict:
     """Create a design document. Validates via validate.py before writing.
 
-    Returns the written dict. Raises ValueError (bad theme_id) or pydantic
+    An exploration passes ``exploration_question`` and ``exploration_background``,
+    a confirmation ``hypothesis_statement`` and ``hypothesis_background``
+    (ADR-0048). Returns the written dict. Raises ValueError (bad theme_id, or a
+    form that cannot be created: mixed, a legacy exploration) or pydantic
     ValidationError (schema) without writing on failure.
     """
     design_id = next_design_id(theme_id, base_dir)
@@ -222,6 +229,8 @@ def create_design(
         "id": design_id,
         "theme_id": theme_id,
         "title": title,
+        "exploration_question": exploration_question,
+        "exploration_background": exploration_background,
         "hypothesis_statement": hypothesis_statement,
         "hypothesis_background": hypothesis_background,
         "analysis_intent": analysis_intent,
@@ -238,6 +247,9 @@ def create_design(
         candidate["methodology"] = methodology
 
     model = validate_schema(candidate)  # raises ValidationError if invalid
+    errors = validate_creation(model)
+    if errors:
+        raise ValueError("; ".join(errors))
     data = model.model_dump(mode="json")
     atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml", data)
     return data
@@ -257,8 +269,10 @@ def update_design(
 ) -> dict:
     """Read-merge-write a design. Refreshes updated_at, merges referenced_knowledge.
 
-    Validates schema + transition via validate.py. Raises ValueError if the
-    design is absent or the change is invalid; nothing is written on failure.
+    Validates schema, the create-path check (intent and form) and the transition
+    via validate.py. A field of the other form is dropped by passing it as None.
+    Raises ValueError if the design is absent or the change is invalid; nothing
+    is written on failure.
     """
     current = load_design(design_id, base_dir)
     if not current:
@@ -273,29 +287,28 @@ def update_design(
 
     merged = {**current, **changes, "updated_at": now_jst().isoformat()}
 
-    errors = _validation_errors(merged, current)
+    model = validate_schema(merged)  # raises ValidationError if invalid
+    errors = _update_errors(model, _parsed_or_none(current))
     if errors:
         raise ValueError("; ".join(errors))
-    model = validate_schema(merged)
     data = model.model_dump(mode="json")
     atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml", data)
     return data
 
 
-def _validation_errors(new_data: dict, current_data: dict | None) -> list[str]:
-    """Run validate.py and return non-ValidationError messages (transition).
+def _parsed_or_none(data: dict) -> AnalysisDesign | None:
+    # A design broken on disk is checked as a new one, so an update may repair it.
+    try:
+        return validate_schema(data)
+    except ValidationError:
+        return None
 
-    Schema errors are surfaced by re-raising via validate_schema in the caller,
-    so here we only collect the transition message. Kept thin: delegates to the
-    same VALID_TRANSITIONS source.
-    """
-    errors: list[str] = []
-    if current_data and new_data.get("status") != current_data.get("status"):
+
+def _update_errors(new: AnalysisDesign, current: AnalysisDesign | None) -> list[str]:
+    errors = validate_creation(new, current)
+    if current is not None and new.status != current.status:
         try:
-            validate_transition(
-                DesignStatus(current_data["status"]),
-                DesignStatus(new_data["status"]),
-            )
+            validate_transition(current.status, new.status, new.form())
         except ValueError as exc:
             errors.append(str(exc))
     return errors
@@ -308,7 +321,8 @@ def transition_status(
     current = load_design(design_id, base_dir)
     if not current:
         raise ValueError(f"Design '{design_id}' not found")
-    validate_transition(DesignStatus(current["status"]), DesignStatus(target))
+    on_disk = validate_schema(current)
+    validate_transition(on_disk.status, DesignStatus(target), on_disk.form())
     merged = {**current, "status": target, "updated_at": now_jst().isoformat()}
     model = validate_schema(merged)
     data = model.model_dump(mode="json")

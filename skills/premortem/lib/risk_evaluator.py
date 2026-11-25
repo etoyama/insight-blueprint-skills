@@ -6,14 +6,13 @@ was removed; risk is assessed statically from source checks + estimated rows.
 
 from __future__ import annotations
 
+from insight_blueprint.models.design import TERMINAL_STATUSES
 from skills._shared.models import (
     PremortemConfig,
     RiskDecision,
     RiskLevel,
     SourceChecks,
 )
-
-_TERMINAL_STATUSES = frozenset({"supported", "rejected", "inconclusive"})
 
 
 def evaluate(
@@ -31,7 +30,7 @@ def evaluate(
          MEDIUM, else LOW
     """
     # 1. Terminal status -> SKIP
-    if design.get("status", "") in _TERMINAL_STATUSES:
+    if design.get("status", "") in TERMINAL_STATUSES:
         return RiskDecision(level=RiskLevel.SKIP, reasons=["terminal status"], flags=[])
 
     # 2. HARD_BLOCK conditions (explicit False)
