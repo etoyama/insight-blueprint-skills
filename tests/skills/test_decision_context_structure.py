@@ -59,15 +59,15 @@ class TestAutopilotConfirmsItAtTheHypothesisBeat:
     """US-2 AC 2: the guided autopilot shows it at design beat 1, not as a new gate."""
 
     def test_gate_policy_row_names_the_decision_context(self) -> None:
-        row = table_row(_read_skill("analysis-auto"), "design ① hypothesis")
+        row = table_row(_read_skill("analysis-auto"), "design ① intent")
         assert "decision context" in row[1]
 
     def test_hypothesis_beat_presents_the_field_and_allows_skipping(self) -> None:
         text = _read_skill("analysis-auto")
         beat = re.search(
-            r"^\s+1\. \*\*hypothesis\*\*.*?(?=^\s+2\. \*\*)", text, re.M | re.S
+            r"^\s+1\. \*\*intent\*\*.*?(?=^\s+2\. \*\*)", text, re.M | re.S
         )
-        assert beat, "hypothesis beat not found"
+        assert beat, "intent beat not found"
         assert "decision_context" in beat.group(0)
         assert "skip" in beat.group(0).lower()
 

@@ -13,26 +13,39 @@ import re
 
 import pytest
 
-from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
-from insight_blueprint.validate import VALID_TRANSITIONS, validate_transition
-from tests.skills._markdown import section, unwrap
+from insight_blueprint.models.design import (
+    CONCLUSIONS_OF,
+    TERMINAL_STATUSES,
+    DesignForm,
+    DesignStatus,
+)
+from insight_blueprint.validate import valid_targets, validate_transition
+from tests.skills._markdown import bold_item, section, unwrap
 from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
 
 _STATUS = "|".join(s.value for s in DesignStatus)
 _MOVE = re.compile(rf"`({_STATUS}) → ({_STATUS})`")
+# The prose outside /analysis-design's Status Flow names the moves of a design
+# that concludes on a verdict; the Status Flow draws each form (ADR-0048).
+_FORM = DesignForm.confirmation
+# The label in the Status Flow above the diagram of each form.
+_DIAGRAMS = {
+    "Confirmation": DesignForm.confirmation,
+    "Exploration": DesignForm.exploration,
+}
 
 
 def _assert_allowed(moves: list[tuple[str, str]]) -> None:
     assert moves, "the prose names no allowed move"
     for current, target in moves:
-        validate_transition(DesignStatus(current), DesignStatus(target))
+        validate_transition(DesignStatus(current), DesignStatus(target), _FORM)
 
 
 def _assert_refused(moves: list[tuple[str, str]]) -> None:
     assert moves, "the prose names no refused move"
     for current, target in moves:
         with pytest.raises(ValueError):
-            validate_transition(DesignStatus(current), DesignStatus(target))
+            validate_transition(DesignStatus(current), DesignStatus(target), _FORM)
 
 
 def _concludes_from_analyzing(moves: list[tuple[str, str]]) -> bool:
@@ -48,11 +61,31 @@ class TestAnalysisDesignStatusFlow:
     def _flow(self) -> str:
         return section(_read_skill("analysis-design"), "### Status Flow")
 
-    def test_the_analyzing_line_lists_every_status_the_table_allows(self) -> None:
-        line = next(line for line in self._flow().splitlines() if "analyzing →" in line)
+    def _diagram(self, label: str) -> str:
+        found = re.search(rf"\*\*{label}\*\*.*?```\n(.*?)```", self._flow(), re.S)
+        assert found, f"the Status Flow has no {label} diagram"
+        return found.group(1)
+
+    @pytest.mark.parametrize("label", list(_DIAGRAMS))
+    def test_the_analyzing_line_lists_every_status_the_table_allows(
+        self, label: str
+    ) -> None:
+        line = next(
+            line for line in self._diagram(label).splitlines() if "analyzing →" in line
+        )
         after = line.split("analyzing →", 1)[1]
         targets = {DesignStatus(word) for word in re.findall(_STATUS, after)}
-        assert targets == VALID_TRANSITIONS[DesignStatus.analyzing]
+        assert targets == valid_targets(DesignStatus.analyzing, _DIAGRAMS[label])
+
+    @pytest.mark.parametrize("label", list(_DIAGRAMS))
+    def test_the_terminal_line_lists_the_conclusions_of_the_form(
+        self, label: str
+    ) -> None:
+        line = next(
+            line for line in self._diagram(label).splitlines() if "terminal" in line
+        )
+        targets = {DesignStatus(word) for word in re.findall(_STATUS, line)}
+        assert targets == CONCLUSIONS_OF[_DIAGRAMS[label]]
 
     def test_every_illegal_example_is_refused_by_the_table(self) -> None:
         _assert_refused(_MOVE.findall(unwrap(self._flow())))
@@ -83,10 +116,26 @@ class TestReflectionConcludesFromAnalyzing:
     def _step(self) -> str:
         return unwrap(section(_read_skill("analysis-reflection"), "### Step 4"))
 
-    def test_it_concludes_straight_from_analyzing(self) -> None:
-        moves = _MOVE.findall(self._step())
-        _assert_allowed(moves)
+    def _form_part(self, label: str) -> str:
+        """The bullet ``- **label**`` of Step 4: the end of one form (Epic 32, ADR-0048)."""
+        step = section(_read_skill("analysis-reflection"), "### Step 4")
+        return unwrap(bold_item(step, label))
+
+    @pytest.mark.parametrize("label, form", list(_DIAGRAMS.items()))
+    def test_it_concludes_straight_from_analyzing(
+        self, label: str, form: DesignForm
+    ) -> None:
+        moves = _MOVE.findall(self._form_part(label))
+        assert moves, f"the {label} part names no move"
+        for current, target in moves:
+            validate_transition(DesignStatus(current), DesignStatus(target), form)
         assert _concludes_from_analyzing(moves)
+
+    def test_every_move_of_step_4_sits_in_the_part_of_its_form(self) -> None:
+        in_parts = sum(
+            len(_MOVE.findall(self._form_part(label))) for label in _DIAGRAMS
+        )
+        assert in_parts == len(_MOVE.findall(self._step()))
 
     def test_a_review_of_the_result_is_optional_and_offered_before_the_transition(
         self,
@@ -96,6 +145,16 @@ class TestReflectionConcludesFromAnalyzing:
         assert step.index("/analysis-review is optional") < step.index(
             "--target supported"
         )
+
+    def test_the_review_is_asked_before_the_conclude_is_recorded(self) -> None:
+        """Trial F20: a review after `conclude` brings the design back for a second one."""
+        step = self._step()
+        assert step.index("/analysis-review") < step.index("type: conclude")
+
+    def test_taking_the_review_leaves_one_conclude_for_after_it(self) -> None:
+        step = self._step()
+        assert "record no `conclude` yet" in step
+        assert "one `conclude`" in step
 
     def test_it_offers_no_review_once_the_design_is_concluded(self) -> None:
         """/analysis-review exits on a terminal status, so offering it after is a dead end."""
@@ -110,3 +169,13 @@ class TestAnalysisReviewCoversTheResult:
         scope = unwrap(section(_read_skill("analysis-review"), "## Scope"))
         assert "review of the result" in scope
         assert "/analysis-reflection" in scope
+
+
+class TestPremortemSkipsEveryTerminalStatus:
+    """Epic 32 US-2 AC 5: premortem's SKIP row names the canonical terminal set."""
+
+    def test_the_skip_row_lists_exactly_the_terminal_statuses(self) -> None:
+        levels = section(_read_skill("premortem"), "## Risk Levels")
+        row = next(line for line in levels.splitlines() if "`SKIP`" in line)
+        named = set(re.findall(rf"`({_STATUS})`", row))
+        assert named == {s.value for s in TERMINAL_STATUSES}

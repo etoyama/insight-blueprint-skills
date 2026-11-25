@@ -8,16 +8,20 @@ import pytest
 from pydantic import ValidationError
 
 from insight_blueprint.models.design import (
+    TERMINAL_STATUSES,
     AnalysisDesign,
     ChartIntent,
     ChartSpec,
     DecisionContext,
+    DesignForm,
+    DesignStatus,
     ExplanatoryVariable,
     Methodology,
     Metric,
     MetricTier,
     VariableRole,
 )
+from insight_blueprint.models.tree import Progress
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -494,3 +498,181 @@ def test_extra_allow_still_rejects_invalid_enum(model_cls: type, kwargs: dict) -
     """Unit-16: extra='allow' still rejects invalid enum values."""
     with pytest.raises(ValidationError):
         model_cls(**kwargs)
+
+
+# ---------------------------------------------------------------------------
+# The form of a design follows its intent (Epic 32, Story 32.1, ADR-0048, ADR-0049)
+# ---------------------------------------------------------------------------
+
+
+def _exploration_data(**overrides: object) -> dict:
+    """An exploratory design as Epic 32 writes it: a question, no hypothesis."""
+    base: dict = {
+        "id": "TEST-H01",
+        "title": "Test",
+        "analysis_intent": "exploratory",
+        "exploration_question": "How far apart are the regions?",
+        "exploration_background": "Nobody has measured the spread yet",
+    }
+    base.update(overrides)
+    return base
+
+
+class TestDesignForm:
+    """US-2 AC 1, AC 4: the form is derived from the intent and the fields held."""
+
+    def test_an_exploration_holds_a_question_instead_of_a_hypothesis(self) -> None:
+        design = AnalysisDesign.model_validate(_exploration_data())
+        assert design.form() is DesignForm.exploration
+        assert design.hypothesis_statement is None
+
+    @pytest.mark.parametrize("intent", ["confirmatory", "mixed", None])
+    def test_a_design_with_a_hypothesis_and_no_exploratory_intent_is_a_confirmation(
+        self, intent: str | None
+    ) -> None:
+        data = _minimal_design_data()
+        if intent is not None:
+            data["analysis_intent"] = intent
+        assert AnalysisDesign.model_validate(data).form() is DesignForm.confirmation
+
+    def test_an_exploratory_design_with_a_hypothesis_is_a_legacy_exploration(
+        self,
+    ) -> None:
+        data = _minimal_design_data(analysis_intent="exploratory")
+        design = AnalysisDesign.model_validate(data)
+        assert design.form() is DesignForm.legacy_exploration
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            _exploration_data(hypothesis_statement="X", hypothesis_background="Y"),
+            _exploration_data(exploration_question=None, exploration_background=None),
+            _minimal_design_data(exploration_question="Q", exploration_background="B"),
+            _minimal_design_data(hypothesis_statement=None),
+        ],
+        ids=["exploration-both", "exploration-neither", "confirmation-both", "none"],
+    )
+    def test_a_design_whose_form_cannot_be_told_is_rejected(self, data: dict) -> None:
+        with pytest.raises(ValidationError):
+            AnalysisDesign.model_validate(data)
+
+    @pytest.mark.parametrize(
+        "field", ["exploration_question", "exploration_background"]
+    )
+    @pytest.mark.parametrize("blank", ["", "   "])
+    def test_an_exploration_question_and_its_background_must_not_be_blank(
+        self, field: str, blank: str
+    ) -> None:
+        with pytest.raises(ValidationError, match=field):
+            AnalysisDesign.model_validate(_exploration_data(**{field: blank}))
+
+    def test_an_exploration_needs_its_background(self) -> None:
+        data = _exploration_data()
+        del data["exploration_background"]
+        with pytest.raises(ValidationError, match="exploration_background"):
+            AnalysisDesign.model_validate(data)
+
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            {"hypothesis_background": "Y"},
+            {"next_action": {"if_supported": "go", "if_rejected": "stop"}},
+        ],
+        ids=["hypothesis_background", "next_action"],
+    )
+    def test_an_exploration_holds_nothing_that_assumes_a_verdict(
+        self, extra: dict
+    ) -> None:
+        with pytest.raises(ValidationError, match=next(iter(extra))):
+            AnalysisDesign.model_validate(_exploration_data(**extra))
+
+    def test_a_confirmation_holds_no_exploration_background(self) -> None:
+        data = _minimal_design_data(exploration_background="B")
+        with pytest.raises(ValidationError, match="exploration_background"):
+            AnalysisDesign.model_validate(data)
+
+    def test_a_confirmation_needs_its_hypothesis_background(self) -> None:
+        data = _minimal_design_data()
+        del data["hypothesis_background"]
+        with pytest.raises(ValidationError, match="hypothesis_background"):
+            AnalysisDesign.model_validate(data)
+
+    def test_an_exploration_is_written_without_the_hypothesis_fields(self) -> None:
+        dumped = AnalysisDesign.model_validate(_exploration_data()).model_dump(
+            mode="json"
+        )
+        assert "hypothesis_statement" not in dumped
+        assert "hypothesis_background" not in dumped
+        assert dumped["exploration_question"] == "How far apart are the regions?"
+
+    def test_a_confirmation_is_written_without_the_exploration_fields(self) -> None:
+        dumped = AnalysisDesign.model_validate(_minimal_design_data()).model_dump(
+            mode="json"
+        )
+        assert "exploration_question" not in dumped
+        assert "exploration_background" not in dumped
+        assert dumped["hypothesis_statement"] == "stmt"
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            _exploration_data(),
+            _minimal_design_data(),
+            _minimal_design_data(analysis_intent="exploratory"),
+        ],
+        ids=["exploration", "confirmation", "legacy"],
+    )
+    def test_a_written_design_reads_back_as_the_same_form(self, data: dict) -> None:
+        design = AnalysisDesign.model_validate(data)
+        again = AnalysisDesign.model_validate(design.model_dump(mode="json"))
+        assert again.form() is design.form()
+
+
+class TestExploredIsTerminal:
+    """US-2 AC 5: ``explored`` is in the canonical set of terminal statuses."""
+
+    def test_explored_is_a_terminal_status(self) -> None:
+        assert DesignStatus.explored in TERMINAL_STATUSES
+
+    def test_a_node_whose_designs_are_explored_is_analyzed(self) -> None:
+        statuses = [DesignStatus.explored, DesignStatus.supported]
+        assert Progress.of(statuses) is Progress.analyzed
+
+
+class TestConclusionMatchesTheForm:
+    """US-2 AC 2: a record never pairs an exploration with a verdict, or the reverse."""
+
+    @pytest.mark.parametrize("verdict", ["supported", "rejected", "inconclusive"])
+    def test_an_exploration_with_a_verdict_is_rejected(self, verdict: str) -> None:
+        with pytest.raises(ValidationError, match="status"):
+            AnalysisDesign.model_validate(_exploration_data(status=verdict))
+
+    @pytest.mark.parametrize("intent", ["confirmatory", "exploratory", "mixed"])
+    def test_a_design_with_a_hypothesis_is_never_explored(self, intent: str) -> None:
+        data = _minimal_design_data(analysis_intent=intent, status="explored")
+        with pytest.raises(ValidationError, match="status"):
+            AnalysisDesign.model_validate(data)
+
+    def test_an_explored_exploration_reads(self) -> None:
+        design = AnalysisDesign.model_validate(_exploration_data(status="explored"))
+        assert design.status is DesignStatus.explored
+
+
+class TestWhatAFormAllows:
+    """One predicate each for what a form is judged by and how it may end."""
+
+    def test_only_an_exploration_is_not_judged(self) -> None:
+        assert {f for f in DesignForm if not f.judges} == {DesignForm.exploration}
+
+    @pytest.mark.parametrize("form", list(DesignForm))
+    def test_a_form_allows_every_status_before_the_end(self, form: DesignForm) -> None:
+        for status in set(DesignStatus) - TERMINAL_STATUSES:
+            assert form.allows(status)
+
+    @pytest.mark.parametrize("form", list(DesignForm))
+    def test_a_form_ends_with_a_verdict_exactly_when_it_is_judged(
+        self, form: DesignForm
+    ) -> None:
+        ends = {s for s in TERMINAL_STATUSES if form.allows(s)}
+        verdicts = TERMINAL_STATUSES - {DesignStatus.explored}
+        assert ends == (verdicts if form.judges else {DesignStatus.explored})

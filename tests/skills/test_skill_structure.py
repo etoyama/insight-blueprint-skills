@@ -231,11 +231,11 @@ class TestSkillStructure:
             )
 
     def test_analysis_framing_version(self) -> None:
-        """analysis-framing must have version == '1.0.0'."""
+        """analysis-framing must have version == '1.1.0'."""
         text = _read_skill("analysis-framing")
         fm = parse_frontmatter(text)
-        assert fm.get("version") == "1.0.0", (
-            f"analysis-framing version should be '1.0.0', got {fm.get('version')!r}"
+        assert fm.get("version") == "1.1.0", (
+            f"analysis-framing version should be '1.1.0', got {fm.get('version')!r}"
         )
 
     def test_analysis_framing_has_five_workflow_steps(self) -> None:
@@ -249,18 +249,26 @@ class TestSkillStructure:
     def test_existing_skills_version_bump(self) -> None:
         """Existing skills have correct versions per their release history."""
         # Expected versions per skill:
-        # - analysis-framing: 1.0.0 (initial, tested separately)
+        # - analysis-framing: 1.1.0 (the Brief drafts a question or a hypothesis by intent,
+        #   ADR-0048; tested separately)
         # - analysis-revision: 1.0.0 (initial, added in Issue #44)
-        # - analysis-design, catalog-register: 1.2.0 (rules integrated into SKILL.md)
-        # - analysis-journal, analysis-reflection: 1.1.0
+        # - analysis-design: 1.3.0 (the intent is asked first, ADR-0048)
+        # - catalog-register: 1.2.0 (rules integrated into SKILL.md)
+        # - analysis-auto: 1.1.0 (design beat 1 asks the intent, ADR-0048)
+        # - analysis-review: 1.1.0 (the lenses split by intent, ADR-0048)
+        # - analysis-journal: 1.2.0 (direction is against the hypothesis, ADR-0050)
+        # - analysis-reflection: 1.2.0 (the questions are headed by what they ask, and an
+        #   exploration ends without a verdict, ADR-0048)
         # - data-lineage: 1.2.0 (Step 0 and setup mode removed, ADR-0047)
-        # - analysis-notebook: 1.0.1 (--with excludes the default allowlist)
+        # - analysis-notebook: 1.1.0 (an exploration keeps values, no prediction, ADR-0050)
         expected_versions: dict[str, str] = {
-            "analysis-notebook": "1.0.1",
-            "analysis-design": "1.2.0",
+            "analysis-notebook": "1.1.0",
+            "analysis-design": "1.3.0",
+            "analysis-auto": "1.1.0",
+            "analysis-review": "1.1.0",
             "catalog-register": "1.2.0",
-            "analysis-journal": "1.1.0",
-            "analysis-reflection": "1.1.0",
+            "analysis-journal": "1.2.0",
+            "analysis-reflection": "1.2.0",
             "analysis-revision": "1.0.0",
             "data-lineage": "1.2.0",
         }

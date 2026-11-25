@@ -69,8 +69,11 @@ flowchart TD
 - **Validation library（`src/insight_blueprint/validate.py`）** — I/O を持たない純関数。
   Pydantic スキーマ検証（`AnalysisDesign`。`DesignStatus`、空でない `Methodology.method`、両方そろった `DecisionContext` など）+
   状態遷移ガード（`VALID_TRANSITIONS`。例: `analyzing → supported` は許し、`analyzing → revision_requested` は拒む。結果を見た後のレビューで `in_review` へ戻すのは任意（[ADR-0029](adr/0029-analyzing-reaches-conclusion-directly.md)）。terminal status からはどこへも遷移しない）。分析設計の整合性の単一正本。
+  遷移は分析設計の形（`DesignForm`。分析の意図と項目から導き、保存しない）を受け取る。結論の状態は形で決まり、探索は `explored` で、検証と旧形式の探索は `supported`・`rejected`・`inconclusive` で終わる。それより前の遷移は形で変わらない（`valid_targets`。[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md)）。
+  検査は2段ある。読むときの検査（`validate_schema`。hook もこれを使う）は、保存済みの旧形式の探索と `mixed` を通す。
+  作るときの検査（新しく作るときは `validate_creation` を `design_io create` が、書き換えるときは `validate_update` を `design_io update` が呼ぶ。`validate_update` は遷移も確かめる）は、旧形式の探索と `mixed` を新しく作ることと、`in_review`・`revision_requested` の後に意図を変えることを拒む（[ADR-0049](adr/0049-legacy-exploration-stays-readable-and-is-marked.md)）。
   `design_io` 経由で書く skill も、書く前に Python 側で同じ検証を通す。tool の書き込み（hook）と
-  helper の書き込み（`design_io`）の両方が守られる。
+  helper の書き込み（`design_io`）の両方で、読むときの検査が効く。書き換えるときの検査（`validate_update`）は、hook もディスク上の記録が読めるときに行う。新しく作るときの検査（`validate_creation`）は `design_io` だけが行う。
   論点ツリーの形も同じ場所で検証する（`validate_tree`。[ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md)）。
   根の問いがちょうど1つあること、論点の親が同じツリーにあって循環しないこと、根の版が1から1ずつ増えること、ツリーの決定が指す論点がツリーにあることを確かめ、モデルに無い項目を拒む。
   書き込む前の正本があれば、根の版が減っていないことと、今の版より前の版が変わっていないことも確かめる。ツリーの決定と現時点の答えは足すことだけができる。
@@ -103,7 +106,7 @@ KEEP ゲートは次のとおり。
 
 - 着手: 論点ツリーの無いテーマの `design_id` を渡されたときに、ツリーを作るかどうか / `theme_id`・根の問い・到達点 /
   第一階層の論点と最初に調べる論点 / 根の版を上げるかどうか。
-- 分析設計の4ビート: ① 仮説 / ② 手法・指標・explanatory の因果役割・intent /
+- 分析設計の4ビート: ① 分析の意図と、探索の問いか検証仮説 / ② 手法・指標（検証では primary の指標の `comparison` に判定の基準）・explanatory の因果役割 /
   ③ データ取得プラン（SQL クエリ or データソースの id + columns + filter, premortem の前。パスは見せない、[ADR-0022](adr/0022-connection-reaches-only-the-notebook.md)） / ④ chart 仕様。
 - 実行: データソース登録 / premortem `HARD_BLOCK`・`HIGH` / notebook の非 allowlist・宣言 source 以外の外部通信 / 結論。
 - 巡回の終わり: ツリーの決定（深める・親に戻る・区切る、次に調べる論点、理由）と、人に聞いてきた答え。
@@ -303,7 +306,7 @@ sequenceDiagram
         U->>CC: /data-lineage（Mermaid export）
     end
     U->>CC: /analysis-reflection（結論 → status 遷移）
-    CC->>IO: transition（supported / rejected / inconclusive）
+    CC->>IO: transition（探索は explored、検証は supported / rejected / inconclusive）
     opt テーマを横断した振り返り（論点ツリーがあるとき）
         U->>CC: /analysis-reflection {theme_id}
         CC->>IO: tree_io answer（論点ごとの現時点の答え。検査を通るまで書かない）
@@ -382,8 +385,8 @@ sequenceDiagram
         end
 
         Note over D,FS: design（AUTO: Framing Brief から各フィールドを自動ドラフト → KEEP: ①〜④を順に確認）
-        D->>U: 【KEEP①】仮説（statement + background）と決定の文脈（任意）を確認
-        D->>U: 【KEEP②】手法 + metrics + explanatory の因果役割 + intent を確認
+        D->>U: 【KEEP①】分析の意図と、探索の問い（question + background）か検証仮説（statement + background）、決定の文脈（任意）を確認
+        D->>U: 【KEEP②】手法 + metrics（検証では primary の comparison に判定の基準）+ explanatory の因果役割を確認
         D->>U: 【KEEP③】データ取得プラン（SQL クエリ / データソースの id + columns + filter + 想定行数）を確認
         D->>U: 【KEEP④】chart[] 仕様（intent/type/x/y）を確認
         U-->>D: 各ビートで確定（or 修正）
@@ -414,7 +417,7 @@ sequenceDiagram
             D->>U: 【KEEP】実行前に承認要求
         end
 
-        D->>U: 【KEEP】/analysis-reflection {design_id} で結論（conclude/refine/branch）+ terminal 遷移
+        D->>U: 【KEEP】/analysis-reflection {design_id} で結論（探索は `explored` で終え、検証は判定で終える。検証仮説を直すときは派生の分析設計を作る）+ terminal 遷移
         Note over D,FS: /analysis-reflection {theme_id}（テーマを横断した振り返り）
         D->>IO: tree_io answer（検査を通るまで書かない）→ tree_check → candidates / candidate → render
         D->>U: 【KEEP】論点ツリーの HTML のパスを示し、ツリーの決定（深める・親に戻る・区切る、次の論点、理由）と聞いてきた答えを聞く
@@ -456,12 +459,15 @@ classDiagram
         <<Aggregate Root>>
         id
         title
+        exploration_question
+        exploration_background
         hypothesis_statement
         hypothesis_background
         status
         analysis_intent
         parent_id
         source_ids
+        +form() DesignForm
     }
     class Methodology {
         <<Value Object>>
@@ -496,6 +502,7 @@ classDiagram
         in_review
         revision_requested
         analyzing
+        explored
         supported
         rejected
         inconclusive
@@ -505,6 +512,12 @@ classDiagram
         exploratory
         confirmatory
         mixed
+    }
+    class DesignForm {
+        <<enumeration>>
+        exploration
+        confirmation
+        legacy_exploration
     }
     class MetricTier {
         <<enumeration>>
@@ -698,6 +711,7 @@ classDiagram
     AnalysisDesign "1" *-- "*" ChartSpec
     AnalysisDesign --> DesignStatus
     AnalysisDesign --> AnalysisIntent
+    AnalysisDesign ..> DesignForm : 導く（保存しない）
     AnalysisDesign ..> AnalysisDesign : parent_id
     AnalysisDesign ..> DataSource : source_ids
     Metric --> MetricTier
@@ -736,10 +750,11 @@ classDiagram
 実線の矢印（`-->`）は「その enum の値を持つ」を表す。破線の矢印（`..>`）は型で結ばれていない参照で、ラベルが参照に使うフィールドを表す（ID のほか、`schema_info` のように dict に入れた形もある）。
 `RiskDecision`・`SourceChecks`・`PremortemConfig` は `/premortem` の入出力で、ファイルには保存しない。
 `Progress` も保存しない。論点に結んだ分析設計の `status` から導く。
+`DesignForm` も保存しない。分析設計の意図と項目から導く（[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md)）。
 
 | 型 | 種類 | 不変条件 |
 |---|---|---|
-| `AnalysisDesign` | 集約ルート | `status` は `VALID_TRANSITIONS` の遷移でだけ変わる。`methodology` があれば `method` は空でない。`decision_context` があれば `decision_maker` と `decision` はどちらも空でない（[ADR-0014](adr/0014-analysis-design-decision-context.md)） |
+| `AnalysisDesign` | 集約ルート | `status` は `VALID_TRANSITIONS` の遷移でだけ変わる。`methodology` があれば `method` は空でない。`decision_context` があれば `decision_maker` と `decision` はどちらも空でない（[ADR-0014](adr/0014-analysis-design-decision-context.md)）。探索の問いと検証仮説のどちらか一方だけを持ち、形が1つに決まる。探索は `explored` でだけ終わり、検証と旧形式の探索は判定の3つでだけ終わる（[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md)、[ADR-0049](adr/0049-legacy-exploration-stays-readable-and-is-marked.md)） |
 | `ReviewBatch` | 集約ルート | `comments` は1件以上。1つのバッチは `status_after` への遷移を1回だけ起こす |
 | `DataSource` | 集約ルート | `type` は空でない open string（[ADR-0004](adr/0004-open-string-catalog-taxonomy.md)） |
 | `DomainKnowledge` | 集約ルート | 1つの `source_id` に属する。`category` は空でない open string |
@@ -791,6 +806,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 29 | Skill layer（`/report-export` の新設、`/analysis-report` と `/report-upload` の削除、`/analysis-auto` の report と upload の段の削除）+ `tree_io report` の出力（テーマの最終報告のレポート `reports/{theme_id}.md`）。Story 29.1〜29.5 で実装した |
 | Epic 30 | Skill layer（`/analysis-notebook` の notebook の契約と実行）+ 分析ノートの cell の切り出し + plugin の env（`notebook` extra）と既定の許可リスト |
 | Epic 31 | Skill layer（`/data-lineage` の対象と実行の env）+ リリース（PyPI の公開をやめ、タグと版の照合を CI に移す） |
+| Epic 32 | Validation library（分析設計の形、`explored`、意図を見る遷移）+ Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-auto`・`/analysis-review`・`/analysis-notebook`・`/analysis-journal`・`/analysis-reflection`・`/premortem` の意図による分け方）+ `tree_io render` と `tree_io report` の表示（論点の下の分析設計の枝、状態の言葉、定型文） |
 
 
 ## 参照

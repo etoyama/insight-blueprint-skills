@@ -36,21 +36,21 @@ stages:
 
   - id: round-1
     summary: >-
-      1つ目の分析設計で分かったこと。状態の履歴から取消を除くと、期限切れを一貫して数えられた。
+      1つ目の分析設計（探索）で分かったこと。状態の履歴から取消を除くと、期限切れを一貫して数えられた。
       振り返りの回 1 で答えを書き、原因の候補のうち通知の遅れを先に調べると決めた。
     steps:
       - create_design:
           title: 期限切れの数え方
-          hypothesis_statement: 状態の履歴から取消を除けば、期限切れを一貫して数えられる
-          hypothesis_background: 取消と期限切れが同じ状態で記録されている
+          analysis_intent: exploratory
+          exploration_question: 状態の履歴から取消を除くと、期限切れは何件か
+          exploration_background: 取消と期限切れが同じ状態で記録されている
       - link_design: {node_id: LIB-Q02, design_id: LIB-H01}
       - append_journal_event:
           design_id: LIB-H01
           event_fields:
               type: evidence
               content: 状態の履歴から取消を除くと、期限切れは152件だった
-              metadata: {direction: supports}
-      - transition_status: {design_id: LIB-H01, target: supported}
+      - transition_status: {design_id: LIB-H01, target: explored}
       - answer:
           answers:
             - node_id: LIB-Q02
@@ -66,8 +66,9 @@ stages:
 
   - id: round-2
     summary: >-
-      2つ目の分析設計で分かったこと。通知が遅れた予約は期限切れが多いが、通知の日を揃えても
-      金曜に確保した本は期限切れが多いままだった。通知の遅れだけでは決められず、分析設計は inconclusive で終わった。
+      2つ目の分析設計（検証）で分かったこと。通知が遅れた予約は期限切れが多く、検証仮説は supported で終わった。
+      ただ、通知の日を揃えても金曜に確保した本は期限切れが多いままだった。期限切れが通知の遅れで増えているかは、
+      まだ見分けられない。検証仮説の判定と、論点への現時点の答えは別のものである。
       journal の問いから、開館日数の論点を足した。予約担当の図書館員に、曜日で通知の手順が変わるかを聞いた。
       振り返りの回 2 で根の答えを書き換え、開館日数の論点を次に調べると決めた。
     steps:
@@ -93,7 +94,7 @@ stages:
           event_fields:
               type: question
               content: 通知から期限まで何日開館していたか
-      - transition_status: {design_id: LIB-H02, target: inconclusive}
+      - transition_status: {design_id: LIB-H02, target: supported}
       - add_node:
           question: 通知から期限まで何日開館していたか
           parent_question_id: LIB-Q04

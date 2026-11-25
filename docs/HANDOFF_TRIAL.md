@@ -89,7 +89,7 @@ id の並びの順も採点に効かない。
 |---|---|
 | q1 | `verdict`（`claim` か `undetermined`）が鍵と同じ |
 | q2 | `not_started` と `analyzed_undetermined` の論点の集合が、どちらも鍵と同じ |
-| q3 | `supports` と `weakens` の出来事と分析設計の組の集合が、どちらも鍵と同じ |
+| q3 | `supports` と `weakens` の出来事と分析設計の組の集合が、どちらも鍵と同じ。鍵は、根の現時点の答えが引用する出来事を、引用した文の種類で分ける。「言えること」が引用する出来事が `supports`、「弱める証拠と留保」が引用する出来事が `weakens` である。探索の証拠は journal の `direction` を持たないので、`direction` では分けない |
 | q4 | `changed_nodes` と `evidence` の集合が、どちらも鍵と同じ |
 | q5 | `node_id` が鍵と同じで、`reason_events` が鍵の出来事をすべて含み、鍵の出来事と `also_allowed` の外の出来事を含まない |
 

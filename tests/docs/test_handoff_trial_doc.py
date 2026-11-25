@@ -78,6 +78,14 @@ class TestScoring:
         for field in handoff_trial.Answers.model_fields:
             assert f"| {field} |" in body
 
+    def test_q3_splits_the_events_by_the_kind_of_the_citing_statement(self) -> None:
+        """US-4 AC 5 of Epic 32: an exploration's evidence carries no direction."""
+        body = section(_doc(), "## Step 4")
+        (row,) = [line for line in body.splitlines() if line.startswith("| q3 |")]
+        assert "「言えること」" in row
+        assert "「弱める証拠と留保」" in row
+        assert "引用した文の種類" in row
+
 
 class TestRecord:
     """AC 3: a trial leaves the five answers, right or wrong, and the time taken."""

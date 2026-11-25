@@ -18,7 +18,12 @@ from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
+from insight_blueprint.models.design import (
+    TERMINAL_STATUSES,
+    AnalysisDesign,
+    DesignForm,
+    DesignStatus,
+)
 from insight_blueprint.models.tree import (
     Aim,
     AimKind,
@@ -33,7 +38,16 @@ from insight_blueprint.models.tree import (
 )
 from skills._shared._html import BASE_CSS, Html, el, join, page
 from skills._shared.design_io import design_number
-from skills._shared.design_note import NOTE_CSS, note_anchor
+from skills._shared.design_note import (
+    FORM_WORDS,
+    NOTE_CSS,
+    direction_gloss,
+    intent_word,
+    intent_words_of,
+    note_anchor,
+    statement_of,
+    status_word,
+)
 
 if TYPE_CHECKING:  # tree_check imports this module (CitedEvent)
     from skills._shared.tree_check import Violation
@@ -46,6 +60,23 @@ class DesignSummary:
     status: DesignStatus
     parent_id: str | None
     created_at: datetime
+    form: DesignForm
+    intent: str  # intent_word: a saved mixed design has its own word
+    statement: str  # the question of an exploration, else the hypothesis
+
+    @classmethod
+    def of(cls, design: AnalysisDesign) -> DesignSummary:
+        """The words come from design_note, as the note's do (ADR-0051)."""
+        return cls(
+            design.id,
+            design.title,
+            design.status,
+            design.parent_id,
+            design.created_at,
+            form=design.form(),
+            intent=intent_word(design),
+            statement=statement_of(design)[0],
+        )
 
 
 @dataclass(frozen=True)
@@ -85,6 +116,14 @@ _TREE_CSS = """.legend { background: var(--panel); border: 1px solid var(--line)
 .notice { border: 1px solid var(--investigating); padding: .4rem .8rem; }
 .notes { margin: .3rem 0; padding-left: 1.2rem; }
 .design-note { scroll-margin-top: 4rem; }
+.branch {
+  background: var(--panel); border: 1px dashed var(--line);
+  padding: .4rem .7rem; overflow-wrap: anywhere;
+}
+.form-tag { font-weight: 700; margin-right: .4rem; }
+.answer-heading { color: var(--muted); font-size: .9rem; margin-bottom: 0; }
+.legend table { border-collapse: collapse; margin: .3rem 0; }
+.legend th, .legend td { border: 1px solid var(--line); padding: .2rem .5rem; text-align: left; }
 """
 
 _AIM_LABELS = {
@@ -164,11 +203,6 @@ _NOTE_LABELS = (
     ("changes_if", "その答えで変わる判断"),
     ("known", "分かっていること"),
 )
-
-_DIRECTION_GLOSSES = {
-    "supports": "仮説を支持する",
-    "contradicts": "仮説に反する",
-}
 
 
 def render_tree_html(
@@ -260,8 +294,21 @@ def _legend() -> Html:
         el("p", "まだ分析設計を結んでいない論点は「次の候補」に並べる。"),
         el(
             "p",
-            "各論点の「根拠を開く」を押すと、引用した journal の出来事、前の回の答え、"
-            "結んだ分析設計が開く。",
+            "論点の下には、その論点に結んだ分析設計を、子の論点より先に並べる。"
+            "分析設計のカードは破線の枠で、「分析設計・」と意図の言葉で始まる。"
+            "同じ分析設計を2つ目の論点からは、id、状態の言葉、最初に出た論点への"
+            "リンクだけの短い行で出す。",
+        ),
+        el(
+            "p",
+            "分析設計の状態は、次の言葉で出す。判定は分析設計の検証仮説（旧形式では"
+            "仮説）に対するもので、論点の答えではない。論点の答えは、論点のカードの"
+            "「現時点の答え」に書く。",
+        ),
+        _status_table(),
+        el(
+            "p",
+            "各論点の「根拠を開く」を押すと、引用した journal の出来事と、前の回の答えが開く。",
         ),
         el("p", "論点の親子と分析設計の派生は別の構造なので、2つの節に分けて並べる。"),
         el(
@@ -275,6 +322,27 @@ def _legend() -> Html:
     )
 
 
+def _status_rows() -> list[tuple[str, DesignStatus, list[str]]]:
+    """(word, YAML value, intent words) for each status a form can take."""
+    rows: dict[str, tuple[DesignStatus, list[str]]] = {}
+    for status in DesignStatus:
+        for form in DesignForm:
+            if not form.allows(status):
+                continue
+            word = status_word(form, status)
+            rows.setdefault(word, (status, []))[1].extend(intent_words_of(form))
+    return [(word, status, intents) for word, (status, intents) in rows.items()]
+
+
+def _status_table() -> Html:
+    head = el("tr", join(el("th", h) for h in ("表示の言葉", "YAML の status", "意図")))
+    body = join(
+        el("tr", el("td", word), el("td", status.value), el("td", "、".join(intents)))
+        for word, status, intents in _status_rows()
+    )
+    return el("table", el("thead", head), el("tbody", body), id="status-words")
+
+
 @dataclass(frozen=True)
 class _Context:
     """The inputs of a page and the facts derived from them, computed once."""
@@ -285,7 +353,9 @@ class _Context:
     design_notes: Mapping[str, Html]
     progress: Mapping[str, Progress]
     violations: Mapping[str, Sequence[Violation]]
+    # Node ids that link a design, in page order: the first one shows its card.
     linked_by: Mapping[str, list[str]]
+    children: Mapping[str | None, list[QuestionNode]]
 
     @classmethod
     def of(
@@ -313,11 +383,23 @@ class _Context:
         violations: dict[str, list[Violation]] = {}
         for violation in () if isinstance(checked, CheckFailed) else checked:
             violations.setdefault(violation.node_id, []).append(violation)
-        linked_by: dict[str, list[str]] = {}
+        children: dict[str | None, list[QuestionNode]] = {}
         for node in tree.nodes:
+            children.setdefault(node.parent_question_id, []).append(node)
+        linked_by: dict[str, list[str]] = {}
+        for node in _page_order(tree.root(), children):
             for design_id in node.design_ids:
                 linked_by.setdefault(design_id, []).append(node.id)
-        return cls(tree, designs, events, design_notes, progress, violations, linked_by)
+        return cls(
+            tree,
+            designs,
+            events,
+            design_notes,
+            progress,
+            violations,
+            linked_by,
+            children,
+        )
 
     def marks_of(self, node: QuestionNode) -> list[Mark]:
         answer = node.current_answer()
@@ -334,6 +416,19 @@ class _Context:
         if answer.root_revision < self.tree.current_revision().revision:
             marks.append(Mark.before_root_change)
         return marks
+
+
+def _page_order(
+    root: QuestionNode, children: Mapping[str | None, list[QuestionNode]]
+) -> list[QuestionNode]:
+    """The nodes as the tree section lists them: each before its children."""
+    ordered: list[QuestionNode] = []
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        ordered.append(node)
+        stack.extend(reversed(children.get(node.id, [])))
+    return ordered
 
 
 def _link(target: str, label: str) -> Html:
@@ -464,16 +559,18 @@ def _next_candidates(context: _Context) -> Html:
 
 def _question_tree(context: _Context) -> Html:
     tree = context.tree
-    children: dict[str | None, list[QuestionNode]] = {}
-    for node in tree.nodes:
-        children.setdefault(node.parent_question_id, []).append(node)
 
     def branch(node: QuestionNode) -> Html:
-        below = children.get(node.id, [])
+        designs = [
+            el("li", _design_card(context, node, design))
+            for design in _card_order([context.designs[d] for d in node.design_ids])
+        ]
+        below = [branch(c) for c in context.children.get(node.id, [])]
+        items = designs + below
         return el(
             "li",
             _node_card(context, node),
-            el("ul", join(branch(c) for c in below)) if below else None,
+            el("ul", join(items)) if items else None,
             id=node.id,
         )
 
@@ -482,6 +579,37 @@ def _question_tree(context: _Context) -> Html:
         el("h2", "論点ツリー"),
         el("ul", branch(tree.root()), class_="tree"),
         id="question-tree",
+    )
+
+
+def _design_card(context: _Context, node: QuestionNode, design: DesignSummary) -> Html:
+    """The full card under the first node on the page; a short row under the others."""
+    word = status_word(design.form, design.status)
+    first = context.linked_by[design.id][0]
+    if first != node.id:
+        return el(
+            "div",
+            el(
+                "p",
+                el("strong", design.id),
+                f"　{word}　",
+                _link(first, f"{first} の下に出ている"),
+                class_="meta",
+            ),
+            class_=f"branch form-{design.form.value}",
+        )
+    statement = FORM_WORDS[design.form].statement
+    return el(
+        "div",
+        el(
+            "p",
+            el("span", f"分析設計・{design.intent}", class_="form-tag"),
+            el("strong", _link(f"design-{design.id}", design.id)),
+            f" {design.title}",
+        ),
+        el("p", f"{statement}: {design.statement}") if design.statement else None,
+        el("p", word, "　", _note_link(design.id), class_="meta"),
+        class_=f"branch form-{design.form.value}",
     )
 
 
@@ -511,6 +639,7 @@ def _node_card(context: _Context, node: QuestionNode) -> Html:
         if marks:
             parts.append(el("p", *marks))
         if not violated:
+            parts.append(el("p", "現時点の答え", class_="answer-heading"))
             parts.append(
                 el(
                     "ul",
@@ -593,24 +722,6 @@ def _evidence(
         if earlier:
             sections.append(el("h4", "前の回の答え"))
             sections += [_earlier_answer(a) for a in earlier]
-    if node.design_ids:
-        sections += [
-            el("h4", "結んだ分析設計"),
-            el(
-                "ul",
-                join(
-                    el(
-                        "li",
-                        _link(f"design-{design.id}", design.id),
-                        f" {design.title}　状態: {design.status}　",
-                        _note_link(design.id),
-                    )
-                    for design in _card_order(
-                        [context.designs[d] for d in node.design_ids]
-                    )
-                ),
-            ),
-        ]
     if not sections:
         sections.append(el("p", "まだ根拠は無い。"))
     return el("details", el("summary", f"{node.id} の根拠を開く"), join(sections))
@@ -647,8 +758,11 @@ def _cited_event(context: _Context, event_id: str) -> Html:
     ]
     if event.type:
         parts.append(f" type: {event.type}")
-    if event.direction:
-        gloss = _DIRECTION_GLOSSES.get(event.direction)
+    design = context.designs.get(design_id)
+    form = None if design is None else design.form
+    # An exploration holds no hypothesis, so no direction leans on one (ADR-0051).
+    if event.direction and (form is None or form.judges):
+        gloss = None if form is None else direction_gloss(form, event.direction)
         parts.append(
             f" direction: {event.direction}" + (f"（{gloss}）" if gloss else "")
         )
@@ -683,7 +797,7 @@ def _derivation(context: _Context) -> Html:
         design = designs[design_id]
         nodes = context.linked_by.get(design_id, [])
         facts: list[Html | str] = [
-            f"状態: {design.status}　",
+            f"{status_word(design.form, design.status)}　",
             _note_link(design_id),
             "　",
         ]

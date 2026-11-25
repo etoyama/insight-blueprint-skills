@@ -248,7 +248,7 @@ class TestStatusBlock:
 
         html = _section_of(str(render_note(note)), "status")
 
-        assert "状態: analyzing" in html
+        assert "状態: 分析中（analyzing）" in html
         assert "2026-11-03T11:30:00+09:00" in html
         assert "2026-11-02T10:00:00+09:00" not in html
         assert "notebook の結果（verdict）: あり" in html
@@ -301,8 +301,8 @@ class TestResults:
 
         html = str(render_note(_note(events=events)))
 
-        support = html.index("仮説を支持する証拠")
-        against = html.index("仮説に反する証拠")
+        support = html.index("検証仮説を支持する証拠")
+        against = html.index("検証仮説に反する証拠")
         neutral = html.index("向きの無い証拠")
         assert support < against < neutral
         assert support < html.index("支持その1") < html.index("支持その2") < against
@@ -745,11 +745,11 @@ class TestConclusion:
     @pytest.mark.parametrize(
         ("status", "lead"),
         [
-            (DesignStatus.supported, "仮説は支持された。"),
-            (DesignStatus.rejected, "仮説は棄却された。"),
+            (DesignStatus.supported, "検証仮説は支持された。"),
+            (DesignStatus.rejected, "検証仮説は棄却された。"),
             (
                 DesignStatus.inconclusive,
-                "仮説を支持するとも棄却するとも結論できなかった。",
+                "検証仮説を支持するとも棄却するとも結論できなかった。",
             ),
         ],
     )
@@ -783,7 +783,7 @@ class TestConclusion:
         for heading in (
             "conclude の本文",
             "勧めの元",
-            "仮説に反する証拠",
+            "検証仮説に反する証拠",
             "reflect の本文",
             "未解決の問い",
         ):
@@ -814,7 +814,7 @@ class TestConclusion:
         html = _section_of(str(render_note(_concluded(_conclusion()))), "conclusion")
 
         assert "<h4>" not in html
-        assert _texts(html)[:2] == ["結論", "仮説は支持された。"]
+        assert _texts(html)[:2] == ["結論", "検証仮説は支持された。"]
 
     def test_only_records_and_fixed_labels_appear(self) -> None:
         html = _section_of(str(render_note(_concluded(FULL))), "conclusion")
@@ -827,13 +827,13 @@ class TestConclusion:
         records = {e.content for e in events} | {e.id for e in events}
         labels = {
             "結論",
-            "仮説は支持された。",
+            "検証仮説は支持された。",
             "この節は journal と分析設計の記録を書かれたとおりに写す。"
             "conclude と reflect の本文は「分析の経過」にも在る。",
             "conclude の本文",
             "勧めの元",
             "next_action の if_supported: 全館で延長を試す",
-            "仮説に反する証拠",
+            "検証仮説に反する証拠",
             "reflect の本文",
             "未解決の問い",
         }
@@ -871,3 +871,242 @@ class TestConclusion:
 
         assert "<script" not in html
         assert html.count("&lt;script&gt;alert(1)&lt;/script&gt;&quot;") >= 9
+
+
+# Story 32.5 (Epic 32 US-5): the note words an exploration, a confirmation and a
+# legacy exploration apart, so an exploration never reads as a verdict (ADR-0051).
+
+QUESTION_TEXT = "取り置きの期限切れは、どの館で多いか"
+QUESTION_BACKGROUND = "館ごとの差をまだ見ていない"
+
+
+def _exploration(**over: object) -> AnalysisDesign:
+    fields: dict = {
+        "analysis_intent": "exploratory",
+        "exploration_question": QUESTION_TEXT,
+        "exploration_background": QUESTION_BACKGROUND,
+        "hypothesis_statement": None,
+        "hypothesis_background": None,
+    }
+    fields.update(over)
+    return _design(**fields)
+
+
+def _legacy(**over: object) -> AnalysisDesign:
+    return _design(analysis_intent="exploratory", **over)
+
+
+# Words that judge a hypothesis; an exploration's note holds none of them.
+VERDICT_WORDS = ("仮説", "支持", "棄却", "合否", "しきい値", "判定:")
+
+
+def _explored(design: AnalysisDesign | None = None, **over: object) -> DesignNote:
+    return _concluded(
+        _conclusion(status=DesignStatus.explored, **over), design or _exploration()
+    )
+
+
+def _without_lead(html: str) -> str:
+    """*html* without the one sentence that says no verdict was made."""
+    return html.replace("探索を終えた。判定はしていない。", "")
+
+
+class TestOpeningSectionByForm:
+    def test_an_exploration_opens_with_its_question_and_background(self) -> None:
+        html = _section_of(str(render_note(_note(design=_exploration()))), "hypothesis")
+
+        assert _texts(html) == ["探索の問いと背景", QUESTION_TEXT, QUESTION_BACKGROUND]
+
+    def test_a_confirmation_opens_with_its_hypothesis_and_background(self) -> None:
+        html = _section_of(str(render_note(_note())), "hypothesis")
+
+        assert _texts(html) == [
+            "検証仮説と背景",
+            "期限を延ばすと期限切れが減る",
+            "取り置き7日で期限切れが多い",
+        ]
+
+    def test_a_legacy_exploration_opens_with_its_hypothesis_as_written(self) -> None:
+        html = _section_of(str(render_note(_note(design=_legacy()))), "hypothesis")
+
+        assert _texts(html)[:2] == ["仮説と背景", "期限を延ばすと期限切れが減る"]
+
+    def test_the_status_block_links_the_opening_section_by_its_heading(self) -> None:
+        html = _section_of(str(render_note(_note(design=_exploration()))), "status")
+
+        assert '<a href="#note-LIB-H01-hypothesis">探索の問いと背景</a>' in html
+
+    def test_the_question_of_an_exploration_is_escaped(self) -> None:
+        html = str(render_note(_note(design=_exploration(exploration_question=EVIL))))
+
+        assert "<script" not in html
+        assert "&lt;script&gt;alert(1)&lt;/script&gt;&quot;" in html
+
+
+class TestEvidenceByForm:
+    EVENTS = (
+        _event("E01", "evidence", "本館で多い"),
+        _event("E02", "evidence", "分館で少ない", "contradicts"),
+    )
+
+    def test_an_exploration_shows_its_evidence_as_one_group(self) -> None:
+        html = _section_of(
+            str(render_note(_note(design=_exploration(), events=self.EVENTS))),
+            "results",
+        )
+
+        assert "<h4>証拠</h4>" in html
+        assert html.index("本館で多い") < html.index("分館で少ない")
+        for word in VERDICT_WORDS:
+            assert word not in html
+
+    def test_a_confirmation_splits_its_evidence_by_the_hypothesis(self) -> None:
+        events = (
+            _event("E01", "evidence", "支持", "supports"),
+            _event("E02", "evidence", "反対", "contradicts"),
+        )
+
+        html = str(render_note(_note(events=events)))
+
+        assert "<h4>検証仮説を支持する証拠</h4>" in html
+        assert "<h4>検証仮説に反する証拠</h4>" in html
+
+    def test_a_legacy_exploration_keeps_the_old_headings(self) -> None:
+        events = (
+            _event("E01", "evidence", "支持", "supports"),
+            _event("E02", "evidence", "反対", "contradicts"),
+        )
+
+        html = str(render_note(_note(design=_legacy(), events=events)))
+
+        assert "<h4>仮説を支持する証拠</h4>" in html
+        assert "<h4>仮説に反する証拠</h4>" in html
+        assert "検証仮説" not in html
+
+
+class TestMetricValuesByForm:
+    def test_an_exploration_shows_measured_values_without_threshold_or_pass(
+        self,
+    ) -> None:
+        metric = _metric(value="0.346", p="0.01", threshold="0.05", passed=True)
+
+        html = str(render_note(_note(design=_exploration(), metrics=(metric,))))
+
+        assert "<td>0.346</td>" in html
+        assert "<td>0.01</td>" in html
+        assert "しきい値" not in html
+        assert "合否" not in html
+        assert "<td>0.05</td>" not in html
+        assert "✓" not in html
+
+    def test_a_confirmation_keeps_threshold_and_pass(self) -> None:
+        metric = _metric(threshold="0.05", passed=True)
+
+        html = str(render_note(_note(metrics=(metric,))))
+
+        assert "<th>しきい値</th>" in html
+        assert "<th>合否</th>" in html
+
+
+class TestConclusionByForm:
+    def test_an_exploration_concludes_without_a_verdict(self) -> None:
+        html = _section_of(
+            str(
+                render_note(
+                    _explored(
+                        conclude_events=(_event("E05", "conclude", "本館が多かった"),),
+                        contradicting_evidence=(
+                            _event("E02", "evidence", "分館は少ない", "contradicts"),
+                        ),
+                    )
+                )
+            ),
+            "conclusion",
+        )
+
+        assert _texts(html)[:2] == ["結論", "探索を終えた。判定はしていない。"]
+        assert "本館が多かった" in html
+        for word in VERDICT_WORDS:
+            assert word not in _without_lead(html)
+
+    @pytest.mark.parametrize(
+        ("status", "lead"),
+        [
+            (DesignStatus.supported, "仮説は支持された。"),
+            (DesignStatus.rejected, "仮説は棄却された。"),
+            (
+                DesignStatus.inconclusive,
+                "仮説を支持するとも棄却するとも結論できなかった。",
+            ),
+        ],
+    )
+    def test_a_legacy_exploration_keeps_the_old_sentence(
+        self, status: DesignStatus, lead: str
+    ) -> None:
+        html = _section_of(
+            str(render_note(_concluded(_conclusion(status=status), _legacy()))),
+            "conclusion",
+        )
+
+        assert _texts(html)[:2] == ["結論", lead]
+
+    def test_a_confirmation_names_the_evidence_against_its_hypothesis(self) -> None:
+        html = _section_of(str(render_note(_concluded(FULL))), "conclusion")
+
+        assert "<h4>検証仮説に反する証拠</h4>" in html
+
+
+class TestStatusByForm:
+    def test_an_exploration_shows_its_intent_and_state_in_words(self) -> None:
+        html = _section_of(str(render_note(_explored())), "status")
+
+        assert "意図: 探索" in html
+        assert "状態: 探索済み（判定はしない）（explored）" in html
+
+    def test_a_confirmation_shows_its_verdict_with_the_hypothesis_word(self) -> None:
+        html = _section_of(
+            str(render_note(_concluded(_conclusion(status=DesignStatus.rejected)))),
+            "status",
+        )
+
+        assert "意図: 検証" in html
+        assert "状態: 検証仮説の判定: 棄却（rejected）" in html
+
+    def test_a_legacy_exploration_is_marked_as_such(self) -> None:
+        html = _section_of(str(render_note(_note(design=_legacy()))), "status")
+
+        assert "意図: 探索（旧形式）" in html
+        assert "旧形式の探索: 探索の分析設計に、仮説と判定が書かれている。" in html
+
+    def test_a_saved_mixed_design_reads_as_a_confirmation_marked_legacy(
+        self,
+    ) -> None:
+        html = _section_of(
+            str(render_note(_note(design=_design(analysis_intent="mixed")))), "status"
+        )
+
+        assert "意図: 探索と検証（旧形式）" in html
+
+    def test_only_a_legacy_exploration_carries_the_legacy_note(self) -> None:
+        for design in (_design(), _exploration()):
+            assert "旧形式の探索:" not in str(render_note(_note(design=design)))
+
+    def test_an_exploration_note_has_no_verdict_word_anywhere(self) -> None:
+        note = _explored(
+            conclude_events=(_event("E05", "conclude", "本館が多かった"),),
+        )
+        note = DesignNote(
+            **{
+                **note.__dict__,
+                "events": (
+                    _event("E01", "evidence", "本館で多い"),
+                    _event("E05", "conclude", "本館が多かった"),
+                ),
+                "verdict": NoteVerdict(metrics=(_metric(),), conclusion=None),
+            }
+        )
+
+        html = _without_lead(str(render_note(note)))
+
+        for word in VERDICT_WORDS:
+            assert word not in html, word

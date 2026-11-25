@@ -238,7 +238,7 @@ After the RQ Brief, suggest:
 | From | To | When |
 |------|-----|------|
 | /development-partner* | → /rq-problematization | 研究テーマがあり先行研究の前提を問い直したい: "前提を疑うなら /rq-problematization" |
-| /analysis-reflection | → /rq-problematization | 仮説が棄却/不確定で前提から問い直したい: "前提から問い直すなら /rq-problematization" |
+| /analysis-reflection | → /rq-problematization | 検証仮説が棄却されたか結論できなかった、または探索の答えが前提と合わず、前提から問い直したい: "前提から問い直すなら /rq-problematization" |
 | /analysis-auto | → /rq-problematization | guided autopilot が研究テーマを受け、RQ がまだ無い |
 | /rq-problematization | → /analysis-framing | RQ が出てデータ接地が必要: "データに接地して検証枠組みにするなら /analysis-framing" |
 

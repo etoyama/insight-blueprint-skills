@@ -68,6 +68,8 @@ CONTRACT_CELLS = (
 # The next_action fields the note's recommendation takes for each terminal
 # status. A dot steps into a mapping.
 NEXT_ACTION_BRANCHES = {
+    # An exploration holds no next_action: nothing waits on a verdict (ADR-0048).
+    DesignStatus.explored: (),
     DesignStatus.supported: ("if_supported",),
     DesignStatus.rejected: ("if_rejected.reason", "if_rejected.pivot"),
     DesignStatus.inconclusive: (),
@@ -154,11 +156,15 @@ def _interval(item: object) -> tuple[str, str, str] | None:
 
 def _metric(name: object, entry: dict) -> VerdictMetric:
     passed = entry.get("pass")
+    # The contract writes "p_value"; a verdict saved before may hold "p".
+    p = entry.get("p")
+    if p is None:
+        p = entry.get("p_value")
     return VerdictMetric(
         name=str(name),
         value=_verdict_text(entry.get("value")),
         threshold=_verdict_text(entry.get("threshold")),
-        p=_verdict_text(entry.get("p")),
+        p=_verdict_text(p),
         passed=passed if isinstance(passed, bool) else None,
         effect_size=_effect_size(entry.get("effect_size")),
         confidence_interval=_interval(entry.get("confidence_interval")),
@@ -260,7 +266,7 @@ def _conclusion(
             for field in NEXT_ACTION_BRANCHES[design.status]
             if (text := _branch_text(design.next_action, field)) is not None
         ),
-        contradicting_evidence=contradicting_evidence(events),
+        contradicting_evidence=contradicting_evidence(events, design.form()),
         reflect_events=of("reflect"),
         open_questions=tuple(e for e in of(QUESTION) if e.id not in resolved),
     )

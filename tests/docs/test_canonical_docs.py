@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from tests.docs._changelog import changelog_entry
-from tests.skills._markdown import section, unwrap
+from tests.skills._markdown import section, table_rows, unwrap
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -97,6 +97,7 @@ LIVING_DOCS = [
     "docs/design/epic-28-tree-entry-point.md",
     "docs/design/epic-29-theme-report-export.md",
     "docs/design/epic-30-plain-python-notebook.md",
+    "docs/design/epic-32-exploration-and-confirmation.md",
     *(str(p.relative_to(REPO_ROOT)) for p in _new_format_adrs()),
 ]
 
@@ -415,32 +416,69 @@ class TestReportAndUploadDocs:
         assert [epic for epic in roadmap if epic not in mapped] == []
 
 
-class TestTreeEntryPointDocs:
-    """Epic 28, first edition: the DesignDoc has what WORKFLOW §4 asks for before any Story starts."""
+# The DesignDoc of each Epic since 28, with the ADRs its first edition cites.
+FIRST_EDITIONS = {
+    "docs/design/epic-28-tree-entry-point.md": ("0036", "0037"),
+    "docs/design/epic-29-theme-report-export.md": ("0039", "0040"),
+    "docs/design/epic-30-plain-python-notebook.md": ("0045", "0046"),
+    "docs/design/epic-32-exploration-and-confirmation.md": (
+        "0048",
+        "0049",
+        "0050",
+        "0051",
+    ),
+}
 
-    DOC = "docs/design/epic-28-tree-entry-point.md"
+
+@pytest.mark.parametrize("doc", sorted(FIRST_EDITIONS))
+class TestDesignDocFirstEdition:
+    """WORKFLOW §4: the DesignDoc has what its first edition needs before any Story starts."""
+
     FIRST_EDITION_DIAGRAMS = {
         "Architecture": "flowchart",
         "Domain Model": "classDiagram",
         "Sequence Diagram": "sequenceDiagram",
     }
 
+    @staticmethod
+    def _story_rows(doc: str) -> list[list[str]]:
+        rows = table_rows(section(_read(doc), "## Stories"))[2:]
+        assert rows, "the Stories table is empty"
+        return rows
+
     @pytest.mark.parametrize("title", sorted(FIRST_EDITION_DIAGRAMS))
-    def test_first_edition_diagram_is_drawn_in_mermaid(self, title: str) -> None:
-        body = words.section(_read(self.DOC), title)
+    def test_first_edition_diagram_is_drawn_in_mermaid(
+        self, doc: str, title: str
+    ) -> None:
+        body = section(_read(doc), f"## {title}")
         assert re.search(
             rf"```mermaid\s*\n{self.FIRST_EDITION_DIAGRAMS[title]}\b", body
         ), title
 
-    def test_every_story_handles_at_most_five_criteria(self) -> None:
-        rows = [
-            [cell.strip() for cell in line.strip("|").split("|")]
-            for line in words.section(_read(self.DOC), "Stories").splitlines()
-            if line.startswith("|")
-        ][2:]
-        assert rows, "the Stories table is empty"
-        for story, _user_story, criteria, *_ in rows:
+    def test_every_story_handles_at_most_five_criteria(self, doc: str) -> None:
+        for story, _user_story, criteria, *_ in self._story_rows(doc):
             assert len(re.findall(r"AC \d+", criteria)) <= 5, story
+
+    def test_every_user_story_is_handled_by_a_story(self, doc: str) -> None:
+        user_stories = re.findall(r"^### (US-\d+):", _read(doc), flags=re.M)
+        handled = {
+            us
+            for _story, cell, *_ in self._story_rows(doc)
+            for us in re.findall(r"US-\d+", cell)
+        }
+        assert user_stories
+        assert [us for us in user_stories if us not in handled] == []
+
+    def test_cross_epic_decisions_are_linked(self, doc: str) -> None:
+        decisions = section(_read(doc), "## Decisions")
+        missing = [
+            adr for adr in FIRST_EDITIONS[doc] if f"../adr/{adr}-" not in decisions
+        ]
+        assert missing == []
+
+
+class TestTreeEntryPointDocs:
+    """Epic 28, first edition: what only this Epic's terms carry."""
 
     def test_design_note_is_a_term_from_its_adr(self) -> None:
         rows = {
@@ -451,50 +489,9 @@ class TestTreeEntryPointDocs:
         # 「ノートブック」 is the avoided word for notebook; the note must not be read as one.
         assert "notebook" in rows["分析ノート"][words.DEFINITION]
 
-    def test_cross_epic_decisions_are_linked(self) -> None:
-        decisions = words.section(_read(self.DOC), "Decisions")
-        assert "../adr/0036-" in decisions
-        assert "../adr/0037-" in decisions
-
 
 class TestThemeReportDocs:
-    """Epic 29, first edition: the DesignDoc has what WORKFLOW §4 asks for before any Story starts."""
-
-    DOC = "docs/design/epic-29-theme-report-export.md"
-    FIRST_EDITION_DIAGRAMS = {
-        "Architecture": "flowchart",
-        "Domain Model": "classDiagram",
-        "Sequence Diagram": "sequenceDiagram",
-    }
-
-    @pytest.mark.parametrize("title", sorted(FIRST_EDITION_DIAGRAMS))
-    def test_first_edition_diagram_is_drawn_in_mermaid(self, title: str) -> None:
-        body = words.section(_read(self.DOC), title)
-        assert re.search(
-            rf"```mermaid\s*\n{self.FIRST_EDITION_DIAGRAMS[title]}\b", body
-        ), title
-
-    def test_every_story_handles_at_most_five_criteria(self) -> None:
-        rows = [
-            [cell.strip() for cell in line.strip("|").split("|")]
-            for line in words.section(_read(self.DOC), "Stories").splitlines()
-            if line.startswith("|")
-        ][2:]
-        assert rows, "the Stories table is empty"
-        for story, _user_story, criteria, *_ in rows:
-            assert len(re.findall(r"AC \d+", criteria)) <= 5, story
-
-    def test_every_user_story_is_handled_by_a_story(self) -> None:
-        doc = _read(self.DOC)
-        user_stories = re.findall(r"^### (US-\d+):", doc, flags=re.M)
-        stories = words.section(doc, "Stories")
-        assert user_stories
-        assert [us for us in user_stories if us not in stories] == []
-
-    def test_cross_epic_decisions_are_linked(self) -> None:
-        decisions = words.section(_read(self.DOC), "Decisions")
-        assert "../adr/0039-" in decisions
-        assert "../adr/0040-" in decisions
+    """Epic 29, first edition: what only this Epic's terms carry."""
 
     def test_the_terms_follow_the_removal_of_the_old_report(self) -> None:
         """US-5 AC 4: the report is the theme's, and the report check is no longer a term."""
@@ -510,40 +507,26 @@ class TestThemeReportDocs:
 
 
 class TestPlainPythonNotebookDocs:
-    """Epic 30, first edition: the DesignDoc has what WORKFLOW §4 asks for before any Story starts."""
-
-    DOC = "docs/design/epic-30-plain-python-notebook.md"
-    FIRST_EDITION_DIAGRAMS = {
-        "Architecture": "flowchart",
-        "Domain Model": "classDiagram",
-        "Sequence Diagram": "sequenceDiagram",
-    }
-
-    @pytest.mark.parametrize("title", sorted(FIRST_EDITION_DIAGRAMS))
-    def test_first_edition_diagram_is_drawn_in_mermaid(self, title: str) -> None:
-        body = words.section(_read(self.DOC), title)
-        assert re.search(
-            rf"```mermaid\s*\n{self.FIRST_EDITION_DIAGRAMS[title]}\b", body
-        ), title
-
-    def test_every_story_handles_at_most_five_criteria(self) -> None:
-        rows = [
-            [cell.strip() for cell in line.strip("|").split("|")]
-            for line in words.section(_read(self.DOC), "Stories").splitlines()
-            if line.startswith("|")
-        ][2:]
-        assert rows, "the Stories table is empty"
-        for story, _user_story, criteria, *_ in rows:
-            assert len(re.findall(r"AC \d+", criteria)) <= 5, story
-
-    def test_cross_epic_decisions_are_linked(self) -> None:
-        decisions = words.section(_read(self.DOC), "Decisions")
-        assert "../adr/0045-" in decisions
-        assert "../adr/0046-" in decisions
+    """Epic 30, first edition: what only this Epic's DesignDoc carries."""
 
     def test_the_core_value_revision_is_proposed(self) -> None:
         # The PRD itself is revised by a Story; the first edition carries the wording.
-        assert "notebook 契約 & lineage" in words.section(_read(self.DOC), "Scope")
+        scope = section(
+            _read("docs/design/epic-30-plain-python-notebook.md"), "## Scope"
+        )
+        assert "notebook 契約 & lineage" in scope
+
+
+class TestExplorationAndConfirmationDocs:
+    """Epic 32, first edition: what only this Epic's DesignDoc carries."""
+
+    def test_the_state_of_a_design_is_drawn(self) -> None:
+        # A design ends differently by its intent, so the first edition draws the states.
+        model = section(
+            _read("docs/design/epic-32-exploration-and-confirmation.md"),
+            "## Domain Model",
+        )
+        assert re.search(r"```mermaid\s*\nstateDiagram-v2\b", model)
 
 
 class TestCanonicalDocsPointAtPlainPythonNotebook:
@@ -621,6 +604,84 @@ class TestYomiyasuWords:
             assert _read(f".yomiyasu-words/{name}") == content, (
                 f"{name} is stale: run uv run python scripts/export_yomiyasu_words.py"
             )
+
+    @staticmethod
+    def _glossary(*rows: str) -> str:
+        header = "| 用語 | コード上の名前 | 定義 | 使わない言い換え | 初出 |\n|---|---|---|---|---|\n"
+        return "## Terms\n\n" + header + "\n".join(rows) + "\n"
+
+    def test_a_qualified_variant_becomes_a_pattern_and_not_a_flag(self) -> None:
+        # A variant wrong only in some contexts cannot be a flag.txt word, which matches
+        # everywhere; a pattern can skip the terms that contain it.
+        out = words.render(
+            self._glossary(
+                "| 検証仮説 | — | d | 仮説（分析設計の項目を指すとき） | x |",
+                "| 仮説の背景 | — | d | — | x |",
+            )
+        )
+        assert "仮説\t" not in out["flag.txt"]
+        assert (
+            "仮説（分析設計の項目を指すとき）は検証仮説\t(?<!検証)仮説(?!の背景)\n"
+            in out["flag-patterns.txt"]
+        )
+
+    def test_a_pattern_skips_every_term_that_ends_with_the_variant(self) -> None:
+        out = words.render(
+            self._glossary(
+                "| 探索の問い | — | d | 問い（分析設計の項目を指すとき） | x |",
+                "| 根の問い | — | d | — | x |",
+                "| 未解決の問い | — | d | — | x |",
+            )
+        )
+        assert "\t(?<!探索の)(?<!根の)(?<!未解決の)問い\n" in out["flag-patterns.txt"]
+
+    def test_a_pattern_word_is_not_allowed(self) -> None:
+        # yomiyasu drops a pattern's hit when the matched text is in allow.txt, so a word
+        # in both lists is never flagged.
+        out = words.render(
+            self._glossary(
+                "| 仮説 | — | d | — | x |",
+                "| 検証仮説 | — | d | 仮説（分析設計の項目を指すとき） | x |",
+            )
+        )
+        assert "仮説" not in out["allow.txt"].splitlines()
+        assert "検証仮説" in out["allow.txt"].splitlines()
+
+    @staticmethod
+    def _english_pattern() -> re.Pattern[str]:
+        out = words.render(
+            TestYomiyasuWords._glossary(
+                "| 分析設計 | — | d | hypothesis（分析設計を指すとき） | x |"
+            )
+        )
+        return re.compile(out["flag-patterns.txt"].splitlines()[-1].split("\t")[1])
+
+    @pytest.mark.parametrize(
+        "text", ["the hypothesis is", "このhypothesisは", "hypothesis。"]
+    )
+    def test_an_english_word_is_matched_next_to_japanese(self, text: str) -> None:
+        # Python re counts kana and kanji as word characters, so \b finds no edge there.
+        assert self._english_pattern().search(text), text
+
+    @pytest.mark.parametrize(
+        "text", ["hypothesis_statement", "hypotheses", "xhypothesis"]
+    )
+    def test_an_english_word_is_not_matched_inside_another(self, text: str) -> None:
+        assert not self._english_pattern().search(text), text
+
+    def test_a_variant_without_a_word_is_refused(self) -> None:
+        # A pattern with no literal character stops every yomiyasu run with exit code 2.
+        with pytest.raises(ValueError, match="no word"):
+            words.render(self._glossary("| 分析設計 | — | d | （…のとき） | x |"))
+
+    def test_every_pattern_fits_the_limits_of_yomiyasu(self) -> None:
+        # yomiyasu stops with exit code 2 on a name over 40 characters or a regex over 200.
+        lines = words.render(_read("docs/UBIQUITOUS_LANGUAGE.md"))["flag-patterns.txt"]
+        patterns = [line.split("\t") for line in lines.splitlines()[1:]]
+        assert patterns
+        for name, regex in patterns:
+            assert len(name) <= 40, name
+            assert len(regex) <= 200, regex
 
 
 class TestPluginVariables:
@@ -1011,3 +1072,150 @@ class TestWaveOneNotesAndBriefFlow:
         scope = unwrap(section(text, "## Scope"))
         assert "触らない所" in scope
         assert "必ず理由を書く（FLOW-0013）" in scope
+
+
+class TestExplorationAndConfirmationTerms:
+    """Epic 32 US-8: the glossary and the canonical docs tell exploration from confirmation."""
+
+    GLOSSARY = "docs/UBIQUITOUS_LANGUAGE.md"
+    # ADR-0048: these definitions must hold for an exploration as well as a confirmation.
+    BOTH_FORMS = (
+        "分析設計",
+        "指標",
+        "手法",
+        "派生",
+        "terminal status",
+        "分析の意図",
+        "notebook",
+        "verdict",
+        "reflection",
+        "仮説の背景",
+    )
+    # A bare 仮説 names the design's field only in the old wording; 検証仮説 is the field.
+    BARE_HYPOTHESIS = re.compile(r"(?<!検証)仮説")
+
+    def _rows(self) -> dict[str, dict[str, str]]:
+        return {r[words.TERM]: r for r in words.terms_rows(_read(self.GLOSSARY))}
+
+    @pytest.mark.parametrize(
+        ("term", "code"),
+        [
+            ("検証仮説", "`hypothesis_statement`"),
+            ("探索の問い", "`exploration_question`"),
+            ("探索の問いの背景", "`exploration_background`"),
+            ("旧形式の探索", "`legacy_exploration`"),
+            ("分析設計の形", "`DesignForm`"),
+        ],
+    )
+    def test_the_terms_of_the_two_forms_are_in_the_glossary(
+        self, term: str, code: str
+    ) -> None:
+        assert code in self._rows()[term][words.CODE_NAME]
+
+    def test_a_hypothesis_is_the_answer_put_before_a_question(self) -> None:
+        row = self._rows()["仮説"]
+        assert "`hypothesize`" in row[words.CODE_NAME]
+        assert "hypothesis_statement" not in row[words.CODE_NAME]
+        assert "問いに先に置く仮の答え" in row[words.DEFINITION]
+
+    @pytest.mark.parametrize("term", BOTH_FORMS)
+    def test_a_shared_definition_does_not_assume_a_hypothesis(self, term: str) -> None:
+        definition = self._rows()[term][words.DEFINITION]
+        assert not self.BARE_HYPOTHESIS.search(definition), definition
+
+    def test_explored_is_a_terminal_status(self) -> None:
+        assert "`explored`" in self._rows()["terminal status"][words.CODE_NAME]
+
+    def test_mixed_cannot_be_created(self) -> None:
+        definition = self._rows()["分析の意図"][words.DEFINITION]
+        assert "`mixed`" in definition
+        assert "新しく作れない" in definition
+
+    def test_the_h_of_a_design_id_is_its_serial_number(self) -> None:
+        assert "通し番号の記号" in self._rows()["分析設計"][words.DEFINITION]
+
+    def test_the_context_names_both_forms(self) -> None:
+        context = unwrap(words.section(_read(self.GLOSSARY), "Context"))
+        assert "探索" in context
+        assert "検証仮説" in context
+        assert "分析者が仮説を立て" not in context
+
+    @pytest.mark.parametrize(
+        ("term", "variant"),
+        [
+            ("検証仮説", "仮説（分析設計の項目を指すとき）"),
+            ("探索の問い", "問い（分析設計の項目を指すとき）"),
+        ],
+    )
+    def test_a_bare_word_for_a_field_is_flagged(self, term: str, variant: str) -> None:
+        assert variant in self._rows()[term][words.AVOID].split("、")
+        assert f"{variant}は{term}\t" in _read(".yomiyasu-words/flag-patterns.txt")
+
+    def test_prd_vision_tells_the_two_forms_apart(self) -> None:
+        vision = unwrap(words.section(_read("docs/PRD.md"), "ビジョン / 解く課題"))
+        assert "仮説 → 設計 → 検証 → 結論" not in vision
+        assert "探索" in vision
+        assert "検証仮説" in vision
+
+    def test_prd_core_value_names_both_fields_of_a_design(self) -> None:
+        core = words.section(_read("docs/PRD.md"), "コアバリュー（温存すべき核）")
+        line = next(ln for ln in core.splitlines() if "分析設計" in ln)
+        assert "探索の問い" in line
+        assert "検証仮説" in line
+
+    def test_architecture_validation_has_the_two_checks(self) -> None:
+        components = unwrap(
+            section(_read("docs/ARCHITECTURE.md"), "## コンポーネントと責務")
+        )
+        assert "validate_creation" in components
+        assert "DesignForm" in components
+
+    def test_architecture_invocation_model_asks_the_intent_first(self) -> None:
+        model = unwrap(
+            section(_read("docs/ARCHITECTURE.md"), "### Skill invocation model")
+        )
+        assert "① 分析の意図と、探索の問いか検証仮説" in model
+
+    def test_architecture_workflow_ends_an_exploration_as_explored(self) -> None:
+        sequence = section(_read("docs/ARCHITECTURE.md"), "### 分析ワークフロー全体")
+        line = next(ln for ln in sequence.splitlines() if "CC->>IO: transition" in ln)
+        assert "explored" in line
+        assert "supported" in line
+
+    def test_architecture_autopilot_asks_the_intent_at_the_first_beat(self) -> None:
+        sequence = section(
+            _read("docs/ARCHITECTURE.md"), "### guided autopilot（`/analysis-auto`）"
+        )
+        first = next(ln for ln in sequence.splitlines() if "【KEEP①】" in ln)
+        for word in ("分析の意図", "探索の問い", "検証仮説"):
+            assert word in first, word
+        second = next(ln for ln in sequence.splitlines() if "【KEEP②】" in ln)
+        assert "intent" not in second
+
+    def test_architecture_autopilot_ends_a_design_by_its_form(self) -> None:
+        sequence = section(
+            _read("docs/ARCHITECTURE.md"), "### guided autopilot（`/analysis-auto`）"
+        )
+        end = next(
+            ln
+            for ln in sequence.splitlines()
+            if "/analysis-reflection {design_id}" in ln
+        )
+        # Story 32.7: a refined hypothesis goes into a derived design, not a rewrite.
+        for word in ("`explored`", "判定", "派生の分析設計"):
+            assert word in end, word
+        assert "refine" not in end
+
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "探索（旧形式）",
+            "design_io update --id <id>",
+            "`mixed` can no longer be created",
+        ],
+    )
+    def test_changelog_upgrade_note_tells_how_to_handle_old_designs(
+        self, phrase: str
+    ) -> None:
+        entry = changelog_entry(_read("CHANGELOG.md"), "探索（旧形式）")
+        assert phrase in unwrap(section(entry, "### Upgrade note"))

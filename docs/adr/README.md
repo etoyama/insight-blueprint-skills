@@ -47,6 +47,10 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0045](0045-notebook-is-plain-python-with-percent-cells.md) | notebook は `# %%` で cell を区切る素の Python にし、marimo の書式をやめる | Accepted |
 | [0046](0046-marimo-leaves-the-plugin-env-and-the-default-allowlist.md) | plugin の env と既定の許可リストから marimo を外す | Accepted |
 | [0047](0047-stop-publishing-to-pypi.md) | `insight-blueprint-lineage` を PyPI に公開するのをやめ、`/data-lineage` を plugin の env で走らせる | Accepted |
+| [0048](0048-intent-decides-the-form-and-the-end-of-a-design.md) | 分析の意図が、分析設計の形と終わり方を決める | Accepted |
+| [0049](0049-legacy-exploration-stays-readable-and-is-marked.md) | 旧形式の探索は読めるままにし、印を付ける | Accepted |
+| [0050](0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md) | 探索は予想を持たずに測った値を残し、検証は基準を分析設計に書く | Accepted |
+| [0051](0051-designs-nest-under-their-question-and-state-is-worded-by-role.md) | 論点ツリーは分析設計を論点の下の枝に出し、状態を役割つきの言葉で言う | Accepted |
 
 - ADR-0001〜0008 は旧形式のまま残す。ADR-0009 からは新形式（Problem と Decision Analysis の節を持つ）で書く。
 - 開発フローの決定の出典は [flow/](flow/README.md) にある。repo-template の ADR のコピーで、`FLOW-000N` と表記する。

@@ -7,9 +7,13 @@ The script runs from top to bottom with `python` (see "Execution" below).
 
 ## File layout
 
-The file opens with a docstring that holds the design's id, title, hypothesis and intent.
-Inside the docstring, write each `\` as `\\` and each `"` as `\"`, so a title or a hypothesis
-cannot end the docstring early or turn into an escape sequence.
+The file opens with a docstring that holds the design's id, title and intent, and what the
+design answers: an exploration writes a `- Question:` line with `exploration_question`, and a design
+that holds a hypothesis (a confirmation, or an exploration saved before ADR-0048) writes a
+`- Hypothesis:` line with `hypothesis_statement`. Never write both lines.
+Inside the docstring, write each `\` as `\\` and each `"` as `\"`, so the text cannot end the
+docstring early or turn into an escape sequence. Apply the same escape to the title, the question
+and the hypothesis.
 Only the docstring comes before the first `# %%` line: no import, no assignment, no other statement.
 
 A cell starts at a `# %% <name>` line written at the start of a line, and runs up to the next
@@ -32,6 +36,7 @@ a host, and the client that takes one (`bigquery.Client(project=...)`). The anal
 that cell, so a `connection` value in any other cell shows there.
 
 ```python
+# confirmation
 """H01 — 平日夜の予約は週末より多い
 
 - Design ID: H01
@@ -62,6 +67,20 @@ session = LineageSession(name="H01-analysis", design_id="H01")
 ...
 ```
 
+An exploration opens the same way, with the question in place of the hypothesis. The
+`# confirmation` or `# exploration` comment above each example only labels the example; a notebook
+starts with its docstring.
+
+```python
+# exploration
+"""H02 — 分館ごとの待ち日数
+
+- Design ID: H02
+- Question: 分館ごとに、予約から受け取りまでの日数はどう分布するか
+- Intent: exploratory
+"""
+```
+
 ## Cells
 
 | Name | Assigns | Responsibility |
@@ -69,7 +88,7 @@ session = LineageSession(name="H01-analysis", design_id="H01")
 | `imports` | `pd, plt, np, LineageSession, tracked_pipe, export_lineage_as_mermaid, json, Path` | Library imports. Call `matplotlib.use("Agg")` before importing `pyplot`, so a run opens no window; then `plt.rcParams["figure.figsize"] = (10, 6)` |
 | `data_load` | `raw_df`, `session` | Load source into `raw_df`. Each `{source:ID}` in `methodology.steps` becomes the location in that source's `connection`: a string literal in Python code, a quoted identifier in a SQL query (ADR-0022); an `ID` not in `source_ids` stops the generation; `session = LineageSession(name="{id}-analysis", design_id="{id}")`. The only cell that assigns `raw_df` |
 | `data_prep` | `df_clean` | Methodology-**independent** cleaning (nulls, types, filters). Every transform via `tracked_pipe(...)` |
-| `analysis` | `results` | Methodology-**dependent** analysis (branch on `analysis_intent`). `results` MUST include `hypothesis_direction`, `observed_direction`, `confidence_level`, `decision_reason` |
+| `analysis` | `results` | Methodology-**dependent** analysis. Build `results` in the shape of the design's form (see "`results` shape" below) |
 | `viz` | `figure_manifest` | Plots; **save each figure** to `.insight/notebooks/{id}_fig{NN:02d}.png`, close it, and build `figure_manifest` (see figures below) |
 | `verdict` | `verdict` | Build `verdict` dict (include `figures=figure_manifest`) and **persist it** to `.insight/notebooks/{id}_verdict.json` (the skill reads this) |
 | `lineage` | — | `export_lineage_as_mermaid(session, project_path=".")` → `.insight/lineage/{id}.mmd` |
@@ -94,13 +113,18 @@ df_clean = raw_df.pipe(tracked_pipe(drop_nulls, reason="drop rows with nulls", s
 
 ## `results` shape (`analysis` cell)
 
+Choose the shape by the form of the design. Use the exploration shape for every design with the
+`exploratory` intent, an old exploration with a hypothesis included; use the confirmation shape for
+every other design (`confirmatory`, and a saved `mixed` design or one with no intent, which read as a
+confirmation).
+
 ```python
-# confirmatory
+# confirmation
 results = {
     "hypothesis_direction": "supported|rejected|inconclusive",
     "observed_direction": "<observed vs threshold summary>",
     "confidence_level": "high|medium|low|ambiguous",
-    "decision_reason": "<which ACs passed/failed>",
+    "decision_reason": "<which criteria passed/failed>",
     "metrics": {
         "ATT": {
             "value": 1676.9, "threshold": 0, "p_value": 0.0001, "pass": True,
@@ -111,15 +135,39 @@ results = {
         }
     },
 }
-# exploratory
+```
+
+- In a confirmation, copy each metric's `threshold` from that metric's own `comparison` in the
+  design's `metrics`, where `/analysis-design` writes the criterion before the analysis runs. The
+  primary metric (`tier: primary`) carries the criterion of the judgment; the notebook never makes
+  up a threshold. If the design has no primary metric, or its `comparison` states no criterion, stop
+  and suggest /analysis-design rather than choosing one; a secondary or guardrail metric whose
+  `comparison` states none is reported with its value and no `threshold` or `pass`
+  ([ADR-0050](../../../docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md)).
+
+```python
+# exploration
 results = {
-    "hypothesis_direction": "<predicted direction>",
     "observed_direction": "<e.g. moderate positive r=0.47>",
     "confidence_level": "high|medium|low|ambiguous",
-    "decision_reason": "<why>",
     "notable_patterns": [...],
+    "metrics": {
+        "wait_days_gap": {
+            "value": 1.8, "p_value": 0.03,
+            # optional — see "Optional metric items" below
+            "effect_size": {"kind": "cohens_d", "value": 0.35},
+            "confidence_interval": {"level": 0.95, "lower": 0.4, "upper": 3.2},
+            "sample_size": 840,
+        }
+    },
 }
 ```
+
+- An exploration answers its question by measuring, so it holds no expectation and judges
+  nothing: its `results` have no `hypothesis_direction` and no `decision_reason`, and its metrics
+  have no `threshold` and no `pass`. Put every value it measured in `metrics`.
+- An exploration may write a p-value but never a pass or fail, and never calls a value
+  significant against a cut-off of its own.
 
 ## `verdict` shape (`verdict` cell) — persisted JSON
 
@@ -128,13 +176,18 @@ verdict = {
     "conclusion": "<one line>",
     "evidence_summary": ["...", "..."],
     "open_questions": ["...", "..."],
-    "metrics": results.get("metrics", {}),  # confirmatory: persist so the note and report tabulate
+    "metrics": results.get("metrics", {}),  # both forms: the note and the report tabulate them
     "figures": figure_manifest,  # from the viz cell (may be []); see figures below
 }
 Path(".insight/notebooks/{id}_verdict.json").write_text(
     json.dumps(verdict, ensure_ascii=False)
 )
 ```
+
+The verdict keeps `metrics` in both forms, so the analysis note and the report lay out what an
+exploration measured as well as what a confirmation judged. A verdict saved before this rule may
+lack `metrics`, or carry a `threshold` and a `pass` in an exploration; the consumers read it as
+written.
 
 ## Optional metric items (`analysis` cell) — effect size, confidence interval, sample size (ADR-0013)
 
@@ -289,10 +342,14 @@ Map the verdict into `observe` / `evidence` / `question` events appended to
 `.insight/designs/{id}_journal.yaml` (never `conclude` — concluding is `/analysis-reflection`):
 
 - `observe` — data characteristics (from the `data_load` and `data_prep` cells).
-- `evidence` — each item of `evidence_summary`; set `metadata.direction`:
-  - confirmatory: `supported`→`supports`, `rejected`→`contradicts`, `inconclusive`→(question)
-  - exploratory: matches prediction→`supports`, opposes→`contradicts`, unclear→(question)
-  - `confidence_level == "ambiguous"` → emit a `question` instead of `evidence`.
+- `evidence` — each item of `evidence_summary`. `metadata.direction` is the lean against the
+  design's `hypothesis_statement`, and only a design of the confirmation form sets it (an
+  exploration never does, an old exploration with a hypothesis included):
+  - confirmation: `supported`→`supports`, `rejected`→`contradicts`, `inconclusive`→(question)
+  - exploration: leave `metadata.direction` out of every evidence event. An exploration has no
+    hypothesis for the evidence to lean against; a guess formed along the way is a `hypothesize`
+    event of `/analysis-journal`
+  - `confidence_level == "ambiguous"` → emit a `question` instead of `evidence`, in both forms.
 - `question` — each item of `open_questions`. When `inconclusive`/`ambiguous` above already routed the
   evidence to a question, do not duplicate it — emit one question per distinct point.
 

@@ -16,7 +16,7 @@ import re
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 
-from insight_blueprint.models.design import DesignStatus
+from insight_blueprint.models.design import DesignForm, DesignStatus
 from insight_blueprint.models.tree import (
     Aim,
     AimKind,
@@ -29,13 +29,18 @@ from insight_blueprint.models.tree import (
 )
 from skills._shared.design_note import (
     EVENT_WORDS,
-    LEAD_SENTENCES,
+    LEGACY_NOTE,
+    VERDICT_COLUMNS,
     DesignNote,
     NoteEvent,
     NoteFigure,
     NoteSource,
     VerdictMetric,
+    against_heading,
     contradicting_evidence,
+    intent_word,
+    lead_sentence,
+    statement_of,
 )
 from skills._shared.tree_render import PROGRESS_WORDS, CitedEvent
 
@@ -159,7 +164,9 @@ class ReportDesign:
 
     id: str
     title: str
-    hypothesis: str
+    form: DesignForm
+    intent: str  # the intent as the reader sees it (ADR-0051)
+    statement: str  # the question of an exploration, else the hypothesis
     method: str  # "" when the design has no methodology
     package: str
     method_reason: str
@@ -172,7 +179,7 @@ class ReportDesign:
     @property
     def lead_sentence(self) -> str | None:
         """The fixed sentence of a terminal status; None before the design concludes."""
-        return LEAD_SENTENCES.get(self.status)
+        return lead_sentence(self.form, self.status)
 
     @classmethod
     def of(cls, note: DesignNote) -> ReportDesign:
@@ -180,17 +187,20 @@ class ReportDesign:
         design = note.design
         methodology = design.methodology
         conclusion = note.conclusion
+        form = design.form()
         return cls(
             id=design.id,
             title=design.title,
-            hypothesis=design.hypothesis_statement,
+            form=form,
+            intent=intent_word(design),
+            statement=statement_of(design)[0],
             method="" if methodology is None else methodology.method,
             package="" if methodology is None else methodology.package,
             method_reason="" if methodology is None else methodology.reason,
             status=design.status,
             conclude_events=() if conclusion is None else conclusion.conclude_events,
             # Evidence against the hypothesis counts before the design concludes too.
-            contradicting_evidence=contradicting_evidence(note.events),
+            contradicting_evidence=contradicting_evidence(note.events, form),
             metrics=() if note.verdict is None else note.verdict.metrics,
             figures=note.figures,
         )
@@ -343,12 +353,20 @@ def _method(report: ThemeReport) -> list[str]:
         }
         blocks.append(
             _table(
-                (_DESIGN, "答える論点", "仮説", "手法", "手法を選んだ理由"),
+                (
+                    _DESIGN,
+                    "答える論点",
+                    "意図",
+                    "探索の問い / 検証仮説",
+                    "手法",
+                    "手法を選んだ理由",
+                ),
                 (
                     (
                         f"{d.id} {_e(d.title)}",
                         "、".join(answered[d.id]),
-                        _e(d.hypothesis),
+                        d.intent,
+                        _e(d.statement),
                         _method_text(d),
                         _e(d.method_reason),
                     )
@@ -356,6 +374,11 @@ def _method(report: ThemeReport) -> list[str]:
                 ),
             )
         )
+        blocks += [
+            f"{d.id}: {LEGACY_NOTE}"
+            for d in report.designs
+            if d.form is DesignForm.legacy_exploration
+        ]
     else:
         blocks.append(f"論点に結んだ{_DESIGN}は無い。")
     if report.sources:
@@ -400,7 +423,7 @@ _METRIC_COLUMNS = (
 )
 
 
-def _metrics(metrics: Sequence[VerdictMetric]) -> list[str]:
+def _metrics(metrics: Sequence[VerdictMetric], form: DesignForm) -> list[str]:
     if not metrics:
         return []
     # A column no metric fills would be a column of dashes.
@@ -408,6 +431,7 @@ def _metrics(metrics: Sequence[VerdictMetric]) -> list[str]:
         (heading, fill)
         for heading, fill in _METRIC_COLUMNS
         if any(fill(m) is not None for m in metrics)
+        and (form.judges or heading not in VERDICT_COLUMNS)
     ]
     return [
         _table(
@@ -450,7 +474,7 @@ def _evidence(
                 f"{_e(e.content)}{cites.mark([e.id])}" for e in design.conclude_events
             )
         )
-    blocks += _metrics(design.metrics)
+    blocks += _metrics(design.metrics, design.form)
     for figure in design.figures:
         blocks += numbers.block(figure)
     return blocks
@@ -481,14 +505,19 @@ def _event_items(events: Sequence[NoteEvent], cites: _Cites) -> str:
 
 def _limitations(report: ThemeReport, cites: _Cites) -> list[str]:
     blocks = ["### Limitations"]
-    against = [d for d in report.designs if d.contradicting_evidence]
+    # An exploration holds no hypothesis, so it has no part here (ADR-0051).
+    judged = [d for d in report.designs if d.form.judges]
+    against = [d for d in judged if d.contradicting_evidence]
     for design in against:
         blocks += [
-            f"{design.id} {_e(design.title)} の仮説に反する証拠:",
+            f"{design.id} {_e(design.title)} の{against_heading(design.form)}:",
             _event_items(design.contradicting_evidence, cites),
         ]
     if not against:
-        blocks.append("仮説に反する証拠は記録されていない。")
+        blocks += [
+            f"{word}は記録されていない。"
+            for word in dict.fromkeys(against_heading(d.form) for d in judged)
+        ]
     unanswered = [n for n in report.nodes if n.answer is None]
     if unanswered:
         blocks += [

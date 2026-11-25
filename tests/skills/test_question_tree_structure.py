@@ -14,9 +14,10 @@ from pathlib import Path
 import pytest
 
 from skills._shared import design_io, tree_io
+from tests.docs._changelog import changelog_entry
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills._shown import run_shown_commands, run_shown_line
-from tests.skills.test_skill_structure import _read_skill
+from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
 
 _COMMAND = re.compile(r"(?<![\w/])tree_io ([a-z][a-z-]*)")
 
@@ -259,11 +260,24 @@ class TestDesignLinksItselfToTheNode:
         step = section(_read_skill("analysis-design"), "### Step 3: ")
         assert step.index("design_io create") < step.index("#### Link the design")
 
-    def test_a_brief_without_a_node_creates_the_design_unlinked(self) -> None:
+    def test_without_a_node_or_a_tree_the_design_is_created_unlinked(self) -> None:
         linking = unwrap(
             section(_read_skill("analysis-design"), "#### Link the design")
         )
-        assert re.search(r"no `node_id`[^.]*skip", linking)
+        assert re.search(r"no `node_id`[^.]*no question tree[^.]*skip", linking)
+
+    def test_without_a_node_the_analyst_picks_a_question_of_the_tree(self) -> None:
+        """Trial F05: a design made without a Brief never sat under a question."""
+        linking = unwrap(
+            section(_read_skill("analysis-design"), "#### Link the design")
+        )
+        assert "`tree_io get --theme {theme_id}`" in linking
+        assert re.search(r"which question[^.]*or none", linking)
+
+    def test_the_picked_question_is_linked_with_the_one_shown_command(self) -> None:
+        linking = section(_read_skill("analysis-design"), "#### Link the design")
+        assert len(re.findall(r"^tree_io link ", linking, re.M)) == 1
+        assert "the same `tree_io link` command" in unwrap(linking)
 
     def test_a_changed_theme_is_not_linked_to_the_node(self) -> None:
         linking = unwrap(
@@ -276,6 +290,11 @@ class TestDesignLinksItselfToTheNode:
             section(_read_skill("analysis-design"), "#### Link the design")
         )
         assert re.search(r"(?i)never[^.]*`tree_io add-node`", linking)
+
+    def test_the_changelog_says_a_design_without_a_brief_can_be_linked(self) -> None:
+        changelog = (SKILLS_DIR.parent / "CHANGELOG.md").read_text(encoding="utf-8")
+        phrase = "made without a Framing Brief can be linked to a question"
+        assert "#217" in unwrap(changelog_entry(changelog, phrase))
 
     def test_the_linked_node_is_shown_at_the_end(self) -> None:
         step = section(_read_skill("analysis-design"), "### Step 4: ")
@@ -344,7 +363,7 @@ class TestFramingRendersTheTree:
 
     def test_the_run_still_ends_on_the_design(self) -> None:
         step = unwrap(_framing("#### 5c: "))
-        assert step.rstrip().endswith('"仮説を設計するなら `/analysis-design`"')
+        assert step.rstrip().endswith('"分析設計を作るなら `/analysis-design`"')
 
     def test_framing_sends_the_html_nowhere(self) -> None:
         step = unwrap(_framing("#### 5c: "))

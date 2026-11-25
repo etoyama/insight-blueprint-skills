@@ -534,3 +534,90 @@ def test_no_shared_module_tells_a_marimo_cell_apart() -> None:
         text = module.read_text("utf-8")
         assert "app.cell" not in text, module
         assert "marimo" not in text, module
+
+
+# Story 32.5 (Epic 32 US-5): an exploration holds no hypothesis, so the note
+# reads no evidence as standing against one (ADR-0050).
+
+
+def test_an_explored_design_reads_no_evidence_against_a_hypothesis(
+    tmp_path: Path,
+) -> None:
+    from skills._shared import design_io
+    from skills._shared.design_note_read import load_design_note
+
+    insight = tmp_path / ".insight"
+    (insight / "designs").mkdir(parents=True)
+    design_id = design_io.create_design(
+        theme_id="LIB",
+        title="館ごとの期限切れ",
+        analysis_intent="exploratory",
+        exploration_question="期限切れはどの館で多いか",
+        exploration_background="館ごとの差をまだ見ていない",
+        base_dir=insight,
+    )["id"]
+    design_io.write_journal(
+        design_id,
+        {
+            "events": [
+                {
+                    "id": f"{design_id}-E01",
+                    "type": "evidence",
+                    "content": "分館で少ない",
+                    # An older notebook may still have written a direction.
+                    "metadata": {"direction": "contradicts"},
+                },
+            ]
+        },
+        base_dir=insight,
+    )
+    design_io.transition_status(design_id, "explored", base_dir=insight)
+
+    conclusion = load_design_note(design_id, base_dir=insight).conclusion
+
+    assert conclusion is not None
+    assert conclusion.contradicting_evidence == ()
+
+
+# The notebook contract writes a metric's p value as "p_value"; verdicts saved
+# before may hold "p". The note reads both, "p" first (#230, from Story 32.4).
+
+
+def _p_of(tmp_path: Path, entry: dict) -> str | None:
+    import json
+
+    from skills._shared import design_io
+    from skills._shared.design_note_read import load_design_note
+
+    insight = tmp_path / ".insight"
+    (insight / "designs").mkdir(parents=True)
+    design_id = design_io.create_design(
+        theme_id="LIB",
+        title="館ごとの期限切れ",
+        hypothesis_statement="延ばすと減る",
+        hypothesis_background="7日で多い",
+        base_dir=insight,
+    )["id"]
+    notebooks = insight / "notebooks"
+    notebooks.mkdir()
+    (notebooks / f"{design_id}_verdict.json").write_text(
+        json.dumps({"metrics": {"差": entry}}), encoding="utf-8"
+    )
+    verdict = load_design_note(design_id, base_dir=insight).verdict
+    assert verdict is not None
+    return verdict.metrics[0].p
+
+
+@pytest.mark.parametrize(
+    ("entry", "p"),
+    [
+        ({"value": 1.8, "p_value": 0.03}, "0.03"),
+        ({"value": 1.8, "p": 0.04}, "0.04"),
+        ({"value": 1.8, "p": 0.04, "p_value": 0.03}, "0.04"),
+        ({"value": 1.8}, None),
+    ],
+)
+def test_the_p_value_is_read_as_the_contract_or_an_older_verdict_writes_it(
+    tmp_path: Path, entry: dict, p: str | None
+) -> None:
+    assert _p_of(tmp_path, entry) == p

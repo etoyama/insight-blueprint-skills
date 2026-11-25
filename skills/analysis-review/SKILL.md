@@ -1,9 +1,9 @@
 ---
 name: analysis-review
-version: "1.0.0"
+version: "1.1.0"
 description: |
   Produces a structured review of an analysis design and records it as a review batch.
-  Claude critiques the design (hypothesis, methodology, metrics, confounders, charts),
+  Claude critiques the design (question or hypothesis, methodology, metrics, confounders, charts),
   the user confirms the comments, and they are written via design_io review-batch with a
   post-review status — feeding /analysis-revision. The producer side of the review loop
   (there is no web UI).
@@ -36,9 +36,9 @@ here (via `design_io review-batch`) rather than submitted through a dashboard.
 ## Scope
 
 Primarily a **design/plan review**: the outcome is `revision_requested` (needs work) or
-`analyzing` (approved — go analyze). Terminal decisions (`supported` / `rejected` /
-`inconclusive`) are possible through the same mechanism, but concluding a hypothesis is the
-job of `/analysis-reflection`.
+`analyzing` (approved — go analyze). Terminal decisions (`explored` for an exploration,
+`supported` / `rejected` / `inconclusive` for a confirmation) are possible through the same
+mechanism, but concluding a design is the job of `/analysis-reflection`.
 
 A review of the result after the analysis is optional and goes the same way: the `analyzing`
 design moves back to `in_review` (Step 2), and approving it returns it to `analyzing`. The
@@ -60,25 +60,39 @@ A review batch can only be recorded when the design is **reviewable** (`in_revie
 - `in_review` / `revision_requested` → proceed.
 - `analyzing` → ask "in_review に戻してレビューする？"; if yes,
   `design_io transition --id {design_id} --target in_review`.
-- terminal (`supported` / `rejected` / `inconclusive`) → cannot review; inform and exit.
+- terminal (`explored` / `supported` / `rejected` / `inconclusive`) → cannot review; inform and exit.
 
 ### Step 3: Critique the design (Claude-native)
 
 Review across dimensions and draft one comment per issue. Each comment targets a section
 (`target_section`) drawn from the allowed set:
 
-`hypothesis_statement`, `hypothesis_background`, `metrics`, `explanatory`, `chart`,
-`next_action`, `referenced_knowledge`, `methodology`, `analysis_intent`, `decision_context`.
+`exploration_question`, `exploration_background`, `hypothesis_statement`,
+`hypothesis_background`, `metrics`, `explanatory`, `chart`, `next_action`,
+`referenced_knowledge`, `methodology`, `analysis_intent`, `decision_context`.
 
 Suggested lenses:
 
-- **hypothesis** — is it falsifiable, specific, and non-circular?
-- **decision_context** — when the design has one, does it fit the hypothesis? Would `supported` and
-  `rejected` lead the `decision_maker` to different choices on the `decision`, and does `next_action`
-  agree with it? The field is optional: a design without one is not an issue to raise.
+Read `analysis_intent` first: the lenses differ by intent. An exploration (`exploratory` with
+`exploration_question`) measures and answers and gives no verdict; a confirmation
+(`confirmatory`) fixes a hypothesis and its criterion before the analysis. A legacy exploration
+(`exploratory` with `hypothesis_statement`) is read with the confirmation lenses; when it is in
+fact a confirmation, a comment on `analysis_intent` may suggest setting it to `confirmatory`.
+
+- **exploration_question** (exploration) — is it narrower than the question node it answers,
+  and does it say what is measured? Has a guess of the answer or a criterion slipped into the
+  question, the background or a metric's `comparison`? An exploration carries neither.
+- **hypothesis_statement** (confirmation) — is it falsifiable, specific, and non-circular? Is the
+  criterion of the verdict written in the `comparison` of the `primary` metric, so the verdict is
+  fixed before the result is seen?
+- **decision_context** — both intents may have one. When the design has one, does it fit the
+  question or the hypothesis? For an exploration: does the question measure what the `decision`
+  needs? For a confirmation: would `supported` and `rejected` lead the `decision_maker` to
+  different choices on the `decision`, and does `next_action` agree with it? The field is
+  optional: a design without one is not an issue to raise.
 - **methodology** — is the method appropriate; are assumptions stated?
 - **explanatory** — are variable roles (treatment/confounder/covariate/…) correct; missing confounders?
-- **metrics** — do they actually measure the hypothesis; primary vs guardrail?
+- **metrics** — do they actually measure the question or the hypothesis; primary vs guardrail?
 - **chart** — does the chart intent match the claim?
 - **referenced_knowledge / analysis_intent / next_action** — grounded and coherent?
 

@@ -60,17 +60,21 @@ def test_intent_column_shows_analysis_intent(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """INTENT shows analysis_intent as design_io writes it, so a key drift fails."""
+    # Each intent in the form create accepts for it (ADR-0048).
+    forms = {
+        "confirmatory": {"hypothesis_statement": "h", "hypothesis_background": "b"},
+        "exploratory": {"exploration_question": "q", "exploration_background": "b"},
+    }
     designs = [
         create_design(
             title="t",
-            hypothesis_statement="h",
-            hypothesis_background="b",
             theme_id="FP",
             analysis_intent=intent,
             source_ids=["src"],
             base_dir=tmp_path,
+            **fields,
         )
-        for intent in ("confirmatory", "exploratory")
+        for intent, fields in forms.items()
     ]
     main(
         argv=["--base-dir", str(tmp_path)],

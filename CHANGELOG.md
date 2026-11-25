@@ -7,6 +7,100 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upgrade note
+
+- **An exploratory design saved with a hypothesis still reads, and is marked "探索（旧形式）"
+  (legacy exploration).** It keeps its hypothesis and verdict as written, and checks and concludes like
+  a confirmation. Nothing has to be rewritten
+  ([ADR-0049](docs/adr/0049-legacy-exploration-stays-readable-and-is-marked.md), #227).
+- If such a design was really a confirmation (a hypothesis fixed before the analysis), set its intent
+  to `confirmatory`. This works in any status and changes nothing else, as long as its
+  `hypothesis_statement` and `hypothesis_background` are written:
+  `echo '{"analysis_intent": "confirmatory"}' | design_io update --id <id>`.
+  A design whose background is blank is refused; leave it marked as it is rather than writing the
+  background after the result. Leave an exploration that put a verdict on an open question as it is too.
+- `mixed` can no longer be created, and an intent can be changed only while the design is `in_review`
+  or `revision_requested`. A saved `mixed` design still reads and is treated as a confirmation.
+  To analyse the other way after the analysis, derive a new design
+  ([ADR-0048](docs/adr/0048-intent-decides-the-form-and-the-end-of-a-design.md), #227).
+
+### Changed
+
+- **The design hook checks a write over a saved design the way `design_io update` does.** A direct
+  write can no longer change the intent or the form after the analysis, such as rewriting an `analyzing`
+  confirmation into an `explored` exploration; it is refused with the same message, which says to derive
+  a new design. A new file and a design broken on disk are checked as before (#217).
+- **An exploratory design holds a question, not a hypothesis, and ends as `explored`.** `design_io create`
+  takes `exploration_question` and `exploration_background` for an exploration, and refuses a hypothesis,
+  `next_action`, a verdict and the `mixed` intent. A new confirmatory design needs `hypothesis_statement`
+  and `hypothesis_background` written: a blank one, which used to pass, is refused. Designs already saved (an exploration with a hypothesis,
+  `mixed`, or no intent) still read and conclude on a verdict as before
+  ([ADR-0048](docs/adr/0048-intent-decides-the-form-and-the-end-of-a-design.md),
+  [ADR-0049](docs/adr/0049-legacy-exploration-stays-readable-and-is-marked.md), #226).
+- **An exploratory notebook keeps what it measured and predicts nothing.** Its `results` have no
+  `hypothesis_direction` or `decision_reason`, its metrics no `threshold` or `pass`, and the verdict
+  keeps the measured values in `metrics`; its journal evidence carries no `direction`. A confirmation
+  copies its threshold from the `comparison` of the primary metric. The docstring writes the
+  exploration question in place of the hypothesis
+  ([ADR-0050](docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md), #229).
+- **The analysis note and the report word an exploration apart from a confirmation.** An exploration opens
+  with its question, shows its evidence as one group and its measured values without a threshold or a pass
+  mark, and concludes with 「探索を終えた。判定はしていない。」. A confirmation now says 「検証仮説」 where it
+  said 「仮説」, and the report's design table has an intent column. A legacy exploration keeps its old sentences
+  and is marked as such ([ADR-0051](docs/adr/0051-designs-nest-under-their-question-and-state-is-worded-by-role.md), #230).
+- **The question tree shows each analysis design under the question it is linked to.** The design is a
+  dashed card of its own, before the child questions, with its intent, its question or hypothesis, its status
+  and a link to its note; a second question that links it shows a short row pointing to the first. The status
+  is worded by its role (「探索済み（判定はしない）」, 「検証仮説の判定: 支持」, ...), and the legend maps each word
+  to its YAML value. The answer of a question is headed 「現時点の答え」, and an exploration's cited evidence shows
+  no direction. The handoff trial's scenario now holds an exploration, and its q3 key splits the cited events
+  by the kind of the citing statement ([ADR-0051](docs/adr/0051-designs-nest-under-their-question-and-state-is-worded-by-role.md), #231).
+
+- **`/analysis-design` and `/analysis-auto` ask the intent first.** Before anything else of the design,
+  the analyst chooses exploration or confirmation (`mixed` is no longer offered), and then writes
+  `exploration_question` for an exploration or `hypothesis_statement` for a confirmation. A
+  confirmation writes the criterion of its verdict in the `comparison` of its primary metric at the
+  methodology step. The Framing Brief drafts a question or a hypothesis by the intent, and
+  `/analysis-review` reads each intent with its own lenses
+  ([ADR-0048](docs/adr/0048-intent-decides-the-form-and-the-end-of-a-design.md),
+  [ADR-0050](docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md), #228).
+- **`/analysis-reflection` asks whether to have the result reviewed before it records `conclude`.** Taking
+  the review records nothing yet; after it, the reflection records one `conclude` and ends the design. Before,
+  a review offered after the conclusion left two `conclude` events in the journal (#217).
+- **When an exploration's answer states no measured value, `/analysis-reflection` shows the measured values and
+  asks again.** The values come from the journal's evidence, the analyst answers the exploration question in terms
+  of them, and their words are kept as the answer (#217).
+- **A design made without a Framing Brief can be linked to a question of the theme's tree.** When the theme has a
+  question tree, `/analysis-design` shows its questions, asks which one the design answers (or none), and links it
+  with the same `tree_io link` as the Brief (#217).
+
+- **`/analysis-reflection` asks its three questions by what they ask, and an exploration ends without a verdict.**
+  The headings read 「結果から何が言えるか」, 「まだ答えの出ていない問いで、判定は変わるか」 and
+  「この分析設計をどう終えるか」. A confirmation shows the criterion of its primary metric before the first, the
+  scope of the open questions and what each answer would change before the second, and that the end usually
+  follows the first answer before the third. An exploration answers its question and ends as `explored`,
+  and may leave a tentative answer to confirm in a derived design. A corrected hypothesis now goes into a
+  derived design through `/analysis-design`, instead of rewriting the analyzed design with `design_io update`
+  ([ADR-0048](docs/adr/0048-intent-decides-the-form-and-the-end-of-a-design.md), #211, #232).
+- **`/analysis-design` explains a metric before it asks about the method, and `/analysis-auto` does so at design ②.**
+  Every metric gets one sentence of what number it is. A metric built from two or more quantities that is
+  new to the theme also gets how it is made, a worked example, what is easy to get wrong and what changes with
+  the other handling, and what it cannot say. The example numbers come from the journal or from another group
+  computed the same way, never from the result to be judged. A confirmation's criterion also says what it
+  means and how the verdict changes with the handling. The analyst may ask for this on any metric (#210, #233).
+- **A branch in `/analysis-journal` now derives its design through `/analysis-design`.** The branch used to
+  write the child with `design_io create`, which left its intent `confirmatory` without a criterion and carried
+  over the source's hypothesis background. Now `/analysis-design` asks the intent, writes a question to explore
+  or a hypothesis to confirm, and fixes the criterion before the new analysis. The `branch` event and
+  `tree_io link-derived` stay as before
+  ([ADR-0048](docs/adr/0048-intent-decides-the-form-and-the-end-of-a-design.md), #217).
+
+### Fixed
+
+- **A p value written as the notebook contract writes it now shows in the analysis note and the report.**
+  The contract writes a metric's `p_value`, and the reader took only `p`, so the value was dropped without a word.
+  Both are read now, `p` first (#230).
+
 ## [0.18.0] - 2026-11-25
 
 ### Upgrade note

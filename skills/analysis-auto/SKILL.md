@@ -1,13 +1,13 @@
 ---
 name: analysis-auto
-version: "1.0.0"
+version: "1.1.0"
 description: |
   Guided autopilot and the analyst's single entry. Takes a theme, builds its question tree
   (or resumes at the node the latest tree decision names) and walks the tree one node per round:
   design → review → premortem → notebook → journal → reflection → theme reflection →
   tree decision. Progresses automatically through low-friction steps and
   pauses only at genuine decision points (root question and aim, the node to investigate,
-  hypothesis, source registration, cost/risk, code with external effects, conclusion, the tree
+  intent and the question to explore or the hypothesis, source registration, cost/risk, code with external effects, conclusion, the tree
   decision, sending anything outside this machine).
   Triggers: "オートで進めて", "自動で分析を回して", "autopilot", "guided auto",
   "最後まで進めて", "analysis auto", "論点を順に調べて".
@@ -49,15 +49,15 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | framing ② first node | **`/analysis-framing` 4b** | — |
 | framing ③ root revision | **`/analysis-framing` 4c** | — |
 | framing ④ next node | **`/analysis-framing` 4d** | — |
-| design ① hypothesis | **confirm the hypothesis statement + background, and the decision context (who decides what; skippable)** | drafting them from the Framing Brief |
-| design ② methodology | **confirm the method + metrics + explanatory roles (treatment/confounder/…) + intent** | auto-drafting these fields from the Framing Brief |
+| design ① intent | **ask the intent first (exploration or confirmation, never `mixed`), then confirm the question to explore + its background, or the hypothesis + its background, and the decision context (who decides what; skippable)** | drafting them from the Framing Brief |
+| design ② methodology | **confirm the method + metrics + explanatory roles (treatment/confounder/…), and for a confirmation the criterion of the verdict in the primary metric's `comparison`**, after explaining the metrics as `/analysis-design` Step 2 "Metrics explained" does: one sentence for each metric, and the five parts for a metric built from two or more quantities that is new to the theme | auto-drafting these fields from the Framing Brief |
 | design ③ data-extraction | **confirm the data-acquisition plan** — the actual query text (`methodology.steps`, with each table as `{source:ID}`) for SQL sources, or the data source id + columns + filter for CSV/others, plus expected grain & rough row scale | auto-drafting the query / column selection from the catalog schema |
 | design ④ charts | **confirm the planned `chart[]` specs (intent / type / x / y)** | auto-drafting chart specs from the direction |
 | review (optional) | **the verdict** (revision_requested vs approve) | running the critique itself |
 | premortem | **result is `HARD_BLOCK`/`HIGH`** → stop, surface the risk | running premortem; `LOW`/`MEDIUM` |
 | notebook | **non-allowlisted package / external comms beyond the declared source / other side-effects** | generate + run when premortem cleared AND it's declared-source read + allowlisted + local compute |
 | journal | — | auto-record the notebook verdict (observe/evidence/question) |
-| reflection | **the conclusion (conclude/refine/branch) + terminal transition** | presenting the evidence summary and the place of the design note (`/analysis-reflection` Step 2) |
+| reflection | **この分析設計をどう終えるか (`/analysis-reflection` Step 3) + the terminal transition** — for a confirmation a verdict, more investigation or a derived design; for an exploration `explored` or more investigation, never a verdict | presenting the evidence summary and the place of the design note (`/analysis-reflection` Step 2) |
 | theme reflection | **`/analysis-reflection {theme_id}` T7** | — |
 | tree-upload | **the file to send as an Artifact** — asked by `/tree-upload` itself, at its approval gate; the driver adds no question of its own | starting `/tree-upload` when the analyst asks to hand the tree over |
 | catalog-register | **registering a data source** (external-data side-effect); unregistered source → stop | — |
@@ -137,8 +137,8 @@ tree_io position --theme LIB
    Step 3 at the item its status calls for. If no node of the tree holds it, say so and run
    `/analysis-framing {theme_id}` first (4c, "Designs no node holds").
 4. Tell the analyst the plan ("論点ツリーの {node_id} から、design→premortem→notebook→journal→
-   reflection→テーマを横断した振り返り の順に進める。仮説の確定・コスト判定・結論・ツリーの決定では
-   止まる").
+   reflection→テーマを横断した振り返り の順に進める。意図と探索の問いか検証仮説の確定・コスト判定・
+   結論・ツリーの決定では止まる").
 
 ### Step 2: Build the tree (the theme has none)
 
@@ -177,11 +177,19 @@ the round until the analyst closes the walk or says stop.
    the four ordered confirmation beats — one AskUserQuestion each — before `design_io create`**, letting
    the user adjust at every beat. Do not collapse them into a single "looks good?"; don't silently commit
    auto-picked methodology / roles / query.
-   1. **hypothesis** — present the drafted `hypothesis_statement` + `hypothesis_background`, and ask for
+   1. **intent** — ask `analysis_intent` first, as `/analysis-design` Step 2 "Intent" does: exploration
+      (`exploratory`) or confirmation (`confirmatory`), never `mixed`. The Brief's intent is only the
+      suggestion. Then present the drafts of that form: `exploration_question` + `exploration_background`
+      for an exploration, or `hypothesis_statement` + `hypothesis_background` for a confirmation. Ask for
       `decision_context` (who decides what — `/analysis-design` Step 2; the user may skip it); confirm.
    2. **methodology** — present `methodology` (method + code patterns), `metrics`, and especially the
-      explanatory variables' causal roles (`treatment` / `confounder` / `covariate` / …) + `analysis_intent`;
-      confirm. These shape the analysis and are genuine choices.
+      explanatory variables' causal roles (`treatment` / `confounder` / `covariate` / …); confirm. These
+      shape the analysis and are genuine choices. For a confirmation, present the criterion of the
+      verdict written in the `comparison` of the `primary` metric (`/analysis-design` Step 2 "Criterion")
+      and confirm it here, before the data is touched. Explain the metrics before asking, as
+      `/analysis-design` Step 2 "Metrics explained" does: say "どの指標にも、詳しい解説を求められます。",
+      give every metric its one sentence, and give the five parts to a metric built from two or more
+      quantities that is new to the theme, with example numbers that are not the result to be judged.
    3. **data-extraction** — present the design's `source_ids` (each checked as `/analysis-design`
       "Data sources" says) and the actual **data-acquisition plan**: for a SQL source, the query text
       drafted into `methodology.steps` (see `/analysis-design` Step 2.6); for a CSV/other source, the data source id
@@ -209,8 +217,9 @@ the round until the analyst closes the walk or says stop.
    (ADR-0027). If the methodology needs a non-allowlisted package, network egress beyond the
    declared source, or another side-effect, **stop** and get the user's go-ahead first.
 6. **journal**: the notebook step already records observe/evidence/question — no pause.
-7. **reflection**: run `/analysis-reflection {design_id}`; **pause at the conclusion**
-   (conclude/refine/branch) and the terminal transition. Its Step 2 読むもの says what
+7. **reflection**: run `/analysis-reflection {design_id}`; **pause at its third question,
+   この分析設計をどう終えるか**, and at the terminal transition. An exploration ends as
+   `explored` and is never asked for a verdict. Its Step 2 読むもの says what
    the analyst reads; the driver adds no list of files of its own.
 8. **theme reflection**: run `/analysis-reflection {theme_id}`. Its Step T7 is the KEEP gate
    of the round. Before that gate, show the path of the tree's HTML, so the analyst decides

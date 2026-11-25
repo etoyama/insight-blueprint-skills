@@ -1,8 +1,8 @@
 ---
 name: analysis-framing
-version: "1.0.0"
+version: "1.1.0"
 description: |
-  Explores existing data and analyses to help frame a hypothesis.
+  Explores existing data and analyses to help frame a question to explore or a hypothesis to confirm.
   Triggers: "framing", "何を分析する", "分析テーマ", "仮説を考えたい",
   "データを探して", "既存分析を確認", "analysis framing".
 disable-model-invocation: true
@@ -136,7 +136,7 @@ If `catalog_io list` returns no sources or no relevant data:
 
 ### Step 4: Direction Dialogue
 
-Discuss with the user to narrow the hypothesis direction:
+Discuss with the user to narrow the direction (a question to explore, or a hypothesis to confirm):
 - New angles building on conclusions of existing analyses
 - Hypothesis directions verifiable with available data
 - How to fill missing data (guide toward `/catalog-register`)
@@ -146,7 +146,9 @@ The agreed direction is kept as the theme's **question tree**
 nodes under it. The analyst settles them at two KEEP gates (4a, 4b). You draft, the analyst decides.
 A run handed the position of the theme reads the end of 4d before it asks anything in 4a or 4c.
 
-Do NOT create a hypothesis statement (`hypothesis_statement`).
+Do NOT create a design, its `hypothesis_statement` or its `exploration_question`. The Framing Brief
+carries only a draft of the question to explore or of the hypothesis, and `/analysis-design`
+asks the intent and confirms the draft with the analyst.
 The framing skill's responsibility ends at "proceed to analysis-design on this node."
 
 #### 4a: Root question and aim (KEEP gate)
@@ -325,6 +327,18 @@ from the conversation context and pre-populate draft values.
 `tree_io` printed in 5a for the node to design next. `/analysis-design` links the design it
 creates to that node.
 
+The draft of the design follows the intent you suggest in `analysis_intent`. Write one draft line
+and leave the other out:
+
+- `exploratory`: keep `探索の問いの案` and drop `検証仮説の案`. The draft is a question that says what
+  to measure, with no guess of the answer and no criterion.
+- `confirmatory`: keep `検証仮説の案` and drop `探索の問いの案`. Suggest it only when a tentative
+  answer can be stated and the criterion of the verdict can be fixed now; otherwise suggest
+  `exploratory`.
+
+Never suggest `mixed`: a new design cannot be `mixed`. `/analysis-design` asks the intent again
+whatever the Brief suggests.
+
 ````markdown
 ## Framing Brief
 
@@ -341,12 +355,13 @@ creates to that node.
 - {gap_description}
 
 ### 推奨方向
-- 仮説の方向性: {direction_description}
+- analysis_intent: {exploratory | confirmatory}
+- 探索の問いの案: {exploration_question_draft}
+- 検証仮説の案: {hypothesis_draft}
 - theme_id: {theme_id}
 - node_id: {node_id}
 - 論点: {node_question}
 - parent_id: {suggested_parent_id or "なし"}
-- analysis_intent: {exploratory | confirmatory | mixed}
 - 推奨手法: {methodology_suggestion}
 ````
 
@@ -371,7 +386,7 @@ its `path`. Tell the analyst that path: "論点ツリーの図: {path}（ブラ�
   start it.
 
 Then end with the next step:
-"仮説を設計するなら `/analysis-design`"
+"分析設計を作るなら `/analysis-design`"
 
 ## Chaining
 
@@ -380,10 +395,10 @@ Then end with the next step:
 | /development-partner* | → /analysis-framing | 分析テーマが出て、ドメイン接地が必要: "データと既存分析を探索するなら /analysis-framing" |
 | /rq-problematization | → /analysis-framing | RQ が出てデータ接地が必要（RQ Brief 付き）: "RQ をデータに接地して検証枠組みにするなら /analysis-framing" |
 | /analysis-design | → /analysis-framing | データ不足で仮説の方向を再検討: "データを探し直すなら /analysis-framing" |
-| /analysis-reflection | → /analysis-framing | 新仮説が必要だがデータ・方向の探索が先: "新しい角度を探すなら /analysis-framing" |
+| /analysis-reflection | → /analysis-framing | 新しい探索の問いか検証仮説が要るが、データと方向を先に探す: "新しい角度を探すなら /analysis-framing" |
 | /catalog-register | → /analysis-framing | データ登録完了、フレーミングに戻る: "フレーミングに戻るなら /analysis-framing" |
 | /analysis-auto | → /analysis-framing | guided autopilot が論点ツリーを作る、次の論点の Framing Brief を得る、根の問いを変える |
-| /analysis-framing | → /analysis-design | 仮説の方向性が定まった（Framing Brief 付き）: "仮説を設計するなら /analysis-design" |
+| /analysis-framing | → /analysis-design | 方向が定まった（Framing Brief 付き）: "分析設計を作るなら /analysis-design" |
 | /analysis-framing | → /tree-upload | 論点ツリーを書き、図（HTML）を作った: "論点ツリーの図を URL で渡すなら /tree-upload" |
 | /analysis-framing | → /catalog-register | 必要なデータが未登録: "データを登録するなら /catalog-register" |
 | /analysis-framing | → /development-partner* | テーマが分析ドメインを超えて漠然: "問題を整理するなら /development-partner" |
