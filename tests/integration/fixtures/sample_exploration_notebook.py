@@ -59,7 +59,7 @@ squared_deviations = ((main_days - main_days.mean()) ** 2).sum() + (
 ).sum()
 pooled_sd = float(np.sqrt(squared_deviations / (n - 2)))
 half_width = 1.96 * pooled_sd * float(np.sqrt(1 / len(main_days) + 1 / len(annex_days)))
-# No threshold and no pass: an exploration measures and leaves the judging to a
+# No line, no judgment, no threshold and no pass: an exploration measures and leaves the judging to a
 # confirmation whose criterion is fixed before it runs.
 results = {
     "observed_direction": f"annex waits {gap:.1f} days longer on average",
@@ -69,13 +69,25 @@ results = {
         "wait_days_gap": {
             "value": gap,
             "effect_size": {"kind": "cohens_d", "value": gap / pooled_sd},
-            "confidence_interval": {
+            "interval": {
+                "kind": "confidence",
                 "level": 0.95,
                 "lower": gap - half_width,
                 "upper": gap + half_width,
             },
             "sample_size": n,
-        }
+        },
+        "wait_days_by_branch": {
+            "by": ["branch"],
+            "groups": [
+                {
+                    "group": [branch],
+                    "value": float(days.mean()),
+                    "sample_size": len(days),
+                }
+                for branch, days in df_clean.groupby("branch")["wait_days"]
+            ],
+        },
     },
 }
 

@@ -197,7 +197,16 @@ class TestAnExplorationKeepsWhatItMeasured:
         assert set(_results_examples()) == {"confirmation", "exploration"}
 
     @pytest.mark.parametrize(
-        "key", ["hypothesis_direction", "decision_reason", "threshold", "pass"]
+        "key",
+        [
+            "hypothesis_direction",
+            "decision_reason",
+            "threshold",
+            "pass",
+            "support_line",
+            "reject_line",
+            "judgment",
+        ],
     )
     def test_the_exploration_results_carry_no_prediction_and_no_pass(
         self, key: str
@@ -214,13 +223,10 @@ class TestAnExplorationKeepsWhatItMeasured:
 
     def test_an_exploration_metric_may_carry_the_optional_items(self) -> None:
         (metric,) = _results_examples()["exploration"]["metrics"].values()
-        assert {"effect_size", "confidence_interval", "sample_size"} <= set(metric)
+        assert {"effect_size", "interval", "sample_size"} <= set(metric)
 
     def test_the_confirmation_results_keep_the_judgment(self) -> None:
-        confirmation = _results_examples()["confirmation"]
-        assert "hypothesis_direction" in confirmation
-        (metric,) = confirmation["metrics"].values()
-        assert {"value", "threshold", "pass"} <= set(metric)
+        assert "hypothesis_direction" in _results_examples()["confirmation"]
 
     def test_the_results_follow_the_form_of_the_design(self) -> None:
         """A saved `mixed` design reads as a confirmation; an old exploration as one."""
@@ -245,12 +251,12 @@ class TestAnExplorationKeepsWhatItMeasured:
         assert "four required fields" not in step
         assert (
             "an exploration has no `hypothesis_direction`, no `decision_reason`, "
-            "and no `threshold` or `pass` in its metrics"
+            "and no line, judgment, `threshold` or `pass` in its metrics"
         ) in step
 
 
 class TestAConfirmationTakesItsCriterionFromTheDesign:
-    """Epic 32 US-3 AC 3: the notebook copies the threshold and never makes one up."""
+    """Epic 32 US-3 AC 3, Epic 33 US-1 AC 1: the notebook copies the criterion."""
 
     @pytest.mark.parametrize(
         "text",
@@ -260,26 +266,42 @@ class TestAConfirmationTakesItsCriterionFromTheDesign:
         ],
         ids=["contract", "skill"],
     )
-    def test_the_threshold_is_copied_from_the_primary_comparison(self, text) -> None:
+    def test_the_lines_and_the_threshold_are_copied_from_the_comparison(
+        self, text
+    ) -> None:
         rule = unwrap(text())
         assert (
-            "copy each metric's `threshold` from that metric's own `comparison`" in rule
-        )
-        assert "the notebook never makes up a threshold" in rule
+            "copy the primary metric's `support_line` and `reject_line`, and each "
+            "other metric's `threshold`, from that metric's own `comparison`"
+        ) in rule
+        assert "the notebook never makes up a line or a threshold" in rule
 
     def test_a_confirmation_without_a_criterion_stops_before_the_analysis(
         self,
     ) -> None:
-        rule = unwrap(section(_contract(), "## `results` shape"))
-        assert (
-            "If the design has no primary metric, or its `comparison` states no "
-            "criterion, stop and suggest /analysis-design"
-        ) in rule
         step = unwrap(section(_read_skill("analysis-notebook"), "### Step 1: "))
         assert (
             "If a confirmation has no primary metric whose `comparison` states its "
             "criterion, stop before any transition"
         ) in step
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            lambda: section(_contract(), "## `results` shape"),
+            lambda: section(_read_skill("analysis-notebook"), "### Step 1: "),
+        ],
+        ids=["contract", "skill"],
+    )
+    def test_a_started_design_without_a_criterion_is_derived_not_edited(
+        self, text
+    ) -> None:
+        """Epic 33: a design that began its analysis keeps its criterion (ADR-0053)."""
+        rule = unwrap(text())
+        assert (
+            "a design that began its analysis cannot take a criterion any more, so "
+            "suggest deriving a new design with /analysis-design (`parent_id`)"
+        ) in rule
 
     def test_the_example_labels_are_not_part_of_a_notebook(self) -> None:
         layout = unwrap(section(_contract(), "## File layout"))
@@ -319,3 +341,210 @@ class TestTheDocstringStatesWhatTheDesignAnswers:
         lines = _docstring_lines("confirmation")
         assert any(line.startswith("- Hypothesis: ") for line in lines)
         assert not any(line.startswith("- Question: ") for line in lines)
+
+
+LINES = {"support_line", "reject_line"}
+JUDGMENTS = {"supported", "rejected", "inconclusive"}
+PASS_ITEMS = {"threshold", "pass"}
+INTERVAL_KEYS = {"kind", "level", "lower", "upper"}
+GROUP_ROW_KEYS = {"group", "value", "effect_size", "interval", "sample_size", "p_value"}
+
+
+def _confirmation_metrics() -> dict[str, dict]:
+    return _results_examples()["confirmation"]["metrics"]
+
+
+def _judged(metrics: dict[str, dict]) -> list[dict]:
+    return [metric for metric in metrics.values() if "judgment" in metric]
+
+
+def _grouped(metrics: dict[str, dict]) -> dict[str, dict]:
+    return {name: metric for name, metric in metrics.items() if "groups" in metric}
+
+
+def _intervals(value: object) -> list[dict]:
+    """Every object under *value* that holds bounds, whatever key it sits under."""
+    if isinstance(value, list):
+        return [found for item in value for found in _intervals(item)]
+    if not isinstance(value, dict):
+        return []
+    own = [value] if {"lower", "upper"} <= set(value) else []
+    return own + [found for item in value.values() for found in _intervals(item)]
+
+
+def _results_rule() -> str:
+    return unwrap(section(_contract(), "## `results` shape"))
+
+
+def _skill_analysis_step() -> str:
+    return unwrap(section(_read_skill("analysis-notebook"), "### Step 3: "))
+
+
+class TestAPrimaryMetricHoldsItsLinesAndItsJudgment:
+    """Epic 33 US-1 AC 1, AC 2: two lines and one of three judgments (ADR-0052)."""
+
+    def test_the_example_judges_a_metric_by_its_lines(self) -> None:
+        judged = _judged(_confirmation_metrics())
+        assert judged
+        for metric in judged:
+            assert LINES & set(metric)
+            assert metric["judgment"] in JUDGMENTS
+            for line in LINES & set(metric):
+                assert isinstance(metric[line], int | float)
+
+    def test_the_example_shows_the_range_between_the_lines(self) -> None:
+        """A value between the two lines is the case a pass could not say."""
+        between = [
+            metric
+            for metric in _judged(_confirmation_metrics())
+            if LINES <= set(metric)
+            and min(metric["support_line"], metric["reject_line"])
+            < metric["value"]
+            < max(metric["support_line"], metric["reject_line"])
+        ]
+        assert between
+        assert all(metric["judgment"] == "inconclusive" for metric in between)
+
+    def test_a_judged_metric_is_not_also_passed_or_failed(self) -> None:
+        for metric in _judged(_confirmation_metrics()):
+            assert not PASS_ITEMS & set(metric)
+
+    def test_a_metric_with_a_threshold_or_a_pass_holds_no_line_and_no_judgment(
+        self,
+    ) -> None:
+        passed = [
+            metric
+            for metric in _confirmation_metrics().values()
+            if PASS_ITEMS & set(metric)
+        ]
+        assert passed
+        for metric in passed:
+            assert not (LINES | {"judgment"}) & set(metric)
+
+    @pytest.mark.parametrize(
+        "sentence",
+        [
+            "The primary metric holds the criterion as `support_line` and "
+            "`reject_line`, both numbers, and its `judgment`",
+            "Write at least one of the two lines; a criterion of one line writes "
+            "only `support_line`",
+            "`judgment` is `supported`, `rejected` or `inconclusive`",
+            "A value between the two lines is `inconclusive`",
+            "Never say one of the three judgments with `pass`",
+            "`hypothesis_direction` never disagrees with the `judgment` of the "
+            "primary metric",
+            "A secondary or guardrail metric holds one `threshold` and whether it "
+            "passed (`pass`), and no line and no `judgment`",
+            "Never write a `threshold` or a `pass` in the primary metric",
+        ],
+    )
+    def test_the_contract_states_the_rule(self, sentence: str) -> None:
+        assert sentence in _results_rule()
+
+    def test_the_skill_writes_the_lines_and_the_judgment_in_the_primary_metric(
+        self,
+    ) -> None:
+        step = _skill_analysis_step()
+        assert (
+            "the primary metric holds `support_line` and `reject_line` (at least "
+            "one) and its `judgment`, never a `threshold` or a `pass`"
+        ) in step
+        assert (
+            "a secondary or guardrail metric holds a `threshold` and a `pass`, "
+            "never a line or a `judgment`"
+        ) in step
+
+    def test_an_exploration_holds_no_line_and_no_judgment(self) -> None:
+        assert (
+            "its metrics have no line, no `judgment`, no `threshold` and no `pass`"
+        ) in _results_rule()
+
+
+class TestAnIntervalNamesItsKind:
+    """Epic 33 US-2 AC 1: the interval of a value says which interval it is."""
+
+    def test_every_interval_of_the_examples_names_its_kind(self) -> None:
+        intervals = _intervals(list(_results_examples().values()))
+        assert intervals
+        assert all(set(interval) == INTERVAL_KEYS for interval in intervals)
+
+    def test_the_examples_show_more_than_one_kind(self) -> None:
+        kinds = {
+            interval["kind"]
+            for interval in _intervals(list(_results_examples().values()))
+        }
+        assert len(kinds) > 1
+
+    def test_the_optional_items_list_the_interval_with_its_four_keys(self) -> None:
+        items = section(_contract(), "## Optional metric items")
+        (row,) = [r for r in table_rows(items) if r[0] == "`interval`"]
+        assert row[1] == (
+            '`{"kind": str, "level": float, "lower": float, "upper": float}`'
+        )
+        assert "an open string" in row[2]
+
+    @pytest.mark.parametrize(
+        "sentence",
+        [
+            "`interval` without `kind`",
+            "Write the interval of a value in `interval`, with its `kind`; never "
+            "write `confidence_interval`",
+            "A verdict saved before ADR-0052 may hold `confidence_interval`; the "
+            "consumer reads it as an `interval` of the kind `confidence`",
+        ],
+    )
+    def test_the_contract_states_the_rule(self, sentence: str) -> None:
+        assert sentence in unwrap(section(_contract(), "## Optional metric items"))
+
+    def test_the_skill_names_the_interval(self) -> None:
+        assert "`interval` (with its `kind`)" in _skill_analysis_step()
+
+
+class TestAMetricPerGroupHoldsRows:
+    """Epic 33 US-2 AC 3: axes in ``by``, one row per group, no group in a name."""
+
+    def test_the_example_holds_a_metric_with_groups(self) -> None:
+        assert _grouped(_confirmation_metrics())
+
+    def test_each_row_names_one_group_per_axis(self) -> None:
+        for metric in _grouped(_confirmation_metrics()).values():
+            assert metric["by"]
+            assert all(isinstance(axis, str) for axis in metric["by"])
+            assert metric["groups"]
+            for row in metric["groups"]:
+                assert len(row["group"]) == len(metric["by"])
+
+    def test_a_row_holds_a_value_and_only_the_optional_items(self) -> None:
+        for metric in _grouped(_confirmation_metrics()).values():
+            for row in metric["groups"]:
+                assert "value" in row
+                assert set(row) <= GROUP_ROW_KEYS
+
+    def test_a_metric_with_groups_holds_no_value_of_its_own(self) -> None:
+        for metric in _grouped(_confirmation_metrics()).values():
+            assert "value" not in metric
+
+    def test_no_group_is_written_into_the_name_of_a_metric(self) -> None:
+        for name, metric in _grouped(_confirmation_metrics()).items():
+            for row in metric["groups"]:
+                assert not [group for group in row["group"] if str(group) in name]
+
+    @pytest.mark.parametrize(
+        "sentence",
+        [
+            "A metric measured per group holds the names of its axes in `by` and "
+            "one row per group in `groups`",
+            "as many names in `group` as `by` has axes",
+            "A row holds no `judgment`, no line, no `threshold` and no `pass`",
+            "A metric holds either one `value` or `groups`, never both",
+            "Never write a group into the name of a metric",
+        ],
+    )
+    def test_the_contract_states_the_rule(self, sentence: str) -> None:
+        assert sentence in _results_rule()
+
+    def test_the_skill_writes_groups_as_rows(self) -> None:
+        assert (
+            "a metric measured per group holds `by` and `groups`, never a group in "
+            "its name"
+        ) in _skill_analysis_step()

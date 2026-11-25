@@ -2,6 +2,7 @@
 
 - Design ID: SAMPLE
 - Hypothesis: group B has a higher mean value than group A
+- Criterion: a difference of 5.0 or more supports it, one under 1.0 rejects it
 - Intent: confirmatory
 
 Self-contained (builds its own DataFrame, no external source) so the contract's
@@ -58,24 +59,51 @@ squared_deviations = ((a - a.mean()) ** 2).sum() + ((b - b.mean()) ** 2).sum()
 pooled_sd = float(np.sqrt(squared_deviations / (n - 2)))
 # Normal approximation keeps the fixture free of scipy (not in the notebook extra).
 half_width = 1.96 * pooled_sd * float(np.sqrt(1 / len(a) + 1 / len(b)))
+# The lines come from the criterion the design fixed before the run (ADR-0052);
+# between them the notebook draws no conclusion.
+support_line = 5.0
+reject_line = 1.0
+if diff >= support_line:
+    judgment = "supported"
+elif diff < reject_line:
+    judgment = "rejected"
+else:
+    judgment = "inconclusive"
+null_rate = float(raw_df["value"].isna().mean())
 results = {
-    "hypothesis_direction": "A<B",
+    "hypothesis_direction": judgment,
     "observed_direction": f"A={means.get('A')} B={means.get('B')}",
     "confidence_level": "medium",
-    "decision_reason": "group means differ",
+    "decision_reason": f"the difference {diff} against the lines 5.0 and 1.0",
     "metrics": {
         "mean_diff": {
             "value": diff,
-            "threshold": 0,
-            "pass": True,
+            "support_line": support_line,
+            "reject_line": reject_line,
+            "judgment": judgment,
             "effect_size": {"kind": "cohens_d", "value": diff / pooled_sd},
-            "confidence_interval": {
+            "interval": {
+                "kind": "confidence",
                 "level": 0.95,
                 "lower": diff - half_width,
                 "upper": diff + half_width,
             },
             "sample_size": n,
-        }
+        },
+        # A guardrail passes or fails against one threshold; it is not judged.
+        "null_rate": {"value": null_rate, "threshold": 0.5, "pass": null_rate <= 0.5},
+        "mean_by_group": {
+            "by": ["group"],
+            "groups": [
+                {"group": [name], "value": float(mean), "sample_size": int(size)}
+                for name, mean, size in zip(
+                    means.index,
+                    means,
+                    df_clean.groupby("group")["value"].size(),
+                    strict=True,
+                )
+            ],
+        },
     },
 }
 

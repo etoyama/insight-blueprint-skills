@@ -33,6 +33,6 @@ def test_the_note_tabulates_a_saved_verdict_as_before(
     tmp_path: Path, name: str
 ) -> None:
     insight = tmp_path / ".insight"
-    design_id = save_design_with_verdict(insight, name)
+    design_id = save_design_with_verdict(insight, *SAVED_VERDICTS[name])
 
     assert _metric_table(insight, design_id) == NOTE_TABLES[name]

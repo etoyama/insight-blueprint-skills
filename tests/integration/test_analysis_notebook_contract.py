@@ -20,12 +20,14 @@ from pathlib import Path
 
 import pytest
 
-from skills._shared.design_note import CodeCell
+from skills._shared.design_note import CodeCell, MetricJudgment, VerdictMetric
 from skills._shared.design_note_read import (
     CONTRACT_CELLS,
     DATA_LOAD_CELL,
+    load_design_note,
     notebook_cells,
 )
+from tests._saved_verdicts import save_design_with_verdict
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_notebook.py"
 EXPLORATION_FIXTURE = (
@@ -152,12 +154,12 @@ def test_notebook_contract_figures_manifest(tmp_path: Path) -> None:
         assert fig["how_to_read"].strip(), "how_to_read (図の読み方) must be non-empty"
 
 
-def test_verdict_metric_carries_effect_size_confidence_interval_and_sample_size(
+def test_verdict_metric_carries_effect_size_interval_and_sample_size(
     tmp_path: Path,
 ) -> None:
     """Epic 12 / ADR-0013: a metric may carry three optional, self-describing items so
     the analysis note and the report can show how large and how certain an effect is without computing
-    anything itself.
+    anything itself. Epic 33 / ADR-0052: the interval names its kind.
     """
     metric = _run_fixture(tmp_path)["metrics"]["mean_diff"]
 
@@ -166,8 +168,9 @@ def test_verdict_metric_carries_effect_size_confidence_interval_and_sample_size(
     assert effect_size["kind"].strip(), "an effect size is unreadable without its kind"
     assert isinstance(effect_size["value"], float)
 
-    interval = metric["confidence_interval"]
-    assert set(interval) == {"level", "lower", "upper"}
+    interval = metric["interval"]
+    assert set(interval) == {"kind", "level", "lower", "upper"}
+    assert interval["kind"] == "confidence"
     assert 0 < interval["level"] < 1, "level is a proportion (0.95), not a percentage"
     # the interval is the interval of the metric's own value
     assert interval["lower"] <= metric["value"] <= interval["upper"]
@@ -176,10 +179,75 @@ def test_verdict_metric_carries_effect_size_confidence_interval_and_sample_size(
     assert metric["sample_size"] == 3, "observations the metric used (after data_prep)"
 
 
-def test_verdict_metric_keeps_the_existing_keys(tmp_path: Path) -> None:
-    """The three items are additions: the pre-ADR-0013 keys stay as they were."""
-    metric = _run_fixture(tmp_path)["metrics"]["mean_diff"]
-    assert {"value", "threshold", "pass"} <= set(metric)
+LINES = {"support_line", "reject_line"}
+PASS_ITEMS = {"threshold", "pass"}
+
+
+def _read_back(tmp_path: Path, fixture: Path, intent: str) -> dict[str, VerdictMetric]:
+    """The metrics the analysis note reads from the verdict the fixture wrote."""
+    _run_fixture(tmp_path, fixture)
+    insight = tmp_path / ".insight"
+    design_id = save_design_with_verdict(
+        insight, intent, (tmp_path / "verdict.json").read_text(encoding="utf-8")
+    )
+    verdict = load_design_note(design_id, base_dir=insight).verdict
+    assert verdict is not None
+    return {metric.name: metric for metric in verdict.metrics}
+
+
+class TestTheSampleJudgesItsPrimaryMetricByTwoLines:
+    """Epic 33 US-1 AC 1, AC 2 (ADR-0052): lines and a judgment, or a threshold and a pass."""
+
+    def test_the_primary_metric_holds_its_lines_and_its_judgment(
+        self, tmp_path: Path
+    ) -> None:
+        metric = _run_fixture(tmp_path)["metrics"]["mean_diff"]
+        assert LINES <= set(metric)
+        assert metric["judgment"] in {"supported", "rejected", "inconclusive"}
+        assert not PASS_ITEMS & set(metric)
+
+    def test_the_guardrail_metric_holds_a_threshold_and_a_pass(
+        self, tmp_path: Path
+    ) -> None:
+        metric = _run_fixture(tmp_path)["metrics"]["null_rate"]
+        assert PASS_ITEMS <= set(metric)
+        assert not (LINES | {"judgment"}) & set(metric)
+
+    def test_the_overall_direction_is_the_judgment_of_the_primary_metric(
+        self,
+    ) -> None:
+        """The contract: hypothesis_direction never disagrees with the judgment."""
+        (analysis,) = [c for c in _shown_cells() if c.name == "analysis"]
+        assert '"hypothesis_direction": judgment,' in analysis.source
+        assert '"judgment": judgment,' in analysis.source
+
+    def test_the_note_reads_the_lines_and_the_judgment_back(
+        self, tmp_path: Path
+    ) -> None:
+        metrics = _read_back(tmp_path, FIXTURE, "confirmatory")
+
+        primary = metrics["mean_diff"]
+        assert (primary.support_line, primary.reject_line) == ("5.0", "1.0")
+        assert primary.value == "9.0"
+        assert primary.judgment is MetricJudgment.supported
+        assert (primary.threshold, primary.passed) == (None, None)
+        assert primary.interval is not None
+        assert (primary.interval.kind, primary.interval.level) == ("confidence", "0.95")
+
+        guardrail = metrics["null_rate"]
+        assert (guardrail.value, guardrail.threshold) == ("0.25", "0.5")
+        assert guardrail.passed is True
+        assert guardrail.judgment is None
+
+    def test_the_note_reads_the_rows_of_the_groups_back(self, tmp_path: Path) -> None:
+        grouped = _read_back(tmp_path, FIXTURE, "confirmatory")["mean_by_group"]
+
+        assert grouped.by == ("group",)
+        assert grouped.value is None
+        assert [(row.group, row.value, row.sample_size) for row in grouped.groups] == [
+            (("A",), "11.0", "2"),
+            (("B",), "20.0", "1"),
+        ]
 
 
 def _docstring(fixture: Path) -> list[str]:
@@ -218,8 +286,23 @@ class TestTheExplorationSampleKeepsWhatItMeasured:
         metrics = _run_fixture(tmp_path, EXPLORATION_FIXTURE)["metrics"]
         assert metrics
         for metric in metrics.values():
-            assert isinstance(metric["value"], float)
-            assert not {"threshold", "pass"} & set(metric)
+            assert not (PASS_ITEMS | LINES | {"judgment"}) & set(metric)
+        assert isinstance(metrics["wait_days_gap"]["value"], float)
+
+    def test_the_note_reads_its_interval_and_its_groups_back(
+        self, tmp_path: Path
+    ) -> None:
+        metrics = _read_back(tmp_path, EXPLORATION_FIXTURE, "exploratory")
+
+        gap = metrics["wait_days_gap"]
+        assert gap.interval is not None
+        assert gap.interval.kind == "confidence"
+        assert (gap.support_line, gap.reject_line, gap.judgment) == (None, None, None)
+
+        by_branch = metrics["wait_days_by_branch"]
+        assert by_branch.by == ("branch",)
+        assert [row.group for row in by_branch.groups] == [("annex",), ("main",)]
+        assert all(row.value is not None for row in by_branch.groups)
 
     def test_its_docstring_states_the_question(self) -> None:
         lines = _docstring(EXPLORATION_FIXTURE)

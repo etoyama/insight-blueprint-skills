@@ -175,13 +175,12 @@ NOTE_TABLES: dict[str, list[list[str]] | None] = {
 }
 
 
-def save_design_with_verdict(insight: Path, name: str) -> str:
-    """Save a design of the intent of *name* with its verdict; return the design id.
+def save_design_with_verdict(insight: Path, intent: str | None, verdict: str) -> str:
+    """Save a design of *intent* with the text of its verdict; return the design id.
 
     ``design_io`` creates no mixed design, no legacy exploration and none without
     an intent, so the intent is rewritten in the saved YAML.
     """
-    intent, verdict = SAVED_VERDICTS[name]
     (insight / "designs").mkdir(parents=True, exist_ok=True)
     design_id = design_io.create_design(
         theme_id="LIB",
