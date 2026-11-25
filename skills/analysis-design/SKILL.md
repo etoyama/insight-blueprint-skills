@@ -73,13 +73,14 @@ Map Brief sections to analysis-design fields as draft values:
 | テーマ | `title` | テーマの1行要約を title の候補として提示 |
 | 利用可能データ | `source_ids`, `explanatory`, `metrics` | データソースの id を source_ids の候補にし、カラムから explanatory/metrics の候補を生成 |
 | 既存分析 | `parent_id` | 関連デザイン ID を parent_id の候補として提示 |
-| ギャップ | `hypothesis_background` | ギャップ情報を仮説の背景・動機の下書きに活用 |
-| 推奨方向.仮説の方向性 | `title`, `hypothesis_background` | 方向性から title 候補を生成し、背景の下書きに活用 |
+| ギャップ | `exploration_background` / `hypothesis_background` | ギャップ情報を、選んだ意図の背景の下書きに活用 |
+| 推奨方向.探索の問いの案 | `exploration_question` | 探索のときの下書き。Step 2 で意図を聞いてから確かめる |
+| 推奨方向.検証仮説の案 | `hypothesis_statement` | 検証のときの下書き。Step 2 で意図を聞いてから確かめる |
 | 推奨方向.theme_id | `theme_id` | デフォルト値として設定 |
 | 推奨方向.node_id | （分析設計の項目ではない） | 作った分析設計を結ぶ論点。Step 3 の `tree_io link` に渡す |
-| 推奨方向.論点 | `title`, `hypothesis_background` | この分析設計が答える問い。title 候補と背景の下書きに活用（仮説の文にはしない） |
+| 推奨方向.論点 | `title`, `exploration_background` / `hypothesis_background` | この分析設計が答える問い。title 候補と背景の下書きに活用（探索の問いや検証仮説の文にそのまま写さない） |
 | 推奨方向.parent_id | `parent_id` | デフォルト値として設定 |
-| 推奨方向.analysis_intent | `analysis_intent` | デフォルト値として設定 |
+| 推奨方向.analysis_intent | `analysis_intent` | 意図の下書き。Step 2 で必ず聞き直す |
 | 推奨方向.推奨手法 | `methodology` | `{method: "推奨手法の値", reason: "Framing Brief の推奨"}` としてデフォルト設定 |
 
 Present draft values to user: "Framing Brief の内容でよいか、修正したい点があるか"
@@ -89,31 +90,56 @@ Step 2 ではゼロからインタビューせず、draft 値を提示して確�
 **If Framing Brief missing or incomplete:**
 Framing Brief がない、または検出条件を満たさない場合は何もしない。Step 2 の通常インタビューフローに進む（後方互換）。不完全な場合はユーザーに通知: "Framing Brief が不完全なため通常フローで進めます"
 
-### Step 2: Gather Hypothesis Details
+### Step 2: Ask the Intent, Then Gather the Design Details
 
-Interview the user for required fields:
+Ask the intent first, then interview the user for the fields of that form.
+
+#### Intent (asked first)
+
+Before any other field of the design, ask one question:
+"この分析設計では、測って答えを探しますか（探索）、それとも先に仮の答えと判定の基準を決めて確かめますか（検証）？"
+
+- 探索 is `exploratory`, 検証 is `confirmatory`. Never offer `mixed`: `design_io create` refuses it.
+- A Framing Brief's `analysis_intent` and the default (`confirmatory`) are only drafts: show the
+  draft as the suggestion and still ask. Never fill the intent without the analyst's answer.
+- Help the analyst choose with this rule: 先に置ける仮の答えがあり、判定の基準を今固定できるなら検証。
+  そうでなければ探索。Yes/No で答えられる論点でも、判定の基準を今固定できなければ探索になる。
+- An exploration: confirm `exploration_question` and `exploration_background`. The question is
+  narrower than the question node it answers and says what is measured. It carries no guess of
+  the answer and no criterion; a guess the analyst wants to keep goes to the journal as a
+  `hypothesize` event (`/analysis-journal`). Leave `hypothesis_statement`,
+  `hypothesis_background` and `next_action` out of the payload: `design_io create` refuses them.
+- A confirmation: confirm `hypothesis_statement` and `hypothesis_background`. Leave the two
+  exploration fields out of the payload.
+- The intent can be changed later only while the design is `in_review` or
+  `revision_requested` (Step 3b).
+
+#### Fields of the design
 
 | Field | Required | Description | Example |
 |-------|----------|-------------|---------|
 | `title` | Yes | Short descriptive title | "Foreign population vs crime rate" |
-| `hypothesis_statement` | Yes | Testable statement | "No positive correlation exists between..." |
-| `hypothesis_background` | Yes | Context and motivation (free-form, multi-line) | Background reasoning |
+| `analysis_intent` | Yes (asked first) | `"exploratory"` or `"confirmatory"` — see "Intent" above | "exploratory" |
+| `exploration_question` | Yes for an exploration | The question this design measures to answer. No guess of the answer, no criterion | "分館と本館で、貸出の返却日数はどれだけ違うか" |
+| `exploration_background` | Yes for an exploration | Why this question, and what is known so far (free-form, multi-line) | Background reasoning |
+| `hypothesis_statement` | Yes for a confirmation | Tentative answer to confirm, stated so it can be refuted | "No positive correlation exists between..." |
+| `hypothesis_background` | Yes for a confirmation | Context and motivation (free-form, multi-line) | Background reasoning |
 | `decision_context` | No | Who decides what on the strength of this analysis: `decision_maker` + `decision`, both or neither | `{decision_maker: "マーケティング部長", decision: "来期もクーポン施策を続けるか"}` |
 | `theme_id` | No | Uppercase identifier — defaults to "DEFAULT" | "FP", "TX", "ECON" |
 | `parent_id` | No | Parent design ID if this is derived | "FP-H01" |
-| `analysis_intent` | No | "exploratory", "confirmatory" (default), or "mixed" | "exploratory" |
 | `source_ids` | No (always asked) | Ids of the registered catalog data sources the analysis uses — see "Data sources" below | `["crime_stats", "population"]` |
 | `metrics` | No | List of verification metric dicts (tier: "primary" / "secondary" / "guardrail") | `[{target: "crime_rate_per_100k", tier: "primary", data_source: {column: "crime_count"}, grouping: [...], filter: "...", aggregation: "mean", comparison: "..."}]` |
 | `explanatory` | No | List of explanatory variable dicts (role: "treatment" / "confounder" / "covariate" / "instrumental" / "mediator") | `[{name: "foreign_ratio", description: "外国人比率", role: "treatment", data_source: "population の foreign_count 列", time_points: "2012-2022"}]` |
 | `chart` | No | List of visualization definition dicts (intent: "distribution" / "correlation" / "trend" / "comparison") | `[{intent: "correlation", type: "scatter", description: "FP ratio vs crime rate", x: "foreign_ratio", y: "crime_rate"}]` |
 | `methodology` | **Yes** | Analysis method and package (must include `method` key) | `{method: "OLS", package: "statsmodels", reason: "線形回帰で相関を検証"}` |
-| `next_action` | No | Branch definition after hypothesis test | `{if_supported: "...", if_rejected: {reason: "...", pivot: "..."}}` |
+| `next_action` | No, and a confirmation only | Branch definition after the verdict. An exploration has none | `{if_supported: "...", if_rejected: {reason: "...", pivot: "..."}}` |
 
 If the user passed `$ARGUMENTS`, use it as `theme_id` (validate format first).
 
-#### Decision context (asked with the hypothesis)
+#### Decision context (asked with the question or the hypothesis)
 
-Right after `hypothesis_statement` and `hypothesis_background` are settled, ask one question:
+Right after the question or the hypothesis is settled (`exploration_question` and
+`exploration_background`, or `hypothesis_statement` and `hypothesis_background`), ask one question:
 "この分析は、誰が何を決めるためのものですか？（無ければスキップできます）"
 
 - `decision_maker` — who decides. Write a role or a team ("マーケティング部長", "プロダクトチーム"),
@@ -147,6 +173,17 @@ from there ([ADR-0020](../../docs/adr/0020-design-declares-sources-in-source-ids
 sources the value comes from (a column, a table, a filter). It is not read as a source id by any
 skill. Put the ids in `source_ids`, not in `data_source`. If a value comes from a source the
 analyst could not declare (unregistered), say so in the note and tell the analyst.
+
+#### Criterion (a confirmation fixes it now)
+
+A confirmation fixes its criterion before the analysis. Write the criterion of the verdict, as a
+sentence, in the `comparison` of the `primary` metric, and confirm it with the analyst together
+with the metrics. Example: "分館と本館の差が 2.0 日以上なら支持。1.0 日未満なら棄却。その間は結論しない".
+The notebook copies its threshold from this sentence and never makes one up
+([ADR-0050](../../docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md)).
+
+An exploration's `comparison` says what is compared and how, with no threshold and no rule for
+passing: an exploration measures and answers, and gives no verdict.
 
 ### Step 2.5: Pre-creation Check
 
@@ -195,13 +232,37 @@ methodology = {
 
 ### Step 3: Create the Design
 
-Build a JSON payload and pipe it to `design_io create`. `methodology` is REQUIRED.
-The helper generates the `id` (`{theme_id}-H{nn}`), sets timestamps, validates the
-schema, and writes `.insight/designs/{id}_hypothesis.yaml`.
+Build a JSON payload for the intent the analyst chose and pipe it to `design_io create`.
+`methodology` is REQUIRED. The helper generates the `id` (`{theme_id}-H{nn}`), sets
+timestamps, validates the schema and the form of the intent, and writes
+`.insight/designs/{id}_hypothesis.yaml`.
+
+An exploration carries the question and its background, and no hypothesis or `next_action`:
 
 ```bash
 echo '{
   "title": "<title>",
+  "analysis_intent": "exploratory",
+  "exploration_question": "<question>",
+  "exploration_background": "<background>",
+  "methodology": {"method": "group comparison", "package": "pandas", "reason": "..."},
+  "decision_context": {"decision_maker": "<who decides>", "decision": "<what they decide>"},
+  "theme_id": "FP",
+  "parent_id": null,
+  "source_ids": ["<source_id>"],
+  "metrics": [],
+  "explanatory": [],
+  "chart": []
+}' | design_io create
+```
+
+A confirmation carries the hypothesis and its background, and the criterion in the `comparison`
+of its `primary` metric:
+
+```bash
+echo '{
+  "title": "<title>",
+  "analysis_intent": "confirmatory",
   "hypothesis_statement": "<statement>",
   "hypothesis_background": "<background>",
   "methodology": {"method": "OLS", "package": "statsmodels", "reason": "..."},
@@ -209,7 +270,7 @@ echo '{
   "theme_id": "FP",
   "parent_id": null,
   "source_ids": ["<source_id>"],
-  "metrics": [],
+  "metrics": [{"target": "<metric>", "tier": "primary", "comparison": "<criterion of the verdict>"}],
   "explanatory": [],
   "chart": [],
   "next_action": null
@@ -223,8 +284,9 @@ Expected stdout (the written design as JSON):
 
 Leave `decision_context` out of the payload when the analyst skipped it (Step 2).
 
-If validation fails (e.g. empty `methodology.method`), the command exits non-zero
-with the error on stderr and **nothing is written** — fix the payload and retry.
+If validation fails (e.g. empty `methodology.method`, a hypothesis in an exploration, or
+`mixed`), the command exits non-zero with the error on stderr and **nothing is written** — fix
+the payload and retry.
 
 #### Link the design to its question node
 
@@ -260,7 +322,7 @@ tree_io copy-hearing --theme FP --node FP-Q02 --design FP-H01
   journal. Both are fine; go on.
 - Never retype the answer into the journal yourself, and never write a `hearing` event for
   it by hand: `tree_io` copies the text as the analyst gave it.
-- A finished design (`supported`, `rejected`, `inconclusive`) is refused: its journal is
+- A finished design (`explored`, `supported`, `rejected`, `inconclusive`) is refused: its journal is
   the record it was concluded on. The answer stays on the node, and the next design linked
   there gets it from its own `copy-hearing`. Never reopen the design or write the event
   yourself to get around it.
@@ -277,6 +339,24 @@ echo '{"next_action": {"if_supported": "パネルFEへ進む", "if_rejected": {"
 echo '{"source_ids": ["sales_monthly", "stores"]}' | design_io update --id FP-H01
 ```
 
+To change the intent, the design must be `in_review` or `revision_requested`, and the change
+sends the fields of the other form as `null` so they are dropped:
+
+```bash
+echo '{"analysis_intent": "exploratory", "exploration_question": "<question>", "exploration_background": "<background>", "hypothesis_statement": null, "hypothesis_background": null, "next_action": null}' \
+  | design_io update --id FP-H01
+```
+
+`design_io` does not read the `comparison` of the metrics, so send `metrics` with it when the
+intent changes: a new confirmation needs the criterion of its verdict in the `primary` metric's
+`comparison`, and a new exploration drops it (Step 2 "Criterion"). Confirm the rewritten
+`comparison` with the analyst. `metrics` is replaced as a whole.
+
+A legacy exploration (`exploratory` with a `hypothesis_statement`) that is in fact a confirmation
+can be set to `confirmatory` in any status:
+`echo '{"analysis_intent": "confirmatory"}' | design_io update --id FP-H01`
+([ADR-0049](../../docs/adr/0049-legacy-exploration-stays-readable-and-is-marked.md)).
+
 To change `source_ids`, ask and check the ids as "Data sources" (Step 2) says first. `source_ids`
 is replaced as a whole, so send every id the design uses, not only the new ones.
 
@@ -285,7 +365,7 @@ is replaced as a whole, so send every id the design uses, not only the new ones.
 - Confirm the YAML file location: `.insight/designs/FP-H01_hypothesis.yaml`
 - If the design was linked, show the question node it answers (e.g., "FP-Q02")
 - Suggest next steps:
-  - Refine the hypothesis: add `chart` / `next_action` / `decision_context` via `design_io update`
+  - Refine the design: add `chart` / `decision_context` (and `next_action` for a confirmation) via `design_io update`
   - **Start recording reasoning: `/analysis-journal FP-H01`**
   - **Review and conclude: `/analysis-reflection FP-H01`**
 
@@ -298,7 +378,7 @@ is replaced as a whole, so send every id the design uses, not only the new ones.
 |---------|---------|-------|
 | `list [--status S]` | List existing designs | — |
 | `get --id ID` | Retrieve a design | — |
-| `create` | Create new design (auto id, validated) | stdin: `{title, hypothesis_statement, hypothesis_background, methodology, theme_id?, parent_id?, source_ids?, metrics?, explanatory?, chart?, next_action?, analysis_intent?, decision_context?}` |
+| `create` | Create new design (auto id, validated) | stdin: `{title, analysis_intent, methodology, exploration_question + exploration_background (exploration) or hypothesis_statement + hypothesis_background (confirmation), theme_id?, parent_id?, source_ids?, metrics?, explanatory?, chart?, next_action? (confirmation), decision_context?}` |
 | `update --id ID` | Partial update (merge, refresh updated_at) | stdin: `{<fields to change>}` |
 | `transition --id ID --target S` | Change status (validated) | — |
 
@@ -312,6 +392,7 @@ same `validate.py` the pre-write hook uses. Invalid writes raise and write nothi
 | `explanatory[].role` | VariableRole | `"treatment"`, `"confounder"`, `"covariate"`, `"instrumental"`, `"mediator"` | `"covariate"` |
 | `metrics[].tier` | MetricTier | `"primary"`, `"secondary"`, `"guardrail"` | `"primary"` |
 | `chart[].intent` | ChartIntent | `"distribution"`, `"correlation"`, `"trend"`, `"comparison"` | inferred from `type` |
+| `analysis_intent` | AnalysisIntent | `"exploratory"`, `"confirmatory"` for a new design. A saved `"mixed"` is read as a confirmation; a new one is refused | `"confirmatory"` (a draft only: Step 2 asks) |
 | `methodology.method` | str | free text (required, non-empty) | — |
 | `methodology.package` | str | free text (optional) | `""` |
 | `methodology.reason` | str | free text (optional) | `""` |
@@ -337,6 +418,8 @@ same `validate.py` the pre-write hook uses. Invalid writes raise and write nothi
 | `Design 'FP-H99' not found` | Non-existent design_id | Confirm ID via `design_io list` |
 | pydantic `ValidationError` (e.g. empty `methodology.method`) | Schema violation | Fix the payload; nothing was written |
 | pydantic `ValidationError` on `decision_context.decision_maker` / `decision_context.decision` | Only one side of the decision context was given | Ask for the missing side, or drop `decision_context`; nothing was written |
+| pydantic `ValidationError` naming `exploration_question` / `hypothesis_statement` | The payload does not match its intent: an exploration with a hypothesis or `next_action`, a confirmation without its hypothesis, or neither | Send only the fields of the chosen intent; nothing was written |
+| `ValueError` naming `mixed` or a legacy exploration | A new design chose `mixed`, or an exploration with a hypothesis | Ask the intent again (探索 or 検証); nothing was written |
 
 ## Chaining
 
@@ -363,23 +446,36 @@ same `validate.py` the pre-write hook uses. Invalid writes raise and write nothi
 
 ### Status Flow
 
-Designs use the `DesignStatus` model. A new design starts `in_review`.
+Designs use the `DesignStatus` model. A new design starts `in_review`. The form of the
+design decides how it ends: an exploration ends `explored`, and a confirmation ends on a verdict.
+
+**Confirmation** (`confirmatory`; also a saved `mixed` and a legacy exploration):
 
 ```
-in_review ─┬→ revision_requested → (back to in_review / analyzing / terminal)
+in_review ─┬→ revision_requested → (back to in_review / analyzing / a verdict)
            ├→ analyzing → in_review | supported | rejected | inconclusive
            └→ supported | rejected | inconclusive   (terminal — no exit)
 ```
 
+**Exploration** (`exploratory` with `exploration_question`):
+
+```
+in_review ─┬→ revision_requested → (back to in_review / analyzing / explored)
+           ├→ analyzing → in_review | explored
+           └→ explored   (terminal — no exit)
+```
+
 - **in_review**: Created, under review.
 - **revision_requested**: Review asked for changes.
-- **analyzing**: Hypothesis is being tested. `/analysis-reflection` concludes it directly;
+- **analyzing**: The analysis is running. `/analysis-reflection` concludes it directly;
   going back to `in_review` is an optional review of the result.
-- **supported / rejected / inconclusive**: Terminal disposition.
+- **supported / rejected / inconclusive**: The verdict on a confirmation's hypothesis. Terminal.
+- **explored**: An exploration is finished. It gives no verdict. Terminal.
 
 Status transitions MUST go through `design_io transition` (or `append_review_batch`),
-which validates the move against `VALID_TRANSITIONS` in `validate.py`. Illegal moves
-(e.g. `analyzing → revision_requested`, or any exit from a terminal state) are rejected.
+which validates the move against `VALID_TRANSITIONS` in `validate.py` and the form of the
+design. Illegal moves (e.g. `analyzing → revision_requested`, a verdict on an exploration,
+`explored` for a confirmation, or any exit from a terminal state) are rejected.
 
 ### Theme ID Rules
 

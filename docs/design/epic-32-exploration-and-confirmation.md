@@ -61,11 +61,11 @@ AC の正本はここ。
 
 分析者として、開いた問いに作り物の仮説を書かずに済むように、分析設計を作る最初に意図を選び、意図に合うものだけを書きたい。
 
-- [ ] AC 1: `/analysis-design` の Step 2 と `/analysis-auto` の design ① が、最初に意図（探索か検証か）を聞く。探索なら探索の問いと背景を、検証なら検証仮説と背景を確かめる。design ② は意図を聞かない。`mixed` を選択肢に出さない。
-- [ ] AC 2: `/analysis-design` に、意図を選ぶ目安が書いてある。先に置ける仮の答えがあり、判定の基準を今固定できるなら検証で、そうでなければ探索である。Yes/No で答えられる論点でも、基準を固定できなければ探索になる。
-- [ ] AC 3: `/analysis-framing` の Framing Brief の推奨方向は、探索では探索の問いの案を、検証では検証仮説の案を書く。探索の Brief に「仮説の方向性」の行が無い。
-- [ ] AC 4: 検証では、design ② が primary の指標の `comparison` に判定の基準を書いて、分析者に確かめる。
-- [ ] AC 5: `/analysis-review` の観点が意図で分かれる。探索は、探索の問いが論点より狭く、測るものが分かるかと、仮説や基準が紛れていないかを見る。検証は、検証仮説が反証できるかと、判定の基準が書かれているかを見る。決定の文脈は探索も持てる。「支持と棄却で選択が変わるか」の観点は検証だけに当てる。
+- [x] AC 1: `/analysis-design` の Step 2 と `/analysis-auto` の design ① が、最初に意図（探索か検証か）を聞く。探索なら探索の問いと背景を、検証なら検証仮説と背景を確かめる。design ② は意図を聞かない。`mixed` を選択肢に出さない。
+- [x] AC 2: `/analysis-design` に、意図を選ぶ目安が書いてある。先に置ける仮の答えがあり、判定の基準を今固定できるなら検証で、そうでなければ探索である。Yes/No で答えられる論点でも、基準を固定できなければ探索になる。
+- [x] AC 3: `/analysis-framing` の Framing Brief の推奨方向は、探索では探索の問いの案を、検証では検証仮説の案を書く。探索の Brief に「仮説の方向性」の行が無い。
+- [x] AC 4: 検証では、design ② が primary の指標の `comparison` に判定の基準を書いて、分析者に確かめる。
+- [x] AC 5: `/analysis-review` の観点が意図で分かれる。探索は、探索の問いが論点より狭く、測るものが分かるかと、仮説や基準が紛れていないかを見る。検証は、検証仮説が反証できるかと、判定の基準が書かれているかを見る。決定の文脈は探索も持てる。「支持と棄却で選択が変わるか」の観点は検証だけに当てる。
 
 ### US-2: 分析設計の記録の形と終わり方が、意図で決まる
 
@@ -447,6 +447,16 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - Affected modules: `scripts/export_yomiyasu_words.py`、`.yomiyasu-words/flag-patterns.txt`、`tests/docs/test_canonical_docs.py`。
 - Alternatives considered: `flag.txt` に「仮説」と書く案は、「検証仮説」と「仮説の背景」のすべてに指摘が出るので採らなかった。AC 2 の2語だけを特別に扱う案は、条件の付いたほかの語（「ノート」「公開」「共有」「アップロード」「hypothesis」）と決まりが分かれるので採らなかった。
 - Consequences: 条件の付いた既存の5語にも、yomiyasu の指摘（info）が出るようになる。「公開」「共有」「アップロード」は、ほかの用語の中に無いので、正しい使い方にも指摘が出る。「公開」と「共有」は `flag.txt`（使う語は export）にもあるので、使う語が2つ並ぶ。指摘は info で、推敲する人がパターンの名前の条件を見て決める。「仮説」と「アップロード」は `allow.txt` から外れるので、型で拾う直訳語の指摘から外れなくなる。
+### Decision: entry-asks-the-intent-and-moves-the-criterion-with-it
+
+- What: Story 32.3 の入口で、計画に無かった小さな判断を2つした。
+  1. `/analysis-auto` の design ① の名前を「hypothesis」から「intent」に変えた。ゲートの表の行と、design の4つの段の1つ目の両方である。
+  2. `/analysis-design` の Step 3b に、意図を変えるときは `metrics` も送り、`comparison` の判定の基準を新しい意図に合わせて書き直す、と書いた。`design_io` は `comparison` を読まないので、検証から探索へ直すと基準が残る。一時ディレクトリの `.insight/` で Step 3b のコマンドを走らせて分かった。
+- Why: design ① が最初に聞くのは意図になった。名前が「hypothesis」のままだと、探索でも仮説を聞く段に読める。2つ目は、AC 4 の基準が意図の変更の後に食い違わないようにするため。
+- Criteria: AC 1 の「design ① が最初に意図を聞く」と名前が合うこと（Must）。探索の分析設計に判定の基準が残らないこと（Must、ADR-0050）。決め手は両方。
+- Affected modules: `skills/analysis-auto/SKILL.md`、`skills/analysis-design/SKILL.md`、`tests/skills/test_decision_context_structure.py`。
+- Alternatives considered: 名前を残して中身だけ変える案は、行の名前と問いがずれるので採らなかった。`design_io update` で意図を変えるときに `comparison` を検査する案は、基準を機械で検査しない決定（ADR-0050 の 5）に反するので採らなかった。
+- Consequences: 32.7 と 32.8 は `design ① intent` の行と `1. **intent**` の段を読む。32.8 は design ② の行と段に指標の解説を足す。
 
 ### Cross-epic decisions (links to ADR)
 
@@ -463,7 +473,7 @@ review、premortem、journal への verdict の記録は、今と同じなので
 |---|---|---|---|
 | 32.1 土台 | ✓ | ✓ | —（利用者の入口の SKILL.md は 32.3 で変わる。実物の `.insight/` で `design_io` の CLI を走らせて確かめた） |
 | 32.2 用語と文書 | ✓ | ✓ | —（利用者の入口は変えない。yomiyasu の lint に `flag-patterns.txt` を読ませた。素の仮説・問い・hypothesis・アップロードに指摘が出て、検証仮説と探索の問いには出ないことを、例の文で確かめた） |
-| 32.3 入口 | ☐ | ☐ | ☐ |
+| 32.3 入口 | ✓ | ✓ | —（SKILL.md の文は分析者との対話で、自動で回せない。Step 3 と Step 3b に書いた `design_io` のコマンドを一時ディレクトリの `.insight/` で走らせ、探索と検証の作成と拒否を確かめた） |
 | 32.4 notebook と journal | ✓ | ✓ | —（notebook を生成するのは AI で、構造テストが契約と SKILL.md の文を照らす。探索の fixture を契約のコマンドで走らせ、verdict を分析ノートの読み手で読んで確かめた） |
 | 32.5 分析ノートとレポート | ✓ | ✓ | —（分析者が開く入口は `tree_io render` と `tree_io report` で、どちらも Integration で通した。実物の `.insight/` に探索・検証・旧形式の探索を1つずつ作り、分析ノートとレポートを出して目で確かめた） |
 | 32.6 論点ツリー | ☐ | ☐ | ☐ |
@@ -487,3 +497,4 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - 2026-11-25 — Story 32.4 completed: 探索の notebook は予想と合否を持たず、測った値を verdict の `metrics` に残す。検証の閾値は primary の指標の `comparison` から写す。探索の evidence は `direction` を持たない。計画外の判断4つは Decision `notebook-shape-follows-the-form` に書いた。
 - 2026-11-25 — Story 32.2 completed: 用語集に検証仮説・探索の問い・探索の問いの背景・分析設計の形・旧形式の探索を足し、仮説を「問いに先に置く仮の答え」に変えた。探索と検証の両方に合うように、分析設計・指標・手法・派生・terminal status・分析の意図・notebook・verdict・reflection の定義と Context の文を直した。PRD のビジョンとコアバリュー、ARCHITECTURE の検査・4ビート・シーケンス、CHANGELOG の Upgrade note も直した。計画外の判断1つは Decision `qualified-variants-become-yomiyasu-patterns` に書いた。
 - 2026-11-25 — Story 32.5 completed: 分析ノートとレポートの定型文を形で分けた。言葉は `design_note.py` の `FORM_WORDS`・`intent_word`・`status_word`・`lead_sentence` に1か所で置き、論点ツリー（32.6）も同じものを読む。探索は「探索の問いと背景」で始まり、証拠を1群で出し、指標の表にしきい値と合否の列を出さない。
+- 2026-11-25 — Story 32.3 completed: `/analysis-design` と `/analysis-auto` が最初に意図を聞き、探索なら探索の問いを、検証なら検証仮説と `comparison` の判定の基準を確かめる。Framing Brief と `/analysis-review` も意図で分けた。計画外の判断2つは Decision `entry-asks-the-intent-and-moves-the-criterion-with-it` に書いた。

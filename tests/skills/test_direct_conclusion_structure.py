@@ -13,16 +13,26 @@ import re
 
 import pytest
 
-from insight_blueprint.models.design import TERMINAL_STATUSES, DesignForm, DesignStatus
+from insight_blueprint.models.design import (
+    CONCLUSIONS_OF,
+    TERMINAL_STATUSES,
+    DesignForm,
+    DesignStatus,
+)
 from insight_blueprint.validate import valid_targets, validate_transition
 from tests.skills._markdown import section, unwrap
 from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
 
 _STATUS = "|".join(s.value for s in DesignStatus)
 _MOVE = re.compile(rf"`({_STATUS}) → ({_STATUS})`")
-# The prose below names the moves of a design that concludes on a verdict.
-# Epic 32 adds explored for an exploration (ADR-0048); Story 32.3 words it.
+# The prose outside /analysis-design's Status Flow names the moves of a design
+# that concludes on a verdict; the Status Flow draws each form (ADR-0048).
 _FORM = DesignForm.confirmation
+# The label in the Status Flow above the diagram of each form.
+_DIAGRAMS = {
+    "Confirmation": DesignForm.confirmation,
+    "Exploration": DesignForm.exploration,
+}
 
 
 def _assert_allowed(moves: list[tuple[str, str]]) -> None:
@@ -51,11 +61,31 @@ class TestAnalysisDesignStatusFlow:
     def _flow(self) -> str:
         return section(_read_skill("analysis-design"), "### Status Flow")
 
-    def test_the_analyzing_line_lists_every_status_the_table_allows(self) -> None:
-        line = next(line for line in self._flow().splitlines() if "analyzing →" in line)
+    def _diagram(self, label: str) -> str:
+        found = re.search(rf"\*\*{label}\*\*.*?```\n(.*?)```", self._flow(), re.S)
+        assert found, f"the Status Flow has no {label} diagram"
+        return found.group(1)
+
+    @pytest.mark.parametrize("label", list(_DIAGRAMS))
+    def test_the_analyzing_line_lists_every_status_the_table_allows(
+        self, label: str
+    ) -> None:
+        line = next(
+            line for line in self._diagram(label).splitlines() if "analyzing →" in line
+        )
         after = line.split("analyzing →", 1)[1]
         targets = {DesignStatus(word) for word in re.findall(_STATUS, after)}
-        assert targets == valid_targets(DesignStatus.analyzing, _FORM)
+        assert targets == valid_targets(DesignStatus.analyzing, _DIAGRAMS[label])
+
+    @pytest.mark.parametrize("label", list(_DIAGRAMS))
+    def test_the_terminal_line_lists_the_conclusions_of_the_form(
+        self, label: str
+    ) -> None:
+        line = next(
+            line for line in self._diagram(label).splitlines() if "terminal" in line
+        )
+        targets = {DesignStatus(word) for word in re.findall(_STATUS, line)}
+        assert targets == CONCLUSIONS_OF[_DIAGRAMS[label]]
 
     def test_every_illegal_example_is_refused_by_the_table(self) -> None:
         _assert_refused(_MOVE.findall(unwrap(self._flow())))

@@ -44,6 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mark, and concludes with 「探索を終えた。判定はしていない。」. A confirmation now says 「検証仮説」 where it
   said 「仮説」, and the report's design table has an intent column. A legacy exploration keeps its old sentences
   and is marked as such ([ADR-0051](docs/adr/0051-designs-nest-under-their-question-and-state-is-worded-by-role.md), #230).
+- **`/analysis-design` and `/analysis-auto` ask the intent first.** Before anything else of the design,
+  the analyst chooses exploration or confirmation (`mixed` is no longer offered), and then writes
+  `exploration_question` for an exploration or `hypothesis_statement` for a confirmation. A
+  confirmation writes the criterion of its verdict in the `comparison` of its primary metric at the
+  methodology step. The Framing Brief drafts a question or a hypothesis by the intent, and
+  `/analysis-review` reads each intent with its own lenses
+  ([ADR-0048](docs/adr/0048-intent-decides-the-form-and-the-end-of-a-design.md),
+  [ADR-0050](docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md), #228).
 
 ## [0.18.0] - 2026-11-25
 

@@ -76,6 +76,8 @@ def resolve_base_dir(base_dir: Path) -> Path:
 # Sections a review comment may target. Kept here (not imported from the
 # to-be-removed core/reviews.py) so design_io is server-independent.
 ALLOWED_TARGET_SECTIONS: set[str] = {
+    "exploration_question",
+    "exploration_background",
     "hypothesis_statement",
     "hypothesis_background",
     "metrics",

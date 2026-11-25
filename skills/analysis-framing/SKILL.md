@@ -146,7 +146,9 @@ The agreed direction is kept as the theme's **question tree**
 nodes under it. The analyst settles them at two KEEP gates (4a, 4b). You draft, the analyst decides.
 A run handed the position of the theme reads the end of 4d before it asks anything in 4a or 4c.
 
-Do NOT create a hypothesis statement (`hypothesis_statement`).
+Do NOT create a design, its `hypothesis_statement` or its `exploration_question`. The Framing Brief
+carries only a draft of the question to explore or of the hypothesis, and `/analysis-design`
+asks the intent and confirms the draft with the analyst.
 The framing skill's responsibility ends at "proceed to analysis-design on this node."
 
 #### 4a: Root question and aim (KEEP gate)
@@ -325,6 +327,18 @@ from the conversation context and pre-populate draft values.
 `tree_io` printed in 5a for the node to design next. `/analysis-design` links the design it
 creates to that node.
 
+The draft of the design follows the intent you suggest in `analysis_intent`. Write one draft line
+and leave the other out:
+
+- `exploratory`: keep `探索の問いの案` and drop `検証仮説の案`. The draft is a question that says what
+  to measure, with no guess of the answer and no criterion.
+- `confirmatory`: keep `検証仮説の案` and drop `探索の問いの案`. Suggest it only when a tentative
+  answer can be stated and the criterion of the verdict can be fixed now; otherwise suggest
+  `exploratory`.
+
+Never suggest `mixed`: a new design cannot be `mixed`. `/analysis-design` asks the intent again
+whatever the Brief suggests.
+
 ````markdown
 ## Framing Brief
 
@@ -341,12 +355,13 @@ creates to that node.
 - {gap_description}
 
 ### 推奨方向
-- 仮説の方向性: {direction_description}
+- analysis_intent: {exploratory | confirmatory}
+- 探索の問いの案: {exploration_question_draft}
+- 検証仮説の案: {hypothesis_draft}
 - theme_id: {theme_id}
 - node_id: {node_id}
 - 論点: {node_question}
 - parent_id: {suggested_parent_id or "なし"}
-- analysis_intent: {exploratory | confirmatory | mixed}
 - 推奨手法: {methodology_suggestion}
 ````
 
