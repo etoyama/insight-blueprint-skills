@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and columns by the other when it has two axes of values alone, else a column per axis. Values are
   shown as written and never sorted as numbers. A verdict saved before shows the same columns and
   values, its interval now under 区間 as 信頼区間 ([ADR-0052](docs/adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md), #246).
+- **The analysis note's metric table shows the two lines, the judgment and the kind of interval, and
+  gives a metric measured per group a table of its own.** The judgment reads 支持, 棄却 or 結論しない;
+  the interval column is headed 区間 and names its kind (信頼区間, HDI, 等裾信用区間, or the kind as
+  written). Two axes of values only lay one axis down and one across; any other groups come in a tall
+  table. A column no metric fills is left out, so a saved verdict keeps its values with fewer columns
+  ([ADR-0052](docs/adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md), #245).
 
 ## [0.19.0] - 2026-11-25
 
