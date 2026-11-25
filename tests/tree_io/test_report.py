@@ -246,6 +246,58 @@ class TestReportContents:
         assert "![図 1](../notebooks/LIB-H01_fig01.png)" in text
         assert "LIB-H02_fig01.png" not in text
 
+    def test_the_lines_the_judgment_the_interval_and_the_groups_reach_the_file(
+        self, answered: Path
+    ) -> None:
+        """Epic 33 US-1 AC 4, US-2 AC 2 and AC 5: from the verdict to the report."""
+        _write_verdict(
+            answered,
+            "LIB-H01",
+            {
+                "metrics": {
+                    "待ち日数の差": {
+                        "value": 1.4,
+                        "support_line": 2.5,
+                        "reject_line": 1.5,
+                        "judgment": "rejected",
+                        "interval": {
+                            "kind": "hdi",
+                            "level": 0.95,
+                            "lower": 0.9,
+                            "upper": 1.9,
+                        },
+                    },
+                    "待ちの割合": {
+                        "by": ["branch", "wait_band"],
+                        "groups": [
+                            {"group": ["中央館", "3日以内"], "value": 0.42},
+                            {"group": ["北分館", "3日以内"], "value": 0.25},
+                            {"group": ["北分館", "8日以上"], "value": 0.35},
+                        ],
+                    },
+                }
+            },
+        )
+        tree_io.answer(
+            "LIB", answers=[_entry("LIB-Q02", "期限切れは152件")], base_dir=answered
+        )
+
+        _, text = _written(answered)
+
+        lines = text.splitlines()
+        assert "| 指標 | 値 | 区間 | 支持の線 | 棄却の線 | 判定 |" in lines
+        assert (
+            "| 待ち日数の差 | 1.4 | HDI 水準 0.95: [0.9, 1.9] | 2.5 | 1.5 | 棄却 |"
+            in lines
+        )
+        table = lines.index("待ちの割合（branch × wait\\_band）")
+        assert lines[table + 2 : table + 6] == [
+            "| branch | 3日以内 | 8日以上 |",
+            "| --- | --- | --- |",
+            "| 中央館 | 0.42 | — |",
+            "| 北分館 | 0.25 | 0.35 |",
+        ]
+
     def test_neither_a_connection_nor_code_nor_lineage_reaches_the_report(
         self, answered: Path
     ) -> None:

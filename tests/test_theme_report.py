@@ -24,6 +24,8 @@ from skills._shared.design_note import (
     FORM_WORDS,
     Conclusion,
     DesignNote,
+    MetricGroup,
+    MetricJudgment,
     NoteEvent,
     NoteFigure,
     NoteSource,
@@ -527,30 +529,6 @@ class TestResults:
         assert "| 期限切れ率（当日） | 0.090 | 1210 | — |" in lines
         assert "| 期限切れ率（翌日以降） | 0.18 | 640 | 1e-05 |" in lines
 
-    def test_an_interval_of_another_kind_is_not_called_a_confidence_interval(
-        self,
-    ) -> None:
-        """Until Story 33.3 names the kind, an HDI stays out of the 信頼区間 column."""
-        results = _results(
-            _report(
-                nodes=(_node(answer=_answer(), design_ids=("LIB-H01",)),),
-                designs=(
-                    _design(
-                        metrics=(
-                            _metric(
-                                "差",
-                                "0.1",
-                                interval=ValueInterval("hdi", "0.95", "0.10", "0.50"),
-                            ),
-                        )
-                    ),
-                ),
-            )
-        )
-
-        assert "信頼区間" not in results
-        assert "水準 0.95" not in results
-
     def test_every_kind_of_metric_value_has_its_column(self) -> None:
         results = _results(
             _report(
@@ -578,12 +556,12 @@ class TestResults:
 
         lines = results.splitlines()
         assert (
-            "| 指標 | 値 | 効果量 | 信頼区間 | 標本サイズ | しきい値 | p 値 | 合否 |"
+            "| 指標 | 値 | 効果量 | 区間 | 標本サイズ | しきい値 | p 値 | 合否 |"
             in lines
         )
         assert (
-            "| 差 | 0.1 | 0.30（cohens\\_d） | 水準 0.95: [0.10, 0.50] | 1520 | 0.05 | 0.01 | ✗ |"
-            in lines
+            "| 差 | 0.1 | 0.30（cohens\\_d） | 信頼区間 水準 0.95: [0.10, 0.50] "
+            "| 1520 | 0.05 | 0.01 | ✗ |" in lines
         )
 
     def test_figures_come_as_numbered_image_links_with_title_axes_and_how_to_read(
@@ -975,8 +953,27 @@ def _poisoned_report(aim: Aim) -> ThemeReport:
                 p=p,
                 passed=True,
                 effect_size=(p, p),
-                interval=ValueInterval(CONFIDENCE, p, p, p),
+                interval=ValueInterval(p, p, p, p),
                 sample_size=p,
+                support_line=p,
+                reject_line=p,
+            ),
+            # Two axes of values alone, and one axis with more: both group tables.
+            _metric(p, None, by=(p, p), groups=(_group(p, p, value=p),)),
+            _metric(
+                p,
+                None,
+                by=(p,),
+                groups=(
+                    _group(
+                        p,
+                        value=p,
+                        p=p,
+                        effect_size=(p, p),
+                        interval=ValueInterval(p, p, p, p),
+                        sample_size=p,
+                    ),
+                ),
             ),
         ),
         figures=(NoteFigure(file="a_b.png", title=p, axes=p, how_to_read=p, png=b""),),
@@ -1373,11 +1370,12 @@ class TestReportDesignOfANote:
 
 
 # Epic 33 US-1 AC 5: a verdict saved before the Epic, as the report tabulates it.
-# None: the report has no metric table for it.
+# The columns and values are the ones before the Epic, except that the interval
+# column is headed 区間 and names its kind (US-2 AC 2). None: no metric table.
 _PRIMARY_AND_GUARDRAIL_TABLE = [
-    "| 指標 | 値 | 信頼区間 | 標本サイズ | しきい値 | 合否 |",
+    "| 指標 | 値 | 区間 | 標本サイズ | しきい値 | 合否 |",
     "| --- | --- | --- | --- | --- | --- |",
-    "| rho | 0.62 | 水準 0.95: [0.51, 0.69] | 412 | 0.70 | ✓ |",
+    "| rho | 0.62 | 信頼区間 水準 0.95: [0.51, 0.69] | 412 | 0.70 | ✓ |",
     "| 欠損の検査 | — | — | — | — | ✓ |",
 ]
 REPORT_TABLES: dict[str, list[str] | None] = {
@@ -1390,17 +1388,17 @@ REPORT_TABLES: dict[str, list[str] | None] = {
         "| 両方 | 1.80 | 0.040 |",
     ],
     "optional_items": [
-        "| 指標 | 値 | 効果量 | 信頼区間 | 標本サイズ | しきい値 | p 値 | 合否 |",
+        "| 指標 | 値 | 効果量 | 区間 | 標本サイズ | しきい値 | p 値 | 合否 |",
         "| --- | --- | --- | --- | --- | --- | --- | --- |",
         "| 任意の項目なし | 0.346 | — | — | — | 0.050 | — | ✓ |",
         "| 欠けた項目 | 1 | — | — | — | — | — | — |",
-        "| そろった項目 | 0.00010 | 0.30（cohens\\_d） | 水準 0.95: [0.10, 0.50] "
+        "| そろった項目 | 0.00010 | 0.30（cohens\\_d） | 信頼区間 水準 0.95: [0.10, 0.50] "
         "| 1520 | 0.050 | 1e-05 | ✓ |",
     ],
     "exploration_with_a_pass": [
-        "| 指標 | 値 | 信頼区間 | 標本サイズ | しきい値 | 合否 |",
+        "| 指標 | 値 | 区間 | 標本サイズ | しきい値 | 合否 |",
         "| --- | --- | --- | --- | --- | --- |",
-        "| 待ち日数の差 | 1.80 | 水準 0.95: [0.40, 3.20] | 840 | 1.0 | ✓ |",
+        "| 待ち日数の差 | 1.80 | 信頼区間 水準 0.95: [0.40, 3.20] | 840 | 1.0 | ✓ |",
     ],
     "threshold_kinds": [
         "| 指標 | 値 | しきい値 | 合否 |",
@@ -1442,3 +1440,273 @@ def test_the_report_tabulates_a_saved_verdict_as_before(
     tables = _tables(_results(_answered(design)))
 
     assert tables == ([] if REPORT_TABLES[name] is None else [REPORT_TABLES[name]])
+
+
+# Story 33.3 (Epic 33 US-1 AC 4, US-2 AC 2 and AC 5): the report's metric table
+# shows the two lines, the judgment, the kind of an interval and the groups.
+
+
+def _group(*names: str, value: str | None = None, **over: object) -> MetricGroup:
+    fields: dict = {
+        "group": names,
+        "value": value,
+        "p": None,
+        "effect_size": None,
+        "interval": None,
+        "sample_size": None,
+    }
+    fields.update(over)
+    return MetricGroup(**fields)
+
+
+def _metric_tables(*metrics: VerdictMetric, design: ReportDesign | None = None) -> str:
+    """The Results of a report whose one design holds *metrics*."""
+    return _results(_answered(replace(design or _design(), metrics=metrics)))
+
+
+class TestLinesAndJudgmentInTheReport:
+    @pytest.mark.parametrize(
+        ("judgment", "word"),
+        [
+            (MetricJudgment.supported, "支持"),
+            (MetricJudgment.rejected, "棄却"),
+            (MetricJudgment.inconclusive, "結論しない"),
+        ],
+    )
+    def test_the_lines_and_the_judgment_have_their_columns_and_words(
+        self, judgment: MetricJudgment, word: str
+    ) -> None:
+        lines = _metric_tables(
+            _metric(
+                "待ち日数の差",
+                "1.4",
+                support_line="2.0",
+                reject_line="1.0",
+                judgment=judgment,
+            ),
+            _metric("欠損率", "0.03", threshold="0.05", passed=True),
+        ).splitlines()
+
+        assert "| 指標 | 値 | 支持の線 | 棄却の線 | 判定 | しきい値 | 合否 |" in lines
+        assert f"| 待ち日数の差 | 1.4 | 2.0 | 1.0 | {word} | — | — |" in lines
+        assert "| 欠損率 | 0.03 | — | — | — | 0.05 | ✓ |" in lines
+
+    def test_a_criterion_of_one_line_has_no_column_of_the_other(self) -> None:
+        lines = _metric_tables(
+            _metric("差", "2.4", support_line="2.0", judgment=MetricJudgment.supported),
+        ).splitlines()
+
+        assert "| 指標 | 値 | 支持の線 | 判定 |" in lines
+        assert "| 差 | 2.4 | 2.0 | 支持 |" in lines
+
+    def test_lines_are_shown_as_written(self) -> None:
+        lines = _metric_tables(
+            _metric("差", "1.40", support_line="2.00", reject_line="1e-1"),
+        ).splitlines()
+
+        assert "| 差 | 1.40 | 2.00 | 1e-1 |" in lines
+
+    def test_an_exploration_shows_no_line_and_no_judgment(self) -> None:
+        results = _metric_tables(
+            _metric(
+                "館の差",
+                "0.12",
+                support_line="0.1",
+                reject_line="0.0",
+                judgment=MetricJudgment.supported,
+            ),
+            design=_exploration_design(),
+        )
+
+        assert "| 指標 | 値 |" in results.splitlines()
+        assert "| 館の差 | 0.12 |" in results.splitlines()
+        for word in ("線", "判定", "支持"):
+            assert word not in results.replace("判定はしていない", ""), word
+
+
+class TestIntervalInTheReport:
+    @pytest.mark.parametrize(
+        ("kind", "word"),
+        [
+            (CONFIDENCE, "信頼区間"),
+            ("hdi", "HDI"),
+            ("eti", "等裾信用区間"),
+            ("bootstrap_percentile", "bootstrap\\_percentile"),
+        ],
+    )
+    def test_the_interval_is_named_by_its_kind_beside_its_level(
+        self, kind: str, word: str
+    ) -> None:
+        lines = _metric_tables(
+            _metric("差", "0.1", interval=ValueInterval(kind, "0.95", "0.10", "0.50")),
+        ).splitlines()
+
+        assert "| 指標 | 値 | 区間 |" in lines
+        assert f"| 差 | 0.1 | {word} 水準 0.95: [0.10, 0.50] |" in lines
+
+
+class TestGroupsInTheReport:
+    def test_two_axes_of_values_alone_make_a_table_of_rows_and_columns(
+        self,
+    ) -> None:
+        results = _metric_tables(
+            _metric(
+                "待ちの割合",
+                None,
+                by=("branch", "wait_band"),
+                groups=(
+                    _group("中央館", "3日以内", value="0.42"),
+                    _group("中央館", "8日以上", value="0.20"),
+                    _group("北分館", "3日以内", value="0.25"),
+                    _group("北分館", "8日以上", value="0.35"),
+                ),
+            ),
+        )
+
+        assert "待ちの割合（branch × wait\\_band）" in results.splitlines()
+        assert _tables(results) == [
+            [
+                "| branch | 3日以内 | 8日以上 |",
+                "| --- | --- | --- |",
+                "| 中央館 | 0.42 | 0.20 |",
+                "| 北分館 | 0.25 | 0.35 |",
+            ]
+        ]
+
+    def test_the_rows_and_columns_keep_the_order_first_written(self) -> None:
+        results = _metric_tables(
+            _metric(
+                "件数",
+                None,
+                by=("year", "month"),
+                groups=(
+                    _group("2024", "10", value="3"),
+                    _group("2023", "9", value="4"),
+                    _group("2024", "9", value="5"),
+                ),
+            ),
+        )
+
+        assert _tables(results) == [
+            [
+                "| year | 10 | 9 |",
+                "| --- | --- | --- |",
+                "| 2024 | 3 | 5 |",
+                "| 2023 | — | 4 |",
+            ]
+        ]
+
+    def test_one_axis_makes_a_table_with_a_column_of_groups(self) -> None:
+        results = _metric_tables(
+            _metric(
+                "待ち日数",
+                None,
+                by=("branch",),
+                groups=(
+                    _group(
+                        "中央館",
+                        value="4.0",
+                        interval=ValueInterval(CONFIDENCE, "0.95", "3.5", "4.5"),
+                        sample_size="1200",
+                    ),
+                    _group("北分館", value="7.0", sample_size="310"),
+                ),
+            ),
+        )
+
+        assert "待ち日数（branch）" in results.splitlines()
+        assert _tables(results) == [
+            [
+                "| branch | 値 | 区間 | 標本サイズ |",
+                "| --- | --- | --- | --- |",
+                "| 中央館 | 4.0 | 信頼区間 水準 0.95: [3.5, 4.5] | 1200 |",
+                "| 北分館 | 7.0 | — | 310 |",
+            ]
+        ]
+
+    def test_two_axes_with_more_than_values_make_a_table_with_a_column_per_axis(
+        self,
+    ) -> None:
+        results = _metric_tables(
+            _metric(
+                "待ち日数",
+                None,
+                by=("branch", "weekday"),
+                groups=(
+                    _group("中央館", "月", value="4.0", p="0.01"),
+                    _group("中央館", "火", value="5.0"),
+                ),
+            ),
+        )
+
+        assert _tables(results) == [
+            [
+                "| branch | weekday | 値 | p 値 |",
+                "| --- | --- | --- | --- |",
+                "| 中央館 | 月 | 4.0 | 0.01 |",
+                "| 中央館 | 火 | 5.0 | — |",
+            ]
+        ]
+
+    def test_two_axes_with_a_group_written_twice_keep_every_row(self) -> None:
+        results = _metric_tables(
+            _metric(
+                "待ち日数",
+                None,
+                by=("branch", "weekday"),
+                groups=(
+                    _group("中央館", "月", value="4.0"),
+                    _group("中央館", "月", value="4.5"),
+                ),
+            ),
+        )
+
+        assert _tables(results) == [
+            [
+                "| branch | weekday | 値 |",
+                "| --- | --- | --- |",
+                "| 中央館 | 月 | 4.0 |",
+                "| 中央館 | 月 | 4.5 |",
+            ]
+        ]
+
+    def test_a_metric_of_groups_alone_has_no_row_in_the_metric_table(self) -> None:
+        results = _metric_tables(
+            _metric("差", "0.1"),
+            _metric(
+                "待ち日数",
+                None,
+                by=("branch",),
+                groups=(_group("中央館", value="4.0"),),
+            ),
+        )
+
+        assert _tables(results) == [
+            ["| 指標 | 値 |", "| --- | --- |", "| 差 | 0.1 |"],
+            ["| branch | 値 |", "| --- | --- |", "| 中央館 | 4.0 |"],
+        ]
+
+    def test_a_metric_with_a_value_and_groups_shows_both(self) -> None:
+        results = _metric_tables(
+            _metric(
+                "待ち日数",
+                "5.0",
+                by=("branch",),
+                groups=(_group("中央館", value="4.0"),),
+            ),
+        )
+
+        assert _tables(results) == [
+            ["| 指標 | 値 |", "| --- | --- |", "| 待ち日数 | 5.0 |"],
+            ["| branch | 値 |", "| --- | --- |", "| 中央館 | 4.0 |"],
+        ]
+
+    def test_each_metric_of_groups_has_its_own_table_in_order(self) -> None:
+        results = _metric_tables(
+            _metric("A", None, by=("x",), groups=(_group("a", value="1"),)),
+            _metric("B", None, by=("y",), groups=(_group("b", value="2"),)),
+        )
+
+        lines = results.splitlines()
+        assert lines.index("A（x）") < lines.index("B（y）")
+        assert [t[0] for t in _tables(results)] == ["| x | 値 |", "| y | 値 |"]
