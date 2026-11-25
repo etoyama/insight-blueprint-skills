@@ -824,6 +824,70 @@ class TestRepairingABrokenDesign:
         assert _on_disk(insight, "FP-H01")["status"] == "supported"
 
 
+def _broken_after_the_analysis(insight: Path) -> str:
+    """A confirmation back in review after its analysis, broken on disk since."""
+    design_id = _create(insight)["id"]
+    for target in ("analyzing", "in_review"):
+        design_io.transition_status(design_id, target, base_dir=insight)
+    on_disk = _on_disk(insight, design_id)
+    atomic_write_yaml(
+        insight / "designs" / f"{design_id}_hypothesis.yaml",
+        {**on_disk, "methodology": {"method": ""}},
+    )
+    return design_id
+
+
+_REPAIR = {"methodology": {"method": "OLS"}}
+
+
+class TestRepairingABrokenStartedDesign:
+    """US-3 AC 2, AC 5: a repair does not lift what a started analysis holds."""
+
+    def test_a_repair_alone_still_goes_through(self, insight: Path) -> None:
+        design_id = _broken_after_the_analysis(insight)
+        design_io.update_design(design_id, _REPAIR, insight)
+        assert _on_disk(insight, design_id)["methodology"]["method"] == "OLS"
+
+    @pytest.mark.parametrize(
+        ("changes", "field"),
+        [
+            ({"hypothesis_statement": "Written after the result"}, "hypothesis"),
+            ({"metrics": [{**_PRIMARY, "comparison": "A<B"}]}, "metrics"),
+            ({"metrics": [{**_PRIMARY, "tier": "secondary"}]}, "metrics"),
+            ({"metrics": []}, "metrics"),
+            ({"analysis_started_at": None}, "analysis_started_at"),
+        ],
+    )
+    def test_what_the_analysis_holds_is_not_rewritten(
+        self, insight: Path, changes: dict, field: str
+    ) -> None:
+        design_id = _broken_after_the_analysis(insight)
+        before = _on_disk(insight, design_id)
+        with pytest.raises(ValueError, match=field):
+            design_io.update_design(design_id, {**_REPAIR, **changes}, insight)
+        assert _on_disk(insight, design_id) == before
+
+    def test_the_bypass_the_gate_found_is_refused(self, insight: Path) -> None:
+        design_id = _broken_after_the_analysis(insight)
+        changes = {
+            **_REPAIR,
+            "hypothesis_statement": "h2",
+            "metrics": [{"target": "m", "comparison": "A<B"}],
+            "analysis_started_at": None,
+        }
+        with pytest.raises(ValueError, match="parent_id") as refused:
+            design_io.update_design(design_id, changes, insight)
+        for field in ("hypothesis_statement", "metrics", "analysis_started_at"):
+            assert field in str(refused.value)
+        assert _on_disk(insight, design_id)["hypothesis_statement"] == "X improves Y"
+
+    def test_a_primary_tier_left_out_is_the_same_criterion(self, insight: Path) -> None:
+        design_id = _broken_after_the_analysis(insight)
+        untiered = {k: v for k, v in _PRIMARY.items() if k != "tier"}
+        design_io.update_design(design_id, {**_REPAIR, "metrics": [untiered]}, insight)
+        assert _on_disk(insight, design_id)["methodology"]["method"] == "OLS"
+
+
 class TestAnalysisMark:
     """Epic 33 US-3 AC 1, AC 5: the mark is written once and stays."""
 

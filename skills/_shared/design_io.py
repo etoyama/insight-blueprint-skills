@@ -33,6 +33,7 @@ from insight_blueprint.validate import (
     VALID_TRANSITIONS,
     analysis_started,
     validate_creation,
+    validate_repair,
     validate_schema,
     validate_transition,
     validate_update,
@@ -304,9 +305,10 @@ def update_design(
             f"Design '{design_id}' on disk is invalid: repair it without "
             "changing its status, then transition"
         )
-    # A design broken on disk is checked as a new one, so an update may repair it.
+    # A design broken on disk is checked as a new one, so an update may repair
+    # it, but it keeps what a started analysis holds.
     if on_disk is None:
-        errors = validate_creation(model)
+        errors = validate_creation(model) + validate_repair(model, current)
     else:
         model = with_analysis_mark(model, on_disk)
         errors = validate_update(model, on_disk)

@@ -409,6 +409,60 @@ class TestHookKeepsAStartedAnalysis:
         assert result.returncode == 0, result.stderr
 
 
+BROKEN = started_design(
+    status="in_review", analysis_started_at=MARK, methodology={"method": ""}
+)
+
+
+def repair(path: Path, **changes: object) -> subprocess.CompletedProcess[str]:
+    """Write the broken design back repaired, with *changes* in the same write."""
+    data = BROKEN | {"methodology": {"method": "OLS"}} | changes
+    return run_hook(write_tool(path, {k: v for k, v in data.items() if v is not None}))
+
+
+class TestHookKeepsAStartedAnalysisOnABrokenRecord:
+    """US-3 AC 5: a write over a broken record does not lift what is held."""
+
+    @pytest.fixture
+    def broken(self, tmp_path: Path) -> Path:
+        return write_design(tmp_path, "FP-H01", BROKEN)
+
+    def test_a_repair_alone_still_goes_through(self, broken: Path) -> None:
+        result = repair(broken)
+        assert result.returncode == 0, result.stderr
+
+    def test_the_hypothesis_is_not_rewritten(self, broken: Path) -> None:
+        result = repair(broken, hypothesis_statement="X improves Y a little")
+        assert result.returncode == 2
+        assert "hypothesis_statement" in result.stderr
+        assert "derive a new design" in result.stderr
+
+    def test_the_criterion_is_not_rewritten(self, broken: Path) -> None:
+        looser = [{"target": "lead time", "comparison": "supported at 0.5 days"}]
+        result = repair(broken, metrics=looser)
+        assert result.returncode == 2
+        assert "metrics" in result.stderr
+
+    def test_the_primary_metric_is_not_lowered(self, broken: Path) -> None:
+        lowered = [
+            {"target": "lead time", "tier": "secondary", "comparison": CRITERION}
+        ]
+        result = repair(broken, metrics=lowered)
+        assert result.returncode == 2
+        assert "metrics" in result.stderr
+
+    def test_the_mark_is_not_taken_away(self, broken: Path) -> None:
+        result = repair(broken, analysis_started_at=None)
+        assert result.returncode == 2
+        assert "analysis_started_at" in result.stderr
+
+    def test_a_primary_tier_left_out_is_the_same_criterion(self, broken: Path) -> None:
+        result = repair(
+            broken, metrics=[{"target": "lead time", "comparison": CRITERION}]
+        )
+        assert result.returncode == 0, result.stderr
+
+
 class TestFailClosed:
     """On an internal error, design writes fail CLOSED; others fail open (M2)."""
 

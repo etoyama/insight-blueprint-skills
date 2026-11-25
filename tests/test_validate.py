@@ -287,7 +287,7 @@ class TestTheHookChecksUpdatesLikeDesignIo:
         legacy = make_design(analysis_intent="exploratory", status="supported")
         assert validate_design_change(legacy, None) == []
 
-    def test_a_design_broken_on_disk_is_still_not_compared(self) -> None:
+    def test_a_broken_design_before_its_analysis_is_not_compared(self) -> None:
         broken = {"id": "FP-H01", "status": "nonsense"}
         new = make_design(analysis_intent="mixed", status="supported")
         assert validate_design_change(new, broken) == []
@@ -892,3 +892,216 @@ class TestEnteringTheAnalysisNeedsACriterion:
     def test_a_saved_design_without_a_criterion_is_still_updated(self) -> None:
         current = make_design(status="analyzing")
         assert _errors(current | {"title": "Edited"}, current) == []
+
+
+# ---------------------------------------------------------------------------
+# A write over a design that no longer reads (Epic 33 gate, FLOW-0008 B)
+# ---------------------------------------------------------------------------
+
+UNREADABLE = {"methodology": {"method": ""}}
+
+
+def broken(**overrides: object) -> dict:
+    """A started confirmation on disk that no longer reads as a design."""
+    return result_review(**UNREADABLE) | overrides
+
+
+def repaired(current: dict, **changes: object) -> dict:
+    """*current* with the broken part fixed and *changes* written in the same write."""
+    return current | {"methodology": {"method": "OLS"}} | changes
+
+
+def _repair(new: dict, current: dict) -> list[str]:
+    with pytest.raises(ValidationError):
+        validate_schema(current)  # the record really is broken
+    return validate_design_change(new, current)
+
+
+STARTED_AND_BROKEN = [
+    pytest.param(broken(), id="marked-in_review"),
+    pytest.param(broken(status="revision_requested"), id="marked-revision_requested"),
+    pytest.param(
+        confirmation(status="analyzing", **UNREADABLE), id="by-status-analyzing"
+    ),
+    pytest.param(
+        confirmation(status="supported", **UNREADABLE), id="by-status-supported"
+    ),
+    pytest.param(broken(analysis_intent="mixed"), id="mixed"),
+    pytest.param(broken(analysis_intent="exploratory"), id="legacy-exploration"),
+]
+
+
+class TestARepairKeepsAStartedAnalysis:
+    """US-3 AC 2, AC 5: repairing a broken record does not lift what is held."""
+
+    @pytest.mark.parametrize("current", STARTED_AND_BROKEN)
+    def test_a_repair_alone_still_goes_through(self, current: dict) -> None:
+        assert _repair(repaired(current), current) == []
+
+    @pytest.mark.parametrize("current", STARTED_AND_BROKEN)
+    def test_the_hypothesis_does_not_change(self, current: dict) -> None:
+        new = repaired(current, hypothesis_statement="Written after the result")
+        errors = _repair(new, current)
+        assert any("hypothesis_statement" in e and "parent_id" in e for e in errors)
+
+    @pytest.mark.parametrize(
+        "metrics",
+        [
+            pytest.param([primary(comparison="supported at 0.5 days")], id="loosened"),
+            pytest.param([primary(target="cycle time")], id="retargeted"),
+            pytest.param([], id="removed"),
+            pytest.param([primary(), primary(target="cost")], id="added"),
+            pytest.param([primary(tier="secondary")], id="tier-lowered"),
+        ],
+    )
+    @pytest.mark.parametrize("current", STARTED_AND_BROKEN)
+    def test_the_criterion_does_not_change(
+        self, current: dict, metrics: list[dict]
+    ) -> None:
+        errors = _repair(repaired(current, metrics=metrics), current)
+        assert any("metrics" in e and "parent_id" in e for e in errors)
+
+    def test_a_metric_without_tier_is_a_primary_one(self) -> None:
+        secondary = primary(target="cost", tier="secondary")
+        current = broken(metrics=[primary(), secondary])
+        untiered = {k: v for k, v in secondary.items() if k != "tier"}
+        errors = _repair(repaired(current, metrics=[primary(), untiered]), current)
+        assert any("metrics" in e for e in errors)
+
+    def test_the_mark_is_not_removed(self) -> None:
+        current = broken()
+        errors = _repair(repaired(current, analysis_started_at=None), current)
+        assert any("analysis_started_at" in e for e in errors)
+
+    def test_the_mark_is_not_changed(self) -> None:
+        current = broken()
+        later = "2026-11-26T10:00:00+09:00"
+        errors = _repair(repaired(current, analysis_started_at=later), current)
+        assert any("analysis_started_at" in e for e in errors)
+
+    def test_a_saved_design_does_not_leave_the_analysis_without_the_mark(
+        self,
+    ) -> None:
+        current = confirmation(status="analyzing", **UNREADABLE)
+        errors = _repair(repaired(current, status="in_review"), current)
+        assert any("analysis_started_at" in e for e in errors)
+
+    def test_the_intent_does_not_change(self) -> None:
+        current = broken(analysis_intent="mixed")
+        new = repaired(current, analysis_intent="confirmatory")
+        assert any("analysis_intent" in e for e in _repair(new, current))
+
+    def test_an_exploration_keeps_its_intent(self) -> None:
+        current = make_exploration(status="analyzing", **UNREADABLE)
+        new = repaired(current) | make_design(
+            status="analyzing",
+            exploration_question=None,
+            exploration_background=None,
+            analysis_intent=None,
+        )
+        new = {k: v for k, v in new.items() if v is not None}
+        assert any("analysis_intent" in e for e in _repair(new, current))
+
+    def test_the_whole_bypass_is_refused_on_every_count(self) -> None:
+        # The write the gate found: hypothesis, criterion and mark at once.
+        current = broken()
+        new = repaired(
+            current,
+            hypothesis_statement="h2",
+            metrics=[primary(comparison="A<B")],
+            analysis_started_at=None,
+        )
+        fields = {e.split(":")[0] for e in _repair(new, current)}
+        assert fields == {"hypothesis_statement", "metrics", "analysis_started_at"}
+
+
+class TestARepairStillTakesWhatIsNotHeld:
+    """A repair that touches nothing held goes through as before."""
+
+    def test_the_primary_metrics_are_reordered(self) -> None:
+        both = [primary(), primary(target="cost")]
+        current = broken(metrics=both)
+        assert _repair(repaired(current, metrics=both[::-1]), current) == []
+
+    def test_a_primary_tier_written_out_or_left_out_is_the_same(self) -> None:
+        untiered = {k: v for k, v in primary().items() if k != "tier"}
+        current = broken(metrics=[untiered])
+        assert _repair(repaired(current, metrics=[primary()]), current) == []
+
+    def test_a_secondary_metric_changes(self) -> None:
+        current = broken(metrics=[primary(), primary(target="cost", tier="secondary")])
+        new = repaired(current, metrics=[primary()])
+        assert _repair(new, current) == []
+
+    def test_the_background_changes(self) -> None:
+        current = broken()
+        new = repaired(current, hypothesis_background="Because Z, as surveyed")
+        assert _repair(new, current) == []
+
+    def test_a_started_exploration_changes_its_metrics(self) -> None:
+        current = make_exploration(status="analyzing", **UNREADABLE)
+        assert _repair(repaired(current, metrics=[primary()]), current) == []
+
+    def test_a_legacy_exploration_is_still_fixed_as_a_confirmation(self) -> None:
+        current = broken(analysis_intent="exploratory")
+        new = repaired(current, analysis_intent="confirmatory")
+        assert _repair(new, current) == []
+
+    def test_a_design_before_its_analysis_is_not_held(self) -> None:
+        current = confirmation(**UNREADABLE)
+        new = repaired(current, hypothesis_statement="Reworded before any result")
+        assert _repair(new, current) == []
+
+
+class TestARepairReadsWhatItCan:
+    """A broken record may be broken anywhere: what reads is held, nothing raises."""
+
+    def test_unreadable_metrics_leave_the_hypothesis_held(self) -> None:
+        current = broken(metrics="lead time, A>B")
+        new = repaired(current, metrics=[primary()], hypothesis_statement="h2")
+        errors = _repair(new, current)
+        assert [e.split(":")[0] for e in errors] == ["hypothesis_statement"]
+
+    def test_an_unreadable_metric_leaves_the_others_held(self) -> None:
+        current = broken(metrics=[primary(), {"target": "cost", "tier": 5}])
+        changed = [primary(comparison="A<B"), primary(target="cost")]
+        assert any(
+            "metrics" in e for e in _repair(repaired(current, metrics=changed), current)
+        )
+
+    def test_an_unreadable_metric_is_repaired(self) -> None:
+        current = broken(metrics=[primary(), {"target": "cost", "tier": 5}])
+        fixed = [primary(), primary(target="cost", tier="secondary")]
+        assert _repair(repaired(current, metrics=fixed), current) == []
+
+    def test_an_unreadable_metric_does_not_open_the_way_to_more_criteria(self) -> None:
+        current = broken(metrics=[primary(), {"target": "cost", "tier": 5}])
+        more = [primary(), primary(target="cost"), primary(target="time")]
+        assert any(
+            "metrics" in e for e in _repair(repaired(current, metrics=more), current)
+        )
+
+    def test_an_unreadable_mark_still_tells_the_analysis_started(self) -> None:
+        current = confirmation(status="in_review", analysis_started_at="soon")
+        new = repaired(current, analysis_started_at=None, hypothesis_statement="h2")
+        fields = {e.split(":")[0] for e in _repair(new, current)}
+        assert fields == {"hypothesis_statement", "analysis_started_at"}
+
+    def test_an_unreadable_mark_is_repaired(self) -> None:
+        current = confirmation(status="in_review", analysis_started_at="soon")
+        assert _repair(repaired(current, analysis_started_at=MARK), current) == []
+
+    @pytest.mark.parametrize(
+        "garbled",
+        [
+            {"hypothesis_statement": ["h"]},
+            {"analysis_intent": {"x": 1}},
+            {"analysis_intent": "nonsense"},
+            {"status": ["analyzing"]},
+            {"metrics": [None, 3, {"target": ["m"]}]},
+            {"metrics": {"unexpected": "shape"}},
+        ],
+    )
+    def test_a_garbled_field_raises_nothing(self, garbled: dict) -> None:
+        current = broken(**garbled)
+        assert isinstance(_repair(repaired(broken()), current), list)
