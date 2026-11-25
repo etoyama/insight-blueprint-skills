@@ -459,6 +459,27 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - Alternatives considered: 名前を残して中身だけ変える案は、行の名前と問いがずれるので採らなかった。`design_io update` で意図を変えるときに `comparison` を検査する案は、基準を機械で検査しない決定（ADR-0050 の 5）に反するので採らなかった。
 - Consequences: 32.7 と 32.8 は `design ① intent` の行と `1. **intent**` の段を読む。32.8 は design ② の行と段に指標の解説を足す。版は同じリリースの中なので、32.7 と 32.8 はもう上げない。
 
+### Decision: a-changed-hypothesis-goes-into-a-derived-design
+
+- What: `/analysis-reflection` の Step 5 は、検証仮説を直すときも別の仮説を立てるときも、派生の分析設計を作る。`design_io update` で分析を終えた分析設計の検証仮説を書き換える手順は消した。今の分析設計は `analyzing` のまま残し、後の reflection で終えてよい。
+- Why: 検証仮説は分析の前に固定する（ADR-0048）。分析の後に書き換えると、結果を見てから仮説を置いたことになる。
+- Criteria: 人間の決定（d12 の B、2026-11-25、#232 のコメント）。
+- Affected modules: `skills/analysis-reflection/SKILL.md`（Step 3 の3つ目の問いの選択肢、Step 5、design_io Reference）。
+- Alternatives considered: 書き換えを残して注意だけ添える案。人間が派生を選んだ。
+- Consequences: 分析の後の書き換えを `design_io` が機械で拒むかは #234 で決める。この Epic では SKILL.md の手順だけを変え、`design_io update` 自体は変えていない。
+
+### Decision: reflection-reads-undirected-evidence-and-derives-through-design
+
+- What: Story 32.7 で、計画に無かった小さな判断を2つと、先送りの1つを決めた。
+  1. 旧形式の探索で `direction` を持たない evidence（32.4 の後に走らせ直した notebook の分）は、Step 2 で「Without a direction」に分けて出す。1つ目の問いでは、分析者が1件ずつ検証仮説に照らして読む。AI は向きを付けず、件数で判定を選ばない。`comparison` に基準が無ければ「分析の前に固定した基準は無い」と言ってから聞く。
+  2. 派生の分析設計（Step 5 の直した仮説と、探索を終えた後の仮の答え）は `/analysis-design` で作る。`/analysis-journal` の Step 4 の分岐の手順は、意図を聞かず、検証の基準も固定しない。`branch` の出来事と `tree_io link-derived` は、そちらの手順の 3 と 4 と同じにした。
+  3. `/analysis-reflection` の版を 1.2.0 に上げた（`test_existing_skills_version_bump`）。問いの見出しと、探索の終わり方が変わったため。
+- Why: 1つ目は先送りの指摘（32.4）。向きの無い証拠から AI が向きを推すと、分析者の判定を AI が下すことになる。2つ目は、派生の検証が分析の前に基準を固定するため（ADR-0050）。
+- Criteria: 判定は分析者が選ぶこと（Must、ADR-0048）。検証は基準を分析の前に固定すること（Must、ADR-0050）。決め手は両方。
+- Affected modules: `skills/analysis-reflection/SKILL.md`、`tests/skills/test_skill_structure.py`。
+- Alternatives considered: 向きの無い証拠を旧形式でも1群として扱い、件数を示さずに聞く案は、記録の前と後で証拠の見え方が分かれるので採らなかった（向きのある分は今までどおり分けて出す）。派生を `/analysis-journal` の Step 4 で作る案は、基準を固定しないまま検証が作られるので採らなかった。
+- Consequences: `/analysis-journal` の Step 4 の分岐の手順は、意図と基準を聞かないまま残る（この Story の範囲外）。派生の検証を作る道は `/analysis-design` に寄せた。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0048: 分析の意図が、分析設計の形と終わり方を決める](../adr/0048-intent-decides-the-form-and-the-end-of-a-design.md): 探索は探索の問いを持って `explored` で終わり、検証は検証仮説を持って判定で終わる。`mixed` は新しく作れない。意図は分析の前だけ変えられる。id の `H` は変えない。
@@ -478,7 +499,7 @@ review、premortem、journal への verdict の記録は、今と同じなので
 | 32.4 notebook と journal | ✓ | ✓ | —（notebook を生成するのは AI で、構造テストが契約と SKILL.md の文を照らす。探索の fixture を契約のコマンドで走らせ、verdict を分析ノートの読み手で読んで確かめた） |
 | 32.5 分析ノートとレポート | ✓ | ✓ | —（分析者が開く入口は `tree_io render` と `tree_io report` で、どちらも Integration で通した。実物の `.insight/` に探索・検証・旧形式の探索を1つずつ作り、分析ノートとレポートを出して目で確かめた） |
 | 32.6 論点ツリー | ✓ | ✓ | —（論点ツリーは `tree_io render` が出すページで、Integration は合成シナリオを `scripts/handoff_trial.py build` で組んで通した。探索・検証・旧形式の探索と、2つの論点に結んだ分析設計を持つ版を出して読んだ。直した後の表示で、引き継ぎの試行は回していない） |
-| 32.7 reflection | ☐ | ☐ | ☐ |
+| 32.7 reflection | ✓ | ✓ | —（SKILL.md の問いは分析者との対話で、自動で回せない。Step 4 に書いた `design_io transition` を一時ディレクトリの `.insight/` で走らせ、探索は `explored` へだけ、検証は判定の3つへ進むことを確かめた） |
 | 32.8 新しい指標の解説 | ☐ | ☐ | ☐ |
 
 ## Story Timeline
@@ -501,3 +522,4 @@ review、premortem、journal への verdict の記録は、今と同じなので
 - 2026-11-25 — Story 32.3 completed: `/analysis-design` と `/analysis-auto` が最初に意図を聞き、探索なら探索の問いを、検証なら検証仮説と `comparison` の判定の基準を確かめる。Framing Brief と `/analysis-review` も意図で分けた。計画外の判断3つは Decision `entry-asks-the-intent-and-moves-the-criterion-with-it` に書いた。
 - 2026-11-25 — Story 32.5 の追加: notebook の契約が書く `p_value` を、分析ノートとレポートの読み手が読むようにした（`p` があれば `p` を先に読む）。32.4 の申し送り。前から、契約どおりの p 値が黙って落ちていた。
 - 2026-11-25 — Story 32.6 completed: 論点ツリーは、論点に結んだ分析設計を論点の下の破線のカードに出し、2つ目の論点からは短い行にする。状態は `status_word` の言葉で出し、凡例に YAML の値との対応を出す。論点の答えに「現時点の答え」の見出しを付け、探索の引用には向きを出さない。合成シナリオの LIB-H01 を探索に、LIB-H02 を `supported` に直し、q3 の鍵を引用した文の種類で分けた。
+- 2026-11-25 — Story 32.7 completed: `/analysis-reflection` の3つの問いを、問いの形の見出し（結果から何が言えるか／まだ答えの出ていない問いで、判定は変わるか／この分析設計をどう終えるか）にした。検証は基準と問いの範囲を先に言い、探索は判定を選ばず `explored` で終えて、仮の答えを残せる。直した仮説は派生の分析設計にする（Decision `a-changed-hypothesis-goes-into-a-derived-design`）。計画外の判断は Decision `reflection-reads-undirected-evidence-and-derives-through-design` に書いた。
