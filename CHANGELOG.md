@@ -26,7 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   other fields can still be edited. A confirmation now enters `analyzing` only when it has a `primary`
   metric and every `primary` metric has its `comparison` written, so write the criterion before the review approves the design.
   The same holds for a write that concludes such a design as `supported` or `rejected` without analyzing it; to
-  end it without a criterion, close it as `inconclusive`. Designs
+  end it without a criterion, close it as `inconclusive`. A repair of a design whose saved record no
+  longer reads keeps the same items fixed once its analysis has started. Designs
   already saved still read; one that is `analyzing` or concluded counts as started
   ([ADR-0053](docs/adr/0053-a-started-confirmation-keeps-its-hypothesis-criterion-and-intent.md), #244).
 - **The report's metric table shows the two lines, the judgment and the kind of an interval.** A

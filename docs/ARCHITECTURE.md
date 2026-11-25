@@ -76,7 +76,7 @@ flowchart TD
   分析を始めた検証・旧形式の探索・`mixed` は、検証仮説と、primary の指標の組（`target` と `comparison`。足す・消す・`tier` の変更を含む）と、意図を変えない。分析を始めた探索は、意図と形を変えない。背景とほかの項目は直せる。
   分析を始めていない検証・旧形式の探索・`mixed` が `analyzing` か `supported`・`rejected` に入る書き込みは、primary の指標があり、どの primary の指標も `comparison` が空でないときだけ通る。基準が無くても `inconclusive` には入れる（分析をせずに閉じる道）。
   `design_io` 経由で書く skill も、書く前に Python 側で同じ検証を通す。tool の書き込み（hook）と
-  helper の書き込み（`design_io`）の両方で、読むときの検査が効く。書き換えるときの検査（`validate_update`）は、hook もディスク上の記録が読めるときに行う。新しく作るときの検査（`validate_creation`）は `design_io` だけが行う。
+  helper の書き込み（`design_io`）の両方で、読むときの検査が効く。書き換えるときの検査（`validate_update`）は、hook もディスク上の記録が読めるときに行う。読めないときも、生の記録が分析を始めていれば、固定の項目だけを `validate_repair` が確かめる（ADR-0053 の9）。新しく作るときの検査（`validate_creation`）は `design_io` だけが行う。
   論点ツリーの形も同じ場所で検証する（`validate_tree`。[ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md)）。
   根の問いがちょうど1つあること、論点の親が同じツリーにあって循環しないこと、根の版が1から1ずつ増えること、ツリーの決定が指す論点がツリーにあることを確かめ、モデルに無い項目を拒む。
   書き込む前の正本があれば、根の版が減っていないことと、今の版より前の版が変わっていないことも確かめる。ツリーの決定と現時点の答えは足すことだけができる。
@@ -771,7 +771,7 @@ classDiagram
 |---|---|---|
 | `designs/{id}_journal.yaml` | journal（観察・証拠・人に聞いた答え・決定・問い） | [skills/analysis-journal/SKILL.md](../skills/analysis-journal/SKILL.md) |
 | `designs/{id}_revision.yaml` | review コメントへの対応の追跡 | [skills/analysis-revision/SKILL.md](../skills/analysis-revision/SKILL.md) |
-| `notebooks/{id}_verdict.json` | notebook の verdict と figures manifest（`figures[]`）。指標は任意で効果量・信頼区間・標本サイズを持つ | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md)、[ADR-0008](adr/0008-notebook-figure-manifest.md)、[ADR-0013](adr/0013-verdict-metric-optional-items.md) |
+| `notebooks/{id}_verdict.json` | notebook の verdict と figures manifest（`figures[]`）。指標は任意で効果量・値の区間・標本サイズを持ち、群の行で群ごとの値を持てる。検証の primary の指標は支持の線・棄却の線・指標の判定を持つ（[ADR-0052](adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md)） | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md)、[ADR-0008](adr/0008-notebook-figure-manifest.md)、[ADR-0013](adr/0013-verdict-metric-optional-items.md) |
 | `rules/package_allowlist.yaml` | notebook が使ってよいパッケージ | [notebook-contract.md](../skills/analysis-notebook/references/notebook-contract.md) |
 | `config.yaml` | premortem の閾値（読み込むと `PremortemConfig` になる） | [skills/_shared/config_loader.py](../skills/_shared/config_loader.py) |
 

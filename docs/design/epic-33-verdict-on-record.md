@@ -394,7 +394,7 @@ sequenceDiagram
 - What: 分析を始めた分析設計を、分析を始めていないと読める形にする書き込みを拒む。印の無い保存済みの分析設計が、印を持たずに `analyzing` を離れる直書きが当たる。`design_io` は、状態を変える書き込みで印を付ける（`transition`、状態を含む `update`、`review-batch`）。分析を始めていない分析設計に、状態を進めずに印だけを付ける書き込みも拒む。
 - Why: AC 1 の「消す書き込みも変える書き込みも通らない」から導いた。印の無い記録は状態だけが跡なので、状態が戻ると跡が消える。逆に、先に付いた印は後の review batch に「分析を始めた後」と誤って写る（Story 33.5）。
 - Criteria: AC 1。印は記録に書いてあることだけを言う（PRD の非機能要件）。
-- Affected modules: `src/insight_blueprint/validate.py` の `_mark_errors`、`skills/_shared/design_io.py` の `_with_analysis_mark`。
+- Affected modules: `src/insight_blueprint/validate.py` の `_mark_errors` と `with_analysis_mark`（ゲートで `design_io` から移した）、`skills/_shared/design_io.py`。
 - Alternatives considered: 直書きで `analyzing` に入るときも印を求める案（新しいファイルへの直書きはスキーマだけを確かめるので、印の無い `analyzing` はどのみち作れる。ADR-0053 の Negative）。
 - Consequences: 印の無い保存済みの分析設計を結果の review に戻すには、`design_io transition` を使う。拒む文がそう案内する。`transition` は `validate_update` を通るようになり、`update` と同じ検査を受ける。`review-batch` は batch を書く前に同じ検査をするので、拒まれた承認は batch を残さない。
 
@@ -436,7 +436,7 @@ sequenceDiagram
 
 ### Decision: the-result-lenses-start-when-a-verdict-exists
 
-- What: `/analysis-review` は、`.insight/notebooks/{design_id}_verdict.json` があるとき、結果の review として、分析設計の観点の後に Step 3b（結果の観点）を通る。探索の verdict は線・判定・しきい値・合否を持たないので、図と cell の2つの観点で読む。`/analysis-revision` は、分析設計に `analysis_started_at` があるとき、固定の項目への review コメントで `design_io update` を試さない。結果への review コメントは、指した cell だけを直し、線は `comparison` から写し直し、`/analysis-notebook` の Step 4 のコマンドで回し直して、Step 6 のとおり journal に書く。
+- What: `/analysis-review` は、`.insight/notebooks/{design_id}_verdict.json` があるとき、結果の review として、分析設計の観点の後に Step 3b（結果の観点）を通る。探索の verdict は線・判定・しきい値・合否を持たないので、図と cell の2つの観点で読む。`/analysis-revision` は、分析設計に `analysis_started_at` があるとき、固定の項目への review コメントで `design_io update` を試さない。結果への review コメントに応えるとき、`/analysis-revision` は指した cell だけを直し、線は `comparison` から写し直し、`/analysis-notebook` の Step 4 のコマンドで回し直して、Step 6 のとおり journal に書く。
 - Why: ADR-0054 の2は「verdict があるとき」と決めたが、何で verdict の有無を見るかは決めていない。状態では分けられない（結果の review も設計の review も `in_review` で記録する）。固定の項目は ADR-0053 の3で、拒まれる書き込みを skill が送ると、分析者は traceback を見る（33.4 の follow-up）。
 - Criteria: ADR-0054 の2と3、ADR-0050 の3（探索は線も判定も合否も持たない）、33.4 の引き継ぎ。決め手は記録にあるファイルだけで分けられること。
 - Affected modules: `skills/analysis-review/SKILL.md`、`skills/analysis-revision/SKILL.md`。
@@ -460,6 +460,33 @@ sequenceDiagram
 - Affected modules: `skills/_shared/design_note.py`、`skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`。
 - Alternatives considered: どの行にも出す（上の理由で落とした）。
 - Consequences: `DesignSummary.of` は `AnalysisDesign` ではなく `DesignNote` を受け取る。
+
+### Decision: the-table-rules-live-once-in-verdict-table
+
+- What: 指標の表の規則（判定の列を落とす、埋まらない列を落とす、群だけの指標を本の表に出さない、群ごとの表、縦横にする条件、初出順）と、判定・区間の言葉を `skills/_shared/verdict_table.py` に1つにまとめた。表のモデルは escape する前の文字の部品で、分析ノートとレポートは escape して描くだけにする。verdict の指標の型（`VerdictMetric`・`MetricJudgment`・`ValueInterval`・`MetricGroup`）も同じモジュールに移した。見出しの差（ノートは「N」「p」、レポートは「標本サイズ」「p 値」）は Epic の前からあるので、描く側から渡す。レビューの節は `skills/_shared/design_note_reviews.py` に分けた。
+- Why: ゲートのコード品質のレビューで、同じ規則がノートとレポートに別の形で二重に書かれ、区間の種類が空のときの出方がずれていた。`design_note.py` は 1000 行を超えていた（1035 行 → 812 行）。
+- Criteria: 人間がゲートの仕分けで直すと決めた（2026-11-25、PM のセッションで直接）。振る舞いを変えないことは、保存済みの verdict の8例のノートとレポートの表、`tests/tree_io/` の期待値を変えずに通すことで確かめた。
+- Affected modules: `skills/_shared/verdict_table.py`（新規）、`design_note.py`、`design_note_reviews.py`（新規）、`theme_report.py`、`design_note_read.py`、`tree_render.py`、`_html.py`。
+- Alternatives considered: 言葉の辞書だけを共有する案（規則の二重化が残り、同じずれがまた起きる）。
+- Consequences: 区間の種類が空のとき、レポートもノートと同じ「— 水準…」を出す。ノートの群の縦の表で、空の軸の見出しを「—」にする（題と縦横の表の見出しは前から「—」）。型の import 先が `verdict_table` に変わった。
+
+### Decision: a-broken-started-record-keeps-its-fixed-items
+
+- What: ディスク上の記録がスキーマに通らないときの修復の書き込みでも、生の記録が分析を始めていれば、検証仮説・primary の指標の組・分析の印・意図を変える書き込みを拒む（ADR-0053 の9）。`design_io` の `update` と hook の両方に効く。`append_review_batch` は、分析設計を1回だけ読み、検査した遷移をそのまま書く形にした。
+- Why: ゲートのバグ・セキュリティのレビューで、記録を壊してから `design_io update` すると固定がまるごと外れることが分かった（PM が再現した）。
+- Criteria: FLOW-0008。人間が B を選んだ（2026-11-25、PM のセッションで直接）。決め手は、固定が外れないこと。
+- Affected modules: `src/insight_blueprint/validate.py`（`validate_repair`）、`skills/_shared/design_io.py`、`tests/test_validate.py`、`tests/test_validate_hook.py`、`tests/test_design_io.py`。
+- Alternatives considered: 何もしない案（壊れた記録の修復を口実に固定が外れる）。
+- Consequences: 固定の項目に触れない修復は今までどおり通る。生の記録から読めない項目は比べないので、その道は残る（ADR-0053 の Negative）。
+
+### Decision: a-result-target-is-allowed-before-the-analysis
+
+- What: 分析を始める前の review batch にも、`notebook`・`verdict`・`figures` を指す review コメントを記録できるままにする。
+- Why: 拒むと、分析の印を持たない保存済みの記録（分析の前として読む）で、結果の review が記録できなくなる。`/analysis-review` は、verdict があるときだけ結果の観点を使う。
+- Criteria: 人間がゲートの仕分けで決めた（2026-11-25、PM のセッションで直接）。
+- Affected modules: 無し（コードは変えない）。
+- Alternatives considered: `analysis_started` が偽のとき結果の対象を拒む案。
+- Consequences: skill を通さずに CLI を叩くと、「分析を始める前の review」の下に verdict への review コメントが並ぶ記録を作れる。論点ツリーの件数には数えない。
 
 ### Cross-epic decisions (links to ADR)
 
@@ -511,3 +538,4 @@ sequenceDiagram
   バグ・セキュリティの観点のレビューを1本回した（High 1件、Low 3件）。High: 日付として無い timestamp（`2026-02-30`）を手で書いた `_reviews.yaml` で、論点ツリーのページ全体が作れなかった。Low: 読む権限の無いファイルで traceback が出た。どちらもテストを足して直した（読めないファイルとして飛ばす）。直していない Low: 新しい順は `created_at` の文字の順で、時差の違う時刻を手で混ぜると前後しうる（`list_review_batches` と同じ順。書き手は1つの時差で書く）。自分を指す YAML の alias は、round-trip の読みで中身が空になって出る（落ちない）。
 - 2026-11-25 — d9 の直し（Story 33.4 の続き）: 分析を始めていない検証・旧形式の探索・`mixed` が、基準の無いまま `supported` か `rejected` に入る書き込みを拒むようにした。`inconclusive` は通る（ADR-0053 の8。人間が C を選んだ）。拒む文は `/analysis-design` で基準を書く道と、`inconclusive` で閉じる道を案内する。`/analysis-review` の Scope と Step 5、`/analysis-design` の Status Flow、ARCHITECTURE、CHANGELOG を合わせた。合成シナリオ（`tests/fixtures/handoff/lib/stages.yaml`）の検証に基準を足した。基準を持たずに `supported` へ直接進んでいたためである。
 - 2026-11-25 — d9 の直しのレビュー: バグ・セキュリティの観点のレビューを1本回した（High なし、Medium 1件、Low 4件）。`/analysis-reflection` の Step 4 に、分析を始めていない基準なしの検証を閉じるときの案内を足した（結果の後なので基準を書かず、`inconclusive` か派生）。拒む文に「結果を見る前に」を足した。探索を検証に組み替えて `supported` にする書き込みを固定するテストを足し、構造テストの表明と CHANGELOG・ADR の文を直した。
+- 2026-11-25 — Epic のゲート: AC と Test Design Matrix を照らし、バグ・セキュリティとコード品質のレビュー（High・Medium 0件）と yomiyasu の推敲を回した。人間が仕分けを承認し、表の規則の一本化、`design_note.py` の分割、`append_review_batch` の1回の計算、印を書く規則の `validate.py` への移動、壊れた記録の修復での固定（Low 1、FLOW-0008 で B）を直した。Low 2 は Decisions に書いた。issue にしたもの: #252、#253、#254。
