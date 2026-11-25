@@ -50,6 +50,7 @@ uv run pytest --cov=src --cov-report=term-missing # カバレッジつき
 TDD の進め方は [coding-principles](.claude/rules/coding-principles.md)、SKILL.md と文書の TDD の読み方は
 [ADR-0010](docs/adr/0010-skill-tdd-structure-tests.md) にある。
 skill の構造テストは `tests/skills/`、正本の文書の構造テストは `tests/docs/` に置く。
+CHANGELOG を見る構造テストは、`## [Unreleased]` や版の見出しを名指しせず、`tests/docs/_changelog.py` の `changelog_entry` で本文の語句から節を引く（リリースで節が移っても書き換えずに済む）。
 
 ## Security Checklist
 

@@ -108,7 +108,7 @@ Epic 06 からは軽量版の上に分析の能力を足していく。
 | Epic 28 | [epic-28](design/epic-28-tree-entry-point.md) | 論点ツリーの HTML を、分析者と AI が分析を進める共通の入口にする | 完了 |
 | Epic 29 | [epic-29](design/epic-29-theme-report-export.md) | レポートを、テーマの最終報告として記録からコードで書き、Claude Docs へ export する | 完了 |
 | Epic 30 | [epic-30](design/epic-30-plain-python-notebook.md) | notebook を `# %%` で区切る素の Python にし、marimo を外す | 完了 |
-| Epic 31 | [epic-31](design/epic-31-drop-pypi-publish.md) | PyPI への公開をやめ、/data-lineage を plugin の env で走らせる | 計画中 |
+| Epic 31 | [epic-31](design/epic-31-drop-pypi-publish.md) | PyPI への公開をやめ、/data-lineage を plugin の env で走らせる | 完了 |
 | Epic 32 | [epic-32](design/epic-32-exploration-and-confirmation.md) | 探索と検証の区別を分析設計の入口から出口まで効かせる | 計画中 |
 
 各 Epic の DesignDoc は `## Scope` 節で、本書のどの要件と

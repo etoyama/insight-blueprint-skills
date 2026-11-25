@@ -68,7 +68,8 @@ CLAUDE.md の肥大化はこのルールで構造的に防ぐ。
 ```mermaid
 flowchart LR
     A["Epic 起票<br/>(type:epic)"] --> B["DesignDoc 初版<br/>背景 / ユーザーストーリー /<br/>構成図 / ドメインモデル図 /<br/>シーケンス図"]
-    B --> C["Story 分割<br/>(type:story, AC≤5)"]
+    B --> B2["全体の整合 / 見本<br/>→ 人間の承認"]
+    B2 --> C["Story 分割<br/>(type:story, AC≤5)"]
     C --> D["Story 実装"]
     D --> E["DesignDoc 詳細化<br/>Decisions / Timeline /<br/>Test Matrix ✓"]
     E -->|次の Story| D

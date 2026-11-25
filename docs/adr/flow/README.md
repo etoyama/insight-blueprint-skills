@@ -1,7 +1,7 @@
 # 開発フローの決定（repo-template のコピー）
 
 このディレクトリには [etoyama/repo-template](https://github.com/etoyama/repo-template) の ADR の
-コピーだけを置く。採用したコミットは `f33bdaa5c9252d8667fe4075bd7bf824675d9706`（FLOW-0009・0010 を足した時点。FLOW-0001〜0008 の本文は変わっていない）。
+コピーだけを置く。採用したコミットは `6ed7225a57aa74a02102bb5f9ac69d186a73f2b4`（FLOW-0011〜0013 を足した時点。FLOW-0001〜0010 の本文は変わっていない）。
 [docs/WORKFLOW.md](../../WORKFLOW.md) と `.claude/rules/` のテンプレートは、ここの文書を決定の出典として参照する。
 
 - 番号は repo-template のものを保つ。表記は `FLOW-000N` とし、`ADR-000N` とは書かない。
@@ -23,3 +23,6 @@
 | [0008](0008-ask-before-narrowing-what-worked.md) | 今まで動いていたものを動かなくする判断は、Decisions に書くだけでなく人間に聞く | Accepted |
 | [0009](0009-designdoc-decisions-scope-first.md) | DesignDoc 初版では、成果物の単位と範囲の判断を先に聞き、中身で迷ったら見本を見比べてから決める | Accepted |
 | [0010](0010-retrospective-after-epic.md) | Epic のリリースの後に、軽量な定型の振り返りを回す | Accepted |
+| [0011](0011-start-wave-one-before-designdoc-approval.md) | 波 1 の子は、DesignDoc 初版の子を立てるターンで、待機の指示で立てておく | Accepted |
+| [0012](0012-shared-notes-in-app-folder-checked-by-path.md) | 共有ノートはアプリの置き場に置き、子が報告した絶対パスを PM が確かめてボードに残す | Accepted |
+| [0013](0013-write-rules-reasons-and-helpers-into-designdoc-and-brief.md) | DesignDoc とブリーフには、守りたい規則、触らない理由、使う既存の道具を書く | Accepted |
