@@ -141,8 +141,12 @@ Then read the result with these lenses, one comment per issue:
 - **The cells** — does each cell keep one job per cell (the 7-cell contract of
   `/analysis-notebook`), so the criterion, the computation and the verdict can be read apart?
 
-An exploration has no criterion: it carries no line, no judgment and no pass (ADR-0050).
-Read its verdict with the last three lenses only.
+An exploration has no criterion: it carries no line, no judgment, no threshold and no pass
+(ADR-0050). Read its verdict with the figures and the cells lenses only.
+
+A design with a verdict but no `analysis_started_at` was saved before the analysis mark
+existed and reads as not started (ADR-0053). Tell the analyst so: the batch is recorded as
+before the analysis, and the design does not keep its hypothesis, criterion or intent.
 
 A comment on the result targets `notebook` (a cell), `verdict` (a metric of the verdict) or
 `figures` (a figure), with the snippet it points at as `target_content`. A comment on the
@@ -175,10 +179,10 @@ echo '{
 
 Use `--status analyzing` to approve instead. Show the returned batch to the user.
 
-An approval that would let a confirmation into `analyzing` without a `primary` metric whose
-`comparison` states the criterion is refused (ADR-0053), and no batch is recorded. Tell the
-analyst the criterion is missing and send them to `/analysis-design {design_id}` to write the
-`comparison`; then record the review again.
+An approval that would let a confirmation, a legacy exploration or a `mixed` design into
+`analyzing` without a `primary` metric whose `comparison` states the criterion is refused
+(ADR-0053), and no batch is recorded. Tell the analyst the criterion is missing and send them
+to `/analysis-design {design_id}` to write the `comparison`; then record the review again.
 
 ### Step 6: Hand off
 

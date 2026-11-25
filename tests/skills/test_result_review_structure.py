@@ -62,6 +62,13 @@ class TestReviewReadsTheResult:
         """ADR-0050 3: an exploration carries no line and no judgment."""
         step = _review("### Step 3b: ")
         assert "An exploration has no criterion" in step
+        assert "the figures and the cells lenses only" in step
+
+    def test_a_verdict_without_the_mark_is_said_before_the_batch(self) -> None:
+        """ADR-0053 Negative: a design saved without the mark reads as not started."""
+        step = _review("### Step 3b: ")
+        assert "no `analysis_started_at`" in step
+        assert "before the analysis" in step
 
 
 class TestReviewSendsAMissingCriterionToTheDesign:
@@ -70,6 +77,7 @@ class TestReviewSendsAMissingCriterionToTheDesign:
     def test_step_5_says_what_the_refusal_means_and_where_to_go(self) -> None:
         step = _review("### Step 5: ")
         assert "`comparison`" in step
+        assert "a confirmation, a legacy exploration or a `mixed` design" in step
         assert "no batch is recorded" in step
         assert "/analysis-design" in step
 
@@ -115,6 +123,14 @@ class TestRevisionDoesNotRewriteWhatTheAnalysisHolds:
     def test_it_does_not_try_the_update(self) -> None:
         phase = _revision("### Phase 3: ")
         assert "do not try `design_io update`" in phase
+
+    def test_a_legacy_exploration_may_still_become_a_confirmation(self) -> None:
+        """ADR-0049 6: the one change of intent a started design still takes."""
+        phase = _revision("### Phase 3: ")
+        assert (
+            "legacy exploration may still set `analysis_intent` to `confirmatory`"
+            in phase
+        )
 
     def test_it_offers_a_reason_or_a_derived_design(self) -> None:
         phase = _revision("### Phase 3: ")

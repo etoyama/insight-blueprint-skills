@@ -145,7 +145,8 @@ For each item in the tracking file where `status == "open"`:
    what the verdict was judged against (ADR-0053): the `hypothesis_statement` and the
    `primary` metrics (their `target`, `comparison` and `tier`) of a confirmation, a legacy
    exploration or a `mixed` design, and the `analysis_intent` of any design. Say so when the
-   comment targets one of them.
+   comment targets one of them. The one exception: a legacy exploration may still set
+   `analysis_intent` to `confirmatory` (ADR-0049), so that comment is fixed as usual.
 
 2. **Ask user for direction**:
    ```
