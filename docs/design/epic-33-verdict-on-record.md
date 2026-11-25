@@ -75,9 +75,9 @@ AC の正本はここ。
 
 分析者として、結果の review が何を見るかを聞き返さずに分かり、notebook・verdict・図への review コメントを記録したい。読み手として、判定と並んで review コメントを読みたい。
 
-- [ ] AC 1: review コメントは分析設計の項目に加えて、notebook・verdict・図（`notebook`・`verdict`・`figures`）を対象にできる。review batch は分析を始めた後に書かれたかどうかを自分で持つ。保存済みの `{id}_reviews.yaml` は読める。
-- [ ] AC 2: `/analysis-review` は、verdict があるとき、結果の観点で読む。観点は、支持の線・棄却の線・指標の判定が `comparison` と合うか、値と判定が食い違わないか、図の軸の説明と読み方、guardrail の合否、cell ごとの責務である。批評の前に、何を読むかを分析者に言う。
-- [ ] AC 3: 結果の review が `revision_requested` で終わったとき、`/analysis-revision` は、notebook・verdict・図への review コメントでは、notebook を直して回し直す道を案内する。US-3 が固定する項目への review コメントでは、分析設計を直さず、理由を付けて対応しないか、派生を作るかを選ばせる。
+- [x] AC 1: review コメントは分析設計の項目に加えて、notebook・verdict・図（`notebook`・`verdict`・`figures`）を対象にできる。review batch は分析を始めた後に書かれたかどうかを自分で持つ。保存済みの `{id}_reviews.yaml` は読める。
+- [x] AC 2: `/analysis-review` は、verdict があるとき、結果の観点で読む。観点は、支持の線・棄却の線・指標の判定が `comparison` と合うか、値と判定が食い違わないか、図の軸の説明と読み方、guardrail の合否、cell ごとの責務である。批評の前に、何を読むかを分析者に言う。
+- [x] AC 3: 結果の review が `revision_requested` で終わったとき、`/analysis-revision` は、notebook・verdict・図への review コメントでは、notebook を直して回し直す道を案内する。US-3 が固定する項目への review コメントでは、分析設計を直さず、理由を付けて対応しないか、派生を作るかを選ばせる。
 - [ ] AC 4: 分析ノートは「レビュー」の節に、すべての review batch を新しい順に出す。batch ごとに、時刻、分析を始めた後かどうか、review の後の状態、review コメントと対象を、書かれたとおりに出す。分析を始めた後かどうかを持たない保存済みの batch では、その表示を出さない。
 - [ ] AC 5: 論点ツリーは分析設計の行に、分析を始めた後の review batch の review コメントの件数を出す。0件のときは出さない。
 
@@ -434,6 +434,15 @@ sequenceDiagram
 - Alternatives considered: 群だけを持つ指標も主の表に名前だけの行を出す（「—」だけの行になる）。名前を並べ替える（数の名前を文字の順に並べてしまう）。
 - Consequences: 値が空文字の指標は、その列を残して「—」で出す。前の実装と同じ扱いで、見た目にとどまる（レビューの Low の指摘。直していない）。軸が3つ以上の群は縦の表になり、行数は減らない（ADR-0052 の Negative のまま）。
 
+### Decision: the-result-lenses-start-when-a-verdict-exists
+
+- What: `/analysis-review` は、`.insight/notebooks/{design_id}_verdict.json` があるとき、結果の review として、分析設計の観点の後に Step 3b（結果の観点）を通る。探索の verdict は、線・判定・合否を持たないので、図・guardrail・cell の3つの観点で読む。`/analysis-revision` は、分析設計に `analysis_started_at` があるとき、固定の項目への review コメントで `design_io update` を試さない。結果への review コメントは、指した cell だけを直し、線は `comparison` から写し直し、`/analysis-notebook` の Step 4 のコマンドで回し直して、Step 6 のとおり journal に書く。
+- Why: ADR-0054 の2は「verdict があるとき」と決めたが、何で verdict の有無を見るかは決めていない。状態では分けられない（結果の review も設計の review も `in_review` で記録する）。固定の項目は ADR-0053 の3で、拒まれる書き込みを skill が送ると、分析者は traceback を見る（33.4 の follow-up）。
+- Criteria: ADR-0054 の2と3、ADR-0050 の3（探索は線も判定も合否も持たない）、33.4 の引き継ぎ。決め手は、記録にあるファイルだけで分けられること。
+- Affected modules: `skills/analysis-review/SKILL.md`、`skills/analysis-revision/SKILL.md`。
+- Alternatives considered: batch の `after_analysis_started` で分ける（batch は review を書いた後にしか無いので、批評の前には使えない）。分析設計の印で分ける（verdict を書く前に `analyzing` に入っただけの分析設計まで結果の review になり、読むものが無い）。
+- Consequences: verdict のファイルを消した分析設計は、分析を始めていても設計の review として読む。notebook を回し直すと前の verdict は残らない（ADR-0054 の Negative のとおり）。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0052: verdict の指標は支持の線と棄却の線、指標の判定、値の区間の種類、群の行を持つ](../adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md): #235・F17・F09 の形を1本にまとめた。
@@ -448,7 +457,7 @@ sequenceDiagram
 | Story 33.2 | ✓（`tests/test_design_note.py`: 線・判定・区間の種類・空の列・縦横の表と縦の表・探索・escape） | ✓（`tests/integration/test_analysis_notebook_contract.py`: 検証と探索の fixture の verdict を分析ノートの表で読む。`tests/test_saved_verdicts.py`: 保存済みの verdict の8例が同じ値で出る） | ✓（`tests/tree_io/test_render_design.py`: `tree_io render --design` が線・判定・HDI・縦横の群の表を出す） |
 | Story 33.3 | ✓（`tests/test_theme_report.py`: 線・判定の列と言葉、区間の種類の言葉、群の縦横の表と縦の表、群の初出順、探索で線と判定を出さないこと、利用者の文の escape、保存済みの verdict の8例の表） | ✓（`tests/tree_io/test_report.py`: 線・判定・HDI・軸が2つの群を持つ verdict が、`tree_io report` の書いたファイルの表に出る） | —（レポートは code が書く Markdown で、統合テストがファイルの表を照らす。検証と探索の fixture を回して読んだ verdict と、保存済みの8例と、軸が2つの群（縦横と縦）のレポートの表を、ブラウザで目で確かめた） |
 | Story 33.4 | ✓ | ✓ | —（分析者の入口の SKILL.md は対話で、自動で回せない。一時ディレクトリの `.insight/` で `design_io` の CLI を走らせ、基準の無い検証の `transition analyzing` が拒まれること、`analyzing` と結果の review の `in_review` で検証仮説と基準の書き換えが拒まれること、背景の直しが通ることを確かめた。hook にも同じ直書きを渡して確かめた） |
-| Story 33.5 | ☐ | ☐ | ☐ |
+| Story 33.5 | ✓（`tests/test_review_models.py`: 保存済みの batch が `after_analysis_started` を持たずに読めること、書いた値を持ち続けること。`tests/skills/test_result_review_structure.py`: 結果の観点、批評の前に読むもの、基準が無いときの案内、notebook を直す道、固定の項目に update を試さないこと。`tests/docs/test_canonical_docs.py`: 用語） | ✓（`tests/test_design_io.py`: 対象 `notebook`・`verdict`・`figures` の batch、承認の batch は分析の前で結果の review の batch は後、保存済みの `_reviews.yaml` の batch が項目を持たずに並ぶこと） | —（review と revision は対話の SKILL.md で、自動で回せない。一時ディレクトリの `.insight/` で `design_io` の CLI を走らせ、設計の review の batch（分析の前）、承認、`in_review` に戻した後の `verdict` への batch（分析の後）を記録し、`list-reviews` で両方の項目を確かめた） |
 | Story 33.6 | ☐ | ☐ | ☐ |
 
 完了時に ✓ を付ける。このマトリクスが Epic PR のレビューゲート。
@@ -468,6 +477,7 @@ sequenceDiagram
 
 - 2026-11-25 — Story 33.4 completed: 分析の印（`analysis_started_at`）を分析設計に足し、`validate_update` が、分析を始めた検証の検証仮説・primary の指標の組・意図の変更と、基準の無い検証が `analyzing` に入る書き込みを拒むようにした。`design_io` は状態を変える書き込みで印を付け、`transition` と `review-batch` も同じ検査を通る。Domain Model 図は変えていない（分析を始めたかは `validate.py` の `analysis_started` が答える）。計画外の判断は3件で、Decisions に書いた（組の比べ方、印を先に付けない、基準を確かめるのは初めて入るときだけ）。`/analysis-review` と `/analysis-revision` の案内は 33.5 が直す。
 - 2026-11-25 — Story 33.3 completed: レポートの指標の表に、支持の線・棄却の線・判定・区間の種類を出し、群を持つ指標を指標ごとの表（縦横か縦）で出すようにした（`theme_report.py` の `_metrics`・`_group_table`・`_cross_table`）。US-1 AC 4 と US-2 AC 5 を満たした。US-1 AC 5 と US-2 AC 2 は、レポートについて満たした（保存済みの verdict の8例を、Epic の前のコードが出した表で先に固定し、区間の列の見出しと種類の言葉だけを変えた）。分析ノートは 33.2 が確かめるので、チェックは付けていない。
+- 2026-11-25 — Story 33.5 completed: review コメントの対象に `notebook`・`verdict`・`figures` を足し、`ReviewBatch` に任意の `after_analysis_started` を足した。`append_review_batch` は遷移の前のディスク上の分析設計を `analysis_started()` で読んで書く。`/analysis-review` は verdict があるとき Step 3b の結果の観点で読み、`/analysis-revision` は結果への review コメントを notebook で直し、固定の項目には `design_io update` を試さない。US-4 AC 1〜3 を満たした。Domain Model 図は変えていない（案の名前と型のまま）。計画外の判断は1件で、Decisions に書いた（`the-result-lenses-start-when-a-verdict-exists`）。
   33.1 が置いた暫定の条件（種類が `confidence` の値の区間だけを「信頼区間」の列に出す）と、そのテストを消した。
   表示の言葉・区間の cell の形・列の順・群の表の規則は、33.2 と知らせ合って同じにした。計画外の判断は2件で、Decisions に1つにまとめて書いた（組が重なる群は縦の表、値と群の両方を持つ指標は両方を出す）。Domain Model 図は変えていない。
   バグ・セキュリティの観点のレビューを1本回した（中以上の指摘なし）。軽微な2件は直していない。escape すると同じ文字になる群の名前（`"a"` と `"a "`）は、見分けのつかない2つの列になる。値を1つも持たない群の行だけの指標は、縦横の表が「—」だけになる。Python 3.11 でもレポートのテストを回した。

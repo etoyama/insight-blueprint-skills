@@ -40,6 +40,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   written). Two axes of values only lay one axis down and one across; any other groups come in a tall
   table. A column no metric fills is left out, so a saved verdict keeps its values with fewer columns
   ([ADR-0052](docs/adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md), #245).
+- **A review after the analysis reads the result.** When the design has a verdict, `/analysis-review`
+  tells the analyst what it reads (the notebook, the verdict, the figures) and checks the lines and
+  the judgment against `comparison`, values against judgments, the figures' axes, the guardrails and
+  the cells. A review comment may now target `notebook`, `verdict` or `figures`, and each review batch
+  records `after_analysis_started`; batches saved before read as they were, without it.
+  `/analysis-revision` fixes a comment on the result in the notebook and re-runs it, and answers a
+  comment on what a started design keeps with a reason or a derived design instead of
+  `design_io update` ([ADR-0054](docs/adr/0054-review-covers-the-result-and-its-comments-reach-the-reader.md), #247).
 
 ## [0.19.0] - 2026-11-25
 
