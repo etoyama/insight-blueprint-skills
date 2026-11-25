@@ -1,7 +1,12 @@
 # Generated from docs/UBIQUITOUS_LANGUAGE.md by scripts/export_yomiyasu_words.py. Do not edit.
 分析設計
 仮説
+検証仮説
 仮説の背景
+探索の問い
+探索の問いの背景
+分析設計の形
+旧形式の探索
 状態
 terminal status
 分析の意図

@@ -670,6 +670,45 @@ class TestYomiyasuWords:
                 f"{name} is stale: run uv run python scripts/export_yomiyasu_words.py"
             )
 
+    @staticmethod
+    def _glossary(*rows: str) -> str:
+        header = "| 用語 | コード上の名前 | 定義 | 使わない言い換え | 初出 |\n|---|---|---|---|---|\n"
+        return "## Terms\n\n" + header + "\n".join(rows) + "\n"
+
+    def test_a_qualified_variant_becomes_a_pattern_and_not_a_flag(self) -> None:
+        # A variant wrong only in some contexts cannot be a flag.txt word, which matches
+        # everywhere; a pattern can skip the terms that contain it.
+        out = words.render(
+            self._glossary(
+                "| 検証仮説 | — | d | 仮説（分析設計の項目を指すとき） | x |",
+                "| 仮説の背景 | — | d | — | x |",
+            )
+        )
+        assert "仮説\t" not in out["flag.txt"]
+        assert (
+            "仮説（分析設計の項目を指すとき）は検証仮説\t(?<!検証)仮説(?!の背景)\n"
+            in out["flag-patterns.txt"]
+        )
+
+    def test_a_pattern_skips_every_term_that_ends_with_the_variant(self) -> None:
+        out = words.render(
+            self._glossary(
+                "| 探索の問い | — | d | 問い（分析設計の項目を指すとき） | x |",
+                "| 根の問い | — | d | — | x |",
+                "| 未解決の問い | — | d | — | x |",
+            )
+        )
+        assert "\t(?<!探索の)(?<!根の)(?<!未解決の)問い\n" in out["flag-patterns.txt"]
+
+    def test_every_pattern_fits_the_limits_of_yomiyasu(self) -> None:
+        # yomiyasu stops with exit code 2 on a name over 40 characters or a regex over 200.
+        lines = words.render(_read("docs/UBIQUITOUS_LANGUAGE.md"))["flag-patterns.txt"]
+        patterns = [line.split("\t") for line in lines.splitlines()[1:]]
+        assert patterns
+        for name, regex in patterns:
+            assert len(name) <= 40, name
+            assert len(regex) <= 200, regex
+
 
 class TestPluginVariables:
     """The host fills in plugin variables in skill text, not in the Bash tool's environment."""
@@ -1059,3 +1098,136 @@ class TestWaveOneNotesAndBriefFlow:
         scope = unwrap(section(text, "## Scope"))
         assert "触らない所" in scope
         assert "必ず理由を書く（FLOW-0013）" in scope
+
+
+class TestExplorationAndConfirmationTerms:
+    """Epic 32 US-8: the glossary and the canonical docs tell exploration from confirmation."""
+
+    GLOSSARY = "docs/UBIQUITOUS_LANGUAGE.md"
+    # ADR-0048: these definitions must hold for an exploration as well as a confirmation.
+    BOTH_FORMS = (
+        "分析設計",
+        "指標",
+        "手法",
+        "派生",
+        "terminal status",
+        "分析の意図",
+        "notebook",
+        "verdict",
+        "reflection",
+        "仮説の背景",
+    )
+    # A bare 仮説 names the design's field only in the old wording; 検証仮説 is the field.
+    BARE_HYPOTHESIS = re.compile(r"(?<!検証)仮説")
+
+    def _rows(self) -> dict[str, dict[str, str]]:
+        return {r[words.TERM]: r for r in words.terms_rows(_read(self.GLOSSARY))}
+
+    @pytest.mark.parametrize(
+        ("term", "code"),
+        [
+            ("検証仮説", "`hypothesis_statement`"),
+            ("探索の問い", "`exploration_question`"),
+            ("探索の問いの背景", "`exploration_background`"),
+            ("旧形式の探索", "`legacy_exploration`"),
+            ("分析設計の形", "`DesignForm`"),
+        ],
+    )
+    def test_the_terms_of_the_two_forms_are_in_the_glossary(
+        self, term: str, code: str
+    ) -> None:
+        assert code in self._rows()[term][words.CODE_NAME]
+
+    def test_a_hypothesis_is_the_answer_put_before_a_question(self) -> None:
+        row = self._rows()["仮説"]
+        assert "`hypothesize`" in row[words.CODE_NAME]
+        assert "hypothesis_statement" not in row[words.CODE_NAME]
+        assert "問いに先に置く仮の答え" in row[words.DEFINITION]
+
+    @pytest.mark.parametrize("term", BOTH_FORMS)
+    def test_a_shared_definition_does_not_assume_a_hypothesis(self, term: str) -> None:
+        definition = self._rows()[term][words.DEFINITION]
+        assert not self.BARE_HYPOTHESIS.search(definition), definition
+
+    def test_explored_is_a_terminal_status(self) -> None:
+        assert "`explored`" in self._rows()["terminal status"][words.CODE_NAME]
+
+    def test_mixed_cannot_be_created(self) -> None:
+        definition = self._rows()["分析の意図"][words.DEFINITION]
+        assert "`mixed`" in definition
+        assert "新しく作れない" in definition
+
+    def test_the_h_of_a_design_id_is_its_serial_number(self) -> None:
+        assert "通し番号の記号" in self._rows()["分析設計"][words.DEFINITION]
+
+    def test_the_context_names_both_forms(self) -> None:
+        context = unwrap(words.section(_read(self.GLOSSARY), "Context"))
+        assert "探索" in context
+        assert "検証仮説" in context
+        assert "分析者が仮説を立て" not in context
+
+    @pytest.mark.parametrize(
+        ("term", "variant"),
+        [
+            ("検証仮説", "仮説（分析設計の項目を指すとき）"),
+            ("探索の問い", "問い（分析設計の項目を指すとき）"),
+        ],
+    )
+    def test_a_bare_word_for_a_field_is_flagged(self, term: str, variant: str) -> None:
+        assert variant in self._rows()[term][words.AVOID].split("、")
+        assert f"{variant}は{term}\t" in _read(".yomiyasu-words/flag-patterns.txt")
+
+    def test_prd_vision_tells_the_two_forms_apart(self) -> None:
+        vision = unwrap(words.section(_read("docs/PRD.md"), "ビジョン / 解く課題"))
+        assert "仮説 → 設計 → 検証 → 結論" not in vision
+        assert "探索" in vision
+        assert "検証仮説" in vision
+
+    def test_prd_core_value_names_both_fields_of_a_design(self) -> None:
+        core = words.section(_read("docs/PRD.md"), "コアバリュー（温存すべき核）")
+        line = next(ln for ln in core.splitlines() if "分析設計" in ln)
+        assert "探索の問い" in line
+        assert "検証仮説" in line
+
+    def test_architecture_validation_has_the_two_checks(self) -> None:
+        components = unwrap(
+            section(_read("docs/ARCHITECTURE.md"), "## コンポーネントと責務")
+        )
+        assert "validate_creation" in components
+        assert "DesignForm" in components
+
+    def test_architecture_invocation_model_asks_the_intent_first(self) -> None:
+        model = unwrap(
+            section(_read("docs/ARCHITECTURE.md"), "### Skill invocation model")
+        )
+        assert "① 分析の意図と、探索の問いか検証仮説" in model
+
+    def test_architecture_workflow_ends_an_exploration_as_explored(self) -> None:
+        sequence = section(_read("docs/ARCHITECTURE.md"), "### 分析ワークフロー全体")
+        line = next(ln for ln in sequence.splitlines() if "CC->>IO: transition" in ln)
+        assert "explored" in line
+        assert "supported" in line
+
+    def test_architecture_autopilot_asks_the_intent_at_the_first_beat(self) -> None:
+        sequence = section(
+            _read("docs/ARCHITECTURE.md"), "### guided autopilot（`/analysis-auto`）"
+        )
+        first = next(ln for ln in sequence.splitlines() if "【KEEP①】" in ln)
+        for word in ("分析の意図", "探索の問い", "検証仮説"):
+            assert word in first, word
+        second = next(ln for ln in sequence.splitlines() if "【KEEP②】" in ln)
+        assert "intent" not in second
+
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "探索（旧形式）",
+            "design_io update --id <id>",
+            "`mixed` can no longer be created",
+        ],
+    )
+    def test_changelog_upgrade_note_tells_how_to_handle_old_designs(
+        self, phrase: str
+    ) -> None:
+        entry = changelog_entry(_read("CHANGELOG.md"), "探索（旧形式）")
+        assert phrase in unwrap(section(entry, "### Upgrade note"))

@@ -69,6 +69,9 @@ flowchart TD
 - **Validation library（`src/insight_blueprint/validate.py`）** — I/O を持たない純関数。
   Pydantic スキーマ検証（`AnalysisDesign`。`DesignStatus`、空でない `Methodology.method`、両方そろった `DecisionContext` など）+
   状態遷移ガード（`VALID_TRANSITIONS`。例: `analyzing → supported` は許し、`analyzing → revision_requested` は拒む。結果を見た後のレビューで `in_review` へ戻すのは任意（[ADR-0029](adr/0029-analyzing-reaches-conclusion-directly.md)）。terminal status からはどこへも遷移しない）。分析設計の整合性の単一正本。
+  遷移は分析設計の形（`DesignForm`。分析の意図と項目から導き、保存しない）を受け取る。探索は `explored` へだけ、検証と旧形式の探索は `supported`・`rejected`・`inconclusive` へだけ進める（`valid_targets`。[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md)）。
+  検査は2段ある。読むときの検査（`validate_schema`。hook もこれを使う）は、保存済みの旧形式の探索と `mixed` を通す。
+  作るときの検査（`validate_creation`。`design_io create` と `update` が呼ぶ）は、旧形式の探索と `mixed` を新しく作ることと、`in_review`・`revision_requested` の後に意図を変えることを拒む（[ADR-0049](adr/0049-legacy-exploration-stays-readable-and-is-marked.md)）。
   `design_io` 経由で書く skill も、書く前に Python 側で同じ検証を通す。tool の書き込み（hook）と
   helper の書き込み（`design_io`）の両方が守られる。
   論点ツリーの形も同じ場所で検証する（`validate_tree`。[ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md)）。
@@ -103,7 +106,7 @@ KEEP ゲートは次のとおり。
 
 - 着手: 論点ツリーの無いテーマの `design_id` を渡されたときに、ツリーを作るかどうか / `theme_id`・根の問い・到達点 /
   第一階層の論点と最初に調べる論点 / 根の版を上げるかどうか。
-- 分析設計の4ビート: ① 仮説 / ② 手法・指標・explanatory の因果役割・intent /
+- 分析設計の4ビート: ① 分析の意図と、探索の問いか検証仮説 / ② 手法・指標（検証では primary の指標の `comparison` に判定の基準）・explanatory の因果役割 /
   ③ データ取得プラン（SQL クエリ or データソースの id + columns + filter, premortem の前。パスは見せない、[ADR-0022](adr/0022-connection-reaches-only-the-notebook.md)） / ④ chart 仕様。
 - 実行: データソース登録 / premortem `HARD_BLOCK`・`HIGH` / notebook の非 allowlist・宣言 source 以外の外部通信 / 結論。
 - 巡回の終わり: ツリーの決定（深める・親に戻る・区切る、次に調べる論点、理由）と、人に聞いてきた答え。
@@ -303,7 +306,7 @@ sequenceDiagram
         U->>CC: /data-lineage（Mermaid export）
     end
     U->>CC: /analysis-reflection（結論 → status 遷移）
-    CC->>IO: transition（supported / rejected / inconclusive）
+    CC->>IO: transition（探索は explored、検証は supported / rejected / inconclusive）
     opt テーマを横断した振り返り（論点ツリーがあるとき）
         U->>CC: /analysis-reflection {theme_id}
         CC->>IO: tree_io answer（論点ごとの現時点の答え。検査を通るまで書かない）
@@ -382,8 +385,8 @@ sequenceDiagram
         end
 
         Note over D,FS: design（AUTO: Framing Brief から各フィールドを自動ドラフト → KEEP: ①〜④を順に確認）
-        D->>U: 【KEEP①】仮説（statement + background）と決定の文脈（任意）を確認
-        D->>U: 【KEEP②】手法 + metrics + explanatory の因果役割 + intent を確認
+        D->>U: 【KEEP①】分析の意図と、探索の問い（question + background）か検証仮説（statement + background）、決定の文脈（任意）を確認
+        D->>U: 【KEEP②】手法 + metrics（検証では primary の comparison に判定の基準）+ explanatory の因果役割を確認
         D->>U: 【KEEP③】データ取得プラン（SQL クエリ / データソースの id + columns + filter + 想定行数）を確認
         D->>U: 【KEEP④】chart[] 仕様（intent/type/x/y）を確認
         U-->>D: 各ビートで確定（or 修正）

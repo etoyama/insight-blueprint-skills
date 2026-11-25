@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upgrade note
+
+- **An exploratory design saved with a hypothesis still reads, and is marked "探索（旧形式）"
+  (legacy exploration).** It keeps its hypothesis and verdict as written, and checks and concludes like
+  a confirmation. Nothing has to be rewritten
+  ([ADR-0049](docs/adr/0049-legacy-exploration-stays-readable-and-is-marked.md), #227).
+- If such a design was really a confirmation (a hypothesis fixed before the analysis), set its intent
+  to `confirmatory`. This works in any status and changes nothing else:
+  `echo '{"analysis_intent": "confirmatory"}' | design_io update --id <id>`.
+  Leave an exploration that put a verdict on an open question as it is.
+- `mixed` can no longer be created, and an intent can be changed only while the design is `in_review`
+  or `revision_requested`. A saved `mixed` design still reads and is treated as a confirmation.
+  To analyse the other way after the analysis, derive a new design
+  ([ADR-0048](docs/adr/0048-intent-decides-the-form-and-the-end-of-a-design.md), #227).
+
 ### Changed
 
 - **An exploratory design holds a question, not a hypothesis, and ends as `explored`.** `design_io create`

@@ -46,20 +46,51 @@ def terms_rows(markdown: str) -> list[dict[str, str]]:
     return [dict(zip(header, cells, strict=True)) for cells in body[1:]]
 
 
+def _literal(text: str) -> str:
+    # yomiyasu accepts a backslash only before a symbol, so re.escape (which also
+    # escapes spaces) cannot be used.
+    return re.sub(r"([.^$*+?{}\[\]\\|()])", r"\\\1", text)
+
+
+def _pattern(word: str, terms: list[str]) -> str:
+    """Match ``word`` except where it is part of another term (検証仮説, 探索の問い)."""
+    behind: list[str] = []
+    ahead: list[str] = []
+    for term in terms:
+        at = term.find(word)
+        if term == word or at < 0:
+            continue
+        if at > 0:
+            behind.append(f"(?<!{_literal(term[:at])})")
+        else:
+            ahead.append(f"(?!{_literal(term[len(word) :])})")
+    return (
+        "".join(dict.fromkeys(behind)) + _literal(word) + "".join(dict.fromkeys(ahead))
+    )
+
+
 def render(markdown: str) -> dict[str, str]:
-    allow: list[str] = []
+    rows = terms_rows(markdown)
+    allow = [row[TERM] for row in rows]
     flag: list[str] = []
-    for row in terms_rows(markdown):
-        allow.append(row[TERM])
+    patterns: list[str] = []
+    for row in rows:
         for variant in row[AVOID].split("、"):
-            # A variant qualified with a condition (「…（…とき）」) is only wrong in some
-            # contexts, so flagging every occurrence would be noise.
-            if variant in ("", "—") or "（" in variant:
+            if variant in ("", "—"):
                 continue
-            flag.append(f"{variant}\t{row[TERM]}")
+            if "（" not in variant:
+                flag.append(f"{variant}\t{row[TERM]}")
+                continue
+            # A variant qualified with a condition (「…（…とき）」) is only wrong in some
+            # contexts. A flag.txt word would also match inside the terms that contain it
+            # (仮説 in 検証仮説), so it goes to flag-patterns.txt with those terms skipped,
+            # and the pattern's name carries the condition for the reader.
+            word = variant.split("（", 1)[0]
+            patterns.append(f"{variant}は{row[TERM]}\t{_pattern(word, allow)}")
     return {
         "allow.txt": HEADER + "\n".join(allow) + "\n",
         "flag.txt": HEADER + "\n".join(flag) + "\n",
+        "flag-patterns.txt": HEADER + "\n".join(patterns) + "\n",
     }
 
 

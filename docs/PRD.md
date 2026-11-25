@@ -6,8 +6,10 @@
 
 ## ビジョン / 解く課題
 
-分析者が「仮説 → 設計 → 検証 → 結論」のサイクルを、加工の透明性とリネージを保ったまま
-回せるようにする。本家 insight-blueprint は MCP 常駐サーバ + WebUI + SQLite で同じ価値を
+分析者が「問い → 分析設計 → データで答える → 結論」のサイクルを、加工の透明性とリネージを保ったまま
+回せるようにする。分析には探索と検証がある。探索は探索の問いを測って答え、判定しない。
+検証は検証仮説と判定の基準を分析の前に置き、データで判定する。探索で見つけたことが、次の論点と検証仮説を生む
+（[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md)）。本家 insight-blueprint は MCP 常駐サーバ + WebUI + SQLite で同じ価値を
 提供してきたが、運用の実態は Claude Code との対話に寄り、サーバ/WebUI のメンテ・オンボーディング
 コストが正味の負債になっていた（[ADR-0001](adr/0001-drop-mcp-server-embed-validation.md)）。
 
@@ -26,7 +28,7 @@
 ## コアバリュー（温存すべき核）
 
 - notebook 契約 & lineage — データ加工の透明性・追跡可能性
-- 分析設計（`*_hypothesis.yaml`）と、それを生成する skills
+- 分析設計（`*_hypothesis.yaml`。探索は探索の問いを、検証は検証仮説を持つ）と、それを生成する skills
 - journal / reflection — 結果の解釈と結論づけ
 - premortem — 高コストなデータアクセス前の費用・リスク評価
 - 論点ツリー — テーマの問いの構造と、親の問いへの現時点の答え
