@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from tests.docs._changelog import changelog_entry
-from tests.skills._markdown import section, unwrap
+from tests.skills._markdown import section, table_rows, unwrap
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -416,32 +416,69 @@ class TestReportAndUploadDocs:
         assert [epic for epic in roadmap if epic not in mapped] == []
 
 
-class TestTreeEntryPointDocs:
-    """Epic 28, first edition: the DesignDoc has what WORKFLOW §4 asks for before any Story starts."""
+# The DesignDoc of each Epic since 28, with the ADRs its first edition cites.
+FIRST_EDITIONS = {
+    "docs/design/epic-28-tree-entry-point.md": ("0036", "0037"),
+    "docs/design/epic-29-theme-report-export.md": ("0039", "0040"),
+    "docs/design/epic-30-plain-python-notebook.md": ("0045", "0046"),
+    "docs/design/epic-32-exploration-and-confirmation.md": (
+        "0048",
+        "0049",
+        "0050",
+        "0051",
+    ),
+}
 
-    DOC = "docs/design/epic-28-tree-entry-point.md"
+
+@pytest.mark.parametrize("doc", sorted(FIRST_EDITIONS))
+class TestDesignDocFirstEdition:
+    """WORKFLOW §4: the DesignDoc has what its first edition needs before any Story starts."""
+
     FIRST_EDITION_DIAGRAMS = {
         "Architecture": "flowchart",
         "Domain Model": "classDiagram",
         "Sequence Diagram": "sequenceDiagram",
     }
 
+    @staticmethod
+    def _story_rows(doc: str) -> list[list[str]]:
+        rows = table_rows(section(_read(doc), "## Stories"))[2:]
+        assert rows, "the Stories table is empty"
+        return rows
+
     @pytest.mark.parametrize("title", sorted(FIRST_EDITION_DIAGRAMS))
-    def test_first_edition_diagram_is_drawn_in_mermaid(self, title: str) -> None:
-        body = words.section(_read(self.DOC), title)
+    def test_first_edition_diagram_is_drawn_in_mermaid(
+        self, doc: str, title: str
+    ) -> None:
+        body = section(_read(doc), f"## {title}")
         assert re.search(
             rf"```mermaid\s*\n{self.FIRST_EDITION_DIAGRAMS[title]}\b", body
         ), title
 
-    def test_every_story_handles_at_most_five_criteria(self) -> None:
-        rows = [
-            [cell.strip() for cell in line.strip("|").split("|")]
-            for line in words.section(_read(self.DOC), "Stories").splitlines()
-            if line.startswith("|")
-        ][2:]
-        assert rows, "the Stories table is empty"
-        for story, _user_story, criteria, *_ in rows:
+    def test_every_story_handles_at_most_five_criteria(self, doc: str) -> None:
+        for story, _user_story, criteria, *_ in self._story_rows(doc):
             assert len(re.findall(r"AC \d+", criteria)) <= 5, story
+
+    def test_every_user_story_is_handled_by_a_story(self, doc: str) -> None:
+        user_stories = re.findall(r"^### (US-\d+):", _read(doc), flags=re.M)
+        handled = {
+            us
+            for _story, cell, *_ in self._story_rows(doc)
+            for us in re.findall(r"US-\d+", cell)
+        }
+        assert user_stories
+        assert [us for us in user_stories if us not in handled] == []
+
+    def test_cross_epic_decisions_are_linked(self, doc: str) -> None:
+        decisions = section(_read(doc), "## Decisions")
+        missing = [
+            adr for adr in FIRST_EDITIONS[doc] if f"../adr/{adr}-" not in decisions
+        ]
+        assert missing == []
+
+
+class TestTreeEntryPointDocs:
+    """Epic 28, first edition: what only this Epic's terms carry."""
 
     def test_design_note_is_a_term_from_its_adr(self) -> None:
         rows = {
@@ -452,50 +489,9 @@ class TestTreeEntryPointDocs:
         # 「ノートブック」 is the avoided word for notebook; the note must not be read as one.
         assert "notebook" in rows["分析ノート"][words.DEFINITION]
 
-    def test_cross_epic_decisions_are_linked(self) -> None:
-        decisions = words.section(_read(self.DOC), "Decisions")
-        assert "../adr/0036-" in decisions
-        assert "../adr/0037-" in decisions
-
 
 class TestThemeReportDocs:
-    """Epic 29, first edition: the DesignDoc has what WORKFLOW §4 asks for before any Story starts."""
-
-    DOC = "docs/design/epic-29-theme-report-export.md"
-    FIRST_EDITION_DIAGRAMS = {
-        "Architecture": "flowchart",
-        "Domain Model": "classDiagram",
-        "Sequence Diagram": "sequenceDiagram",
-    }
-
-    @pytest.mark.parametrize("title", sorted(FIRST_EDITION_DIAGRAMS))
-    def test_first_edition_diagram_is_drawn_in_mermaid(self, title: str) -> None:
-        body = words.section(_read(self.DOC), title)
-        assert re.search(
-            rf"```mermaid\s*\n{self.FIRST_EDITION_DIAGRAMS[title]}\b", body
-        ), title
-
-    def test_every_story_handles_at_most_five_criteria(self) -> None:
-        rows = [
-            [cell.strip() for cell in line.strip("|").split("|")]
-            for line in words.section(_read(self.DOC), "Stories").splitlines()
-            if line.startswith("|")
-        ][2:]
-        assert rows, "the Stories table is empty"
-        for story, _user_story, criteria, *_ in rows:
-            assert len(re.findall(r"AC \d+", criteria)) <= 5, story
-
-    def test_every_user_story_is_handled_by_a_story(self) -> None:
-        doc = _read(self.DOC)
-        user_stories = re.findall(r"^### (US-\d+):", doc, flags=re.M)
-        stories = words.section(doc, "Stories")
-        assert user_stories
-        assert [us for us in user_stories if us not in stories] == []
-
-    def test_cross_epic_decisions_are_linked(self) -> None:
-        decisions = words.section(_read(self.DOC), "Decisions")
-        assert "../adr/0039-" in decisions
-        assert "../adr/0040-" in decisions
+    """Epic 29, first edition: what only this Epic's terms carry."""
 
     def test_the_terms_follow_the_removal_of_the_old_report(self) -> None:
         """US-5 AC 4: the report is the theme's, and the report check is no longer a term."""
@@ -511,87 +507,26 @@ class TestThemeReportDocs:
 
 
 class TestPlainPythonNotebookDocs:
-    """Epic 30, first edition: the DesignDoc has what WORKFLOW §4 asks for before any Story starts."""
-
-    DOC = "docs/design/epic-30-plain-python-notebook.md"
-    FIRST_EDITION_DIAGRAMS = {
-        "Architecture": "flowchart",
-        "Domain Model": "classDiagram",
-        "Sequence Diagram": "sequenceDiagram",
-    }
-
-    @pytest.mark.parametrize("title", sorted(FIRST_EDITION_DIAGRAMS))
-    def test_first_edition_diagram_is_drawn_in_mermaid(self, title: str) -> None:
-        body = words.section(_read(self.DOC), title)
-        assert re.search(
-            rf"```mermaid\s*\n{self.FIRST_EDITION_DIAGRAMS[title]}\b", body
-        ), title
-
-    def test_every_story_handles_at_most_five_criteria(self) -> None:
-        rows = [
-            [cell.strip() for cell in line.strip("|").split("|")]
-            for line in words.section(_read(self.DOC), "Stories").splitlines()
-            if line.startswith("|")
-        ][2:]
-        assert rows, "the Stories table is empty"
-        for story, _user_story, criteria, *_ in rows:
-            assert len(re.findall(r"AC \d+", criteria)) <= 5, story
-
-    def test_cross_epic_decisions_are_linked(self) -> None:
-        decisions = words.section(_read(self.DOC), "Decisions")
-        assert "../adr/0045-" in decisions
-        assert "../adr/0046-" in decisions
+    """Epic 30, first edition: what only this Epic's DesignDoc carries."""
 
     def test_the_core_value_revision_is_proposed(self) -> None:
         # The PRD itself is revised by a Story; the first edition carries the wording.
-        assert "notebook 契約 & lineage" in words.section(_read(self.DOC), "Scope")
+        scope = section(
+            _read("docs/design/epic-30-plain-python-notebook.md"), "## Scope"
+        )
+        assert "notebook 契約 & lineage" in scope
 
 
 class TestExplorationAndConfirmationDocs:
-    """Epic 32, first edition: the DesignDoc has what WORKFLOW §4 asks for before any Story starts."""
-
-    DOC = "docs/design/epic-32-exploration-and-confirmation.md"
-    FIRST_EDITION_DIAGRAMS = {
-        "Architecture": "flowchart",
-        "Domain Model": "classDiagram",
-        "Sequence Diagram": "sequenceDiagram",
-    }
-
-    @pytest.mark.parametrize("title", sorted(FIRST_EDITION_DIAGRAMS))
-    def test_first_edition_diagram_is_drawn_in_mermaid(self, title: str) -> None:
-        body = words.section(_read(self.DOC), title)
-        assert re.search(
-            rf"```mermaid\s*\n{self.FIRST_EDITION_DIAGRAMS[title]}\b", body
-        ), title
-
-    def test_every_story_handles_at_most_five_criteria(self) -> None:
-        rows = [
-            [cell.strip() for cell in line.strip("|").split("|")]
-            for line in words.section(_read(self.DOC), "Stories").splitlines()
-            if line.startswith("|")
-        ][2:]
-        assert rows, "the Stories table is empty"
-        for story, _user_story, criteria, *_ in rows:
-            assert len(re.findall(r"AC \d+", criteria)) <= 5, story
-
-    def test_every_user_story_is_handled_by_a_story(self) -> None:
-        doc = _read(self.DOC)
-        user_stories = re.findall(r"^### (US-\d+):", doc, flags=re.M)
-        stories = words.section(doc, "Stories")
-        assert user_stories
-        assert [us for us in user_stories if us not in stories] == []
-
-    @pytest.mark.parametrize("adr", ["0048", "0049", "0050", "0051"])
-    def test_cross_epic_decisions_are_linked(self, adr: str) -> None:
-        decisions = words.section(_read(self.DOC), "Decisions")
-        assert f"../adr/{adr}-" in decisions
+    """Epic 32, first edition: what only this Epic's DesignDoc carries."""
 
     def test_the_state_of_a_design_is_drawn(self) -> None:
         # A design ends differently by its intent, so the first edition draws the states.
-        assert re.search(
-            r"```mermaid\s*\nstateDiagram-v2\b",
-            words.section(_read(self.DOC), "Domain Model"),
+        model = section(
+            _read("docs/design/epic-32-exploration-and-confirmation.md"),
+            "## Domain Model",
         )
+        assert re.search(r"```mermaid\s*\nstateDiagram-v2\b", model)
 
 
 class TestCanonicalDocsPointAtPlainPythonNotebook:
