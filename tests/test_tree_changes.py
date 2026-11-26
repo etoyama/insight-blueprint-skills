@@ -8,13 +8,17 @@ from __future__ import annotations
 
 import copy
 
-from insight_blueprint.models.tree import QuestionTree, StatementKind
+from insight_blueprint.models.tree import AnswerStatement, QuestionTree, StatementKind
 from insight_blueprint.validate import validate_tree_schema
 from skills._shared.tree_changes import (
     AnswerChange,
     ChangeKind,
+    CitedAbove,
     EvidenceChange,
+    UncitedBelow,
     answer_changes,
+    cited_above,
+    uncited_below,
 )
 
 AIM = {
@@ -261,3 +265,388 @@ class TestDerivedNotStored:
         answer_changes(tree)
 
         assert tree.model_dump() == before
+
+
+# --- What the answers below a node cite and its own answer does not (ADR-0056) ---
+
+F1, F2 = "LIB-H02-E01", "LIB-H02-E02"
+
+
+def three_levels(
+    root: tuple[dict, ...] = (),
+    q02: tuple[dict, ...] = (),
+    q03: tuple[dict, ...] = (),
+    q04: tuple[dict, ...] = (),
+) -> QuestionTree:
+    """LIB-Q01 over LIB-Q02 (LIB-H01) over LIB-Q03 (LIB-H02); LIB-Q04 is a leaf."""
+
+    def node(node_id: str, parent: str, design: str, answers: tuple) -> dict:
+        return {
+            "id": node_id,
+            "question": f"{node_id} の問い",
+            "parent_question_id": parent,
+            "contribution": "件数が変わる",
+            "design_ids": [design],
+            "answers": list(answers),
+        }
+
+    return validate_tree_schema(
+        copy.deepcopy(
+            {
+                "theme_id": "LIB",
+                "root_revisions": [
+                    {"revision": 1, "question": "試行をするか", "aim": AIM}
+                ],
+                "nodes": [
+                    {
+                        "id": "LIB-Q01",
+                        "question": "試行をするか",
+                        "answers": list(root),
+                    },
+                    node("LIB-Q02", "LIB-Q01", "LIB-H01", q02),
+                    node("LIB-Q03", "LIB-Q02", "LIB-H02", q03),
+                    node("LIB-Q04", "LIB-Q01", "LIB-H03", q04),
+                ],
+            }
+        )
+    )
+
+
+def ids_of(found: tuple) -> list[str]:
+    return [u.event_id for u in found]
+
+
+class TestWhatTheAnswersBelowCite:
+    def test_an_event_the_answer_below_cites_and_the_node_does_not_is_listed(
+        self,
+    ) -> None:
+        tree = three_levels(
+            root=(answer(2, said("claim", "延ばす", E1)),),
+            q02=(
+                answer(2, said("claim", "数えられる", E1), said("claim", "減る", E2)),
+            ),
+        )
+
+        (found,) = uncited_below(tree)["LIB-Q01"]
+
+        assert found == UncitedBelow(
+            event_id=E2,
+            node_id="LIB-Q02",
+            round=2,
+            statements=(
+                AnswerStatement(kind=StatementKind.claim, text="減る", cites=[E2]),
+            ),
+            last_cited_round=None,
+            cited_instead=(),
+        )
+
+    def test_a_node_whose_answer_cites_everything_below_lists_nothing(self) -> None:
+        tree = three_levels(
+            root=(answer(1, said("claim", "延ばす", E1)),),
+            q02=(answer(1, said("claim", "数えられる", E1)),),
+        )
+
+        assert "LIB-Q01" not in uncited_below(tree)
+
+    def test_a_node_without_an_answer_lists_every_event_cited_below(self) -> None:
+        tree = three_levels(
+            q02=(
+                answer(1, said("claim", "数えられる", E1), said("claim", "減る", E2)),
+            ),
+        )
+
+        assert ids_of(uncited_below(tree)["LIB-Q01"]) == [E1, E2]
+
+    def test_only_the_current_answer_below_counts(self) -> None:
+        tree = three_levels(
+            root=(answer(2, said("claim", "延ばす", E1)),),
+            q02=(
+                answer(1, said("claim", "減る", E2)),
+                answer(2, said("claim", "数えられる", E1)),
+            ),
+        )
+
+        assert "LIB-Q01" not in uncited_below(tree)
+
+    def test_events_cited_further_below_are_listed_too(self) -> None:
+        tree = three_levels(
+            root=(answer(1, said("claim", "延ばす", E1)),),
+            q02=(answer(1, said("claim", "数えられる", E1)),),
+            q03=(answer(1, said("claim", "金曜が多い", F1)),),
+        )
+
+        found = uncited_below(tree)
+
+        assert ids_of(found["LIB-Q01"]) == [F1]
+        assert ids_of(found["LIB-Q02"]) == [F1]
+        assert found["LIB-Q01"][0].node_id == "LIB-Q03"
+
+    def test_an_event_cited_at_two_levels_below_comes_from_the_nearer_answer(
+        self,
+    ) -> None:
+        tree = three_levels(
+            q02=(answer(1, said("claim", "金曜に集まる", F1)),),
+            q03=(answer(1, said("claim", "金曜が多い", F1)),),
+        )
+
+        (found,) = uncited_below(tree)["LIB-Q01"]
+
+        assert found.node_id == "LIB-Q02"
+        assert texts(found.statements) == ["金曜に集まる"]
+
+    def test_the_listed_events_follow_the_nodes_then_their_statements(self) -> None:
+        tree = three_levels(
+            q02=(answer(1, said("claim", "減る", E2), said("claim", "数える", E1)),),
+            q03=(answer(1, said("claim", "金曜", F2)),),
+            q04=(answer(1, said("claim", "別館", "LIB-H03-E01")),),
+        )
+
+        assert ids_of(uncited_below(tree)["LIB-Q01"]) == [
+            E2,
+            E1,
+            F2,
+            "LIB-H03-E01",
+        ]
+
+    def test_a_node_with_nothing_below_has_no_entry(self) -> None:
+        tree = three_levels(q04=(answer(1, said("claim", "別館", "LIB-H03-E01")),))
+
+        assert "LIB-Q04" not in uncited_below(tree)
+
+
+class TestAnEventTheNodeCitedBefore:
+    def test_an_event_cited_before_has_the_last_round_that_cited_it(self) -> None:
+        tree = three_levels(
+            root=(
+                answer(1, said("claim", "相関がある", E1)),
+                answer(2, said("claim", "同じ人で上がる", F1)),
+                answer(3, said("claim", "同じ人で上がる", F1)),
+            ),
+            q02=(answer(1, said("claim", "相関は 0.41", E1)),),
+            q03=(answer(2, said("claim", "0.30 上がる", F1)),),
+        )
+
+        (found,) = uncited_below(tree)["LIB-Q01"]
+
+        assert found.event_id == E1
+        assert found.last_cited_round == 1
+        assert found.cited_instead == (F1,)
+
+    def test_the_last_round_is_the_latest_that_cited_it(self) -> None:
+        tree = three_levels(
+            root=(
+                answer(1, said("claim", "相関", E1)),
+                answer(2, said("claim", "外す", E2)),
+                answer(3, said("claim", "相関", E1), said("claim", "外す", E2)),
+                answer(4, said("claim", "外す", E2), said("claim", "金曜", F1)),
+            ),
+            q02=(
+                answer(1, said("claim", "相関は 0.41", E1), said("claim", "減る", E2)),
+            ),
+            q03=(answer(1, said("claim", "金曜", F1)),),
+        )
+
+        (found,) = uncited_below(tree)["LIB-Q01"]
+
+        assert found.last_cited_round == 3
+        assert found.cited_instead == (F1,)
+
+    def test_nothing_cited_instead_is_an_empty_tuple(self) -> None:
+        tree = three_levels(
+            root=(
+                answer(1, said("claim", "相関", E1), said("claim", "減る", E2)),
+                answer(2, said("claim", "減る", E2)),
+            ),
+            q02=(
+                answer(1, said("claim", "相関は 0.41", E1), said("claim", "減る", E2)),
+            ),
+        )
+
+        (found,) = uncited_below(tree)["LIB-Q01"]
+
+        assert found.last_cited_round == 1
+        assert found.cited_instead == ()
+
+    def test_deriving_gives_the_same_values_and_leaves_the_tree(self) -> None:
+        tree = three_levels(
+            root=(
+                answer(1, said("claim", "相関", E1)),
+                answer(2, said("claim", "減る", E2)),
+            ),
+            q02=(
+                answer(1, said("claim", "相関は 0.41", E1), said("claim", "減る", E2)),
+            ),
+        )
+        before = tree.model_dump()
+
+        assert uncited_below(tree) == uncited_below(tree)
+        assert tree.model_dump() == before
+
+
+# --- How the answers above a node cite what its own answer cites (ADR-0056) ---
+
+
+def above_of(tree: QuestionTree, node_id: str) -> list[tuple[str, str]]:
+    return [(a.event_id, a.node_id) for a in cited_above(tree)[node_id]]
+
+
+class TestWhereTheAnswersAboveCiteIt:
+    def test_an_event_the_parent_also_cites_is_listed_with_its_answer(self) -> None:
+        tree = three_levels(
+            q02=(answer(2, said("claim", "上がる", F1), said("claim", "数える", E1)),),
+            q03=(answer(1, said("claim", "0.30 上がる", F1)),),
+        )
+
+        (found,) = cited_above(tree)["LIB-Q03"]
+
+        assert found == CitedAbove(
+            event_id=F1,
+            node_id="LIB-Q02",
+            round=2,
+            statements=(
+                AnswerStatement(kind=StatementKind.claim, text="上がる", cites=[F1]),
+            ),
+            reworded_in=None,
+        )
+
+    def test_an_answer_further_above_is_listed_after_the_nearer_one(self) -> None:
+        tree = three_levels(
+            root=(answer(1, said("weakening", "1館だけ", F1)),),
+            q02=(answer(1, said("claim", "上がる", F1)),),
+            q03=(answer(1, said("claim", "0.30 上がる", F1)),),
+        )
+
+        assert above_of(tree, "LIB-Q03") == [(F1, "LIB-Q02"), (F1, "LIB-Q01")]
+
+    def test_the_subject_is_listed_when_the_parent_does_not_cite_it(self) -> None:
+        tree = three_levels(
+            root=(answer(1, said("weakening", "1館だけ", F1)),),
+            q02=(answer(1, said("claim", "数える", E1)),),
+            q03=(answer(1, said("claim", "0.30 上がる", F1)),),
+        )
+
+        assert above_of(tree, "LIB-Q03") == [(F1, "LIB-Q01")]
+
+    def test_only_the_current_answer_above_counts(self) -> None:
+        tree = three_levels(
+            root=(
+                answer(1, said("claim", "上がる", F1)),
+                answer(2, said("claim", "数える", E1)),
+            ),
+            q03=(answer(1, said("claim", "0.30 上がる", F1)),),
+        )
+
+        assert "LIB-Q03" not in cited_above(tree)
+
+    def test_a_node_without_an_answer_has_no_entry(self) -> None:
+        tree = three_levels(q02=(answer(1, said("claim", "上がる", F1)),))
+
+        assert "LIB-Q03" not in cited_above(tree)
+
+    def test_the_entries_follow_the_cites_of_the_node(self) -> None:
+        tree = three_levels(
+            root=(answer(1, said("claim", "金曜", F2), said("claim", "上がる", F1)),),
+            q03=(
+                answer(1, said("claim", "0.30", F1), said("claim", "金曜が多い", F2)),
+            ),
+        )
+
+        assert above_of(tree, "LIB-Q03") == [(F1, "LIB-Q01"), (F2, "LIB-Q01")]
+
+
+class TestTheRoundTheAnswerAboveChangedIt:
+    def test_a_later_answer_above_that_says_something_else_is_its_round(
+        self,
+    ) -> None:
+        tree = three_levels(
+            root=(
+                answer(2, said("claim", "上がった", F1)),
+                answer(3, said("undetermined", "分けられない", F1)),
+            ),
+            q03=(answer(2, said("claim", "0.30 上がる", F1)),),
+        )
+
+        (found,) = cited_above(tree)["LIB-Q03"]
+
+        assert found.round == 3
+        assert found.reworded_in == 3
+
+    def test_the_first_round_that_changed_it_is_kept_after_more_rewriting(
+        self,
+    ) -> None:
+        tree = three_levels(
+            root=(
+                answer(2, said("claim", "上がった", F1)),
+                answer(3, said("undetermined", "分けられない", F1)),
+                answer(
+                    4,
+                    said("undetermined", "分けられない", F1),
+                    said("claim", "数える", E1),
+                ),
+            ),
+            q03=(answer(2, said("claim", "0.30 上がる", F1)),),
+        )
+
+        (found,) = cited_above(tree)["LIB-Q03"]
+
+        assert found.round == 4
+        assert found.reworded_in == 3
+
+    def test_an_answer_above_in_the_same_round_did_not_change_it(self) -> None:
+        tree = three_levels(
+            root=(
+                answer(1, said("claim", "上がった", F1)),
+                answer(3, said("undetermined", "分けられない", F1)),
+            ),
+            q03=(answer(3, said("claim", "0.30 上がる", F1)),),
+        )
+
+        (found,) = cited_above(tree)["LIB-Q03"]
+
+        assert found.reworded_in is None
+
+    def test_an_answer_above_that_says_the_same_later_did_not_change_it(
+        self,
+    ) -> None:
+        tree = three_levels(
+            root=(
+                answer(1, said("claim", "上がった", F1)),
+                answer(2, said("claim", "上がった", F1), said("claim", "数える", E1)),
+            ),
+            q03=(answer(1, said("claim", "0.30 上がる", F1)),),
+        )
+
+        (found,) = cited_above(tree)["LIB-Q03"]
+
+        assert found.reworded_in is None
+
+    def test_an_answer_above_that_first_cites_it_later_did_not_change_it(
+        self,
+    ) -> None:
+        tree = three_levels(
+            root=(
+                answer(1, said("claim", "数える", E1)),
+                answer(2, said("claim", "上がった", F1)),
+            ),
+            q03=(answer(1, said("claim", "0.30 上がる", F1)),),
+        )
+
+        (found,) = cited_above(tree)["LIB-Q03"]
+
+        assert found.reworded_in is None
+
+    def test_a_change_before_the_answer_of_the_node_is_not_after_it(self) -> None:
+        tree = three_levels(
+            root=(
+                answer(1, said("claim", "上がった", F1)),
+                answer(2, said("undetermined", "分けられない", F1)),
+            ),
+            q03=(
+                answer(1, said("claim", "0.30", F1)),
+                answer(3, said("claim", "0.30 上がる", F1)),
+            ),
+        )
+
+        (found,) = cited_above(tree)["LIB-Q03"]
+
+        assert found.reworded_in is None

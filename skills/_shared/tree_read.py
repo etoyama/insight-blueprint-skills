@@ -14,12 +14,14 @@ Writes go through ``tree_io``, which also carries the CLI for these reads.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import asdict
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+
+from pydantic import BaseModel
 
 from insight_blueprint.models.common import THEME_ID_PATTERN
 from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
@@ -49,7 +51,7 @@ from skills._shared.theme_report import (
     ThemeReport,
     render_report,
 )
-from skills._shared.tree_changes import answer_changes
+from skills._shared.tree_changes import answer_changes, cited_above, uncited_below
 from skills._shared.tree_check import Violation, check_cited, current_cites
 from skills._shared.tree_render import (
     CheckFailed,
@@ -118,7 +120,7 @@ def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]
 
 
 def changes(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
-    """What each answer changed since the answer before it, derived. Writes nothing.
+    """What each answer changed, and what the answers above and below cite. Writes nothing.
 
     The page ``render`` writes shows the same values with the content of each
     event; here a skill gets them to show the analyst (ADR-0056).
@@ -127,7 +129,17 @@ def changes(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
     return {
         "answer_changes": [
             change.model_dump(mode="json") for change in answer_changes(tree).values()
-        ]
+        ],
+        "cited_above": _by_node(cited_above(tree)),
+        "uncited_below": _by_node(uncited_below(tree)),
+    }
+
+
+def _by_node(found: Mapping[str, tuple[BaseModel, ...]]) -> dict[str, list[dict]]:
+    """The entries of each node as JSON, keyed by the id of that node."""
+    return {
+        node_id: [entry.model_dump(mode="json") for entry in entries]
+        for node_id, entries in found.items()
     }
 
 

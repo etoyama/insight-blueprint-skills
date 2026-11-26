@@ -446,11 +446,57 @@ class TestChanges:
                         },
                     ],
                 }
-            ]
+            ],
+            "cited_above": {},
+            "uncited_below": {},
         }
 
     def test_a_tree_without_a_second_answer_has_no_change(self, world: Path) -> None:
-        assert tree_io.changes("LIB", base_dir=world) == {"answer_changes": []}
+        assert tree_io.changes("LIB", base_dir=world) == {
+            "answer_changes": [],
+            "cited_above": {},
+            "uncited_below": {},
+        }
+
+    def test_changes_lists_the_cites_above_and_below_by_node(self, world: Path) -> None:
+        subject = {"kind": "claim", "text": "期限切れは152件", "cites": ["LIB-H01-E01"]}
+        count = {"kind": "claim", "text": "152件ある", "cites": ["LIB-H01-E01"]}
+        friday = {"kind": "claim", "text": "取消除外後34.6%", "cites": ["LIB-H02-E01"]}
+        tree_io.answer(
+            "LIB",
+            answers=[
+                {"node_id": "LIB-Q01", "statements": [subject]},
+                {"node_id": "LIB-Q02", "statements": [count]},
+                {"node_id": "LIB-Q03", "statements": [friday]},
+            ],
+            base_dir=world,
+        )
+
+        found = tree_io.changes("LIB", base_dir=world)
+
+        assert found["cited_above"] == {
+            "LIB-Q02": [
+                {
+                    "event_id": "LIB-H01-E01",
+                    "node_id": "LIB-Q01",
+                    "round": 1,
+                    "statements": [subject],
+                    "reworded_in": None,
+                }
+            ]
+        }
+        assert found["uncited_below"] == {
+            "LIB-Q01": [
+                {
+                    "event_id": "LIB-H02-E01",
+                    "node_id": "LIB-Q03",
+                    "round": 1,
+                    "statements": [friday],
+                    "last_cited_round": None,
+                    "cited_instead": [],
+                }
+            ]
+        }
 
     def test_changes_writes_nothing(self, world: Path) -> None:
         _two_rounds(world)
