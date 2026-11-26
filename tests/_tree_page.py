@@ -1,4 +1,5 @@
-"""What the tests of the tree page share: a synthetic tree, and a page read as a reader reads it.
+"""What the tests of the tree page share: a synthetic tree, a page read as a reader reads it,
+and the word of a mark.
 
 The page is parsed with ``html.parser`` so a test asks what text sits in which
 element. Synthetic data only (public-library holds, theme LIB).
@@ -448,6 +449,16 @@ def changed_root(tree: dict | None = None) -> dict:
     return tree
 
 
-def mark_word(mark: Mark, round: int = 0) -> str:
-    """The mark as the page shows it; only a mark that names a round reads *round*."""
-    return MARK_WORDS[mark][0].format(round=round)
+def mark_word(mark: Mark, round: int | None = None) -> str:
+    """The mark as the page shows it. A mark that names a round fails without *round*."""
+    return MARK_WORDS[mark][0].format(**({} if round is None else {"round": round}))
+
+
+def never_revised() -> dict:
+    tree = make_tree()
+    tree["root_revisions"] = tree["root_revisions"][1:]
+    tree["root_revisions"][0].update(revision=1, reason="")
+    for node in tree["nodes"]:
+        for answer in node.get("answers", []):
+            answer["root_revision"] = 1
+    return tree

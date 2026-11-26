@@ -1,17 +1,15 @@
 """Tests for the words a question tree shows the analyst (Epic 34, #273).
 
-The one place that spells the words: the tests of the page and of the report
-name a word through ``tree_words`` and check where it is shown, so a word that
-changes is changed here and nowhere else.
-
-A round is said as the count of reflections (N回目の振り返り), the revision of
-the subject only once the subject was revised, in words, and a result is what
-an answer says about it, not from it (Decision words-chosen-after-reading-the-real-pages).
-Synthetic data only (theme LIB).
+The tests of the page and of the report name a reflection round, the subject,
+the marks and the headings through ``tree_words`` and check where they are
+shown. This module alone spells those words, so one of them that changes is
+changed here. A sentence only one section says is still spelled by the test of
+that section.
 """
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 
 import pytest
@@ -26,20 +24,11 @@ from tests._tree_page import (
     changed_root,
     make_tree,
     mark_word,
+    never_revised,
     node_text,
     page,
     squash,
 )
-
-
-def _never_revised() -> dict:
-    tree = make_tree()
-    tree["root_revisions"] = tree["root_revisions"][1:]
-    tree["root_revisions"][0].update(revision=1, reason="")
-    for node in tree["nodes"]:
-        for answer in node.get("answers", []):
-            answer["root_revision"] = 1
-    return tree
 
 
 def _revised_twice() -> dict:
@@ -57,17 +46,21 @@ def _revised_twice() -> dict:
     return tree
 
 
-def _text(tree: dict) -> str:
-    return squash(by_id(page(tree=tree), "header").text()) + squash(
-        by_id(page(tree=tree), "question-tree").text()
-    )
+class TestRoundsAreCountedReflections:
+    @pytest.mark.parametrize("tree", [make_tree(), changed_root()])
+    def test_no_round_is_shown_as_a_bare_number(self, tree: dict) -> None:
+        root = page(tree=tree)
+        shown = squash(" ".join(e.text() for e in root.walk() if e.tag == "body"))
+
+        assert not re.search(r"回 \d", shown)
+        assert "回 N" not in shown
 
 
 class TestTheSubjectNamesItsRevisionsOnlyOnceRevised:
     """US-5 AC 1 as chosen after reading the pages: no 版 and no number of it."""
 
     def test_a_subject_never_revised_says_nothing_of_revisions(self) -> None:
-        root = page(tree=_never_revised())
+        root = page(tree=never_revised())
         shown = squash(" ".join(e.text() for e in root.walk() if e.tag == "body"))
 
         assert "見直した" not in squash(by_id(root, "header").text())
@@ -106,7 +99,7 @@ class TestTheSubjectNamesItsRevisionsOnlyOnceRevised:
         assert f"1回目の見直しの後の主題: {ROOT_QUESTION}" in history
         assert (
             "2回目の見直しの後の主題: 取り置き期限を延ばす試行を今年度に始めるか"
-            in (history)
+            in history
         )
         assert "理由: 始める時期も決めることになった" in history
 
@@ -191,6 +184,24 @@ class TestEachPhrasingIsSpelledOnce:
             (mark_word(Mark.first, 2), "2回目の振り返りで初めて答えたこと"),
             (mark_word(Mark.before_root_change), "見直す前の主題への答え"),
             (mark_word(Mark.violating), "記録と合わない答え"),
+            (tree_words.HEARD_WORD, "（人に聞いた答えによる）"),
+            (tree_words.OPEN_EVIDENCE, "根拠を開く"),
+            (tree_words.OPEN_NOTE, "分析ノートを開く"),
+            (tree_words.BACK_TO_TREE, "論点ツリーへ戻る"),
+            (
+                # The furthest first, with all three words.
+                tree_words.below_text(
+                    True,
+                    Counter(
+                        {
+                            Progress.not_started: 2,
+                            Progress.investigating: 1,
+                            Progress.analyzed: 1,
+                        }
+                    ),
+                ),
+                "主題の下に置いた論点 4 つ: 分析済み 1、検証中 1、未着手 2",
+            ),
             (
                 tree_words.below_text(
                     True,

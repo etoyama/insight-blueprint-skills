@@ -50,6 +50,7 @@ from tests._tree_page import (
     make_tree,
     mark_word,
     marks_text,
+    never_revised,
     node_card,
     node_text,
     page,
@@ -140,14 +141,7 @@ class TestHeader:
         assert "到達点が、減るかどうかから、試行をするかどうかに変わった" in history
 
     def test_a_single_root_revision_shows_no_history(self) -> None:
-        tree = make_tree()
-        tree["root_revisions"] = tree["root_revisions"][1:]
-        tree["root_revisions"][0].update(revision=1, reason="")
-        for node in tree["nodes"]:
-            for answer in node.get("answers", []):
-                answer["root_revision"] = 1
-
-        html = render(tree=tree)
+        html = render(tree=never_revised())
 
         assert "root-history" not in html
         assert (
@@ -360,7 +354,7 @@ class TestMarks:
     ) -> None:
         assert marks_text(page(), "LIB-Q04") == mark_word(Mark.first, 2)
 
-    def test_an_answer_from_an_earlier_round_carries_no_mark_of_the_latest_round(
+    def test_an_answer_from_an_earlier_round_carries_only_the_mark_of_the_earlier_subject(
         self,
     ) -> None:
         # LIB-Q05 answered an earlier subject, and that is its only mark.
