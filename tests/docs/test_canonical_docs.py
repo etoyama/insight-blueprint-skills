@@ -1507,6 +1507,42 @@ class TestTrialAfterTheDisplay:
         assert "6つ目" in rows["引き継ぎの試行"][words.DEFINITION]
 
 
+class TestTrialAfterTheGateFixes:
+    """The trial is taken again after the gate fixed the two regressions it found."""
+
+    SUMMARY = "docs/handoff-trials/2026-11-26-after-the-gate-fixes.md"
+    EARLIER = "2026-11-26-after-the-display.md"
+    MODELS = ("sonnet", "haiku", "opus")
+
+    def _summary(self) -> str:
+        return _read(self.SUMMARY)
+
+    @pytest.mark.parametrize("scenario", ["lib", "psy"])
+    def test_each_scenario_has_three_new_records_per_model(self, scenario: str) -> None:
+        trials = REPO_ROOT / "docs/handoff-trials"
+        for model in self.MODELS:
+            for n in (1, 2, 3):
+                name = f"2026-11-26-fixed-{scenario}-claude-{model}-{n}.yaml"
+                assert (trials / name).is_file(), name
+
+    def test_the_table_puts_three_columns_side_by_side(self) -> None:
+        summary = self._summary()
+        assert f"]({self.EARLIER})" in summary
+        rows = table_rows(section(summary, "## 結果"))
+        assert rows[0][:2] == ["シナリオ", "読み手"]
+        assert rows[0][2:] == ["q1", "q2", "q3", "q4", "q5", "q6"]
+        labels = {(r[0], r[1].split(" ")[0]) for r in rows[2:]}
+        for scenario in ("lib", "psy"):
+            for when in ("前", "表示の後", "直した後"):
+                for model in self.MODELS:
+                    assert (f"{scenario}（{when}）", model) in labels
+
+    def test_it_says_q4_is_not_a_like_for_like_comparison(self) -> None:
+        summary = unwrap(self._summary())
+        assert "問い 4 の文" in summary
+        assert "同じ条件の比較ではない" in summary
+
+
 def _defines(module: str, name: str) -> bool:
     """Whether skills/_shared/<module>.py defines *name* itself, not by import."""
     source = _read(f"skills/_shared/{module}.py")

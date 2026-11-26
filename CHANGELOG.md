@@ -24,7 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `lib`'s q2 went down to 3 of 9, as six readers left out LIB-Q04, whose card no longer says 未着手, and
   haiku added a reworded or dropped result to q4's evidence four times. The analyst's own reading
   is kept as the human reader's record, untimed. PRD's success criteria name the sixth question, and the
-  glossary's trial words say two scenarios and six questions (#269).
+  glossary's trial words say two scenarios and six questions (#269). Both falls were then fixed: 未着手
+  follows one rule (ADR-0057), and question 4 of the sheet asks only for the events the changed answer
+  newly rests on, not those it rewords or drops (ADR-0059; the key and the scoring do not change).
+  Taken again on the fixed display (2cd6547), all 18 runs got all six questions right
+  (`docs/handoff-trials/2026-11-26-after-the-gate-fixes.md`); q4 is not a like-for-like comparison,
+  since its wording changed (#249).
 - **The question tree counts reflections and revisions in words.** A round is shown as N回目の振り返り
   (2回目の振り返り, 前の振り返りから変わったこと（1回目 → 2回目の振り返り）) instead of 回 N, and the table of
   what changed says 言っていたこと / 言っていること without ここから. The mark above an answer reads
