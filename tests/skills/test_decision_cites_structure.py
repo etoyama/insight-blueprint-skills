@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 from insight_blueprint.models.tree import TreeDecisionKind
-from skills._shared import design_io, tree_io
+from skills._shared import tree_io
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills._shown import run_shown_commands
 from tests.skills.test_next_candidate_structure import _library
@@ -50,8 +50,6 @@ class TestTheDecisionCitesWhatItsReasonRestsOn:
 
         decision = tree_io.load_tree("LIB", base_dir=insight)["decisions"][-1]
         assert decision["cites"] == ["LIB-H01-E01"]
-        (event,) = design_io.load_journal("LIB-H01", insight)["events"]
-        assert event["id"] == "LIB-H01-E01"
 
     def test_events_behind_the_reason_go_into_cites(self) -> None:
         assert re.search(
@@ -138,6 +136,17 @@ class TestTheGateOffersToReviseTheSubject:
             r"(?i)after the revision[^.]*come back to this gate[^.]*ask[^.]*again",
             unwrap(_gate()),
         )
+
+    def test_framing_is_left_before_it_asks_for_the_next_node(self) -> None:
+        # 4d of /analysis-framing asks for the next node and may write a decision:
+        # passing it on the way back would ask the analyst the same thing twice.
+        assert re.search(
+            r"(?i)only[^.]*4c[^.]*\.[^.]*do not go on to 4d or 5b", unwrap(_gate())
+        )
+
+    def test_a_journal_that_cannot_be_read_is_reported_not_asked_again(self) -> None:
+        step = unwrap(_gate())
+        assert re.search(r"appears twice[^.]*report[^.]*analyst[^.]*stop", step)
 
     def test_the_choice_is_named_in_the_analysts_words(self) -> None:
         # ADR-0055: what the analyst reads says 主題, never 根の問い.

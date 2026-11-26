@@ -17,7 +17,7 @@ import json
 import re
 import sys
 import unicodedata
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 from pathlib import Path
@@ -124,11 +124,22 @@ def find_decision_violations(
     A decision may cite an event of any design linked somewhere in the tree:
     the result of one node is the reason to go to another (ADR-0058).
     """
-    linked = tree.designs_by_branch()[tree.root().id]
+    return [
+        violation
+        for position in range(1, len(tree.decisions) + 1)
+        for violation in _decision_violations(tree, position, events)
+    ]
+
+
+def _decision_violations(
+    tree: QuestionTree, position: int, events: Mapping[str, str]
+) -> list[DecisionViolation]:
+    decision = tree.decisions[position - 1]
+    if not decision.cites:
+        return []
+    linked = tree.linked_designs()
     return [
         DecisionViolation(position, decision.round, kind, text)
-        for position, decision in enumerate(tree.decisions, start=1)
-        if decision.cites
         for kind, text in _cite_problems(
             decision.reason, decision.cites, events, linked
         )
@@ -136,10 +147,9 @@ def find_decision_violations(
 
 
 def _cite_problems(
-    text: str, cites: Iterable[str], events: Mapping[str, str], linked: set[str]
+    text: str, cites: Sequence[str], events: Mapping[str, str], linked: set[str]
 ) -> list[tuple[ViolationKind, str]]:
     """What is wrong with *text* resting on *cites*, cites first, then numbers."""
-    cites = list(cites)
     problems: list[tuple[ViolationKind, str]] = []
     for cite in cites:
         if cite not in events:
@@ -210,22 +220,22 @@ def current_cites(tree: QuestionTree) -> set[str]:
     }
 
 
-def check_decisions(tree: QuestionTree, base_dir: Path) -> list[DecisionViolation]:
-    """Check the decisions of *tree* that cite against the journals under *base_dir*.
+def check_last_decision(tree: QuestionTree, base_dir: Path) -> list[DecisionViolation]:
+    """Check the decision last appended to *tree* against the journals under *base_dir*.
 
-    Raises ValueError for a cited event id that two events share.
+    Only its own cites are read: an earlier decision is history, and what its
+    journal holds now must not stop a new one. Raises ValueError for a cited
+    event id that two events share.
     """
     from skills._shared.tree_read import cited_events  # tree_read imports this
 
-    cited = decision_cites(tree)
+    cited = set(tree.decisions[-1].cites)
+    if not cited:
+        return []
     events, duplicated = cited_events(cited, base_dir)
     _refuse_shared_ids(cited, duplicated)
-    return find_decision_violations(tree, {i: e.content for i, e in events.items()})
-
-
-def decision_cites(tree: QuestionTree) -> set[str]:
-    """The event ids any decision cites."""
-    return {cite for decision in tree.decisions for cite in decision.cites}
+    contents = {i: e.content for i, e in events.items()}
+    return _decision_violations(tree, len(tree.decisions), contents)
 
 
 def _main(argv: list[str] | None = None) -> int:

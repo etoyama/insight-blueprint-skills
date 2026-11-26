@@ -326,6 +326,11 @@ decisions:
         data = branching_tree(decision("deepen", "LIB-Q02") | {"cites": [cite]})
         assert "must be LIB-H{nn}-E{nn}" in errors_of(data)
 
+    def test_a_decision_cites_an_event_once(self) -> None:
+        twice = {"cites": ["LIB-H01-E01", "LIB-H01-E01"]}
+        data = branching_tree(decision("deepen", "LIB-Q02") | twice)
+        assert "cites the same event twice" in errors_of(data)
+
     def test_cites_are_a_list_never_one_string(self) -> None:
         data = branching_tree(decision("deepen", "LIB-Q02") | {"cites": "LIB-H01-E01"})
         assert "cites" in errors_of(data)

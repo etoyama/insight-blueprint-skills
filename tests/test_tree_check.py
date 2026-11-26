@@ -685,21 +685,21 @@ class TestFindDecisionViolations:
         assert [(v.kind, v.text) for v in found] == [("unlinked-design", "LIB-H02-E01")]
 
 
-class TestCheckDecisions:
+class TestCheckLastDecision:
     def test_it_reads_the_journal_of_each_design_a_decision_cites(
         self, tmp_path: Path
     ) -> None:
         write_journal(tmp_path, "LIB-H01", (1, "期限切れは152件"))
         tree = decided_tree(go_to_q03("期限切れは152件と分かった", "LIB-H01-E01"))
 
-        assert tree_check.check_decisions(tree, tmp_path) == []
+        assert tree_check.check_last_decision(tree, tmp_path) == []
 
     def test_a_journal_file_that_does_not_exist_makes_the_cite_missing(
         self, tmp_path: Path
     ) -> None:
         tree = decided_tree(go_to_q03("数え方は定まった", "LIB-H01-E01"))
 
-        found = tree_check.check_decisions(tree, tmp_path)
+        found = tree_check.check_last_decision(tree, tmp_path)
 
         assert [v.kind for v in found] == ["missing-event"]
 
@@ -719,12 +719,24 @@ class TestCheckDecisions:
         tree = decided_tree(go_to_q03("数え方は定まった", "LIB-H01-E01"))
 
         with pytest.raises(ValueError, match="appears twice"):
-            tree_check.check_decisions(tree, tmp_path)
+            tree_check.check_last_decision(tree, tmp_path)
 
-    def test_it_reads_no_journal_when_no_decision_cites(self, tmp_path: Path) -> None:
+    def test_only_the_last_decision_is_checked(self, tmp_path: Path) -> None:
+        # An earlier decision is history: its journal is not even read.
+        tree = decided_tree(
+            go_to_q03("数え方は定まった", "LIB-H01-E09"),
+            {**go_to_q03("戻る"), "node_id": "LIB-Q02"},
+        )
+
+        assert tree_check.check_last_decision(tree, tmp_path) == []
+        assert not (tmp_path / "designs").exists()
+
+    def test_it_reads_no_journal_when_the_decision_does_not_cite(
+        self, tmp_path: Path
+    ) -> None:
         tree = decided_tree(go_to_q03("数え方は定まった"))
 
-        assert tree_check.check_decisions(tree, tmp_path) == []
+        assert tree_check.check_last_decision(tree, tmp_path) == []
         assert not (tmp_path / "designs").exists()
 
 

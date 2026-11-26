@@ -575,7 +575,8 @@ echo '{"kind": "return", "node_id": "LIB-Q03",
   of fixing it.
 - Exit code 1: nothing was written. stderr says which rule the kind and the node broke
   (for example a `deepen` that leaves the current node), or that a cite is not an event id:
-  show it and ask again.
+  show it and ask again. When stderr says a cited event id appears twice in its journal, or
+  a journal cannot be read, asking again cannot help: report the message to the analyst and stop.
 - If the tree has no decision yet, there is no current node: say "最初に調べる論点がまだ
   決まっていない。/analysis-framing {theme_id} で決めよう" and write no decision here.
 - The analyst may leave the decision open. Then write nothing and say that the tree keeps
@@ -583,12 +584,13 @@ echo '{"kind": "return", "node_id": "LIB-Q03",
 
 主題そのものを見直す is not a `kind`, and no decision is written for it: a decision names
 the node to investigate next, and this choice names none. When the analyst chooses
-主題そのものを見直す, go to `/analysis-framing {theme_id}`, 4c "The root question or the
-aim", which shows the old and the new 主題 side by side and asks whether the 主題の版 goes
-up. Never run `tree_io revise-root` from here, and never draft the new 主題 before the
-analyst has said what is wrong with the current one. After the revision, come back to this
-gate and ask the decision again, now for the three kinds: which node comes next under the
-new 主題, and why. If the analyst then leaves the revision undone, the gate still stands:
+主題そのものを見直す, go to `/analysis-framing {theme_id}` and run only its 4c, "The root
+question or the aim", which shows the old and the new 主題 side by side and asks whether
+the 主題の版 goes up. From there, do not go on to 4d or 5b of that skill: 4d asks for the
+next node, and this gate asks it. Never run `tree_io revise-root` from here, and never draft
+the new 主題 before the analyst has said what is wrong with the current one. After the
+revision, come back to this gate and ask the decision again, now for the three kinds: which
+node comes next under the new 主題, and why. If the analyst then leaves the revision undone, the gate still stands:
 ask which of the three they choose, or leave the decision open.
 
 After a `hear` or a `decide`, run `tree_io render --theme {theme_id}` again and show its

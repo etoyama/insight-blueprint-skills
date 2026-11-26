@@ -583,6 +583,29 @@ class TestDecideWithCites:
         assert decision["node_id"] == "LIB-Q02"
         assert len(self._decisions(started)) == 3
 
+    def test_a_broken_journal_under_an_earlier_decision_does_not_stop_a_new_one(
+        self, started: Path
+    ) -> None:
+        self._go_to_q03(started, "LIB-H01-E01")
+        twice = {"id": "LIB-H01-E01", "type": "observe", "content": "152件"}
+        design_io.write_journal("LIB-H01", {"events": [twice, twice]}, base_dir=started)
+
+        decision = tree_io.decide(
+            "LIB", kind="return", node_id="LIB-Q02", reason="戻る", base_dir=started
+        )
+
+        assert decision["node_id"] == "LIB-Q02"
+
+    def test_a_decision_without_cites_reads_no_journal(self, started: Path) -> None:
+        (started / "designs" / "LIB-H01_journal.yaml").write_text("events: [", "utf-8")
+
+        assert self._go_to_q03(started)["node_id"] == "LIB-Q03"
+
+    def test_the_same_event_cited_twice_is_not_written(self, started: Path) -> None:
+        with pytest.raises(ValueError, match="cites the same event twice"):
+            self._go_to_q03(started, "LIB-H01-E01", "LIB-H01-E01")
+        assert len(self._decisions(started)) == 1
+
     def test_an_answer_still_cannot_cite_the_other_branch(self, started: Path) -> None:
         # US-2 AC 3: the wider reach of a decision is not the reach of an answer.
         result = tree_io.answer(

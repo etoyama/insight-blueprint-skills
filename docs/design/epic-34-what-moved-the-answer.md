@@ -490,7 +490,7 @@ sequenceDiagram
 - Consequences: 同じ人が変える前と後を読むと慣れが混ざるので、34.7 では2本の合成シナリオを入れ替える。読み手は1〜2人で、統計にはならない。34.5 と 34.6 は、34.3 の実物を見た後に止める場合がある。
 ### Decision: decide-returns-the-violations-and-writes-nothing
 
-- What: `tree_io decide` は、引用を持つ決定が検査に通らないとき、決定の代わりに `{"violations": [...]}` を返し、exit 3 で終わる。通ったときの返り値は今までどおり決定そのものである。検査するのは今書く決定だけで、前に書いた決定の引用が今の journal と合わなくても、新しい決定は止めない。`tree_check` の CLI は答えの文だけを報告し、決定の違反は出さない。
+- What: `tree_io decide` は、引用を持つ決定が検査に通らないとき、決定の代わりに `{"violations": [...]}` を返し、exit 3 で終わる。通ったときの返り値は今までどおり決定そのものである。検査するのは今書く決定だけで、読む journal もその決定が引用したものだけである。前に書いた決定の引用が今の journal と合わなくても、その journal が読めなくても、新しい決定は止めない。1つの決定は同じ出来事を2回引用できない。`tree_check` の CLI は答えの文だけを報告し、決定の違反は出さない。
 - Why: ADR-0058 は「何も書かず、違反を返す」と決めたが、返す形と exit code、前の決定の扱いは決めていなかった。
 - Criteria: 今の呼び出し側（skill の手順、`scripts/handoff_trial.py`、テスト）が決定をそのまま受け取っていること（コードを読んだ）。`tree_io answer` が exit 3 を「書いていない。理由は stdout」に使っていること。決め手は今の呼び出し側を変えないことである。
 - Affected modules: `skills/_shared/tree_io.py::decide`、`skills/_shared/tree_check.py`、`skills/analysis-reflection/SKILL.md` の Step T7。

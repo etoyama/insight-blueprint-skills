@@ -224,7 +224,7 @@ the round until the analyst closes the walk or says stop.
 8. **theme reflection**: run `/analysis-reflection {theme_id}`. Its Step T7 is the KEEP gate
    of the round. Before that gate, show the path of the tree's HTML, so the analyst decides
    with the tree in view. When the analyst chooses 主題そのものを見直す at that gate, the
-   reflection goes to `/analysis-framing {theme_id}` 4c, a KEEP gate of its own. The
+   reflection runs only 4c of `/analysis-framing {theme_id}`, a KEEP gate of its own. The
    round is not over then: after the revision the reflection asks the decision again at
    Step T7, and the walk goes on from that decision.
 9. **next round**: after a `deepen` or a `return` the walk goes on: read `tree_io position`

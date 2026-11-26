@@ -224,9 +224,11 @@ class TreeDecision(BaseModel):
     created_at: datetime | None = None
 
     @model_validator(mode="after")
-    def _start_precedes_the_first_round(self) -> Self:
+    def _check_decision(self) -> Self:
         if self.kind is TreeDecisionKind.start and self.round != 0:
             raise ValueError("round: a start decision is taken at round 0")
+        if len(set(self.cites)) != len(self.cites):
+            raise ValueError("cites: a decision cites the same event twice")
         return self
 
 
@@ -264,6 +266,10 @@ class QuestionTree(BaseModel):
             for ancestor in _ancestors(parents, node.id):
                 branch[ancestor].update(node.design_ids)
         return branch
+
+    def linked_designs(self) -> set[str]:
+        """Every design linked to some node of the tree."""
+        return {design for node in self.nodes for design in node.design_ids}
 
     def untouched_nodes(self) -> list[QuestionNode]:
         """The next candidates: no design is linked to the node or anything below it."""
@@ -333,8 +339,8 @@ class QuestionTree(BaseModel):
             for answer in node.answers:
                 for statement in answer.statements:
                     self._check_cites(node.id, statement.cites, event_pattern)
-        for decision in self.decisions:
-            self._check_cites("decisions", decision.cites, event_pattern)
+        for position, decision in enumerate(self.decisions, start=1):
+            self._check_cites(f"decision {position}", decision.cites, event_pattern)
 
     def _check_cites(
         self, where: str, cites: list[str], event_pattern: re.Pattern[str]

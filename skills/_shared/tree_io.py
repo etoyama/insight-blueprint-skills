@@ -25,7 +25,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Sequence
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -55,7 +55,7 @@ from skills._shared.design_io import (
     journal_events,
     resolve_base_dir,
 )
-from skills._shared.tree_check import check_decisions, check_tree
+from skills._shared.tree_check import check_last_decision, check_tree
 from skills._shared.tree_read import (
     ReportStop,
     WalkState,
@@ -270,7 +270,7 @@ def decide(
     kind: str,
     node_id: str,
     reason: str,
-    cites: Iterable[str] = (),
+    cites: Sequence[str] = (),
     base_dir: Path = DEFAULT_BASE_DIR,
 ) -> dict:
     """Append a decision to the tree and return it, if its cites pass the check.
@@ -299,13 +299,7 @@ def decide(
     )
     # Checked before the journals are read, so a malformed cite never reaches a path.
     candidate_tree = _checked(tree, theme_id)
-    written = len(candidate_tree.decisions)
-    # An earlier decision is history: what its journal says now does not stop this one.
-    violations = [
-        asdict(v)
-        for v in check_decisions(candidate_tree, base_dir)
-        if v.position == written
-    ]
+    violations = [asdict(v) for v in check_last_decision(candidate_tree, base_dir)]
     if violations:
         return {"violations": violations}
     return _dump(_save(candidate_tree, theme_id, base_dir).decisions[-1])
