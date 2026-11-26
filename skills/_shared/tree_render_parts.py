@@ -161,11 +161,11 @@ KIND_WORDS = {
 # "{round}" is the round of the answer on a page and "N" in the legend.
 _MARK_WORDS = {
     Mark.changed: (
-        "{round}回目の振り返りで変わった",
+        "{round}回目の振り返りで変わったこと",
         "最も新しい振り返り（N回目）で、前の振り返りから書き換わった答え。",
     ),
     Mark.first: (
-        "{round}回目の振り返りで初めて答えた",
+        "{round}回目の振り返りで初めて答えたこと",
         "最も新しい振り返り（N回目）で、初めて書いた答え。",
     ),
     Mark.before_root_change: (

@@ -448,9 +448,9 @@ class TestLegend:
         ):
             assert word in legend
         for word in (
-            "N回目の振り返りで変わった",
+            "N回目の振り返りで変わったこと",
             "見直す前の主題への答え",
-            "N回目の振り返りで初めて答えた",
+            "N回目の振り返りで初めて答えたこと",
             "記録と合わない答え",
         ):
             assert word in legend
@@ -692,7 +692,7 @@ class TestMarks:
     ) -> None:
         shown = node_text(page(), "LIB-Q02")
 
-        assert "2回目の振り返りで変わった" in shown
+        assert "2回目の振り返りで変わったこと" in shown
         assert "初めて答えた" not in shown
 
     def test_the_previous_answer_is_shown_behind_a_changed_answer(self) -> None:
@@ -706,7 +706,7 @@ class TestMarks:
     ) -> None:
         shown = node_text(page(), "LIB-Q04")
 
-        assert "2回目の振り返りで初めて答えた" in shown
+        assert "2回目の振り返りで初めて答えたこと" in shown
         assert "変わった" not in shown
 
     def test_an_answer_from_an_earlier_round_carries_no_changed_mark(self) -> None:
@@ -867,7 +867,7 @@ class TestViolatingAnswers:
         shown = node_text(violation_page(), "LIB-Q04")
 
         assert "記録と合わない答え" not in shown
-        assert "2回目の振り返りで初めて答えた" in shown
+        assert "2回目の振り返りで初めて答えたこと" in shown
 
     def test_a_violation_does_not_hide_the_stale_root_mark(self) -> None:
         violations = [Violation("LIB-Q05", 1, 1, "missing-event", "LIB-H03-E01")]

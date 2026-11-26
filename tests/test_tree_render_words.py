@@ -110,3 +110,16 @@ class TestTheSubjectNamesItsRevisionsOnlyOnceRevised:
             in (history)
         )
         assert "理由: 始める時期も決めることになった" in history
+
+
+class TestTheMarksReadAsTheHeadingOfTheAnswer:
+    """Chosen after reading the pages: こと makes the mark head the statements
+    below it, not read as "changed after N reflections"."""
+
+    def test_the_mark_at_the_top_and_on_the_card_say_what_changed(self) -> None:
+        root = page(tree=changed_root())
+
+        assert "2回目の振り返りで変わったこと" in squash(
+            by_id(root, "subject-answer").text()
+        )
+        assert "2回目の振り返りで変わったこと" in node_text(root, "LIB-Q02")

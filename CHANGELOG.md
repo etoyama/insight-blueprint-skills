@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The question tree counts reflections and revisions in words.** A round is shown as N回目の振り返り
   (2回目の振り返り, 前の振り返りから変わったこと（1回目 → 2回目の振り返り）) instead of 回 N, and the table of
-  what changed says 言っていたこと / 言っていること without ここから. A subject never revised says nothing of
+  what changed says 言っていたこと / 言っていること without ここから. The mark above an answer reads
+  2回目の振り返りで変わったこと (and 2回目の振り返りで初めて答えたこと), so it heads the statements below it. A subject never revised says nothing of
   its revision: 主題の版 1 is gone from the header and from every answer. Once revised, the header says
   主題を1回見直した with a link to the history, and an answer to an earlier subject is 見直す前の主題への答え
   (after two or more, 1回目の見直しの前の主題への答え). `/analysis-reflection`, `/analysis-framing`,
