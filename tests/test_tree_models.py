@@ -129,7 +129,7 @@ class TestQuestionTree:
 
     def test_the_root_question_must_match_the_current_revision(self) -> None:
         data = tree_dict()
-        data["nodes"][0]["question"] = "書き換えた根の問い"
+        data["nodes"][0]["question"] = "書き換えた主題"
         assert "current root revision" in errors_of(data)
 
     def test_an_unknown_field_is_rejected(self) -> None:

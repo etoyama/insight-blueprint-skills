@@ -823,9 +823,9 @@ class TestQuestionTreeDocs:
         added = {
             "論点ツリー",
             "論点",
-            "根の問い",
+            "主題",
             "到達点",
-            "根の版",
+            "主題の版",
             "寄与",
             "発見元",
             "進捗",
@@ -893,7 +893,7 @@ class TestQuestionTreeDocs:
             "論点ツリー": "QuestionTree",
             "論点": "QuestionNode",
             "到達点": "Aim",
-            "根の版": "RootRevision",
+            "主題の版": "RootRevision",
             "寄与": "contribution",
             "発見元": "origin_event_id",
             "進捗": "Progress",
@@ -957,10 +957,10 @@ class TestQuestionTreeDocs:
         keeps = [line for line in sequence.splitlines() if "【KEEP" in line]
         for gate in (
             "ツリーを作って巡回に入るか",
-            "根の問い",
+            "主題",
             "最初に調べる論点",
             "ツリーの決定",
-            "根の版",
+            "主題の版",
         ):
             assert any(gate in line for line in keeps), gate
 
@@ -1314,3 +1314,60 @@ class TestExplorationAndConfirmationTerms:
     ) -> None:
         entry = changelog_entry(_read("CHANGELOG.md"), "探索（旧形式）")
         assert phrase in unwrap(section(entry, "### Upgrade note"))
+
+
+class TestWordsShownToTheAnalyst:
+    """Epic 34 US-5 AC 4: the glossary names the subject and copies the words to show."""
+
+    GLOSSARY = "docs/UBIQUITOUS_LANGUAGE.md"
+    DESIGN_DOC = "docs/design/epic-34-what-moved-the-answer.md"
+    SECTION = "Words shown to the analyst"
+
+    def _rows(self) -> dict[str, dict[str, str]]:
+        return {r[words.TERM]: r for r in words.terms_rows(_read(self.GLOSSARY))}
+
+    @pytest.mark.parametrize(
+        ("term", "old"), [("主題", "根の問い"), ("主題の版", "根の版")]
+    )
+    def test_the_old_name_is_a_variant_of_the_subject_and_is_flagged(
+        self, term: str, old: str
+    ) -> None:
+        assert old in self._rows()[term][words.AVOID].split("、")
+        assert f"{old}\t{term}" in _read(".yomiyasu-words/flag.txt")
+
+    def test_no_definition_uses_an_old_name_of_the_subject(self) -> None:
+        for term, row in self._rows().items():
+            for old in ("根の問い", "根の版", "根の変更前の答え"):
+                assert old not in row[words.DEFINITION], term
+
+    def test_the_answer_is_defined_by_the_words_of_its_kinds(self) -> None:
+        definition = self._rows()["現時点の答え"][words.DEFINITION]
+        for word in (
+            "これまでわかっていること",
+            "注意すべきこと",
+            "まだ決められないこと",
+        ):
+            assert word in definition
+        for value in ("`claim`", "`weakening`", "`undetermined`"):
+            assert value in definition
+
+    def test_the_glossary_copies_the_table_of_the_design_doc(self) -> None:
+        def rows(markdown: str) -> list[list[str]]:
+            return table_rows(markdown)[2:]
+
+        us5 = section(_read(self.DESIGN_DOC), "### US-5:")
+        glossary = words.section(_read(self.GLOSSARY), self.SECTION)
+        assert rows(glossary) == rows(us5)
+        assert rows(glossary)
+
+    def test_prd_requires_the_tree_to_start_from_the_subject(self) -> None:
+        requirements = section(_read("docs/PRD.md"), "### 機能要件")
+        assert "着手時には、主題、暫定の第一階層" in requirements
+        assert "論点ツリーの主題に到達点を持てる" in requirements
+
+    def test_architecture_tells_the_check_of_the_subject_and_its_revisions(
+        self,
+    ) -> None:
+        architecture = unwrap(_read("docs/ARCHITECTURE.md"))
+        assert "主題がちょうど1つあること" in architecture
+        assert "主題の版が1から1ずつ増えること" in architecture

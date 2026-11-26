@@ -48,13 +48,13 @@ _DASH = "—"
 # The glossary's words a reader does not know, and what the report says instead.
 # Every fixed sentence takes these words from here (ADR-0039).
 READER_WORDS: Mapping[str, str] = {
-    "根の問い": "主題",
     "journal の出来事": "記録",
     "分析設計": "分析",
     "親の論点": "上位の論点",
     "寄与": "答えると分かること",
 }
-_ROOT = READER_WORDS["根の問い"]
+# The glossary itself calls the root question 主題 (ADR-0055): no rewrite.
+_ROOT = "主題"
 _RECORD = READER_WORDS["journal の出来事"]
 _DESIGN = READER_WORDS["分析設計"]
 _PARENT = READER_WORDS["親の論点"]

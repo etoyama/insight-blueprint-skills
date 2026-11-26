@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   question and its evidence, or none), and the key is derived from the built tree; the library's is
   none. The sheet of questions and HANDOFF_TRIAL say "subject" instead of "root". Records kept before
   have no q6 and keep their score ([ADR-0059](docs/adr/0059-the-handoff-trial-has-a-second-scenario-and-a-sixth-question.md), #264).
+- **The question tree speaks the analyst's words.** The page, the skills and the report call the
+  root question 主題, its revision 主題の版 and an answer to an older revision 見直す前の主題への答え,
+  and the kinds of statement これまでわかっていること, 注意すべきこと and まだ決められないこと. The YAML keys
+  and values (`root_revisions`, `claim`, …) and `tree_io revise-root` keep their names, so a saved
+  tree reads as it did; the glossary copies the table of words to show ([ADR-0055](docs/adr/0055-the-root-question-is-shown-as-the-subject.md), #263).
 - **A confirmatory notebook judges its primary metric by two lines.** The contract has the primary
   metric hold `support_line` and `reject_line` (numbers copied from the design's `comparison`) and a
   `judgment` of `supported`, `rejected` or `inconclusive`; `threshold` and `pass` stay with secondary

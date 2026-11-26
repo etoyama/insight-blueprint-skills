@@ -52,19 +52,19 @@
 | reflection | `/analysis-reflection` | journal を振り返り、分析設計を結論で終えるか、直すか、派生するかを決めること。探索は `explored` で終え、判定しない | — | fork 前、[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md) |
 | 読むもの | — | reflection が結論を聞く前に出す、分析ノートへの入口。開くファイルのパス、分析ノートの場所、分析設計を結んだ論点の id の3つで、出す直前に分析ノートを作り直して得る。論点ツリーが無いか、どの論点にも結んでいなければ、分析ノートの場所だけを出す。図・verdict・notebook のパスと指標の定義は、チャットに並べず分析ノートが載せる | 判断材料 | [epic-28](design/epic-28-tree-entry-point.md)、[ADR-0036](adr/0036-design-note-is-a-generated-page-per-design.md) |
 | 分析ノート | `design_note`、`DesignNote`、`NoteReviewBatch` | 分析設計ごとにコードが生成する文書。探索の問いか検証仮説、手法、指標の定義、結果の値、図、review batch と review コメント、分析コード、journal の出来事を、書かれたとおりに並べる。結論の後は結論の節も埋まる。解釈の文は生成しない。論点ツリーの HTML の中に分析設計ごとに並び、論点ツリーの無いテーマでは単独のページになる。notebook とは別のもので、分析設計・journal・notebook の出力から作る | デザインノート、ノート（分析ノートを指して単独で使うとき） | [ADR-0036](adr/0036-design-note-is-a-generated-page-per-design.md)、[ADR-0054](adr/0054-review-covers-the-result-and-its-comments-reach-the-reader.md) |
-| 論点ツリー | `QuestionTree` | 1つのテーマ（`theme_id`）の問いの論理の構造。根の問いを1つ持ち、論点を親子でつなぐ。分析設計の派生とは別に辿る。正本は YAML で、表示は正本から生成する | イシューツリー、ロジックツリー | [ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md) |
+| 論点ツリー | `QuestionTree` | 1つのテーマ（`theme_id`）の問いの論理の構造。主題を1つ持ち、論点を親子でつなぐ。分析設計の派生とは別に辿る。正本は YAML で、表示は正本から生成する | イシューツリー、ロジックツリー | [ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md) |
 | 論点 | `QuestionNode` | 論点ツリーの1つのノード。問いの文と、親の論点への寄与を持ち、答えるための分析設計を結べる。journal の `question` とは別に持つ | 子の問い、サブクエスチョン | [epic-18](design/epic-18-question-tree.md) |
-| 根の問い | — | 論点ツリーの、親を持たない論点。ツリーに1つだけあり、到達点を持つ | — | [epic-18](design/epic-18-question-tree.md) |
-| 到達点 | `Aim` | 根の問いが目指す所。業務では誰が何を決めるか、研究では想定読者と主張の範囲 | ゴール | [epic-18](design/epic-18-question-tree.md) |
-| 根の版 | `RootRevision` | 根の問いか到達点を変えるたびに1つ上がる番号。変えた理由を持つ。古い版に対する現時点の答えは、根の変更前の答えとして表示する | — | [epic-18](design/epic-18-question-tree.md) |
-| 親の論点 | `parent_question_id` | 論点が寄与する、1つ上の論点。根の問いだけが持たない | — | [epic-29](design/epic-29-theme-report-export.md) |
+| 主題 | — | 論点ツリーの、親を持たない論点。ツリーに1つだけあり、到達点を持つ。コード上の名前と YAML の項目名は root のままである | 根の問い | [epic-18](design/epic-18-question-tree.md)、[ADR-0055](adr/0055-the-root-question-is-shown-as-the-subject.md) |
+| 到達点 | `Aim` | 主題が目指す所。業務では誰が何を決めるか、研究では想定読者と主張の範囲 | ゴール | [epic-18](design/epic-18-question-tree.md) |
+| 主題の版 | `RootRevision` | 主題か到達点を見直すたびに1つ上がる番号。見直した理由を持つ。古い版に対する現時点の答えは、見直す前の主題への答えとして表示する | 根の版、根の変更前の答え | [epic-18](design/epic-18-question-tree.md)、[ADR-0055](adr/0055-the-root-question-is-shown-as-the-subject.md) |
+| 親の論点 | `parent_question_id` | 論点が寄与する、1つ上の論点。主題だけが持たない | — | [epic-29](design/epic-29-theme-report-export.md) |
 | 寄与 | `contribution` | 子の論点に答えると、親の論点の判断がどう進むか。論点の親子はこれで決める | — | [epic-18](design/epic-18-question-tree.md) |
 | 発見元 | `origin_event_id` | 探索中に生まれた論点が生まれた journal の出来事。着手のときに置いた論点は持たない | — | [epic-18](design/epic-18-question-tree.md) |
 | 進捗 | `Progress` | 論点の分析がどこまで進んだか。未着手・検証中・分析済み。保存せず、結んだ分析設計の状態から導く | — | [epic-18](design/epic-18-question-tree.md) |
-| 現時点の答え | `Answer` | 振り返りで論点ごとに書く答え。文ごとに種類（言えること・未判別・弱める証拠と留保）と、引用する journal の出来事を持つ。追記だけで、振り返りの回と根の版を持つ | 暫定回答 | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
+| 現時点の答え | `Answer` | 振り返りで論点ごとに書く答え。文ごとに種類（これまでわかっていること `claim`・注意すべきこと `weakening`・まだ決められないこと `undetermined`）と、引用する journal の出来事を持つ。追記だけで、振り返りの回と主題の版を持つ | 暫定回答、未判別、弱める証拠と留保 | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
 | 振り返りの回 | `round` | テーマを横断する振り返りの通し番号。1回の `tree_io answer` が1つの回になる。前の回から変わった答えを見分けるのに使う | — | [epic-18](design/epic-18-question-tree.md) |
 | ツリーの決定 | `TreeDecision` | 論点ツリーで分析者が選んだこと（最初の論点を選ぶ、深める、親に戻る、区切る）と理由。次に調べる論点を指し、区切るときは区切った論点を指す。決めた時点の振り返りの回を持つ | — | [epic-18](design/epic-18-question-tree.md) |
-| 次の候補 | `NextCandidate` | 振り返りが示す、次に調べるとよい未着手の論点。根を除き、自分にも下の論点にも分析設計を結んでいない論点を指す。人に聞く問い、その答えで変わる判断、既に分かっていること、聞いてきた答え（誰に、いつ）を添えられる | — | [epic-18](design/epic-18-question-tree.md) |
+| 次の候補 | `NextCandidate` | 振り返りが示す、次に調べるとよい未着手の論点。主題を除き、自分にも下の論点にも分析設計を結んでいない論点を指す。人に聞く問い、その答えで変わる判断、既に分かっていること、聞いてきた答え（誰に、いつ）を添えられる | — | [epic-18](design/epic-18-question-tree.md) |
 | ツリーの検査 | `tree_check` | 現時点の答えの引用先が実在し、論点に結んだ分析設計のものか、文の数が引用先の本文にあるかを確かめること。論点ツリーを書き換えない | — | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
 | Artifact | — | ホストが持つ、HTML のページを claude.ai に置いて URL で開ける機能。plugin は持たない。論点ツリーの表示を渡すのに使う | — | [ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md) |
 | 合成シナリオ | — | 公開する例・図・テストデータに使う架空の題材。今は公共図書館の予約本 | — | [epic-18](design/epic-18-question-tree.md) |
@@ -110,6 +110,25 @@
 | guided autopilot | `/analysis-auto` | driver が既存の skill を順に動かし、KEEP ゲートでだけ止まる実行 | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |
 | KEEP ゲート | `KEEP` | skill が止まって分析者の判断を待つ所。guided autopilot はここでだけ止まる。`.insight/` の中身を外部へ送る skill は、単独で起動されたときもここで承認を待つ | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md)、[ADR-0016](adr/0016-approval-before-external-send.md) |
 | AUTO | `AUTO` | guided autopilot が分析者に聞かずに進める所 | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |
+
+## Words shown to the analyst
+
+文書・コード・テストは内側の用語を使い、分析者に見せる文（論点ツリーの表示、skill が分析者に出す文、レポート）は右の列の言葉を使う（[ADR-0055](adr/0055-the-root-question-is-shown-as-the-subject.md)）。
+YAML の項目名と値は変えない。表の正本は [Epic 34 の DesignDoc の US-5](design/epic-34-what-moved-the-answer.md#us-5-分析者が論点ツリーを内側の用語ではなく伝わる言葉で読む) で、ここに写す。
+
+| 内側の用語（文書・コード） | 分析者に見せる言葉 |
+|---|---|
+| 根の問い | 主題 |
+| 根の版 | 主題の版 |
+| 根の変更前の答え | 見直す前の主題への答え |
+| 言えること（`claim`） | これまでわかっていること |
+| 弱める証拠と留保（`weakening`） | 注意すべきこと |
+| 未判別（`undetermined`） | まだ決められないこと |
+| 引用する（`cites`） | 根拠にする |
+| 答えが引用した journal の出来事 | 分析結果（`hearing` は「人に聞いた答え」） |
+| 下の論点 | 使わない。「分析結果のうち」のように、分析結果を主語にして言う |
+| 引用していない下の結果のうち、一度も引用していないもの | まだ答えに入れていない分析結果 |
+| 引用していない下の結果のうち、前は引用していたもの | 前は答えの根拠にしていて、今は外している分析結果 |
 
 ## コンテキストを分けるとき
 
