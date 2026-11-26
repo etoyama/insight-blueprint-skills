@@ -80,6 +80,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the kinds of statement これまでわかっていること, 注意すべきこと and まだ決められないこと. The YAML keys
   and values (`root_revisions`, `claim`, …) and `tree_io revise-root` keep their names, so a saved
   tree reads as it did; the glossary copies the table of words to show ([ADR-0055](docs/adr/0055-the-root-question-is-shown-as-the-subject.md), #263).
+
+## [0.20.0] - 2026-11-26
+
+### Changed
+
 - **A confirmatory notebook judges its primary metric by two lines.** The contract has the primary
   metric hold `support_line` and `reject_line` (numbers copied from the design's `comparison`) and a
   `judgment` of `supported`, `rejected` or `inconclusive`; `threshold` and `pass` stay with secondary
@@ -985,7 +990,8 @@ Version bumps and maintenance releases. See git history for details:
 - YAML direct edit resilience (extra field preservation + corrupt file isolation)
 - SQLite FTS5 full-text search index
 
-[unreleased]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.19.0...HEAD
+[unreleased]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/etoyama/insight-blueprint-skills/compare/v0.16.0...v0.17.0
