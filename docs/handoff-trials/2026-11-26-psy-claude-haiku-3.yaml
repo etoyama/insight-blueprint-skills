@@ -1,0 +1,55 @@
+date: '2026-11-26'
+scenario: psy
+stage: round-4
+reader:
+  kind: claude
+  name: haiku (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 現時点の答えには「これまでわかっていること」もあるが、「まだ決められないこと」が「上司への働きかけを優先するかは、上司支援と負荷軽減の効果を見分けるまで決められない」と書かれている。主題の答えは決まっていない。
+    verdict: undetermined
+  q2:
+    note: 未着手は Q06 のみ。分析済みのうち、「まだ決められないこと」が残るのは Q04 のみ。Q02、Q05、Q03 は分析済みだが「これまでわかっていること」だけなので挙げていない。
+    not_started:
+    - PSY-Q06
+    analyzed_undetermined:
+    - PSY-Q04
+  q3:
+    note: 支えは「上司支援の評価が上がった年は心理的安全性が平均0.30上がった」(PSY-H03-E01)。弱めるのは「注意すべきこと」の根拠になっている、上司支援の評価が上がった回答者の78%が業務負荷も下がった部署にいた、という事実
+      (PSY-H04-E01)。
+    supports:
+    - event_id: PSY-H03-E01
+      design_id: PSY-H03
+    weakens:
+    - event_id: PSY-H04-E01
+      design_id: PSY-H04
+  q4:
+    note: 回3では「優先する根拠になる」だったが、回4で PSY-H04-E01 を引いて「注意すべきこと」と「まだ決められないこと」を加え、判定を変えた。PSY-Q04
+      は回4で初めて答えたので含めていない。
+    changed_nodes:
+    - PSY-Q01
+    evidence:
+    - PSY-H04-E01
+  q5:
+    note: 回4の振り返り後の決定は、上司支援の評価が上がった回答者の多くが業務負荷も下がった部署にいたことを理由に、片方だけが変わった部署で比べることにしている。その根拠は
+      PSY-H04-E01。Q06 の発見元は PSY-H04-E02 (問い) だが、選ぶ理由の元は E01 とした。
+    node_id: PSY-Q06
+    reason_events:
+    - PSY-H04-E01
+  q6:
+    note: Q03 は今回書き直していない。その上の Q01 は、回3と回4の両方で PSY-H03-E01 を引いているが、文が「優先する根拠になる」から「平均0.30上がった」に変わった。Q03
+      の答えも PSY-H03-E01 を引いている。Q06 は答えが無いので除外。Q04 は前の回の答えが無いので除外。
+    nodes:
+    - PSY-Q03
+    evidence:
+    - PSY-H03-E01
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: true
+  q6: true

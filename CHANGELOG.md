@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stay while the subject's answer cites its evidence in other words. Every scenario now asks q6 (that
   question and its evidence, or none), and the key is derived from the built tree; the library's is
   none. The sheet of questions and HANDOFF_TRIAL say "subject" instead of "root". Records kept before
-  have no q6 and keep their score ([ADR-0059](docs/adr/0059-the-handoff-trial-has-a-second-scenario-and-a-sixth-question.md), #264).
+  have no q6 and keep their score. On the display before Epic 34's changes, all nine Claude readers got
+  all six questions of `psy` right ([ADR-0059](docs/adr/0059-the-handoff-trial-has-a-second-scenario-and-a-sixth-question.md), #264).
 - **The question tree speaks the analyst's words.** The page, the skills and the report call the
   root question 主題, its revision 主題の版 and an answer to an older revision 見直す前の主題への答え,
   and the kinds of statement これまでわかっていること, 注意すべきこと and まだ決められないこと. The YAML keys
