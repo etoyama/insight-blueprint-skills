@@ -1,9 +1,12 @@
 """Structure tests: the skills speak the analyst's words for the tree (Epic 34, Story 34.1).
 
 US-5 AC 1, AC 2: the sentences a skill shows the analyst call the root question
-主題, its revision 主題の版, an answer to an older revision 見直す前の主題への答え,
-and the kinds of statement by the words the analyst chose (ADR-0055). The YAML
-keys and ``tree_io revise-root`` keep the word root (US-5 AC 3).
+主題, an answer to an older revision 見直す前の主題への答え, a reflection round
+N回目の振り返り, and the kinds of statement by the words the analyst chose
+(ADR-0055). A revision of the subject is said in words, by how many times it
+was revised, and not at all while it never was: the analyst never reads 版
+(Decision words-chosen-after-reading-the-real-pages). The YAML keys and
+``tree_io revise-root`` keep the word root (US-5 AC 3).
 """
 
 from __future__ import annotations
@@ -14,8 +17,10 @@ from tests.skills._markdown import section
 from tests.skills.test_skill_structure import _read_skill
 
 WORDS_RULE = (
-    "call the root question 主題, a root revision 主題の版, and an answer to an"
-    " earlier root revision 見直す前の主題への答え"
+    "call the root question 主題, an answer to an earlier root revision"
+    " 見直す前の主題への答え, and reflection round N N回目の振り返り. Never show the"
+    " word 版 or the number of a root revision: say how many times the 主題 was"
+    " revised (主題を1回見直した), and nothing of it while it was never revised"
 )
 
 
@@ -26,6 +31,16 @@ def test_a_skill_that_talks_about_the_tree_names_the_analysts_words(
     assert WORDS_RULE in " ".join(_read_skill(skill).split())
 
 
+def test_the_theme_reflection_never_shows_a_round_as_a_bare_number() -> None:
+    present = section(_read_skill("analysis-reflection"), "### Step T5: ")
+    ask = section(_read_skill("analysis-reflection"), "### Step T3: ")
+
+    for text in (present, ask):
+        assert "回 {" not in text
+    assert "{previous_round}回目の振り返りから変わった" in present
+    assert "（{round}回目の振り返りの答えまで根拠にしていた）" in ask
+
+
 class TestTheThemeReflectionShowsTheAnalystsWords:
     def _present(self) -> str:
         return section(_read_skill("analysis-reflection"), "### Step T5: ")
@@ -33,7 +48,8 @@ class TestTheThemeReflectionShowsTheAnalystsWords:
     def test_the_answers_are_headed_by_the_subject_and_its_revision(self) -> None:
         present = self._present()
 
-        assert "主題の版 {root_revision}" in present
+        assert "{round}回目の振り返り{。主題を{n}回見直した}" in present
+        assert "主題の版" not in present
         assert "主題: {root question}" in present
 
     def test_each_statement_is_tagged_with_the_word_of_its_kind(self) -> None:
@@ -52,7 +68,7 @@ class TestTheThemeReflectionShowsTheAnalystsWords:
         present = self._present()
 
         assert '"見直す前の主題への答え"' in present
-        assert "主題の版が上がり、同じ文で書き直した" in present
+        assert "主題を見直し、同じ文で書き直した" in present
 
     def test_a_theme_without_a_tree_is_sent_to_decide_its_subject(self) -> None:
         load = section(_read_skill("analysis-reflection"), "### Step T1: ")
@@ -61,7 +77,7 @@ class TestTheThemeReflectionShowsTheAnalystsWords:
 
 
 def test_the_report_without_an_answer_names_the_subject_and_its_revision() -> None:
-    assert '`no_root_answer`: "主題に、今の主題の版への答えがまだない。' in _read_skill(
+    assert '`no_root_answer`: "今の主題への答えがまだない。' in _read_skill(
         "report-export"
     )
 

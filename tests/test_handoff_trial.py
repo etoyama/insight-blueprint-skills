@@ -658,6 +658,9 @@ class TestPrompt:
             assert word in head
         assert not re.search("根(?!拠)", head)
         assert "未判別" not in head
+        # A round is counted as a reflection, as the page says it.
+        assert "この回" not in head
+        assert "最後の振り返りで初めて答えた論点" in head
 
 
 class TestRecord:

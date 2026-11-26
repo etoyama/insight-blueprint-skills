@@ -92,7 +92,22 @@ class CheckFailed:
 _SUBJECT = "主題"
 
 
-_SUBJECT_REVISION = f"{_SUBJECT}の版"
+def _reflection(round: int) -> str:
+    """A reflection round as the analyst counts it: the page never says 回 N."""
+    return f"{round}回目の振り返り"
+
+
+def _before_revision(tree: QuestionTree, revision: int) -> str | None:
+    """What an answer to *revision* of the subject is, when the subject was revised since.
+
+    The page names no revision by number: the analyst counts the times the
+    subject was revised, and hears of it only once it was.
+    """
+    if revision >= tree.current_revision().revision:
+        return None
+    if len(tree.root_revisions) == 2:
+        return f"見直す前の{_SUBJECT}への答え"
+    return f"{revision}回目の見直しの前の{_SUBJECT}への答え"
 
 
 _AIM_LABELS = {
@@ -146,16 +161,17 @@ KIND_WORDS = {
 # "{round}" is the round of the answer on a page and "N" in the legend.
 _MARK_WORDS = {
     Mark.changed: (
-        "回 {round} で変わった",
-        "最も新しい振り返りの回（N）で、前の回から書き換わった答え。",
+        "{round}回目の振り返りで変わった",
+        "最も新しい振り返り（N回目）で、前の振り返りから書き換わった答え。",
     ),
     Mark.first: (
-        "回 {round} で初めて答えた",
-        "最も新しい振り返りの回（N）で、初めて書いた答え。",
+        "{round}回目の振り返りで初めて答えた",
+        "最も新しい振り返り（N回目）で、初めて書いた答え。",
     ),
     Mark.before_root_change: (
         f"見直す前の{_SUBJECT}への答え",
-        f"{_SUBJECT}か到達点を見直す前の、古い{_SUBJECT_REVISION}に対して書いた答え。",
+        f"{_SUBJECT}か到達点を見直す前の{_SUBJECT}に対して書いた答え。"
+        f"2回以上見直したときは、何回目の見直しの前かを添える。",
     ),
     Mark.violating: (
         "記録と合わない答え",
@@ -179,12 +195,13 @@ _CHANGE_WORDS = {
     ),
     ChangeKind.reworded: (
         "言っていることが変わった",
-        "同じ分析結果を根拠にしたまま、そこから言っている文か、文の種類が変わった。"
+        "同じ分析結果を根拠にしたまま、その分析結果について言っている文か、"
+        "文の種類が変わった。"
         "言い回しを変えただけでも、ここに出る。",
     ),
     ChangeKind.unchanged: (
         "変わっていない",
-        "同じ分析結果から、同じ文を言っている。表では畳んで出す。",
+        "同じ分析結果について、同じ文を言っている。表では畳んで出す。",
     ),
 }
 
@@ -383,7 +400,7 @@ def _link(target: str, label: str) -> Html:
 
 def _marks(context: _Context, node: QuestionNode, answer: Answer) -> Html | None:
     marks = [
-        el("span", _mark_text(mark, answer), class_="mark")
+        el("span", _mark_text(context.tree, mark, answer), class_="mark")
         for mark in context.marks_of(node)
     ]
     return el("p", *marks) if marks else None
@@ -424,11 +441,12 @@ def _result(context: _Context, event_id: str) -> list[Html | str]:
     ]
 
 
-def _mark_text(mark: Mark, answer: Answer) -> str:
-    word = _MARK_WORDS[mark][0].format(round=answer.round)
+def _mark_text(tree: QuestionTree, mark: Mark, answer: Answer) -> str:
     if mark is Mark.before_root_change:
-        return f"{word}（{_SUBJECT_REVISION} {answer.root_revision} への答え）"
-    return word
+        before = _before_revision(tree, answer.root_revision)
+        assert before is not None  # the mark is given to such an answer only
+        return before
+    return _MARK_WORDS[mark][0].format(round=answer.round)
 
 
 def _statement(statement: AnswerStatement, *tail: str) -> Html:
@@ -451,12 +469,11 @@ def _heard_word(context: _Context, statement: AnswerStatement) -> tuple[str, ...
     return ()
 
 
-def _round_line(answer: Answer) -> str:
-    return f"振り返りの回 {answer.round}（{_SUBJECT_REVISION} {answer.root_revision}）"
-
-
-def _round_meta(answer: Answer) -> Html:
-    return el("p", _round_line(answer), class_="meta")
+def _round_meta(tree: QuestionTree, answer: Answer) -> Html:
+    """The round of an earlier answer: it carries no mark, so it says its subject."""
+    before = _before_revision(tree, answer.root_revision)
+    tail = f"（{before}）" if before else ""
+    return el("p", f"{_reflection(answer.round)}{tail}", class_="meta")
 
 
 def _current_round_meta(context: _Context, answer: Answer) -> Html:
@@ -467,12 +484,12 @@ def _current_round_meta(context: _Context, answer: Answer) -> Html:
     """
     latest = context.tree.current_round()
     untouched = (
-        f"　最新の振り返りは回 {latest} で、回 {answer.round} より後の回では、"
+        f"　最新の振り返りは{latest}回目で、{answer.round}回目より後の振り返りでは、"
         "この答えを書き直していない。"
         if answer.round < latest
         else None
     )
-    return el("p", el("span", _round_line(answer), class_="meta"), untouched)
+    return el("p", el("span", _reflection(answer.round), class_="meta"), untouched)
 
 
 def _join_links(node_ids: list[str]) -> list[Html | str]:

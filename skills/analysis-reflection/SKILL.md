@@ -393,7 +393,7 @@ for all of them:
   - {content}（「{question of the node whose answer rests on it}」の答えが根拠にしている）
   - 人に聞いた答え: {content}（「{question of the node whose answer rests on it}」の答えが根拠にしている）
 前は答えの根拠にしていて、今は外している分析結果:
-  - {content}（回 {round} の答えまで根拠にしていた）
+  - {content}（{round}回目の振り返りの答えまで根拠にしていた）
 
 「この中から、答えの根拠にする分析結果を選んでください。選ばなくても答えは書けます。」
 ```
@@ -480,18 +480,18 @@ Show no answer to the analyst before `tree_check` has run, and never show an ans
 ### Step T5: Present the current answers
 
 ```
-── Theme Reflection: {theme_id} (round {round}, 主題の版 {root_revision}) ──
+── Theme Reflection: {theme_id}（{round}回目の振り返り{。主題を{n}回見直した}）──
 主題: {root question}
 
 {node_id}  {question}
   Progress: {未着手 | 検証中 | 分析済み}
-  Answer (round {round}{, 見直す前の主題への答え}):
+  Answer（{round}回目の振り返り{、見直す前の主題への答え}）:
     [これまでわかっていること] {text}  ← {cites}
     [まだ決められないこと] {text}  ← {cites}
     [注意すべきこと] {text}  ← {cites}
 
 ── Changed in this round ──
-  - {node_id}: 初めての答え | 回 {previous_round} から変わった（{reason}） | 主題の版が上がり、同じ文で書き直した
+  - {node_id}: 初めての答え | {previous_round}回目の振り返りから変わった（{reason}） | 主題を見直し、同じ文で書き直した
 
 ── Unchanged ──
   - {node_id}
@@ -503,13 +503,13 @@ Show no answer to the analyst before `tree_check` has run, and never show an ans
   - {node_id}: 「{text}」 — {violation kind}: {violation text}
 
 ── Stale answers ──
-  - {node_id}: 回 {round} の答えは記録と合わなくなった — {violation kind}: {violation text}
+  - {node_id}: {round}回目の振り返りの答えは記録と合わなくなった — {violation kind}: {violation text}
 
 ── まだ答えに入れていない分析結果 ──
   - {node_id}: {content}
 
 ── 前は答えの根拠にしていて、今は外している分析結果 ──
-  - {node_id}: {content}（回 {round} の答えまで根拠にしていた）
+  - {node_id}: {content}（{round}回目の振り返りの答えまで根拠にしていた）
 ```
 
 - Changed and unchanged nodes come from `written`, `previous_round`, `restated` and
@@ -526,9 +526,14 @@ Show no answer to the analyst before `tree_check` has run, and never show an ans
   T3, say so next to it under Removed statements.
 - A node under "Stale answers" shows its question and progress, not its answer.
 - An answer whose `root_revision` is lower than the current root revision answers an
-  earlier root question: mark it "見直す前の主題への答え".
-- In every sentence for the analyst, call the root question 主題, a root revision 主題の版,
-  and an answer to an earlier root revision 見直す前の主題への答え (ADR-0055). The YAML
+  earlier root question: mark it "見直す前の主題への答え". After two or more revisions, say
+  before which one: "{revision}回目の見直しの前の主題への答え".
+- `{n}` in the heading is the number of root revisions minus one. Leave out
+  `。主題を{n}回見直した` while it is 0.
+- In every sentence for the analyst, call the root question 主題, an answer to an earlier
+  root revision 見直す前の主題への答え, and reflection round N N回目の振り返り. Never show the
+  word 版 or the number of a root revision: say how many times the 主題 was revised
+  (主題を1回見直した), and nothing of it while it was never revised (ADR-0055). The YAML
   keys and `tree_io revise-root` keep the word root.
 - List every removed statement with its violation. Never drop one silently: the analyst
   must know what the answer does not say.

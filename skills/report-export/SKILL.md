@@ -58,7 +58,7 @@ to report.
    - It exits 3 and `written` is false: the report was not written. Tell the analyst each of
      the `reasons` with what fixes it, send nothing, and exit:
      - `no_tree`: "このテーマには論点ツリーがない。/analysis-framing {theme_id} で作ろう"
-     - `no_root_answer`: "主題に、今の主題の版への答えがまだない。/analysis-reflection {theme_id} で答えを書こう"
+     - `no_root_answer`: "今の主題への答えがまだない。/analysis-reflection {theme_id} で答えを書こう"
      - `violations`: show each violation, then "ツリーの検査に違反がある。/analysis-reflection {theme_id} で直そう"
      `no_root_answer` and `violations` can come together; tell both. Never read or send an older
      report, even if `.insight/reports/{theme_id}.md` exists: `tree_io report` leaves the file
@@ -115,7 +115,7 @@ out, and where the answer stands, in one message:
 送り先: Claude Docs の新しい Doc（既存の Doc は変えない）
 Doc は自分だけに見える状態で作られる。ほかの人に見せるには、あとで自分で共有する。
 
-答えを書いた振り返りの回: {root_answer_round} 回目（最後の振り返りは {round} 回目）
+答えを書いた振り返り: {root_answer_round}回目（最後の振り返りは{round}回目）
 結論の出ていない分析設計: {count} 件（{unfinished_designs の id を読点で並べる。0 件なら括弧ごと出さない}）
 
 レポートには主題、答え、到達点、分析設計の記録の文が入る。記録には、クエリ・テーブル名・

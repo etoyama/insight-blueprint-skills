@@ -29,12 +29,13 @@ from skills._shared.tree_render_parts import (
     _NOT_YET_WORDS,
     _RESULT_WORD,
     _SUBJECT,
-    _SUBJECT_REVISION,
     _USED_ABOVE_WORDS,
     Shown,
+    _before_revision,
     _Context,
     _is_heard,
     _link,
+    _reflection,
     _result,
     _statement_list,
     _word_of,
@@ -55,8 +56,9 @@ def _changes(context: _Context, node: QuestionNode, heading_tag: str) -> Html | 
         body += [
             el(
                 "p",
-                f"回 {before} の答えを読んだ人は、次の表だけ読み直せばよい。"
-                f"根拠か、そこから言っていることが、回 {before} から変わった所を並べている。",
+                f"{_reflection(before)}の答えを読んだ人は、次の表だけ読み直せばよい。"
+                "根拠か、根拠について言っていることが、"
+                f"{_reflection(before)}から変わった所を並べている。",
             ),
             _change_table(context, change, changed),
         ]
@@ -64,7 +66,8 @@ def _changes(context: _Context, node: QuestionNode, heading_tag: str) -> Html | 
         body.append(
             el(
                 "p",
-                f"根拠も、そこから言っていることも、回 {before} から変わっていない。",
+                "根拠も、根拠について言っていることも、"
+                f"{_reflection(before)}から変わっていない。",
             )
         )
     body.append(
@@ -83,12 +86,12 @@ def _changes(context: _Context, node: QuestionNode, heading_tag: str) -> Html | 
                 _change_table(context, change, same),
             )
         )
-    title = f"前の回から変わったこと（回 {before} → 回 {now}）"
+    title = f"前の振り返りから変わったこと（{before}回目 → {_reflection(now)}）"
     if now == context.tree.current_round():
         return el("div", el(heading_tag, title), join(body), class_="changes")
     return el(
         "details",
-        el("summary", title, "　最新の回の変化ではないので畳んである"),
+        el("summary", title, "　最新の振り返りの変化ではないので畳んである"),
         join(body),
         class_="changes",
     )
@@ -104,12 +107,11 @@ def _change_table(
     revised = earlier.root_revision != last.root_revision
 
     def answered(answer: Answer) -> str:
-        to = (
-            f"（{_SUBJECT_REVISION} {answer.root_revision} への答え）"
-            if revised
-            else " "
+        subject = _before_revision(context.tree, answer.root_revision) or (
+            f"今の{_SUBJECT}への答え"
         )
-        return f"回 {answer.round}{to}で、ここから"
+        to = f"（{subject}）" if revised else ""
+        return f"{_reflection(answer.round)}{to}で"
 
     head = (
         "変わり方",
@@ -207,7 +209,11 @@ def _left_out_row(context: _Context, row: UncitedBelow) -> Html:
             else None
         )
         parts.append(
-            el("p", f"回 {row.last_cited_round} の答えまでは根拠にしていた。", instead)
+            el(
+                "p",
+                f"{_reflection(row.last_cited_round)}の答えまでは根拠にしていた。",
+                instead,
+            )
         )
     below = context.tree.node(row.node_id)
     if context.shown(below) is Shown.violating:
@@ -216,8 +222,8 @@ def _left_out_row(context: _Context, row: UncitedBelow) -> Html:
         parts += [
             el(
                 "p",
-                f"論点 {below.id} の回 {row.round} の答えが、"
-                f"この{_word_of(context, row.event_id)}から言っていること:",
+                f"論点 {below.id} の{_reflection(row.round)}の答えが、"
+                f"この{_word_of(context, row.event_id)}について言っていること:",
             ),
             _statement_list(context, row.statements),
         ]
@@ -250,7 +256,7 @@ def _used_above_row(context: _Context, row: CitedAbove, answer: Answer) -> Html:
             "p",
             f"{word} {row.event_id} を、",
             _link(target, name),
-            f"{gap}の回 {row.round} の答えが根拠にしている:",
+            f"{gap}の{_reflection(row.round)}の答えが根拠にしている:",
         )
     ]
     if context.shown(upper) is Shown.violating:
@@ -261,9 +267,9 @@ def _used_above_row(context: _Context, row: CitedAbove, answer: Answer) -> Html:
         parts.append(
             el(
                 "p",
-                f"論点 {upper.id} の答えは回 {row.reworded_in} から、"
-                f"この{word}から言っていることを変えた。"
-                f"この論点の答えは回 {answer.round} のままで、変わっていない。",
+                f"論点 {upper.id} の答えは{_reflection(row.reworded_in)}から、"
+                f"この{word}について言っていることを変えた。"
+                f"この論点の答えは{_reflection(answer.round)}のままで、変わっていない。",
             )
         )
     return el("li", *parts)
@@ -273,7 +279,7 @@ def _pointers_to_the_top(context: _Context, node: QuestionNode) -> list[Html]:
     """On the card of the subject: what the top of the page shows, one copy only."""
     words = []
     if context.shown(node) is Shown.sound and node.id in context.changes:
-        words.append("前の回から変わったこと")
+        words.append("前の振り返りから変わったこと")
     never, dropped = _split_left_out(context.uncited.get(node.id, ()))
     if never:
         words.append(_NOT_YET_WORDS.format(whose=""))

@@ -122,7 +122,7 @@ class TestAClosedQuestion:
         shown = node_text(page(tree=tree), "LIB-Q03")
 
         assert (
-            "回 2 の振り返りの後に区切った。理由: 比べられる館が足りないので止める"
+            "2回目の振り返りの後に区切った。理由: 比べられる館が足りないので止める"
             in (shown)
         )
 

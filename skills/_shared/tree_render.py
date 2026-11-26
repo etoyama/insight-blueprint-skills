@@ -63,7 +63,6 @@ from skills._shared.tree_render_parts import (
     _RESULT_WORD,
     _SHARED_ID_WORDS,
     _SUBJECT,
-    _SUBJECT_REVISION,
     _USED_ABOVE_WORDS,
     _VIOLATION_WORDS,
     KIND_WORDS,
@@ -79,6 +78,7 @@ from skills._shared.tree_render_parts import (
     _join_links,
     _link,
     _marks,
+    _reflection,
     _result,
     _round_meta,
     _statement,
@@ -188,10 +188,18 @@ def _header(tree: QuestionTree) -> Html:
         el("h1", f"論点ツリー {tree.theme_id}"),
         el("p", el("strong", f"{_SUBJECT}: "), revision.question),
         *(el("p", line) for line in _aim_lines(revision.aim)),
-        el("p", f"{_SUBJECT_REVISION} {revision.revision}", class_="meta"),
     ]
+    # A subject never revised says nothing of revisions (the analyst never reads 版).
     if len(tree.root_revisions) > 1:
-        parts.append(_root_history(tree))
+        revised = len(tree.root_revisions) - 1
+        parts += [
+            el(
+                "p",
+                _link("root-history", f"{_SUBJECT}を{revised}回見直した"),
+                class_="meta",
+            ),
+            _root_history(tree),
+        ]
     return el("header", join(parts), id="header")
 
 
@@ -203,16 +211,21 @@ def _root_history(tree: QuestionTree) -> Html:
     rows = []
     for revision in tree.root_revisions:
         aim = "、".join(_aim_lines(revision.aim))
+        which = (
+            f"最初の{_SUBJECT}"
+            if revision.revision == 1
+            else f"{revision.revision - 1}回目の見直しの後の{_SUBJECT}"
+        )
         rows.append(
             el(
                 "li",
-                f"{_SUBJECT_REVISION} {revision.revision}: {revision.question}（{aim}）",
+                f"{which}: {revision.question}（{aim}）",
                 f" 理由: {revision.reason}" if revision.reason else "",
             )
         )
     return el(
         "details",
-        el("summary", f"{_SUBJECT_REVISION}の履歴"),
+        el("summary", f"{_SUBJECT}を見直した履歴"),
         el("ul", join(rows)),
         id="root-history",
     )
@@ -233,14 +246,14 @@ def _legend() -> Html:
         ),
         el(
             "p",
-            "「前の回から変わったこと」は、答えと、その1つ前の答えを比べて、根拠にした"
+            "「前の振り返りから変わったこと」は、答えと、その1つ前の答えを比べて、根拠にした"
             "分析結果ごとに1行で出す。分け方は、根拠にしたかどうかと、文が同じか"
             "どうかだけで決まる。なぜ変えたかは記録に無いので、出さない。",
         ),
         el(
             "p",
             "記録と照らして確かめるのは、それぞれの論点の今の答えだけである。"
-            "表に並べる前の回の文は、今の記録と照らし直していない。",
+            "表に並べる前の振り返りの文は、今の記録と照らし直していない。",
         ),
         _word_list(_CHANGE_WORDS.values()),
         el(
@@ -248,15 +261,15 @@ def _legend() -> Html:
             f"「{_NOT_YET_WORDS.format(whose='')}」は、論点の答えが一度も根拠にして"
             "いない分析結果を、その分析結果を根拠にした論点の答えと並べて出す。"
             "差が出なかった分析の結果も、ここに出る。"
-            f"「{_NO_LONGER_WORDS.format(whose='')}」は、最後に根拠にした回と、"
+            f"「{_NO_LONGER_WORDS.format(whose='')}」は、最後に根拠にした振り返りと、"
             "その次の答えで新しく根拠にした分析結果を添えて、畳んで出す。"
             "外した理由は記録に無いので、出さない。",
         ),
         el(
             "p",
             f"「{_USED_ABOVE_WORDS}」は、論点の分析結果を、上の論点の答えが"
-            "どう使っているかを出す。上の論点が、この論点の答えより後の回で、"
-            "その分析結果から言っていることを変えていれば、変えた回を書く。",
+            "どう使っているかを出す。上の論点が、この論点の答えより後の振り返りで、"
+            "その分析結果について言っていることを変えていれば、変えた振り返りを書く。",
         ),
         el(
             "p",
@@ -285,6 +298,10 @@ def _legend() -> Html:
         ),
         el(
             "p",
+            "振り返りは、テーマの答えを書き直したひと区切り。1回目、2回目と数える。",
+        ),
+        el(
+            "p",
             f"文の後ろの「{_HEARD_WORD}」は、引用した出来事がすべて{_HEARD_RESULT_WORD}"
             "（hearing）で、データの出来事が1つも無い文に付ける。",
         ),
@@ -305,7 +322,7 @@ def _legend() -> Html:
         _status_table(),
         el(
             "p",
-            "各論点の「根拠を開く」を押すと、引用した journal の出来事と、前の回の答えが開く。",
+            "各論点の「根拠を開く」を押すと、引用した journal の出来事と、前の振り返りの答えが開く。",
         ),
         el("p", "論点の親子と分析設計の派生は別の構造なので、2つの節に分けて並べる。"),
         el(
@@ -392,7 +409,7 @@ def _decision_head(decision: TreeDecision) -> list[Html | str]:
         if decision.kind is TreeDecisionKind.start
         else "（振り返りの前）"
         if decision.round == 0
-        else f"（回 {decision.round} の振り返りの後）"
+        else f"（{_reflection(decision.round)}の後）"
     )
     return [
         f"{_DECISION_LABELS[decision.kind]}{when}: ",
@@ -450,7 +467,7 @@ def _next_question(context: _Context) -> Html:
         latest = tree.current_round()
         # A reflection round written after the last decision still waits for its own.
         waiting = (
-            f"回 {latest} の振り返りの後は、まだ決めていない。最後に決めたこと: "
+            f"{_reflection(latest)}の後は、まだ決めていない。最後に決めたこと: "
             if decision.round < latest
             else None
         )
@@ -643,7 +660,7 @@ def _closed(context: _Context, node: QuestionNode) -> Html | None:
     when = (
         "振り返りの前に"
         if decision.round == 0
-        else f"回 {decision.round} の振り返りの後に"
+        else f"{_reflection(decision.round)}の後に"
     )
     return el(
         "div",
@@ -720,8 +737,8 @@ def _evidence(
             ]
         earlier = list(reversed(node.answers[:-1]))
         if earlier:
-            sections.append(el("h4", "前の回の答え"))
-            sections += [_earlier_answer(a) for a in earlier]
+            sections.append(el("h4", "前の振り返りの答え"))
+            sections += [_earlier_answer(context.tree, a) for a in earlier]
     if not sections:
         sections.append(el("p", "まだ根拠は無い。"))
     return el("details", el("summary", f"{node.id} の根拠を開く"), join(sections))
@@ -770,10 +787,10 @@ def _cited_event(context: _Context, event_id: str) -> Html:
     return el("li", *parts)
 
 
-def _earlier_answer(answer: Answer) -> Html:
+def _earlier_answer(tree: QuestionTree, answer: Answer) -> Html:
     return el(
         "div",
-        _round_meta(answer),
+        _round_meta(tree, answer),
         el(
             "ul",
             join(

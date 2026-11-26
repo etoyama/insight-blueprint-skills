@@ -397,7 +397,8 @@ class TestHeader:
         assert ROOT_QUESTION in header
         assert "決める人: 図書館員" in squash(header)
         assert "決めること: 取り置き期限を延ばす試行を始めるか" in squash(header)
-        assert "主題の版 2" in squash(header)
+        assert "主題を1回見直した" in squash(header)
+        assert "版" not in squash(header)
 
     def test_a_research_aim_carries_its_own_labels(self) -> None:
         tree = make_tree()
@@ -447,9 +448,9 @@ class TestLegend:
         ):
             assert word in legend
         for word in (
-            "回 N で変わった",
+            "N回目の振り返りで変わった",
             "見直す前の主題への答え",
-            "回 N で初めて答えた",
+            "N回目の振り返りで初めて答えた",
             "記録と合わない答え",
         ):
             assert word in legend
@@ -552,7 +553,7 @@ class TestCurrentAnswer:
         assert "これまでわかっていること 取消を除くと期限切れは 346 件" in shown
         assert "注意すべきこと 1館の1年度だけの数である" in shown
         assert "400 件" not in shown
-        assert "振り返りの回 2" in node_text(root, "LIB-Q02")
+        assert "2回目の振り返り" in node_text(root, "LIB-Q02")
 
     def test_an_undetermined_statement_carries_its_word(self) -> None:
         assert "まだ決められないこと 理由の記録が無く、偏りは判別できない" in node_text(
@@ -658,7 +659,7 @@ class TestDecisionRounds:
         tree = self._with(self._decision(kind, node_id))
         shown = squash(by_id(page(tree=tree), "decisions").text())
 
-        assert f"{label}（回 2 の振り返りの後）: {node_id} 答えを見た" in shown
+        assert f"{label}（2回目の振り返りの後）: {node_id} 答えを見た" in shown
 
     def test_a_decision_taken_before_any_reflection_says_so_instead_of_naming_round_0(
         self,
@@ -691,21 +692,21 @@ class TestMarks:
     ) -> None:
         shown = node_text(page(), "LIB-Q02")
 
-        assert "回 2 で変わった" in shown
+        assert "2回目の振り返りで変わった" in shown
         assert "初めて答えた" not in shown
 
     def test_the_previous_answer_is_shown_behind_a_changed_answer(self) -> None:
         folded = details_text(page(), "LIB-Q02")
 
         assert "取消を含めると期限切れは 400 件" in folded
-        assert "前の回の答え" in folded
+        assert "前の振り返りの答え" in folded
 
     def test_an_answer_first_written_in_the_latest_round_is_marked_as_first(
         self,
     ) -> None:
         shown = node_text(page(), "LIB-Q04")
 
-        assert "回 2 で初めて答えた" in shown
+        assert "2回目の振り返りで初めて答えた" in shown
         assert "変わった" not in shown
 
     def test_an_answer_from_an_earlier_round_carries_no_changed_mark(self) -> None:
@@ -726,10 +727,12 @@ class TestMarks:
     def test_an_answer_written_against_an_older_root_revision_is_marked(self) -> None:
         shown = node_text(page(), "LIB-Q05")
 
-        assert "見直す前の主題への答え（主題の版 1 への答え）" in shown
+        assert "見直す前の主題への答え" in shown
 
     def test_an_answer_of_the_current_root_revision_is_not_marked_stale(self) -> None:
-        assert "見直す前の主題への答え" not in node_text(page(), "LIB-Q02")
+        # The table of what changed names the subject the earlier answer answered;
+        # the mark is what says the current answer is to an earlier subject.
+        assert "見直す前の主題への答え" not in marks_text(page(), "LIB-Q02")
 
 
 def with_note(tree: dict, node_id: str, **note: object) -> dict:
@@ -864,7 +867,7 @@ class TestViolatingAnswers:
         shown = node_text(violation_page(), "LIB-Q04")
 
         assert "記録と合わない答え" not in shown
-        assert "回 2 で初めて答えた" in shown
+        assert "2回目の振り返りで初めて答えた" in shown
 
     def test_a_violation_does_not_hide_the_stale_root_mark(self) -> None:
         violations = [Violation("LIB-Q05", 1, 1, "missing-event", "LIB-H03-E01")]
@@ -1646,11 +1649,17 @@ class TestTheWordsShownToTheAnalyst:
     def test_the_history_lists_each_revision_of_the_subject(self) -> None:
         history = squash(by_id(page(), "root-history").text())
 
-        assert history.startswith("主題の版の履歴")
-        assert f"主題の版 1: {OLD_QUESTION}" in history
+        assert history.startswith("主題を見直した履歴")
+        assert f"最初の主題: {OLD_QUESTION}" in history
+        assert f"1回目の見直しの後の主題: {ROOT_QUESTION}" in history
 
-    def test_the_round_of_an_answer_names_the_revision_of_the_subject(self) -> None:
-        assert "振り返りの回 1（主題の版 1）" in node_text(page(), "LIB-Q05")
+    def test_the_round_of_an_answer_is_said_as_the_count_of_reflections(
+        self,
+    ) -> None:
+        shown = node_text(page(), "LIB-Q05")
+
+        assert "1回目の振り返り" in shown
+        assert "版" not in shown
 
     @pytest.mark.parametrize(
         "entry",
@@ -1659,8 +1668,7 @@ class TestTheWordsShownToTheAnalyst:
             "まだ決められないこと: 分析をしても、分析結果からは決められないこと。",
             "注意すべきこと: これまでわかっていることを弱める分析結果や、"
             "言える範囲を狭める条件。",
-            "見直す前の主題への答え: 主題か到達点を見直す前の、"
-            "古い主題の版に対して書いた答え。",
+            "見直す前の主題への答え: 主題か到達点を見直す前の主題に対して書いた答え。",
         ],
     )
     def test_the_legend_explains_each_word_in_the_analysts_words(

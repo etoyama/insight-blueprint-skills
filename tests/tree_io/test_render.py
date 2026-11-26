@@ -545,7 +545,7 @@ class TestTheChangeThroughTheCommandLine:
             "next-question",
         ]
         top = " ".join(by_id(parse(page), "subject-answer").text().split())
-        assert "前の回から変わったこと（回 1 → 回 2）" in top
+        assert "前の振り返りから変わったこと（1回目 → 2回目の振り返り）" in top
         assert "言っていることが変わった" in top
         assert "これまでわかっていること 期限切れは152件で、延長の余地がある" in top
 
@@ -590,13 +590,13 @@ class TestLeftOutAndUsedAboveThroughTheCommandLine:
         top = " ".join(by_id(page, "subject-answer").text().split())
         assert "まだ主題への答えに入れていない分析結果" in top
         assert "LIB-H02 は期限切れ152件、取消除外後34.6%" in top
-        assert "論点 LIB-Q03 の回 1 の答えが" in top
+        assert "論点 LIB-Q03 の1回目の振り返りの答えが" in top
         card = " ".join(by_id(page, "LIB-Q02").text().split())
         assert "この論点の分析結果を根拠にしている答え" in card
-        assert "論点 LIB-Q01（主題）の回 2 の答えが根拠にしている" in card
+        assert "論点 LIB-Q01（主題）の2回目の振り返りの答えが根拠にしている" in card
         assert (
-            "論点 LIB-Q01 の答えは回 2 から、この分析結果から言っていることを変えた。"
-            "この論点の答えは回 1 のままで、変わっていない。"
+            "論点 LIB-Q01 の答えは2回目の振り返りから、この分析結果について言っていることを変えた。"
+            "この論点の答えは1回目の振り返りのままで、変わっていない。"
         ) in card
 
 
