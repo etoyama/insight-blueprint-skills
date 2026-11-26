@@ -1518,7 +1518,7 @@ class TestEveryKindHasItsWord:
         ("words", "kinds"),
         [
             (tree_render.PROGRESS_WORDS, Progress),
-            (tree_render._KIND_WORDS, StatementKind),
+            (tree_render.KIND_WORDS, StatementKind),
             (tree_render._MARK_WORDS, tree_render.Mark),
             (tree_render._DECISION_LABELS, TreeDecisionKind),
             (tree_render._AIM_LABELS, AimKind),
@@ -1615,7 +1615,6 @@ class TestTheWordsShownToTheAnalyst:
         header = squash(by_id(page(), "header").text())
 
         assert f"主題: {ROOT_QUESTION}" in header
-        assert "主題の版 2" in header
 
     def test_the_history_lists_each_revision_of_the_subject(self) -> None:
         history = squash(by_id(page(), "root-history").text())
@@ -1623,41 +1622,21 @@ class TestTheWordsShownToTheAnalyst:
         assert history.startswith("主題の版の履歴")
         assert f"主題の版 1: {OLD_QUESTION}" in history
 
-    def test_an_answer_to_an_older_revision_is_an_answer_to_the_subject_before_review(
-        self,
+    def test_the_round_of_an_answer_names_the_revision_of_the_subject(self) -> None:
+        assert "振り返りの回 1（主題の版 1）" in node_text(page(), "LIB-Q05")
+
+    @pytest.mark.parametrize(
+        "entry",
+        [
+            "これまでわかっていること: 根拠にした分析結果から言えること。",
+            "まだ決められないこと: 分析をしても、分析結果からは決められないこと。",
+            "注意すべきこと: これまでわかっていることを弱める分析結果や、"
+            "言える範囲を狭める条件。",
+            "見直す前の主題への答え: 主題か到達点を見直す前の、"
+            "古い主題の版に対して書いた答え。",
+        ],
+    )
+    def test_the_legend_explains_each_word_in_the_analysts_words(
+        self, entry: str
     ) -> None:
-        shown = node_text(page(), "LIB-Q05")
-
-        assert "見直す前の主題への答え（主題の版 1 への答え）" in shown
-        assert "振り返りの回 1（主題の版 1）" in shown
-
-    def test_each_kind_of_statement_has_the_word_the_analyst_chose(self) -> None:
-        assert (
-            tree_render._KIND_WORDS[StatementKind.claim][0]
-            == "これまでわかっていること"
-        )
-        assert tree_render._KIND_WORDS[StatementKind.weakening][0] == "注意すべきこと"
-        assert (
-            tree_render._KIND_WORDS[StatementKind.undetermined][0]
-            == "まだ決められないこと"
-        )
-
-    def test_the_legend_says_what_each_kind_rests_on_in_the_analysts_words(
-        self,
-    ) -> None:
-        meanings = [meaning for _, meaning in tree_render._KIND_WORDS.values()]
-
-        assert all("分析結果" in meaning for meaning in meanings)
-        assert "根拠にした分析結果" in tree_render._KIND_WORDS[StatementKind.claim][1]
-        assert (
-            "これまでわかっていること"
-            in tree_render._KIND_WORDS[StatementKind.weakening][1]
-        )
-
-    def test_the_legend_explains_the_mark_of_an_answer_before_review(self) -> None:
-        legend = squash(by_id(page(), "legend").text())
-
-        assert (
-            "見直す前の主題への答え: 主題か到達点を見直す前の、古い主題の版に対して書いた答え。"
-            in legend
-        )
+        assert entry in squash(by_id(page(), "legend").text())

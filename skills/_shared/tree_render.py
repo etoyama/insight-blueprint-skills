@@ -164,7 +164,7 @@ PROGRESS_WORDS = {
 
 # The words shown to the analyst are not the glossary's terms (ADR-0055): the
 # kinds keep their YAML values, the page says what each one tells the analyst.
-_KIND_WORDS = {
+KIND_WORDS = {
     StatementKind.claim: (
         "これまでわかっていること",
         "根拠にした分析結果から言えること。",
@@ -296,7 +296,7 @@ def _legend() -> Html:
         ),
         _word_list(PROGRESS_WORDS.values()),
         el("p", "現時点の答えは、文ごとに種類の言葉を付けて並べる。"),
-        _word_list(_KIND_WORDS.values()),
+        _word_list(KIND_WORDS.values()),
         el("p", "答えの上に出す印。"),
         _word_list(
             (word.format(round="N"), meaning) for word, meaning in _MARK_WORDS.values()
@@ -692,7 +692,7 @@ def _mark_text(mark: Mark, answer: Answer) -> str:
 def _statement(statement: AnswerStatement, *tail: str) -> Html:
     return el(
         "li",
-        el("span", _KIND_WORDS[statement.kind][0], class_="kind"),
+        el("span", KIND_WORDS[statement.kind][0], class_="kind"),
         f" {statement.text}",
         *tail,
     )

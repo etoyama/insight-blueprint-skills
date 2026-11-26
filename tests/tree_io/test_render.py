@@ -80,17 +80,16 @@ class TestRender:
         self, tree: Path
     ) -> None:
         """Epic 34 US-5 AC 3: the words change on the page, not in the YAML."""
-        insight = tree
-        self._answered(insight)
-        saved = (insight / "themes" / "LIB_tree.yaml").read_text(encoding="utf-8")
+        self._answered(tree)
+        saved = (tree / "themes" / "LIB_tree.yaml").read_text(encoding="utf-8")
 
-        tree_io.render("LIB", base_dir=insight)
+        tree_io.render("LIB", base_dir=tree)
 
-        page = (insight / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
-        shown = by_id(parse(page), "header").text() + _tree_text(insight)
+        page = (tree / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
+        shown = by_id(parse(page), "header").text() + _tree_text(tree)
         assert "主題: " in shown
         assert "これまでわかっていること" in shown
-        after = (insight / "themes" / "LIB_tree.yaml").read_text(encoding="utf-8")
+        after = (tree / "themes" / "LIB_tree.yaml").read_text(encoding="utf-8")
         assert after == saved
         assert "root_revisions:" in after
         assert "kind: claim" in after

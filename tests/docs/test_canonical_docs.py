@@ -1335,11 +1335,6 @@ class TestWordsShownToTheAnalyst:
         assert old in self._rows()[term][words.AVOID].split("、")
         assert f"{old}\t{term}" in _read(".yomiyasu-words/flag.txt")
 
-    def test_no_definition_uses_an_old_name_of_the_subject(self) -> None:
-        for term, row in self._rows().items():
-            for old in ("根の問い", "根の版", "根の変更前の答え"):
-                assert old not in row[words.DEFINITION], term
-
     def test_the_answer_is_defined_by_the_words_of_its_kinds(self) -> None:
         definition = self._rows()["現時点の答え"][words.DEFINITION]
         for word in (

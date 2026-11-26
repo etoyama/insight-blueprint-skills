@@ -40,7 +40,7 @@ from skills._shared.design_note import (
     lead_sentence,
     statement_of,
 )
-from skills._shared.tree_render import PROGRESS_WORDS, CitedEvent
+from skills._shared.tree_render import KIND_WORDS, PROGRESS_WORDS, CitedEvent
 from skills._shared.verdict_table import Fixed, Text, VerdictMetric, metric_tables
 
 _DASH = "—"
@@ -99,12 +99,9 @@ def escape_source_text(text: str) -> str:
 
 _e = escape_source_text
 
-# The order of this table is the order of the groups in the report.
-_KIND_HEADINGS: dict[StatementKind, str] = {
-    StatementKind.claim: "これまでわかっていること",
-    StatementKind.weakening: "注意すべきこと",
-    StatementKind.undetermined: "まだ決められないこと",
-}
+# The report groups the statements in this order; the words are the page's
+# (ADR-0055), so the tree and the report cannot call a kind by two names.
+_KIND_ORDER = (StatementKind.claim, StatementKind.weakening, StatementKind.undetermined)
 
 # The fields of an aim are texts from the records; the sentences escape them.
 _AIM_SENTENCES: dict[AimKind, str] = {
@@ -290,7 +287,8 @@ def _aim_sentence(aim: Aim) -> str:
 
 def _statements(answer: Answer, cites: _Cites) -> list[str]:
     blocks: list[str] = []
-    for kind, heading in _KIND_HEADINGS.items():
+    for kind in _KIND_ORDER:
+        heading = KIND_WORDS[kind][0]
         lines = [
             f"- {_e(s.text)}{cites.mark(s.cites)}"
             for s in answer.statements
