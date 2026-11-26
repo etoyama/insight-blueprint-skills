@@ -74,7 +74,8 @@ flowchart LR
     D --> E["DesignDoc 詳細化<br/>Decisions / Timeline /<br/>Test Matrix ✓"]
     E -->|次の Story| D
     E --> F["Test Design Matrix 全✓"]
-    F --> G["Epic PR →<br/>人間レビュー・人間マージ"]
+    F --> T["実データで使ってみる<br/>→ findings を人間が仕分ける"]
+    T --> G["Epic PR →<br/>人間レビュー・人間マージ"]
     G --> H["振り返り<br/>→ 反映の束を人間が選ぶ"]
 ```
 
@@ -109,6 +110,13 @@ flowchart LR
    - Story の差分に、バグ・セキュリティの観点のレビューを1本回す。直すものは Story の中で直す。
      コード品質の観点は、Epic 完了の前にまとめて見る。
 5. Epic 完了: Test Design Matrix 全✓ が Epic PR のレビューゲート。PR を開く前に §8 の推敲を行う。
+   利用者が触る Epic では、ゲートのレビューと直しの後、Epic PR を開く前に、**実データで使ってみる**
+   （決定: [FLOW-0016](adr/flow/0016-try-with-real-data-before-epic-pr.md)）。
+   利用者が実際に使う場所（リポジトリ、データ、環境）で、epic ブランチの成果物を使う。
+   このリポジトリでは、実際の分析のリポジトリで epic ブランチの plugin を使う。手順は
+   [CONTRIBUTING の「Trying an Epic branch in another project」](../CONTRIBUTING.md#trying-an-epic-branch-in-another-project)。
+   出た findings は、人間が「Epic で直す / issue にする」に仕分ける。Epic で直すものは PR を開く前に直す。
+   利用者から見える変化がない Epic では省いてよい。省いたら、その理由を Story Timeline に1行書く。
    **AI アシスタントは Epic PR をマージしない**。人間がレビューしてマージする。
 6. 振り返り: Epic のリリースまで終えたら、振り返りを1回回す（決定: [FLOW-0010](adr/flow/0010-retrospective-after-epic.md)）。
    人間が頼んだときも回す。下敷きは Derby と Larsen の5段（場を作る、データを集める、洞察を出す、

@@ -1133,7 +1133,9 @@ class TestRetrospectiveFlow:
 
     def test_the_pm_session_skill_starts_waiting_stories_early(self) -> None:
         skill = _read(".claude/skills/pm-session/SKILL.md")
-        assert "前提待ちの Story を前もって立てる" in section(skill, "## 5.")
+        body = unwrap(section(skill, "## 5."))
+        assert "後に続く波の子を全部前もって立てる" in body
+        assert "FLOW-0014" in body
 
 
 class TestWaveOneNotesAndBriefFlow:
@@ -1154,10 +1156,10 @@ class TestWaveOneNotesAndBriefFlow:
 
     def test_the_pm_session_skill_starts_wave_one_with_the_first_draft(self) -> None:
         skill = _read(".claude/skills/pm-session/SKILL.md")
-        assert "波 1 の子を待機の指示で立てておく" in unwrap(section(skill, "## 1."))
-        body = unwrap(section(skill, "## 5."))
-        assert "波 1 の子を前もって立てる" in body
-        assert "FLOW-0011" in body
+        assert "全部の波の子を、待機の指示で立てておく" in unwrap(
+            section(skill, "## 1.")
+        )
+        assert "FLOW-0011" in unwrap(section(skill, "## 5."))
 
     def test_the_pm_session_skill_checks_the_shared_notes_path(self) -> None:
         skill = _read(".claude/skills/pm-session/SKILL.md")
@@ -1184,6 +1186,44 @@ class TestWaveOneNotesAndBriefFlow:
         scope = unwrap(section(text, "## Scope"))
         assert "触らない所" in scope
         assert "必ず理由を書く（FLOW-0013）" in scope
+
+
+class TestAllWavesAddressAndTrialFlow:
+    """FLOW-0014〜0016: all waves started early, the PM address from ListAgents, a trial with real data."""
+
+    FLOWS = (
+        "0014-start-all-waves-in-first-human-turn.md",
+        "0015-copy-pm-address-from-listagents.md",
+        "0016-try-with-real-data-before-epic-pr.md",
+    )
+
+    @pytest.mark.parametrize("name", FLOWS)
+    def test_the_flow_copy_is_kept_and_indexed(self, name: str) -> None:
+        copy = (REPO_ROOT / "docs/adr/flow" / name).read_text(encoding="utf-8")
+        assert copy.startswith(f"# FLOW-{name[:4]}: ")
+        assert "ADR-00" not in copy
+        assert f"]({name})" in _read("docs/adr/flow/README.md")
+
+    @pytest.mark.parametrize("name", FLOWS)
+    def test_the_flow_copy_links_resolve(self, name: str) -> None:
+        copy = REPO_ROOT / "docs/adr/flow" / name
+        targets = _LINK.findall(copy.read_text(encoding="utf-8"))
+        assert all((copy.parent / t).is_file() for t in targets if "://" not in t)
+
+    def test_the_brief_copies_the_pm_address_from_list_agents(self) -> None:
+        body = unwrap(section(_read(".claude/skills/pm-session/SKILL.md"), "## 4."))
+        assert "FLOW-0015" in body
+        assert "`ListAgents`" in body
+        assert "どちらもブリーフに写さない" in body
+
+    def test_the_gate_tries_the_epic_with_real_data(self) -> None:
+        gate = unwrap(section(_read(".claude/skills/pm-session/SKILL.md"), "## 7."))
+        assert "実データで使ってみる" in gate
+        assert "FLOW-0016" in gate
+        workflow = unwrap(section(_read("docs/WORKFLOW.md"), "## 4."))
+        assert "実データで使ってみる" in workflow
+        assert "FLOW-0016" in workflow
+        assert "CONTRIBUTING.md#trying-an-epic-branch-in-another-project" in workflow
 
 
 class TestExplorationAndConfirmationTerms:
