@@ -58,8 +58,9 @@ from skills._shared.tree_render_parts import (
     CheckFailed,
     CitedEvent,
     DesignSummary,
-    Mark,
+    Shown,
     _answer_lines,
+    _checked_in_its_card,
     _Context,
     _current_round_meta,
     _join_links,
@@ -68,6 +69,9 @@ from skills._shared.tree_render_parts import (
     _round_meta,
     _statement,
 )
+
+# Each table of words is read from here by the tests that pair it with its enum.
+from skills._shared.tree_render_parts import Mark as Mark
 
 if TYPE_CHECKING:  # tree_check imports this module (CitedEvent)
     from skills._shared.tree_check import Violation
@@ -376,21 +380,15 @@ def _subject_answer(context: _Context) -> Html:
     root = context.tree.root()
     answer = root.current_answer()
     parts: list[Html | None] = [el("h2", f"{_SUBJECT}への現時点の答え")]
-    if answer is None:
-        parts.append(el("p", f"{_SUBJECT}にはまだ答えていない。"))
-    elif root.id in context.violations:
-        # The statements of such an answer stay folded in the card of the node.
-        parts.append(
-            el(
-                "p",
-                el("span", _MARK_WORDS[Mark.violating][0], class_="mark"),
-                " ",
-                _link(root.id, f"{root.id} のカードで確かめる"),
-            )
-        )
-    else:
-        parts += _answer_lines(context, root, answer)
-        parts.append(_changes(context, root, "h3"))
+    match context.shown(root):
+        case Shown.unanswered:
+            parts.append(el("p", f"{_SUBJECT}にはまだ答えていない。"))
+        case Shown.violating:
+            parts.append(_checked_in_its_card(root))
+        case Shown.sound:
+            assert answer is not None  # an answered node
+            parts += _answer_lines(context, root, answer)
+            parts.append(_changes(context, root, "h3"))
     return el("section", join(parts), class_="now", id="subject-answer")
 
 
@@ -533,13 +531,19 @@ def _node_card(context: _Context, node: QuestionNode) -> Html:
         el("p", el("strong", node.id), f" {node.question}"),
         el("p", *meta, class_="meta"),
     ]
-    if answer is None:
-        parts.append(el("p", "まだ答えていない"))
-    elif violated:
-        parts += [_marks(context, node, answer), _current_round_meta(context, answer)]
-    else:
-        parts += _answer_lines(context, node, answer, heading="現時点の答え")
-        parts.append(_changes_on_the_card(context, node))
+    match context.shown(node):
+        case Shown.unanswered:
+            parts.append(el("p", "まだ答えていない"))
+        case Shown.violating:
+            assert answer is not None  # an answered node
+            parts += [
+                _marks(context, node, answer),
+                _current_round_meta(context, answer),
+            ]
+        case Shown.sound:
+            assert answer is not None  # an answered node
+            parts += _answer_lines(context, node, answer, heading="現時点の答え")
+            parts.append(_changes_on_the_card(context, node))
     parts += [_notes(node), _evidence(context, node, violated)]
     return el("div", join(parts), class_=f"node progress-{progress.value}")
 

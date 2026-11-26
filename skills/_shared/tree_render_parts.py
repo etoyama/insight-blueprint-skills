@@ -212,6 +212,15 @@ _NOTE_LABELS = (
 )
 
 
+class Shown(StrEnum):
+    """How much of the current answer of a node the page shows."""
+
+    unanswered = "unanswered"
+    # The answer failed the check: its statements stay folded in its card.
+    violating = "violating"
+    sound = "sound"
+
+
 @dataclass(frozen=True)
 class _Context:
     """The inputs of a page and the facts derived from them, computed once."""
@@ -271,6 +280,13 @@ class _Context:
             children,
             answer_changes(tree),
         )
+
+    def shown(self, node: QuestionNode) -> Shown:
+        if node.current_answer() is None:
+            return Shown.unanswered
+        if node.id in self.violations:
+            return Shown.violating
+        return Shown.sound
 
     def marks_of(self, node: QuestionNode) -> list[Mark]:
         answer = node.current_answer()
@@ -411,3 +427,13 @@ def _join_links(node_ids: list[str]) -> list[Html | str]:
             parts.append("、")
         parts.append(_link(node_id, node_id))
     return parts
+
+
+def _checked_in_its_card(node: QuestionNode) -> Html:
+    """In place of an answer that failed the check: its mark and its card."""
+    return el(
+        "p",
+        el("span", _MARK_WORDS[Mark.violating][0], class_="mark"),
+        " ",
+        _link(node.id, f"{node.id} のカードで確かめる"),
+    )
