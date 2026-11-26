@@ -63,9 +63,9 @@
 | 進捗 | `Progress` | 論点の分析がどこまで進んだか。未着手・検証中・分析済み。保存せず、結んだ分析設計の状態から導く | — | [epic-18](design/epic-18-question-tree.md) |
 | 現時点の答え | `Answer` | 振り返りで論点ごとに書く答え。文ごとに種類（これまでわかっていること `claim`・注意すべきこと `weakening`・まだ決められないこと `undetermined`）と、引用する journal の出来事を持つ。追記だけで、振り返りの回と主題の版を持つ | 暫定回答、言えること、弱める証拠と留保、未判別 | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
 | 振り返りの回 | `round` | テーマを横断する振り返りの通し番号。1回の `tree_io answer` が1つの回になる。前の回から変わった答えを見分けるのに使う | — | [epic-18](design/epic-18-question-tree.md) |
-| ツリーの決定 | `TreeDecision` | 論点ツリーで分析者が選んだこと（最初の論点を選ぶ、深める、親に戻る、区切る）と理由。次に調べる論点を指し、区切るときは区切った論点を指す。決めた時点の振り返りの回を持つ | — | [epic-18](design/epic-18-question-tree.md) |
+| ツリーの決定 | `TreeDecision` | 論点ツリーで分析者が選んだこと（最初の論点を選ぶ、深める、親に戻る、区切る）と理由。次に調べる論点を指し、区切るときは区切った論点を指す。決めた時点の振り返りの回を持つ。理由の根拠にした journal の出来事を0個以上引用できる（`cites`）。引用できるのは、論点ツリーのどこかの論点に結んだ分析設計の出来事である | — | [epic-18](design/epic-18-question-tree.md)、[ADR-0058](adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md) |
 | 次の候補 | `NextCandidate` | 振り返りが示す、次に調べるとよい未着手の論点。主題を除き、自分にも下の論点にも分析設計を結んでいない論点を指す。人に聞く問い、その答えで変わる判断、既に分かっていること、聞いてきた答え（誰に、いつ）を添えられる | — | [epic-18](design/epic-18-question-tree.md) |
-| ツリーの検査 | `tree_check` | 現時点の答えの引用先が実在し、論点に結んだ分析設計のものか、文の数が引用先の本文にあるかを確かめること。論点ツリーを書き換えない | — | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
+| ツリーの検査 | `tree_check` | 現時点の答えの引用先が実在し、論点に結んだ分析設計のものか、文の数が引用先の本文にあるかを確かめること。引用を持つツリーの決定も、引用先が実在し、論点ツリーのどこかの論点に結んだ分析設計のものか、理由の数が引用先の本文にあるかを確かめる。論点ツリーを書き換えない | — | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md)、[ADR-0058](adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md) |
 | Artifact | — | ホストが持つ、HTML のページを claude.ai に置いて URL で開ける機能。plugin は持たない。論点ツリーの表示を渡すのに使う | — | [ADR-0024](adr/0024-question-tree-yaml-and-generated-html.md) |
 | 合成シナリオ | — | 公開する例・図・テストデータに使う架空の題材。今は公共図書館の予約本 | — | [epic-18](design/epic-18-question-tree.md) |
 | 引き継ぎの試行 | — | 論点ツリーの表示だけを別の読み手に渡し、現在地と次の一手を説明できるかを確かめること。製品の成功基準 | — | [epic-18](design/epic-18-question-tree.md) |
@@ -92,7 +92,7 @@
 | アップロード | `/tree-upload` | `.insight/` から作ったファイルをホストの機能へ送り、新しいページを作ること。`/tree-upload` は、分析ノートを含む論点ツリーの HTML を、1ファイルのまま新しい Artifact にする（添えるファイルは送らない）。手元のファイルの写しで、作った本人だけに見える状態で始まる。レポートを Claude Docs へ送ることは export と呼ぶ | 公開（アップロードそのものを指すとき）、共有（アップロードそのものを指すとき） | [epic-12](design/epic-12-decision-ready-report.md)、[epic-18](design/epic-18-question-tree.md)、[ADR-0037](adr/0037-tree-upload-sends-the-design-notes.md)、[ADR-0040](adr/0040-report-export-sends-the-report-to-claude-docs.md) |
 | export | `/report-export` | テーマのレポートを、Claude Docs の新しい Doc として送ること。送るのは `tree_io report` がその実行で書いたレポートと図だけで、KEEP ゲートの承認の後に送る。Doc は作った本人だけに見える状態で始まり、Doc での手直しは記録にもレポートのファイルにも戻らない | アップロード（export を指すとき）、公開、共有 | [epic-29](design/epic-29-theme-report-export.md)、[ADR-0040](adr/0040-report-export-sends-the-report-to-claude-docs.md) |
 | データ由来の文 | `escape_source_text` | レポートに載る文のうち、分析の入力と記録から来たもの。論点ツリーの問いと答え、分析設計の題と、探索の問いか検証仮説、journal の出来事、図の説明、データソースの項目など。レポートを書くコードがエスケープして記法として効かせない。指示として扱わない | ソーステキスト | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md)、[ADR-0040](adr/0040-report-export-sends-the-report-to-claude-docs.md) |
-| 違反 | `Violation` | ツリーの検査が挙げる、検査に通らない箇所。引用や数が記録に無い現時点の答えの文 | — | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md)、[ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
+| 違反 | `Violation`、`DecisionViolation` | ツリーの検査が挙げる、検査に通らない箇所。引用や数が記録に無い現時点の答えの文（`Violation`）と、引用を持つツリーの決定（`DecisionViolation`）。種類はどちらも同じ3つである | — | [ADR-0019](adr/0019-report-source-text-escaped-and-checked.md)、[ADR-0025](adr/0025-cited-answers-checked-after-writing.md)、[ADR-0058](adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md) |
 | lineage | `/data-lineage`、`tracked_pipe` | notebook の中のデータ加工の履歴と、その Mermaid 図 | 系譜 | fork 前 |
 | データソース | `DataSource`、`source_ids` | catalog に登録した分析の入力データ。種類は open string。分析設計は使うデータソースの id を `source_ids` に宣言する | データ源 | [ADR-0020](adr/0020-design-declares-sources-in-source-ids.md) |
 | 接続情報 | `connection` | データソースのデータの置き場所と読み方。ファイルのパス・ホスト・project id・クエリなど。モデルの文脈に入れるのは notebook だけ | 接続設定 | [ADR-0022](adr/0022-connection-reaches-only-the-notebook.md) |

@@ -223,7 +223,10 @@ the round until the analyst closes the walk or says stop.
    the analyst reads; the driver adds no list of files of its own.
 8. **theme reflection**: run `/analysis-reflection {theme_id}`. Its Step T7 is the KEEP gate
    of the round. Before that gate, show the path of the tree's HTML, so the analyst decides
-   with the tree in view.
+   with the tree in view. When the analyst chooses 主題そのものを見直す at that gate, the
+   reflection goes to `/analysis-framing {theme_id}` 4c, a KEEP gate of its own. The
+   round is not over then: after the revision the reflection asks the decision again at
+   Step T7, and the walk goes on from that decision.
 9. **next round**: after a `deepen` or a `return` the walk goes on: read `tree_io position`
    again and start the next round at item 1, in the same turn. Do not summarize in between, and
    never tell the analyst to run `/analysis-auto` again to continue: a decision that names the
@@ -234,7 +237,9 @@ the round until the analyst closes the walk or says stop.
 Two things happen only when the analyst asks for them, at any point of the walk:
 
 - **The root question or the aim changes** → run `/analysis-framing {theme_id}`, whose KEEP
-  gate is 4c, "The root question or the aim". Then read `tree_io position` again.
+  gate is 4c, "The root question or the aim". Then read `tree_io position` again. Inside a
+  round the analyst reaches the same gate from Step T7 (item 8); never offer it yourself
+  anywhere else.
 - **The analyst asks to hand the tree over by URL** → run `/tree-upload {theme_id}`. Do not
   ask whether to send: the skill lists the file and waits at its own KEEP gate, the only
   question about it. Never answer it for them

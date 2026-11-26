@@ -82,6 +82,7 @@ flowchart TD
   書き込む前の正本があれば、主題の版が減っていないことと、今の版より前の版が変わっていないことも確かめる。ツリーの決定と現時点の答えは足すことだけができる。
   現時点の答えの引用先が実在するか、文の数が引用先の本文にあるかは、ここでは確かめない。journal を読む必要があるので、ツリーの検査（`tree_check`。[ADR-0025](adr/0025-cited-answers-checked-after-writing.md)）が確かめる。
   現時点の答えは `tree_io answer` で書く。`tree_io answer` は書く前にツリーの検査を呼び、違反があれば何も書かない。
+  ツリーの決定は `tree_io decide` で書く。決定が理由の根拠にした出来事を引用していれば、書く前にツリーの検査を呼び、違反があれば何も書かない。引用を持たない決定は検査しない（[ADR-0058](adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md)）。
   進捗は項目に無いので、保存できない。結んだ分析設計の状態から進捗を導くのは `tree_read` で、CLI は `tree_io progress` である。
 - **pre-write hook（`hooks/validate-design.py`, plugin 同梱 `hooks/hooks.json`）** —
   `.insight/designs/*_hypothesis.yaml` と `.insight/themes/*_tree.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
@@ -112,7 +113,7 @@ KEEP ゲートは次のとおり。
 - 分析設計の4ビート: ① 分析の意図と、探索の問いか検証仮説 / ② 手法・指標（検証では primary の指標の `comparison` に判定の基準）・explanatory の因果役割 /
   ③ データ取得プラン（SQL クエリ or データソースの id + columns + filter, premortem の前。パスは見せない、[ADR-0022](adr/0022-connection-reaches-only-the-notebook.md)） / ④ chart 仕様。
 - 実行: データソース登録 / premortem `HARD_BLOCK`・`HIGH` / notebook の非 allowlist・宣言 source 以外の外部通信 / 結論。
-- 巡回の終わり: ツリーの決定（深める・親に戻る・区切る、次に調べる論点、理由）と、人に聞いてきた答え。
+- 巡回の終わり: ツリーの決定（深める・親に戻る・区切る、次に調べる論点、理由と、その根拠にした出来事）と、人に聞いてきた答え。主題そのものを見直すと選んだときは、`/analysis-framing` の主題の版を上げる手順を通ってから、同じ場面で決定を聞き直す。
 - 外部へ送る前: アップロードで送るファイルの承認（`/tree-upload` が聞く）。`/tree-upload` が送るのは分析ノートを含む論点ツリーの HTML の1ファイルで、承認の文にページに載る中身を書く。Artifact の上限（16MB）を超えるときは、承認を聞く前に止めて何も送らない（[ADR-0037](adr/0037-tree-upload-sends-the-design-notes.md)）。
 
 巡回はレポートを書かない。巡回が止まったら、テーマのレポートを export する skill として `/report-export` の名前を挙げるだけで、始めない
@@ -315,7 +316,7 @@ sequenceDiagram
         CC->>IO: tree_io answer（論点ごとの現時点の答え。検査を通るまで書かない）
         IO->>FS: atomic write
         CC->>IO: tree_check（書いた後の検査）→ tree_io render
-        CC->>IO: tree_io candidates / candidate / hear / decide（次の候補、聞いてきた答え、ツリーの決定）
+        CC->>IO: tree_io candidates / candidate / hear / decide（次の候補、聞いてきた答え、ツリーの決定。引用を持つ決定は検査を通るまで書かない）
         opt 次の論点へ進む
             U->>CC: /analysis-framing {theme_id}（次に設計する論点を聞き、Framing Brief を出す）
         end
@@ -423,7 +424,7 @@ sequenceDiagram
         D->>U: 【KEEP】/analysis-reflection {design_id} で結論（探索は `explored` で終え、検証は判定で終える。検証仮説を直すときは派生の分析設計を作る）+ terminal 遷移
         Note over D,FS: /analysis-reflection {theme_id}（テーマを横断した振り返り）
         D->>IO: tree_io answer（検査を通るまで書かない）→ tree_check → candidates / candidate → render
-        D->>U: 【KEEP】論点ツリーの HTML のパスを示し、ツリーの決定（深める・親に戻る・区切る、次の論点、理由）と聞いてきた答えを聞く
+        D->>U: 【KEEP】論点ツリーの HTML のパスを示し、ツリーの決定（深める・親に戻る・区切る、次の論点、理由）か主題そのものを見直すかと、聞いてきた答えを聞く
         D->>IO: tree_io hear / decide / render
         D->>IO: tree_io position（次の巡回の現在地）
 
@@ -692,6 +693,7 @@ classDiagram
         kind
         node_id
         reason
+        cites
     }
     class TreeDecisionKind {
         <<enumeration>>
@@ -761,7 +763,7 @@ classDiagram
 | `ReviewBatch` | 集約ルート | `comments` は1件以上。1つのバッチは `status_after` への遷移を1回だけ起こす |
 | `DataSource` | 集約ルート | `type` は空でない open string（[ADR-0004](adr/0004-open-string-catalog-taxonomy.md)） |
 | `DomainKnowledge` | 集約ルート | 1つの `source_id` に属する。`category` は空でない open string |
-| `QuestionTree` | 集約ルート | 1テーマに1つ。主題（親を持たない論点）はちょうど1つで、その文は今の主題の版の問いと同じ。論点の親は同じツリーにあり、循環しない。主題の版は1から1ずつ増え、今の版より前の版は書き換えも削除もできない。結ぶ分析設計と発見元は同じテーマのもの。ツリーの決定は追記だけで、最初の決定は `start`、`deepen` は直前の決定の論点かその下、`return` はその外、`close` は同じ論点を指す。モデルに無い項目を持てない（[epic-18](design/epic-18-question-tree.md)） |
+| `QuestionTree` | 集約ルート | 1テーマに1つ。主題（親を持たない論点）はちょうど1つで、その文は今の主題の版の問いと同じ。論点の親は同じツリーにあり、循環しない。主題の版は1から1ずつ増え、今の版より前の版は書き換えも削除もできない。結ぶ分析設計と発見元は同じテーマのもの。ツリーの決定は追記だけで、最初の決定は `start`、`deepen` は直前の決定の論点かその下、`return` はその外、`close` は同じ論点を指す。ツリーの決定の引用（`cites`）は0個以上で、id の形は `{theme}-H{nn}-E{nn}`。引用を持たない保存済みの決定は空として読む（[ADR-0058](adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md)）。モデルに無い項目を持てない（[epic-18](design/epic-18-question-tree.md)） |
 
 ### Python のクラスを持たないファイルの契約
 

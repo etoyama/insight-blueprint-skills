@@ -527,32 +527,69 @@ echo '{"answer": "金曜の夕方に確保した本は、月曜の朝にまと�
   design's journal as a `hearing` event.
 
 **2. The decision.** Show the node the investigation is at: the `node_id` of the last entry
-of `decisions` in `tree_io get --theme {theme_id}`. Then ask which of the three the analyst
-chooses, which node comes next, and why:
+of `decisions` in `tree_io get --theme {theme_id}`. Then ask which of the four the analyst
+chooses. For the first three, ask which node comes next and why:
 
 | `kind` | What the analyst chooses | `node_id` |
 |---|---|---|
 | `deepen` | 深める — keep investigating the current node or a node below it | the current node, or a node below it |
 | `return` | 親に戻る — leave the current node for its parent or another branch | a node that is neither the current node nor below it |
 | `close` | 区切る — stop here for now | the current node |
+| — | 主題そのものを見直す — what was found shows that the root question itself, or its aim, asks the wrong thing | none |
 
 ```bash
 echo '{"kind": "return", "node_id": "LIB-Q03",
-  "reason": "数え方は定まった。次は通知が期限に間に合っているかを確かめる"}' | tree_io decide --theme LIB
+  "reason": "数え方は定まった。次は通知が期限に間に合っているかを確かめる",
+  "cites": ["LIB-H01-E01"]}' | tree_io decide --theme LIB
 ```
 
 - Never choose the kind, the node or the reason yourself. Keep the reason in the analyst's
   words. You may lay out what each choice would lead to; the choice is the analyst's.
+- `cites` holds the journal events the reason rests on (ADR-0058). When the reason rests on
+  a result of the analysis or on an answer a person gave, find the journal event that
+  records it among the journals read in Step T1 and put its id in `cites`. An event of any
+  design linked to a node of the tree can be cited, not only one on the next node: the
+  result of one node is often the reason to go to another.
+- When the reason rests on no journal event (a deadline, a priority, a choice of where to
+  begin), send the decision without `cites`. Never add a cite the reason does not rest on:
+  a cite that only looks like backing misleads the reader more than none.
 - Decisions are append-only: one that is written cannot be changed or removed. Before you
-  send it, read the decision back to the analyst (kind, node, reason) in one line.
+  send it, read the decision back to the analyst (kind, node, reason) in one line, and under
+  it each cited event as "根拠にした分析結果: {content}" (a `hearing` event as "根拠にした、
+  人に聞いた答え: {content}"). The analyst confirms that these are what the reason rests
+  on, and may take one out or name another.
 - Never send a `round`. `tree_io` sets it to the last reflection round, the one whose
   answers the analyst saw.
-- If `tree_io decide` exits non-zero, nothing was written. stderr says which rule the kind
-  and the node broke (for example a `deepen` that leaves the current node): show it and ask again.
+- `tree_io decide` checks a decision that has `cites` before it writes. Exit code 3:
+  `violations` on stdout is not empty and `tree_io` wrote nothing. Show each violation to
+  the analyst and ask again; send the decision once more only with their answer.
+
+  | Violation `kind` | What to ask the analyst |
+  |---|---|
+  | `number-not-cited` | A number in the reason is in none of the cited events. Ask whether another event records it (then cite that one too), or whether they say the reason again the way the record wrote the number, or without it. An id or a date in the reason is read as a number as well: ask for the reason without it |
+  | `missing-event` | The cited id is not in the journal of its design. Cite the event you actually read, and read it back again |
+  | `unlinked-design` | The cited event belongs to a design that is linked to no node of the tree. Ask whether the design belongs on a node (`/analysis-framing {theme_id}` links it), or take the cite out with the analyst's word |
+
+- Never reword the reason yourself to pass the check, and never drop the `cites` to pass
+  the check: a reason without cites is not checked, so that would hide the number instead
+  of fixing it.
+- Exit code 1: nothing was written. stderr says which rule the kind and the node broke
+  (for example a `deepen` that leaves the current node), or that a cite is not an event id:
+  show it and ask again.
 - If the tree has no decision yet, there is no current node: say "最初に調べる論点がまだ
   決まっていない。/analysis-framing {theme_id} で決めよう" and write no decision here.
 - The analyst may leave the decision open. Then write nothing and say that the tree keeps
   its last decision.
+
+主題そのものを見直す is not a `kind`, and no decision is written for it: a decision names
+the node to investigate next, and this choice names none. When the analyst chooses
+主題そのものを見直す, go to `/analysis-framing {theme_id}`, 4c "The root question or the
+aim", which shows the old and the new 主題 side by side and asks whether the 主題の版 goes
+up. Never run `tree_io revise-root` from here, and never draft the new 主題 before the
+analyst has said what is wrong with the current one. After the revision, come back to this
+gate and ask the decision again, now for the three kinds: which node comes next under the
+new 主題, and why. If the analyst then leaves the revision undone, the gate still stands:
+ask which of the three they choose, or leave the decision open.
 
 After a `hear` or a `decide`, run `tree_io render --theme {theme_id}` again and show its
 `path`. Then suggest what to do next:
@@ -585,7 +622,7 @@ Both are on PATH via the plugin. JSON on stdout.
 | `tree_io candidates --theme T` | The next candidates: nodes with no design on them or below them |
 | `tree_io candidate --theme T --node N` (stdin JSON) | Write the notes of a candidate (`ask`, `changes_if`, `known`) |
 | `tree_io hear --theme T --node N` (stdin JSON) | Keep the answer a person gave, with who and when |
-| `tree_io decide --theme T` (stdin JSON) | Append the analyst's decision (`deepen`, `return`, `close`) |
+| `tree_io decide --theme T` (stdin JSON) | Append the analyst's decision (`deepen`, `return`, `close`), after checking its `cites` |
 | `tree_io render --theme T` | Rebuild the HTML of the tree from the canonical file |
 | `tree_io render --design D` | Rebuild the page that holds the design note of D, and say where the note is |
 

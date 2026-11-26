@@ -31,7 +31,7 @@ def _framing(heading: str) -> str:
 
 
 def _library(insight: Path) -> None:
-    """LIB-Q02 is started (LIB-H01) and holds the start decision; LIB-Q03 is untouched."""
+    """LIB-Q02 is started (LIB-H01, one journal event) and holds the start decision; LIB-Q03 is untouched."""
     tree_io.create_tree(
         theme_id="LIB",
         question="取り置き期限を延ばす試行をするか",
@@ -65,6 +65,19 @@ def _library(insight: Path) -> None:
         base_dir=insight,
     )
     tree_io.link_design("LIB", "LIB-Q02", design["id"], base_dir=insight)
+    design_io.write_journal(
+        design["id"],
+        {
+            "events": [
+                {
+                    "id": f"{design['id']}-E01",
+                    "type": "observe",
+                    "content": "状態の履歴から取消を除くと、期限切れは152件だった",
+                }
+            ]
+        },
+        base_dir=insight,
+    )
 
 
 def _node(insight: Path, node_id: str) -> dict:

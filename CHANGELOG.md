@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A tree decision can cite the journal events its reason rests on.** `tree_io decide` takes an
+  optional `cites`. A decision that cites is checked before it is written: a cite that is not in the
+  journal, a cite of a design linked to no node of the tree, or a number in the reason that no cited
+  event holds returns `{"violations": [...]}` with exit code 3, and nothing is written. A decision
+  without cites is written as before, and a saved tree without them reads as it did. The decision gate
+  of `/analysis-reflection` puts the events behind the analyst's reason into the decision, and offers
+  主題そのものを見直す beside deepen, return and close; choosing it goes to the step of
+  `/analysis-framing` that raises the root revision ([ADR-0058](docs/adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md), #266).
 - **The handoff trial has a second scenario and a sixth question.** `psy` (psychological safety, four
   reflection rounds) holds an analysis that found no difference and a question whose answer and numbers
   stay while the subject's answer cites its evidence in other words. Every scenario now asks q6 (that
