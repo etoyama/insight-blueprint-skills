@@ -676,7 +676,9 @@ question or the aim", which shows the old and the new 主題 side by side and as
 to record the change as a revision of the 主題 (主題を見直す). From there, do not go on to 4d or 5b of that skill: 4d asks for the
 next node, and this gate asks it. Never run `tree_io revise-root` from here, and never draft
 the new 主題 before the analyst has said what is wrong with the current one. After the
-revision, come back to this gate and ask the decision again, now for the three kinds: which
+revision, run `tree_io render --theme {theme_id}` and show its `path`, so that the page
+shows the new 主題 (4c does not render it; 5c does, and it is skipped), then come back to
+this gate and ask the decision again, now for the three kinds: which
 node comes next under the new 主題, and why. If the analyst then leaves the revision undone, the gate still stands:
 ask which of the three they choose, or leave the decision open.
 

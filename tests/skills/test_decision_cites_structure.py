@@ -22,6 +22,7 @@ from tests.skills.test_next_candidate_structure import _library
 from tests.skills.test_skill_structure import _read_skill
 
 REVISE = "主題そのものを見直す"
+RENDER = "`tree_io render --theme {theme_id}`"
 
 
 def _gate() -> str:
@@ -136,6 +137,17 @@ class TestTheGateOffersToReviseTheSubject:
             r"(?i)after the revision[^.]*come back to this gate[^.]*ask[^.]*again",
             unwrap(_gate()),
         )
+
+    def test_the_page_shows_the_new_subject_before_the_decision_is_asked_again(
+        self,
+    ) -> None:
+        # Only 4c of /analysis-framing runs, not its 5c: without a render here the
+        # HTML still shows the old 主題 while the gate asks under the new one.
+        step = unwrap(_gate())
+        after = step[step.index("After the revision") :]
+        render = after.index(RENDER)
+        assert render < after.index("ask the decision again")
+        assert "`path`" in after[render : after.index("ask the decision again")]
 
     def test_framing_is_left_before_it_asks_for_the_next_node(self) -> None:
         # 4d of /analysis-framing asks for the next node and may write a decision:
