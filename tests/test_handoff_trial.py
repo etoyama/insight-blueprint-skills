@@ -41,7 +41,9 @@ from scripts.handoff_trial import (
     score,
 )
 from skills._shared import design_io, tree_io
+from skills._shared.tree_changes import ChangeKind
 from skills._shared.tree_check import check_theme
+from skills._shared.tree_render_parts import _CHANGE_WORDS
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = "lib"
@@ -675,6 +677,18 @@ class TestPrompt:
         # A round is counted as a reflection, as the page says it.
         assert "この回" not in head
         assert "最後の振り返りで初めて答えた論点" in head
+
+    def test_question_4_states_the_rule_of_its_key_in_the_words_of_the_page(
+        self,
+    ) -> None:
+        """The page lists every change as a row; q4's key counts only the newly cited."""
+        (q4,) = [line for line in prompt_for("").splitlines() if line.startswith("4. ")]
+        assert f"{_CHANGE_WORDS[ChangeKind.newly_cited][0]}出来事" in q4
+        assert (
+            "前回の答えも根拠にしていた出来事は、言っていることが変わっていても挙げない"
+            in q4
+        )
+        assert f"{_CHANGE_WORDS[ChangeKind.dropped][0]}出来事も挙げない" in q4
 
 
 class TestRecord:

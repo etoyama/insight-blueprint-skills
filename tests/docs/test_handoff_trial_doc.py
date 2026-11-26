@@ -43,6 +43,11 @@ class TestTheDocumentIsReachable:
             assert f"\n{n}. " in body
         assert f"\n{len(handoff_trial.QUESTIONS) + 1}. " not in body
 
+    def test_question_4_names_only_the_events_the_answer_newly_rests_on(self) -> None:
+        body = section(_doc(), "## Purpose")
+        (q4,) = [line for line in body.splitlines() if line.startswith("4. ")]
+        assert "新しく根拠にした出来事" in q4
+
 
 class TestScenarios:
     """Epic 34 US-6: two synthetic scenarios share one sheet of questions."""

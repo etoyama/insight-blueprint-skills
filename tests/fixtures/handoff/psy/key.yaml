@@ -21,7 +21,7 @@ answers:
   q4:
     changed_nodes: [PSY-Q01]
     evidence: [PSY-H04-E01]
-    note: PSY-Q04 は回 4 で初めて答えたので、変わったに入れない。PSY-H03-E01 は回 3 の答えも引用していたので、変えた証拠に入れない。
+    note: PSY-Q04 は回 4 で初めて答えたので、変わったに入れない。PSY-H03-E01 は回 3 の答えも引用していたので、新しく根拠にした出来事に入れない。
   q5:
     node_id: PSY-Q06
     # The reason says most respondents whose rating of their manager rose were in
