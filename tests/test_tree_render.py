@@ -462,20 +462,32 @@ class TestLegend:
         assert "論点ツリーへ戻る" in explained
 
 
-def node_text(root: Element, node_id: str, *, changes: bool = True) -> str:
-    """Text of the always-visible part of a node, without its folded details.
+def has_class(element: Element, name: str) -> bool:
+    return name in (element.attrs.get("class") or "").split()
 
-    ``changes=False`` also leaves out what the answer changed since the answer
-    before it, which quotes that earlier answer and names where a result comes from.
-    """
+
+def node_card(root: Element, node_id: str) -> Element:
+    """The card of a node, without the cards nested under it."""
+    return next(e for e in by_id(root, node_id).children if e.tag == "div")
+
+
+def answer_text(root: Element, node_id: str) -> str:
+    """The statements of the current answer on the card of a node."""
+    (statements,) = [
+        e for e in node_card(root, node_id).children if has_class(e, "statements")
+    ]
+    return squash(statements.text())
+
+
+def marks_text(root: Element, node_id: str) -> str:
+    card = node_card(root, node_id)
+    return squash(" ".join(e.text() for e in card.walk() if has_class(e, "mark")))
+
+
+def node_text(root: Element, node_id: str) -> str:
+    """Text of the always-visible part of a node, without its folded details."""
     node = by_id(root, node_id)
-    folded = {
-        id(e)
-        for d in node.walk()
-        if d.tag == "details"
-        or (not changes and "changes" in (d.attrs.get("class") or "").split())
-        for e in d.walk()
-    }
+    folded = {id(e) for d in node.walk() if d.tag == "details" for e in d.walk()}
     nested = {
         id(e) for child in node.children if child.tag == "ul" for e in child.walk()
     }
@@ -528,12 +540,13 @@ class TestProgress:
 
 class TestCurrentAnswer:
     def test_the_current_answer_is_text_with_the_word_for_each_kind(self) -> None:
-        shown = node_text(page(), "LIB-Q02", changes=False)
+        root = page()
+        shown = answer_text(root, "LIB-Q02")
 
         assert "これまでわかっていること 取消を除くと期限切れは 346 件" in shown
         assert "注意すべきこと 1館の1年度だけの数である" in shown
-        assert "振り返りの回 2" in shown
         assert "400 件" not in shown
+        assert "振り返りの回 2" in node_text(root, "LIB-Q02")
 
     def test_an_undetermined_statement_carries_its_word(self) -> None:
         assert "まだ決められないこと 理由の記録が無く、偏りは判別できない" in node_text(
@@ -563,9 +576,7 @@ class TestHeardStatements:
     def test_a_statement_citing_an_event_of_the_data_carries_no_such_word(
         self,
     ) -> None:
-        shown = node_text(
-            page(events=self._heard("LIB-H01-E02")), "LIB-Q02", changes=False
-        )
+        shown = answer_text(page(events=self._heard("LIB-H01-E02")), "LIB-Q02")
 
         assert "取消を除くと期限切れは 346 件 （人に聞いた答えによる）" not in shown
         assert shown.count("（人に聞いた答えによる）") == 1
@@ -704,10 +715,7 @@ class TestMarks:
         answers = tree["nodes"][1]["answers"]
         answers[0]["statements"] = answers[1]["statements"]
 
-        shown = node_text(page(tree=tree), "LIB-Q02", changes=False)
-
-        assert "変わった" not in shown
-        assert "初めて答えた" not in shown
+        assert marks_text(page(tree=tree), "LIB-Q02") == ""
 
     def test_an_answer_written_against_an_older_root_revision_is_marked(self) -> None:
         shown = node_text(page(), "LIB-Q05")
@@ -1095,9 +1103,9 @@ class TestDesignsUnderTheirNode:
         (card,) = branch_cards(root, "LIB-Q02")
         assert card.is_inside(by_id(root, "LIB-Q02"))
         assert card.is_inside(by_id(root, "question-tree"))
-        assert "LIB-H01" not in node_text(root, "LIB-Q02", changes=False)
-        node_card = next(e for e in by_id(root, "LIB-Q02").children if e.tag == "div")
-        assert card.attrs["class"] != node_card.attrs["class"]
+        own = node_card(root, "LIB-Q02")
+        assert not card.is_inside(own)
+        assert card.attrs["class"] != own.attrs["class"]
 
     def test_the_designs_come_before_the_child_nodes(self) -> None:
         root = forms_page()
@@ -1246,7 +1254,7 @@ class TestStatusWords:
 
     def test_a_node_card_heads_its_answer_with_the_current_answer(self) -> None:
         root = page()
-        card = next(e for e in by_id(root, "LIB-Q02").children if e.tag == "div")
+        card = node_card(root, "LIB-Q02")
         paragraphs = [squash(e.text()) for e in card.children if e.tag in ("p", "ul")]
 
         heading = paragraphs.index("現時点の答え")
@@ -1714,24 +1722,9 @@ def later_round(tree: dict) -> dict:
     return tree
 
 
-def changes_of(root: Element, inside: Element) -> Element:
-    (found,) = [
-        e for e in inside.walk() if "changes" in (e.attrs.get("class") or "").split()
-    ]
+def changes_of(inside: Element) -> Element:
+    (found,) = [e for e in inside.walk() if has_class(e, "changes")]
     return found
-
-
-def card(root: Element, node_id: str) -> Element:
-    """The card of a node, without the cards nested under it."""
-    return next(e for e in by_id(root, node_id).children if e.tag == "div")
-
-
-def rows_of(table_holder: Element) -> list[list[str]]:
-    return [
-        [squash(cell.text()) for cell in row.children]
-        for row in table_holder.walk()
-        if row.tag == "tr" and row.parent is not None and row.parent.tag == "tbody"
-    ]
 
 
 def is_folded(element: Element, within: Element) -> bool:
@@ -1741,25 +1734,28 @@ def is_folded(element: Element, within: Element) -> bool:
     )
 
 
+def rows_of(section: Element, *, folded: bool = True) -> list[list[str]]:
+    """The cells of each row of the tables in *section*; ``folded=False`` skips folded rows."""
+    return [
+        [squash(cell.text()) for cell in row.children]
+        for row in section.walk()
+        if row.tag == "tr"
+        and row.parent is not None
+        and row.parent.tag == "tbody"
+        and (folded or not is_folded(row, section))
+    ]
+
+
+def row_of(section: Element, event_id: str) -> list[str]:
+    (row,) = [r for r in rows_of(section) if event_id in r[1]]
+    return row
+
+
 class TestWhatAnAnswerChanged:
     """Epic 34 US-1 AC 1, AC 2: one row per cited event, the two rounds side by side."""
 
     def section(self, tree: dict | None = None, node_id: str = "LIB-Q02") -> Element:
-        root = page(tree=tree)
-        return changes_of(root, card(root, node_id))
-
-    def rows(self, node_id: str = "LIB-Q02") -> dict[str, list[str]]:
-        section = self.section(node_id=node_id)
-        visible = [
-            r for r in section.walk() if r.tag == "tr" and not is_folded(r, section)
-        ]
-        return {
-            squash(r.children[1].text()).split()[1]: [
-                squash(c.text()) for c in r.children
-            ]
-            for r in visible
-            if r.parent is not None and r.parent.tag == "tbody"
-        }
+        return changes_of(node_card(page(tree=tree), node_id))
 
     def test_a_node_with_an_answer_before_its_last_one_says_what_changed(self) -> None:
         heading = squash(self.section().text())
@@ -1778,17 +1774,17 @@ class TestWhatAnAnswerChanged:
         assert lead.startswith("回 1 の答えを読んだ人は、")
 
     def test_each_cited_event_is_one_row_with_its_content_and_both_rounds(self) -> None:
-        rows = self.rows()
+        section = self.section()
 
-        assert set(rows) == {"LIB-H01-E01", "LIB-H01-E02"}
-        kind, event, before, after = rows["LIB-H01-E01"]
+        assert len(rows_of(section, folded=False)) == 2
+        kind, event, before, after = row_of(section, "LIB-H01-E01")
         assert kind == "言っていることが変わった"
         assert "期限切れは取消除外で 346 件" in event
         assert before == "これまでわかっていること 取消を含めると期限切れは 400 件"
         assert after == "これまでわかっていること 取消を除くと期限切れは 346 件"
 
     def test_a_newly_cited_event_says_it_was_no_ground_before(self) -> None:
-        kind, event, before, after = self.rows()["LIB-H01-E02"]
+        kind, event, before, after = row_of(self.section(), "LIB-H01-E02")
 
         assert kind == "新しく根拠にした"
         assert "取消の理由列は空欄が多い" in event
@@ -1797,25 +1793,25 @@ class TestWhatAnAnswerChanged:
 
     def test_a_dropped_event_says_it_is_no_ground_now(self) -> None:
         root = page(tree=changed_root())
-        section = changes_of(root, by_id(root, "subject-answer"))
+        section = changes_of(by_id(root, "subject-answer"))
 
-        (row,) = [r for r in rows_of(section) if "LIB-H03-E01" in r[1]]
+        row = row_of(section, "LIB-H03-E01")
         assert row[0] == "根拠から外した"
         assert row[2] == "これまでわかっていること 予約は減らない"
         assert row[3] == "根拠にしていない"
 
     def test_the_unchanged_events_are_folded_with_their_count(self) -> None:
         root = page(tree=changed_root())
-        section = changes_of(root, by_id(root, "subject-answer"))
+        section = changes_of(by_id(root, "subject-answer"))
 
         (folded,) = [d for d in section.walk() if d.tag == "details"]
-        assert squash(folded.children[0].text()) == "変わっていない分析結果 1 件"
+        assert squash(folded.children[0].text()) == "変わっていない根拠 1 件"
         assert "LIB-H01-E03" in folded.text()
         assert "open" not in folded.attrs
 
     def test_the_section_counts_the_events_of_each_kind(self) -> None:
         root = page(tree=changed_root())
-        section = squash(changes_of(root, by_id(root, "subject-answer")).text())
+        section = squash(changes_of(by_id(root, "subject-answer")).text())
 
         assert (
             "新しく根拠にした 1、根拠から外した 1、言っていることが変わった 1、"
@@ -1853,7 +1849,7 @@ class TestWhatAnAnswerChanged:
             )
         }
         root = page(events=events)
-        section = changes_of(root, card(root, "LIB-Q02"))
+        section = changes_of(node_card(root, "LIB-Q02"))
 
         (cell,) = [
             c for c in section.walk() if c.tag == "td" and "LIB-H01-E02" in c.text()
@@ -1862,9 +1858,40 @@ class TestWhatAnAnswerChanged:
         head = [squash(h.text()) for h in section.walk() if h.tag == "th"]
         assert "分析結果、人に聞いた答え" in head
 
+    def test_the_words_around_the_table_do_not_call_a_hearing_an_analysis_result(
+        self,
+    ) -> None:
+        root = page(tree=changed_root())
+        section = changes_of(by_id(root, "subject-answer"))
+
+        outside = squash(
+            " ".join(e.text() for e in section.walk() if e.tag in ("p", "summary"))
+        )
+        assert "分析結果" not in outside
+
+    def test_a_change_of_the_subject_between_the_two_answers_is_named(self) -> None:
+        head = [squash(h.text()) for h in self.section().walk() if h.tag == "th"]
+
+        assert "回 1（主題の版 1 への答え）で、ここから言っていたこと" in head
+        assert "回 2（主題の版 2 への答え）で、ここから言っていること" in head
+
+    def test_two_answers_to_the_same_subject_name_no_revision(self) -> None:
+        tree = make_tree()
+        tree["nodes"][1]["answers"][0]["root_revision"] = 2
+
+        head = [squash(h.text()) for h in self.section(tree).walk() if h.tag == "th"]
+
+        assert "回 1 で、ここから言っていたこと" in head
+        assert "回 2 で、ここから言っていること" in head
+
+    def test_the_legend_says_the_earlier_answer_is_not_checked_again(self) -> None:
+        legend = squash(by_id(page(), "legend").text())
+
+        assert "記録と照らして確かめるのは、それぞれの論点の今の答えだけ" in legend
+
     def test_an_event_missing_from_the_record_is_said_to_be_missing(self) -> None:
         root = page(events={})
-        section = changes_of(root, card(root, "LIB-Q02"))
+        section = changes_of(node_card(root, "LIB-Q02"))
 
         assert "記録に見つからない LIB-H01-E01" in squash(section.text())
 
@@ -1903,7 +1930,7 @@ class TestAnAnswerOfAnEarlierRound:
 
     def test_the_change_of_an_earlier_round_stays_on_the_card_folded(self) -> None:
         root = page(tree=later_round(make_tree()))
-        section = changes_of(root, card(root, "LIB-Q02"))
+        section = changes_of(node_card(root, "LIB-Q02"))
 
         assert section.tag == "details"
         assert "open" not in section.attrs
@@ -1915,11 +1942,11 @@ class TestAnAnswerOfAnEarlierRound:
 
     def test_the_change_of_the_latest_round_is_not_folded(self) -> None:
         root = page()
-        section = changes_of(root, card(root, "LIB-Q02"))
+        section = changes_of(node_card(root, "LIB-Q02"))
 
         assert section.tag != "details"
         (row, *_) = [r for r in section.walk() if r.tag == "tr"]
-        assert not is_folded(row, card(root, "LIB-Q02"))
+        assert not is_folded(row, node_card(root, "LIB-Q02"))
 
 
 class TestTheTopOfThePage:
@@ -1944,11 +1971,7 @@ class TestTheTopOfThePage:
     def test_the_top_shows_the_current_answer_to_the_subject(self) -> None:
         top = by_id(page(tree=changed_root()), "subject-answer")
         visible = squash(
-            " ".join(
-                e.text()
-                for e in top.children
-                if "changes" not in (e.attrs.get("class") or "")
-            )
+            " ".join(e.text() for e in top.children if not has_class(e, "changes"))
         )
 
         assert visible.startswith("主題への現時点の答え")
@@ -1963,7 +1986,7 @@ class TestTheTopOfThePage:
 
     def test_the_top_shows_what_the_answer_to_the_subject_changed(self) -> None:
         root = page(tree=changed_root())
-        section = changes_of(root, by_id(root, "subject-answer"))
+        section = changes_of(by_id(root, "subject-answer"))
 
         assert squash(section.text()).startswith(
             "前の回から変わったこと（回 1 → 回 2）"
@@ -1979,7 +2002,7 @@ class TestTheTopOfThePage:
         self,
     ) -> None:
         root = page(tree=changed_root())
-        own = card(root, "LIB-Q01")
+        own = node_card(root, "LIB-Q01")
 
         assert not [e for e in own.walk() if e.tag == "table"]
         (link,) = [a for a in own.walk() if a.attrs.get("href") == "#subject-answer"]
@@ -1996,7 +2019,7 @@ class TestTheTopOfThePage:
         assert "振り返りの回 2（主題の版 2） 最新の振り返りは回 3 で" in squash(
             top.text()
         )
-        assert changes_of(root, top).tag == "details"
+        assert changes_of(top).tag == "details"
 
     def test_an_answer_to_the_subject_that_fails_the_check_is_not_shown_at_the_top(
         self,
@@ -2006,7 +2029,7 @@ class TestTheTopOfThePage:
         top = by_id(root, "subject-answer")
 
         assert "期限切れは 346 件" not in top.text()
-        assert "記録と合わない答え" in top.text()
+        assert "記録と合わない答え LIB-Q01 のカードで確かめる" in squash(top.text())
         assert [a.attrs["href"] for a in top.walk() if a.tag == "a"] == ["#LIB-Q01"]
 
     def test_the_answer_to_an_earlier_subject_is_marked_at_the_top(self) -> None:

@@ -126,21 +126,7 @@ def changes(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
     tree = load_tree_model(theme_id, base_dir)
     return {
         "answer_changes": [
-            {
-                "node_id": change.node_id,
-                "round": change.round,
-                "previous_round": change.previous_round,
-                "evidence": [
-                    {
-                        "event_id": evidence.event_id,
-                        "kind": evidence.kind.value,
-                        "before": [s.model_dump(mode="json") for s in evidence.before],
-                        "after": [s.model_dump(mode="json") for s in evidence.after],
-                    }
-                    for evidence in change.evidence
-                ],
-            }
-            for change in answer_changes(tree).values()
+            change.model_dump(mode="json") for change in answer_changes(tree).values()
         ]
     }
 

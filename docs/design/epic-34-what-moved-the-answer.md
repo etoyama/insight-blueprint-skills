@@ -401,8 +401,8 @@ classDiagram
 | モジュール / 関数 | 責務（する） | 境界（しない → 委譲先） |
 |---|---|---|
 | `skills/_shared/tree_changes.py`（新規） | `QuestionTree` から、答えの変化、上の論点での引用、引用していない下の結果を導く | ファイルを読まない → `tree_read`。出来事の本文を持たない → `tree_render` が `CitedEvent` と合わせる。HTML を作らない → `tree_render` |
-| `skills/_shared/tree_render.py` | 導いた値を、ページの冒頭と論点のカードに出す。進み具合を数で出し、区切った理由と決定の引用を出す。言葉と凡例を1つの表で持つ | 差を計算しない → `tree_changes`。違反を見つけない → `tree_check`。分析ノートを作らない → `design_note`（他 Epic 領分） |
-| `skills/_shared/tree_read.py::render` | 正本を読み、決定が引用した出来事も読み、検査と導出の結果を `tree_render` に渡す | 言葉を決めない → `tree_render` |
+| `skills/_shared/tree_render.py` | 渡された `QuestionTree` から `tree_changes` で値を導き、ページの冒頭と論点のカードに出す。進み具合を数で出し、区切った理由と決定の引用を出す。言葉と凡例を1つの表で持つ | 差を計算しない → `tree_changes`。違反を見つけない → `tree_check`。分析ノートを作らない → `design_note`（他 Epic 領分） |
+| `skills/_shared/tree_read.py::render` | 正本を読み、決定が引用した出来事も読み、検査の結果を `tree_render` に渡す。`changes` は導いた値を JSON にする | 言葉を決めない → `tree_render`。導かない → `tree_changes` |
 | `skills/_shared/tree_io.py::decide` | 引用つきの決定を、検査に通ってから書く | 検査の規則を持たない → `tree_check`。決定の種類と順の規則を持たない → `models/tree.py` |
 | `skills/_shared/tree_io.py` の読む命令（新規） | 導いた値を JSON で返し、reflection が分析者に見せられるようにする | 導かない → `tree_changes` |
 | `skills/_shared/tree_check.py` | 答えの文に加えて、引用を持つ決定を検査する。答えの文が引用できる範囲は変えない | 書かない → `tree_io`。表示しない → `tree_render` |
@@ -509,6 +509,10 @@ sequenceDiagram
 - Criteria: US-1 AC 4（冒頭に先に出し、残りを畳む）、AC 5（回が進んでも読める）、ADR-0056 の M2（表示が記録に無いことを言わない）、US-5 の表の言葉。決め手は M2 と AC 4。
 - Affected modules: `skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`、`skills/_shared/tree_io.py`。
 - Alternatives considered: 主題のカードにも同じ表を出す（見本の形。読む量が増える）。古い回の変化も開いたまま出す（差が出なかった回の後に、済んだ変化が冒頭を占める）。
+  5. 導出は `tree_render` が `tree_changes` を呼んで行う（`render_tree_html` の引数は変えない）。初版の表は `tree_read.render` が導いた値を渡すとしていたので、Module Responsibilities の2行を直した。
+  6. `tree_render.py` は 1,000 行を超えた。この Story では分けない。34.5 の最初のコミットで、振る舞いを変えずに、文脈と部品のモジュールと、導いた値を出すモジュールに分ける。34.4 が並行で触っている間に半分近くを動かすとマージでぶつかり、分け目は2つ目の導いた値（上の論点での引用）が入ると決まるからである。
+  7. 表に並べる前の回の文は、今の記録と照らし直さずに、開いた所に出る（レビューの指摘）。ツリーの検査が見るのは今の答えだけで、前の回の文はこれまで畳んだ中にしか無かった。前の回の文を並べることは US-1 AC 1 が求めているので、出し方は変えず、読み方にそのことを書いた。前の回の答えも検査して通らない文を畳む案は、`tree_check` を触るので、この Story では採らない。
+  8. 比べる2つの答えが違う主題の版への答えなら、表の列に、それぞれが答えた主題の版を書く。
 - Consequences: 変わり方の4つの言葉は US-5 の表に無い。表の言葉（根拠にする、分析結果）を組み合わせて作ったので、人間が実物の画面で読んで直すなら、`tree_render._CHANGE_WORDS` の1か所を直せば済む。34.5 が足す「上の論点での引用」は、冒頭の欄（`#subject-answer`）へリンクできる。
 
 ### Cross-epic decisions (links to ADR)

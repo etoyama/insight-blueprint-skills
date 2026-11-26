@@ -215,8 +215,8 @@ _MARK_WORDS = {
         "最も新しい振り返りの回（N）で、初めて書いた答え。",
     ),
     Mark.before_root_change: (
-        "見直す前の主題への答え",
-        "主題か到達点を見直す前の、古い主題の版に対して書いた答え。",
+        f"見直す前の{_SUBJECT}への答え",
+        f"{_SUBJECT}か到達点を見直す前の、古い{_SUBJECT_REVISION}に対して書いた答え。",
     ),
     Mark.violating: (
         "記録と合わない答え",
@@ -248,8 +248,11 @@ _CHANGE_WORDS = {
     ),
 }
 
+# What an answer rests on, in the analyst's words: an event of the data, or what
+# a person said (a hearing event is not called an analysis result, US-5 AC 5).
 _RESULT_WORD = "分析結果"
 _HEARD_RESULT_WORD = "人に聞いた答え"
+_HEARD_WORD = f"（{_HEARD_RESULT_WORD}による）"
 
 _VIOLATION_WORDS = {
     "missing-event": "journal に無い出来事",
@@ -353,6 +356,11 @@ def _legend() -> Html:
             "分析結果ごとに1行で出す。分け方は、根拠にしたかどうかと、文が同じか"
             "どうかだけで決まる。なぜ変えたかは記録に無いので、出さない。",
         ),
+        el(
+            "p",
+            "記録と照らして確かめるのは、それぞれの論点の今の答えだけである。"
+            "表に並べる前の回の文は、今の記録と照らし直していない。",
+        ),
         _word_list(_CHANGE_WORDS.values()),
         el(
             "p",
@@ -368,7 +376,7 @@ def _legend() -> Html:
         ),
         el(
             "p",
-            f"文の後ろの「{_HEARD_WORD}」は、引用した出来事がすべて人に聞いた答え"
+            f"文の後ろの「{_HEARD_WORD}」は、引用した出来事がすべて{_HEARD_RESULT_WORD}"
             "（hearing）で、データの出来事が1つも無い文に付ける。",
         ),
         el("p", "まだ分析設計を結んでいない論点は「次の候補」に並べる。"),
@@ -624,6 +632,7 @@ def _subject_answer(context: _Context) -> Html:
             el(
                 "p",
                 el("span", _MARK_WORDS[Mark.violating][0], class_="mark"),
+                " ",
                 _link(root.id, f"{root.id} のカードで確かめる"),
             )
         )
@@ -775,7 +784,7 @@ def _node_card(context: _Context, node: QuestionNode) -> Html:
     if answer is None:
         parts.append(el("p", "まだ答えていない"))
     elif violated:
-        parts += [_marks(context, node, answer), _round_meta(answer)]
+        parts += [_marks(context, node, answer), _current_round_meta(context, answer)]
     else:
         parts += _answer_lines(context, node, answer, heading="現時点の答え")
         parts.append(_changes_on_the_card(context, node))
@@ -803,7 +812,7 @@ def _answer_lines(
             join(_statement(s, *_heard_word(context, s)) for s in answer.statements),
             class_="statements",
         ),
-        _round_meta(answer, context.tree.current_round()),
+        _current_round_meta(context, answer),
     ]
 
 
@@ -834,8 +843,7 @@ def _changes(context: _Context, node: QuestionNode, heading_tag: str) -> Html | 
             el(
                 "p",
                 f"回 {before} の答えを読んだ人は、次の表だけ読み直せばよい。"
-                "根拠にした分析結果か、そこから言っていることが、"
-                f"回 {before} から変わった所を並べている。",
+                f"根拠か、そこから言っていることが、回 {before} から変わった所を並べている。",
             ),
             _change_table(context, change, changed),
         ]
@@ -843,8 +851,7 @@ def _changes(context: _Context, node: QuestionNode, heading_tag: str) -> Html | 
         body.append(
             el(
                 "p",
-                "根拠にした分析結果も、そこから言っていることも、"
-                f"回 {before} から変わっていない。",
+                f"根拠も、そこから言っていることも、回 {before} から変わっていない。",
             )
         )
     body.append(
@@ -859,7 +866,7 @@ def _changes(context: _Context, node: QuestionNode, heading_tag: str) -> Html | 
         body.append(
             el(
                 "details",
-                el("summary", f"{word}{_RESULT_WORD} {len(same)} 件"),
+                el("summary", f"{word}根拠 {len(same)} 件"),
                 _change_table(context, change, same),
             )
         )
@@ -878,11 +885,24 @@ def _change_table(
     context: _Context, change: AnswerChange, rows: Sequence[EvidenceChange]
 ) -> Html:
     heard = any(_is_heard(context, row.event_id) for row in rows)
+    earlier, last = context.tree.node(change.node_id).answers[-2:]
+    # Two answers to different revisions of the subject differ for that reason
+    # too, so the columns say which revision each one answered.
+    revised = earlier.root_revision != last.root_revision
+
+    def answered(answer: Answer) -> str:
+        to = (
+            f"（{_SUBJECT_REVISION} {answer.root_revision} への答え）"
+            if revised
+            else " "
+        )
+        return f"回 {answer.round}{to}で、ここから"
+
     head = (
         "変わり方",
         f"{_RESULT_WORD}、{_HEARD_RESULT_WORD}" if heard else _RESULT_WORD,
-        f"回 {change.previous_round} で、ここから言っていたこと",
-        f"回 {change.round} で、ここから言っていること",
+        f"{answered(earlier)}言っていたこと",
+        f"{answered(last)}言っていること",
     )
     return el(
         "div",
@@ -955,42 +975,39 @@ def _statement(statement: AnswerStatement, *tail: str) -> Html:
     )
 
 
-_HEARD_WORD = "（人に聞いた答えによる）"
-
-
 def _heard_word(context: _Context, statement: AnswerStatement) -> tuple[str, ...]:
     """The word for a statement whose every cited event is what a person said.
 
     The check counts a number in a hearing event as recorded, so the page is
     where a reader sees that no event of the data stands behind the statement.
     """
-    cited = [context.events.get(cite) for cite in statement.cites]
-    if all(event is not None and event.type == "hearing" for event in cited):
+    if all(_is_heard(context, cite) for cite in statement.cites):
         return (f" {_HEARD_WORD}",)
     return ()
 
 
-def _round_meta(answer: Answer, latest: int | None = None) -> Html:
-    """The round of an answer; with *latest*, also that later rounds left it as it is.
+def _round_line(answer: Answer) -> str:
+    return f"振り返りの回 {answer.round}（{_SUBJECT_REVISION} {answer.root_revision}）"
+
+
+def _round_meta(answer: Answer) -> Html:
+    return el("p", _round_line(answer), class_="meta")
+
+
+def _current_round_meta(context: _Context, answer: Answer) -> Html:
+    """The round of a current answer, and that later rounds left it as it is.
 
     The marks only know the latest round, so without this line a round that
     passes would leave no trace on an answer it did not touch.
     """
+    latest = context.tree.current_round()
     untouched = (
         f"　最新の振り返りは回 {latest} で、回 {answer.round} より後の回では、"
         "この答えを書き直していない。"
-        if latest is not None and answer.round < latest
+        if answer.round < latest
         else None
     )
-    return el(
-        "p",
-        el(
-            "span",
-            f"振り返りの回 {answer.round}（{_SUBJECT_REVISION} {answer.root_revision}）",
-            class_="meta",
-        ),
-        untouched,
-    )
+    return el("p", el("span", _round_line(answer), class_="meta"), untouched)
 
 
 def _evidence(
