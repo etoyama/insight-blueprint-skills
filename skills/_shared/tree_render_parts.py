@@ -171,7 +171,8 @@ _MARK_WORDS = {
     Mark.before_root_change: (
         f"見直す前の{_SUBJECT}への答え",
         f"{_SUBJECT}か到達点を見直す前の{_SUBJECT}に対して書いた答え。"
-        f"2回以上見直したときは、何回目の見直しの前かを添える。",
+        f"2回以上見直したときは、この言葉の代わりに、何回目の見直しの前の{_SUBJECT}"
+        "への答えかを言う。",
     ),
     Mark.violating: (
         "記録と合わない答え",

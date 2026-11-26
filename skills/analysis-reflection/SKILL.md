@@ -673,7 +673,7 @@ echo '{"kind": "return", "node_id": "LIB-Q03",
 the node to investigate next, and this choice names none. When the analyst chooses
 主題そのものを見直す, go to `/analysis-framing {theme_id}` and run only its 4c, "The root
 question or the aim", which shows the old and the new 主題 side by side and asks whether
-the 主題の版 goes up. From there, do not go on to 4d or 5b of that skill: 4d asks for the
+to record the change as a revision of the 主題 (主題を見直す). From there, do not go on to 4d or 5b of that skill: 4d asks for the
 next node, and this gate asks it. Never run `tree_io revise-root` from here, and never draft
 the new 主題 before the analyst has said what is wrong with the current one. After the
 revision, come back to this gate and ask the decision again, now for the three kinds: which
