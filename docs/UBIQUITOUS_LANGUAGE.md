@@ -56,12 +56,12 @@
 | 論点 | `QuestionNode` | 論点ツリーの1つのノード。問いの文と、親の論点への寄与を持ち、答えるための分析設計を結べる。journal の `question` とは別に持つ | 子の問い、サブクエスチョン | [epic-18](design/epic-18-question-tree.md) |
 | 主題 | — | 論点ツリーの、親を持たない論点。ツリーに1つだけあり、到達点を持つ。コード上の名前と YAML の項目名は root のままである | 根の問い | [epic-18](design/epic-18-question-tree.md)、[ADR-0055](adr/0055-the-root-question-is-shown-as-the-subject.md) |
 | 到達点 | `Aim` | 主題が目指す所。業務では誰が何を決めるか、研究では想定読者と主張の範囲 | ゴール | [epic-18](design/epic-18-question-tree.md) |
-| 主題の版 | `RootRevision` | 主題か到達点を見直すたびに1つ上がる番号。見直した理由を持つ。古い版に対する現時点の答えは、見直す前の主題への答えとして表示する | 根の版、根の変更前の答え | [epic-18](design/epic-18-question-tree.md)、[ADR-0055](adr/0055-the-root-question-is-shown-as-the-subject.md) |
+| 主題の版 | `RootRevision` | 主題か到達点を見直すたびに1つ上がる番号。見直した理由を持つ。古い版に対する現時点の答えは、見直す前の主題への答えとして表示する | 根の版 | [epic-18](design/epic-18-question-tree.md)、[ADR-0055](adr/0055-the-root-question-is-shown-as-the-subject.md) |
 | 親の論点 | `parent_question_id` | 論点が寄与する、1つ上の論点。主題だけが持たない | — | [epic-29](design/epic-29-theme-report-export.md) |
 | 寄与 | `contribution` | 子の論点に答えると、親の論点の判断がどう進むか。論点の親子はこれで決める | — | [epic-18](design/epic-18-question-tree.md) |
 | 発見元 | `origin_event_id` | 探索中に生まれた論点が生まれた journal の出来事。着手のときに置いた論点は持たない | — | [epic-18](design/epic-18-question-tree.md) |
 | 進捗 | `Progress` | 論点の分析がどこまで進んだか。未着手・検証中・分析済み。保存せず、結んだ分析設計の状態から導く | — | [epic-18](design/epic-18-question-tree.md) |
-| 現時点の答え | `Answer` | 振り返りで論点ごとに書く答え。文ごとに種類（これまでわかっていること `claim`・注意すべきこと `weakening`・まだ決められないこと `undetermined`）と、引用する journal の出来事を持つ。追記だけで、振り返りの回と主題の版を持つ | 暫定回答、未判別、弱める証拠と留保 | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
+| 現時点の答え | `Answer` | 振り返りで論点ごとに書く答え。文ごとに種類（これまでわかっていること `claim`・注意すべきこと `weakening`・まだ決められないこと `undetermined`）と、引用する journal の出来事を持つ。追記だけで、振り返りの回と主題の版を持つ | 暫定回答 | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
 | 振り返りの回 | `round` | テーマを横断する振り返りの通し番号。1回の `tree_io answer` が1つの回になる。前の回から変わった答えを見分けるのに使う | — | [epic-18](design/epic-18-question-tree.md) |
 | ツリーの決定 | `TreeDecision` | 論点ツリーで分析者が選んだこと（最初の論点を選ぶ、深める、親に戻る、区切る）と理由。次に調べる論点を指し、区切るときは区切った論点を指す。決めた時点の振り返りの回を持つ | — | [epic-18](design/epic-18-question-tree.md) |
 | 次の候補 | `NextCandidate` | 振り返りが示す、次に調べるとよい未着手の論点。主題を除き、自分にも下の論点にも分析設計を結んでいない論点を指す。人に聞く問い、その答えで変わる判断、既に分かっていること、聞いてきた答え（誰に、いつ）を添えられる | — | [epic-18](design/epic-18-question-tree.md) |

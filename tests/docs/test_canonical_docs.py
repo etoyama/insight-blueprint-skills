@@ -1335,6 +1335,16 @@ class TestWordsShownToTheAnalyst:
         assert old in self._rows()[term][words.AVOID].split("、")
         assert f"{old}\t{term}" in _read(".yomiyasu-words/flag.txt")
 
+    def test_a_flagged_old_word_suggests_the_word_shown_for_it(self) -> None:
+        shown = {
+            row[0]: row[1]
+            for row in table_rows(words.section(_read(self.GLOSSARY), self.SECTION))[2:]
+        }
+        for line in _read(".yomiyasu-words/flag.txt").splitlines():
+            old, _, suggested = line.partition("\t")
+            if old in shown:
+                assert suggested == shown[old], line
+
     def test_the_answer_is_defined_by_the_words_of_its_kinds(self) -> None:
         definition = self._rows()["現時点の答え"][words.DEFINITION]
         for word in (
