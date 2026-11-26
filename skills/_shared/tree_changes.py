@@ -161,11 +161,17 @@ def uncited_below(tree: QuestionTree) -> dict[str, tuple[UncitedBelow, ...]]:
     nothing to list are left out of the dict.
     """
     cited_now = {node.id: _current_citing(node) for node in tree.nodes}
-    position = {node.id: index for index, node in enumerate(tree.nodes)}
     children: dict[str, list[QuestionNode]] = {}
     for node in tree.nodes:
         if node.parent_question_id is not None:
             children.setdefault(node.parent_question_id, []).append(node)
+    # The page lists each node before its children, depth first.
+    position: dict[str, int] = {}
+    stack = [tree.root()]
+    while stack:
+        node = stack.pop()
+        position[node.id] = len(position)
+        stack.extend(reversed(children.get(node.id, [])))
     uncited: dict[str, tuple[UncitedBelow, ...]] = {}
     for node in tree.nodes:
         # The first node to cite an event, level by level, is the nearest one.

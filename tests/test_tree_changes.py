@@ -413,6 +413,42 @@ class TestWhatTheAnswersBelowCite:
 
         assert "LIB-Q04" not in uncited_below(tree)
 
+    def test_the_listed_events_follow_the_page_order_not_the_order_nodes_were_added(
+        self,
+    ) -> None:
+        def node(node_id: str, parent: str, design: str, event_id: str) -> dict:
+            return {
+                "id": node_id,
+                "question": f"{node_id} の問い",
+                "parent_question_id": parent,
+                "contribution": "件数が変わる",
+                "design_ids": [design],
+                "answers": [answer(1, said("claim", f"{node_id} の答え", event_id))],
+            }
+
+        # LIB-Q04 was added after LIB-Q03, under LIB-Q02: the page lists it
+        # right after LIB-Q02, before LIB-Q03.
+        tree = validate_tree_schema(
+            {
+                "theme_id": "LIB",
+                "root_revisions": [
+                    {"revision": 1, "question": "試行をするか", "aim": AIM}
+                ],
+                "nodes": [
+                    {"id": "LIB-Q01", "question": "試行をするか", "answers": []},
+                    node("LIB-Q02", "LIB-Q01", "LIB-H01", E1),
+                    node("LIB-Q03", "LIB-Q01", "LIB-H02", F1),
+                    node("LIB-Q04", "LIB-Q02", "LIB-H03", "LIB-H03-E01"),
+                ],
+            }
+        )
+
+        assert [u.node_id for u in uncited_below(tree)["LIB-Q01"]] == [
+            "LIB-Q02",
+            "LIB-Q04",
+            "LIB-Q03",
+        ]
+
 
 class TestAnEventTheNodeCitedBefore:
     def test_an_event_cited_before_has_the_last_round_that_cited_it(self) -> None:
