@@ -144,12 +144,17 @@ Story は仮の分割で、起票は PM のセッションが行う。「触る�
 | 34.3 答えの変化を導き、カードと冒頭に出す | US-1 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/tree_changes.py`（新規）、`skills/_shared/tree_render.py`、`skills/_shared/tree_io.py` の読む命令、`tests/test_tree_changes.py`（新規）、`tests/test_tree_render.py`、`tests/tree_io/test_render*.py` | 34.1 |
 | 34.4 ツリーの決定の引用（正本・検査・skill） | US-4、US-2 | US-4 AC 1, AC 2, AC 4, AC 5、US-2 AC 3 | `src/insight_blueprint/models/tree.py`、`skills/_shared/tree_io.py` の `decide`、`skills/_shared/tree_check.py`、`skills/analysis-reflection/SKILL.md` の Step T7、`skills/analysis-auto/SKILL.md`、`docs/ARCHITECTURE.md`、`docs/UBIQUITOUS_LANGUAGE.md`、`tests/test_tree_models.py`、`tests/test_tree_check.py`、`tests/tree_io/` | 34.1 |
 | 34.5 上の論点での引用と、引用していない下の結果 | US-2、US-3 | US-2 AC 1, AC 2, AC 4、US-3 AC 1 | `skills/_shared/tree_changes.py`、`skills/_shared/tree_render.py`、`tests/test_tree_changes.py`、`tests/test_tree_render.py`、`docs/UBIQUITOUS_LANGUAGE.md` | 34.3 |
-| 34.6 進み具合と決定の表示、reflection の案内 | US-3、US-4、US-6 | US-3 AC 2, AC 3, AC 4、US-4 AC 3、US-6 AC 3（問い 5 の鍵） | `skills/_shared/tree_render.py`、`skills/_shared/tree_read.py` の `render`、`skills/analysis-reflection/SKILL.md` の Step T3 と Step T5、`tests/skills/`、`tests/fixtures/handoff/lib/`、`tests/fixtures/handoff/psy/`、`tests/test_handoff_trial.py`、`docs/HANDOFF_TRIAL.md` | 34.4、34.5 |
+| 34.6 進み具合と決定の表示 | US-3、US-4、US-6 | US-3 AC 2, AC 3、US-4 AC 3、US-6 AC 3（問い 5 の鍵） | `skills/_shared/tree_render.py`、`skills/_shared/tree_read.py` の `render`、`scripts/handoff_trial.py` の `build`、`tests/fixtures/handoff/lib/`、`tests/fixtures/handoff/psy/`、`tests/test_handoff_trial.py`、`docs/HANDOFF_TRIAL.md` | 34.4、34.5（引き継ぐことは下の注記） |
 | 34.7 表示を変えた後の引き継ぎの試行 | US-6 | AC 5 | `docs/handoff-trials/`、`docs/HANDOFF_TRIAL.md`、`docs/PRD.md` の成功基準、`docs/UBIQUITOUS_LANGUAGE.md` の試行の語 | 34.6 |
+| 34.8 reflection の案内 | US-3 | AC 4 | `skills/analysis-reflection/SKILL.md` の Step T3 と Step T5、`skills/analysis-auto/SKILL.md`、`tests/skills/` | 34.3 |
 
 - 波 1 は 34.1 と 34.2 で、並行で進められる。問いの紙・HANDOFF_TRIAL・図書館の鍵にある「根」と答えの文の種類の言い換えは、同じファイルを触る 34.2 が行う。US-5 AC 5 は欄を足す 34.3・34.5・34.6 も守る。PRD の成功基準の6つ目の項目と、用語集の試行の語は、34.1 と重ならないように 34.7 が直す。決定が引用を持つ前なので、34.2 の2本目の鍵は、問い 5 の理由の出来事を人が決める。34.6 が2本の合成シナリオの決定に引用を足し、鍵を導き直す。34.2 は、34.1 が epic ブランチに入った後に、今の表示で基準の試行を取る。
 - 波 2 は 34.3 と 34.4 で、並行で進められる。34.3 は表示、34.4 は正本と検査と skill で、触る所は重ならない。
-- 波 3 は 34.5、波 4 は 34.6、波 5 は 34.7 である。34.3・34.5・34.6 はどれも `tree_render.py` を触るので、順に進める。
+- 波 3 は 34.5 と 34.8 で、並行で進められる。34.5 は表示のコード、34.8 は reflection の SKILL.md で、触る所は重ならない。波 4 は 34.6、波 5 は 34.7 である。34.3・34.5・34.6 はどれも `tree_render.py` を触るので、順に進める。
+- 34.6 が引き継ぐこと。1つ目と2つ目は 34.2 のレビューが先送りした指摘、3つ目は 34.4 が見つけたこと（共有ノートの `266-decision-cites.md` の 3）である。
+  - q6 の規則の「前回も引用していた」側（上の論点が最後の回に初めて引用した出来事は挙げない）を通すシナリオが無い。`tests/test_handoff_trial.py` の導き方からその条件を消しても、テストは落ちない。鍵を導き直すときに、その形をシナリオに足すかを決める。
+  - `tests/test_handoff_trial.py` の `TestScore` の一部は psy でも回るが、LIB の id で間違いを作る。psy の分は新しいことを確かめていない。
+  - `scripts/handoff_trial.py` の `build` は、`decide` が違反を返して何も書かなくても、黙って先へ進む。`answer` と同じく、違反があれば止まるようにする。
 - 34.2 の基準で、今の表示の読み手が2本目の合成シナリオでも満点を取ったら、PM のセッションは波 2 の前に人間に知らせる。そのときは、表示の効果を Claude の試行では示せない。 34.2 の基準は満点で、PM のセッションが人間に知らせた。人間は止めずに波 2 を進めると決めた（Decisions の `keep-the-display-before-the-change-and-review-after-34-3`）。
 - どの Story も `CHANGELOG.md` の `[Unreleased]` に1行足す。重なるのはそこだけである。
 - 用語集は、コード上の名前を入れた Story が直す（名前が実在することをテストが確かめる）。
@@ -515,6 +520,15 @@ sequenceDiagram
   8. 比べる2つの答えが違う主題の版への答えなら、表の列に、それぞれが答えた主題の版を書く。
 - Consequences: 変わり方の4つの言葉は US-5 の表に無い。表の言葉（根拠にする、分析結果）を組み合わせて作ったので、人間が実物の画面で読んで直すなら、`tree_render._CHANGE_WORDS` の1か所を直せば済む。34.5 が足す「上の論点での引用」は、冒頭の欄（`#subject-answer`）へリンクできる。
 
+### Decision: split-the-reflection-guide-out-of-story-34-6
+
+- What: Story 34.6 を2つに割る。表示（進み具合、区切った論点、決定の根拠、2本の合成シナリオの決定の引用）は 34.6（#268）に残す。reflection の案内（US-3 AC 4）は新しい Story 34.8（#270）にする。波 3 は 34.5 と 34.8 を並行で進め、波 4 を 34.6、波 5 を 34.7 にする。34.3 の実物の画面を人間が見たうえで、34.5 と 34.6 は続ける。
+- Why: 34.6 は AC が5個で、3つのユーザーストーリーにまたがっていた。reflection の案内は、表示の「言っていることが変わった」に言い換えの雑音が出るのを抑える手順なので、単独で確かめたい。
+- Criteria: 1つの Story で、まとまった1つの事を確かめられること。触る所が重ならない Story は並行で進められること。決め手は、reflection の案内を表示と切り離して確かめられることである（人間が PM のセッションで決めた、2026-11-26）。
+- Affected modules: Story 34.6・34.8 の触る所（上の Stories 表）。`skills/analysis-reflection/SKILL.md` の Step T3 と Step T5、`skills/analysis-auto/SKILL.md` は 34.8 が触る。
+- Alternatives considered: 34.6 のまま1つで進める（AC が5個で3つのユーザーストーリーにまたがり、reflection の案内だけを確かめられない）。reflection の案内を 34.5 に入れる（34.5 は表示のコードで、確かめ方が違う）。
+- Consequences: Story が1つ増え、DesignDoc への追記が1回増える。34.8 は 34.3 の後に始められ、34.6 を待たない。34.7 の前提は 34.6 のままで、34.8 は試行の HTML を変えない。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0055: 分析者に見せる言葉を内側の用語と分け、「根の問い」を「主題」と呼ぶ](../adr/0055-the-root-question-is-shown-as-the-subject.md): 表示の言葉と用語集だけを変え、コード上の名前と YAML は変えない。
@@ -534,6 +548,7 @@ sequenceDiagram
 | Story 34.5 | ☐ | ☐ | ☐ |
 | Story 34.6 | ☐ | ☐ | ☐ |
 | Story 34.7 | ☐ | ☐ | ☐ |
+| Story 34.8 | ☐ | ☐ | ☐ |
 
 完了時に ✓ を付ける。このマトリクスが Epic PR のレビューゲート。
 
@@ -550,3 +565,4 @@ sequenceDiagram
 - 2026-11-26 — 34.2 の基準が満点だったので、人間が PM のセッションで、止めずに波 2 を進めると決めた（Decision Analysis の案B）。変える前の表示の HTML を残し、34.7 で人の読み手に前と後を読んでもらう。波 3 の前に、34.3 の実物の画面を人間が見る。
 - 2026-11-26 — Story 34.4 completed: `TreeDecision` に任意の `cites` を足し、`tree_io decide` は引用を持つ決定を書く前に検査する（違反は `DecisionViolation`。種類は答えの違反と同じ3つ）。reflection の決める場面は、理由の元になった出来事を引用に入れ、「主題そのものを見直す」を4つ目に並べる。引用を持たない保存済みの論点ツリーはそのまま読める。Domain Model の図は変えていない。
 - 2026-11-26 — Story 34.3 completed: 答えの変化を引用の差から導き（`tree_changes.answer_changes`）、ページの冒頭と論点のカードに出した。冒頭は主題への現時点の答え、前の回から変わったこと、次に調べる論点の順で、読み方は畳んだ。導いた値は `tree_io changes` が JSON で返す。2本の合成シナリオで「言っていることが変わった」に出た行は1行で、言い換えだけの行は無かった（分析者が書いた答えでは確かめていない）。
+- 2026-11-26 — 34.3 の実物の画面を見たうえで、34.5 と 34.6 を続けると、人間が PM のセッションで決めた。あわせて 34.6 を割り、reflection の案内（US-3 AC 4）を Story 34.8（#270）にした（Decisions の `split-the-reflection-guide-out-of-story-34-6`）。
