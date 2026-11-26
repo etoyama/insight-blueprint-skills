@@ -11,6 +11,7 @@ Architecture / Domain Model / Sequence Diagram。それ以外の節は Story の
 人間に承認を求める前に、全体の整合を確かめ、利用者が触る成果物の見本を見せる
 （手順の正本: [docs/WORKFLOW.md §4](../../docs/WORKFLOW.md)、決定: FLOW-0005）。
 見本を省いたら、その理由を Story Timeline に1行書く。
+見本へのコメントを反映して文書を変えたら、承認を求める前に、全体の整合をもう一度回す（決定: FLOW-0020）。
 
 ---
 
@@ -185,5 +186,6 @@ Story 完了とキーイベントの追記専用ログ。
 
 - YYYY-MM-DD — Story N.M completed: <一行サマリ>
 - YYYY-MM-DD — 初版: 見本を省いた（<利用者から見える変化がない理由>）
+- YYYY-MM-DD — 人間が実物の画面と言い回しの一覧を読んだ: 指摘 N 件（今直した M 件、後の Story で直す K 件）
 - YYYY-MM-DD — 実データで使ってみた: findings N 件（Epic で直した M 件、issue #NN）
 - YYYY-MM-DD — 実データで使ってみる段を省いた（<利用者から見える変化がない理由>）

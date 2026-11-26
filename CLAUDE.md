@@ -71,6 +71,7 @@ GitHub issue 駆動の2階層。定義の正本は [docs/WORKFLOW.md](docs/WORKF
 人間に判断を仰ぐときと ADR を書くときは、`decision-analysis` スキルの形式で提示する
 （[FLOW-0004](docs/adr/flow/0004-decision-analysis-plugin.md)。プラグインは `.claude/settings.json` で宣言し、
 clone ごとに `scripts/install-plugins.sh` で入れる）。
+仰ぐ前に、30分以内に試せることは試し、結果を添えて聞く（[FLOW-0017](docs/adr/flow/0017-try-before-asking-human.md)）。
 
 ## 6. Coding Principles（ハードルール）
 

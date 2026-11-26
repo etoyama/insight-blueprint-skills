@@ -1050,7 +1050,10 @@ class TestDesignDocFirstDraftChecks:
         )
         assert lifecycle is not None
         edges = lifecycle.group(1)
-        checks = re.search(r'(\w+)\["全体の整合 / 見本<br/>→ 人間の承認"\]', edges)
+        checks = re.search(
+            r'(\w+)\["全体の整合 / 見本<br/>→ 見本の反映の後に、もう一度整合<br/>→ 人間の承認"\]',
+            edges,
+        )
         assert checks is not None
         node = checks.group(1)
         # The draft leads to the checks and only the checks lead to the split,
@@ -1224,6 +1227,71 @@ class TestAllWavesAddressAndTrialFlow:
         assert "実データで使ってみる" in workflow
         assert "FLOW-0016" in workflow
         assert "CONTRIBUTING.md#trying-an-epic-branch-in-another-project" in workflow
+
+
+class TestTryFirstAndReadTheRealScreenFlow:
+    """FLOW-0017〜0020: try before asking, check proposals against the real thing,
+    read the real screen mid-Epic, recheck the whole after the mockup comments."""
+
+    FLOWS = (
+        "0017-try-before-asking-human.md",
+        "0018-check-proposals-against-real-artifact.md",
+        "0019-human-reads-real-screen-after-first-display-story.md",
+        "0020-recheck-whole-after-mockup-comments.md",
+    )
+    SKILL = ".claude/skills/pm-session/SKILL.md"
+
+    @pytest.mark.parametrize("name", FLOWS)
+    def test_the_flow_copy_is_kept_and_indexed(self, name: str) -> None:
+        copy = (REPO_ROOT / "docs/adr/flow" / name).read_text(encoding="utf-8")
+        assert copy.startswith(f"# FLOW-{name[:4]}: ")
+        assert "ADR-00" not in copy
+        assert f"]({name})" in _read("docs/adr/flow/README.md")
+
+    @pytest.mark.parametrize("name", FLOWS)
+    def test_the_flow_copy_links_resolve(self, name: str) -> None:
+        copy = REPO_ROOT / "docs/adr/flow" / name
+        targets = _LINK.findall(copy.read_text(encoding="utf-8"))
+        assert all((copy.parent / t).is_file() for t in targets if "://" not in t)
+
+    def test_what_can_be_tried_is_tried_before_asking_the_human(self) -> None:
+        adr_rule = unwrap(section(_read("docs/WORKFLOW.md"), "## 6."))
+        assert "FLOW-0017" in adr_rule
+        assert "30分以内に試せることは試す" in adr_rule
+        assert "何を変え、何回確かめ、どうなったか" in adr_rule
+        assert "FLOW-0017" in unwrap(section(_read("CLAUDE.md"), "## 5."))
+        relay = unwrap(section(_read(self.SKILL), "## 5."))
+        assert "FLOW-0017" in relay
+        brief = unwrap(section(_read(self.SKILL), "## 4."))
+        assert "30分以内に試せることは試して結果を添える" in brief
+
+    def test_the_pm_checks_a_proposal_against_the_real_thing(self) -> None:
+        relay = unwrap(section(_read(self.SKILL), "## 5."))
+        assert "FLOW-0018" in relay
+        assert "PM が実物（画面、記録、コマンドの出力）と照らす" in relay
+
+    def test_the_human_reads_the_real_screen_after_the_first_display_story(
+        self,
+    ) -> None:
+        workflow = unwrap(section(_read("docs/WORKFLOW.md"), "## 4."))
+        assert "FLOW-0019" in workflow
+        assert "人間が実物の画面を読む" in workflow
+        assert "言い回しの一覧" in workflow
+        waves = unwrap(section(_read(self.SKILL), "## 3."))
+        assert "FLOW-0019" in waves
+        assert "言い回しの一覧" in waves
+        timeline = section(
+            _read(".claude/rules/design-doc-template.md"), "## Story Timeline"
+        )
+        assert "人間が実物の画面と言い回しの一覧を読んだ" in timeline
+
+    def test_the_whole_is_rechecked_after_the_mockup_comments(self) -> None:
+        workflow = unwrap(section(_read("docs/WORKFLOW.md"), "## 4."))
+        assert "FLOW-0020" in workflow
+        assert "全体の整合をもう一度回す" in workflow
+        assert "FLOW-0020" in _read(".claude/rules/design-doc-template.md")
+        brief = unwrap(section(_read(self.SKILL), "## 4."))
+        assert "見本へのコメントを反映した後にもう一度回す整合" in brief
 
 
 class TestExplorationAndConfirmationTerms:
