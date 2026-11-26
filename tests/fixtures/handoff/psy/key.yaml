@@ -1,8 +1,8 @@
 # The judgments a reader of the round-4 tree HTML should reach. Every name and number
 # in this scenario is made up. tests/test_handoff_trial.py derives each answer from
-# the built tree, so the key cannot drift from stages.yaml. The one exception is
-# q5.reason_events: a decision's reason is free text that cites no event yet, so whoever
-# writes the key picks them (Story 34.6 adds the citation and derives them).
+# the built tree, so the key cannot drift from stages.yaml. q5.reason_events are what
+# the last decision cites, and q5.also_allowed is the event the next node was promoted
+# from (ADR-0058).
 stage: round-4
 answers:
   q1:

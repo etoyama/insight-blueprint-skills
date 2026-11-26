@@ -63,6 +63,7 @@ stages:
           kind: return
           node_id: LIB-Q03
           reason: 数え方は定まった。期限切れの原因として、まず通知の遅れを確かめる
+          cites: [LIB-H01-E01]
 
   - id: round-2
     summary: >-
@@ -130,3 +131,4 @@ stages:
           kind: return
           node_id: LIB-Q06
           reason: 通知の日を揃えても金曜に確保した本の期限切れが多いままなので、通知から期限まで何日開館していたかを先に確かめる
+          cites: [LIB-H02-E02]

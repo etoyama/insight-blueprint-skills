@@ -43,11 +43,20 @@ def _answer(*, theme_id: str, answers: list[dict], base_dir: Path) -> dict:
     return result
 
 
+def _decide(*, theme_id: str, base_dir: Path, **decision: Any) -> dict:
+    # decide writes nothing when its cites fail the check, and says so only in
+    # what it returns: carrying on would build a tree without that decision.
+    result = tree_io.decide(theme_id, **decision, base_dir=base_dir)
+    if "violations" in result:
+        raise ValueError(f"the scenario's decision fails the tree check: {result}")
+    return result
+
+
 # Step name -> (function, whether it takes the theme). The YAML names the function.
 STEPS: dict[str, tuple[Callable[..., object], bool]] = {
     "create_tree": (tree_io.create_tree, True),
     "add_node": (tree_io.add_node, True),
-    "decide": (tree_io.decide, True),
+    "decide": (_decide, True),
     "link_design": (tree_io.link_design, True),
     "answer": (_answer, True),
     "candidate": (tree_io.candidate, True),
@@ -134,8 +143,8 @@ class Q5(_Question):
 
 
 class KeyQ5(Q5):
-    """The q5 key. A decision's reason is free text that cites no event, so a
-    reader may rightly name an event next to it, such as the node's origin."""
+    """The q5 key: the events the last decision cites (ADR-0058). A reader may
+    rightly name an event next to them too, such as the node's origin."""
 
     also_allowed: list[str] = []
 
