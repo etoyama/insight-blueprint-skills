@@ -33,24 +33,12 @@ from skills._shared.tree_render_parts import (
     _USED_ABOVE_WORDS,
     Shown,
     _Context,
-    _heard_word,
     _is_heard,
     _link,
     _result,
-    _statement,
+    _statement_list,
+    _word_of,
 )
-
-
-def _changes_on_the_card(context: _Context, node: QuestionNode) -> Html | None:
-    if node.parent_question_id is None and node.id in context.changes:
-        # The table of the subject is at the top of the page; one copy is enough.
-        return el(
-            "p",
-            _link(
-                "subject-answer", "前の回から変わったことは、ページの冒頭に出している"
-            ),
-        )
-    return _changes(context, node, "h4")
 
 
 def _changes(context: _Context, node: QuestionNode, heading_tag: str) -> Html | None:
@@ -155,28 +143,34 @@ def _said_cell(
 ) -> Html:
     if not statements:
         return el("td", none, class_="none")
-    return el(
-        "td",
-        el("ul", join(_statement(s, *_heard_word(context, s)) for s in statements)),
+    return el("td", _statement_list(context, statements))
+
+
+def _split_left_out(
+    rows: Sequence[UncitedBelow],
+) -> tuple[list[UncitedBelow], list[UncitedBelow]]:
+    """The results never in the answer, and those the answer dropped."""
+    return (
+        [r for r in rows if r.last_cited_round is None],
+        [r for r in rows if r.last_cited_round is not None],
     )
 
 
-def _left_out(context: _Context, node: QuestionNode, whose: str) -> list[Html | None]:
+def _left_out(
+    context: _Context, node: QuestionNode, whose: str, heading_tag: str
+) -> list[Html]:
     """The results the answers below *node* rest on and its answer leaves out.
 
     One never in the answer stands out; one the answer dropped is folded. Why
     it was dropped is not on record, so only its rounds are said.
     """
-    rows = context.uncited.get(node.id, ())
-    never = [r for r in rows if r.last_cited_round is None]
-    dropped = [r for r in rows if r.last_cited_round is not None]
-    heading = "h3" if node.parent_question_id is None else "h4"
-    parts: list[Html | None] = []
+    never, dropped = _split_left_out(context.uncited.get(node.id, ()))
+    parts: list[Html] = []
     if never:
         parts.append(
             el(
                 "div",
-                el(heading, _NOT_YET_WORDS.format(whose=whose)),
+                el(heading_tag, _NOT_YET_WORDS.format(whose=whose)),
                 el(
                     "p",
                     f"{whose}答えが一度も根拠にしていない分析結果。"
@@ -225,7 +219,7 @@ def _left_out_row(context: _Context, row: UncitedBelow) -> Html:
                 f"論点 {below.id} の回 {row.round} の答えが、"
                 f"この{_word_of(context, row.event_id)}から言っていること:",
             ),
-            _said(context, row.statements),
+            _statement_list(context, row.statements),
         ]
     return el("li", *parts)
 
@@ -262,7 +256,7 @@ def _used_above_row(context: _Context, row: CitedAbove, answer: Answer) -> Html:
     if context.shown(upper) is Shown.violating:
         parts.append(_unchecked_elsewhere(upper))
     else:
-        parts.append(_said(context, row.statements))
+        parts.append(_statement_list(context, row.statements))
     if row.reworded_in is not None:
         parts.append(
             el(
@@ -275,27 +269,15 @@ def _used_above_row(context: _Context, row: CitedAbove, answer: Answer) -> Html:
     return el("li", *parts)
 
 
-def _said(context: _Context, statements: Sequence[AnswerStatement]) -> Html:
-    return el(
-        "ul",
-        join(_statement(s, *_heard_word(context, s)) for s in statements),
-        class_="statements",
-    )
-
-
-def _word_of(context: _Context, event_id: str) -> str:
-    return _HEARD_RESULT_WORD if _is_heard(context, event_id) else _RESULT_WORD
-
-
-def _left_out_on_the_card(context: _Context, node: QuestionNode) -> list[Html | None]:
-    if node.parent_question_id is not None:
-        return _left_out(context, node, "この論点の")
-    # The lists of the subject are at the top of the page; one copy is enough.
-    rows = context.uncited.get(node.id, ())
+def _pointers_to_the_top(context: _Context, node: QuestionNode) -> list[Html]:
+    """On the card of the subject: what the top of the page shows, one copy only."""
     words = []
-    if any(r.last_cited_round is None for r in rows):
+    if context.shown(node) is Shown.sound and node.id in context.changes:
+        words.append("前の回から変わったこと")
+    never, dropped = _split_left_out(context.uncited.get(node.id, ()))
+    if never:
         words.append(_NOT_YET_WORDS.format(whose=""))
-    if any(r.last_cited_round is not None for r in rows):
+    if dropped:
         words.append(_NO_LONGER_WORDS.format(whose=""))
     return [
         el("p", _link("subject-answer", f"{w}は、ページの冒頭に出している"))

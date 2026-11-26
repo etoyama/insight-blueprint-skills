@@ -31,8 +31,10 @@ from insight_blueprint.models.tree import (
 )
 from insight_blueprint.validate import validate_tree_schema
 from skills._shared import tree_render
+from skills._shared import tree_render_parts as parts
 from skills._shared._html import Html
 from skills._shared.design_note import intent_words_of, status_word
+from skills._shared.tree_changes import ChangeKind
 from skills._shared.tree_check import Violation, ViolationKind
 from skills._shared.tree_render import (
     CheckFailed,
@@ -1539,7 +1541,8 @@ class TestEveryKindHasItsWord:
         [
             (tree_render.PROGRESS_WORDS, Progress),
             (tree_render.KIND_WORDS, StatementKind),
-            (tree_render._MARK_WORDS, tree_render.Mark),
+            (tree_render._MARK_WORDS, parts.Mark),
+            (parts._CHANGE_WORDS, ChangeKind),
             (tree_render._DECISION_LABELS, TreeDecisionKind),
             (tree_render._AIM_LABELS, AimKind),
         ],

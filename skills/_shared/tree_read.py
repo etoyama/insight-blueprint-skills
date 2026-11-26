@@ -135,7 +135,9 @@ def changes(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
     }
 
 
-def _by_node(found: Mapping[str, tuple[BaseModel, ...]]) -> dict[str, list[dict]]:
+def _by_node(
+    found: Mapping[str, tuple[BaseModel, ...]],
+) -> dict[str, list[dict[str, Any]]]:
     """The entries of each node as JSON, keyed by the id of that node."""
     return {
         node_id: [entry.model_dump(mode="json") for entry in entries]

@@ -43,9 +43,8 @@ from skills._shared.design_note import (
 from skills._shared.design_note_reviews import AFTER_ANALYSIS
 from skills._shared.tree_render_derived import (
     _changes,
-    _changes_on_the_card,
     _left_out,
-    _left_out_on_the_card,
+    _pointers_to_the_top,
     _used_above,
 )
 from skills._shared.tree_render_parts import (
@@ -78,9 +77,6 @@ from skills._shared.tree_render_parts import (
     _round_meta,
     _statement,
 )
-
-# Each table of words is read from here by the tests that pair it with its enum.
-from skills._shared.tree_render_parts import Mark as Mark
 
 if TYPE_CHECKING:  # tree_check imports this module (CitedEvent)
     from skills._shared.tree_check import Violation
@@ -423,7 +419,7 @@ def _subject_answer(context: _Context) -> Html:
             assert answer is not None  # an answered node
             parts += _answer_lines(context, root, answer)
             parts.append(_changes(context, root, "h3"))
-    parts += _left_out(context, root, f"{_SUBJECT}への")
+    parts += _left_out(context, root, f"{_SUBJECT}への", "h3")
     return el("section", join(parts), class_="now", id="subject-answer")
 
 
@@ -562,6 +558,8 @@ def _node_card(context: _Context, node: QuestionNode) -> Html:
         meta.append(f"　発見元: {node.origin_event_id}")
     answer = node.current_answer()
     violated = context.violations.get(node.id, ())
+    # The subject's answer, what it changed and what it leaves out lead the page.
+    subject = node.parent_question_id is None
     parts: list[Html | None] = [
         el("p", el("strong", node.id), f" {node.question}"),
         el("p", *meta, class_="meta"),
@@ -578,11 +576,13 @@ def _node_card(context: _Context, node: QuestionNode) -> Html:
         case Shown.sound:
             assert answer is not None  # an answered node
             parts += _answer_lines(context, node, answer, heading="現時点の答え")
-            parts += [
-                _changes_on_the_card(context, node),
-                _used_above(context, node, answer),
-            ]
-    parts += _left_out_on_the_card(context, node)
+            if not subject:
+                parts.append(_changes(context, node, "h4"))
+            parts.append(_used_above(context, node, answer))
+    if subject:
+        parts += _pointers_to_the_top(context, node)
+    else:
+        parts += _left_out(context, node, "この論点の", "h4")
     parts += [_notes(node), _evidence(context, node, violated)]
     return el("div", join(parts), class_=f"node progress-{progress.value}")
 

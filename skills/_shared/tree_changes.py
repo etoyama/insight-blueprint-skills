@@ -14,6 +14,7 @@ the same from here, so no value says why something changed.
 from __future__ import annotations
 
 from enum import StrEnum
+from itertools import pairwise
 
 from pydantic import BaseModel, ConfigDict
 
@@ -88,7 +89,7 @@ class CitedAbove(BaseModel):
     ``round`` is the round of that answer. ``reworded_in`` is the first round,
     after the round of the node's answer, in which the node above said something
     else from the event than it said when the node answered. It is ``None`` when
-    it said the same, or did not cite the event yet then.
+    it says the same now, or did not cite the event yet then.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -159,28 +160,33 @@ def uncited_below(tree: QuestionTree) -> dict[str, tuple[UncitedBelow, ...]]:
     A node without an answer leaves out every event cited below it. Nodes with
     nothing to list are left out of the dict.
     """
-    parents = {node.id: node.parent_question_id for node in tree.nodes}
     cited_now = {node.id: _current_citing(node) for node in tree.nodes}
-    # node id -> event id -> (distance, position of the node below, its id)
-    nearest: dict[str, dict[str, tuple[int, int, str]]] = {}
-    for position, below in enumerate(tree.nodes):
-        for distance, above in enumerate(_ancestors(parents, below.id)):
-            found = nearest.setdefault(above, {})
-            for event_id in cited_now[below.id]:
-                source = (distance, position, below.id)
-                if event_id not in found or source < found[event_id]:
-                    found[event_id] = source
+    position = {node.id: index for index, node in enumerate(tree.nodes)}
+    children: dict[str, list[QuestionNode]] = {}
+    for node in tree.nodes:
+        if node.parent_question_id is not None:
+            children.setdefault(node.parent_question_id, []).append(node)
     uncited: dict[str, tuple[UncitedBelow, ...]] = {}
     for node in tree.nodes:
-        left_out = [
-            (position, list(cited_now[below_id]).index(event_id), event_id, below_id)
-            for event_id, (_, position, below_id) in nearest.get(node.id, {}).items()
-            if event_id not in cited_now[node.id]
-        ]
-        if left_out:
+        # The first node to cite an event, level by level, is the nearest one.
+        nearest: dict[str, QuestionNode] = {}
+        level = children.get(node.id, [])
+        while level:
+            for below in level:
+                for event_id in cited_now[below.id]:
+                    if event_id not in cited_now[node.id]:
+                        nearest.setdefault(event_id, below)
+            level = [c for below in level for c in children.get(below.id, [])]
+
+        def page_order(item: tuple[str, QuestionNode]) -> tuple[int, int]:
+            event_id, below = item
+            return position[below.id], list(cited_now[below.id]).index(event_id)
+
+        rows = sorted(nearest.items(), key=page_order)
+        if rows:
             uncited[node.id] = tuple(
-                _uncited(node, event_id, tree.node(below_id), cited_now[below_id])
-                for *_, event_id, below_id in sorted(left_out)
+                _uncited(node, event_id, below, cited_now[below.id])
+                for event_id, below in rows
             )
     return uncited
 
@@ -196,11 +202,11 @@ def _uncited(
     below: QuestionNode,
     citing: dict[str, tuple[AnswerStatement, ...]],
 ) -> UncitedBelow:
+    answer = below.current_answer()
+    assert answer is not None  # a node cites something only through an answer
     last_cited_round: int | None = None
     cited_instead: tuple[str, ...] = ()
-    # The answers before the current one, newest first, each with the one after it.
-    pairs = list(zip(node.answers[:-1], node.answers[1:], strict=True))
-    for earlier, after in reversed(pairs):
+    for earlier, after in reversed(list(pairwise(node.answers))):
         cited_then = _citing(earlier)
         if event_id in cited_then:
             last_cited_round = earlier.round
@@ -209,7 +215,7 @@ def _uncited(
     return UncitedBelow(
         event_id=event_id,
         node_id=below.id,
-        round=below.answers[-1].round,
+        round=answer.round,
         statements=citing[event_id],
         last_cited_round=last_cited_round,
         cited_instead=cited_instead,
@@ -223,6 +229,7 @@ def cited_above(tree: QuestionTree) -> dict[str, tuple[CitedAbove, ...]]:
     Nodes with nothing to list are left out of the dict.
     """
     parents = {node.id: node.parent_question_id for node in tree.nodes}
+    cited_now = {node.id: _current_citing(node) for node in tree.nodes}
     found: dict[str, tuple[CitedAbove, ...]] = {}
     for node in tree.nodes:
         answer = node.current_answer()
@@ -230,29 +237,39 @@ def cited_above(tree: QuestionTree) -> dict[str, tuple[CitedAbove, ...]]:
             continue
         above = [tree.node(a) for a in _ancestors(parents, node.id)]
         entries = tuple(
-            _cited_above(event_id, upper, answer.round)
-            for event_id in _citing(answer)
+            _cited_above(event_id, upper, answer.round, cited_now[upper.id])
+            for event_id in cited_now[node.id]
             for upper in above
-            if event_id in _current_citing(upper)
+            if event_id in cited_now[upper.id]
         )
         if entries:
             found[node.id] = entries
     return found
 
 
-def _cited_above(event_id: str, upper: QuestionNode, since: int) -> CitedAbove:
+def _cited_above(
+    event_id: str,
+    upper: QuestionNode,
+    since: int,
+    citing: dict[str, tuple[AnswerStatement, ...]],
+) -> CitedAbove:
     """*upper* cites *event_id* now; *since* is the round of the node below's answer."""
     said = [(a.round, _said(_citing(a).get(event_id, ()))) for a in upper.answers]
-    then = [s for round, s in said if round <= since]
+    said_then = [what for when, what in said if when <= since]
     reworded_in = None
-    if then and then[-1]:
+    # Citing it for the first time after *since* is not saying something else,
+    # and an answer that says again what it said then has nothing to tell.
+    if said_then and said_then[-1] and said[-1][1] != said_then[-1]:
         reworded_in = next(
-            (round for round, s in said if round > since and s != then[-1]), None
+            (when for when, what in said if when > since and what != said_then[-1]),
+            None,
         )
+    answer = upper.current_answer()
+    assert answer is not None  # *upper* cites the event through its answer
     return CitedAbove(
         event_id=event_id,
         node_id=upper.id,
-        round=upper.answers[-1].round,
-        statements=_current_citing(upper)[event_id],
+        round=answer.round,
+        statements=citing[event_id],
         reworded_in=reworded_in,
     )

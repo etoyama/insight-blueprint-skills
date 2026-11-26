@@ -635,6 +635,22 @@ class TestTheRoundTheAnswerAboveChangedIt:
 
         assert found.reworded_in is None
 
+    def test_an_answer_above_that_says_the_same_again_now_did_not_change_it(
+        self,
+    ) -> None:
+        tree = three_levels(
+            root=(
+                answer(1, said("claim", "上がった", F1)),
+                answer(2, said("undetermined", "分けられない", F1)),
+                answer(3, said("claim", "上がった", F1)),
+            ),
+            q03=(answer(1, said("claim", "0.30 上がる", F1)),),
+        )
+
+        (found,) = cited_above(tree)["LIB-Q03"]
+
+        assert found.reworded_in is None
+
     def test_a_change_before_the_answer_of_the_node_is_not_after_it(self) -> None:
         tree = three_levels(
             root=(

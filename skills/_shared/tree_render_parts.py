@@ -356,11 +356,7 @@ def _answer_lines(
     return [
         _marks(context, node, answer),
         el("p", heading, class_="answer-heading") if heading else None,
-        el(
-            "ul",
-            join(_statement(s, *_heard_word(context, s)) for s in answer.statements),
-            class_="statements",
-        ),
+        _statement_list(context, answer.statements),
         _current_round_meta(context, answer),
     ]
 
@@ -376,7 +372,7 @@ def _result(context: _Context, event_id: str) -> list[Html | str]:
     if event is None:
         return [f"記録に見つからない {event_id}"]
     design_id = design_id_of(event_id)
-    word = _HEARD_RESULT_WORD if _is_heard(context, event_id) else _RESULT_WORD
+    word = _word_of(context, event_id)
     nodes = context.linked_by.get(design_id, [])
     source: list[Html | str] = ["論点 ", *_join_links(nodes), "、"] if nodes else []
     source += ["分析設計 ", _link(f"design-{design_id}", design_id)]
@@ -456,3 +452,16 @@ def _checked_in_its_card(node: QuestionNode) -> Html:
         " ",
         _link(node.id, f"{node.id} のカードで確かめる"),
     )
+
+
+def _statement_list(context: _Context, statements: Sequence[AnswerStatement]) -> Html:
+    return el(
+        "ul",
+        join(_statement(s, *_heard_word(context, s)) for s in statements),
+        class_="statements",
+    )
+
+
+def _word_of(context: _Context, event_id: str) -> str:
+    """What an answer rests on: what a person said, or an analysis result."""
+    return _HEARD_RESULT_WORD if _is_heard(context, event_id) else _RESULT_WORD

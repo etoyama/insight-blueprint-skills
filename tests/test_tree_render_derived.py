@@ -1,7 +1,9 @@
 """Tests for the sections of a tree page that show derived values (Epic 34).
 
-What an answer changed since the answer before it, and the top of the page
-that leads with the subject (ADR-0056). Synthetic data only (theme LIB).
+What an answer changed since the answer before it, the top of the page that
+leads with the subject, the results the answers below rest on and an answer
+leaves out, and the answers above that rest on a result (ADR-0056).
+Synthetic data only (theme LIB).
 """
 
 from __future__ import annotations
@@ -464,13 +466,6 @@ class TestTheNextQuestion:
             "次に調べる論点 回 2 の振り返りの後は、まだ決めていない。"
             "最後に決めたこと: 最初の論点を選ぶ: LIB-Q02"
         )
-
-
-class TestTheWayAnEventChangedHasItsWord:
-    def test_the_table_covers_the_enum(self) -> None:
-        from skills._shared.tree_changes import ChangeKind
-
-        assert set(tree_render._CHANGE_WORDS) == set(ChangeKind)
 
 
 # --- What the answers below cite and the answer does not, and the answers above ---

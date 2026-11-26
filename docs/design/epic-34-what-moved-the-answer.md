@@ -143,7 +143,7 @@ Story は仮の分割で、起票は PM のセッションが行う。「触る�
 | 34.2 2本目の合成シナリオと6つ目の問い | US-6 | AC 1, AC 2, AC 3, AC 4 | `tests/fixtures/handoff/psy/`（新規）、`tests/fixtures/handoff/prompt.md`、`tests/fixtures/handoff/lib/key.yaml`、`scripts/handoff_trial.py`（`Q6`、`Answers`、`KeyAnswers`、`QUESTIONS`）、`tests/test_handoff_trial.py`、`docs/HANDOFF_TRIAL.md`、`tests/docs/test_handoff_trial_doc.py`、`docs/handoff-trials/` | 基準を取る段だけ 34.1 の後 |
 | 34.3 答えの変化を導き、カードと冒頭に出す | US-1 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/tree_changes.py`（新規）、`skills/_shared/tree_render.py`、`skills/_shared/tree_io.py` の読む命令、`tests/test_tree_changes.py`（新規）、`tests/test_tree_render.py`、`tests/tree_io/test_render*.py` | 34.1 |
 | 34.4 ツリーの決定の引用（正本・検査・skill） | US-4、US-2 | US-4 AC 1, AC 2, AC 4, AC 5、US-2 AC 3 | `src/insight_blueprint/models/tree.py`、`skills/_shared/tree_io.py` の `decide`、`skills/_shared/tree_check.py`、`skills/analysis-reflection/SKILL.md` の Step T7、`skills/analysis-auto/SKILL.md`、`docs/ARCHITECTURE.md`、`docs/UBIQUITOUS_LANGUAGE.md`、`tests/test_tree_models.py`、`tests/test_tree_check.py`、`tests/tree_io/` | 34.1 |
-| 34.5 上の論点での引用と、引用していない下の結果 | US-2、US-3 | US-2 AC 1, AC 2, AC 4、US-3 AC 1 | `skills/_shared/tree_changes.py`、`skills/_shared/tree_render.py`、`tests/test_tree_changes.py`、`tests/test_tree_render.py`、`docs/UBIQUITOUS_LANGUAGE.md` | 34.3 |
+| 34.5 上の論点での引用と、引用していない下の結果 | US-2、US-3 | US-2 AC 1, AC 2, AC 4、US-3 AC 1 | `skills/_shared/tree_changes.py`、`skills/_shared/tree_render.py`（`tree_render_parts.py`・`tree_render_derived.py` に分けた）、`skills/_shared/tree_read.py::changes`、`tests/test_tree_changes.py`、`tests/test_tree_render.py`、`tests/test_tree_render_derived.py`、`tests/tree_io/test_render.py`、`docs/UBIQUITOUS_LANGUAGE.md` | 34.3 |
 | 34.6 進み具合と決定の表示 | US-3、US-4、US-6 | US-3 AC 2, AC 3、US-4 AC 3、US-6 AC 3（問い 5 の鍵） | `skills/_shared/tree_render.py`、`skills/_shared/tree_read.py` の `render`、`scripts/handoff_trial.py` の `build`、`tests/fixtures/handoff/lib/`、`tests/fixtures/handoff/psy/`、`tests/test_handoff_trial.py`、`docs/HANDOFF_TRIAL.md` | 34.4、34.5（引き継ぐことは下の注記） |
 | 34.7 表示を変えた後の引き継ぎの試行 | US-6 | AC 5 | `docs/handoff-trials/`、`docs/HANDOFF_TRIAL.md`、`docs/PRD.md` の成功基準、`docs/UBIQUITOUS_LANGUAGE.md` の試行の語 | 34.6 |
 | 34.8 reflection の案内 | US-3 | AC 4 | `skills/analysis-reflection/SKILL.md` の Step T3 と Step T5、`skills/analysis-auto/SKILL.md`、`tests/skills/` | 34.3 |
@@ -394,7 +394,7 @@ classDiagram
 | `AnswerChange` | 値オブジェクト（導く。保存しない） | 論点の最後の答えと、その1つ前の答えから導く。答えが1つの論点には無い。同じ論点ツリーからは同じ値になる |
 | `EvidenceChange` | 値オブジェクト（導く） | 出来事1つにつき1つ。`before` は前の回でその出来事を引用した文、`after` は今の回の文。`newly_cited` は `before` が空、`dropped` は `after` が空 |
 | `ChangeKind` | 列挙 | 出来事が前の回に無ければ `newly_cited`、今の回に無ければ `dropped`。両方にあって、引用する文（種類と本文）の集まりが違えば `reworded`、同じなら `unchanged` |
-| `CitedAbove` | 値オブジェクト（導く） | 論点の現時点の答えが引用する出来事を、上の論点の現時点の答えが引用しているときにだけある。`reworded_in` は、上の論点がその出来事を引用する文を、この論点の答えより後の回で初めて変えた回で、変えていなければ無い。比べる元は、この論点の答えの回までに上の論点が書いた最後の答えで、そこでまだ引用していなければ無い（Story 34.5 で `reworded_after` から変えた。人間が承認した） |
+| `CitedAbove` | 値オブジェクト（導く） | 論点の現時点の答えが引用する出来事を、上の論点の現時点の答えが引用しているときにだけある。`reworded_in` は、上の論点がその出来事を引用する文を、この論点の答えより後の回で初めて変えた回で、変えていなければ無い。比べる元は、この論点の答えの回までに上の論点が書いた最後の答えで、そこでまだ引用していなければ無い。今の答えが比べる元と同じことを言っていれば、途中で変えていても無い（Story 34.5 で `reworded_after` から変えた。人間が承認した） |
 | `UncitedBelow` | 値オブジェクト（導く） | 下の論点の現時点の答えが引用し、その論点の現時点の答えが引用していない出来事。答えがまだ無い論点では、下の論点が引用するすべての出来事。`last_cited_round` は、その論点の前の回の答えが最後に引用した回で、一度も引用していなければ無い。無いものは「まだ答えに入れていない分析結果」、あるものは「前は答えの根拠にしていて、今は外している分析結果」として出す。`cited_instead` は、引用をやめた回にその論点の答えが新しく引用した出来事で、`last_cited_round` があるときだけ持つ |
 | `DecisionViolation` | 値オブジェクト（検査が挙げる） | 引用を持つ決定にだけ挙がる。種類は答えの違反と同じ3つ（`missing-event`・`unlinked-design`・`number-not-cited`） |
 | `Q6` | 値オブジェクト（開発用） | 論点の id の集合と出来事の id の集合。該当が無ければ、どちらも空 |
@@ -552,7 +552,7 @@ sequenceDiagram
 
 - What: 引用していない下の結果と上の論点での引用の出し方で、ADR-0056 と見本が決めていなかった所を決めた。
   1. `tree_render.py` を3つに分けた。ページの節を並べる `tree_render`、1つのページの文脈と言葉と、節がともに使う部品の `tree_render_parts`、導いた値の欄の `tree_render_derived` である。最初のコミットは移動だけで、テストを変えず、2本の合成シナリオの HTML は時刻を除いて同じだった。外から使う名前（`CitedEvent`、`KIND_WORDS` など）は `tree_render` から今までどおり読める。
-  2. `CitedAbove` は、図の `reworded_after`（真偽）の代わりに、変えた回 `reworded_in` を持つ。US-2 AC 2 は変わった回を出すことを求めていて、上の論点の今の答えの回（`round`）は、変えた回とは限らない。人間がこのセッションで承認した（Decision Analysis の案A）。比べる元は、この論点の答えの回までに上の論点が書いた最後の答えで、そこで上の論点がまだその出来事を引用していなければ、後で初めて引用しても「変えた」とは数えない。
+  2. `CitedAbove` は、図の `reworded_after`（真偽）の代わりに、変えた回 `reworded_in` を持つ。US-2 AC 2 は変わった回を出すことを求めていて、上の論点の今の答えの回（`round`）は、変えた回とは限らない。人間がこのセッションで承認した（Decision Analysis の案A）。比べる元は、この論点の答えの回までに上の論点が書いた最後の答えで、そこで上の論点がまだその出来事を引用していなければ、後で初めて引用しても「変えた」とは数えない。途中で言い換えても、今の答えが比べる元と同じことを言っていれば数えない（レビューの指摘。今の文は読んだときと同じなので、知らせても読み手が空振りする）。
   3. 同じ出来事を2段の下の論点の答えが引用していれば、`UncitedBelow` は近い方の論点の答えから1つだけ作る。並びは、出どころの論点の順、その答えの中で引用した順。
   4. 「まだ答えに入れていない分析結果」は開いて出し、「前は答えの根拠にしていて、今は外している分析結果」は件数を添えて畳む（US-3 AC 1 の「目立たせる」「控えめ」）。後者には、最後に根拠にした回と、その次の答えで新しく根拠にした分析結果の id を添える。外した回そのものは出さない（項目に無く、導くには型を足すことになるため）。
   5. 主題の2つの欄はページの冒頭に出し、主題のカードには冒頭へのリンクだけを置く（34.3 の Decision の1と同じ）。冒頭の欄は、主題への答えが無いときも、検査に通らないときも出す。主題の答えの文は出さないので、畳む約束は崩れない。
