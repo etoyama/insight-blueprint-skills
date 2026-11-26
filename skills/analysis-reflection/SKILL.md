@@ -194,9 +194,10 @@ Then ask: 「この中に、答えが出ると判定（探索では答え）が�
 - When there is no open question, say so and go to the next question.
 - ある → recommend more investigation (→ /analysis-journal) before the design ends.
 - ない → go on to the next question.
-- A question whose answer changes no verdict is not dropped: it is a caution on the answer to
-  the subject (主題への答えで注意すべきこと). Say that the theme reflection (`/analysis-reflection {theme_id}`)
-  writes it as まだ決められないこと or 注意すべきこと for a node.
+- A question whose answer changes no verdict is not dropped. Say that it is kept, and that the
+  theme reflection (`/analysis-reflection {theme_id}`) writes it into the answers as
+  まだ決められないこと or 注意すべきこと, for example:
+  「この問いは捨てない。テーマの振り返りで、主題への答えに、まだ決められないこと か 注意すべきこと として書く。」
 
 #### この分析設計をどう終えるか
 
