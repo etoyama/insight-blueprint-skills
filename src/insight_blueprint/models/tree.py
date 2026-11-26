@@ -218,6 +218,9 @@ class TreeDecision(BaseModel):
     kind: TreeDecisionKind
     node_id: str
     reason: str = Field(min_length=1)
+    # The journal events the reason rests on; a reason may rest on none (ADR-0058).
+    # The form of each cite is checked by QuestionTree, which knows the theme.
+    cites: list[str] = Field(default_factory=list)
     created_at: datetime | None = None
 
     @model_validator(mode="after")
@@ -329,12 +332,18 @@ class QuestionTree(BaseModel):
                 )
             for answer in node.answers:
                 for statement in answer.statements:
-                    for cite in statement.cites:
-                        if not event_pattern.fullmatch(cite):
-                            raise ValueError(
-                                f"{node.id}: cite '{cite}' must be "
-                                f"{self.theme_id}-H{{nn}}-E{{nn}}"
-                            )
+                    self._check_cites(node.id, statement.cites, event_pattern)
+        for decision in self.decisions:
+            self._check_cites("decisions", decision.cites, event_pattern)
+
+    def _check_cites(
+        self, where: str, cites: list[str], event_pattern: re.Pattern[str]
+    ) -> None:
+        for cite in cites:
+            if not event_pattern.fullmatch(cite):
+                raise ValueError(
+                    f"{where}: cite '{cite}' must be {self.theme_id}-H{{nn}}-E{{nn}}"
+                )
 
     def _check_answer_revisions(self) -> None:
         current = self.current_revision().revision

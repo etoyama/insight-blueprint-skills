@@ -15,9 +15,9 @@ Usage from a skill (CLI):
     python -m skills._shared.tree_io render --design LIB-H01   # the analysis note
     python -m skills._shared.tree_io report --theme LIB   # .insight/reports/LIB.md
 
-Exit 0: done. Exit 1: error (message on stderr). Exit 3 (answer and report only):
-nothing was written, and why is in the JSON on stdout: the check found
-violations (answer), or no report can be trusted (report, its ``reasons``).
+Exit 0: done. Exit 1: error (message on stderr). Exit 3 (answer, decide and report
+only): nothing was written, and why is in the JSON on stdout: the check found
+violations (answer, decide), or no report can be trusted (report, its ``reasons``).
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -55,7 +55,7 @@ from skills._shared.design_io import (
     journal_events,
     resolve_base_dir,
 )
-from skills._shared.tree_check import check_tree
+from skills._shared.tree_check import check_decisions, check_tree
 from skills._shared.tree_read import (
     ReportStop,
     WalkState,
@@ -270,12 +270,18 @@ def decide(
     kind: str,
     node_id: str,
     reason: str,
+    cites: Iterable[str] = (),
     base_dir: Path = DEFAULT_BASE_DIR,
 ) -> dict:
-    """Append a decision to the tree and return it.
+    """Append a decision to the tree and return it, if its cites pass the check.
 
     The round is never passed: a ``start`` is taken at round 0, any other kind
     at the last reflection round, which is the one whose answers it was made on.
+
+    *cites* names the journal events the reason rests on (ADR-0058). A decision
+    that cites is checked before it is saved, and with any violation nothing is
+    saved: the result is then ``{"violations": [...]}`` instead of the decision.
+    A reason without cites is not checked.
     """
     is_start = TreeDecisionKind(kind) is TreeDecisionKind.start
     tree = load_tree_model(theme_id, base_dir)
@@ -286,11 +292,23 @@ def decide(
                 "kind": kind,
                 "node_id": node_id,
                 "reason": reason,
+                "cites": cites,
                 "created_at": now_jst(),
             }
         )
     )
-    return _dump(_write_tree(tree, theme_id, base_dir).decisions[-1])
+    # Checked before the journals are read, so a malformed cite never reaches a path.
+    candidate_tree = _checked(tree, theme_id)
+    written = len(candidate_tree.decisions)
+    # An earlier decision is history: what its journal says now does not stop this one.
+    violations = [
+        asdict(v)
+        for v in check_decisions(candidate_tree, base_dir)
+        if v.position == written
+    ]
+    if violations:
+        return {"violations": violations}
+    return _dump(_save(candidate_tree, theme_id, base_dir).decisions[-1])
 
 
 def candidates(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> list[dict]:
@@ -600,6 +618,7 @@ _COMMANDS: dict[str, tuple[_Handler, bool]] = {
 # tell that apart from "rewrite the answer" or "fix what the reason names".
 _NOTHING_WRITTEN: dict[str, Callable[[dict], bool]] = {
     "answer": lambda result: bool(result["violations"]),
+    "decide": lambda result: "violations" in result,
     "report": lambda result: not result["written"],
 }
 

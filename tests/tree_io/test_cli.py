@@ -232,6 +232,60 @@ class TestCli:
         assert done.returncode == 1
         assert "round" in done.stderr
 
+    def _started(self, world: Path) -> Path:
+        tree_io.decide(
+            "LIB", kind="start", node_id="LIB-Q02", reason="最初", base_dir=world
+        )
+        return world / "themes" / "LIB_tree.yaml"
+
+    def test_decide_exits_0_and_prints_the_decision_with_its_cites(
+        self, world: Path
+    ) -> None:
+        self._started(world)
+
+        done = self._run(
+            world,
+            "decide",
+            "--theme",
+            "LIB",
+            payload={
+                "kind": "return",
+                "node_id": "LIB-Q03",
+                "reason": "期限切れは152件で、数え方は定まった",
+                "cites": ["LIB-H01-E01"],
+            },
+        )
+
+        assert done.returncode == 0, done.stderr
+        assert json.loads(done.stdout)["cites"] == ["LIB-H01-E01"]
+
+    def test_decide_exits_3_with_the_violations_and_leaves_the_file_alone(
+        self, world: Path
+    ) -> None:
+        path = self._started(world)
+        before = path.read_bytes()
+
+        done = self._run(
+            world,
+            "decide",
+            "--theme",
+            "LIB",
+            payload={
+                "kind": "return",
+                "node_id": "LIB-Q03",
+                "reason": "期限切れは999件と多い",
+                "cites": ["LIB-H01-E01"],
+            },
+        )
+
+        assert done.returncode == 3, done.stderr
+        assert json.loads(done.stdout) == {
+            "violations": [
+                {"position": 2, "round": 0, "kind": "number-not-cited", "text": "999"}
+            ]
+        }
+        assert path.read_bytes() == before
+
     def test_a_command_without_its_theme_says_so(self, tree: Path) -> None:
         missing = self._run(tree, "progress")
         assert missing.returncode != 0
