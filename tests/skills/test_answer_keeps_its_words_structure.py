@@ -14,9 +14,16 @@ load-bearing parts.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
+import pytest
+
+from skills._shared import tree_read
+from skills._shared.tree_changes import AnswerChange, ChangeKind, UncitedBelow
+from skills._shared.tree_render_parts import _CHANGE_WORDS
 from tests.skills._auto import round_item
-from tests.skills._markdown import section, unwrap
+from tests.skills._markdown import section, table_row, unwrap
+from tests.skills.test_next_candidate_structure import _library
 from tests.skills.test_theme_reflection_structure import _skill, _step
 
 OFFER = "#### Before writing: results no answer above rests on"
@@ -182,3 +189,56 @@ class TestTheWalkStopsForTheQuestion:
         item = unwrap(round_item("theme reflection"))
         assert NOT_YET not in item
         assert "KEEP gates of the round" in item
+
+
+CHANGES = "`tree_io changes --theme {theme_id}`"
+
+
+class TestThePresentationReadsWhatChangedFromTheTree:
+    """After writing, Step T5 reads the changes from the tree, not from its drafts.
+
+    `tree_io changes` derives them as the page does (ADR-0056), so what the analyst
+    hears in the reflection and what the page shows cannot drift apart.
+    """
+
+    def test_the_presentation_runs_the_changes_command(self) -> None:
+        assert CHANGES in _step("### Step T5: ")
+
+    def test_it_says_the_lists_come_from_that_output_not_from_the_drafts(
+        self,
+    ) -> None:
+        assert re.search(
+            r"(?i)from (the|its) output of `tree_io changes`[^.]*never from the drafts",
+            _step("### Step T5: "),
+        )
+
+    def test_every_key_it_names_is_in_the_output(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        insight = tmp_path / ".insight"
+        _library(insight)
+        output = tree_read.changes("LIB", base_dir=insight)
+        present = _step("### Step T5: ")
+        for key in ("answer_changes", "uncited_below"):
+            assert f"`{key}`" in present
+            assert key in output
+        assert "`evidence`" in present
+        assert "evidence" in AnswerChange.model_fields
+        assert "`last_cited_round`" in present
+        assert "last_cited_round" in UncitedBelow.model_fields
+
+    def test_each_kind_of_change_is_said_as_the_page_says_it(self) -> None:
+        present = _step("### Step T5: ")
+        for kind in (ChangeKind.newly_cited, ChangeKind.dropped, ChangeKind.reworded):
+            assert f"`{kind.value}` {_CHANGE_WORDS[kind][0]}" in present
+
+    def test_the_two_headings_split_on_whether_the_node_cited_it_before(
+        self,
+    ) -> None:
+        present = _step("### Step T5: ")
+        assert re.search(rf"`last_cited_round` is `null`[^.]*{NOT_YET}", present)
+        assert re.search(rf"otherwise[^.]*{DROPPED}", present)
+
+    def test_the_reference_lists_the_changes_command(self) -> None:
+        reference = section(_skill(), "## tree_io / tree_check Reference")
+        assert table_row(reference, "`tree_io changes --theme T`")[1]

@@ -512,6 +512,12 @@ Show no answer to the analyst before `tree_check` has run, and never show an ans
   - {node_id}: {content}（{round}回目の振り返りの答えまで根拠にしていた）
 ```
 
+After the render of Step T4, run `tree_io changes --theme {theme_id}`. It writes nothing and
+derives what each answer changed the same way the page of the tree shows it. Take what
+changed and the results the answers leave out from the output of `tree_io changes`, never
+from the drafts: in Step T3 the answers were not written yet, so the list there came from
+the drafts.
+
 - Changed and unchanged nodes come from `written`, `previous_round`, `restated` and
   `unchanged` in the output of `tree_io answer`. For a changed node, show the previous
   answer next to the new one. A `restated` answer says the same as before: say so
@@ -519,9 +525,14 @@ Show no answer to the analyst before `tree_check` has run, and never show an ans
   the new result each rewritten statement rests on (by its content, as 分析結果 or
   人に聞いた答え), the rule of Step T2 or the violation a statement broke, or the new 主題.
   The record keeps no reason, so this is the one place the analyst hears it.
-- Under the last two headings, list by content the results the analyst did not choose
-  in Step T3, each under the node whose answer leaves it out, as the answers were written.
-  Leave out a heading with nothing under it. The analyst sees them again here, before the
+  The results come from `evidence` in the entry of `answer_changes` for that node and this
+  round: say each by its content, with the word the page uses for its kind (`newly_cited`
+  新しく根拠にした, `dropped` 根拠から外した, `reworded` 言っていることが変わった).
+- Under the last two headings, list each entry of `uncited_below` under the node it is
+  keyed by, by the content of its event (a `hearing` event as 人に聞いた答え). An entry whose
+  `last_cited_round` is `null` goes under まだ答えに入れていない分析結果; otherwise it goes
+  under 前は答えの根拠にしていて、今は外している分析結果, with `last_cited_round` as `{round}`.
+  These are the results the analyst did not choose in Step T3. Leave out a heading with nothing under it. The analyst sees them again here, before the
   decision. When a statement that rests on a result the analyst chose was removed in Step
   T3, say so next to it under Removed statements.
 - A node under "Stale answers" shows its question and progress, not its answer.
@@ -710,6 +721,7 @@ Both are on PATH via the plugin. JSON on stdout.
 | `tree_io progress --theme T` | Progress of each node, derived from its designs |
 | `tree_io answer --theme T` (stdin JSON) | Check and append the answers of one reflection round |
 | `tree_check --theme T` | Check the current answers after writing (read-only) |
+| `tree_io changes --theme T` | What each answer changed, and the results the answers above leave out (read-only) |
 | `tree_io candidates --theme T` | The next candidates: nodes with no design on them or below them |
 | `tree_io candidate --theme T --node N` (stdin JSON) | Write the notes of a candidate (`ask`, `changes_if`, `known`) |
 | `tree_io hear --theme T --node N` (stdin JSON) | Keep the answer a person gave, with who and when |
