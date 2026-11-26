@@ -12,7 +12,8 @@ import pytest
 
 from skills._shared import design_io, tree_io
 from skills._shared._atomic import atomic_write_yaml
-from tests.test_tree_render import by_id, parse
+from skills._shared.tree_words import SUBJECT, Mark, changes_title, reflection
+from tests._tree_page import by_id, mark_word, parse
 from tests.tree_io._support import (
     ROOT_QUESTION,
     _add,
@@ -87,7 +88,7 @@ class TestRender:
 
         page = (tree / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
         shown = by_id(parse(page), "header").text() + _tree_text(tree)
-        assert "主題: " in shown
+        assert f"{SUBJECT}: " in shown
         assert "これまでわかっていること" in shown
         after = (tree / "themes" / "LIB_tree.yaml").read_text(encoding="utf-8")
         assert after == saved
@@ -110,7 +111,7 @@ class TestRender:
 
         shown = _rendered(tree)
 
-        assert 'class="mark">記録と合わない答え' in shown
+        assert f'class="mark">{mark_word(Mark.violating)}' in shown
         assert "number-not-cited" in shown
         stored = tree_io.load_tree("LIB", tree)["nodes"][1]["answers"]
         assert len(stored) == 1  # the answer is marked on the page, never withdrawn
@@ -137,7 +138,7 @@ class TestRender:
 
         assert "取消を除くと期限切れは 346 件" in shown
         assert "check-notice" not in shown
-        assert 'class="mark">記録と合わない答え' not in shown
+        assert f'class="mark">{mark_word(Mark.violating)}' not in shown
 
     def test_a_check_that_cannot_run_still_writes_a_page_that_says_so(
         self, tree: Path
@@ -548,7 +549,7 @@ class TestTheChangeThroughTheCommandLine:
             "next-question",
         ]
         top = " ".join(by_id(parse(page), "subject-answer").text().split())
-        assert "前の振り返りから変わったこと（1回目 → 2回目の振り返り）" in top
+        assert changes_title(1, 2) in top
         assert "言っていることが変わった" in top
         assert "これまでわかっていること 期限切れは152件で、延長の余地がある" in top
 
@@ -591,15 +592,17 @@ class TestLeftOutAndUsedAboveThroughTheCommandLine:
         assert done.returncode == 0, done.stderr
         page = parse(Path(json.loads(done.stdout)["path"]).read_text(encoding="utf-8"))
         top = " ".join(by_id(page, "subject-answer").text().split())
-        assert "まだ主題への答えに入れていない分析結果" in top
+        assert f"まだ{SUBJECT}への答えに入れていない分析結果" in top
         assert "LIB-H02 は期限切れ152件、取消除外後34.6%" in top
-        assert "論点 LIB-Q03 の1回目の振り返りの答えが" in top
+        assert f"論点 LIB-Q03 の{reflection(1)}の答えが" in top
         card = " ".join(by_id(page, "LIB-Q02").text().split())
         assert "この論点の分析結果を根拠にしている答え" in card
-        assert "論点 LIB-Q01（主題）の2回目の振り返りの答えが根拠にしている" in card
         assert (
-            "論点 LIB-Q01 の答えは2回目の振り返りから、この分析結果について言っていることを変えた。"
-            "この論点の答えは1回目の振り返りのままで、変わっていない。"
+            f"論点 LIB-Q01（{SUBJECT}）の{reflection(2)}の答えが根拠にしている" in card
+        )
+        assert (
+            f"論点 LIB-Q01 の答えは{reflection(2)}から、この分析結果について言っていることを変えた。"
+            f"この論点の答えは{reflection(1)}のままで、変わっていない。"
         ) in card
 
 

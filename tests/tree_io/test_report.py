@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from skills._shared import catalog_io, design_io, tree_io, tree_read
+from skills._shared.tree_words import reflection
 from tests.tree_io._support import _add, _entry, _finish, _run_cli
 from tests.tree_io.test_render_design import (
     CONNECTION_PATH,
@@ -88,7 +89,7 @@ class TestReportWritten:
         result = tree_io.report("LIB", base_dir=answered)
 
         assert (result["round"], result["root_answer_round"]) == (2, 1)
-        assert "2回目の振り返りの時点" in _report_path(answered).read_text("utf-8")
+        assert f"{reflection(2)}の時点" in _report_path(answered).read_text("utf-8")
 
     def test_the_table_of_questions_follows_the_progress_rule_of_the_page(
         self, answered: Path
