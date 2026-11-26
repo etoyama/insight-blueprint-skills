@@ -641,4 +641,5 @@ class TestWhatADecisionRestsOn:
         shown = by_id(page, "next-question").text()
         assert "LIB-H01-E01 は記録に2つあり" in shown
         assert "別の本文" not in shown
+        assert "LIB-H01 は期限切れ152件" not in shown
         assert "check-notice" not in _rendered(world)

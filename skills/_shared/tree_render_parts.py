@@ -258,7 +258,11 @@ class _Context:
     designs: Mapping[str, DesignSummary]
     events: Mapping[str, CitedEvent]
     design_notes: Mapping[str, Html]
+    # The progress word of each node that has one. A node with nodes under it and
+    # no design of its own has none: it shows the progress below it (ADR-0057).
     progress: Mapping[str, Progress]
+    # The progress of every node under each node, those without a word left out.
+    below: Mapping[str, Counter[Progress]]
     violations: Mapping[str, Sequence[Violation]]
     # Node ids that link a design, in page order: the first one shows its card.
     linked_by: Mapping[str, list[str]]
@@ -267,7 +271,7 @@ class _Context:
     uncited: Mapping[str, tuple[UncitedBelow, ...]]
     cited_above: Mapping[str, tuple[CitedAbove, ...]]
     # Cited ids two journal events share: which of them backs a cite is unknown.
-    shared: frozenset[str] = frozenset()
+    shared: frozenset[str]
 
     @classmethod
     def of(
@@ -277,7 +281,7 @@ class _Context:
         events: Mapping[str, CitedEvent],
         checked: Sequence[Violation] | CheckFailed,
         design_notes: Mapping[str, Html],
-        shared: frozenset[str] = frozenset(),
+        shared: frozenset[str],
     ) -> _Context:
         for node in tree.nodes:
             for design_id in node.design_ids:
@@ -289,16 +293,26 @@ class _Context:
         for design_id in designs:
             if design_id not in design_notes:
                 raise ValueError(f"design '{design_id}' has no analysis note")
-        progress = {
-            node.id: Progress.of(designs[d].status for d in node.design_ids)
-            for node in tree.nodes
-        }
-        violations: dict[str, list[Violation]] = {}
-        for violation in () if isinstance(checked, CheckFailed) else checked:
-            violations.setdefault(violation.node_id, []).append(violation)
         children: dict[str | None, list[QuestionNode]] = {}
         for node in tree.nodes:
             children.setdefault(node.parent_question_id, []).append(node)
+        progress = {
+            node.id: Progress.of(designs[d].status for d in node.design_ids)
+            for node in tree.nodes
+            if node.design_ids or not children.get(node.id)
+        }
+        below: dict[str, Counter[Progress]] = {}
+        # Children before their parent, so each count adds up the counts below it.
+        for node in reversed(_page_order(tree.root(), children)):
+            found: Counter[Progress] = Counter()
+            for child in children.get(node.id, []):
+                if child.id in progress:
+                    found[progress[child.id]] += 1
+                found += below[child.id]
+            below[node.id] = found
+        violations: dict[str, list[Violation]] = {}
+        for violation in () if isinstance(checked, CheckFailed) else checked:
+            violations.setdefault(violation.node_id, []).append(violation)
         linked_by: dict[str, list[str]] = {}
         for node in _page_order(tree.root(), children):
             for design_id in node.design_ids:
@@ -309,6 +323,7 @@ class _Context:
             events,
             design_notes,
             progress,
+            below,
             violations,
             linked_by,
             children,
@@ -324,22 +339,6 @@ class _Context:
         if node.id in self.violations:
             return Shown.violating
         return Shown.sound
-
-    def shown_by_below(self, node: QuestionNode) -> bool:
-        """A question with nodes under it and no design of its own has no
-        progress word: it shows the progress of the nodes under it (ADR-0057)."""
-        return not node.design_ids and bool(self.children.get(node.id))
-
-    def below(self, node: QuestionNode) -> Counter[Progress]:
-        """The progress of every node under *node*, but those shown by their own counts."""
-        found: Counter[Progress] = Counter()
-        stack = list(self.children.get(node.id, []))
-        while stack:
-            below = stack.pop()
-            if not self.shown_by_below(below):
-                found[self.progress[below.id]] += 1
-            stack.extend(self.children.get(below.id, []))
-        return found
 
     def closed_by(self, node: QuestionNode) -> TreeDecision | None:
         """The latest decision naming *node*, when it closed the node."""

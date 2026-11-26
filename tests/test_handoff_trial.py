@@ -329,7 +329,12 @@ def _q6_of(tree: QuestionTree) -> set[tuple[str, str]]:
     """A node left as it was, whose cited event an answer above it rewrote in the
     last round: cited before and now, by different statements (ADR-0056's
     reworded). An event the answer above stopped citing, or first cites in the
-    last round, is not one."""
+    last round, is not one.
+
+    Written apart from ``tree_changes.cited_above`` on purpose: the page shows
+    that one, so a key derived from it would agree with the page even when the
+    rule itself is wrong (ADR-0059's Negative).
+    """
     last = tree.current_round()
     parents = {n.id: n.parent_question_id for n in tree.nodes}
     by_id = {n.id: n for n in tree.nodes}
@@ -592,6 +597,7 @@ class TestScore:
         self, key: handoff_trial.Key, name: str
     ) -> None:
         other = _key_answers(key)
+        assert f"{name.upper()}-H01-E01" not in key.answers.q5.reason_events
         other["q5"]["reason_events"] = [f"{name.upper()}-H01-E01"]
         assert score(Answers.model_validate(other), key)["q5"] is False
 

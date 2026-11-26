@@ -317,9 +317,9 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     standalone page ``notes/{id}.html`` of each design it holds is removed.
 
     A stale answer is not stored as withdrawn, so the page is where it shows. A
-    cited id that two events share stops the check, not the page: it says so on
-    the page. A decision that cites such an id shows neither event; only the
-    answers' cites stop the check. A journal that cannot be read stops ``render``, so the analyst is
+    cited id of an answer that two events share stops the check, not the page:
+    it says so on the page. A decision that cites such an id shows neither
+    event and stops nothing. A journal that cannot be read stops ``render``, so the analyst is
     told which file to fix.
     """
     tree = load_tree_model(theme_id, base_dir)

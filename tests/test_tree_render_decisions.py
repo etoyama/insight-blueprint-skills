@@ -248,3 +248,20 @@ class TestWhatADecisionRestsOn:
 
         assert "LIB-H01-E02 は記録に2つあり、どちらを根拠にしたかは分からない" in shown
         assert "取消の理由列は空欄が多い" not in shown
+
+    def test_an_id_two_records_share_takes_no_word_from_the_one_kept(self) -> None:
+        """The event kept for a shared id may not be the one the decision cites."""
+        events = make_events()
+        events["LIB-H01-E02"] = CitedEvent(
+            "LIB-H01-E02", "hearing", None, "金曜は月曜にまとめて通知する"
+        )
+        tree = _with(_decision("deepen", "LIB-Q04", cites=["LIB-H01-E02"]))
+
+        shown = squash(
+            by_id(
+                page(tree=tree, events=events, shared=["LIB-H01-E02"]), "decisions"
+            ).text()
+        )
+
+        assert "この理由の根拠にした分析結果" in shown
+        assert "人に聞いた答え" not in shown

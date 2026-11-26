@@ -583,7 +583,7 @@ sequenceDiagram
 - Criteria: ADR-0057 の W3（進捗の言葉が1つの意味だけを持つ）、ADR-0058 の 4、US-5 の表、見本の言い方。決め手は ADR-0057 の W3 と、見本の言い方を使うこと。
 - Affected modules: `skills/_shared/tree_render.py`、`skills/_shared/tree_render_parts.py`、`skills/_shared/tree_read.py::render`、`scripts/handoff_trial.py`、`tests/fixtures/handoff/`。
 - Alternatives considered: 1 の形の論点も「未着手」として数える（ADR-0057 が退けた誤りが、下の段に残る）。1 の形の論点を「N つ」には入れ、言葉ごとの数には入れない（数の合計が N と合わない）。同じ id の引用で、ページの検査の知らせ（`CheckFailed`）を出す（知らせは答えの検査の言葉で、答えは確かめられる）。決定の違反をすべて表示に出す（言葉が増え、`decide` が書く前に止めている）。psy の主題の答えに、最後の回に初めて引用する出来事を足して問い 6 の形を作る（q3・q4 の鍵と、基準との比較が変わる）。
-- Consequences: 図書館の主題の「4 つ」は、下の論点を数えた読み手の数と合わない。人間が実物で読んで直す。区切った論点では「進捗: 検証中」と「区切った」が並ぶ（ADR-0057 の Negative のまま）。画面の新しい言い回し（「この理由は、根拠にした分析結果を挙げていない。」「X は記録に2つあり、どちらを根拠にしたかは分からない。」、区切った論点の行、凡例の2段落）は人間がまだ読んでいない。見出しの後の各行が「分析結果 X」と始まり、見出しと同じ語が続く。直すなら `tree_render_parts` の `_BELOW_WORDS`・`_GROUNDS_WORDS`・`_NO_GROUNDS_WORDS`・`_SHARED_ID_WORDS` と、`tree_render` の `_closed`・`_legend` を直す。
+- Consequences: 図書館の主題の「4 つ」は、下の論点を数えた読み手の数と合わない。人間が実物で読んで直す。図書館の「進捗の数」は「未着手 2」と出るが、「次の候補」と鍵の q2（`untouched_nodes` から導く）は LIB-Q04 も入れて3つである。読み手が数から q2 を答えると LIB-Q04 を落としうるので、34.7 の試行で見る。区切った論点では「進捗: 検証中」と「区切った」が並ぶ。区切った論点の下の論点へ深めても、区切った論点を指す決定が出るまで「区切った」は消えない（どちらも ADR-0057 の Negative のまま）。画面の新しい言い回し（「この理由は、根拠にした分析結果を挙げていない。」「X は記録に2つあり、どちらを根拠にしたかは分からない。」、区切った論点の行、凡例の2段落）は人間がまだ読んでいない。見出しの後の各行が「分析結果 X」と始まり、見出しと同じ語が続く。直すなら `tree_render_parts` の `_BELOW_WORDS`・`_GROUNDS_WORDS`・`_NO_GROUNDS_WORDS`・`_SHARED_ID_WORDS` と、`tree_render` の `_closed`・`_legend` を直す。
 
 ### Cross-epic decisions (links to ADR)
 
