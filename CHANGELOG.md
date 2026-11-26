@@ -25,6 +25,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   answer below rests on and the answer above does not (まだ答えに入れていない分析結果, and those it rested
   on before), and asks whether to rest on them; the answers are written either way. `/analysis-auto`
   pauses for that choice (#270).
+- **The question tree shows the results an answer leaves out, and how the answers above use a result.**
+  The top of the page and every question card list the analysis results that answers further down
+  rest on and this answer has never used (まだ答えに入れていない分析結果), with the question, round and
+  sentences they come from; a result of an analysis that found no difference lands here. Results the
+  answer used before and no longer does are folded apart, with the last round that used them and what
+  the next answer used instead. A card also lists the answers above it, up to the subject, that rest on
+  its results, with their round and sentences and a link to them; when such an answer says something
+  else of the result in a round after this card's answer, the card names that round and says this answer
+  stayed as it was. `tree_io changes` returns both as JSON under `cited_above` and `uncited_below`
+  ([ADR-0056](docs/adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md), #267).
 - **The question tree opens with the answer to the subject and what it changed.** The page now starts
   with the current answer to the subject, what that answer changed since the answer before it, and the
   question to look into next with its reason; the reading guide is folded. "What changed" lists one row

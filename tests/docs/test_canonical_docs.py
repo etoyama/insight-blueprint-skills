@@ -431,6 +431,23 @@ class TestReportAndUploadDocs:
             if code_name:
                 assert f"`{code_name}`" in rows[term][words.CODE_NAME], term
 
+    def test_the_values_derived_from_the_cites_are_terms(self) -> None:
+        """Epic 34 (ADR-0056): what the page derives from the cites has its words."""
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        added = {
+            "答えの変化": "AnswerChange",
+            "証拠の変わり方": "ChangeKind",
+            "上の論点での引用": "CitedAbove",
+            "引用していない下の結果": "UncitedBelow",
+        }
+        assert set(added) - set(rows) == set()
+        for term, code_name in added.items():
+            assert "adr/0056-" in rows[term]["初出"], term
+            assert f"`{code_name}`" in rows[term][words.CODE_NAME], term
+
     def test_a_confidence_interval_is_one_kind_of_interval(self) -> None:
         rows = {
             r[words.TERM]: r

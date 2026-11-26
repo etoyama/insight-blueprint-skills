@@ -84,6 +84,7 @@ flowchart TD
   現時点の答えは `tree_io answer` で書く。`tree_io answer` は書く前にツリーの検査を呼び、違反があれば何も書かない。
   ツリーの決定は `tree_io decide` で書く。決定が理由の根拠にした出来事を引用していれば、書く前にツリーの検査を呼び、違反があれば何も書かない。引用を持たない決定は検査しない（[ADR-0058](adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md)）。
   進捗は項目に無いので、保存できない。結んだ分析設計の状態から進捗を導くのは `tree_read` で、CLI は `tree_io progress` である。
+  答えの変化、上の論点での引用、引用していない下の結果も項目に無く、保存しない。`tree_changes` が論点ツリーだけから導き、`tree_io render` の表示に出す。同じ値を `tree_io changes` が JSON で返す（[ADR-0056](adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md)）。
 - **pre-write hook（`hooks/validate-design.py`, plugin 同梱 `hooks/hooks.json`）** —
   `.insight/designs/*_hypothesis.yaml` と `.insight/themes/*_tree.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
   にかけ、違反を `exit 2` でブロックする I/O 殻。論点ツリーでは、ファイル名のテーマと中身の `theme_id` が同じことも確かめる。利用者の install 先プロジェクトでも効く
@@ -146,7 +147,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 ├── bin/                           # plugin 有効時に PATH に載る: design_io / catalog_io / tree_io / premortem / tree_check ラッパー
 │                                  #   + _prelude.sh（5本が読み込む共通部分。実行ビットを付けないので、コマンドにはならない）
 ├── hooks/                         # plugin 同梱 hook: hooks.json + validate-design.py
-├── skills/                        # 全 skill + _shared/（design_io.py / catalog_io.py / tree_io.py / tree_read.py / tree_render.py / theme_report.py / tree_check.py / ids.py / config_loader.py / models.py）+ premortem/
+├── skills/                        # 全 skill + _shared/（design_io.py / catalog_io.py / tree_io.py / tree_read.py / tree_changes.py / tree_render.py / tree_render_parts.py / tree_render_derived.py / theme_report.py / tree_check.py / ids.py / config_loader.py / models.py）+ premortem/
 ├── src/insight_blueprint/         # plugin の env の中でだけ使うライブラリ（配布名 insight-blueprint-lineage）: models/ · validate.py · lineage/
 ├── tests/  docs/  scripts/
 ├── pyproject.toml · uv.lock       # ← この uv プロジェクトが「plugin の実行環境」を供給する
