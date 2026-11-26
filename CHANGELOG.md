@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The handoff trial was taken again on the display of Epic 34.** Nine Claude readers read each of `lib`
+  and `psy` on the fixed display (e3521d1), and the summary sits beside the records from before
+  (`docs/handoff-trials/2026-11-26-after-the-display.md`). Only `lib`'s q5 went up (7 of 9 right before, 9 of 9 after);
+  `lib`'s q2 went down to 3 of 9, as six readers left out LIB-Q04, whose card no longer says 未着手, and
+  haiku added a reworded or dropped result to q4's evidence four times. The analyst's own reading
+  is kept as the human reader's record, untimed. PRD's success criteria name the sixth question, and the
+  glossary's trial words say two scenarios and six questions (#269).
 - **The question tree counts reflections and revisions in words.** A round is shown as N回目の振り返り
   (2回目の振り返り, 前の振り返りから変わったこと（1回目 → 2回目の振り返り）) instead of 回 N, and the table of
   what changed says 言っていたこと / 言っていること without ここから. The mark above an answer reads

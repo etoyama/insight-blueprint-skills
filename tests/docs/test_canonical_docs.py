@@ -1430,3 +1430,78 @@ class TestWordsShownToTheAnalyst:
         architecture = unwrap(_read("docs/ARCHITECTURE.md"))
         assert "主題がちょうど1つあること" in architecture
         assert "主題の版が1から1ずつ増えること" in architecture
+
+
+class TestTrialAfterTheDisplay:
+    """Epic 34 US-6 AC 5: the trial after the display is kept beside the baseline."""
+
+    SUMMARY = "docs/handoff-trials/2026-11-26-after-the-display.md"
+    BASELINE = "2026-11-26-psy-baseline.md"
+    MODELS = ("sonnet", "haiku", "opus")
+
+    def _summary(self) -> str:
+        return _read(self.SUMMARY)
+
+    @pytest.mark.parametrize("scenario", ["lib", "psy"])
+    def test_each_scenario_has_three_records_per_model(self, scenario: str) -> None:
+        trials = REPO_ROOT / "docs/handoff-trials"
+        for model in self.MODELS:
+            for n in (1, 2, 3):
+                name = f"2026-11-26-after-{scenario}-claude-{model}-{n}.yaml"
+                assert (trials / name).is_file(), name
+
+    def test_the_summary_reads_beside_the_baseline(self) -> None:
+        summary = self._summary()
+        assert f"]({self.BASELINE})" in summary
+        assert "2026-11-22-claude-opus-1.yaml" in summary
+        for heading in (
+            "## 結果",
+            "## note から分かったこと",
+            "## 人の読み手",
+            "## 試行で示せなかったこと",
+        ):
+            assert heading in summary, heading
+
+    def test_the_result_table_puts_before_and_after_side_by_side(self) -> None:
+        result = section(self._summary(), "## 結果")
+        rows = table_rows(result)
+        assert rows[0][:2] == ["シナリオ", "読み手"]
+        assert rows[0][2:] == ["q1", "q2", "q3", "q4", "q5", "q6"]
+        labels = {(r[0], r[1].split(" ")[0]) for r in rows[2:]}
+        for scenario in ("lib", "psy"):
+            for when in ("前", "後"):
+                assert (f"{scenario}（{when}）", "sonnet") in labels, (scenario, when)
+
+    def test_the_summary_says_what_the_difference_mixes(self) -> None:
+        summary = unwrap(self._summary())
+        assert "欄を足した効果と言葉を直した効果" in summary
+        assert "問いの紙" in summary
+
+    def test_the_human_reader_is_the_analyst_and_not_timed(self) -> None:
+        human = unwrap(section(self._summary(), "## 人の読み手"))
+        for phrase in (
+            "初見ではない",
+            "時間は計っていない",
+            "PM のセッションと Artifact のコメント",
+            "取り直せる",
+            "改善版のほうが理解できた",
+        ):
+            assert phrase in human, phrase
+
+    def test_the_prd_names_the_sixth_question_in_the_words_shown(self) -> None:
+        criteria = unwrap(section(_read("docs/PRD.md"), "## 成功基準"))
+        assert "主題への現時点の答え" in criteria
+        assert "まだ決められないことが残る論点" in criteria
+        assert "上の論点の答えがその証拠を引用する文が変わった論点" in criteria
+        assert "未判別" not in criteria
+
+    def test_the_glossary_words_of_the_trial_have_two_scenarios_and_six_questions(
+        self,
+    ) -> None:
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        assert "心理的安全性" in rows["合成シナリオ"][words.DEFINITION]
+        assert "6つの問い" in rows["試行の記録"][words.DEFINITION]
+        assert "6つ目" in rows["引き継ぎの試行"][words.DEFINITION]
