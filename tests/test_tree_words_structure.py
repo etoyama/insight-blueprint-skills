@@ -117,3 +117,30 @@ def test_no_module_imports_a_name_another_module_keeps_to_itself(path: Path) -> 
     ]
 
     assert private == []
+
+
+# The tests of the page and of the report check where a word is shown and name
+# it through tree_words, so a word that changes fails tests/test_tree_words.py only.
+PAGE_AND_REPORT_TESTS = sorted(
+    [
+        REPO_ROOT / "tests" / "_tree_page.py",
+        REPO_ROOT / "tests" / "test_theme_report.py",
+        *(REPO_ROOT / "tests").glob("test_tree_render*.py"),
+        *(REPO_ROOT / "tests" / "tree_io").glob("test_render*.py"),
+        *(REPO_ROOT / "tests" / "tree_io").glob("test_report*.py"),
+    ]
+)
+
+
+@pytest.mark.parametrize("word", ["回目", "主題"])
+def test_a_test_of_the_page_or_the_report_names_a_shared_word_through_the_module(
+    word: str,
+) -> None:
+    assert len(PAGE_AND_REPORT_TESTS) >= 8
+    spelled = [
+        str(path.relative_to(REPO_ROOT))
+        for path in PAGE_AND_REPORT_TESTS
+        if any(word in text for text in _strings(path))
+    ]
+
+    assert spelled == []

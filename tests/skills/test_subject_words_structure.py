@@ -31,12 +31,10 @@ def test_a_skill_that_talks_about_the_tree_names_the_analysts_words(
     assert WORDS_RULE in " ".join(_read_skill(skill).split())
 
 
-def test_the_theme_reflection_never_shows_a_round_as_a_bare_number() -> None:
+def test_the_theme_reflection_says_a_round_as_the_count_of_reflections() -> None:
     present = section(_read_skill("analysis-reflection"), "### Step T5: ")
     ask = section(_read_skill("analysis-reflection"), "### Step T3: ")
 
-    for text in (present, ask):
-        assert "回 {" not in text
     assert "{previous_round}回目の振り返りから変わった" in present
     assert "（{round}回目の振り返りの答えまで根拠にしていた）" in ask
 

@@ -39,6 +39,7 @@ from skills._shared.theme_report import (
     render_report,
 )
 from skills._shared.tree_check import CitedEvent
+from skills._shared.tree_words import SUBJECT, reflection
 from skills._shared.verdict_table import (
     CONFIDENCE,
     MetricGroup,
@@ -235,7 +236,8 @@ class TestRenderReport:
         assert lines[0] == "# 取り置き期限を延ばす試行をするか"
         assert lines[1] == ""
         assert (
-            lines[2] == "テーマ LIB のレポート。2回目の振り返りの時点の記録にもとづく。"
+            lines[2]
+            == f"テーマ LIB のレポート。{reflection(2)}の時点の記録にもとづく。"
         )
 
     def test_a_business_aim_names_who_decides_what(self) -> None:
@@ -323,7 +325,7 @@ class TestIntroduction:
     def test_it_names_the_root_question_and_who_decides_what(self) -> None:
         intro = _section(render_report(_report()), "## Introduction")
 
-        assert "- 主題: 取り置き期限を延ばす試行をするか" in intro.splitlines()
+        assert f"- {SUBJECT}: 取り置き期限を延ばす試行をするか" in intro.splitlines()
         assert "- 決める人: 図書館員" in intro.splitlines()
         assert "- 決めること: 取り置き期限を延ばす試行を始めるか" in intro.splitlines()
 
@@ -381,7 +383,7 @@ class TestIntroduction:
     ) -> None:
         intro = _section(render_report(_report()), "## Introduction")
 
-        assert "主題を論点に分けていない。" in intro
+        assert f"{SUBJECT}を論点に分けていない。" in intro
         assert "| 論点 |" not in intro
 
 
@@ -619,7 +621,7 @@ class TestResults:
             )
         )
 
-        assert "この答えは、主題を今の形に見直す前に書いた。" in results
+        assert f"この答えは、{SUBJECT}を今の形に見直す前に書いた。" in results
 
     def test_an_answer_given_under_the_current_root_says_nothing_of_the_sort(
         self,

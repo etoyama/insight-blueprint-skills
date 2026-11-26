@@ -19,6 +19,7 @@ from skills._shared._html import Html
 from skills._shared.design_note import intent_words_of
 from skills._shared.tree_check import CitedEvent, Violation
 from skills._shared.tree_render import CheckFailed, DesignSummary, render_tree_html
+from skills._shared.tree_words import MARK_WORDS, Mark
 
 BUSINESS_AIM = {
     "kind": "business",
@@ -445,3 +446,8 @@ def changed_root(tree: dict | None = None) -> dict:
         },
     ]
     return tree
+
+
+def mark_word(mark: Mark, round: int = 0) -> str:
+    """The mark as the page shows it; only a mark that names a round reads *round*."""
+    return MARK_WORDS[mark][0].format(round=round)

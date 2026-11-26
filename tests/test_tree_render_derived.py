@@ -12,6 +12,14 @@ import pytest
 
 from skills._shared import tree_words
 from skills._shared.tree_check import CitedEvent, Violation
+from skills._shared.tree_words import (
+    CHANGES_HEADING,
+    SUBJECT,
+    Mark,
+    changes_title,
+    left_as_written,
+    reflection,
+)
 from tests._tree_page import (
     Element,
     by_id,
@@ -19,6 +27,7 @@ from tests._tree_page import (
     has_class,
     make_events,
     make_tree,
+    mark_word,
     node_card,
     node_text,
     page,
@@ -85,9 +94,7 @@ class TestWhatAnAnswerChanged:
     def test_a_node_with_an_answer_before_its_last_one_says_what_changed(self) -> None:
         heading = squash(self.section().text())
 
-        assert heading.startswith(
-            "前の振り返りから変わったこと（1回目 → 2回目の振り返り）"
-        )
+        assert heading.startswith(changes_title(1, 2))
 
     def test_the_section_opens_by_telling_who_read_the_answer_before_what_to_reread(
         self,
@@ -98,7 +105,7 @@ class TestWhatAnAnswerChanged:
             if p.tag == "p" and "読み直せばよい" in p.text()
         ]
 
-        assert lead.startswith("1回目の振り返りの答えを読んだ人は、")
+        assert lead.startswith(f"{reflection(1)}の答えを読んだ人は、")
 
     def test_each_cited_event_is_one_row_with_its_content_and_both_rounds(self) -> None:
         section = self.section()
@@ -155,7 +162,7 @@ class TestWhatAnAnswerChanged:
         assert links == {"#LIB-Q02", "#design-LIB-H01"}
 
     def test_a_node_answered_once_has_no_such_section(self) -> None:
-        assert "前の振り返りから変わったこと" not in node_text(page(), "LIB-Q04")
+        assert CHANGES_HEADING not in node_text(page(), "LIB-Q04")
 
     def test_an_answer_that_only_reorders_its_statements_says_nothing_changed(
         self,
@@ -166,7 +173,7 @@ class TestWhatAnAnswerChanged:
 
         section = squash(self.section(tree).text())
 
-        assert "1回目の振り返りから変わっていない" in section
+        assert f"{reflection(1)}から変わっていない" in section
         assert "読み直せばよい" not in section
 
     def test_what_a_person_said_is_not_called_an_analysis_result(self) -> None:
@@ -199,8 +206,11 @@ class TestWhatAnAnswerChanged:
     def test_a_change_of_the_subject_between_the_two_answers_is_named(self) -> None:
         head = [squash(h.text()) for h in self.section().walk() if h.tag == "th"]
 
-        assert "1回目の振り返り（見直す前の主題への答え）で言っていたこと" in head
-        assert "2回目の振り返り（今の主題への答え）で言っていること" in head
+        assert (
+            f"{reflection(1)}（{mark_word(Mark.before_root_change)}）で言っていたこと"
+            in head
+        )
+        assert f"{reflection(2)}（今の{SUBJECT}への答え）で言っていること" in head
 
     def test_two_answers_to_the_same_subject_name_no_revision(self) -> None:
         tree = make_tree()
@@ -208,8 +218,8 @@ class TestWhatAnAnswerChanged:
 
         head = [squash(h.text()) for h in self.section(tree).walk() if h.tag == "th"]
 
-        assert "1回目の振り返りで言っていたこと" in head
-        assert "2回目の振り返りで言っていること" in head
+        assert f"{reflection(1)}で言っていたこと" in head
+        assert f"{reflection(2)}で言っていること" in head
 
     def test_the_legend_says_the_earlier_answer_is_not_checked_again(self) -> None:
         legend = squash(by_id(page(), "legend").text())
@@ -231,7 +241,7 @@ class TestWhatAnAnswerChanged:
     def test_an_answer_that_fails_the_check_keeps_its_statements_folded(self) -> None:
         root = parse(render(violations=stale()))
 
-        assert "前の振り返りから変わったこと" not in node_text(root, "LIB-Q02")
+        assert CHANGES_HEADING not in node_text(root, "LIB-Q02")
 
     def test_the_legend_explains_each_way_an_event_changed(self) -> None:
         legend = squash(by_id(page(), "legend").text())
@@ -247,10 +257,7 @@ class TestAnAnswerOfAnEarlierRound:
     def test_the_card_names_the_round_of_the_answer_and_the_latest_round(self) -> None:
         shown = node_text(page(), "LIB-Q05")
 
-        assert (
-            "1回目の振り返り 最新の振り返りは2回目で、"
-            "1回目より後の振り返りでは、この答えを書き直していない。" in shown
-        )
+        assert f"{reflection(1)} {left_as_written(2, 1)}" in shown
 
     def test_an_answer_of_the_latest_round_carries_no_such_line(self) -> None:
         assert "書き直していない" not in node_text(page(), "LIB-Q02")
@@ -263,7 +270,7 @@ class TestAnAnswerOfAnEarlierRound:
         assert "open" not in section.attrs
         summary = squash(section.children[0].text())
         assert summary == (
-            "前の振り返りから変わったこと（1回目 → 2回目の振り返り） 最新の振り返りの変化ではないので畳んである"
+            f"{changes_title(1, 2)} 最新の振り返りの変化ではないので畳んである"
         )
         assert "取消を含めると期限切れは 400 件" in section.text()
 
@@ -301,23 +308,23 @@ class TestTheTopOfThePage:
             " ".join(e.text() for e in top.children if not has_class(e, "changes"))
         )
 
-        assert visible.startswith("主題への現時点の答え")
+        assert visible.startswith(f"{SUBJECT}への現時点の答え")
         assert "これまでわかっていること 期限切れは 346 件" in visible
         assert "まだ決められないこと 取消の理由は分からない" in visible
-        assert "2回目の振り返り" in visible
+        assert reflection(2) in visible
 
     def test_a_subject_without_an_answer_says_so(self) -> None:
         top = squash(by_id(page(), "subject-answer").text())
 
-        assert top.startswith("主題への現時点の答え 主題にはまだ答えていない。")
+        assert top.startswith(
+            f"{SUBJECT}への現時点の答え {SUBJECT}にはまだ答えていない。"
+        )
 
     def test_the_top_shows_what_the_answer_to_the_subject_changed(self) -> None:
         root = page(tree=changed_root())
         section = changes_of(by_id(root, "subject-answer"))
 
-        assert squash(section.text()).startswith(
-            "前の振り返りから変わったこと（1回目 → 2回目の振り返り）"
-        )
+        assert squash(section.text()).startswith(changes_title(1, 2))
         assert {r[0] for r in rows_of(section)} == {
             "言っていることが変わった",
             "新しく根拠にした",
@@ -333,7 +340,7 @@ class TestTheTopOfThePage:
 
         assert not [e for e in own.walk() if e.tag == "table"]
         links = [a for a in own.walk() if a.attrs.get("href") == "#subject-answer"]
-        assert "前の振り返りから変わったことは、ページの冒頭に出している" in [
+        assert f"{CHANGES_HEADING}は、ページの冒頭に出している" in [
             squash(a.text()) for a in links
         ]
 
@@ -343,7 +350,7 @@ class TestTheTopOfThePage:
         root = page(tree=later_round(changed_root()))
         top = by_id(root, "subject-answer")
 
-        assert "2回目の振り返り 最新の振り返りは3回目で" in squash(top.text())
+        assert f"{reflection(2)} {left_as_written(3, 2)}" in squash(top.text())
         assert changes_of(top).tag == "details"
 
     def test_an_answer_to_the_subject_that_fails_the_check_is_not_shown_at_the_top(
@@ -363,7 +370,7 @@ class TestTheTopOfThePage:
 
         top = squash(by_id(page(tree=tree), "subject-answer").text())
 
-        assert "見直す前の主題への答え" in top
+        assert mark_word(Mark.before_root_change) in top
         assert "版" not in top
 
 
@@ -391,7 +398,7 @@ class TestTheNextQuestion:
         section = by_id(root, "next-question")
 
         assert squash(section.text()) == (
-            "次に調べる論点 深める（2回目の振り返りの後）: LIB-Q04 "
+            f"次に調べる論点 深める（{reflection(2)}の後）: LIB-Q04 "
             "取消の理由に偏りはあるか 理由: 理由の偏りを先に見る "
             "この理由は、根拠にした分析結果を挙げていない。"
         )
@@ -407,7 +414,7 @@ class TestTheNextQuestion:
 
         shown = self.next_question(tree)
 
-        assert "区切る（2回目の振り返りの後）: LIB-Q02" in shown
+        assert f"区切る（{reflection(2)}の後）: LIB-Q02" in shown
         assert shown.endswith("区切ったので、次に調べる論点は決まっていない。")
 
     def test_a_tree_without_a_decision_says_so(self) -> None:
@@ -421,7 +428,7 @@ class TestTheNextQuestion:
         shown = self.next_question(make_tree())
 
         assert shown.startswith(
-            "次に調べる論点 2回目の振り返りの後は、まだ決めていない。"
+            f"次に調べる論点 {reflection(2)}の後は、まだ決めていない。"
             "最後に決めたこと: 最初の論点を選ぶ: LIB-Q02"
         )
 
@@ -490,11 +497,11 @@ class TestResultsNotYetInTheSubjectAnswer:
     ) -> None:
         shown = self.block(null_page())
 
-        assert shown.startswith("まだ主題への答えに入れていない分析結果")
+        assert shown.startswith(f"まだ{SUBJECT}への答えに入れていない分析結果")
         assert "分析結果 LIB-H02-E01" in shown
         assert NULL_RESULT in shown
         assert (
-            "論点 LIB-Q03 の2回目の振り返りの答えが、この分析結果について言っていること:"
+            f"論点 LIB-Q03 の{reflection(2)}の答えが、この分析結果について言っていること:"
             in shown
         )
         assert "これまでわかっていること 通知の日は効かない" in shown
@@ -515,8 +522,8 @@ class TestResultsNotYetInTheSubjectAnswer:
         text = squash(null_page().text())
 
         assert (
-            text.index("前の振り返りから変わったこと")
-            < text.index("まだ主題への答えに入れていない分析結果")
+            text.index(CHANGES_HEADING)
+            < text.index(f"まだ{SUBJECT}への答えに入れていない分析結果")
             < text.index("次に調べる論点")
         )
 
@@ -567,7 +574,7 @@ class TestResultsTheSubjectAnswerNoLongerRestsOn:
 
         assert block.tag == "details"
         assert squash(block.children[0].text()) == (
-            "前は主題への答えの根拠にしていて、今は外している分析結果 1 件"
+            f"前は{SUBJECT}への答えの根拠にしていて、今は外している分析結果 1 件"
         )
 
     def test_it_gives_the_last_round_that_cited_it_and_what_came_in_instead(
@@ -576,10 +583,10 @@ class TestResultsTheSubjectAnswerNoLongerRestsOn:
         shown = squash(self.block(null_page()).text())
 
         assert "分析結果 LIB-H03-E01" in shown
-        assert "1回目の振り返りの答えまでは根拠にしていた。" in shown
+        assert f"{reflection(1)}の答えまでは根拠にしていた。" in shown
         assert "その次の答えで新しく根拠にした分析結果: LIB-H01-E02" in shown
         assert (
-            "論点 LIB-Q05 の1回目の振り返りの答えが、この分析結果について言っていること:"
+            f"論点 LIB-Q05 の{reflection(1)}の答えが、この分析結果について言っていること:"
             in shown
         )
 
@@ -625,7 +632,7 @@ class TestTheAnswersAboveThatRestOnTheResult:
 
         assert shown.startswith("この論点の分析結果を根拠にしている答え")
         assert (
-            "分析結果 LIB-H01-E01 を、論点 LIB-Q01（主題）の2回目の振り返りの答えが根拠にしている:"
+            f"分析結果 LIB-H01-E01 を、論点 LIB-Q01（{SUBJECT}）の{reflection(2)}の答えが根拠にしている:"
             in shown
         )
         assert "これまでわかっていること 期限切れは 346 件" in shown
@@ -649,17 +656,20 @@ class TestTheAnswersAboveThatRestOnTheResult:
             self.above(page(reworded_round(), events=results()), "LIB-Q02").text()
         )
 
-        assert "論点 LIB-Q01（主題）の3回目の振り返りの答えが根拠にしている:" in shown
         assert (
-            "論点 LIB-Q01 の答えは3回目の振り返りから、この分析結果について言っていることを変えた。"
-            "この論点の答えは2回目の振り返りのままで、変わっていない。"
+            f"論点 LIB-Q01（{SUBJECT}）の{reflection(3)}の答えが根拠にしている:"
+            in shown
+        )
+        assert (
+            f"論点 LIB-Q01 の答えは{reflection(3)}から、この分析結果について言っていることを変えた。"
+            f"この論点の答えは{reflection(2)}のままで、変わっていない。"
         ) in shown
 
     def test_an_answer_further_above_is_listed_after_the_parent(self) -> None:
         shown = squash(self.above(null_page(), "LIB-Q04").text())
 
-        parent = shown.index("論点 LIB-Q02 の2回目の振り返りの答え")
-        subject = shown.index("論点 LIB-Q01（主題）の2回目の振り返りの答え")
+        parent = shown.index(f"論点 LIB-Q02 の{reflection(2)}の答え")
+        subject = shown.index(f"論点 LIB-Q01（{SUBJECT}）の{reflection(2)}の答え")
         assert parent < subject
 
     def test_a_parent_that_is_not_the_subject_links_to_its_card(self) -> None:
@@ -701,7 +711,7 @@ class TestTheCardOfANodeWithResultsBelow:
 
         assert shown.startswith("まだこの論点の答えに入れていない分析結果")
         assert (
-            "論点 LIB-Q04 の2回目の振り返りの答えが、この分析結果について言っていること:"
+            f"論点 LIB-Q04 の{reflection(2)}の答えが、この分析結果について言っていること:"
             in shown
         )
 

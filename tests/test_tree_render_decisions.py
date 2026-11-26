@@ -8,7 +8,11 @@ decision shows the analysis results its reason rests on, or that it names none
 
 from __future__ import annotations
 
+from collections import Counter
+
+from insight_blueprint.models.tree import Progress
 from skills._shared.tree_check import CitedEvent
+from skills._shared.tree_words import below_text, reflection
 from tests._tree_page import (
     Element,
     by_id,
@@ -36,6 +40,10 @@ def _with(*decisions: dict, tree: dict | None = None) -> dict:
     return tree
 
 
+def _counts(**found: int) -> Counter[Progress]:
+    return Counter({Progress[word]: count for word, count in found.items()})
+
+
 def _meta(root: Element, node_id: str) -> str:
     """The line under the question of a card: progress, contribution, origin."""
     (meta,) = [
@@ -52,7 +60,10 @@ class TestProgressOfAQuestionWithoutADesign:
     def test_the_subject_shows_the_progress_below_it_instead_of_a_word(self) -> None:
         meta = _meta(page(), "LIB-Q01")
 
-        assert "主題の下に置いた論点 4 つ: 分析済み 1、検証中 1、未着手 2" in meta
+        assert (
+            below_text(True, _counts(analyzed=1, investigating=1, not_started=2))
+            in meta
+        )
         assert "進捗:" not in meta
 
     def test_a_question_with_a_design_keeps_its_word_and_adds_the_counts_below(
@@ -86,10 +97,10 @@ class TestProgressOfAQuestionWithoutADesign:
 
         meta = _meta(root, "LIB-Q05")
         assert "進捗: 未着手" in meta
-        assert "この論点の下に置いた論点 1 つ: 未着手 1" in meta
-        assert "主題の下に置いた論点 5 つ: 分析済み 1、検証中 1、未着手 3" in _meta(
-            root, "LIB-Q01"
-        )
+        assert below_text(False, _counts(not_started=1)) in meta
+        assert below_text(
+            True, _counts(analyzed=1, investigating=1, not_started=3)
+        ) in _meta(root, "LIB-Q01")
         assert "未着手 3" in squash(by_id(root, "counts").text())
 
     def test_the_counts_reach_every_depth_and_skip_a_question_shown_by_its_counts(
@@ -149,7 +160,7 @@ class TestAClosedQuestion:
         shown = node_text(page(tree=tree), "LIB-Q03")
 
         assert (
-            "2回目の振り返りの後に区切った。理由: 比べられる館が足りないので止める"
+            f"{reflection(2)}の後に区切った。理由: 比べられる館が足りないので止める"
             in (shown)
         )
 

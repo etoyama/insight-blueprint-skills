@@ -32,6 +32,7 @@ from skills._shared.tree_check import CitedEvent, Violation, ViolationKind
 from skills._shared.tree_render import (
     CheckFailed,
 )
+from skills._shared.tree_words import SUBJECT, Mark, reflection
 from tests._tree_page import (
     BUSINESS_AIM,
     OLD_QUESTION,
@@ -47,6 +48,7 @@ from tests._tree_page import (
     make_designs,
     make_events,
     make_tree,
+    mark_word,
     marks_text,
     node_card,
     node_text,
@@ -115,7 +117,7 @@ class TestHeader:
         assert ROOT_QUESTION in header
         assert "決める人: 図書館員" in squash(header)
         assert "決めること: 取り置き期限を延ばす試行を始めるか" in squash(header)
-        assert "主題を1回見直した" in squash(header)
+        assert f"{SUBJECT}を1回見直した" in squash(header)
         assert "版" not in squash(header)
 
     def test_a_research_aim_carries_its_own_labels(self) -> None:
@@ -149,7 +151,8 @@ class TestHeader:
 
         assert "root-history" not in html
         assert (
-            "見直す前の主題への答え" not in by_id(parse(html), "question-tree").text()
+            mark_word(Mark.before_root_change)
+            not in by_id(parse(html), "question-tree").text()
         )
 
 
@@ -157,22 +160,14 @@ class TestLegend:
     def test_the_legend_explains_how_to_read_the_page(self) -> None:
         legend = squash(by_id(page(), "legend").text())
 
-        for word in ("未着手", "検証中", "分析済み"):
-            assert word in legend
-        for word in (
-            "これまでわかっていること",
-            "まだ決められないこと",
-            "注意すべきこと",
+        for table in (
+            tree_words.PROGRESS_WORDS,
+            tree_words.KIND_WORDS,
+            tree_words.MARK_WORDS,
         ):
-            assert word in legend
-        for word in (
-            "N回目の振り返りで変わったこと",
-            "見直す前の主題への答え",
-            "N回目の振り返りで初めて答えたこと",
-            "記録と合わない答え",
-        ):
-            assert word in legend
-        assert "根拠を開く" in legend
+            for word, meaning in table.values():
+                assert f"{word.format(round='N')}: {meaning}" in legend
+        assert tree_words.OPEN_EVIDENCE in legend
         assert "論点の親子" in legend
         assert "分析設計の派生" in legend
 
@@ -181,9 +176,9 @@ class TestLegend:
             squash(e.text()) for e in by_id(page(), "legend").walk() if e.tag == "p"
         ]
 
-        (explained,) = [p for p in paragraphs if "分析ノートを開く" in p]
+        (explained,) = [p for p in paragraphs if tree_words.OPEN_NOTE in p]
         assert "このページの下" in explained
-        assert "論点ツリーへ戻る" in explained
+        assert tree_words.BACK_TO_TREE in explained
 
 
 class TestProgress:
@@ -218,7 +213,7 @@ class TestCurrentAnswer:
         assert "これまでわかっていること 取消を除くと期限切れは 346 件" in shown
         assert "注意すべきこと 1館の1年度だけの数である" in shown
         assert "400 件" not in shown
-        assert "2回目の振り返り" in node_text(root, "LIB-Q02")
+        assert reflection(2) in node_text(root, "LIB-Q02")
 
     def test_an_undetermined_statement_carries_its_word(self) -> None:
         assert "まだ決められないこと 理由の記録が無く、偏りは判別できない" in node_text(
@@ -243,15 +238,15 @@ class TestHeardStatements:
     def test_a_statement_citing_only_hearing_events_says_so(self) -> None:
         shown = node_text(page(events=self._heard("LIB-H01-E02")), "LIB-Q02")
 
-        assert "1館の1年度だけの数である （人に聞いた答えによる）" in shown
+        assert f"1館の1年度だけの数である {tree_words.HEARD_WORD}" in shown
 
     def test_a_statement_citing_an_event_of_the_data_carries_no_such_word(
         self,
     ) -> None:
         shown = answer_text(page(events=self._heard("LIB-H01-E02")), "LIB-Q02")
 
-        assert "取消を除くと期限切れは 346 件 （人に聞いた答えによる）" not in shown
-        assert shown.count("（人に聞いた答えによる）") == 1
+        assert f"取消を除くと期限切れは 346 件 {tree_words.HEARD_WORD}" not in shown
+        assert shown.count(tree_words.HEARD_WORD) == 1
 
     def test_a_statement_citing_a_hearing_and_the_data_carries_no_such_word(
         self,
@@ -262,18 +257,16 @@ class TestHeardStatements:
 
         shown = node_text(page(tree=tree, events=self._heard("LIB-H01-E02")), "LIB-Q02")
 
-        assert "（人に聞いた答えによる）" not in shown
+        assert tree_words.HEARD_WORD not in shown
 
     def test_a_cited_event_that_is_missing_is_not_taken_for_a_hearing(self) -> None:
         events = make_events()
         del events["LIB-H01-E02"]
 
-        assert "（人に聞いた答えによる）" not in node_text(
-            page(events=events), "LIB-Q02"
-        )
+        assert tree_words.HEARD_WORD not in node_text(page(events=events), "LIB-Q02")
 
     def test_the_legend_explains_the_word(self) -> None:
-        assert "人に聞いた答えによる" in squash(by_id(page(), "legend").text())
+        assert tree_words.HEARD_WORD in squash(by_id(page(), "legend").text())
 
 
 class TestDecisions:
@@ -324,7 +317,7 @@ class TestDecisionRounds:
         tree = self._with(self._decision(kind, node_id))
         shown = squash(by_id(page(tree=tree), "decisions").text())
 
-        assert f"{label}（2回目の振り返りの後）: {node_id} 答えを見た" in shown
+        assert f"{label}（{reflection(2)}の後）: {node_id} 答えを見た" in shown
 
     def test_a_decision_taken_before_any_reflection_says_so_instead_of_naming_round_0(
         self,
@@ -333,7 +326,6 @@ class TestDecisionRounds:
         shown = squash(by_id(page(tree=tree), "decisions").text())
 
         assert "深める（振り返りの前）: LIB-Q02 答えを見た" in shown
-        assert "回 0" not in shown
 
     def test_the_start_decision_names_no_round(self) -> None:
         shown = squash(by_id(page(), "decisions").text())
@@ -355,10 +347,7 @@ class TestMarks:
     def test_an_answer_that_differs_in_the_latest_round_is_marked_as_changed(
         self,
     ) -> None:
-        shown = node_text(page(), "LIB-Q02")
-
-        assert "2回目の振り返りで変わったこと" in shown
-        assert "初めて答えた" not in shown
+        assert marks_text(page(), "LIB-Q02") == mark_word(Mark.changed, 2)
 
     def test_the_previous_answer_is_shown_behind_a_changed_answer(self) -> None:
         folded = details_text(page(), "LIB-Q02")
@@ -369,16 +358,13 @@ class TestMarks:
     def test_an_answer_first_written_in_the_latest_round_is_marked_as_first(
         self,
     ) -> None:
-        shown = node_text(page(), "LIB-Q04")
+        assert marks_text(page(), "LIB-Q04") == mark_word(Mark.first, 2)
 
-        assert "2回目の振り返りで初めて答えたこと" in shown
-        assert "変わった" not in shown
-
-    def test_an_answer_from_an_earlier_round_carries_no_changed_mark(self) -> None:
-        shown = node_text(page(), "LIB-Q05")
-
-        assert "変わった" not in shown
-        assert "初めて答えた" not in shown
+    def test_an_answer_from_an_earlier_round_carries_no_mark_of_the_latest_round(
+        self,
+    ) -> None:
+        # LIB-Q05 answered an earlier subject, and that is its only mark.
+        assert marks_text(page(), "LIB-Q05") == mark_word(Mark.before_root_change)
 
     def test_an_answer_rewritten_with_identical_statements_carries_no_mark(
         self,
@@ -392,12 +378,12 @@ class TestMarks:
     def test_an_answer_written_against_an_older_root_revision_is_marked(self) -> None:
         shown = node_text(page(), "LIB-Q05")
 
-        assert "見直す前の主題への答え" in shown
+        assert mark_word(Mark.before_root_change) in shown
 
     def test_an_answer_of_the_current_root_revision_is_not_marked_stale(self) -> None:
         # The table of what changed names the subject the earlier answer answered;
         # the mark is what says the current answer is to an earlier subject.
-        assert "見直す前の主題への答え" not in marks_text(page(), "LIB-Q02")
+        assert mark_word(Mark.before_root_change) not in marks_text(page(), "LIB-Q02")
 
 
 def with_note(tree: dict, node_id: str, **note: object) -> dict:
@@ -489,10 +475,7 @@ def violation_page() -> Element:
 
 class TestViolatingAnswers:
     def test_the_node_carries_the_mark_instead_of_the_answer_marks(self) -> None:
-        shown = node_text(violation_page(), "LIB-Q02")
-
-        assert "記録と合わない答え" in shown
-        assert "変わった" not in shown
+        assert marks_text(violation_page(), "LIB-Q02") == mark_word(Mark.violating)
 
     def test_the_text_of_the_answer_is_not_shown_as_the_current_answer(self) -> None:
         shown = node_text(violation_page(), "LIB-Q02")
@@ -524,20 +507,22 @@ class TestViolatingAnswers:
     def test_other_nodes_are_unmarked(self) -> None:
         shown = node_text(violation_page(), "LIB-Q04")
 
-        assert "記録と合わない答え" not in shown
-        assert "2回目の振り返りで初めて答えたこと" in shown
+        assert mark_word(Mark.violating) not in shown
+        assert mark_word(Mark.first, 2) in shown
 
     def test_a_violation_does_not_hide_the_stale_root_mark(self) -> None:
         violations = [Violation("LIB-Q05", 1, 1, "missing-event", "LIB-H03-E01")]
         shown = node_text(page(violations=violations), "LIB-Q05")
 
-        assert "記録と合わない答え" in shown
-        assert "見直す前の主題への答え" in shown
+        assert mark_word(Mark.violating) in shown
+        assert mark_word(Mark.before_root_change) in shown
 
     def test_no_violation_means_no_mark_and_no_notice(self) -> None:
         root = page()
 
-        assert "記録と合わない答え" not in squash(by_id(root, "question-tree").text())
+        assert mark_word(Mark.violating) not in squash(
+            by_id(root, "question-tree").text()
+        )
         assert not [e for e in root.walk() if e.attrs.get("id") == "check-notice"]
 
     def test_every_violation_kind_has_its_word(self) -> None:
@@ -558,7 +543,7 @@ class TestCheckCouldNotRun:
         root = page(violations=CheckFailed("x"))
 
         assert "取消を除くと期限切れは 346 件" in node_text(root, "LIB-Q02")
-        assert "記録と合わない答え" not in node_text(root, "LIB-Q02")
+        assert mark_word(Mark.violating) not in node_text(root, "LIB-Q02")
 
 
 class TestEvidence:
@@ -1276,42 +1261,3 @@ class TestReviewCommentsInTheDerivation:
 
     def test_the_derivation_row_shows_no_count_when_there_is_none(self) -> None:
         assert "review コメント" not in self._row("LIB-H04", 0)
-
-
-class TestTheWordsShownToTheAnalyst:
-    """Epic 34 US-5 AC 1, AC 2: the page speaks the analyst's words, not the code's."""
-
-    def test_the_header_calls_the_root_question_the_subject(self) -> None:
-        header = squash(by_id(page(), "header").text())
-
-        assert f"主題: {ROOT_QUESTION}" in header
-
-    def test_the_history_lists_each_revision_of_the_subject(self) -> None:
-        history = squash(by_id(page(), "root-history").text())
-
-        assert history.startswith("主題を見直した履歴")
-        assert f"最初の主題: {OLD_QUESTION}" in history
-        assert f"1回目の見直しの後の主題: {ROOT_QUESTION}" in history
-
-    def test_the_round_of_an_answer_is_said_as_the_count_of_reflections(
-        self,
-    ) -> None:
-        shown = node_text(page(), "LIB-Q05")
-
-        assert "1回目の振り返り" in shown
-        assert "版" not in shown
-
-    @pytest.mark.parametrize(
-        "entry",
-        [
-            "これまでわかっていること: 根拠にした分析結果から言えること。",
-            "まだ決められないこと: 分析をしても、分析結果からは決められないこと。",
-            "注意すべきこと: これまでわかっていることを弱める分析結果や、"
-            "言える範囲を狭める条件。",
-            "見直す前の主題への答え: 主題か到達点を見直す前の主題に対して書いた答え。",
-        ],
-    )
-    def test_the_legend_explains_each_word_in_the_analysts_words(
-        self, entry: str
-    ) -> None:
-        assert entry in squash(by_id(page(), "legend").text())
