@@ -18,7 +18,6 @@ from skills._shared._atomic import atomic_write_yaml
 from skills._shared.tree_check import (
     DecisionViolation,
     Violation,
-    find_decision_violations,
     find_violations,
     numbers_in,
 )
@@ -616,60 +615,7 @@ EVENTS = {
 }
 
 
-class TestFindDecisionViolations:
-    """Epic 34, US-4 AC 2 (ADR-0058): a decision that cites is held to what it cites."""
-
-    def test_a_decision_that_states_what_its_cited_event_holds_is_clean(self) -> None:
-        tree = decided_tree(go_to_q03("期限切れは152件と分かった", "LIB-H01-E01"))
-        assert find_decision_violations(tree, EVENTS) == []
-
-    def test_a_cite_without_an_event_is_a_missing_event(self) -> None:
-        tree = decided_tree(go_to_q03("数え方は定まった", "LIB-H01-E09"))
-        assert find_decision_violations(tree, EVENTS) == [
-            DecisionViolation(2, 1, "missing-event", "LIB-H01-E09")
-        ]
-
-    def test_a_cite_of_a_design_on_no_node_is_an_unlinked_design(self) -> None:
-        tree = decided_tree(go_to_q03("数え方は定まった", "LIB-H03-E01"))
-        found = find_decision_violations(tree, EVENTS | {"LIB-H03-E01": "無関係"})
-        assert [(v.kind, v.text) for v in found] == [("unlinked-design", "LIB-H03-E01")]
-
-    def test_a_decision_may_cite_a_design_linked_anywhere_in_the_tree(self) -> None:
-        # The result of one node is the reason to go to another, so the cite is
-        # not held to the branch of the node the decision names.
-        tree = decided_tree(
-            go_to_q03("数え方は定まった", "LIB-H01-E01"),
-            {**go_to_q03("通知は2日前に届く", "LIB-H02-E01"), "node_id": "LIB-Q02"},
-        )
-        assert find_decision_violations(tree, EVENTS) == []
-
-    def test_a_number_that_no_cited_event_holds_is_not_cited(self) -> None:
-        tree = decided_tree(go_to_q03("期限切れは153件と多い", "LIB-H01-E01"))
-        assert find_decision_violations(tree, EVENTS) == [
-            DecisionViolation(2, 1, "number-not-cited", "153")
-        ]
-
-    def test_a_number_only_an_uncited_event_holds_is_not_cited(self) -> None:
-        tree = decided_tree(go_to_q03("通知は2日前に届く", "LIB-H01-E01"))
-        found = find_decision_violations(tree, EVENTS)
-        assert [(v.kind, v.text) for v in found] == [("number-not-cited", "2")]
-
-    def test_a_decision_without_cites_is_not_checked(self) -> None:
-        # ADR-0058 leaves this open on purpose: a reason may rest on no event.
-        tree = decided_tree(go_to_q03("期限切れは999件と多い"))
-        assert find_decision_violations(tree, EVENTS) == []
-
-    def test_every_decision_that_cites_is_checked_not_only_the_last(self) -> None:
-        tree = decided_tree(
-            go_to_q03("数え方は定まった", "LIB-H01-E09"),
-            {**go_to_q03("戻る", "LIB-H02-E09"), "node_id": "LIB-Q02"},
-        )
-        found = find_decision_violations(tree, EVENTS)
-        assert [(v.position, v.text) for v in found] == [
-            (2, "LIB-H01-E09"),
-            (3, "LIB-H02-E09"),
-        ]
-
+class TestAnAnswerKeepsItsOwnBranch:
     def test_the_answers_are_still_held_to_their_own_branch(self) -> None:
         # US-2 AC 3: what a decision may cite does not widen what an answer may cite.
         tree = tree_with(
@@ -686,6 +632,62 @@ class TestFindDecisionViolations:
 
 
 class TestCheckLastDecision:
+    """Epic 34, US-4 AC 2 (ADR-0058): a decision that cites is held to what it cites."""
+
+    def test_a_cite_the_journal_does_not_hold_is_a_missing_event(
+        self, tmp_path: Path
+    ) -> None:
+        write_journal(tmp_path, "LIB-H01", (1, "期限切れは152件"))
+        tree = decided_tree(go_to_q03("数え方は定まった", "LIB-H01-E09"))
+
+        assert tree_check.check_last_decision(tree, tmp_path) == [
+            DecisionViolation(2, 1, "missing-event", "LIB-H01-E09")
+        ]
+
+    def test_a_cite_of_a_design_on_no_node_is_an_unlinked_design(
+        self, tmp_path: Path
+    ) -> None:
+        write_journal(tmp_path, "LIB-H03", (1, "無関係"))
+        tree = decided_tree(go_to_q03("数え方は定まった", "LIB-H03-E01"))
+
+        found = tree_check.check_last_decision(tree, tmp_path)
+
+        assert [(v.kind, v.text) for v in found] == [("unlinked-design", "LIB-H03-E01")]
+
+    def test_a_decision_may_cite_a_design_linked_anywhere_in_the_tree(
+        self, tmp_path: Path
+    ) -> None:
+        # The result of one node is the reason to go to another, so the cite is
+        # not held to the branch of the node the decision names.
+        write_journal(tmp_path, "LIB-H02", (1, "通知は2日前"))
+        tree = decided_tree(
+            go_to_q03("数え方は定まった"),
+            {**go_to_q03("通知は2日前に届く", "LIB-H02-E01"), "node_id": "LIB-Q02"},
+        )
+
+        assert tree_check.check_last_decision(tree, tmp_path) == []
+
+    def test_a_number_that_no_cited_event_holds_is_not_cited(
+        self, tmp_path: Path
+    ) -> None:
+        write_journal(tmp_path, "LIB-H01", (1, "期限切れは152件、取消を除くと34.6%"))
+        tree = decided_tree(go_to_q03("期限切れは153件と多い", "LIB-H01-E01"))
+
+        assert tree_check.check_last_decision(tree, tmp_path) == [
+            DecisionViolation(2, 1, "number-not-cited", "153")
+        ]
+
+    def test_a_number_only_an_uncited_event_holds_is_not_cited(
+        self, tmp_path: Path
+    ) -> None:
+        write_journal(tmp_path, "LIB-H01", (1, "期限切れは152件"))
+        write_journal(tmp_path, "LIB-H02", (1, "通知は2日前"))
+        tree = decided_tree(go_to_q03("通知は2日前に届く", "LIB-H01-E01"))
+
+        found = tree_check.check_last_decision(tree, tmp_path)
+
+        assert [(v.kind, v.text) for v in found] == [("number-not-cited", "2")]
+
     def test_it_reads_the_journal_of_each_design_a_decision_cites(
         self, tmp_path: Path
     ) -> None:

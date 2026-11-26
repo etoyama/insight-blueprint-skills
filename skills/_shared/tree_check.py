@@ -116,24 +116,12 @@ class DecisionViolation:
     text: str
 
 
-def find_decision_violations(
-    tree: QuestionTree, events: Mapping[str, str]
-) -> list[DecisionViolation]:
-    """Violations of every decision that cites; one without cites is not checked.
-
-    A decision may cite an event of any design linked somewhere in the tree:
-    the result of one node is the reason to go to another (ADR-0058).
-    """
-    return [
-        violation
-        for position in range(1, len(tree.decisions) + 1)
-        for violation in _decision_violations(tree, position, events)
-    ]
-
-
 def _decision_violations(
     tree: QuestionTree, position: int, events: Mapping[str, str]
 ) -> list[DecisionViolation]:
+    """A decision may cite an event of any design linked somewhere in the tree:
+    the result of one node is the reason to go to another (ADR-0058).
+    """
     decision = tree.decisions[position - 1]
     if not decision.cites:
         return []
