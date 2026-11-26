@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **A handoff trial record names the model that read.** `scripts.handoff_trial record` takes `--reader-model`
+  and stops without it when the reader is Claude; the id comes from `modelUsage` in the reply of
+  `claude -p --output-format json`. The records kept through 2026-11-26 have no model and are not rewritten
+  ([ADR-0060](docs/adr/0060-a-trial-record-names-the-model-that-read.md), #249).
+- **`docs/HANDOFF_TRIAL.md` tells a person to check the key by hand** when the questions or the scoring
+  rules change, and to sort a disagreement into the page, the wording of the question or the rule before
+  fixing anything (#249).
+
 ## [0.21.0] - 2026-11-26
 
 ### Upgrade note

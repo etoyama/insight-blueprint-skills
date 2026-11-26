@@ -74,7 +74,7 @@
 | 合成シナリオ | — | 公開する例・図・テストデータに使う架空の題材。今は2本で、公共図書館の予約本と、心理的安全性と上司支援（Epic 34 で足した）である | — | [epic-18](design/epic-18-question-tree.md) |
 | 引き継ぎの試行 | — | 論点ツリーの表示だけを別の読み手に渡し、現在地と次の一手を説明できるかを確かめること。製品の成功基準。問いは6つで、6つ目（答えも数値も変わっていないのに、上の論点の答えがその証拠を引用する文が変わった論点）は Epic 34 で足した | — | [epic-18](design/epic-18-question-tree.md) |
 | 正解の鍵 | — | 引き継ぎの試行で、合成シナリオの論点ツリーを読んだ人が出すべき判断。論点・出来事・分析設計の id と答えの種類で書き、読み手の答えをこれと比べて採点する | — | [epic-18](design/epic-18-question-tree.md) |
-| 試行の記録 | — | 引き継ぎの試行1回分の記録。読み手、6つの問いへの答え（6つ目を足す前の記録は5つ）、問いごとの正誤、確認と再構成にかかった時間を持つ | — | [epic-18](design/epic-18-question-tree.md) |
+| 試行の記録 | — | 引き継ぎの試行1回分の記録。読み手、6つの問いへの答え（6つ目を足す前の記録は5つ）、問いごとの正誤、確認と再構成にかかった時間を持つ。読み手が Claude なら、答えたモデルの ID も持つ（2026-11-26 までの記録は持たない） | — | [epic-18](design/epic-18-question-tree.md)、[ADR-0060](adr/0060-a-trial-record-names-the-model-that-read.md) |
 | 巡回 | — | guided autopilot が論点を1つ調べるひと回り。論点に分析設計を起こすところから、ツリーの決定を残すところまで | イテレーション | [ADR-0026](adr/0026-analysis-auto-walks-the-question-tree.md) |
 | 巡回の現在地 | `tree_io position`、`WalkState` | 巡回を再開する所。保存せず、最新のツリーの決定と、その論点に結んだ分析設計の状態から導く。状態の一覧は `tree_read` の `WalkState` にある | — | [epic-18](design/epic-18-question-tree.md) |
 | framing | `/analysis-framing`、`Framing Brief` | 使えるデータと既存の分析を見て、分析の方向を決めること。結果を Framing Brief にまとめる | — | fork 前 |

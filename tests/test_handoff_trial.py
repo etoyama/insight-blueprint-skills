@@ -737,6 +737,29 @@ class TestRecord:
         with pytest.raises(ValidationError):
             Record.model_validate(self._record(key, comment="x"))
 
+    def test_a_claude_record_keeps_the_model_that_read(
+        self, key: handoff_trial.Key
+    ) -> None:
+        """ADR-0060: the alias `sonnet` does not say which version answered."""
+        record = Record.model_validate(
+            self._record(
+                key,
+                reader={
+                    "kind": "claude",
+                    "name": "sonnet",
+                    "model": "claude-sonnet-5-5",
+                },
+                minutes={"confirm": None, "reconstruct": None},
+            )
+        )
+        assert record.reader.model == "claude-sonnet-5-5"
+
+    def test_a_record_kept_before_the_model_was_recorded_has_none(self) -> None:
+        """ADR-0035: the 2026-11-21 records are not rewritten to name a model."""
+        kept = REPO_ROOT / "docs/handoff-trials/2026-11-21-claude-sonnet-1.yaml"
+        record = Record.model_validate(yaml.safe_load(kept.read_text(encoding="utf-8")))
+        assert record.reader.model is None
+
     @pytest.mark.parametrize(
         "kept",
         sorted((REPO_ROOT / "docs" / "handoff-trials").glob("*.yaml")),
@@ -758,17 +781,24 @@ def _cli(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _record_cli(reply: Path, out: Path) -> subprocess.CompletedProcess[str]:
+def _record_cli(
+    reply: Path, out: Path, *reader: str
+) -> subprocess.CompletedProcess[str]:
+    reader = reader or (
+        "--reader-kind",
+        "claude",
+        "--reader-name",
+        "sonnet",
+        "--reader-model",
+        "claude-sonnet-5-5",
+    )
     return _cli(
         "record",
         "--scenario",
         SCENARIO,
         "--answers",
         str(reply),
-        "--reader-kind",
-        "claude",
-        "--reader-name",
-        "sonnet",
+        *reader,
         "--date",
         "2026-11-21",
         "--out",
@@ -820,6 +850,31 @@ class TestCli:
         assert record.score["q1"] is False
         assert sum(record.score.values()) == len(QUESTIONS) - 1
         assert "q1" in done.stdout
+
+    def test_record_writes_the_model_of_a_claude_reader(
+        self, tmp_path: Path, key: handoff_trial.Key
+    ) -> None:
+        reply = tmp_path / "reply.txt"
+        reply.write_text(json.dumps(_key_answers(key)), encoding="utf-8")
+        out = tmp_path / "record.yaml"
+        done = _record_cli(reply, out)
+        assert done.returncode == 0, done.stderr
+        kept = yaml.safe_load(out.read_text(encoding="utf-8"))
+        assert kept["reader"]["model"] == "claude-sonnet-5-5"
+
+    def test_record_refuses_a_claude_reader_without_its_model(
+        self, tmp_path: Path, key: handoff_trial.Key
+    ) -> None:
+        reply = tmp_path / "reply.txt"
+        reply.write_text(json.dumps(_key_answers(key)), encoding="utf-8")
+        out = tmp_path / "record.yaml"
+        done = _record_cli(
+            reply, out, "--reader-kind", "claude", "--reader-name", "sonnet"
+        )
+        assert done.returncode == 1
+        assert "--reader-model" in done.stderr
+        assert "Traceback" not in done.stderr
+        assert not out.exists()
 
     def test_record_refuses_a_reply_that_is_not_json(self, tmp_path: Path) -> None:
         reply = tmp_path / "reply.txt"
