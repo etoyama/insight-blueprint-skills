@@ -598,7 +598,7 @@ sequenceDiagram
 - Criteria: 人間が PM のセッションで選んだ（2026-11-26。1 と 2 は Decision Analysis）。US-5 AC 1 の中身（見直す前の主題への答えを見分けられる）を守ること。決め手は、数えているのがテーマの振り返りの回数で、そのまま言えば何の回数かが分かることである。
 - Affected modules: `skills/_shared/tree_render.py`・`tree_render_parts.py`・`tree_render_derived.py`、`skills/analysis-reflection/SKILL.md`、`skills/analysis-framing/SKILL.md`、`skills/report-export/SKILL.md`、`tests/fixtures/handoff/prompt.md`、`docs/UBIQUITOUS_LANGUAGE.md`、ADR-0055。
 - Alternatives considered: 「分析N巡目」と言う（人間の案。分析の数と振り返りの数が揃わない場面で表示が実際とずれ、用語集の「巡回」とも字が重なる）。日付で言う（同じ日に2回振り返ると見分けられず、回の順も読みにくい）。主題を見直した回数を「0回」も含めて常に出す（見直していないテーマに、意味のない行が出続ける）。
-- Consequences: 文書・コード・テストは「振り返りの回」「回」「主題の版」を使い続けるので、内側と画面の言葉の組が2つ増えた（US-5 の表）。問いの紙の2語が変わり、過去の試行の記録と条件がずれる（34.7 の記録で日付と並べて読む）。主題を見直した合成の画面は、共有ノートのスクリプトで作った1枚だけで、fixture には足していない。
+- Consequences: 文書・コード・テストは「振り返りの回」「回」「主題の版」を使い続けるので、内側と画面の言葉の組が2つ増えた（US-5 の表）。問いの紙の2語が変わり、過去の試行の記録と条件がずれる（34.7 の記録で日付と並べて読む）。主題を見直した合成の画面は、共有ノートのスクリプトで作った1枚だけで、fixture には足していない。冒頭の「まだ主題への答えに入れていない分析結果」が多いときに畳む作りは、この Epic では入れない（人間が PM のセッションで決めた、2026-11-26）。合成シナリオでは多くて2件で、何件から畳むかを決める材料が無いため、実際のテーマで長くなったときに直す。
 
 ### Cross-epic decisions (links to ADR)
 
