@@ -17,6 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of `/analysis-reflection` puts the events behind the analyst's reason into the decision, and offers
   主題そのものを見直す beside deepen, return and close; choosing it goes to the step of
   `/analysis-framing` that raises the root revision ([ADR-0058](docs/adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md), #266).
+- **The theme reflection keeps the words of what did not change, and asks about the results the answers leave out.**
+  When `/analysis-reflection {theme_id}` writes a node's answer again, it starts from the current
+  answer and sends every statement that the new results do not change character for character, so
+  "said differently" on the tree shows real changes; it changes an old statement otherwise only to fix
+  a rule it breaks, and says why. Before it writes the answers, it shows the analyst the results that an
+  answer below rests on and the answer above does not (まだ答えに入れていない分析結果, and those it rested
+  on before), and asks whether to rest on them; the answers are written either way. `/analysis-auto`
+  pauses for that choice (#270).
 - **The question tree opens with the answer to the subject and what it changed.** The page now starts
   with the current answer to the subject, what that answer changed since the answer before it, and the
   question to look into next with its reason; the reading guide is folded. "What changed" lists one row

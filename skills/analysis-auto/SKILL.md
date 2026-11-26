@@ -221,7 +221,9 @@ the round until the analyst closes the walk or says stop.
    この分析設計をどう終えるか**, and at the terminal transition. An exploration ends as
    `explored` and is never asked for a verdict. Its Step 2 読むもの says what
    the analyst reads; the driver adds no list of files of its own.
-8. **theme reflection**: run `/analysis-reflection {theme_id}`. Its Step T7 is the KEEP gate
+8. **theme reflection**: run `/analysis-reflection {theme_id}`. Before it writes the answers,
+   it shows the まだ答えに入れていない分析結果 and asks whether an answer rests on them:
+   pause for the analyst's choice. Never choose for them. Its Step T7 is the KEEP gate
    of the round. Before that gate, show the path of the tree's HTML, so the analyst decides
    with the tree in view. When the analyst chooses 主題そのものを見直す at that gate, the
    reflection runs only 4c of `/analysis-framing {theme_id}`, a KEEP gate of its own. The
