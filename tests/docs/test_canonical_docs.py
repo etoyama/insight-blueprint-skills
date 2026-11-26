@@ -1583,54 +1583,12 @@ class TestTrialAfterTheGateFixes:
         assert "同じ条件の比較ではない" in summary
 
 
-def _defines(module: str, name: str) -> bool:
-    """Whether skills/_shared/<module>.py defines *name* itself, not by import."""
-    source = _read(f"skills/_shared/{module}.py")
-    return bool(
-        re.search(rf"^(?:def|class) {re.escape(name)}\b", source, re.M)
-        or re.search(rf"^{re.escape(name)}\s*[:=]", source, re.M)
-        or re.search(rf"^    def {re.escape(name)}\b", source, re.M)
-    )
-
-
-class TestEpic34NamesTheCodeAsItIs:
-    """The code-quality review of the Epic 34 gate found the DesignDoc naming
-    functions in modules that no longer hold them."""
+class TestEpic34DeferredTheGatheringOfTheWords:
+    """Epic 34 left the words in three modules and said so in a decision; #273
+    gathered them in ``tree_words``. The DesignDoc is frozen, so no test holds
+    the names in it to the code any more."""
 
     DESIGN_DOC = "docs/design/epic-34-what-moved-the-answer.md"
-    RENDER_ROWS = ("tree_render", "tree_render_parts", "tree_render_derived")
-
-    def test_every_dotted_name_is_defined_in_the_module_it_names(self) -> None:
-        doc = _read(self.DESIGN_DOC)
-        named = re.findall(r"`(tree_\w+)\.(\w+)`", doc) + re.findall(
-            r"`skills/_shared/(tree_\w+)\.py::(\w+)`", doc
-        )
-        assert named
-        for module, name in named:
-            if name == "py":
-                continue
-            assert _defines(module, name), f"{module}.{name}"
-
-    @pytest.mark.parametrize("module", RENDER_ROWS)
-    def test_a_bare_name_in_a_render_row_is_defined_in_that_module(
-        self, module: str
-    ) -> None:
-        table = section(_read(self.DESIGN_DOC), "## Module Responsibilities")
-        (row,) = [
-            r
-            for r in table_rows(table)
-            if r[0].startswith(f"`skills/_shared/{module}.py`")
-        ]
-        names = [
-            n
-            for cell in row[1:]
-            for n in re.findall(r"`([A-Za-z_]\w*)`", cell)
-            if n not in self.RENDER_ROWS
-            and n not in ("tree_changes", "tree_check", "design_note")
-        ]
-        assert names, module
-        for name in names:
-            assert _defines(module, name), f"{module}: {name}"
 
     def test_the_deferred_gathering_of_the_words_is_a_decision(self) -> None:
         decision = section(

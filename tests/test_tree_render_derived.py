@@ -10,11 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from skills._shared import tree_render
-from skills._shared.tree_check import Violation
-from skills._shared.tree_render import (
-    CitedEvent,
-)
+from skills._shared import tree_words
+from skills._shared.tree_check import CitedEvent, Violation
 from tests.test_tree_render import (
     Element,
     by_id,
@@ -280,7 +277,7 @@ class TestWhatAnAnswerChanged:
     def test_the_legend_explains_each_way_an_event_changed(self) -> None:
         legend = squash(by_id(page(), "legend").text())
 
-        for word, meaning in tree_render._CHANGE_WORDS.values():
+        for word, meaning in tree_words.CHANGE_WORDS.values():
             assert f"{word}: {meaning}" in legend
         assert "言い回しを変えただけでも" in legend
 

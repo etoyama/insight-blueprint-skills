@@ -24,7 +24,6 @@ from insight_blueprint.models.tree import (
     QuestionNode,
     QuestionTree,
     StatementKind,
-    _ancestors,
 )
 
 
@@ -161,28 +160,18 @@ def uncited_below(tree: QuestionTree) -> dict[str, tuple[UncitedBelow, ...]]:
     nothing to list are left out of the dict.
     """
     cited_now = {node.id: _current_citing(node) for node in tree.nodes}
-    children: dict[str, list[QuestionNode]] = {}
-    for node in tree.nodes:
-        if node.parent_question_id is not None:
-            children.setdefault(node.parent_question_id, []).append(node)
-    # The page lists each node before its children, depth first.
-    position: dict[str, int] = {}
-    stack = [tree.root()]
-    while stack:
-        node = stack.pop()
-        position[node.id] = len(position)
-        stack.extend(reversed(children.get(node.id, [])))
+    position = {node.id: at for at, node in enumerate(tree.walk())}
     uncited: dict[str, tuple[UncitedBelow, ...]] = {}
     for node in tree.nodes:
         # The first node to cite an event, level by level, is the nearest one.
         nearest: dict[str, QuestionNode] = {}
-        level = children.get(node.id, [])
+        level = tree.children(node.id)
         while level:
             for below in level:
                 for event_id in cited_now[below.id]:
                     if event_id not in cited_now[node.id]:
                         nearest.setdefault(event_id, below)
-            level = [c for below in level for c in children.get(below.id, [])]
+            level = [c for below in level for c in tree.children(below.id)]
 
         def page_order(item: tuple[str, QuestionNode]) -> tuple[int, int]:
             event_id, below = item
@@ -234,14 +223,13 @@ def cited_above(tree: QuestionTree) -> dict[str, tuple[CitedAbove, ...]]:
     The entries follow the cites of the node, the nearest node above first.
     Nodes with nothing to list are left out of the dict.
     """
-    parents = {node.id: node.parent_question_id for node in tree.nodes}
     cited_now = {node.id: _current_citing(node) for node in tree.nodes}
     found: dict[str, tuple[CitedAbove, ...]] = {}
     for node in tree.nodes:
         answer = node.current_answer()
         if answer is None:
             continue
-        above = [tree.node(a) for a in _ancestors(parents, node.id)]
+        above = tree.ancestors(node.id)
         entries = tuple(
             _cited_above(event_id, upper, answer.round, cited_now[upper.id])
             for event_id in cited_now[node.id]

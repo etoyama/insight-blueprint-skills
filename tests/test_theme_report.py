@@ -38,7 +38,7 @@ from skills._shared.theme_report import (
     escape_source_text,
     render_report,
 )
-from skills._shared.tree_render import CitedEvent
+from skills._shared.tree_check import CitedEvent
 from skills._shared.verdict_table import (
     CONFIDENCE,
     MetricGroup,

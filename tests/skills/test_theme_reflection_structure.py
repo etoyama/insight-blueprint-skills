@@ -19,7 +19,7 @@ import pytest
 from insight_blueprint.models.tree import Progress
 from skills._shared import design_io, tree_check, tree_io
 from skills._shared._atomic import atomic_write_yaml
-from skills._shared.tree_render_parts import _BELOW_WORDS, PROGRESS_WORDS
+from skills._shared.tree_words import BELOW_WORDS, PROGRESS_WORDS
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills._shown import PIPED
 from tests.skills.test_skill_structure import _read_skill
@@ -293,7 +293,7 @@ def _below_words(whose: str) -> str:
         f"{PROGRESS_WORDS[p][0]} {n}"
         for p, n in zip(reversed(Progress), "abc", strict=True)
     )
-    return _BELOW_WORDS.format(whose=whose, count="{N}") + counts
+    return BELOW_WORDS.format(whose=whose, count="{N}") + counts
 
 
 class TestProgressIsShownAsThePageShowsIt:

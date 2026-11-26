@@ -336,6 +336,47 @@ decisions:
         assert "cites" in errors_of(data)
 
 
+def deepened_later() -> QuestionTree:
+    """branching_tree with LIB-Q05 put under LIB-Q02 after LIB-Q04 was written."""
+    data = branching_tree()
+    data["nodes"].append(
+        {
+            "id": "LIB-Q05",
+            "question": "取消の理由に偏りはあるか",
+            "parent_question_id": "LIB-Q02",
+            "contribution": "偏りがあれば、取消を除く根拠が変わる",
+        }
+    )
+    return QuestionTree.model_validate(data)
+
+
+class TestTheShapeOfATree:
+    def test_only_the_node_without_a_parent_is_the_root(self) -> None:
+        tree = deepened_later()
+        assert [n.id for n in tree.nodes if n.is_root] == ["LIB-Q01"]
+
+    def test_the_children_of_a_node_come_in_the_order_the_tree_holds_them(
+        self,
+    ) -> None:
+        tree = deepened_later()
+        assert [n.id for n in tree.children("LIB-Q02")] == ["LIB-Q03", "LIB-Q05"]
+        assert tree.children("LIB-Q04") == []
+
+    def test_a_walk_lists_each_node_before_its_children_depth_first(self) -> None:
+        assert [n.id for n in deepened_later().walk()] == [
+            "LIB-Q01",
+            "LIB-Q02",
+            "LIB-Q03",
+            "LIB-Q05",
+            "LIB-Q04",
+        ]
+
+    def test_the_ancestors_of_a_node_come_nearest_first(self) -> None:
+        tree = deepened_later()
+        assert [n.id for n in tree.ancestors("LIB-Q05")] == ["LIB-Q02", "LIB-Q01"]
+        assert tree.ancestors("LIB-Q01") == []
+
+
 class TestUntouchedNodes:
     def test_a_node_with_no_design_below_it_is_a_next_candidate(self) -> None:
         data = branching_tree()
