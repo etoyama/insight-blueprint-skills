@@ -171,12 +171,16 @@ class QuestionNode(BaseModel):
     answers: list[Answer] = Field(default_factory=list)
     next_candidate: NextCandidate | None = None
 
+    @property
+    def is_root(self) -> bool:
+        return self.parent_question_id is None
+
     def current_answer(self) -> Answer | None:
         return self.answers[-1] if self.answers else None
 
     @model_validator(mode="after")
     def _check_node(self) -> Self:
-        if self.parent_question_id is not None and not self.contribution:
+        if not self.is_root and not self.contribution:
             raise ValueError(f"contribution: {self.id} has a parent and needs one")
         if len(set(self.design_ids)) != len(self.design_ids):
             raise ValueError(f"design_ids: {self.id} links the same design twice")
@@ -250,7 +254,25 @@ class QuestionTree(BaseModel):
         return max((a.round for n in self.nodes for a in n.answers), default=0)
 
     def root(self) -> QuestionNode:
-        return next(n for n in self.nodes if n.parent_question_id is None)
+        return next(n for n in self.nodes if n.is_root)
+
+    def children(self, node_id: str) -> list[QuestionNode]:
+        """The nodes right under *node_id*, in the order the tree holds them."""
+        return [n for n in self.nodes if n.parent_question_id == node_id]
+
+    def walk(self) -> list[QuestionNode]:
+        """Every node in the order a page lists them: each before its children."""
+        ordered: list[QuestionNode] = []
+        stack = [self.root()]
+        while stack:
+            node = stack.pop()
+            ordered.append(node)
+            stack.extend(reversed(self.children(node.id)))
+        return ordered
+
+    def ancestors(self, node_id: str) -> list[QuestionNode]:
+        """The nodes above *node_id*, the nearest first."""
+        return [self.node(a) for a in _ancestors(self._parent_map(), node_id)]
 
     def node(self, node_id: str) -> QuestionNode:
         for node in self.nodes:
@@ -274,11 +296,7 @@ class QuestionTree(BaseModel):
     def untouched_nodes(self) -> list[QuestionNode]:
         """The next candidates: no design is linked to the node or anything below it."""
         branch = self.designs_by_branch()
-        return [
-            n
-            for n in self.nodes
-            if n.parent_question_id is not None and not branch[n.id]
-        ]
+        return [n for n in self.nodes if not n.is_root and not branch[n.id]]
 
     def progress(self, statuses: Mapping[str, DesignStatus]) -> dict[str, Progress]:
         """The progress word of each node that has one, from the status of each linked design.
