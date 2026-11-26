@@ -11,10 +11,7 @@ from __future__ import annotations
 import pytest
 
 from skills._shared import tree_words
-from skills._shared.tree_check import Violation
-from skills._shared.tree_render import (
-    CitedEvent,
-)
+from skills._shared.tree_check import CitedEvent, Violation
 from tests.test_tree_render import (
     Element,
     by_id,

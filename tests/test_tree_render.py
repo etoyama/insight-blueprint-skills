@@ -34,10 +34,9 @@ from skills._shared import tree_words
 from skills._shared._html import Html
 from skills._shared.design_note import intent_words_of, status_word
 from skills._shared.tree_changes import ChangeKind
-from skills._shared.tree_check import Violation, ViolationKind
+from skills._shared.tree_check import CitedEvent, Violation, ViolationKind
 from skills._shared.tree_render import (
     CheckFailed,
-    CitedEvent,
     DesignSummary,
     render_tree_html,
 )

@@ -39,10 +39,8 @@ from skills._shared.tree_words import (
     HEARD_RESULT_WORD,
     HEARD_WORD,
     KIND_WORDS,
-    MARK_WORDS,
     RESULT_WORD,
     Mark,
-    before_revision,
     left_as_written,
     mark_text,
     reflection,
@@ -257,13 +255,6 @@ def _heard_word(context: Context, statement: AnswerStatement) -> tuple[str, ...]
     return ()
 
 
-def round_meta(tree: QuestionTree, answer: Answer) -> Html:
-    """The round of an earlier answer: it carries no mark, so it says its subject."""
-    before = before_revision(tree, answer.root_revision)
-    tail = f"（{before}）" if before else ""
-    return el("p", f"{reflection(answer.round)}{tail}", class_="meta")
-
-
 def current_round_meta(context: Context, answer: Answer) -> Html:
     """The round of a current answer, and that later rounds left it as it is.
 
@@ -271,7 +262,9 @@ def current_round_meta(context: Context, answer: Answer) -> Html:
     passes would leave no trace on an answer it did not touch.
     """
     latest = context.tree.current_round()
-    untouched = left_as_written(latest, answer.round) if answer.round < latest else None
+    untouched = (
+        f"　{left_as_written(latest, answer.round)}" if answer.round < latest else None
+    )
     return el("p", el("span", reflection(answer.round), class_="meta"), untouched)
 
 
@@ -282,16 +275,6 @@ def join_links(node_ids: list[str]) -> list[Html | str]:
             parts.append("、")
         parts.append(link_to(node_id, node_id))
     return parts
-
-
-def checked_in_its_card(node: QuestionNode) -> Html:
-    """In place of an answer that failed the check: its mark and its card."""
-    return el(
-        "p",
-        el("span", MARK_WORDS[Mark.violating][0], class_="mark"),
-        " ",
-        link_to(node.id, f"{node.id} のカードで確かめる"),
-    )
 
 
 def statement_list(context: Context, statements: Sequence[AnswerStatement]) -> Html:

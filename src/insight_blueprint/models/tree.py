@@ -261,7 +261,7 @@ class QuestionTree(BaseModel):
         return [n for n in self.nodes if n.parent_question_id == node_id]
 
     def walk(self) -> list[QuestionNode]:
-        """Every node in the order a page lists them: each before its children."""
+        """Every node, depth first: each before its children, siblings in tree order."""
         ordered: list[QuestionNode] = []
         stack = [self.root()]
         while stack:

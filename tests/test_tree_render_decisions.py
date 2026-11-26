@@ -8,7 +8,7 @@ decision shows the analysis results its reason rests on, or that it names none
 
 from __future__ import annotations
 
-from skills._shared.tree_render import CitedEvent
+from skills._shared.tree_check import CitedEvent
 from tests.test_tree_render import (
     Element,
     by_id,

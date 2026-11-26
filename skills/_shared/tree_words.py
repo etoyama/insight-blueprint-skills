@@ -1,9 +1,14 @@
 """The words a question tree shows the analyst, and what the legend says of them.
 
-The page (``tree_render``) and the report (``theme_report``) read every word
-they share from here, so a word is changed in one place (ADR-0055). Each table
-holds the word next to what the legend says it means, and the legend is built
-here, so neither can drift from the page.
+A word belongs here when it is said in two places or more: on the page
+(``tree_render``) and in the report (``theme_report``), in two sections of the
+page, or on the page and in the legend that explains it. So does every phrasing
+that counts a reflection round or a revision of the subject. A sentence only
+one section says stays with that section and takes its words from here. A word
+is then changed in one place (ADR-0055).
+
+Each table holds the word next to what the legend says it means, and the legend
+is built here from the same names, so it cannot drift from the page.
 """
 
 from __future__ import annotations
@@ -22,7 +27,7 @@ from insight_blueprint.models.tree import (
     TreeDecisionKind,
 )
 from skills._shared._html import Html, el, join
-from skills._shared.design_note import intent_words_of, status_word
+from skills._shared.design_note import EVENT_WORDS, intent_words_of, status_word
 from skills._shared.tree_changes import ChangeKind
 
 # The words the page says of the subject (ADR-0055); YAML and code say root.
@@ -38,6 +43,16 @@ _THIS_QUESTION = "この論点"
 
 CHANGES_HEADING = "前の振り返りから変わったこと"
 
+# The headings and link texts of the page that the legend names.
+COUNTS_HEADING = "進捗の数"
+NEXT_QUESTION_HEADING = "次に調べる論点"
+NEXT_CANDIDATES_HEADING = "次の候補"
+CURRENT_ANSWER_HEADING = "現時点の答え"
+DESIGN_TAG = "分析設計・"
+OPEN_EVIDENCE = "根拠を開く"
+OPEN_NOTE = "分析ノートを開く"
+BACK_TO_TREE = "論点ツリーへ戻る"
+
 
 def reflection(round: int) -> str:
     """A reflection round as the analyst counts it."""
@@ -52,7 +67,7 @@ def changes_title(before: int, now: int) -> str:
 def left_as_written(latest: int, round: int) -> str:
     """That the rounds after *round*, up to *latest*, left an answer as it is."""
     return (
-        f"　最新の振り返りは{_NTH.format(round=latest)}で、"
+        f"最新の振り返りは{_NTH.format(round=latest)}で、"
         f"{_NTH.format(round=round)}より後の振り返りでは、"
         "この答えを書き直していない。"
     )
@@ -100,6 +115,8 @@ AIM_LABELS = {
 }
 
 
+# Which marks an answer gets is decided by the page context; the enum lives
+# here because the table of its words is keyed by it.
 class Mark(StrEnum):
     """What a reader must notice about the current answer of a node."""
 
@@ -189,14 +206,14 @@ CHANGE_WORDS = {
 # none in the legend. The analyst never reads "below", "cite" or "event" (US-5).
 NOT_YET_WORDS = "まだ{whose}答えに入れていない分析結果"
 NO_LONGER_WORDS = "前は{whose}答えの根拠にしていて、今は外している分析結果"
-USED_ABOVE_WORDS = "この論点の分析結果を根拠にしている答え"
+USED_ABOVE_WORDS = f"{_THIS_QUESTION}の分析結果を根拠にしている答え"
 
 # What an answer rests on, in the analyst's words: an event of the data, or what
 # a person said (a hearing event is not called an analysis result, US-5 AC 5).
 RESULT_WORD = "分析結果"
 
 
-HEARD_RESULT_WORD = "人に聞いた答え"
+HEARD_RESULT_WORD = EVENT_WORDS["hearing"]
 
 
 HEARD_WORD = f"（{HEARD_RESULT_WORD}による）"
@@ -264,8 +281,8 @@ def legend() -> Html:
         el("summary", "読み方"),
         el(
             "p",
-            f"ページの冒頭には、{SUBJECT}への現時点の答え、前の回から変わったこと、"
-            "次に調べる論点を出す。その下に、論点ごとのカードを並べる。",
+            f"ページの冒頭には、{SUBJECT}への{CURRENT_ANSWER_HEADING}、前の回から変わったこと、"
+            f"{NEXT_QUESTION_HEADING}を出す。その下に、論点ごとのカードを並べる。",
         ),
         el(
             "p",
@@ -302,10 +319,11 @@ def legend() -> Html:
         _word_list(PROGRESS_WORDS.values()),
         el(
             "p",
-            "自分にも、下に置いた論点にも、分析設計を結んでいない論点は「未着手」と出し、"
-            "「進捗の数」にも数える。自分には分析設計を結ばず、下に置いた論点のどれかに"
+            "自分にも、下に置いた論点にも、分析設計を結んでいない論点は"
+            f"「{PROGRESS_WORDS[Progress.not_started][0]}」と出し、"
+            f"「{COUNTS_HEADING}」にも数える。自分には分析設計を結ばず、下に置いた論点のどれかに"
             "結んでいる論点は、進捗の言葉を出さず、下に置いた論点の進捗を、言葉ごとの数で"
-            "出す。「進捗の数」は、その論点を数えない。分析設計を結んだ論点の下に論点を"
+            f"出す。「{COUNTS_HEADING}」は、その論点を数えない。分析設計を結んだ論点の下に論点を"
             "置いたときは、進捗の言葉の後ろに、下に置いた論点の数を添える。",
         ),
         el(
@@ -314,7 +332,7 @@ def legend() -> Html:
             "根拠を挙げていない理由は、そのことを書く。区切った論点のカードには、"
             "区切った回と理由を出す。",
         ),
-        el("p", "現時点の答えは、文ごとに種類の言葉を付けて並べる。"),
+        el("p", f"{CURRENT_ANSWER_HEADING}は、文ごとに種類の言葉を付けて並べる。"),
         _word_list(KIND_WORDS.values()),
         el("p", "答えの上に出す印。"),
         _word_list(
@@ -329,11 +347,14 @@ def legend() -> Html:
             f"文の後ろの「{HEARD_WORD}」は、引用した出来事がすべて{HEARD_RESULT_WORD}"
             "（hearing）で、データの出来事が1つも無い文に付ける。",
         ),
-        el("p", "まだ分析設計を結んでいない論点は「次の候補」に並べる。"),
+        el(
+            "p",
+            f"まだ分析設計を結んでいない論点は「{NEXT_CANDIDATES_HEADING}」に並べる。",
+        ),
         el(
             "p",
             "論点の下には、その論点に結んだ分析設計を、子の論点より先に並べる。"
-            "分析設計のカードは破線の枠で、「分析設計・」と意図の言葉で始まる。"
+            f"分析設計のカードは破線の枠で、「{DESIGN_TAG}」と意図の言葉で始まる。"
             "同じ分析設計を2つ目の論点からは、id、状態の言葉、最初に出た論点への"
             "リンクだけの短い行で出す。",
         ),
@@ -341,19 +362,20 @@ def legend() -> Html:
             "p",
             "分析設計の状態は、次の言葉で出す。判定は分析設計の検証仮説（旧形式では"
             "仮説）に対するもので、論点の答えではない。論点の答えは、論点のカードの"
-            "「現時点の答え」に書く。",
+            f"「{CURRENT_ANSWER_HEADING}」に書く。",
         ),
         _status_table(),
         el(
             "p",
-            "各論点の「根拠を開く」を押すと、引用した journal の出来事と、前の振り返りの答えが開く。",
+            f"各論点の「{OPEN_EVIDENCE}」を押すと、引用した journal の出来事と、"
+            "前の振り返りの答えが開く。",
         ),
         el("p", "論点の親子と分析設計の派生は別の構造なので、2つの節に分けて並べる。"),
         el(
             "p",
-            "「分析ノートを開く」は、その分析設計の分析ノートへ飛ぶ。分析ノートはこの"
+            f"「{OPEN_NOTE}」は、その分析設計の分析ノートへ飛ぶ。分析ノートはこの"
             "ページの下に、分析設計ごとに並べてある。分析ノートの冒頭と末尾の"
-            "「論点ツリーへ戻る」で、論点ツリーの節へ戻る。",
+            f"「{BACK_TO_TREE}」で、論点ツリーの節へ戻る。",
         ),
         class_="legend",
         id="legend",

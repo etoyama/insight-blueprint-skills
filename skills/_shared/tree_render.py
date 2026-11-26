@@ -53,27 +53,36 @@ from skills._shared.tree_render_parts import (
     DesignSummary,
     Shown,
     answer_lines,
-    checked_in_its_card,
     current_round_meta,
     join_links,
     link_to,
     mark_line,
     result_lines,
-    round_meta,
     statement_item,
     word_of,
 )
 from skills._shared.tree_words import (
     AIM_LABELS,
+    BACK_TO_TREE,
+    COUNTS_HEADING,
+    CURRENT_ANSWER_HEADING,
     DECISION_LABELS,
+    DESIGN_TAG,
     GROUNDS_WORDS,
+    MARK_WORDS,
+    NEXT_CANDIDATES_HEADING,
+    NEXT_QUESTION_HEADING,
     NO_GROUNDS_WORDS,
     NOTE_LABELS,
+    OPEN_EVIDENCE,
+    OPEN_NOTE,
     PROGRESS_WORDS,
     RESULT_WORD,
     SHARED_ID_WORDS,
     SUBJECT,
     VIOLATION_WORDS,
+    Mark,
+    before_revision,
     below_text,
     legend,
     reflection,
@@ -244,14 +253,14 @@ def _card_order(designs: list[DesignSummary]) -> list[DesignSummary]:
 
 
 def _note_link(design_id: str) -> Html:
-    return link_to(note_anchor(design_id), "分析ノートを開く")
+    return link_to(note_anchor(design_id), OPEN_NOTE)
 
 
 def _counts(context: Context) -> Html:
     found = Counter(context.progress.values())
     return el(
         "section",
-        el("h2", "進捗の数"),
+        el("h2", COUNTS_HEADING),
         el(
             "p",
             join(
@@ -341,20 +350,34 @@ def _next_question(context: Context) -> Html:
         ]
         lines.append(_grounds(context, decision))
         if decision.kind is TreeDecisionKind.close:
-            lines.append(el("p", "区切ったので、次に調べる論点は決まっていない。"))
-    return el("section", join([el("h2", "次に調べる論点"), *lines]), id="next-question")
+            lines.append(
+                el("p", f"区切ったので、{NEXT_QUESTION_HEADING}は決まっていない。")
+            )
+    return el(
+        "section", join([el("h2", NEXT_QUESTION_HEADING), *lines]), id="next-question"
+    )
+
+
+def _checked_in_its_card(node: QuestionNode) -> Html:
+    """In place of an answer that failed the check: its mark and its card."""
+    return el(
+        "p",
+        el("span", MARK_WORDS[Mark.violating][0], class_="mark"),
+        " ",
+        link_to(node.id, f"{node.id} のカードで確かめる"),
+    )
 
 
 def _subject_answer(context: Context) -> Html:
     """The current answer to the subject and what it changed, ahead of everything else."""
     root = context.tree.root()
     answer = root.current_answer()
-    parts: list[Html | None] = [el("h2", f"{SUBJECT}への現時点の答え")]
+    parts: list[Html | None] = [el("h2", f"{SUBJECT}への{CURRENT_ANSWER_HEADING}")]
     match context.shown(root):
         case Shown.unanswered:
             parts.append(el("p", f"{SUBJECT}にはまだ答えていない。"))
         case Shown.violating:
-            parts.append(checked_in_its_card(root))
+            parts.append(_checked_in_its_card(root))
         case Shown.sound:
             assert answer is not None  # an answered node
             parts += answer_lines(context, root, answer)
@@ -407,7 +430,7 @@ def _next_candidates(context: Context) -> Html:
     ]
     return el(
         "section",
-        el("h2", "次の候補"),
+        el("h2", NEXT_CANDIDATES_HEADING),
         el(
             "p",
             "分析設計をまだ結んでいない論点。人に聞く問いと、聞いてきた答えを添える。",
@@ -469,7 +492,7 @@ def _design_card(context: Context, node: QuestionNode, design: DesignSummary) ->
         "div",
         el(
             "p",
-            el("span", f"分析設計・{design.intent}", class_="form-tag"),
+            el("span", f"{DESIGN_TAG}{design.intent}", class_="form-tag"),
             el("strong", link_to(f"design-{design.id}", design.id)),
             f" {design.title}",
         ),
@@ -543,7 +566,7 @@ def _node_card(context: Context, node: QuestionNode) -> Html:
             ]
         case Shown.sound:
             assert answer is not None  # an answered node
-            parts += answer_lines(context, node, answer, heading="現時点の答え")
+            parts += answer_lines(context, node, answer, heading=CURRENT_ANSWER_HEADING)
             if not subject:
                 parts.append(changes_section(context, node, "h4"))
             parts.append(used_above_section(context, node, answer))
@@ -580,7 +603,7 @@ def _evidence(
             ]
         else:
             sections += [
-                el("h4", "現時点の答えの根拠"),
+                el("h4", f"{CURRENT_ANSWER_HEADING}の根拠"),
                 _cited_statements(context, answer),
             ]
         earlier = list(reversed(node.answers[:-1]))
@@ -589,7 +612,7 @@ def _evidence(
             sections += [_earlier_answer(context.tree, a) for a in earlier]
     if not sections:
         sections.append(el("p", "まだ根拠は無い。"))
-    return el("details", el("summary", f"{node.id} の根拠を開く"), join(sections))
+    return el("details", el("summary", f"{node.id} の{OPEN_EVIDENCE}"), join(sections))
 
 
 def _violation(violation: Violation) -> Html:
@@ -635,10 +658,17 @@ def _cited_event(context: Context, event_id: str) -> Html:
     return el("li", *parts)
 
 
+def _round_meta(tree: QuestionTree, answer: Answer) -> Html:
+    """The round of an earlier answer: it carries no mark, so it says its subject."""
+    before = before_revision(tree, answer.root_revision)
+    tail = f"（{before}）" if before else ""
+    return el("p", f"{reflection(answer.round)}{tail}", class_="meta")
+
+
 def _earlier_answer(tree: QuestionTree, answer: Answer) -> Html:
     return el(
         "div",
-        round_meta(tree, answer),
+        _round_meta(tree, answer),
         el(
             "ul",
             join(
@@ -721,7 +751,7 @@ def _derivation(context: Context) -> Html:
 
 def _back_links(context: Context, design_id: str) -> Html:
     nodes = context.linked_by.get(design_id, [])
-    parts: list[Html | str] = [link_to("question-tree", "論点ツリーへ戻る")]
+    parts: list[Html | str] = [link_to("question-tree", BACK_TO_TREE)]
     if nodes:
         parts += ["　結んだ論点: ", *join_links(nodes)]
     return el("p", *parts, class_="meta")

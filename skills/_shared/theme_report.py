@@ -43,7 +43,10 @@ from skills._shared.design_note import (
 )
 from skills._shared.tree_check import CitedEvent
 from skills._shared.tree_words import (
+    AIM_LABELS,
+    CURRENT_ANSWER_HEADING,
     KIND_WORDS,
+    NEXT_QUESTION_HEADING,
     PROGRESS_WORDS,
     SUBJECT,
     below_text,
@@ -117,14 +120,8 @@ _AIM_SENTENCES: dict[AimKind, str] = {
     ),
 }
 
-# The two items of each kind of aim, as the Introduction lists them.
-_AIM_ITEMS: dict[AimKind, tuple[tuple[str, str], ...]] = {
-    AimKind.business: (("決める人", "decision_maker"), ("決めること", "decision")),
-    AimKind.research: (("想定読者", "audience"), ("主張の範囲", "claim_scope")),
-}
-
 _ABSTRACT_LEAD = (
-    f"{SUBJECT}への現時点の答えは次のとおり。"
+    f"{SUBJECT}への{CURRENT_ANSWER_HEADING}は次のとおり。"
     f"文の後ろの括弧は根拠にした{_RECORD}の番号で、本文は Appendix にある。"
 )
 
@@ -135,7 +132,6 @@ _BEFORE_ROOT_CHANGE = f"この答えは、{SUBJECT}を今の形に見直す前�
 _DECISION_WORDS = {
     TreeDecisionKind.close: "調べるのを止めた論点",
 }
-_NEXT_NODE = "次に調べる論点"
 
 
 @dataclass(frozen=True)
@@ -318,7 +314,7 @@ def _abstract(report: ThemeReport, cites: _Cites) -> list[str]:
 def _introduction(report: ThemeReport) -> list[str]:
     aim = report.aim.model_dump()
     items = [f"- {SUBJECT}: {_e(report.root_question)}"] + [
-        f"- {label}: {_e(aim[key])}" for label, key in _AIM_ITEMS[report.aim.kind]
+        f"- {label}: {_e(aim[key])}" for label, key in AIM_LABELS[report.aim.kind]
     ]
     if not report.nodes:
         return ["## Introduction", "\n".join(items), f"{SUBJECT}を論点に分けていない。"]
@@ -528,7 +524,7 @@ def _future_directions(report: ThemeReport) -> list[str]:
         lines.append("- ツリーの決定はまだ無い。")
     else:
         question = report.question_of(decision.node_id)
-        label = _DECISION_WORDS.get(decision.kind, _NEXT_NODE)
+        label = _DECISION_WORDS.get(decision.kind, NEXT_QUESTION_HEADING)
         lines += [
             f"- {label}: {decision.node_id} {_e(question)}",
             f"- 理由: {_e(decision.reason)}",
