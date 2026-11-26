@@ -168,11 +168,11 @@ Story が使う既存の helper（作り直さない）。
 | 合成シナリオを通して HTML を作る | `scripts/handoff_trial.py` の `Scenario`・`build`・`load_scenario`・`load_key`・`score`。step 名は `tree_io`・`design_io` の関数名と同じ |
 | 論点とその下の論点に結んだ分析設計 | `QuestionTree.designs_by_branch()`（`models/tree.py`） |
 | 上の論点を近い順に辿る | `_ancestors`（`models/tree.py`） |
-| 引用した出来事の本文を読む | `tree_read.cited_events`、`tree_render.CitedEvent` |
-| 文の数を引用先と照らす | `tree_check.numbers_in`、`_statement_problems` |
+| 引用した出来事の本文を読む | `tree_read.cited_events`、`tree_render_parts.CitedEvent` |
+| 文の数を引用先と照らす | `tree_check.numbers_in`、`tree_check._cite_problems` |
 | 答えを書く前に検査して、違反なら書かない | `tree_io.answer`（`_checked`・`_save`）。`decide` も同じ形にする |
-| 出来事を HTML に出す | `tree_render._cited_event`、`_statement`、`_link` |
-| 表示の言葉と凡例を1つの表で持つ | `tree_render` の `PROGRESS_WORDS`・`_KIND_WORDS`・`_MARK_WORDS`・`_DECISION_LABELS` |
+| 出来事を HTML に出す | `tree_render._cited_event`、`tree_render_parts._statement`、`tree_render_parts._link` |
+| 表示の言葉の表 | `tree_render_parts` の `PROGRESS_WORDS`・`KIND_WORDS`・`_MARK_WORDS`・`_DECISION_LABELS` |
 | 表示のテストの道具 | `tests/tree_io/_support.py`、`tests/tree_io/conftest.py`、`tests/test_tree_render.py` |
 | 鍵をツリーから導き直すテスト | `tests/test_handoff_trial.py` の `TestTheKeyHoldsForTheTree` |
 | 主題の版を上げる手順 | `tree_io revise-root`、`skills/analysis-framing/SKILL.md` の Step 4c |
@@ -408,9 +408,9 @@ classDiagram
 | モジュール / 関数 | 責務（する） | 境界（しない → 委譲先） |
 |---|---|---|
 | `skills/_shared/tree_changes.py`（新規） | `QuestionTree` から、答えの変化、上の論点での引用、引用していない下の結果を導く | ファイルを読まない → `tree_read`。出来事の本文を持たない → `tree_render` が `CitedEvent` と合わせる。HTML を作らない → `tree_render` |
-| `skills/_shared/tree_render.py` | ページの節を並べる。見出し・読み方・進捗の数・ツリーの決定・次の候補・論点ツリー・論点のカード・分析設計の派生・分析ノートを組み立てる。進み具合を数で出し、区切った理由と決定の引用を出す（34.6） | 導いた値の欄を作らない → `tree_render_derived`。言葉を持たない → `tree_render_parts`。差を計算しない → `tree_changes`。違反を見つけない → `tree_check`。分析ノートを作らない → `design_note`（他 Epic 領分） |
-| `skills/_shared/tree_render_parts.py`（34.5 で分けた） | 1つのページの文脈（`_Context`。`tree_changes` の値を1回だけ導いて持つ）、答えをどこまで見せるか（`Shown`）、言葉と凡例の表、節がともに使う部品（文、分析結果、回の行、リンク） | 節を並べない → `tree_render`。導いた値の欄を作らない → `tree_render_derived` |
-| `skills/_shared/tree_render_derived.py`（34.5 で分けた） | `tree_changes` が導いた値の欄を作る。前の回から変わったこと、まだ答えに入れていない分析結果、前は答えの根拠にしていて今は外している分析結果、この論点の分析結果を根拠にしている答え | 導かない → `_Context` が `tree_changes` を呼ぶ。言葉を持たない → `tree_render_parts` |
+| `skills/_shared/tree_render.py` | ページの節を並べる。見出し・読み方・進捗の数・ツリーの決定・次の候補・論点ツリー・論点のカード・分析設計の派生・分析ノートを組み立てる。進み具合を数で出し、区切った理由と決定の引用を出す（34.6）。自分の節だけで使う文は、ここの f-string に持つ（読み方の全文の `_legend`、決定がいつかを言う `_decision_head` と `_closed`） | 導いた値の欄を作らない → `tree_render_derived`。言葉の表と、モジュールをまたいで使う言い回しを持たない → `tree_render_parts`。差を計算しない → `tree_changes`。違反を見つけない → `tree_check`。分析ノートを作らない → `design_note`（他 Epic 領分） |
+| `skills/_shared/tree_render_parts.py`（34.5 で分けた） | 1つのページの文脈（`_Context`。`tree_changes` の値を1回だけ導いて持つ）、答えをどこまで見せるか（`Shown`）、言葉の表（`PROGRESS_WORDS`・`KIND_WORDS`・`_CHANGE_WORDS` など）、モジュールをまたいで使う言い回し（`_SUBJECT`・`_RESULT_WORD`・`_reflection` など）、文・分析結果・回の行・リンクを出す部品（`_statement`・`_result`・`_round_meta`・`_link`）。表と部品の多くは `tree_render` だけが使う（`_DECISION_LABELS`・`_GROUNDS_WORDS`・`_answer_lines` など） | 節を並べない → `tree_render`。導いた値の欄を作らない → `tree_render_derived`。1つの節だけで使う文を持たない → その節のモジュール |
+| `skills/_shared/tree_render_derived.py`（34.5 で分けた） | `tree_changes` が導いた値の欄を作る。前の回から変わったこと、まだ答えに入れていない分析結果、前は答えの根拠にしていて今は外している分析結果、この論点の分析結果を根拠にしている答え。欄の本文の文は、ここの f-string に持つ（`_changes`・`_left_out`・`_used_above_row`） | 導かない → `tree_render_parts._Context` が `tree_changes` を呼ぶ。言葉の表と、モジュールをまたいで使う言い回しを持たない → `tree_render_parts` |
 | `skills/_shared/tree_read.py::render` | 正本を読み、決定が引用した出来事も読み、検査の結果を `tree_render` に渡す。`changes` は導いた値を JSON にする | 言葉を決めない → `tree_render`。導かない → `tree_changes` |
 | `skills/_shared/tree_io.py::decide` | 引用つきの決定を、検査に通ってから書く | 検査の規則を持たない → `tree_check`。決定の種類と順の規則を持たない → `models/tree.py` |
 | `skills/_shared/tree_io.py` の読む命令（新規） | 導いた値を JSON で返し、reflection が分析者に見せられるようにする | 導かない → `tree_changes` |
@@ -522,7 +522,7 @@ sequenceDiagram
   6. `tree_render.py` は 1,000 行を超えた。この Story では分けない。34.5 の最初のコミットで、振る舞いを変えずに、文脈と部品のモジュールと、導いた値を出すモジュールに分ける。34.4 が並行で触っている間に半分近くを動かすとマージでぶつかり、分け目は2つ目の導いた値（上の論点での引用）が入ると決まるからである。
   7. 表に並べる前の回の文は、今の記録と照らし直さずに、開いた所に出る（レビューの指摘）。ツリーの検査が見るのは今の答えだけで、前の回の文はこれまで畳んだ中にしか無かった。前の回の文を並べることは US-1 AC 1 が求めているので、出し方は変えず、読み方にそのことを書いた。前の回の答えも検査して通らない文を畳む案は、`tree_check` を触るので、この Story では採らない。
   8. 比べる2つの答えが違う主題の版への答えなら、表の列に、それぞれが答えた主題の版を書く。
-- Consequences: 変わり方の4つの言葉は US-5 の表に無い。表の言葉（根拠にする、分析結果）を組み合わせて作ったので、人間が実物の画面で読んで直すなら、`tree_render._CHANGE_WORDS` の1か所を直せば済む。34.5 が足す「上の論点での引用」は、冒頭の欄（`#subject-answer`）へリンクできる。
+- Consequences: 変わり方の4つの言葉は US-5 の表に無い。表の言葉（根拠にする、分析結果）を組み合わせて作ったので、人間が実物の画面で読んで直すなら、`tree_render_parts._CHANGE_WORDS` の1か所を直せば済む。34.5 が足す「上の論点での引用」は、冒頭の欄（`#subject-answer`）へリンクできる。
 
 ### Decision: split-the-reflection-guide-out-of-story-34-6
 
@@ -602,6 +602,15 @@ sequenceDiagram
 - Alternatives considered: 「分析N巡目」と言う（人間の案。分析の数と振り返りの数が揃わない場面で表示が実際とずれ、用語集の「巡回」とも字が重なる）。日付で言う（同じ日に2回振り返ると見分けられず、回の順も読みにくい）。主題を見直した回数を「0回」も含めて常に出す（見直していないテーマに、意味のない行が出続ける）。同じ文が2つの行に出るとき、変わり方も文も同じ行をまとめる（34.5 のノートの案A。3枚の実物の表に当たる行が1つも無く、まとめても読む量が減らない）。2つ目以降の行で文を出さず「上の行と同じ文」と書く（行は減らず、行ごとに読めなくなる）。
 - Consequences: 文書・コード・テストは「振り返りの回」「回」「主題の版」を使い続けるので、内側と画面の言葉の組が2つ増えた（US-5 の表）。問いの紙の2語が変わり、過去の試行の記録と条件がずれる（34.7 の記録で日付と並べて読む）。主題を見直した合成の画面は、共有ノートのスクリプトで作った1枚だけで、fixture には足していない。冒頭の「まだ主題への答えに入れていない分析結果」が多いときに畳む作りは、この Epic では入れない（人間が PM のセッションで決めた、2026-11-26）。合成シナリオでは多くて2件で、何件から畳むかを決める材料が無いため、実際のテーマで長くなったときに直す。
 
+### Decision: words-are-not-yet-in-one-place
+
+- What: 分析者に見せる言葉を1つのモジュールに集めることは、この Epic ではしない。後の issue に回す。今の形は次のとおりで、Module Responsibilities の表をこの形に直した。`tree_render_parts` は言葉の表と、モジュールをまたいで使う言い回しを持つ。1つの節だけで使う文は、その節のモジュールの f-string にある（`tree_render` の `_legend`・`_decision_head`・`_closed`、`tree_render_derived` の `_changes`・`_left_out`・`_used_above_row`）。
+- Why: Epic のゲートのコード品質のレビューが、表の境界の列がコードと合わないと指摘した。表は、`tree_render` と `tree_render_derived` が言葉を持たず、`tree_render_parts` が節のともに使う部品を持つと書いていた。実際には、2つのモジュールが自分の文を持ち、`tree_render_parts` の名前の多くは `tree_render` だけが使う。
+- Criteria: 人間が、リリースして、使いながら直すと決めたこと（2026-11-26）。決め手は、リリースを遅らせないことである。
+- Affected modules: `skills/_shared/tree_render.py`、`skills/_shared/tree_render_parts.py`、`skills/_shared/tree_render_derived.py`、この DesignDoc の Module Responsibilities。
+- Alternatives considered: リリースの前に、言葉をすべて `tree_render_parts` に移す（動かす文が多く、リリースが遅れる）。表を直さない（読み手が、画面の言い回しを直す所は `tree_render_parts` だけだと思う）。
+- Consequences: 画面の言い回しを直すときは、`tree_render_parts` の表と、その節のモジュールの f-string の両方を探す。ほかの Decisions の Consequences に書いた直す所（`tree_render` の `_closed`・`_legend` など）は、今の形のままで合っている。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0055: 分析者に見せる言葉を内側の用語と分け、「根の問い」を「主題」と呼ぶ](../adr/0055-the-root-question-is-shown-as-the-subject.md): 表示の言葉と用語集だけを変え、コード上の名前と YAML は変えない。
@@ -648,3 +657,4 @@ sequenceDiagram
 - 2026-11-26 — 人間が図書館のシナリオの実物の画面を読み、言葉を3つ選んだ（「ここから」を外す、回を「N回目の振り返り」と言う、主題の版を見直した回数で言う。Decisions の `words-chosen-after-reading-the-real-pages`）。表示・skill・問いの紙・用語集・ADR-0055 を直した。
 - 2026-11-26 — 人間が新しい言葉の画面を2枚（心理的安全性の最新、主題を見直した後）読んだ。主題を見直した後の画面では引っかからなかった。答えの上の印に「こと」を付け（「N回目の振り返りで変わったこと」）、同じ文が2つの行に出る件は今のままにすると決めた（Decisions の `words-chosen-after-reading-the-real-pages` の 4 と 5）。この push で表示を固め、34.7 の試行は共有ノートの `final-display/` の HTML で読ませる。
 - 2026-11-26 — Story 34.7 completed: 表示を固めた後（e3521d1）で、2本の合成シナリオを sonnet・haiku・opus に3回ずつ読ませ、[記録](../handoff-trials/2026-11-26-after-the-display.md)を前の記録と並べた。正しかった回が上がったのは lib の q5（9 回中 7 回 → 9 回）だけで、落ちた問いがある。lib の q2 は 9 回中 3 回で、落とした6回はどれも LIB-Q04 を未着手に入れなかった（34.6 の後の画面は進捗の言葉を出さず、進捗の数も数えないが、鍵は未着手とする。34.6 のレビューの Medium が起きた）。q4 は haiku が答えの変化の表の別の行の出来事を足して、psy で3回、lib で1回落とした。どれを直すかは決めていない。人の読み手は分析者本人で、PM のセッションと Artifact のコメントで言ったことを記録にした。時間は計っていない。本人が問いの紙の6問に答える分は取れていない。lib の前は、Epic 34 の前の画面での記録が無いので、2026-11-21〜22 の記録と並べた。
+- 2026-11-26 — Epic のゲートで2つのレビュー（バグとセキュリティ、コード品質）を回した。マージの前に直すと付いた指摘のうち、人間の判断が要らない6つを直した。答えが根拠にしていない下の分析結果の行をページと同じ順に並べる、テストだけが呼ぶ決定の検査の関数を消す、主題を見直した後に論点ツリーの HTML を作り直す、Step T5 で `tree_io changes` の出力を読む、`CHANGELOG.md` の Upgrade note、Module Responsibilities の表をコードに合わせる（Decisions の `words-are-not-yet-in-one-place`）。
