@@ -1,8 +1,7 @@
-"""The context of a tree page, its words, and the parts its sections share.
+"""The context of a tree page and the parts its sections share.
 
-The words shown to the analyst live here, each table next to what the legend
-says it means, so ``tree_render`` and ``tree_render_derived`` say the same.
-Pure, like ``tree_render``: every string is untrusted and goes through ``_html``.
+The words come from ``tree_words``. Pure, like ``tree_render``: every string is
+untrusted and goes through ``_html``.
 """
 
 from __future__ import annotations
@@ -12,17 +11,14 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING
 
 from insight_blueprint.models.design import DesignForm, DesignStatus
 from insight_blueprint.models.tree import (
-    AimKind,
     Answer,
     AnswerStatement,
     Progress,
     QuestionNode,
     QuestionTree,
-    StatementKind,
     TreeDecision,
     TreeDecisionKind,
     design_id_of,
@@ -32,16 +28,25 @@ from skills._shared.design_note import DesignNote, intent_word, statement_of
 from skills._shared.design_note_reviews import comments_after_analysis
 from skills._shared.tree_changes import (
     AnswerChange,
-    ChangeKind,
     CitedAbove,
     UncitedBelow,
     answer_changes,
     cited_above,
     uncited_below,
 )
-
-if TYPE_CHECKING:  # tree_check imports CitedEvent from here, through tree_render
-    from skills._shared.tree_check import Violation
+from skills._shared.tree_check import CitedEvent, Violation
+from skills._shared.tree_words import (
+    HEARD_RESULT_WORD,
+    HEARD_WORD,
+    KIND_WORDS,
+    MARK_WORDS,
+    RESULT_WORD,
+    Mark,
+    before_revision,
+    left_as_written,
+    mark_text,
+    reflection,
+)
 
 
 @dataclass(frozen=True)
@@ -74,199 +79,10 @@ class DesignSummary:
 
 
 @dataclass(frozen=True)
-class CitedEvent:
-    id: str
-    type: str
-    direction: str | None
-    content: str
-
-
-@dataclass(frozen=True)
 class CheckFailed:
     """The cited-answer check could not run, so no answer is known to be sound."""
 
     message: str
-
-
-# The words the page says of the subject (ADR-0055); YAML and code say root.
-_SUBJECT = "主題"
-
-
-def _reflection(round: int) -> str:
-    """A reflection round as the analyst counts it: the page never says 回 N."""
-    return f"{round}回目の振り返り"
-
-
-def _before_revision(tree: QuestionTree, revision: int) -> str | None:
-    """What an answer to *revision* of the subject is, when the subject was revised since.
-
-    The page names no revision by number: the analyst counts the times the
-    subject was revised, and hears of it only once it was.
-    """
-    if revision >= tree.current_revision().revision:
-        return None
-    if len(tree.root_revisions) == 2:
-        return f"見直す前の{_SUBJECT}への答え"
-    return f"{revision}回目の見直しの前の{_SUBJECT}への答え"
-
-
-_AIM_LABELS = {
-    AimKind.business: (
-        ("決める人", "decision_maker"),
-        ("決めること", "decision"),
-    ),
-    AimKind.research: (
-        ("想定読者", "audience"),
-        ("主張の範囲", "claim_scope"),
-    ),
-}
-
-
-class Mark(StrEnum):
-    """What a reader must notice about the current answer of a node."""
-
-    changed = "changed"
-    first = "first"
-    before_root_change = "before_root_change"
-    violating = "violating"
-
-
-# Each table holds the word shown on the page and what the legend says it means,
-# so the legend cannot drift from the page.
-PROGRESS_WORDS = {
-    Progress.not_started: ("未着手", "分析設計を結んでいない。"),
-    Progress.investigating: ("検証中", "結んだ分析設計に、終わっていないものがある。"),
-    Progress.analyzed: ("分析済み", "結んだ分析設計がすべて終わっている。"),
-}
-
-
-# The words shown to the analyst are not the glossary's terms (ADR-0055): the
-# kinds keep their YAML values, the page says what each one tells the analyst.
-KIND_WORDS = {
-    StatementKind.claim: (
-        "これまでわかっていること",
-        "根拠にした分析結果から言えること。",
-    ),
-    StatementKind.undetermined: (
-        "まだ決められないこと",
-        "分析をしても、分析結果からは決められないこと。",
-    ),
-    StatementKind.weakening: (
-        "注意すべきこと",
-        "これまでわかっていることを弱める分析結果や、言える範囲を狭める条件。",
-    ),
-}
-
-
-# "{round}" is the round of the answer on a page and "N" in the legend.
-_MARK_WORDS = {
-    Mark.changed: (
-        "{round}回目の振り返りで変わったこと",
-        "最も新しい振り返り（N回目）で、前の振り返りから書き換わった答え。",
-    ),
-    Mark.first: (
-        "{round}回目の振り返りで初めて答えたこと",
-        "最も新しい振り返り（N回目）で、初めて書いた答え。",
-    ),
-    Mark.before_root_change: (
-        f"見直す前の{_SUBJECT}への答え",
-        f"{_SUBJECT}か到達点を見直す前の{_SUBJECT}に対して書いた答え。"
-        f"2回以上見直したときは、この言葉の代わりに、何回目の見直しの前の{_SUBJECT}"
-        "への答えかを言う。",
-    ),
-    Mark.violating: (
-        "記録と合わない答え",
-        "引用した出来事が journal に無い、結んでいない分析設計の出来事を引いている、"
-        "引用に無い数字を書いている、のどれかの答え。答えの文は閉じた中に畳む。",
-    ),
-}
-
-
-# How the last answer of a node uses an analysis result, next to the answer
-# before it. The page says only what the cites show (ADR-0056): it never says
-# that a result moved the answer or that a claim was withdrawn.
-_CHANGE_WORDS = {
-    ChangeKind.newly_cited: (
-        "新しく根拠にした",
-        "前の回の答えでは根拠にしていなかった分析結果を、この答えで根拠にした。",
-    ),
-    ChangeKind.dropped: (
-        "根拠から外した",
-        "前の回の答えでは根拠にしていた分析結果を、この答えでは根拠にしていない。",
-    ),
-    ChangeKind.reworded: (
-        "言っていることが変わった",
-        "同じ分析結果を根拠にしたまま、その分析結果について言っている文か、"
-        "文の種類が変わった。"
-        "言い回しを変えただけでも、ここに出る。",
-    ),
-    ChangeKind.unchanged: (
-        "変わっていない",
-        "同じ分析結果について、同じ文を言っている。表では畳んで出す。",
-    ),
-}
-
-
-# The results an answer leaves out, and the answers above that rest on a
-# result (ADR-0056). "{whose}" names the answer: the subject's, this node's, or
-# none in the legend. The analyst never reads "below", "cite" or "event" (US-5).
-_NOT_YET_WORDS = "まだ{whose}答えに入れていない分析結果"
-_NO_LONGER_WORDS = "前は{whose}答えの根拠にしていて、今は外している分析結果"
-_USED_ABOVE_WORDS = "この論点の分析結果を根拠にしている答え"
-
-# What an answer rests on, in the analyst's words: an event of the data, or what
-# a person said (a hearing event is not called an analysis result, US-5 AC 5).
-_RESULT_WORD = "分析結果"
-
-
-_HEARD_RESULT_WORD = "人に聞いた答え"
-
-
-_HEARD_WORD = f"（{_HEARD_RESULT_WORD}による）"
-
-
-_VIOLATION_WORDS = {
-    "missing-event": "journal に無い出来事",
-    "unlinked-design": "この論点に結んでいない分析設計の出来事",
-    "number-not-cited": "引用した出来事に無い数字",
-}
-
-
-_DECISION_LABELS = {
-    TreeDecisionKind.start: "最初の論点を選ぶ",
-    TreeDecisionKind.deepen: "深める",
-    TreeDecisionKind.return_: "親に戻る",
-    TreeDecisionKind.close: "区切る",
-}
-
-
-# How far the questions under a question have come (ADR-0057). "{whose}" is
-# the subject or this question; the analyst never reads "below" alone (US-5).
-_BELOW_WORDS = "{whose}の下に置いた論点 {count} つ: "
-
-
-def below_text(subject: bool, found: Counter[Progress]) -> str:
-    """The progress below a node in words, as the page and the report say it."""
-    whose = _SUBJECT if subject else "この論点"
-    # The furthest first, as in the sample the analyst read (分析済み 3、未着手 1).
-    counts = "、".join(
-        f"{PROGRESS_WORDS[p][0]} {found[p]}" for p in reversed(Progress) if found[p]
-    )
-    return _BELOW_WORDS.format(whose=whose, count=found.total()) + counts
-
-
-# What a decision's reason rests on (ADR-0058). "{word}" is the word for what it
-# cites: an analysis result, what a person said, or both.
-_GROUNDS_WORDS = "この理由の根拠にした{word}"
-_NO_GROUNDS_WORDS = "この理由は、根拠にした分析結果を挙げていない。"
-_SHARED_ID_WORDS = "{event_id} は記録に2つあり、どちらを根拠にしたかは分からない。"
-
-
-_NOTE_LABELS = (
-    ("ask", "人に聞く問い"),
-    ("changes_if", "その答えで変わる判断"),
-    ("known", "分かっていること"),
-)
 
 
 class Shown(StrEnum):
@@ -279,7 +95,7 @@ class Shown(StrEnum):
 
 
 @dataclass(frozen=True)
-class _Context:
+class Context:
     """The inputs of a page and the facts derived from them, computed once."""
 
     tree: QuestionTree
@@ -294,7 +110,6 @@ class _Context:
     violations: Mapping[str, Sequence[Violation]]
     # Node ids that link a design, in page order: the first one shows its card.
     linked_by: Mapping[str, list[str]]
-    children: Mapping[str | None, list[QuestionNode]]
     changes: Mapping[str, AnswerChange]
     uncited: Mapping[str, tuple[UncitedBelow, ...]]
     cited_above: Mapping[str, tuple[CitedAbove, ...]]
@@ -310,7 +125,7 @@ class _Context:
         checked: Sequence[Violation] | CheckFailed,
         design_notes: Mapping[str, Html],
         shared: frozenset[str],
-    ) -> _Context:
+    ) -> Context:
         for node in tree.nodes:
             for design_id in node.design_ids:
                 if design_id not in designs:
@@ -321,15 +136,12 @@ class _Context:
         for design_id in designs:
             if design_id not in design_notes:
                 raise ValueError(f"design '{design_id}' has no analysis note")
-        children: dict[str | None, list[QuestionNode]] = {}
-        for node in tree.nodes:
-            children.setdefault(node.parent_question_id, []).append(node)
         progress = tree.progress({d: s.status for d, s in designs.items()})
         violations: dict[str, list[Violation]] = {}
         for violation in () if isinstance(checked, CheckFailed) else checked:
             violations.setdefault(violation.node_id, []).append(violation)
         linked_by: dict[str, list[str]] = {}
-        for node in _page_order(tree.root(), children):
+        for node in tree.walk():
             for design_id in node.design_ids:
                 linked_by.setdefault(design_id, []).append(node.id)
         return cls(
@@ -341,7 +153,6 @@ class _Context:
             tree.progress_below(progress),
             violations,
             linked_by,
-            children,
             answer_changes(tree),
             uncited_below(tree),
             cited_above(tree),
@@ -379,58 +190,45 @@ class _Context:
         return marks
 
 
-def _page_order(
-    root: QuestionNode, children: Mapping[str | None, list[QuestionNode]]
-) -> list[QuestionNode]:
-    """The nodes as the tree section lists them: each before its children."""
-    ordered: list[QuestionNode] = []
-    stack = [root]
-    while stack:
-        node = stack.pop()
-        ordered.append(node)
-        stack.extend(reversed(children.get(node.id, [])))
-    return ordered
-
-
-def _link(target: str, label: str) -> Html:
+def link_to(target: str, label: str) -> Html:
     return el("a", label, href=f"#{target}")
 
 
-def _marks(context: _Context, node: QuestionNode, answer: Answer) -> Html | None:
+def mark_line(context: Context, node: QuestionNode, answer: Answer) -> Html | None:
     marks = [
-        el("span", _mark_text(context.tree, mark, answer), class_="mark")
+        el("span", mark_text(context.tree, mark, answer), class_="mark")
         for mark in context.marks_of(node)
     ]
     return el("p", *marks) if marks else None
 
 
-def _answer_lines(
-    context: _Context, node: QuestionNode, answer: Answer, heading: str | None = None
+def answer_lines(
+    context: Context, node: QuestionNode, answer: Answer, heading: str | None = None
 ) -> list[Html | None]:
     """An answer that passed the check: its marks, statements and round."""
     return [
-        _marks(context, node, answer),
+        mark_line(context, node, answer),
         el("p", heading, class_="answer-heading") if heading else None,
-        _statement_list(context, answer.statements),
-        _current_round_meta(context, answer),
+        statement_list(context, answer.statements),
+        current_round_meta(context, answer),
     ]
 
 
-def _is_heard(context: _Context, event_id: str) -> bool:
+def is_heard(context: Context, event_id: str) -> bool:
     event = context.events.get(event_id)
     return event is not None and event.type == "hearing"
 
 
-def _result(context: _Context, event_id: str) -> list[Html | str]:
+def result_lines(context: Context, event_id: str) -> list[Html | str]:
     """An analysis result as the analyst reads it: where it comes from, then what it says."""
     event = context.events.get(event_id)
     if event is None:
         return [f"記録に見つからない {event_id}"]
     design_id = design_id_of(event_id)
-    word = _word_of(context, event_id)
+    word = word_of(context, event_id)
     nodes = context.linked_by.get(design_id, [])
-    source: list[Html | str] = ["論点 ", *_join_links(nodes), "、"] if nodes else []
-    source += ["分析設計 ", _link(f"design-{design_id}", design_id)]
+    source: list[Html | str] = ["論点 ", *join_links(nodes), "、"] if nodes else []
+    source += ["分析設計 ", link_to(f"design-{design_id}", design_id)]
     return [
         el("strong", f"{word} {event_id}"),
         " ",
@@ -439,15 +237,7 @@ def _result(context: _Context, event_id: str) -> list[Html | str]:
     ]
 
 
-def _mark_text(tree: QuestionTree, mark: Mark, answer: Answer) -> str:
-    if mark is Mark.before_root_change:
-        before = _before_revision(tree, answer.root_revision)
-        assert before is not None  # the mark is given to such an answer only
-        return before
-    return _MARK_WORDS[mark][0].format(round=answer.round)
-
-
-def _statement(statement: AnswerStatement, *tail: str) -> Html:
+def statement_item(statement: AnswerStatement, *tail: str) -> Html:
     return el(
         "li",
         el("span", KIND_WORDS[statement.kind][0], class_="kind"),
@@ -456,67 +246,62 @@ def _statement(statement: AnswerStatement, *tail: str) -> Html:
     )
 
 
-def _heard_word(context: _Context, statement: AnswerStatement) -> tuple[str, ...]:
+def _heard_word(context: Context, statement: AnswerStatement) -> tuple[str, ...]:
     """The word for a statement whose every cited event is what a person said.
 
     The check counts a number in a hearing event as recorded, so the page is
     where a reader sees that no event of the data stands behind the statement.
     """
-    if all(_is_heard(context, cite) for cite in statement.cites):
-        return (f" {_HEARD_WORD}",)
+    if all(is_heard(context, cite) for cite in statement.cites):
+        return (f" {HEARD_WORD}",)
     return ()
 
 
-def _round_meta(tree: QuestionTree, answer: Answer) -> Html:
+def round_meta(tree: QuestionTree, answer: Answer) -> Html:
     """The round of an earlier answer: it carries no mark, so it says its subject."""
-    before = _before_revision(tree, answer.root_revision)
+    before = before_revision(tree, answer.root_revision)
     tail = f"（{before}）" if before else ""
-    return el("p", f"{_reflection(answer.round)}{tail}", class_="meta")
+    return el("p", f"{reflection(answer.round)}{tail}", class_="meta")
 
 
-def _current_round_meta(context: _Context, answer: Answer) -> Html:
+def current_round_meta(context: Context, answer: Answer) -> Html:
     """The round of a current answer, and that later rounds left it as it is.
 
     The marks only know the latest round, so without this line a round that
     passes would leave no trace on an answer it did not touch.
     """
     latest = context.tree.current_round()
-    untouched = (
-        f"　最新の振り返りは{latest}回目で、{answer.round}回目より後の振り返りでは、"
-        "この答えを書き直していない。"
-        if answer.round < latest
-        else None
-    )
-    return el("p", el("span", _reflection(answer.round), class_="meta"), untouched)
+    untouched = left_as_written(latest, answer.round) if answer.round < latest else None
+    return el("p", el("span", reflection(answer.round), class_="meta"), untouched)
 
 
-def _join_links(node_ids: list[str]) -> list[Html | str]:
+def join_links(node_ids: list[str]) -> list[Html | str]:
     parts: list[Html | str] = []
     for position, node_id in enumerate(node_ids):
         if position:
             parts.append("、")
-        parts.append(_link(node_id, node_id))
+        parts.append(link_to(node_id, node_id))
     return parts
 
 
-def _checked_in_its_card(node: QuestionNode) -> Html:
+def checked_in_its_card(node: QuestionNode) -> Html:
     """In place of an answer that failed the check: its mark and its card."""
     return el(
         "p",
-        el("span", _MARK_WORDS[Mark.violating][0], class_="mark"),
+        el("span", MARK_WORDS[Mark.violating][0], class_="mark"),
         " ",
-        _link(node.id, f"{node.id} のカードで確かめる"),
+        link_to(node.id, f"{node.id} のカードで確かめる"),
     )
 
 
-def _statement_list(context: _Context, statements: Sequence[AnswerStatement]) -> Html:
+def statement_list(context: Context, statements: Sequence[AnswerStatement]) -> Html:
     return el(
         "ul",
-        join(_statement(s, *_heard_word(context, s)) for s in statements),
+        join(statement_item(s, *_heard_word(context, s)) for s in statements),
         class_="statements",
     )
 
 
-def _word_of(context: _Context, event_id: str) -> str:
+def word_of(context: Context, event_id: str) -> str:
     """What an answer rests on: what a person said, or an analysis result."""
-    return _HEARD_RESULT_WORD if _is_heard(context, event_id) else _RESULT_WORD
+    return HEARD_RESULT_WORD if is_heard(context, event_id) else RESULT_WORD

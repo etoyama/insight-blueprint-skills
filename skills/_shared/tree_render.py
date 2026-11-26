@@ -8,18 +8,18 @@ inputs give the same bytes. Interaction is ``<details>`` only.
 Every string that reaches the page comes from analysts or models, so none of it
 is trusted: see ``_html`` for how markup is told from text.
 
-The page is built in three modules: this one lays out the sections,
-``tree_render_parts`` holds the context of a page, the words and the parts the
-sections share, and ``tree_render_derived`` shows what ``tree_changes`` derives.
+The page is built in four modules: this one lays out the sections,
+``tree_render_parts`` holds the context of a page and the parts the sections
+share, ``tree_render_derived`` shows what ``tree_changes`` derives, and
+``tree_words`` holds the words and the legend.
 """
 
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Iterable, Mapping, Sequence
-from typing import TYPE_CHECKING
+from collections.abc import Mapping, Sequence
 
-from insight_blueprint.models.design import TERMINAL_STATUSES, DesignForm, DesignStatus
+from insight_blueprint.models.design import TERMINAL_STATUSES
 from insight_blueprint.models.tree import (
     Aim,
     Answer,
@@ -36,58 +36,50 @@ from skills._shared.design_note import (
     FORM_WORDS,
     NOTE_CSS,
     direction_gloss,
-    intent_words_of,
     note_anchor,
     status_word,
 )
 from skills._shared.design_note_reviews import AFTER_ANALYSIS
+from skills._shared.tree_check import CitedEvent, Violation
 from skills._shared.tree_render_derived import (
-    _changes,
-    _left_out,
-    _pointers_to_the_top,
-    _used_above,
+    changes_section,
+    left_out_sections,
+    pointers_to_the_top,
+    used_above_section,
 )
 from skills._shared.tree_render_parts import (
-    _AIM_LABELS,
-    _CHANGE_WORDS,
-    _DECISION_LABELS,
-    _GROUNDS_WORDS,
-    _HEARD_RESULT_WORD,
-    _HEARD_WORD,
-    _MARK_WORDS,
-    _NO_GROUNDS_WORDS,
-    _NO_LONGER_WORDS,
-    _NOT_YET_WORDS,
-    _NOTE_LABELS,
-    _RESULT_WORD,
-    _SHARED_ID_WORDS,
-    _SUBJECT,
-    _USED_ABOVE_WORDS,
-    _VIOLATION_WORDS,
-    KIND_WORDS,
-    PROGRESS_WORDS,
     CheckFailed,
-    CitedEvent,
+    Context,
     DesignSummary,
     Shown,
-    _answer_lines,
-    _checked_in_its_card,
-    _Context,
-    _current_round_meta,
-    _join_links,
-    _link,
-    _marks,
-    _reflection,
-    _result,
-    _round_meta,
-    _statement,
-    _word_of,
-    below_text,
+    answer_lines,
+    checked_in_its_card,
+    current_round_meta,
+    join_links,
+    link_to,
+    mark_line,
+    result_lines,
+    round_meta,
+    statement_item,
+    word_of,
 )
-
-if TYPE_CHECKING:  # tree_check imports this module (CitedEvent)
-    from skills._shared.tree_check import Violation
-
+from skills._shared.tree_words import (
+    AIM_LABELS,
+    DECISION_LABELS,
+    GROUNDS_WORDS,
+    NO_GROUNDS_WORDS,
+    NOTE_LABELS,
+    PROGRESS_WORDS,
+    RESULT_WORD,
+    SHARED_ID_WORDS,
+    SUBJECT,
+    VIOLATION_WORDS,
+    below_text,
+    legend,
+    reflection,
+    revision_name,
+    when_decided,
+)
 
 _TREE_CSS = """.legend { background: var(--panel); border: 1px solid var(--line); padding: .5rem 1rem; }
 .tree, .tree ul, .derivation, .derivation ul {
@@ -163,14 +155,14 @@ def render_tree_html(
     *shared* holds the cited ids two journal events share; a decision citing one
     shows neither text.
     """
-    context = _Context.of(tree, designs, events, violations, design_notes, shared)
+    context = Context.of(tree, designs, events, violations, design_notes, shared)
     body = join(
         [
             _header(tree),
             _check_notice(violations),
             _subject_answer(context),
             _next_question(context),
-            _legend(),
+            legend(),
             _counts(context),
             _decisions(context),
             _next_candidates(context),
@@ -186,7 +178,7 @@ def _header(tree: QuestionTree) -> Html:
     revision = tree.current_revision()
     parts = [
         el("h1", f"論点ツリー {tree.theme_id}"),
-        el("p", el("strong", f"{_SUBJECT}: "), revision.question),
+        el("p", el("strong", f"{SUBJECT}: "), revision.question),
         *(el("p", line) for line in _aim_lines(revision.aim)),
     ]
     # A subject never revised says nothing of revisions (the analyst never reads 版).
@@ -195,7 +187,7 @@ def _header(tree: QuestionTree) -> Html:
         parts += [
             el(
                 "p",
-                _link("root-history", f"{_SUBJECT}を{revised}回見直した"),
+                link_to("root-history", f"{SUBJECT}を{revised}回見直した"),
                 class_="meta",
             ),
             _root_history(tree),
@@ -204,158 +196,26 @@ def _header(tree: QuestionTree) -> Html:
 
 
 def _aim_lines(aim: Aim) -> list[str]:
-    return [f"{label}: {getattr(aim, field)}" for label, field in _AIM_LABELS[aim.kind]]
+    return [f"{label}: {getattr(aim, field)}" for label, field in AIM_LABELS[aim.kind]]
 
 
 def _root_history(tree: QuestionTree) -> Html:
     rows = []
     for revision in tree.root_revisions:
         aim = "、".join(_aim_lines(revision.aim))
-        which = (
-            f"最初の{_SUBJECT}"
-            if revision.revision == 1
-            else f"{revision.revision - 1}回目の見直しの後の{_SUBJECT}"
-        )
         rows.append(
             el(
                 "li",
-                f"{which}: {revision.question}（{aim}）",
+                f"{revision_name(revision.revision)}: {revision.question}（{aim}）",
                 f" 理由: {revision.reason}" if revision.reason else "",
             )
         )
     return el(
         "details",
-        el("summary", f"{_SUBJECT}を見直した履歴"),
+        el("summary", f"{SUBJECT}を見直した履歴"),
         el("ul", join(rows)),
         id="root-history",
     )
-
-
-def _word_list(words: Iterable[tuple[str, str]]) -> Html:
-    return el("ul", join(el("li", f"{word}: {meaning}") for word, meaning in words))
-
-
-def _legend() -> Html:
-    return el(
-        "details",
-        el("summary", "読み方"),
-        el(
-            "p",
-            f"ページの冒頭には、{_SUBJECT}への現時点の答え、前の回から変わったこと、"
-            "次に調べる論点を出す。その下に、論点ごとのカードを並べる。",
-        ),
-        el(
-            "p",
-            "「前の振り返りから変わったこと」は、答えと、その1つ前の答えを比べて、根拠にした"
-            "分析結果ごとに1行で出す。分け方は、根拠にしたかどうかと、文が同じか"
-            "どうかだけで決まる。なぜ変えたかは記録に無いので、出さない。",
-        ),
-        el(
-            "p",
-            "記録と照らして確かめるのは、それぞれの論点の今の答えだけである。"
-            "表に並べる前の振り返りの文は、今の記録と照らし直していない。",
-        ),
-        _word_list(_CHANGE_WORDS.values()),
-        el(
-            "p",
-            f"「{_NOT_YET_WORDS.format(whose='')}」は、論点の答えが一度も根拠にして"
-            "いない分析結果を、その分析結果を根拠にした論点の答えと並べて出す。"
-            "差が出なかった分析の結果も、ここに出る。"
-            f"「{_NO_LONGER_WORDS.format(whose='')}」は、最後に根拠にした振り返りと、"
-            "その次の答えで新しく根拠にした分析結果を添えて、畳んで出す。"
-            "外した理由は記録に無いので、出さない。",
-        ),
-        el(
-            "p",
-            f"「{_USED_ABOVE_WORDS}」は、論点の分析結果を、上の論点の答えが"
-            "どう使っているかを出す。上の論点が、この論点の答えより後の振り返りで、"
-            "その分析結果について言っていることを変えていれば、変えた振り返りを書く。",
-        ),
-        el(
-            "p",
-            "進捗は、論点に結んだ分析設計の状態から導いた言葉。色は添えただけで、"
-            "意味は言葉が持つ。",
-        ),
-        _word_list(PROGRESS_WORDS.values()),
-        el(
-            "p",
-            "自分にも、下に置いた論点にも、分析設計を結んでいない論点は「未着手」と出し、"
-            "「進捗の数」にも数える。自分には分析設計を結ばず、下に置いた論点のどれかに"
-            "結んでいる論点は、進捗の言葉を出さず、下に置いた論点の進捗を、言葉ごとの数で"
-            "出す。「進捗の数」は、その論点を数えない。分析設計を結んだ論点の下に論点を"
-            "置いたときは、進捗の言葉の後ろに、下に置いた論点の数を添える。",
-        ),
-        el(
-            "p",
-            "ツリーの決定の理由の下には、理由の根拠にした分析結果を出す。"
-            "根拠を挙げていない理由は、そのことを書く。区切った論点のカードには、"
-            "区切った回と理由を出す。",
-        ),
-        el("p", "現時点の答えは、文ごとに種類の言葉を付けて並べる。"),
-        _word_list(KIND_WORDS.values()),
-        el("p", "答えの上に出す印。"),
-        _word_list(
-            (word.format(round="N"), meaning) for word, meaning in _MARK_WORDS.values()
-        ),
-        el(
-            "p",
-            "振り返りは、テーマの答えを書き直したひと区切り。1回目、2回目と数える。",
-        ),
-        el(
-            "p",
-            f"文の後ろの「{_HEARD_WORD}」は、引用した出来事がすべて{_HEARD_RESULT_WORD}"
-            "（hearing）で、データの出来事が1つも無い文に付ける。",
-        ),
-        el("p", "まだ分析設計を結んでいない論点は「次の候補」に並べる。"),
-        el(
-            "p",
-            "論点の下には、その論点に結んだ分析設計を、子の論点より先に並べる。"
-            "分析設計のカードは破線の枠で、「分析設計・」と意図の言葉で始まる。"
-            "同じ分析設計を2つ目の論点からは、id、状態の言葉、最初に出た論点への"
-            "リンクだけの短い行で出す。",
-        ),
-        el(
-            "p",
-            "分析設計の状態は、次の言葉で出す。判定は分析設計の検証仮説（旧形式では"
-            "仮説）に対するもので、論点の答えではない。論点の答えは、論点のカードの"
-            "「現時点の答え」に書く。",
-        ),
-        _status_table(),
-        el(
-            "p",
-            "各論点の「根拠を開く」を押すと、引用した journal の出来事と、前の振り返りの答えが開く。",
-        ),
-        el("p", "論点の親子と分析設計の派生は別の構造なので、2つの節に分けて並べる。"),
-        el(
-            "p",
-            "「分析ノートを開く」は、その分析設計の分析ノートへ飛ぶ。分析ノートはこの"
-            "ページの下に、分析設計ごとに並べてある。分析ノートの冒頭と末尾の"
-            "「論点ツリーへ戻る」で、論点ツリーの節へ戻る。",
-        ),
-        class_="legend",
-        id="legend",
-    )
-
-
-def _status_rows() -> list[tuple[str, DesignStatus, list[str]]]:
-    """(word, YAML value, intent words) for each status a form can take."""
-    rows: dict[str, tuple[DesignStatus, list[str]]] = {}
-    for status in DesignStatus:
-        for form in DesignForm:
-            if not form.allows(status):
-                continue
-            word = status_word(form, status)
-            rows.setdefault(word, (status, []))[1].extend(intent_words_of(form))
-    return [(word, status, intents) for word, (status, intents) in rows.items()]
-
-
-def _status_table() -> Html:
-    head = el("tr", join(el("th", h) for h in ("表示の言葉", "YAML の status", "意図")))
-    body = join(
-        el("tr", el("td", word), el("td", status.value), el("td", "、".join(intents)))
-        for word, status, intents in _status_rows()
-    )
-    return el("table", el("thead", head), el("tbody", body), id="status-words")
 
 
 def _id_key(design_id: str) -> tuple[int, str]:
@@ -384,10 +244,10 @@ def _card_order(designs: list[DesignSummary]) -> list[DesignSummary]:
 
 
 def _note_link(design_id: str) -> Html:
-    return _link(note_anchor(design_id), "分析ノートを開く")
+    return link_to(note_anchor(design_id), "分析ノートを開く")
 
 
-def _counts(context: _Context) -> Html:
+def _counts(context: Context) -> Html:
     found = Counter(context.progress.values())
     return el(
         "section",
@@ -408,17 +268,15 @@ def _decision_head(decision: TreeDecision) -> list[Html | str]:
     when = (
         ""
         if decision.kind is TreeDecisionKind.start
-        else "（振り返りの前）"
-        if decision.round == 0
-        else f"（{_reflection(decision.round)}の後）"
+        else f"（{when_decided(decision.round)}）"
     )
     return [
-        f"{_DECISION_LABELS[decision.kind]}{when}: ",
-        _link(decision.node_id, decision.node_id),
+        f"{DECISION_LABELS[decision.kind]}{when}: ",
+        link_to(decision.node_id, decision.node_id),
     ]
 
 
-def _grounds(context: _Context, decision: TreeDecision) -> Html | None:
+def _grounds(context: Context, decision: TreeDecision) -> Html | None:
     """What the reason of *decision* rests on, or that it names nothing (ADR-0058).
 
     The first decision comes before any analysis, so it is not told to cite.
@@ -426,29 +284,29 @@ def _grounds(context: _Context, decision: TreeDecision) -> Html | None:
     if not decision.cites:
         if decision.kind is TreeDecisionKind.start:
             return None
-        return el("p", _NO_GROUNDS_WORDS, class_="meta")
+        return el("p", NO_GROUNDS_WORDS, class_="meta")
     # The event kept for a shared id may not be the one cited, so it names no word.
     words = list(
         dict.fromkeys(
-            _RESULT_WORD if c in context.shared else _word_of(context, c)
+            RESULT_WORD if c in context.shared else word_of(context, c)
             for c in decision.cites
         )
     )
     rows = [
-        el("li", _SHARED_ID_WORDS.format(event_id=c))
+        el("li", SHARED_ID_WORDS.format(event_id=c))
         if c in context.shared
-        else el("li", *_result(context, c))
+        else el("li", *result_lines(context, c))
         for c in decision.cites
     ]
     return el(
         "div",
-        el("p", _GROUNDS_WORDS.format(word="と".join(words)), class_="meta"),
+        el("p", GROUNDS_WORDS.format(word="と".join(words)), class_="meta"),
         el("ul", join(rows)),
         class_="grounds",
     )
 
 
-def _decisions(context: _Context) -> Html:
+def _decisions(context: Context) -> Html:
     rows = [
         el("li", *_decision_head(d), f" {d.reason}", _grounds(context, d))
         for d in context.tree.decisions
@@ -457,7 +315,7 @@ def _decisions(context: _Context) -> Html:
     return el("section", el("h2", "ツリーの決定"), body, id="decisions")
 
 
-def _next_question(context: _Context) -> Html:
+def _next_question(context: Context) -> Html:
     """The last decision: it names the question to look into next, and why."""
     tree = context.tree
     lines: list[Html | None]
@@ -468,7 +326,7 @@ def _next_question(context: _Context) -> Html:
         latest = tree.current_round()
         # A reflection round written after the last decision still waits for its own.
         waiting = (
-            f"{_reflection(latest)}の後は、まだ決めていない。最後に決めたこと: "
+            f"{reflection(latest)}の後は、まだ決めていない。最後に決めたこと: "
             if decision.round < latest
             else None
         )
@@ -487,21 +345,21 @@ def _next_question(context: _Context) -> Html:
     return el("section", join([el("h2", "次に調べる論点"), *lines]), id="next-question")
 
 
-def _subject_answer(context: _Context) -> Html:
+def _subject_answer(context: Context) -> Html:
     """The current answer to the subject and what it changed, ahead of everything else."""
     root = context.tree.root()
     answer = root.current_answer()
-    parts: list[Html | None] = [el("h2", f"{_SUBJECT}への現時点の答え")]
+    parts: list[Html | None] = [el("h2", f"{SUBJECT}への現時点の答え")]
     match context.shown(root):
         case Shown.unanswered:
-            parts.append(el("p", f"{_SUBJECT}にはまだ答えていない。"))
+            parts.append(el("p", f"{SUBJECT}にはまだ答えていない。"))
         case Shown.violating:
-            parts.append(_checked_in_its_card(root))
+            parts.append(checked_in_its_card(root))
         case Shown.sound:
             assert answer is not None  # an answered node
-            parts += _answer_lines(context, root, answer)
-            parts.append(_changes(context, root, "h3"))
-    parts += _left_out(context, root, f"{_SUBJECT}への", "h3")
+            parts += answer_lines(context, root, answer)
+            parts.append(changes_section(context, root, "h3"))
+    parts += left_out_sections(context, root, "h3")
     return el("section", join(parts), class_="now", id="subject-answer")
 
 
@@ -523,7 +381,7 @@ def _notes(node: QuestionNode) -> Html | None:
         return None
     rows = [
         el("li", f"{label}: {getattr(note, field)}")
-        for field, label in _NOTE_LABELS
+        for field, label in NOTE_LABELS
         if getattr(note, field)
     ]
     if note.answer:
@@ -537,11 +395,11 @@ def _notes(node: QuestionNode) -> Html | None:
     return el("ul", join(rows), class_="notes")
 
 
-def _next_candidates(context: _Context) -> Html:
+def _next_candidates(context: Context) -> Html:
     items = [
         el(
             "li",
-            el("strong", _link(node.id, node.id)),
+            el("strong", link_to(node.id, node.id)),
             f" {node.question}",
             _notes(node) or el("p", "まだメモは無い。", class_="note"),
         )
@@ -560,7 +418,7 @@ def _next_candidates(context: _Context) -> Html:
     )
 
 
-def _question_tree(context: _Context) -> Html:
+def _question_tree(context: Context) -> Html:
     tree = context.tree
 
     def branch(node: QuestionNode) -> Html:
@@ -568,7 +426,7 @@ def _question_tree(context: _Context) -> Html:
             el("li", _design_card(context, node, design))
             for design in _card_order([context.designs[d] for d in node.design_ids])
         ]
-        below = [branch(c) for c in context.children.get(node.id, [])]
+        below = [branch(c) for c in tree.children(node.id)]
         items = designs + below
         return el(
             "li",
@@ -590,7 +448,7 @@ def _comments_after_analysis(count: int) -> list[str]:
     return [f"{AFTER_ANALYSIS} コメント: {count} 件", "　"] if count else []
 
 
-def _design_card(context: _Context, node: QuestionNode, design: DesignSummary) -> Html:
+def _design_card(context: Context, node: QuestionNode, design: DesignSummary) -> Html:
     """The full card under the first node on the page; a short row under the others."""
     word = status_word(design.form, design.status)
     first = context.linked_by[design.id][0]
@@ -601,7 +459,7 @@ def _design_card(context: _Context, node: QuestionNode, design: DesignSummary) -
                 "p",
                 el("strong", design.id),
                 f"　{word}　",
-                _link(first, f"{first} の下に出ている"),
+                link_to(first, f"{first} の下に出ている"),
                 class_="meta",
             ),
             class_=f"branch form-{design.form.value}",
@@ -612,7 +470,7 @@ def _design_card(context: _Context, node: QuestionNode, design: DesignSummary) -
         el(
             "p",
             el("span", f"分析設計・{design.intent}", class_="form-tag"),
-            el("strong", _link(f"design-{design.id}", design.id)),
+            el("strong", link_to(f"design-{design.id}", design.id)),
             f" {design.title}",
         ),
         el("p", f"{statement}: {design.statement}") if design.statement else None,
@@ -628,7 +486,7 @@ def _design_card(context: _Context, node: QuestionNode, design: DesignSummary) -
     )
 
 
-def _progress_meta(context: _Context, node: QuestionNode) -> list[Html | str]:
+def _progress_meta(context: Context, node: QuestionNode) -> list[Html | str]:
     """The progress word, the counts of the nodes under *node*, or both (ADR-0057)."""
     parts: list[Html | str] = []
     progress = context.progress.get(node.id)
@@ -640,41 +498,36 @@ def _progress_meta(context: _Context, node: QuestionNode) -> list[Html | str]:
             "　" if parts else "",
             el(
                 "span",
-                below_text(node.parent_question_id is None, found),
+                below_text(node.is_root, found),
                 class_="below",
             ),
         ]
     return parts
 
 
-def _closed(context: _Context, node: QuestionNode) -> Html | None:
+def _closed(context: Context, node: QuestionNode) -> Html | None:
     """The round a question was closed after, and why (ADR-0057)."""
     decision = context.closed_by(node)
     if decision is None:
         return None
-    when = (
-        "振り返りの前に"
-        if decision.round == 0
-        else f"{_reflection(decision.round)}の後に"
-    )
     return el(
         "div",
-        el("p", f"{when}区切った。理由: {decision.reason}"),
+        el("p", f"{when_decided(decision.round)}に区切った。理由: {decision.reason}"),
         _grounds(context, decision),
         class_="closed",
     )
 
 
-def _node_card(context: _Context, node: QuestionNode) -> Html:
+def _node_card(context: Context, node: QuestionNode) -> Html:
     meta = _progress_meta(context, node)
-    if node.parent_question_id is not None:
+    if not node.is_root:
         meta.append(f"　寄与: {node.contribution}")
     if node.origin_event_id is not None:
         meta.append(f"　発見元: {node.origin_event_id}")
     answer = node.current_answer()
     violated = context.violations.get(node.id, ())
     # The subject's answer, what it changed and what it leaves out lead the page.
-    subject = node.parent_question_id is None
+    subject = node.is_root
     parts: list[Html | None] = [
         el("p", el("strong", node.id), f" {node.question}"),
         el("p", *meta, class_="meta"),
@@ -685,20 +538,20 @@ def _node_card(context: _Context, node: QuestionNode) -> Html:
         case Shown.violating:
             assert answer is not None  # an answered node
             parts += [
-                _marks(context, node, answer),
-                _current_round_meta(context, answer),
+                mark_line(context, node, answer),
+                current_round_meta(context, answer),
             ]
         case Shown.sound:
             assert answer is not None  # an answered node
-            parts += _answer_lines(context, node, answer, heading="現時点の答え")
+            parts += answer_lines(context, node, answer, heading="現時点の答え")
             if not subject:
-                parts.append(_changes(context, node, "h4"))
-            parts.append(_used_above(context, node, answer))
+                parts.append(changes_section(context, node, "h4"))
+            parts.append(used_above_section(context, node, answer))
     parts.append(_closed(context, node))
     if subject:
-        parts += _pointers_to_the_top(context, node)
+        parts += pointers_to_the_top(context, node)
     else:
-        parts += _left_out(context, node, "この論点の", "h4")
+        parts += left_out_sections(context, node, "h4")
     parts += [_notes(node), _evidence(context, node, violated)]
     # The border colour is a progress word's: a node shown by its counts has none.
     progress = context.progress.get(node.id)
@@ -707,7 +560,7 @@ def _node_card(context: _Context, node: QuestionNode) -> Html:
 
 
 def _evidence(
-    context: _Context, node: QuestionNode, violated: Sequence[Violation]
+    context: Context, node: QuestionNode, violated: Sequence[Violation]
 ) -> Html:
     answer = node.current_answer()
     sections: list[Html] = []
@@ -740,7 +593,7 @@ def _evidence(
 
 
 def _violation(violation: Violation) -> Html:
-    word = _VIOLATION_WORDS[violation.kind]
+    word = VIOLATION_WORDS[violation.kind]
     return el(
         "li",
         f"文 {violation.statement}: {word}（{violation.kind}）",
@@ -748,17 +601,17 @@ def _violation(violation: Violation) -> Html:
     )
 
 
-def _cited_statements(context: _Context, answer: Answer) -> Html:
+def _cited_statements(context: Context, answer: Answer) -> Html:
     return el(
         "ul",
         join(
-            _statement(s, el("ul", join(_cited_event(context, c) for c in s.cites)))
+            statement_item(s, el("ul", join(_cited_event(context, c) for c in s.cites)))
             for s in answer.statements
         ),
     )
 
 
-def _cited_event(context: _Context, event_id: str) -> Html:
+def _cited_event(context: Context, event_id: str) -> Html:
     event = context.events.get(event_id)
     if event is None:
         return el("li", f"journal に見つからない出来事 {event_id}")
@@ -766,7 +619,7 @@ def _cited_event(context: _Context, event_id: str) -> Html:
     parts: list[Html | str] = [
         el("strong", event_id),
         " design: ",
-        _link(f"design-{design_id}", design_id),
+        link_to(f"design-{design_id}", design_id),
     ]
     if event.type:
         parts.append(f" type: {event.type}")
@@ -785,18 +638,18 @@ def _cited_event(context: _Context, event_id: str) -> Html:
 def _earlier_answer(tree: QuestionTree, answer: Answer) -> Html:
     return el(
         "div",
-        _round_meta(tree, answer),
+        round_meta(tree, answer),
         el(
             "ul",
             join(
-                _statement(s, f"（引用: {', '.join(s.cites)}）")
+                statement_item(s, f"（引用: {', '.join(s.cites)}）")
                 for s in answer.statements
             ),
         ),
     )
 
 
-def _derivation(context: _Context) -> Html:
+def _derivation(context: Context) -> Html:
     designs = context.designs
     children: dict[str, list[str]] = {}
     for design in designs.values():
@@ -821,7 +674,7 @@ def _derivation(context: _Context) -> Html:
             "　",
         ]
         facts += (
-            ["結んだ論点: ", *(_join_links(nodes))] if nodes else ["論点に結んでいない"]
+            ["結んだ論点: ", *(join_links(nodes))] if nodes else ["論点に結んでいない"]
         )
         if design.parent_id is not None and design.parent_id not in designs:
             facts.append(f"　派生元: {design.parent_id}")
@@ -866,15 +719,15 @@ def _derivation(context: _Context) -> Html:
     )
 
 
-def _back_links(context: _Context, design_id: str) -> Html:
+def _back_links(context: Context, design_id: str) -> Html:
     nodes = context.linked_by.get(design_id, [])
-    parts: list[Html | str] = [_link("question-tree", "論点ツリーへ戻る")]
+    parts: list[Html | str] = [link_to("question-tree", "論点ツリーへ戻る")]
     if nodes:
-        parts += ["　結んだ論点: ", *_join_links(nodes)]
+        parts += ["　結んだ論点: ", *join_links(nodes)]
     return el("p", *parts, class_="meta")
 
 
-def _design_notes(context: _Context) -> Html:
+def _design_notes(context: Context) -> Html:
     # The back link sits above and below a note: the note is long, so the way
     # back must be in reach from both ends.
     blocks = [

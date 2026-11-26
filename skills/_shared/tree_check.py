@@ -25,7 +25,6 @@ from typing import Literal
 
 from insight_blueprint.models.tree import QuestionTree, design_id_of
 from skills._shared.design_io import DEFAULT_BASE_DIR, resolve_base_dir
-from skills._shared.tree_render import CitedEvent
 
 # The dashes and triangles writers use for "down" all read as one minus: a
 # glyph left out passes as an unsigned number. The wave dash is left out
@@ -74,6 +73,16 @@ def _sign_of(written: str | None) -> Sign:
 
 
 ViolationKind = Literal["missing-event", "unlinked-design", "number-not-cited"]
+
+
+@dataclass(frozen=True)
+class CitedEvent:
+    """A journal event an answer or a decision cites, as the check and the page read it."""
+
+    id: str
+    type: str
+    direction: str | None
+    content: str
 
 
 @dataclass(frozen=True)

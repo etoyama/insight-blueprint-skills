@@ -30,8 +30,7 @@ from insight_blueprint.models.tree import (
     TreeDecisionKind,
 )
 from insight_blueprint.validate import validate_tree_schema
-from skills._shared import tree_render
-from skills._shared import tree_render_parts as parts
+from skills._shared import tree_words
 from skills._shared._html import Html
 from skills._shared.design_note import intent_words_of, status_word
 from skills._shared.tree_changes import ChangeKind
@@ -883,7 +882,7 @@ class TestViolatingAnswers:
         assert not [e for e in root.walk() if e.attrs.get("id") == "check-notice"]
 
     def test_every_violation_kind_has_its_word(self) -> None:
-        assert set(tree_render._VIOLATION_WORDS) == set(get_args(ViolationKind))
+        assert set(tree_words.VIOLATION_WORDS) == set(get_args(ViolationKind))
 
 
 class TestCheckCouldNotRun:
@@ -1546,12 +1545,12 @@ class TestEveryKindHasItsWord:
     @pytest.mark.parametrize(
         ("words", "kinds"),
         [
-            (tree_render.PROGRESS_WORDS, Progress),
-            (tree_render.KIND_WORDS, StatementKind),
-            (tree_render._MARK_WORDS, parts.Mark),
-            (parts._CHANGE_WORDS, ChangeKind),
-            (tree_render._DECISION_LABELS, TreeDecisionKind),
-            (tree_render._AIM_LABELS, AimKind),
+            (tree_words.PROGRESS_WORDS, Progress),
+            (tree_words.KIND_WORDS, StatementKind),
+            (tree_words.MARK_WORDS, tree_words.Mark),
+            (tree_words.CHANGE_WORDS, ChangeKind),
+            (tree_words.DECISION_LABELS, TreeDecisionKind),
+            (tree_words.AIM_LABELS, AimKind),
         ],
     )
     def test_the_table_covers_the_enum(self, words: dict, kinds: type) -> None:

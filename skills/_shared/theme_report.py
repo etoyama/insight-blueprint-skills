@@ -41,11 +41,13 @@ from skills._shared.design_note import (
     lead_sentence,
     statement_of,
 )
-from skills._shared.tree_render import (
+from skills._shared.tree_check import CitedEvent
+from skills._shared.tree_words import (
     KIND_WORDS,
     PROGRESS_WORDS,
-    CitedEvent,
+    SUBJECT,
     below_text,
+    reflection,
 )
 from skills._shared.verdict_table import Fixed, Text, VerdictMetric, metric_tables
 
@@ -59,8 +61,6 @@ READER_WORDS: Mapping[str, str] = {
     "親の論点": "上位の論点",
     "寄与": "答えると分かること",
 }
-# The glossary itself calls the root question 主題 (ADR-0055): no rewrite.
-_ROOT = "主題"
 _RECORD = READER_WORDS["journal の出来事"]
 _DESIGN = READER_WORDS["分析設計"]
 _PARENT = READER_WORDS["親の論点"]
@@ -124,12 +124,12 @@ _AIM_ITEMS: dict[AimKind, tuple[tuple[str, str], ...]] = {
 }
 
 _ABSTRACT_LEAD = (
-    f"{_ROOT}への現時点の答えは次のとおり。"
+    f"{SUBJECT}への現時点の答えは次のとおり。"
     f"文の後ろの括弧は根拠にした{_RECORD}の番号で、本文は Appendix にある。"
 )
 
 _NOT_CONCLUDED = f"この{_DESIGN}は、まだ結論が出ていない。"
-_BEFORE_ROOT_CHANGE = f"この答えは、{_ROOT}を今の形に見直す前に書いた。"
+_BEFORE_ROOT_CHANGE = f"この答えは、{SUBJECT}を今の形に見直す前に書いた。"
 
 # What a decision says about its node: where to look next, or where it stopped.
 _DECISION_WORDS = {
@@ -317,11 +317,11 @@ def _abstract(report: ThemeReport, cites: _Cites) -> list[str]:
 
 def _introduction(report: ThemeReport) -> list[str]:
     aim = report.aim.model_dump()
-    items = [f"- {_ROOT}: {_e(report.root_question)}"] + [
+    items = [f"- {SUBJECT}: {_e(report.root_question)}"] + [
         f"- {label}: {_e(aim[key])}" for label, key in _AIM_ITEMS[report.aim.kind]
     ]
     if not report.nodes:
-        return ["## Introduction", "\n".join(items), f"{_ROOT}を論点に分けていない。"]
+        return ["## Introduction", "\n".join(items), f"{SUBJECT}を論点に分けていない。"]
     table = _table(
         ("論点", "問い", _PARENT, _CONTRIBUTION, "進捗"),
         (
@@ -340,7 +340,7 @@ def _introduction(report: ThemeReport) -> list[str]:
     return [
         "## Introduction",
         "\n".join(items),
-        f"{_ROOT}を、次の論点に分けて調べた。",
+        f"{SUBJECT}を、次の論点に分けて調べた。",
         table,
     ]
 
@@ -555,7 +555,7 @@ def _blocks(report: ThemeReport) -> Iterator[str]:
     yield f"# {_e(report.root_question)}"
     yield (
         f"テーマ {report.theme_id} のレポート。"
-        f"{report.round}回目の振り返りの時点の記録にもとづく。"
+        f"{reflection(report.round)}の時点の記録にもとづく。"
     )
     yield from _abstract(report, cites)
     yield from _introduction(report)

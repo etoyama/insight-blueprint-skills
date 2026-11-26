@@ -20,7 +20,7 @@ import pytest
 
 from skills._shared import tree_read
 from skills._shared.tree_changes import AnswerChange, ChangeKind, UncitedBelow
-from skills._shared.tree_render_parts import _CHANGE_WORDS
+from skills._shared.tree_words import CHANGE_WORDS
 from tests.skills._auto import round_item
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills.test_next_candidate_structure import _library
@@ -230,7 +230,7 @@ class TestThePresentationReadsWhatChangedFromTheTree:
     def test_each_kind_of_change_is_said_as_the_page_says_it(self) -> None:
         present = _step("### Step T5: ")
         for kind in (ChangeKind.newly_cited, ChangeKind.dropped, ChangeKind.reworded):
-            assert f"`{kind.value}` {_CHANGE_WORDS[kind][0]}" in present
+            assert f"`{kind.value}` {CHANGE_WORDS[kind][0]}" in present
 
     def test_the_two_headings_split_on_whether_the_node_cited_it_before(
         self,
