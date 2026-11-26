@@ -56,6 +56,7 @@ class TestScenarios:
     def test_it_uses_the_words_the_analyst_sees(self) -> None:
         """Epic 34 US-5: the subject, not the root."""
         assert not re.search("根(?!拠)", _doc())
+        assert "未判別" not in _doc()
 
 
 class TestTheReaderGetsOnlyTheHtml:

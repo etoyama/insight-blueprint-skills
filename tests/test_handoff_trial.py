@@ -556,6 +556,7 @@ class TestPrompt:
         ):
             assert word in head
         assert not re.search("根(?!拠)", head)
+        assert "未判別" not in head
 
 
 class TestRecord:
