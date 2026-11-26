@@ -548,3 +548,53 @@ class TestTheChangeThroughTheCommandLine:
         assert "前の回から変わったこと（回 1 → 回 2）" in top
         assert "言っていることが変わった" in top
         assert "これまでわかっていること 期限切れは152件で、延長の余地がある" in top
+
+
+class TestLeftOutAndUsedAboveThroughTheCommandLine:
+    """Epic 34 US-2 AC 1, AC 2 and US-3 AC 1, end to end through the CLI."""
+
+    def test_the_page_lists_what_the_subject_leaves_out_and_how_it_uses_a_result(
+        self, world: Path
+    ) -> None:
+        count = {"kind": "claim", "text": "期限切れは152件", "cites": ["LIB-H01-E01"]}
+        notice = {
+            "kind": "claim",
+            "text": "通知の日は効かない",
+            "cites": ["LIB-H02-E01"],
+        }
+        rounds = [
+            [
+                {"node_id": "LIB-Q01", "statements": [count]},
+                {"node_id": "LIB-Q02", "statements": [count]},
+                {"node_id": "LIB-Q03", "statements": [notice]},
+            ],
+            [
+                {
+                    "node_id": "LIB-Q01",
+                    "statements": [
+                        count | {"kind": "weakening", "text": "152件は1館だけ"}
+                    ],
+                }
+            ],
+        ]
+        for answers in rounds:
+            done = _run_cli(
+                world, "answer", "--theme", "LIB", payload={"answers": answers}
+            )
+            assert done.returncode == 0, done.stderr
+
+        done = _run_cli(world, "render", "--theme", "LIB")
+
+        assert done.returncode == 0, done.stderr
+        page = parse(Path(json.loads(done.stdout)["path"]).read_text(encoding="utf-8"))
+        top = " ".join(by_id(page, "subject-answer").text().split())
+        assert "まだ主題への答えに入れていない分析結果" in top
+        assert "LIB-H02 は期限切れ152件、取消除外後34.6%" in top
+        assert "論点 LIB-Q03 の回 1 の答えが" in top
+        card = " ".join(by_id(page, "LIB-Q02").text().split())
+        assert "この論点の分析結果を根拠にしている答え" in card
+        assert "論点 LIB-Q01（主題）の回 2 の答えが根拠にしている" in card
+        assert (
+            "論点 LIB-Q01 の答えは回 2 から、この分析結果から言っていることを変えた。"
+            "この論点の答えは回 1 のままで、変わっていない。"
+        ) in card
