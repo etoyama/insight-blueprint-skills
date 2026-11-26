@@ -1,0 +1,57 @@
+date: '2026-11-26'
+scenario: lib
+stage: round-2
+reader:
+  kind: claude
+  name: haiku (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 主題の答えには「これまでわかっていること」（翌日以降の通知は期限切れが18%と多い）もあるが、主題そのもの（取り置き期限を延ばす試行をするか）は「延長の試行をするかは、来館できる日の少なさを確かめるまで決められない」と書かれており、決まっていない。
+    verdict: undetermined
+  q2:
+    note: LIB-Q02 は分析済みだが、答えは「152件と数えられた」という claim だけで、まだ決められないことが無いので含めない。LIB-Q03
+      は分析済みで、「通知の遅れで増えているかは、まだ見分けられない」が残る。
+    not_started:
+    - LIB-Q04
+    - LIB-Q05
+    - LIB-Q06
+    analyzed_undetermined:
+    - LIB-Q03
+  q3:
+    note: 主題の「これまでわかっていること」は LIB-H02-E01 が支え、「注意すべきこと」と「まだ決められないこと」は LIB-H02-E02 が弱める。LIB-H01-E01
+      は今の主題の答えの根拠に入っていないので挙げない。
+    supports:
+    - event_id: LIB-H02-E01
+      design_id: LIB-H02
+    weakens:
+    - event_id: LIB-H02-E02
+      design_id: LIB-H02
+  q4:
+    note: 主題 LIB-Q01 の答えが変わり、新しく根拠にしたのは LIB-H02-E01 と LIB-H02-E02。LIB-H01-E01 は根拠から外れたので含めない。LIB-Q03
+      は今回初めて答えた論点なので変わった扱いにしない。LIB-Q02 は答えを書き直していない。
+    changed_nodes:
+    - LIB-Q01
+    evidence:
+    - LIB-H02-E01
+    - LIB-H02-E02
+  q5:
+    note: 理由（通知の日を揃えても金曜に確保した本の期限切れが多いままなので、開館日数を先に確かめる）の根拠として記録されているのは LIB-H02-E02。LIB-Q06
+      の発見元として LIB-H02-E03 が書かれているが、理由の根拠としては挙げられていないので含めていない。
+    node_id: LIB-Q06
+    reason_events:
+    - LIB-H02-E02
+  q6:
+    note: 上位の論点で、今回も前回も同じ出来事を引用しているものが無い。LIB-Q02 の上位は LIB-Q01 だが、LIB-Q01 は前回 LIB-H01-E01
+      を引用していたのに今回は引用していない。LIB-Q03 は今回初めて答えた論点なので対象外。
+    nodes: []
+    evidence: []
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: true
+  q6: true

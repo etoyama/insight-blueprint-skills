@@ -1,0 +1,54 @@
+date: '2026-11-26'
+scenario: psy
+stage: round-4
+reader:
+  kind: claude
+  name: haiku (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 「これまでわかっていること」（平均0.30上がった）はあるが、「まだ決められないこと」として、上司支援と負荷軽減の効果を見分けるまで優先するかは決められないと書かれている。
+    verdict: undetermined
+  q2:
+    note: PSY-Q06 は分析設計が未で未着手。PSY-Q04 は分析済みで、「まだ決められないこと」が答えに残っている。PSY-Q02、PSY-Q03、PSY-Q05
+      は分析済みだが、答えが「これまでわかっていること」だけなので含めない。
+    not_started:
+    - PSY-Q06
+    analyzed_undetermined:
+    - PSY-Q04
+  q3:
+    note: 主題の答えの「これまでわかっていること」は PSY-H03-E01 を根拠にしている。「注意すべきこと」は PSY-H04-E01 を根拠にし、上昇を上司支援の効果と言い切れないとしている。
+    supports:
+    - event_id: PSY-H03-E01
+      design_id: PSY-H03
+    weakens:
+    - event_id: PSY-H04-E01
+      design_id: PSY-H04
+  q4:
+    note: 主題 PSY-Q01 の答えが3回目から4回目で書き換わった。今回新しく根拠にした出来事は PSY-H04-E01。PSY-Q04 は4回目で初めて答えたので含めない。PSY-H03-E01
+      は言い方が変わったが、新しく根拠にしたわけではないので含めない。PSY-H01-E01 は根拠から外したので含めない。
+    changed_nodes:
+    - PSY-Q01
+    evidence:
+    - PSY-H04-E01
+  q5:
+    note: 次に調べる理由は、上司支援の評価が上がった回答者の78%が業務負荷も下がった部署にいたこと（PSY-H04-E01）に基づく。
+    node_id: PSY-Q06
+    reason_events:
+    - PSY-H04-E01
+  q6:
+    note: PSY-Q03 は4回目で書き直していない。上の論点である主題 PSY-Q01 は、3回目と4回目の両方で PSY-H03-E01 を引用しており、4回目では引用する文が変わった。PSY-Q02
+      と PSY-Q05 は、その上の論点が同じ出来事を引用していないので該当しない。
+    nodes:
+    - PSY-Q03
+    evidence:
+    - PSY-H03-E01
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: true
+  q6: true

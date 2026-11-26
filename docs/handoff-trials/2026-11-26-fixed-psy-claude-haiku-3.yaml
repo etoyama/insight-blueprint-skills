@@ -1,0 +1,54 @@
+date: '2026-11-26'
+scenario: psy
+stage: round-4
+reader:
+  kind: claude
+  name: haiku (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 主題の答えには「同じ人でも上司支援の評価が上がった年は心理的安全性が平均0.30上がった」という claim があるが、「上司への働きかけを優先するか」は上司支援と負荷軽減の効果を見分けるまで決められないとされている。決めること自体は未決定。
+    verdict: undetermined
+  q2:
+    note: PSY-Q02、PSY-Q03、PSY-Q05 は分析済みで、答えは claim のみ（未決定の文が無い）なので挙げない。PSY-Q04 は分析済みで、「重なった部署で、上司支援と負荷軽減のどちらが効いたかはまだ見分けられない」という未決定が残る。
+    not_started:
+    - PSY-Q06
+    analyzed_undetermined:
+    - PSY-Q04
+  q3:
+    note: 主題の「これまでわかっていること」を支えるのは PSY-H03-E01。「注意すべきこと」として、同じ人での上昇を上司支援の効果とは言い切れないと弱めているのは
+      PSY-H04-E01。
+    supports:
+    - event_id: PSY-H03-E01
+      design_id: PSY-H03
+    weakens:
+    - event_id: PSY-H04-E01
+      design_id: PSY-H04
+  q4:
+    note: 前回（3回目）から答えが変わったのは主題 PSY-Q01 のみ。今回新しく根拠にしたのは PSY-H04-E01。PSY-H03-E01 は根拠のまま言い方が変わったので新規ではない。PSY-Q04
+      は4回目で初めて答えた論点なので除外。
+    changed_nodes:
+    - PSY-Q01
+    evidence:
+    - PSY-H04-E01
+  q5:
+    note: 次に調べる論点は PSY-Q06。理由の根拠として挙げられているのは PSY-H04-E01 のみ。
+    node_id: PSY-Q06
+    reason_events:
+    - PSY-H04-E01
+  q6:
+    note: PSY-Q03 は3回目から答えを書き直していない。上の主題 PSY-Q01 は3回目と4回目の両方で PSY-H03-E01 を引用しているが、文は「…上がり、優先する根拠になる」から「…上がった」へ変わっている。PSY-Q02
+      と PSY-Q05 は、上の論点がその出来事を引用していないので該当しない。
+    nodes:
+    - PSY-Q03
+    evidence:
+    - PSY-H03-E01
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: true
+  q6: true
