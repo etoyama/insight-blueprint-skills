@@ -604,6 +604,16 @@ class TestRecord:
         with pytest.raises(ValidationError):
             Record.model_validate(self._record(key, comment="x"))
 
+    @pytest.mark.parametrize(
+        "kept",
+        sorted((REPO_ROOT / "docs" / "handoff-trials").glob("*.yaml")),
+        ids=lambda p: p.stem,
+    )
+    def test_a_kept_record_still_reads(self, kept: Path) -> None:
+        """ADR-0035: a record is read as it was scored, from before q6 too."""
+        record = Record.model_validate(yaml.safe_load(kept.read_text(encoding="utf-8")))
+        assert set(record.score) <= set(QUESTIONS)
+
 
 def _cli(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
