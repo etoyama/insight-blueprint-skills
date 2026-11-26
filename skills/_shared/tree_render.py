@@ -244,7 +244,7 @@ _CHANGE_WORDS = {
     ),
     ChangeKind.unchanged: (
         "変わっていない",
-        "同じ分析結果から、同じ文を言っている。表では畳む。",
+        "同じ分析結果から、同じ文を言っている。表では畳んで出す。",
     ),
 }
 
@@ -833,8 +833,9 @@ def _changes(context: _Context, node: QuestionNode, heading_tag: str) -> Html | 
         body += [
             el(
                 "p",
-                f"回 {before} の答えを読んだ人は、根拠にした分析結果と、そこから"
-                "言っていることが変わった、次の所だけ読み直せばよい。",
+                f"回 {before} の答えを読んだ人は、次の表だけ読み直せばよい。"
+                "根拠にした分析結果か、そこから言っていることが、"
+                f"回 {before} から変わった所を並べている。",
             ),
             _change_table(context, change, changed),
         ]

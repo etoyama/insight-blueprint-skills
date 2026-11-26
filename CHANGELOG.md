@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of `/analysis-reflection` puts the events behind the analyst's reason into the decision, and offers
   主題そのものを見直す beside deepen, return and close; choosing it goes to the step of
   `/analysis-framing` that raises the root revision ([ADR-0058](docs/adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md), #266).
+- **The question tree opens with the answer to the subject and what it changed.** The page now starts
+  with the current answer to the subject, what that answer changed since the answer before it, and the
+  question to look into next with its reason; the reading guide is folded. "What changed" lists one row
+  per analysis result the answer rests on, with what the earlier round said from it and what this round
+  says, sorted into newly used, no longer used, said differently and unchanged. Every question card
+  shows the same for its own answer, and an answer of an earlier round says that later rounds left it as
+  it is. The rows are derived from the cites of the two answers and never stored, so a tree saved before
+  shows them too; a sentence that was only reworded also counts as said differently. `tree_io changes
+  --theme <id>` returns the same values as JSON ([ADR-0056](docs/adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md), #265).
 - **The handoff trial has a second scenario and a sixth question.** `psy` (psychological safety, four
   reflection rounds) holds an analysis that found no difference and a question whose answer and numbers
   stay while the subject's answer cites its evidence in other words. Every scenario now asks q6 (that
