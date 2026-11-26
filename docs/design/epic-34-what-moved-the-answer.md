@@ -79,8 +79,8 @@ AC の正本はここ。
 読み手として、調べたのに答えに現れていない結果を見落とさないために、上の答えが引用していない結果と、止めた理由を、論点のカードで読みたい。
 
 - [x] AC 1: 下の論点の現時点の答えが引用していて、その論点の現時点の答えが引用していない出来事を、論点のカードに、出どころの論点・回・文を添えて出す。その論点の答えが一度も引用していない出来事と、前の回までは引用していて今は引用していない出来事を、別の欄に分ける。前者は目立たせ、主題のぶんはページの冒頭にも出す。後者は控えめに出し、最後に引用した回と、引用をやめた回に新しく引用した出来事を添える。
-- [ ] AC 2: 分析設計を直接結んでいない論点で、下に論点があるものは、進捗の言葉を出さず、下の論点の進捗を言葉ごとの数で出す。「進捗の数」はこの論点を数えない。分析設計を直接結んだ論点は進捗の言葉を出し、下に論点があればその数を添える。
-- [ ] AC 3: その論点を指す最新のツリーの決定が「区切る」である論点は、カードに、区切った回と理由を出す。
+- [x] AC 2: 分析設計を直接結んでいない論点で、下に論点があるものは、進捗の言葉を出さず、下の論点の進捗を言葉ごとの数で出す。「進捗の数」はこの論点を数えない。分析設計を直接結んだ論点は進捗の言葉を出し、下に論点があればその数を添える。
+- [x] AC 3: その論点を指す最新のツリーの決定が「区切る」である論点は、カードに、区切った回と理由を出す。
 - [x] AC 4: reflection は変えない文を前の回のまま書く。ツリーの決定を聞く前に、上の論点の答えが引用していない下の論点の結果を分析者に見せる。引用するかは分析者が決め、引用しなくても答えは書ける。
 
 ### US-4: 読み手が決定の根拠を取り違えず、分析者が主題を見直す道を選べる
@@ -90,7 +90,7 @@ AC の正本はここ。
 
 - [x] AC 1: ツリーの決定は理由の根拠にした journal の出来事の id を0個以上持てる。引用を持たない保存済みの論点ツリーは、そのまま読める。
 - [x] AC 2: 引用を持つ決定は書く前に検査する。引用先が journal に無い、論点ツリーのどの論点にも結んでいない分析設計の出来事である、理由の数が引用先の本文に無い、のどれかなら書かない。
-- [ ] AC 3: 表示は決定の理由の下に、引用した出来事の id・分析設計・本文を出す。引用を持たない決定は引用していないことを文で出す。最初の論点を選ぶ決定にはその文を出さない。
+- [x] AC 3: 表示は決定の理由の下に、引用した出来事の id・分析設計・本文を出す。引用を持たない決定は引用していないことを文で出す。最初の論点を選ぶ決定にはその文を出さない。
 - [x] AC 4: reflection は、分析者が挙げた理由の元になった出来事があれば、決定の引用に入れる。根拠の出来事が無い決定は、引用なしで書く。
 - [x] AC 5: reflection の決める場面は、深める・親に戻る・区切るに並べて「主題そのものを見直す」を出す。選ぶと、今ある主題の版を上げる手順へ進む。ツリーの決定の種類は4つのままである。
 
@@ -144,7 +144,7 @@ Story は仮の分割で、起票は PM のセッションが行う。「触る�
 | 34.3 答えの変化を導き、カードと冒頭に出す | US-1 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/tree_changes.py`（新規）、`skills/_shared/tree_render.py`、`skills/_shared/tree_io.py` の読む命令、`tests/test_tree_changes.py`（新規）、`tests/test_tree_render.py`、`tests/tree_io/test_render*.py` | 34.1 |
 | 34.4 ツリーの決定の引用（正本・検査・skill） | US-4、US-2 | US-4 AC 1, AC 2, AC 4, AC 5、US-2 AC 3 | `src/insight_blueprint/models/tree.py`、`skills/_shared/tree_io.py` の `decide`、`skills/_shared/tree_check.py`、`skills/analysis-reflection/SKILL.md` の Step T7、`skills/analysis-auto/SKILL.md`、`docs/ARCHITECTURE.md`、`docs/UBIQUITOUS_LANGUAGE.md`、`tests/test_tree_models.py`、`tests/test_tree_check.py`、`tests/tree_io/` | 34.1 |
 | 34.5 上の論点での引用と、引用していない下の結果 | US-2、US-3 | US-2 AC 1, AC 2, AC 4、US-3 AC 1 | `skills/_shared/tree_changes.py`、`skills/_shared/tree_render.py`（`tree_render_parts.py`・`tree_render_derived.py` に分けた）、`skills/_shared/tree_read.py::changes`、`tests/test_tree_changes.py`、`tests/test_tree_render.py`、`tests/test_tree_render_derived.py`、`tests/tree_io/test_render.py`、`docs/UBIQUITOUS_LANGUAGE.md` | 34.3 |
-| 34.6 進み具合と決定の表示 | US-3、US-4、US-6 | US-3 AC 2, AC 3、US-4 AC 3、US-6 AC 3（問い 5 の鍵） | `skills/_shared/tree_render.py`、`skills/_shared/tree_read.py` の `render`、`scripts/handoff_trial.py` の `build`、`tests/fixtures/handoff/lib/`、`tests/fixtures/handoff/psy/`、`tests/test_handoff_trial.py`、`docs/HANDOFF_TRIAL.md` | 34.4、34.5（引き継ぐことは下の注記） |
+| 34.6 進み具合と決定の表示 | US-3、US-4、US-6 | US-3 AC 2, AC 3、US-4 AC 3、US-6 AC 3（問い 5 の鍵） | `skills/_shared/tree_render.py`・`tree_render_parts.py`（34.5 で分けた。言葉と文脈）、`skills/_shared/tree_read.py` の `render`、`scripts/handoff_trial.py` の `build`、`tests/fixtures/handoff/lib/`、`tests/fixtures/handoff/psy/`、`tests/test_handoff_trial.py`、`docs/HANDOFF_TRIAL.md` | 34.4、34.5（引き継ぐことは下の注記） |
 | 34.7 表示を変えた後の引き継ぎの試行 | US-6 | AC 5 | `docs/handoff-trials/`、`docs/HANDOFF_TRIAL.md`、`docs/PRD.md` の成功基準、`docs/UBIQUITOUS_LANGUAGE.md` の試行の語 | 34.6 |
 | 34.8 reflection の案内 | US-3 | AC 4 | `skills/analysis-reflection/SKILL.md` の Step T3 と Step T5、`skills/analysis-auto/SKILL.md`、`tests/skills/` | 34.3 |
 
@@ -565,6 +565,26 @@ sequenceDiagram
 - Alternatives considered: `reworded_after` を残して `reworded_in` も足す（同じ事実を2つの項目が持つ）。外した回も添える（`UncitedBelow` に項目が要る）。他の論点の検査に通らない答えを、その分析結果ごと隠す（差が出なかった分析を見落とさない、という目的に反する）。
 - Consequences: 冒頭の「まだ答えに入れていない分析結果」は、主題の下の論点の答えが引用する出来事のうち、主題が引用していないものをすべて並べる。論点が数十ある論点ツリーでは長くなる（合成シナリオは論点 6 つで、最も長くて2件）。1つの文が2つの分析結果を根拠にしていると、「この論点の分析結果を根拠にしている答え」でも同じ文が2つの項目に出る（34.3 の表と同じ形）。画面の新しい言い回し（「この論点の分析結果を根拠にしている答え」「回 L の答えまでは根拠にしていた」「その次の答えで新しく根拠にした分析結果」）は US-5 の表に無く、見本の言葉と表の言葉から作った。人間が実物で読んで直すなら、`tree_render_parts` の `_NOT_YET_WORDS`・`_NO_LONGER_WORDS`・`_USED_ABOVE_WORDS` と、`tree_render_derived` の文を直す。
 
+### Decision: story-34-6-progress-closed-and-grounds
+
+- What: 進み具合、区切った論点、決定の根拠の出し方で、ADR-0057・ADR-0058 と見本が決めていなかった所を決めた。
+  1. 分析設計を結ばず下に論点を置いた論点は、カードの進捗の言葉の代わりに「主題の下に置いた論点 N つ: 分析済み a、検証中 b、未着手 c」と出す（主題でない論点は「この論点の下に置いた論点」）。数は0でない言葉だけを、分析済み・検証中・未着手の順に出す。言い方は見本のものである。
+  2. 数えるのは下のすべての段の論点である。ただし、1 の形で出す論点（分析設計を結ばず、下に論点を置いた論点）は、どの段でも数えない。「進捗の数」がその論点を数えないのと同じ規則にした。そのため、図書館の主題は、下に論点が5つあっても「4 つ」と出る（LIB-Q04 が 1 の形）。
+  3. 1 の形の論点のカードは進捗の色の枠を持たない。色は進捗の言葉に添えたものだからである。
+  4. 区切った論点のカードには「回 N の振り返りの後に区切った。理由: …」と出し、その下に決定の根拠を出す。回 0 の決定は「振り返りの前に区切った」と出す。区切った後に同じ論点を指す決定があれば、出さない。
+  5. 決定の根拠は、ツリーの決定の一覧、次に調べる論点、区切った論点のカードの3か所に、同じ形で出す。見出しは「この理由の根拠にした分析結果」で、人に聞いた答えだけなら「人に聞いた答え」、両方なら「分析結果と人に聞いた答え」と出す。各行はほかの欄と同じ部品（`_result`）で id・論点・分析設計・本文を出す。引用を持たない決定は「この理由は、根拠にした分析結果を挙げていない。」と出す。見本の「結果」を US-5 の表の「分析結果」にした。
+  6. 決定が引用した id を2つの出来事が持つときは、どちらの本文も出さず、「X は記録に2つあり、どちらを根拠にしたかは分からない。」と出す。答えの検査は止めない。答えの引用が同じ id を持つ場合（`check_cited` が止める）とは分けた。
+  7. 決定の違反（`find_decision_violations`）は表示に出さない。`decide` が書く前に検査しており、後から journal が変わったときだけ起きる。引用先が無ければ「記録に見つからない X」と出て、ほかの2種類は本文が出るので、読み手が理由と比べられる。
+  8. 2本の合成シナリオで、理由が分析結果に基づく決定に引用を足した（lib の回 1・回 2、psy の回 2・回 4）。psy の回 1 の決定（在宅勤務の論点へ深める）は、理由の元が journal の問い（PSY-H01-E02）で分析結果ではないので、引用しない。表示は「挙げていない」と出す。
+  9. 鍵の q5 は、`reason_events` を最後の決定の引用から、`also_allowed` を次の論点の発見元から、テストが導き直す。
+  10. 問い 6 の規則の「前回も引用していた」側は、合成シナリオに形を足さず、導き方を関数に出して小さな論点ツリーで確かめた（`tests/test_handoff_trial.py` の `TestTheQ6Rule`）。シナリオを変えると、34.2 の基準と同じ段階で比べられなくなる。
+  11. 新しい欄は `tree_render_derived` でなく `tree_render` に置いた。`tree_render_derived` は `tree_changes` の値の欄で、進み具合と決定は `_Context` とツリーの決定から出す（Module Responsibilities の `tree_render` の行のとおり）。言葉は `tree_render_parts` の表に足した。
+- Why: US-3 AC 2・3、US-4 AC 3 を、記録と合う言い方だけで満たすため。
+- Criteria: ADR-0057 の W3（進捗の言葉が1つの意味だけを持つ）、ADR-0058 の 4、US-5 の表、見本の言い方。決め手は ADR-0057 の W3 と、見本の言い方を使うこと。
+- Affected modules: `skills/_shared/tree_render.py`、`skills/_shared/tree_render_parts.py`、`skills/_shared/tree_read.py::render`、`scripts/handoff_trial.py`、`tests/fixtures/handoff/`。
+- Alternatives considered: 1 の形の論点も「未着手」として数える（ADR-0057 が退けた誤りが、下の段に残る）。1 の形の論点を「N つ」には入れ、言葉ごとの数には入れない（数の合計が N と合わない）。同じ id の引用で、ページの検査の知らせ（`CheckFailed`）を出す（知らせは答えの検査の言葉で、答えは確かめられる）。決定の違反をすべて表示に出す（言葉が増え、`decide` が書く前に止めている）。psy の主題の答えに、最後の回に初めて引用する出来事を足して問い 6 の形を作る（q3・q4 の鍵と、基準との比較が変わる）。
+- Consequences: 図書館の主題の「4 つ」は、下の論点を数えた読み手の数と合わない。人間が実物で読んで直す。区切った論点では「進捗: 検証中」と「区切った」が並ぶ（ADR-0057 の Negative のまま）。画面の新しい言い回し（「この理由は、根拠にした分析結果を挙げていない。」「X は記録に2つあり、どちらを根拠にしたかは分からない。」、区切った論点の行、凡例の2段落）は人間がまだ読んでいない。見出しの後の各行が「分析結果 X」と始まり、見出しと同じ語が続く。直すなら `tree_render_parts` の `_BELOW_WORDS`・`_GROUNDS_WORDS`・`_NO_GROUNDS_WORDS`・`_SHARED_ID_WORDS` と、`tree_render` の `_closed`・`_legend` を直す。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0055: 分析者に見せる言葉を内側の用語と分け、「根の問い」を「主題」と呼ぶ](../adr/0055-the-root-question-is-shown-as-the-subject.md): 表示の言葉と用語集だけを変え、コード上の名前と YAML は変えない。
@@ -582,7 +602,7 @@ sequenceDiagram
 | Story 34.3 | ✓ | ✓ | ✓ |
 | Story 34.4 | ✓ | ✓ | —（決定の引用を表示に出すのは 34.6。`tree_io decide` は、リポジトリの外に作った図書館のシナリオの `.insight/` で、引用つき・引用なし・3種類の違反を実際に呼んで確かめた） |
 | Story 34.5 | ✓ | ✓ | ✓ |
-| Story 34.6 | ☐ | ☐ | ☐ |
+| Story 34.6 | ✓ | ✓ | ✓ |
 | Story 34.7 | ☐ | ☐ | ☐ |
 | Story 34.8 | ✓ | —（足したのは SKILL.md の手順の文で、`tree_io` に新しい通し道が無い） | —（自動テストではない。リポジトリの外の psy で `claude -p` に振り返らせ、直す前と後で `tree_io changes` の `reworded` を数えた。Decisions の `story-34-8-keep-the-words-and-ask-before-writing`） |
 
@@ -605,3 +625,4 @@ sequenceDiagram
 - 2026-11-26 — `/analysis-reflection` の、判定を変えない問いの行き先を伝える文では、その問いに呼び名を付けないと、人間が PM のセッションで決めた（Decision Analysis の案1）。捨てないことと、テーマの振り返りで主題への答えに、まだ決められないこと か 注意すべきこと として書くことだけを伝える。
 - 2026-11-26 — Story 34.8 completed: テーマの振り返りは、答えのある論点を今の答えの文から書き、新しい分析結果が意味を変えない文を一字も変えずに送る。答えを書く前に、上の論点の答えがまだ根拠にしていない分析結果を見せて、根拠にするかを聞く。リポジトリの外の psy で直す前と後を `claude -p`（opus）に3回ずつ振り返らせ、`reworded` は 2・3・3 行から 1・1・1 行になった（残った1行は決まりに反する文の種類の直し）。レビューの直しの後の版でも、同じく 1・1・1 行だった。問いに答えを渡さない版は、直した後の6回とも書く前に止まった。分析者が書く答えでは確かめていない。
 - 2026-11-26 — Story 34.5 completed: `tree_render.py` を3つに分けた（移動だけ）。論点の答えが根拠にしていない下の分析結果（`UncitedBelow`）を、ページの冒頭と論点のカードに、まだ答えに入れていないもの（開く）と前は根拠にしていたもの（畳む）に分けて出す。先に調べた論点のカードに、その分析結果を根拠にしている上の論点の答え（`CitedAbove`。主題まで）を出し、後の回で言っていることを変えていれば、変えた回と、この論点の答えが変わっていないことを書く。`CitedAbove` は図の `reworded_after` の代わりに `reworded_in` を持つ（人間が承認した）。差が出なかった回（psy の回 2、悪い日の回 5）で、その結果が主題への答えに入っていないことが冒頭から読める。
+- 2026-11-26 — Story 34.6 completed: 分析設計を結ばず下に論点を置いた論点は、進捗の言葉の代わりに下の論点の進捗を言葉ごとの数で出し、「進捗の数」はその論点を数えない。区切った論点のカードに区切った回と理由を出し、決定の理由の下に根拠にした分析結果か、挙げていないことを出す。2本の合成シナリオの決定に引用を足し、問い 5 の鍵をツリーから導き直す。`build` は決定の違反で止まる。触る所に `tree_render_parts.py` を足した（Stories 表を直した）。

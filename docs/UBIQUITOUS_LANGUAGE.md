@@ -60,7 +60,7 @@
 | 親の論点 | `parent_question_id` | 論点が寄与する、1つ上の論点。主題だけが持たない | — | [epic-29](design/epic-29-theme-report-export.md) |
 | 寄与 | `contribution` | 子の論点に答えると、親の論点の判断がどう進むか。論点の親子はこれで決める | — | [epic-18](design/epic-18-question-tree.md) |
 | 発見元 | `origin_event_id` | 探索中に生まれた論点が生まれた journal の出来事。着手のときに置いた論点は持たない | — | [epic-18](design/epic-18-question-tree.md) |
-| 進捗 | `Progress` | 論点の分析がどこまで進んだか。未着手・検証中・分析済み。保存せず、結んだ分析設計の状態から導く | — | [epic-18](design/epic-18-question-tree.md) |
+| 進捗 | `Progress` | 論点の分析がどこまで進んだか。未着手・検証中・分析済み。保存せず、結んだ分析設計の状態から導く。分析設計を直接結ばず、下に論点を置いた論点は進捗の言葉を持たず、下の論点の進捗を言葉ごとの数で出す。「進捗の数」はその論点を数えない | — | [epic-18](design/epic-18-question-tree.md)、[ADR-0057](adr/0057-a-question-without-a-design-shows-the-progress-below-it.md) |
 | 現時点の答え | `Answer` | 振り返りで論点ごとに書く答え。文ごとに種類（これまでわかっていること `claim`・注意すべきこと `weakening`・まだ決められないこと `undetermined`）と、引用する journal の出来事を持つ。追記だけで、振り返りの回と主題の版を持つ | 暫定回答、言えること、弱める証拠と留保、未判別 | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
 | 答えの変化 | `AnswerChange` | 論点の最後の現時点の答えと、その1つ前の答えを、引用する journal の出来事ごとに比べたもの。保存せず、論点ツリーだけから `tree_changes` が導く。答えが1つの論点には無い。画面では「前の回から変わったこと」と出す | 答えを動かした証拠、消えた主張 | [ADR-0056](adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md) |
 | 証拠の変わり方 | `ChangeKind` | 答えの変化の中で、1つの出来事の使われ方。新しく引用した（`newly_cited`）・引用をやめた（`dropped`）・引用する文が変わった（`reworded`）・変わっていない（`unchanged`）の4つ。引用する文の種類と本文の集まりだけで決まる | — | [ADR-0056](adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md) |

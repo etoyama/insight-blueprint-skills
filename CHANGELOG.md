@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The question tree shows how far the questions under a question have come, why a question was closed,
+  and what each decision rests on.** A question with no design of its own and questions under it no
+  longer says 未着手: its card counts the progress of every question under it by word (主題の下に置いた論点
+  4 つ: 分析済み 3、未着手 1), and 進捗の数 leaves it out. A question whose latest decision closed it says on
+  its card the round it was closed after and why. Under the reason of every decision, the page shows the
+  analysis results it cites (id, design and text), or says the reason names none; the first decision is
+  not told so. `scripts.handoff_trial build` stops when a decision of the scenario fails the check, and
+  the key of question 5 is derived from what the last decision cites ([ADR-0057](docs/adr/0057-a-question-without-a-design-shows-the-progress-below-it.md),
+  [ADR-0058](docs/adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md), #268).
 - **A tree decision can cite the journal events its reason rests on.** `tree_io decide` takes an
   optional `cites`. A decision that cites is checked before it is written: a cite that is not in the
   journal, a cite of a design linked to no node of the tree, or a number in the reason that no cited
