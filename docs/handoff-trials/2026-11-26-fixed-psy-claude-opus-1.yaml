@@ -1,0 +1,51 @@
+date: '2026-11-26'
+scenario: psy
+stage: round-4
+reader:
+  kind: claude
+  name: opus (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: PSY-Q01の4回目の答えには「これまでわかっていること」として、同じ人で上司支援の評価が上がった年に心理的安全性が平均0.30上がったことが書かれている。ただし「注意すべきこと」として、その回答者の78%は業務負荷も下がった部署にいた。結論は「まだ決められないこと」で、上司支援と負荷軽減の効果を見分けるまで、上司への働きかけを優先するかは決められないとしている。主題への答えは決められない側に近い。
+    verdict: undetermined
+  q2:
+    note: PSY-Q06は分析設計を結んでいないので未着手。PSY-Q04は分析済みで、答えに「まだ決められないこと」がある。PSY-Q02、PSY-Q03、PSY-Q05は分析済みだが、答えは「これまでわかっていること」だけなので、どちらにも入れない。
+    not_started:
+    - PSY-Q06
+    analyzed_undetermined:
+    - PSY-Q04
+  q3:
+    note: PSY-H03-E01は「これまでわかっていること」の根拠。PSY-H04-E01は「注意すべきこと」の根拠で、同じ人での上昇を上司支援の効果と言い切れなくしている。「まだ決められないこと」は両方を引用している。
+    supports:
+    - event_id: PSY-H03-E01
+      design_id: PSY-H03
+    weakens:
+    - event_id: PSY-H04-E01
+      design_id: PSY-H04
+  q4:
+    note: PSY-H03-E01は3回目の答えも根拠にしていた（言っていることが変わっただけ）ので挙げない。PSY-Q04は4回目で初めて答えた論点なので「変わった」に含めない。
+    changed_nodes:
+    - PSY-Q01
+    evidence:
+    - PSY-H04-E01
+  q5:
+    note: 4回目の振り返りの後に深める論点として選ばれた。理由の根拠にした分析結果はPSY-H04-E01。PSY-Q06の発見元はPSY-H04-E02（未解決の問い）。
+    node_id: PSY-Q06
+    reason_events:
+    - PSY-H04-E01
+  q6:
+    note: PSY-Q03の答えは3回目のまま変わっていない。主題PSY-Q01は3回目も4回目もPSY-H03-E01を引用していて、引用する文を4回目で変えた。PSY-Q02のPSY-H01-E01は、主題が2回目以降の答えで根拠から外しているので該当しない。PSY-Q05のPSY-H02-E01は、主題が一度も引用していないので該当しない。
+    nodes:
+    - PSY-Q03
+    evidence:
+    - PSY-H03-E01
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: true
+  q6: true

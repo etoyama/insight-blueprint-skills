@@ -1,22 +1,22 @@
-# The judgments a reader of the round-2 tree HTML should reach. tests/test_handoff_trial.py
+# The judgments a reader of the round-2 tree HTML should reach. Every name and number is made up. tests/test_handoff_trial.py
 # derives each of them from the built tree, so the key cannot drift from stages.yaml.
-# The one exception is q5.reason_events: a decision's reason is free text that cites no
-# event, so whoever writes the key picks them.
+# q5.reason_events are what the last decision cites, and q5.also_allowed is the event
+# the next node was promoted from (ADR-0058).
 stage: round-2
 answers:
   q1:
     verdict: undetermined
-    note: 根の答えは、通知の遅れでは説明しきれず、来館できる日の少なさを確かめるまで延長の試行を決められない、である。
+    note: 主題への答えは、通知の遅れでは説明しきれず、来館できる日の少なさを確かめるまで延長の試行を決められない、である。
   q2:
     not_started: [LIB-Q04, LIB-Q05, LIB-Q06]
     analyzed_undetermined: [LIB-Q03]
-    note: LIB-Q02 は分析済みで答えが言えることだけなので、どちらにも入らない。
+    note: LIB-Q02 は分析済みで、これまでわかっていることだけなので、どちらにも入らない。
   q3:
     supports:
       - {event_id: LIB-H02-E01, design_id: LIB-H02}
     weakens:
       - {event_id: LIB-H02-E02, design_id: LIB-H02}
-    note: 根の今の答えが引用する出来事を、引用した文の種類で分ける。言えることが引用する出来事が支える証拠、弱める証拠と留保が引用する出来事が弱める証拠である。
+    note: 主題の今の答えが引用する出来事を、引用した文の種類で分ける。「これまでわかっていること」が引用する出来事が支える証拠、「注意すべきこと」が引用する出来事が弱める証拠である。
   q4:
     changed_nodes: [LIB-Q01]
     evidence: [LIB-H02-E01, LIB-H02-E02]
@@ -28,3 +28,7 @@ answers:
     # reason is fine; naming it instead of the reason misses why the node comes now.
     also_allowed: [LIB-H02-E03]
     note: 通知の日を揃えても金曜の期限切れが多いままだったので、開館日数を先に確かめる。
+  q6:
+    nodes: []
+    evidence: []
+    note: 該当なし。主題の答えは回 2 で LIB-H01-E01 の引用をやめたが、引用をやめたことは引用する文が変わったことに入らない。

@@ -144,6 +144,12 @@ Discuss with the user to narrow the direction (a question to explore, or a hypot
 The agreed direction is kept as the theme's **question tree**
 (`.insight/themes/{theme_id}_tree.yaml`): the root question, its aim, and the first-level
 nodes under it. The analyst settles them at two KEEP gates (4a, 4b). You draft, the analyst decides.
+In every sentence for the analyst, call the root question 主題, an answer to an earlier
+root revision 見直す前の主題への答え, and reflection round N N回目の振り返り. Never show the
+word 版 or the number of a root revision: say how many times the 主題 was revised
+(主題を1回見直した), and nothing of it while it was never revised (ADR-0055). At the gate
+of 4c, ask whether to record the change as a revision of the 主題 (主題を見直す). The YAML
+keys and `tree_io revise-root` keep the word root.
 A run handed the position of the theme reads the end of 4d before it asks anything in 4a or 4c.
 
 Do NOT create a design, its `hypothesis_statement` or its `exploration_question`. The Framing Brief
@@ -247,8 +253,13 @@ the theme (at the end of this step).
 
 1. Run `tree_io progress --theme {theme_id}` and `tree_io candidates --theme {theme_id}`.
 2. Show the node the latest decision names (the last entry of `decisions`), with its
-   progress and the designs linked to it. Show the next candidates that `candidates` printed,
-   with their notes.
+   progress and the designs linked to it. Say the progress the way the page does: the word
+   of `progress` (`not_started` 未着手, `investigating` 検証中, `analyzed` 分析済み), then,
+   when `below` is not empty, `この論点の下に置いた論点 {N} つ: 分析済み a、検証中 b、未着手 c`
+   (`主題` in place of `この論点` for the root question; `{N}` is their sum, and a word with
+   no count is left out). A node whose `progress` is `null` shows the counts alone and is
+   never shown as 未着手: it has no design of its own, but one below it (ADR-0057). Show the
+   next candidates that `candidates` printed, with their notes.
 3. Ask which node to design next, and wait. Do not output the Framing Brief, and do not
    suggest `/analysis-design`, until the analyst has answered.
 4. If the chosen node already has a design linked to it, say which designs and their
@@ -397,7 +408,7 @@ Then end with the next step:
 | /analysis-design | → /analysis-framing | データ不足で仮説の方向を再検討: "データを探し直すなら /analysis-framing" |
 | /analysis-reflection | → /analysis-framing | 新しい探索の問いか検証仮説が要るが、データと方向を先に探す: "新しい角度を探すなら /analysis-framing" |
 | /catalog-register | → /analysis-framing | データ登録完了、フレーミングに戻る: "フレーミングに戻るなら /analysis-framing" |
-| /analysis-auto | → /analysis-framing | guided autopilot が論点ツリーを作る、次の論点の Framing Brief を得る、根の問いを変える |
+| /analysis-auto | → /analysis-framing | guided autopilot が論点ツリーを作る、次の論点の Framing Brief を得る、主題を変える |
 | /analysis-framing | → /analysis-design | 方向が定まった（Framing Brief 付き）: "分析設計を作るなら /analysis-design" |
 | /analysis-framing | → /tree-upload | 論点ツリーを書き、図（HTML）を作った: "論点ツリーの図を URL で渡すなら /tree-upload" |
 | /analysis-framing | → /catalog-register | 必要なデータが未登録: "データを登録するなら /catalog-register" |

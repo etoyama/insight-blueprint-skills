@@ -17,6 +17,7 @@ from tests.tree_io._support import (
     _add,
     _derived,
     _design,
+    _entry,
     _finish,
     _linked,
     _run_cli,
@@ -334,11 +335,14 @@ class TestLinkDerivedDesign:
         tree_io.link_design("LIB", node_id, parent, base_dir=tree)
         _finish(tree, parent)
         derived = _derived(tree, parent)
-        assert tree_io.progress("LIB", base_dir=tree)[node_id] == "analyzed"
+        assert tree_io.progress("LIB", base_dir=tree)[node_id]["progress"] == "analyzed"
 
         tree_io.link_derived_design("LIB", derived, base_dir=tree)
 
-        assert tree_io.progress("LIB", base_dir=tree)[node_id] == "investigating"
+        assert (
+            tree_io.progress("LIB", base_dir=tree)[node_id]["progress"]
+            == "investigating"
+        )
         where = tree_io.position("LIB", base_dir=tree)
         assert (where["state"], where["design_ids"]) == ("in_progress", [derived])
 
@@ -482,6 +486,141 @@ class TestDecide:
             self._decide(insight)
 
 
+class TestDecideWithCites:
+    """Epic 34, US-4 AC 1, AC 2 (ADR-0058): a decision that cites is checked first."""
+
+    REASON = "期限切れは152件で、数え方は定まった"
+
+    @pytest.fixture
+    def started(self, world: Path) -> Path:
+        tree_io.decide(
+            "LIB", kind="start", node_id="LIB-Q02", reason="最初", base_dir=world
+        )
+        return world
+
+    def _go_to_q03(self, base: Path, *cites: str, reason: str = REASON) -> dict:
+        return tree_io.decide(
+            "LIB",
+            kind="return",
+            node_id="LIB-Q03",
+            reason=reason,
+            cites=list(cites),
+            base_dir=base,
+        )
+
+    def _decisions(self, base: Path) -> list[dict]:
+        return tree_io.load_tree("LIB", base)["decisions"]
+
+    def test_the_cites_are_written_with_the_decision(self, started: Path) -> None:
+        decision = self._go_to_q03(started, "LIB-H01-E01")
+
+        assert decision["cites"] == ["LIB-H01-E01"]
+        assert self._decisions(started)[-1] == decision
+
+    def test_a_decision_without_cites_writes_no_cites_key(self, started: Path) -> None:
+        decision = self._go_to_q03(started)
+
+        assert "cites" not in decision
+        assert "cites" not in self._decisions(started)[-1]
+
+    def test_an_event_of_another_branch_than_the_next_node_can_be_cited(
+        self, started: Path
+    ) -> None:
+        # LIB-H01 is on LIB-Q02; the decision goes to LIB-Q03.
+        assert "violations" not in self._go_to_q03(started, "LIB-H01-E01")
+
+    @pytest.mark.parametrize(
+        ("cite", "reason", "violation"),
+        [
+            ("LIB-H01-E09", "数え方は定まった", ("missing-event", "LIB-H01-E09")),
+            ("LIB-H01-E01", "期限切れは153件と多い", ("number-not-cited", "153")),
+        ],
+    )
+    def test_a_violation_is_returned_and_nothing_is_written(
+        self, started: Path, cite: str, reason: str, violation: tuple[str, str]
+    ) -> None:
+        before = self._decisions(started)
+
+        result = self._go_to_q03(started, cite, reason=reason)
+
+        assert [(v["kind"], v["text"]) for v in result["violations"]] == [violation]
+        assert result["violations"][0]["position"] == 2
+        assert self._decisions(started) == before
+
+    def test_an_event_of_a_design_on_no_node_is_not_written(
+        self, started: Path
+    ) -> None:
+        loose = _design(started)
+        design_io.write_journal(
+            loose,
+            {
+                "events": [
+                    {"id": f"{loose}-E01", "type": "observe", "content": "無関係"}
+                ]
+            },
+            base_dir=started,
+        )
+
+        result = self._go_to_q03(started, f"{loose}-E01", reason="数え方は定まった")
+
+        assert [v["kind"] for v in result["violations"]] == ["unlinked-design"]
+        assert len(self._decisions(started)) == 1
+
+    def test_a_cite_that_is_not_an_event_id_never_reaches_a_journal_path(
+        self, started: Path
+    ) -> None:
+        with pytest.raises(ValueError, match=r"must be LIB-H\{nn\}-E\{nn\}"):
+            self._go_to_q03(started, "../../etc/passwd-E01")
+        assert len(self._decisions(started)) == 1
+
+    def test_an_earlier_decision_that_no_longer_holds_does_not_stop_a_new_one(
+        self, started: Path
+    ) -> None:
+        self._go_to_q03(started, "LIB-H01-E01")
+        design_io.write_journal("LIB-H01", {"events": []}, base_dir=started)
+
+        decision = tree_io.decide(
+            "LIB", kind="return", node_id="LIB-Q02", reason="戻る", base_dir=started
+        )
+
+        assert decision["node_id"] == "LIB-Q02"
+        assert len(self._decisions(started)) == 3
+
+    def test_a_broken_journal_under_an_earlier_decision_does_not_stop_a_new_one(
+        self, started: Path
+    ) -> None:
+        self._go_to_q03(started, "LIB-H01-E01")
+        twice = {"id": "LIB-H01-E01", "type": "observe", "content": "152件"}
+        design_io.write_journal("LIB-H01", {"events": [twice, twice]}, base_dir=started)
+
+        decision = tree_io.decide(
+            "LIB", kind="return", node_id="LIB-Q02", reason="戻る", base_dir=started
+        )
+
+        assert decision["node_id"] == "LIB-Q02"
+
+    def test_a_decision_without_cites_reads_no_journal(self, started: Path) -> None:
+        (started / "designs" / "LIB-H01_journal.yaml").write_text("events: [", "utf-8")
+
+        assert self._go_to_q03(started)["node_id"] == "LIB-Q03"
+
+    def test_the_same_event_cited_twice_is_not_written(self, started: Path) -> None:
+        with pytest.raises(ValueError, match="cites the same event twice"):
+            self._go_to_q03(started, "LIB-H01-E01", "LIB-H01-E01")
+        assert len(self._decisions(started)) == 1
+
+    def test_an_answer_still_cannot_cite_the_other_branch(self, started: Path) -> None:
+        # US-2 AC 3: the wider reach of a decision is not the reach of an answer.
+        result = tree_io.answer(
+            "LIB",
+            answers=[_entry("LIB-Q03", "記録がある", cite="LIB-H01-E01")],
+            base_dir=started,
+        )
+
+        assert [v["kind"] for v in result["violations"]] == ["unlinked-design"]
+        assert result["written"] == []
+
+
 class TestProgress:
     """US-2 AC 1: progress comes from the linked designs and is never stored."""
 
@@ -496,10 +635,32 @@ class TestProgress:
         tree_io.link_design("LIB", done_node, done_design, base_dir=tree)
 
         assert tree_io.progress("LIB", base_dir=tree) == {
-            "LIB-Q01": "not_started",
-            untouched: "not_started",
-            open_node: "investigating",
-            done_node: "analyzed",
+            # The subject has designs only below it: no word, the counts below it.
+            "LIB-Q01": {
+                "progress": None,
+                "below": {"analyzed": 1, "investigating": 1, "not_started": 1},
+            },
+            untouched: {"progress": "not_started", "below": {}},
+            open_node: {"progress": "investigating", "below": {}},
+            done_node: {"progress": "analyzed", "below": {}},
+        }
+
+    def test_a_question_with_no_design_on_it_or_below_it_is_not_started(
+        self, tree: Path
+    ) -> None:
+        parent = _add(tree)["id"]
+        child = _add(tree, parent_question_id=parent)["id"]
+
+        progress = tree_io.progress("LIB", base_dir=tree)
+
+        assert progress[parent] == {
+            "progress": "not_started",
+            "below": {"not_started": 1},
+        }
+        assert progress[child] == {"progress": "not_started", "below": {}}
+        assert progress["LIB-Q01"] == {
+            "progress": "not_started",
+            "below": {"not_started": 2},
         }
 
     def test_changes_when_the_design_reaches_a_terminal_status(
@@ -512,7 +673,7 @@ class TestProgress:
 
         _finish(tree, design_id)
 
-        assert tree_io.progress("LIB", base_dir=tree)[node_id] == "analyzed"
+        assert tree_io.progress("LIB", base_dir=tree)[node_id]["progress"] == "analyzed"
         after = (tree / "themes" / "LIB_tree.yaml").read_text(encoding="utf-8")
         assert after == before
 

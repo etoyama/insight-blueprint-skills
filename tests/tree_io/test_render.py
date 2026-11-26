@@ -76,6 +76,24 @@ class TestRender:
         assert ROOT_QUESTION in text
         assert "<script" not in text
 
+    def test_a_saved_tree_keeps_its_keys_and_is_shown_in_the_analysts_words(
+        self, tree: Path
+    ) -> None:
+        """Epic 34 US-5 AC 3: the words change on the page, not in the YAML."""
+        self._answered(tree)
+        saved = (tree / "themes" / "LIB_tree.yaml").read_text(encoding="utf-8")
+
+        tree_io.render("LIB", base_dir=tree)
+
+        page = (tree / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
+        shown = by_id(parse(page), "header").text() + _tree_text(tree)
+        assert "主題: " in shown
+        assert "これまでわかっていること" in shown
+        after = (tree / "themes" / "LIB_tree.yaml").read_text(encoding="utf-8")
+        assert after == saved
+        assert "root_revisions:" in after
+        assert "kind: claim" in after
+
     def test_a_stale_answer_that_no_longer_matches_the_record_is_marked(
         self, tree: Path
     ) -> None:
@@ -281,7 +299,10 @@ class TestRender:
 
         page = _rendered(tree)
 
-        assert tree_io.progress("LIB", base_dir=tree)["LIB-Q02"] == "investigating"
+        assert (
+            tree_io.progress("LIB", base_dir=tree)["LIB-Q02"]["progress"]
+            == "investigating"
+        )
         assert "検証中 1" in page
         assert "分析済み 0" in page
         assert "写した分析設計" in page
@@ -335,3 +356,293 @@ class TestRender:
         assert done.returncode == 1
         assert done.stderr.startswith("tree_io: ")
         assert "Traceback" not in done.stderr
+
+
+def _two_rounds(world: Path) -> None:
+    """The subject answered in round 1, then again in round 2 with a second result."""
+    first = {"kind": "claim", "text": "期限切れは152件", "cites": ["LIB-H01-E01"]}
+    tree_io.answer(
+        "LIB",
+        answers=[{"node_id": "LIB-Q01", "statements": [first]}],
+        base_dir=world,
+    )
+    tree_io.answer(
+        "LIB",
+        answers=[
+            {
+                "node_id": "LIB-Q01",
+                "statements": [
+                    first,
+                    {
+                        "kind": "weakening",
+                        "text": "取消除外後は34.6%",
+                        "cites": ["LIB-H02-E01"],
+                    },
+                ],
+            }
+        ],
+        base_dir=world,
+    )
+
+
+class TestRenderShowsWhatAnAnswerChanged:
+    """Epic 34 US-1 AC 3: the change is derived from the files, and never stored."""
+
+    def test_the_page_pairs_each_cited_event_with_its_content_in_the_journal(
+        self, world: Path
+    ) -> None:
+        _two_rounds(world)
+
+        top = by_id(parse(_rendered(world)), "subject-answer")
+
+        (row,) = [r for r in top.walk() if r.tag == "tr" and "LIB-H02-E01" in r.text()]
+        cells = [" ".join(c.text().split()) for c in row.children]
+        assert cells[0] == "新しく根拠にした"
+        assert "LIB-H02 は期限切れ152件、取消除外後34.6%" in cells[1]
+        assert cells[2:] == ["根拠にしていなかった", "注意すべきこと 取消除外後は34.6%"]
+
+    def test_rendering_writes_nothing_into_the_tree(self, world: Path) -> None:
+        _two_rounds(world)
+        path = world / "themes" / "LIB_tree.yaml"
+        before = path.read_bytes()
+
+        first = _rendered(world)
+
+        assert path.read_bytes() == before
+        assert _rendered(world) == first
+
+
+class TestChanges:
+    """The derived values as JSON, for a skill to show the analyst (Epic 34)."""
+
+    def test_changes_lists_what_each_answer_changed(self, world: Path) -> None:
+        _two_rounds(world)
+
+        done = _run_cli(world, "changes", "--theme", "LIB")
+
+        assert done.returncode == 0, done.stderr
+        first = {"kind": "claim", "text": "期限切れは152件", "cites": ["LIB-H01-E01"]}
+        assert json.loads(done.stdout) == {
+            "answer_changes": [
+                {
+                    "node_id": "LIB-Q01",
+                    "round": 2,
+                    "previous_round": 1,
+                    "evidence": [
+                        {
+                            "event_id": "LIB-H01-E01",
+                            "kind": "unchanged",
+                            "before": [first],
+                            "after": [first],
+                        },
+                        {
+                            "event_id": "LIB-H02-E01",
+                            "kind": "newly_cited",
+                            "before": [],
+                            "after": [
+                                {
+                                    "kind": "weakening",
+                                    "text": "取消除外後は34.6%",
+                                    "cites": ["LIB-H02-E01"],
+                                }
+                            ],
+                        },
+                    ],
+                }
+            ],
+            "cited_above": {},
+            "uncited_below": {},
+        }
+
+    def test_a_tree_without_a_second_answer_has_no_change(self, world: Path) -> None:
+        assert tree_io.changes("LIB", base_dir=world) == {
+            "answer_changes": [],
+            "cited_above": {},
+            "uncited_below": {},
+        }
+
+    def test_changes_lists_the_cites_above_and_below_by_node(self, world: Path) -> None:
+        subject = {"kind": "claim", "text": "期限切れは152件", "cites": ["LIB-H01-E01"]}
+        count = {"kind": "claim", "text": "152件ある", "cites": ["LIB-H01-E01"]}
+        friday = {"kind": "claim", "text": "取消除外後34.6%", "cites": ["LIB-H02-E01"]}
+        tree_io.answer(
+            "LIB",
+            answers=[
+                {"node_id": "LIB-Q01", "statements": [subject]},
+                {"node_id": "LIB-Q02", "statements": [count]},
+                {"node_id": "LIB-Q03", "statements": [friday]},
+            ],
+            base_dir=world,
+        )
+
+        found = tree_io.changes("LIB", base_dir=world)
+
+        assert found["cited_above"] == {
+            "LIB-Q02": [
+                {
+                    "event_id": "LIB-H01-E01",
+                    "node_id": "LIB-Q01",
+                    "round": 1,
+                    "statements": [subject],
+                    "reworded_in": None,
+                }
+            ]
+        }
+        assert found["uncited_below"] == {
+            "LIB-Q01": [
+                {
+                    "event_id": "LIB-H02-E01",
+                    "node_id": "LIB-Q03",
+                    "round": 1,
+                    "statements": [friday],
+                    "last_cited_round": None,
+                    "cited_instead": [],
+                }
+            ]
+        }
+
+    def test_changes_writes_nothing(self, world: Path) -> None:
+        _two_rounds(world)
+        path = world / "themes" / "LIB_tree.yaml"
+        before = path.read_bytes()
+
+        tree_io.changes("LIB", base_dir=world)
+
+        assert path.read_bytes() == before
+
+    def test_a_theme_without_a_tree_exits_1_with_a_message(self, insight: Path) -> None:
+        done = _run_cli(insight, "changes", "--theme", "LIB")
+
+        assert done.returncode == 1
+        assert done.stderr.startswith("tree_io: ")
+
+
+class TestTheChangeThroughTheCommandLine:
+    """Epic 34 US-1, end to end: answer twice and render, all through the CLI."""
+
+    def test_the_page_a_skill_writes_opens_with_what_the_subject_changed(
+        self, world: Path
+    ) -> None:
+        first = {"kind": "claim", "text": "期限切れは152件", "cites": ["LIB-H01-E01"]}
+        second = {"kind": "claim", "text": "期限切れは152件で、延長の余地がある"}
+        for statement in (first, second | {"cites": ["LIB-H01-E01"]}):
+            done = _run_cli(
+                world,
+                "answer",
+                "--theme",
+                "LIB",
+                payload={
+                    "answers": [{"node_id": "LIB-Q01", "statements": [statement]}]
+                },
+            )
+            assert done.returncode == 0, done.stderr
+
+        done = _run_cli(world, "render", "--theme", "LIB")
+
+        assert done.returncode == 0, done.stderr
+        page = Path(json.loads(done.stdout)["path"]).read_text(encoding="utf-8")
+        body = next(e for e in parse(page).walk() if e.tag == "body")
+        assert [e.attrs.get("id") for e in body.children][:3] == [
+            "header",
+            "subject-answer",
+            "next-question",
+        ]
+        top = " ".join(by_id(parse(page), "subject-answer").text().split())
+        assert "前の振り返りから変わったこと（1回目 → 2回目の振り返り）" in top
+        assert "言っていることが変わった" in top
+        assert "これまでわかっていること 期限切れは152件で、延長の余地がある" in top
+
+
+class TestLeftOutAndUsedAboveThroughTheCommandLine:
+    """Epic 34 US-2 AC 1, AC 2 and US-3 AC 1, end to end through the CLI."""
+
+    def test_the_page_lists_what_the_subject_leaves_out_and_how_it_uses_a_result(
+        self, world: Path
+    ) -> None:
+        count = {"kind": "claim", "text": "期限切れは152件", "cites": ["LIB-H01-E01"]}
+        notice = {
+            "kind": "claim",
+            "text": "通知の日は効かない",
+            "cites": ["LIB-H02-E01"],
+        }
+        rounds = [
+            [
+                {"node_id": "LIB-Q01", "statements": [count]},
+                {"node_id": "LIB-Q02", "statements": [count]},
+                {"node_id": "LIB-Q03", "statements": [notice]},
+            ],
+            [
+                {
+                    "node_id": "LIB-Q01",
+                    "statements": [
+                        count | {"kind": "weakening", "text": "152件は1館だけ"}
+                    ],
+                }
+            ],
+        ]
+        for answers in rounds:
+            done = _run_cli(
+                world, "answer", "--theme", "LIB", payload={"answers": answers}
+            )
+            assert done.returncode == 0, done.stderr
+
+        done = _run_cli(world, "render", "--theme", "LIB")
+
+        assert done.returncode == 0, done.stderr
+        page = parse(Path(json.loads(done.stdout)["path"]).read_text(encoding="utf-8"))
+        top = " ".join(by_id(page, "subject-answer").text().split())
+        assert "まだ主題への答えに入れていない分析結果" in top
+        assert "LIB-H02 は期限切れ152件、取消除外後34.6%" in top
+        assert "論点 LIB-Q03 の1回目の振り返りの答えが" in top
+        card = " ".join(by_id(page, "LIB-Q02").text().split())
+        assert "この論点の分析結果を根拠にしている答え" in card
+        assert "論点 LIB-Q01（主題）の2回目の振り返りの答えが根拠にしている" in card
+        assert (
+            "論点 LIB-Q01 の答えは2回目の振り返りから、この分析結果について言っていることを変えた。"
+            "この論点の答えは1回目の振り返りのままで、変わっていない。"
+        ) in card
+
+
+class TestWhatADecisionRestsOn:
+    """Epic 34 US-4 AC 3, end to end: a decision's cited result reaches the page."""
+
+    def _decided(self, world: Path) -> None:
+        tree_io.decide(
+            "LIB", kind="start", node_id="LIB-Q02", reason="まず数える", base_dir=world
+        )
+        tree_io.decide(
+            "LIB",
+            kind="return",
+            node_id="LIB-Q03",
+            reason="数え方が定まったので次を見る",
+            cites=["LIB-H01-E01"],
+            base_dir=world,
+        )
+
+    def test_the_cited_result_no_answer_cites_is_read_and_shown(
+        self, world: Path
+    ) -> None:
+        self._decided(world)
+
+        page = parse(_rendered(world))
+
+        shown = by_id(page, "next-question").text()
+        assert "この理由の根拠にした分析結果" in shown
+        assert "LIB-H01 は期限切れ152件、取消除外後34.6%" in shown
+
+    def test_an_id_two_events_share_shows_neither_and_stops_no_check(
+        self, world: Path
+    ) -> None:
+        self._decided(world)
+        event = {"id": "LIB-H01-E01", "type": "observe", "content": "別の本文"}
+        journal = design_io.load_journal("LIB-H01", base_dir=world)
+        journal["events"].append(event)
+        design_io.write_journal("LIB-H01", journal, base_dir=world)
+
+        page = parse(_rendered(world))
+
+        shown = by_id(page, "next-question").text()
+        assert "LIB-H01-E01 は記録に2つあり" in shown
+        assert "別の本文" not in shown
+        assert "LIB-H01 は期限切れ152件" not in shown
+        assert "check-notice" not in _rendered(world)

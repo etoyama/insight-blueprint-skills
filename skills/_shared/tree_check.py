@@ -1,7 +1,8 @@
 """Check the current answers of a question tree against the journal (Epic 18, ADR-0025).
 
 An answer may only state a number that a cited journal event records, and may
-only cite events that exist. This module only reads: it never writes the tree.
+only cite events that exist. A tree decision that cites is held to the same
+rules (Epic 34, ADR-0058). This module only reads: it never writes the tree.
 
 Usage from a skill (CLI):
     tree_check --theme LIB [--base-dir .insight]
@@ -16,13 +17,13 @@ import json
 import re
 import sys
 import unicodedata
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
-from insight_blueprint.models.tree import AnswerStatement, QuestionTree, design_id_of
+from insight_blueprint.models.tree import QuestionTree, design_id_of
 from skills._shared.design_io import DEFAULT_BASE_DIR, resolve_base_dir
 from skills._shared.tree_render import CitedEvent
 
@@ -97,7 +98,9 @@ def find_violations(tree: QuestionTree, events: Mapping[str, str]) -> list[Viola
         if answer is None:
             continue
         for position, statement in enumerate(answer.statements, start=1):
-            found = _statement_problems(statement, events, designs[node.id])
+            found = _cite_problems(
+                statement.text, statement.cites, events, designs[node.id]
+            )
             violations += [
                 Violation(node.id, answer.round, position, kind, text)
                 for kind, text in found
@@ -105,22 +108,49 @@ def find_violations(tree: QuestionTree, events: Mapping[str, str]) -> list[Viola
     return violations
 
 
-def _statement_problems(
-    statement: AnswerStatement, events: Mapping[str, str], linked: set[str]
+@dataclass(frozen=True)
+class DecisionViolation:
+    position: int  # 1-based position in the decisions of the tree
+    round: int
+    kind: ViolationKind
+    text: str
+
+
+def _decision_violations(
+    tree: QuestionTree, position: int, events: Mapping[str, str]
+) -> list[DecisionViolation]:
+    """A decision may cite an event of any design linked somewhere in the tree:
+    the result of one node is the reason to go to another (ADR-0058).
+    """
+    decision = tree.decisions[position - 1]
+    if not decision.cites:
+        return []
+    linked = tree.linked_designs()
+    return [
+        DecisionViolation(position, decision.round, kind, text)
+        for kind, text in _cite_problems(
+            decision.reason, decision.cites, events, linked
+        )
+    ]
+
+
+def _cite_problems(
+    text: str, cites: Sequence[str], events: Mapping[str, str], linked: set[str]
 ) -> list[tuple[ViolationKind, str]]:
+    """What is wrong with *text* resting on *cites*, cites first, then numbers."""
     problems: list[tuple[ViolationKind, str]] = []
-    for cite in statement.cites:
+    for cite in cites:
         if cite not in events:
             problems.append(("missing-event", cite))
         if design_id_of(cite) not in linked:
             problems.append(("unlinked-design", cite))
     seen = {
         number
-        for cite in statement.cites
+        for cite in cites
         if cite in events
         for number in numbers_in(events[cite])
     }
-    for number in numbers_in(statement.text):
+    for number in numbers_in(text):
         if number not in seen:
             seen.add(number)
             problems.append(("number-not-cited", number.token))
@@ -154,14 +184,17 @@ def check_cited(
     *events* may hold more than the current answers cite. A cited id that two
     events share raises ValueError: which of them backs the answer is unknown.
     """
-    current = current_cites(tree)
+    _refuse_shared_ids(current_cites(tree), duplicated)
+    return find_violations(tree, {i: e.content for i, e in events.items()})
+
+
+def _refuse_shared_ids(cited: set[str], duplicated: Iterable[str]) -> None:
     for event_id in duplicated:
-        if event_id in current:
+        if event_id in cited:
             raise ValueError(
                 f"journal event '{event_id}' appears twice in the journal "
                 f"of {design_id_of(event_id)}"
             )
-    return find_violations(tree, {i: e.content for i, e in events.items()})
 
 
 def current_cites(tree: QuestionTree) -> set[str]:
@@ -173,6 +206,24 @@ def current_cites(tree: QuestionTree) -> set[str]:
         for statement in answer.statements
         for cite in statement.cites
     }
+
+
+def check_last_decision(tree: QuestionTree, base_dir: Path) -> list[DecisionViolation]:
+    """Check the decision last appended to *tree* against the journals under *base_dir*.
+
+    Only its own cites are read: an earlier decision is history, and what its
+    journal holds now must not stop a new one. Raises ValueError for a cited
+    event id that two events share.
+    """
+    from skills._shared.tree_read import cited_events  # tree_read imports this
+
+    cited = set(tree.decisions[-1].cites)
+    if not cited:
+        return []
+    events, duplicated = cited_events(cited, base_dir)
+    _refuse_shared_ids(cited, duplicated)
+    contents = {i: e.content for i, e in events.items()}
+    return _decision_violations(tree, len(tree.decisions), contents)
 
 
 def _main(argv: list[str] | None = None) -> int:

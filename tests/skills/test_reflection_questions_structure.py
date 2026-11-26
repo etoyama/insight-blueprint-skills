@@ -173,13 +173,27 @@ class TestAnExplorationCanLeaveATentativeAnswer:
 
 
 class TestAnAnswerThatChangesNoVerdictGoesToTheTheme:
-    """US-6 AC 5: an open question that changes no verdict is a reservation on the root."""
+    """US-6 AC 5: an open question that changes no verdict goes to the theme reflection.
 
-    def test_such_a_question_is_left_to_the_theme_reflection(self) -> None:
+    The beat says only that the question is kept and where it is written. The analyst
+    has the question in front of them, so the beat gives it no name of its own: a name
+    such as 注意すべきこと would clash with the two kinds it is written as (Epic 34,
+    the human's choice in the PM session, 2026-11-26).
+    """
+
+    def test_such_a_question_is_kept_and_written_in_the_theme_reflection(
+        self,
+    ) -> None:
         beat = _beat(OPEN_QUESTIONS)
-        assert "根の問いへの留保" in beat
         assert "/analysis-reflection {theme_id}" in beat
-        assert "未判別" in beat and "弱める証拠と留保" in beat
+        assert "この問いは捨てない" in beat
+        assert "まだ決められないこと か 注意すべきこと として書く" in beat
+
+    def test_the_question_gets_no_other_name(self) -> None:
+        beat = _beat(OPEN_QUESTIONS)
+        for name in ("主題への答えで注意すべきこと", "残る問い", "留保"):
+            assert name not in beat
+        assert not re.search(r"(?i)it is a (caution|reservation)", beat)
 
     def test_no_text_for_the_analyst_uses_hibiku(self) -> None:
         assert "響" not in _skill()

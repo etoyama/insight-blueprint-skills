@@ -16,8 +16,10 @@ from typing import get_args
 
 import pytest
 
+from insight_blueprint.models.tree import Progress
 from skills._shared import design_io, tree_check, tree_io
 from skills._shared._atomic import atomic_write_yaml
+from skills._shared.tree_render_parts import _BELOW_WORDS, PROGRESS_WORDS
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills._shown import PIPED
 from tests.skills.test_skill_structure import _read_skill
@@ -119,9 +121,9 @@ class TestThemeReflectionWritesCitedAnswers:
     @pytest.mark.parametrize(
         ("kind", "label"),
         [
-            ("claim", "言えること"),
-            ("undetermined", "未判別"),
-            ("weakening", "弱める証拠と留保"),
+            ("claim", "これまでわかっていること"),
+            ("undetermined", "まだ決められないこと"),
+            ("weakening", "注意すべきこと"),
         ],
     )
     def test_each_kind_of_statement_is_explained(self, kind: str, label: str) -> None:
@@ -283,3 +285,31 @@ class TestReflectionCallsOnlyCommandsThatExist:
             with pytest.raises(SystemExit) as exit_:
                 tree_io._main([command, "--help"])
             assert exit_.value.code == 0, command
+
+
+def _below_words(whose: str) -> str:
+    """The counts below a node as the page says them, with placeholders for the numbers."""
+    counts = "、".join(
+        f"{PROGRESS_WORDS[p][0]} {n}"
+        for p, n in zip(reversed(Progress), "abc", strict=True)
+    )
+    return _BELOW_WORDS.format(whose=whose, count="{N}") + counts
+
+
+class TestProgressIsShownAsThePageShowsIt:
+    """A node with no progress word shows the counts below it, never 未着手 (ADR-0057)."""
+
+    def test_the_load_step_reads_the_word_or_null_and_the_counts_below(self) -> None:
+        load = _step("### Step T1: ")
+        assert "`progress`" in load and "`below`" in load
+        assert re.search(r"`null`[^.]*`below`", load)
+
+    def test_the_presented_progress_uses_the_words_of_the_page(self) -> None:
+        present = _step("### Step T5: ")
+        assert _below_words("主題") in present
+        assert _below_words("この論点") in present
+
+    def test_a_node_without_a_word_is_never_shown_as_not_started(self) -> None:
+        present = _step("### Step T5: ")
+        never = re.search(r"`null`[^.]*never[^.]*未着手[^.]*\.", present)
+        assert never, "no sentence keeps a node without a word from reading 未着手"

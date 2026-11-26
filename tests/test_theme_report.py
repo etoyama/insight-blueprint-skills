@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import re
+from collections import Counter
 from dataclasses import replace
 from datetime import date, datetime
 from pathlib import Path
@@ -262,17 +263,19 @@ class TestRenderReport:
             )
         )
 
-        assert markdown.index("**言えること**") < markdown.index("**留保すべきこと**")
-        assert markdown.index("**留保すべきこと**") < markdown.index(
-            "**まだ分からないこと**"
+        assert markdown.index("**これまでわかっていること**") < markdown.index(
+            "**注意すべきこと**"
+        )
+        assert markdown.index("**注意すべきこと**") < markdown.index(
+            "**まだ決められないこと**"
         )
 
     def test_a_kind_with_no_statement_has_no_heading(self) -> None:
         markdown = render_report(_report(_statement("claim", "期限切れは152件")))
 
-        assert "**言えること**" in markdown
-        assert "**留保すべきこと**" not in markdown
-        assert "**まだ分からないこと**" not in markdown
+        assert "**これまでわかっていること**" in markdown
+        assert "**注意すべきこと**" not in markdown
+        assert "**まだ決められないこと**" not in markdown
 
     def test_the_order_within_a_kind_is_kept(self) -> None:
         markdown = render_report(
@@ -357,6 +360,21 @@ class TestIntroduction:
             "| LIB-Q03 | LIB-Q03 の問い | LIB-Q01 | LIB-Q03 に答えると分かること | 検証中 |",
             "| LIB-Q04 | LIB-Q04 の問い | LIB-Q03 | LIB-Q04 に答えると分かること | 未着手 |",
         ]
+
+    def test_a_question_with_no_progress_word_shows_the_progress_below_it(
+        self,
+    ) -> None:
+        """As on the page: no design of its own, one below it (ADR-0057)."""
+        below = Counter({Progress.analyzed: 1, Progress.not_started: 1})
+        intro = _section(
+            render_report(
+                _report(nodes=(_node("LIB-Q02", progress=None, below=below),))
+            ),
+            "## Introduction",
+        )
+
+        (row,) = [line for line in intro.splitlines() if line.startswith("| LIB-Q")]
+        assert row.endswith("| この論点の下に置いた論点 2 つ: 分析済み 1、未着手 1 |")
 
     def test_a_root_with_no_question_below_it_says_so_instead_of_a_table(
         self,
@@ -466,7 +484,9 @@ class TestResults:
         assert "### LIB-Q02 LIB-Q02 の問い" in results.splitlines()
         assert "LIB-Q03" not in results
         assert "- 期限切れは152件（LIB-H01-E01）" in results.splitlines()
-        assert results.index("**言えること**") < results.index("**留保すべきこと**")
+        assert results.index("**これまでわかっていること**") < results.index(
+            "**注意すべきこと**"
+        )
 
     def test_a_finished_design_gives_its_lead_sentence_and_conclude_text(
         self,

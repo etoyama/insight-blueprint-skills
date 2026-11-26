@@ -14,12 +14,15 @@ Writes go through ``tree_io``, which also carries the CLI for these reads.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+from collections import Counter
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import asdict
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+
+from pydantic import BaseModel
 
 from insight_blueprint.models.common import THEME_ID_PATTERN
 from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
@@ -49,6 +52,7 @@ from skills._shared.theme_report import (
     ThemeReport,
     render_report,
 )
+from skills._shared.tree_changes import answer_changes, cited_above, uncited_below
 from skills._shared.tree_check import Violation, check_cited, current_cites
 from skills._shared.tree_render import (
     CheckFailed,
@@ -105,14 +109,58 @@ def status_of(design: dict) -> DesignStatus:
     return DesignStatus(design["status"])
 
 
-def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
-    """Derive the progress of every node from the status of its linked designs."""
-    return {
-        node.id: Progress.of(
-            status_of(require_design(design_id, base_dir))
+def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, dict]:
+    """The progress of every node, derived from the status of its linked designs.
+
+    Each node gets ``progress``, its word or ``None``, and ``below``, how many
+    nodes under it have each word (furthest first, words with none left out).
+    The rule is ``QuestionTree.progress``, the one the page shows (ADR-0057).
+    """
+    tree = load_tree_model(theme_id, base_dir)
+    words = tree.progress(
+        {
+            design_id: status_of(require_design(design_id, base_dir))
+            for node in tree.nodes
             for design_id in node.design_ids
-        ).value
-        for node in load_tree_model(theme_id, base_dir).nodes
+        }
+    )
+    below = tree.progress_below(words)
+    return {
+        node.id: {
+            "progress": None if node.id not in words else words[node.id].value,
+            "below": {
+                p.value: below[node.id][p]
+                for p in reversed(Progress)
+                if below[node.id][p]
+            },
+        }
+        for node in tree.nodes
+    }
+
+
+def changes(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
+    """What each answer changed, and what the answers above and below cite. Writes nothing.
+
+    The page ``render`` writes shows the same values with the content of each
+    event; here a skill gets them to show the analyst (ADR-0056).
+    """
+    tree = load_tree_model(theme_id, base_dir)
+    return {
+        "answer_changes": [
+            change.model_dump(mode="json") for change in answer_changes(tree).values()
+        ],
+        "cited_above": _by_node(cited_above(tree)),
+        "uncited_below": _by_node(uncited_below(tree)),
+    }
+
+
+def _by_node(
+    found: Mapping[str, tuple[BaseModel, ...]],
+) -> dict[str, list[dict[str, Any]]]:
+    """The entries of each node as JSON, keyed by the id of that node."""
+    return {
+        node_id: [entry.model_dump(mode="json") for entry in entries]
+        for node_id, entries in found.items()
     }
 
 
@@ -288,8 +336,9 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     standalone page ``notes/{id}.html`` of each design it holds is removed.
 
     A stale answer is not stored as withdrawn, so the page is where it shows. A
-    cited id that two events share stops the check, not the page: it says so on
-    the page. A journal that cannot be read stops ``render``, so the analyst is
+    cited id of an answer that two events share stops the check, not the page:
+    it says so on the page. A decision that cites such an id shows neither
+    event and stops nothing. A journal that cannot be read stops ``render``, so the analyst is
     told which file to fix.
     """
     tree = load_tree_model(theme_id, base_dir)
@@ -298,14 +347,18 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     designs = {
         design_id: DesignSummary.of(note) for design_id, note in design_notes.items()
     }
-    # Every round is read, since the page shows the history of each answer.
+    # Every round is read, since the page shows the history of each answer, and
+    # so is every decision, since the page shows what each reason rests on.
     events, duplicated = cited_events(
         (
-            cite
-            for node in tree.nodes
-            for answer in node.answers
-            for statement in answer.statements
-            for cite in statement.cites
+            *(
+                cite
+                for node in tree.nodes
+                for answer in node.answers
+                for statement in answer.statements
+                for cite in statement.cites
+            ),
+            *(cite for decision in tree.decisions for cite in decision.cites),
         ),
         base_dir,
     )
@@ -320,6 +373,7 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
         events,
         checked,
         {d: render_note(n) for d, n in design_notes.items()},
+        shared=frozenset(duplicated),
     )
     path = tree_path(theme_id, base_dir).with_suffix(".html")
     atomic_write_text(path, html)
@@ -409,16 +463,21 @@ def _add_design_records(
                 )
 
 
-def _report_node(node: QuestionNode, notes: dict[str, DesignNote]) -> ReportNode:
+def _report_node(
+    node: QuestionNode,
+    progress: Mapping[str, Progress],
+    below: Mapping[str, Counter[Progress]],
+) -> ReportNode:
     return ReportNode(
         id=node.id,
         question=node.question,
         parent=node.parent_question_id or "",
         contribution=node.contribution,
-        progress=Progress.of(notes[d].design.status for d in node.design_ids),
+        progress=progress.get(node.id),
         answer=node.current_answer(),
         design_ids=tuple(node.design_ids),
         next_candidate=node.next_candidate,
+        below=below[node.id],
     )
 
 
@@ -434,7 +493,10 @@ def _theme_report(
     """
     notes = _linked_notes(tree, base_dir)
     root = tree.root()
-    nodes = tuple(_report_node(n, notes) for n in tree.nodes if n is not root)
+    # The rule the page shows (ADR-0057), so the two cannot disagree.
+    progress = tree.progress({d: note.design.status for d, note in notes.items()})
+    below = tree.progress_below(progress)
+    nodes = tuple(_report_node(n, progress, below) for n in tree.nodes if n is not root)
     designs = tuple(ReportDesign.of(note) for note in notes.values())
     # Two designs may read the same source; the report lists it once.
     sources = tuple(dict.fromkeys(s for note in notes.values() for s in note.sources))

@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from skills._shared import catalog_io, design_io, tree_io, tree_read
-from tests.tree_io._support import _entry, _finish, _run_cli
+from tests.tree_io._support import _add, _entry, _finish, _run_cli
 from tests.tree_io.test_render_design import (
     CONNECTION_PATH,
     _figure,
@@ -89,6 +89,27 @@ class TestReportWritten:
 
         assert (result["round"], result["root_answer_round"]) == (2, 1)
         assert "2回目の振り返りの時点" in _report_path(answered).read_text("utf-8")
+
+    def test_the_table_of_questions_follows_the_progress_rule_of_the_page(
+        self, answered: Path
+    ) -> None:
+        # LIB-Q04 links nothing and has LIB-Q05 under it; LIB-Q06 has a design below.
+        _add(answered, question="LIB-Q04 の問い")
+        _add(answered, question="LIB-Q05 の問い", parent_question_id="LIB-Q04")
+        _add(answered, question="LIB-Q06 の問い")
+        _add(answered, question="LIB-Q07 の問い", parent_question_id="LIB-Q06")
+        tree_io.link_design("LIB", "LIB-Q07", "LIB-H01", base_dir=answered)
+
+        tree_io.report("LIB", base_dir=answered)
+
+        rows = {
+            line.split(" | ")[0]: line
+            for line in _report_path(answered).read_text("utf-8").splitlines()
+            # The table of the Introduction, the one with the progress column.
+            if line.startswith("| LIB-Q") and line.count(" | ") == 4
+        }
+        assert rows["| LIB-Q04"].endswith("| 未着手 |")
+        assert rows["| LIB-Q06"].endswith("| この論点の下に置いた論点 1 つ: 検証中 1 |")
 
     def test_a_linked_design_that_is_not_finished_does_not_stop_the_report(
         self, answered: Path

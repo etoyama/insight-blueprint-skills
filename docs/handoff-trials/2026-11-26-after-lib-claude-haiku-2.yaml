@@ -1,0 +1,58 @@
+date: '2026-11-26'
+scenario: lib
+stage: round-2
+reader:
+  kind: claude
+  name: haiku (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 主題は「取り置き期限を延ばす試行をするか」で、現時点の答えは「延長の試行をするかは、来館できる日の少なさを確かめるまで決められない」という『まだ決められないこと』を含む。『通知が翌日以降の予約は期限切れが18%と多い』という『これまでわかっていること』は、主題の判断の前提にとどまる。
+    verdict: undetermined
+  q2:
+    note: LIB-Q02 は分析済みだが、現時点の答えは『これまでわかっていること』だけで、決められないことが残るとは書かれていないので除いた。LIB-Q03
+      は分析済みで『期限切れが通知の遅れで増えているかは、まだ見分けられない』が残る。LIB-Q04、Q05、Q06 は分析設計を結んでおらず、答えも無い。
+    not_started:
+    - LIB-Q04
+    - LIB-Q05
+    - LIB-Q06
+    analyzed_undetermined:
+    - LIB-Q03
+  q3:
+    note: 現時点の主題の答えの『これまでわかっていること』は LIB-H02-E01（検証仮説を支持）に基づく。『注意すべきこと』と『まだ決められないこと』は
+      LIB-H02-E02（検証仮説に反する）に基づく。LIB-H01-E01 は 2 回目の振り返りで根拠から外れている。
+    supports:
+    - event_id: LIB-H02-E01
+      design_id: LIB-H02
+    weakens:
+    - event_id: LIB-H02-E02
+      design_id: LIB-H02
+  q4:
+    note: 主題 LIB-Q01 だけが 2 回目の振り返りで答えを書き換えた。LIB-H02-E01 と LIB-H02-E02 を新しく根拠にし、LIB-H01-E01
+      を根拠から外した。LIB-Q03 は 2 回目で初めて答えたので含めない。LIB-Q02 は 2 回目で書き直していない。
+    changed_nodes:
+    - LIB-Q01
+    evidence:
+    - LIB-H02-E01
+    - LIB-H02-E02
+    - LIB-H01-E01
+  q5:
+    note: 親に戻る（2 回目の振り返りの後）として LIB-Q06（通知から期限まで何日開館していたか）が選ばれ、その理由の根拠は LIB-H02-E02（通知の日を揃えても金曜に確保した本の期限切れは
+      16% のまま）だけである。LIB-H02-E03 は LIB-Q06 の発見元だが、理由の根拠としては挙がっていない。
+    node_id: LIB-Q06
+    reason_events:
+    - LIB-H02-E02
+  q6:
+    note: 2 回目の振り返りで書き直していない論点は LIB-Q02 だけ。その上の論点は LIB-Q01 のみで、LIB-Q01 の現在の答えは LIB-H01-E01
+      を引用していない（1 回目の答えだけが引用していた）。したがって、前回も今回も同じ出来事を引用して文が違う上位論点は無く、両方とも空にした。
+    nodes: []
+    evidence: []
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: false
+  q5: true
+  q6: true

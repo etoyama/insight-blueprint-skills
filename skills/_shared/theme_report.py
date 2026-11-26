@@ -13,6 +13,7 @@ Appendix lists exactly the records the report cites.
 from __future__ import annotations
 
 import re
+from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 
@@ -40,7 +41,12 @@ from skills._shared.design_note import (
     lead_sentence,
     statement_of,
 )
-from skills._shared.tree_render import PROGRESS_WORDS, CitedEvent
+from skills._shared.tree_render import (
+    KIND_WORDS,
+    PROGRESS_WORDS,
+    CitedEvent,
+    below_text,
+)
 from skills._shared.verdict_table import Fixed, Text, VerdictMetric, metric_tables
 
 _DASH = "—"
@@ -48,13 +54,13 @@ _DASH = "—"
 # The glossary's words a reader does not know, and what the report says instead.
 # Every fixed sentence takes these words from here (ADR-0039).
 READER_WORDS: Mapping[str, str] = {
-    "根の問い": "主題",
     "journal の出来事": "記録",
     "分析設計": "分析",
     "親の論点": "上位の論点",
     "寄与": "答えると分かること",
 }
-_ROOT = READER_WORDS["根の問い"]
+# The glossary itself calls the root question 主題 (ADR-0055): no rewrite.
+_ROOT = "主題"
 _RECORD = READER_WORDS["journal の出来事"]
 _DESIGN = READER_WORDS["分析設計"]
 _PARENT = READER_WORDS["親の論点"]
@@ -99,12 +105,9 @@ def escape_source_text(text: str) -> str:
 
 _e = escape_source_text
 
-# The order of this table is the order of the groups in the report.
-_KIND_HEADINGS: dict[StatementKind, str] = {
-    StatementKind.claim: "言えること",
-    StatementKind.weakening: "留保すべきこと",
-    StatementKind.undetermined: "まだ分からないこと",
-}
+# The report groups the statements in this order; the words are the page's
+# (ADR-0055), so the tree and the report cannot call a kind by two names.
+_KIND_ORDER = (StatementKind.claim, StatementKind.weakening, StatementKind.undetermined)
 
 # The fields of an aim are texts from the records; the sentences escape them.
 _AIM_SENTENCES: dict[AimKind, str] = {
@@ -140,17 +143,19 @@ class ReportNode:
     """One question below the root, as the report shows it.
 
     ``answer`` is the current answer, given under whichever root revision; a
-    node without one is a question not answered yet.
+    node without one is a question not answered yet. ``progress`` is ``None``
+    for a node the page shows by the progress ``below`` it (ADR-0057).
     """
 
     id: str
     question: str
     parent: str
     contribution: str
-    progress: Progress
+    progress: Progress | None
     answer: Answer | None
     design_ids: tuple[str, ...]
     next_candidate: NextCandidate | None
+    below: Counter[Progress] = field(default_factory=Counter)
 
 
 @dataclass(frozen=True)
@@ -290,7 +295,8 @@ def _aim_sentence(aim: Aim) -> str:
 
 def _statements(answer: Answer, cites: _Cites) -> list[str]:
     blocks: list[str] = []
-    for kind, heading in _KIND_HEADINGS.items():
+    for kind in _KIND_ORDER:
+        heading = KIND_WORDS[kind][0]
         lines = [
             f"- {_e(s.text)}{cites.mark(s.cites)}"
             for s in answer.statements
@@ -324,7 +330,9 @@ def _introduction(report: ThemeReport) -> list[str]:
                 _e(n.question),
                 n.parent,
                 _e(n.contribution),
-                PROGRESS_WORDS[n.progress][0],
+                below_text(False, n.below)
+                if n.progress is None
+                else PROGRESS_WORDS[n.progress][0],
             )
             for n in report.nodes
         ),

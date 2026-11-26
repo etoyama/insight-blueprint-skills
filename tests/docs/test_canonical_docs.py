@@ -431,6 +431,23 @@ class TestReportAndUploadDocs:
             if code_name:
                 assert f"`{code_name}`" in rows[term][words.CODE_NAME], term
 
+    def test_the_values_derived_from_the_cites_are_terms(self) -> None:
+        """Epic 34 (ADR-0056): what the page derives from the cites has its words."""
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        added = {
+            "答えの変化": "AnswerChange",
+            "証拠の変わり方": "ChangeKind",
+            "上の論点での引用": "CitedAbove",
+            "引用していない下の結果": "UncitedBelow",
+        }
+        assert set(added) - set(rows) == set()
+        for term, code_name in added.items():
+            assert "adr/0056-" in rows[term]["初出"], term
+            assert f"`{code_name}`" in rows[term][words.CODE_NAME], term
+
     def test_a_confidence_interval_is_one_kind_of_interval(self) -> None:
         rows = {
             r[words.TERM]: r
@@ -823,9 +840,9 @@ class TestQuestionTreeDocs:
         added = {
             "論点ツリー",
             "論点",
-            "根の問い",
+            "主題",
             "到達点",
-            "根の版",
+            "主題の版",
             "寄与",
             "発見元",
             "進捗",
@@ -893,7 +910,7 @@ class TestQuestionTreeDocs:
             "論点ツリー": "QuestionTree",
             "論点": "QuestionNode",
             "到達点": "Aim",
-            "根の版": "RootRevision",
+            "主題の版": "RootRevision",
             "寄与": "contribution",
             "発見元": "origin_event_id",
             "進捗": "Progress",
@@ -957,10 +974,10 @@ class TestQuestionTreeDocs:
         keeps = [line for line in sequence.splitlines() if "【KEEP" in line]
         for gate in (
             "ツリーを作って巡回に入るか",
-            "根の問い",
+            "主題",
             "最初に調べる論点",
             "ツリーの決定",
-            "根の版",
+            "主題の版",
         ):
             assert any(gate in line for line in keeps), gate
 
@@ -1314,3 +1331,277 @@ class TestExplorationAndConfirmationTerms:
     ) -> None:
         entry = changelog_entry(_read("CHANGELOG.md"), "探索（旧形式）")
         assert phrase in unwrap(section(entry, "### Upgrade note"))
+
+
+class TestWordsShownToTheAnalyst:
+    """Epic 34 US-5 AC 4: the glossary names the subject and copies the words to show."""
+
+    GLOSSARY = "docs/UBIQUITOUS_LANGUAGE.md"
+    DESIGN_DOC = "docs/design/epic-34-what-moved-the-answer.md"
+    SECTION = "Words shown to the analyst"
+
+    def _rows(self) -> dict[str, dict[str, str]]:
+        return {r[words.TERM]: r for r in words.terms_rows(_read(self.GLOSSARY))}
+
+    @pytest.mark.parametrize(
+        ("term", "old"), [("主題", "根の問い"), ("主題の版", "根の版")]
+    )
+    def test_the_old_name_is_a_variant_of_the_subject_and_is_flagged(
+        self, term: str, old: str
+    ) -> None:
+        assert old in self._rows()[term][words.AVOID].split("、")
+        assert f"{old}\t{term}" in _read(".yomiyasu-words/flag.txt")
+
+    @pytest.mark.parametrize("old", ["言えること", "弱める証拠と留保", "未判別"])
+    def test_the_old_kind_words_are_variants_of_the_answer_and_are_flagged(
+        self, old: str
+    ) -> None:
+        """The three kind words are the terms too (ADR-0055, decided 2026-11-26)."""
+        assert old in self._rows()["現時点の答え"][words.AVOID].split("、")
+        assert any(
+            line.startswith(f"{old}\t")
+            for line in _read(".yomiyasu-words/flag.txt").splitlines()
+        )
+
+    def test_the_table_holds_only_words_that_differ_inside_and_on_screen(
+        self,
+    ) -> None:
+        """A renamed term is a term, not a row: a row names an inner word that
+        stays, and no old name a term avoids."""
+        rows = table_rows(words.section(_read(self.GLOSSARY), self.SECTION))[2:]
+        terms = self._rows()
+        avoided = {
+            v for r in terms.values() for v in r[words.AVOID].split("、") if v != "—"
+        }
+        for inner, shown, *_ in rows:
+            assert shown not in terms, shown
+            assert inner.split("（")[0] not in avoided, inner
+
+    def test_a_flagged_old_word_suggests_the_word_shown_for_it(self) -> None:
+        shown = {
+            row[0]: row[1]
+            for row in table_rows(words.section(_read(self.GLOSSARY), self.SECTION))[2:]
+        }
+        for line in _read(".yomiyasu-words/flag.txt").splitlines():
+            old, _, suggested = line.partition("\t")
+            if old in shown:
+                assert suggested == shown[old], line
+
+    def test_the_answer_is_defined_by_the_words_of_its_kinds(self) -> None:
+        definition = self._rows()["現時点の答え"][words.DEFINITION]
+        for word in (
+            "これまでわかっていること",
+            "注意すべきこと",
+            "まだ決められないこと",
+        ):
+            assert word in definition
+        for value in ("`claim`", "`weakening`", "`undetermined`"):
+            assert value in definition
+
+    def test_a_round_and_a_revision_are_shown_in_words(self) -> None:
+        """Chosen after reading the real pages (Decision
+        words-chosen-after-reading-the-real-pages): no 回 N and no 版 on screen."""
+        shown = {
+            row[0]: row[1]
+            for row in table_rows(words.section(_read(self.GLOSSARY), self.SECTION))[2:]
+        }
+        assert shown["振り返りの回（`round`）、回 N"] == "N回目の振り返り"
+        assert shown["主題の版（`RootRevision`）"].startswith(
+            "主題を見直した回数を言葉で言う"
+        )
+
+    def test_the_glossary_copies_the_table_of_the_design_doc(self) -> None:
+        def rows(markdown: str) -> list[list[str]]:
+            return table_rows(markdown)[2:]
+
+        us5 = section(_read(self.DESIGN_DOC), "### US-5:")
+        glossary = words.section(_read(self.GLOSSARY), self.SECTION)
+        assert rows(glossary) == rows(us5)
+        assert rows(glossary)
+
+    def test_prd_requires_the_tree_to_start_from_the_subject(self) -> None:
+        requirements = section(_read("docs/PRD.md"), "### 機能要件")
+        assert "着手時には、主題、暫定の第一階層" in requirements
+        assert "論点ツリーの主題に到達点を持てる" in requirements
+
+    def test_architecture_tells_the_check_of_the_subject_and_its_revisions(
+        self,
+    ) -> None:
+        architecture = unwrap(_read("docs/ARCHITECTURE.md"))
+        assert "主題がちょうど1つあること" in architecture
+        assert "主題の版が1から1ずつ増えること" in architecture
+
+
+class TestTrialAfterTheDisplay:
+    """Epic 34 US-6 AC 5: the trial after the display is kept beside the baseline."""
+
+    SUMMARY = "docs/handoff-trials/2026-11-26-after-the-display.md"
+    BASELINE = "2026-11-26-psy-baseline.md"
+    MODELS = ("sonnet", "haiku", "opus")
+
+    def _summary(self) -> str:
+        return _read(self.SUMMARY)
+
+    @pytest.mark.parametrize("scenario", ["lib", "psy"])
+    def test_each_scenario_has_three_records_per_model(self, scenario: str) -> None:
+        trials = REPO_ROOT / "docs/handoff-trials"
+        for model in self.MODELS:
+            for n in (1, 2, 3):
+                name = f"2026-11-26-after-{scenario}-claude-{model}-{n}.yaml"
+                assert (trials / name).is_file(), name
+
+    def test_the_summary_reads_beside_the_baseline(self) -> None:
+        summary = self._summary()
+        assert f"]({self.BASELINE})" in summary
+        assert "2026-11-22-claude-opus-1.yaml" in summary
+        for heading in (
+            "## 結果",
+            "## note から分かったこと",
+            "## 人の読み手",
+            "## 試行で示せなかったこと",
+        ):
+            assert heading in summary, heading
+
+    def test_the_result_table_puts_before_and_after_side_by_side(self) -> None:
+        result = section(self._summary(), "## 結果")
+        rows = table_rows(result)
+        assert rows[0][:2] == ["シナリオ", "読み手"]
+        assert rows[0][2:] == ["q1", "q2", "q3", "q4", "q5", "q6"]
+        labels = {(r[0], r[1].split(" ")[0]) for r in rows[2:]}
+        for scenario in ("lib", "psy"):
+            for when in ("前", "後"):
+                assert (f"{scenario}（{when}）", "sonnet") in labels, (scenario, when)
+
+    def test_the_summary_says_what_the_difference_mixes(self) -> None:
+        summary = unwrap(self._summary())
+        assert "欄を足した効果と言葉を直した効果" in summary
+        assert "問いの紙" in summary
+
+    def test_the_human_reader_is_the_analyst_and_not_timed(self) -> None:
+        human = unwrap(section(self._summary(), "## 人の読み手"))
+        for phrase in (
+            "初見ではない",
+            "時間は計っていない",
+            "PM のセッションと Artifact のコメント",
+            "取り直せる",
+            "改善版のほうが理解できた",
+        ):
+            assert phrase in human, phrase
+
+    def test_the_prd_names_the_sixth_question_in_the_words_shown(self) -> None:
+        criteria = unwrap(section(_read("docs/PRD.md"), "## 成功基準"))
+        assert "主題への現時点の答え" in criteria
+        assert "まだ決められないことが残る論点" in criteria
+        assert "上の論点の答えがその証拠を引用する文が変わった論点" in criteria
+        assert "未判別" not in criteria
+
+    def test_the_glossary_words_of_the_trial_have_two_scenarios_and_six_questions(
+        self,
+    ) -> None:
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        assert "心理的安全性" in rows["合成シナリオ"][words.DEFINITION]
+        assert "6つの問い" in rows["試行の記録"][words.DEFINITION]
+        assert "6つ目" in rows["引き継ぎの試行"][words.DEFINITION]
+
+
+class TestTrialAfterTheGateFixes:
+    """The trial is taken again after the gate fixed the two regressions it found."""
+
+    SUMMARY = "docs/handoff-trials/2026-11-26-after-the-gate-fixes.md"
+    EARLIER = "2026-11-26-after-the-display.md"
+    MODELS = ("sonnet", "haiku", "opus")
+
+    def _summary(self) -> str:
+        return _read(self.SUMMARY)
+
+    @pytest.mark.parametrize("scenario", ["lib", "psy"])
+    def test_each_scenario_has_three_new_records_per_model(self, scenario: str) -> None:
+        trials = REPO_ROOT / "docs/handoff-trials"
+        for model in self.MODELS:
+            for n in (1, 2, 3):
+                name = f"2026-11-26-fixed-{scenario}-claude-{model}-{n}.yaml"
+                assert (trials / name).is_file(), name
+
+    def test_the_table_puts_three_columns_side_by_side(self) -> None:
+        summary = self._summary()
+        assert f"]({self.EARLIER})" in summary
+        rows = table_rows(section(summary, "## 結果"))
+        assert rows[0][:2] == ["シナリオ", "読み手"]
+        assert rows[0][2:] == ["q1", "q2", "q3", "q4", "q5", "q6"]
+        labels = {(r[0], r[1].split(" ")[0]) for r in rows[2:]}
+        for scenario in ("lib", "psy"):
+            for when in ("前", "表示の後", "直した後"):
+                for model in self.MODELS:
+                    assert (f"{scenario}（{when}）", model) in labels
+
+    def test_it_says_q4_is_not_a_like_for_like_comparison(self) -> None:
+        summary = unwrap(self._summary())
+        assert "問い 4 の文" in summary
+        assert "同じ条件の比較ではない" in summary
+
+
+def _defines(module: str, name: str) -> bool:
+    """Whether skills/_shared/<module>.py defines *name* itself, not by import."""
+    source = _read(f"skills/_shared/{module}.py")
+    return bool(
+        re.search(rf"^(?:def|class) {re.escape(name)}\b", source, re.M)
+        or re.search(rf"^{re.escape(name)}\s*[:=]", source, re.M)
+        or re.search(rf"^    def {re.escape(name)}\b", source, re.M)
+    )
+
+
+class TestEpic34NamesTheCodeAsItIs:
+    """The code-quality review of the Epic 34 gate found the DesignDoc naming
+    functions in modules that no longer hold them."""
+
+    DESIGN_DOC = "docs/design/epic-34-what-moved-the-answer.md"
+    RENDER_ROWS = ("tree_render", "tree_render_parts", "tree_render_derived")
+
+    def test_every_dotted_name_is_defined_in_the_module_it_names(self) -> None:
+        doc = _read(self.DESIGN_DOC)
+        named = re.findall(r"`(tree_\w+)\.(\w+)`", doc) + re.findall(
+            r"`skills/_shared/(tree_\w+)\.py::(\w+)`", doc
+        )
+        assert named
+        for module, name in named:
+            if name == "py":
+                continue
+            assert _defines(module, name), f"{module}.{name}"
+
+    @pytest.mark.parametrize("module", RENDER_ROWS)
+    def test_a_bare_name_in_a_render_row_is_defined_in_that_module(
+        self, module: str
+    ) -> None:
+        table = section(_read(self.DESIGN_DOC), "## Module Responsibilities")
+        (row,) = [
+            r
+            for r in table_rows(table)
+            if r[0].startswith(f"`skills/_shared/{module}.py`")
+        ]
+        names = [
+            n
+            for cell in row[1:]
+            for n in re.findall(r"`([A-Za-z_]\w*)`", cell)
+            if n not in self.RENDER_ROWS
+            and n not in ("tree_changes", "tree_check", "design_note")
+        ]
+        assert names, module
+        for name in names:
+            assert _defines(module, name), f"{module}: {name}"
+
+    def test_the_deferred_gathering_of_the_words_is_a_decision(self) -> None:
+        decision = section(
+            _read(self.DESIGN_DOC), "### Decision: words-are-not-yet-in-one-place"
+        )
+        for field in (
+            "What",
+            "Why",
+            "Criteria",
+            "Affected modules",
+            "Alternatives considered",
+            "Consequences",
+        ):
+            assert f"- {field}: " in decision, field

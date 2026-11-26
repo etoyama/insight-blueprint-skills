@@ -1,0 +1,664 @@
+# Epic 34: 後から届いた結果で何が変わったかを、論点ツリーでたどれるようにする
+
+## Background
+
+本書がこの Epic の要求と背景の正本（[FLOW-0001](../adr/flow/0001-designdoc-owns-requirements.md)）。
+Epic issue（[#249](https://github.com/etoyama/insight-blueprint-skills/issues/249)）には要約と本書へのリンクだけを置く。
+
+- 解く課題: 論点ツリーで複数の論点を調べると、後から届いた論点の結果が、先に出た結果の使われ方を変えることがある。
+  たとえば、論点 B の結果「同じ人で 0.30 上がった」を、主題の答えは「上司支援が効く根拠」として引用していた。
+  後から論点 C の結果「その変化の 78% は業務負荷も下がった部署」が届く。B の数値は変わらない。変わるのは、主題の答えが B の結果を引用する文である。
+  論点ツリーを開いた人（分析者本人と、引き継いだ読み手）は、今の表示ではこの変化をたどれない。
+  - 課題1: 先に調べた論点のカードは、前の回の答えのままである。上の論点がその結果を引用する文を変えても、カードには何も出ない。読み手は古い読み方のまま数値を持ち帰る。
+  - 課題2: 答えが変わった回の印は「回 N で変わった」だけである。何が変わったかは、前の回の答えと今の答えを目で比べるしかない。引用をやめた証拠は今の答えから消え、消えたことは表示に出ない。
+  - 課題3: 差が出なかった分析の回では、上の論点の答えが書き直されないことがある。そのとき、結果を上の答えに突き合わせたのかが読めない。「回 N で変わった」の印も、回が進むと消える。
+  - 課題4: 途中で止めた分析の論点は「検証中」「まだ答えていない」のまま残る。止めた理由は離れた「ツリーの決定」の一覧にしか無い。
+  - 課題5: 主題のカードは「進捗: 未着手」と出る。下の論点が分析済みで、主題の答えが書いてあっても変わらない。
+  - 課題6: ツリーの決定の理由は文だけで、どの journal の出来事を根拠にしたかを持たない。HTML だけの読み手は根拠を「発見元」の表示から推し量って取り違える（[#137](https://github.com/etoyama/insight-blueprint-skills/issues/137)）。
+  - 課題7: 決める場面の選択肢は深める・親に戻る・区切るの3つである。調べた結果、主題そのものが違っていたと分かったときの道が並んでいない。
+  - 課題8: 分析者に見せる「根の問い」「根の版」「根の変更前の答え」が伝わらない（[#262](https://github.com/etoyama/insight-blueprint-skills/issues/262)）。
+  - 課題9: 今の合成シナリオ（公共図書館）では、表示を変える前から読み手がほぼ満点を取る。この Epic の表示が効いたかを測れない。
+- PRD の要件: [docs/PRD.md](../PRD.md) のコアバリュー「journal / reflection」と、成功基準「引き継ぎの試行」。非機能要件「分析者に届く数と結論は、記録に書いてあるものに限る」。
+- 既存手段が不十分な理由: Epic 18（[ADR-0024](../adr/0024-question-tree-yaml-and-generated-html.md)、[ADR-0025](../adr/0025-cited-answers-checked-after-writing.md)）は、答えの文ごとに引用を持たせ、検査で守った。
+  回ごとの答えは全部 YAML に残っている。しかし表示は最新の回の答えと、畳んだ中の前の回の答えを並べるだけで、差を出さない。
+
+### 起票の経緯
+
+利用者は論点をまとめてエージェントに任せ、人間の確認を減らしたい（続きの issue [#250](https://github.com/etoyama/insight-blueprint-skills/issues/250)・[#251](https://github.com/etoyama/insight-blueprint-skills/issues/251)）。
+その前提として、戻ってきた結果を上の論点の答えに突き合わせる表示を先に強くする。それがこの Epic である。
+巡回は今の逐次のままで、表示と検査だけを扱う。#250 と #251 の中身はこの Epic に入れない。
+
+利用者と PM のセッションは見本（画面3）で絵を合わせた（2026-11-26）。同じ見本で「根の問い」「枝」「証拠の重なり」「呼び戻す」「反対側から読む」が伝わらなかった。
+初版の判断の途中でも、「読み直し」という語が伝わらなかった。本書と表示は、その語を使わず、起きることをそのまま文にする。
+
+初版の見本を人間が読み、7件のコメントを付けた（2026-11-26）。6件は言葉でつまずいた所だった。「言えること」は主題を支持する結果と読まれた。「引用する」「出来事」「下の論点」は意味が取れなかった。
+残る1件は設計の指摘だった。前は根拠にしていて今は外した分析結果と、まだ一度も答えに入れていない分析結果を、1つの欄に混ぜていた。
+本書は内側の用語（引用、journal の出来事）と、分析者に見せる言葉（根拠にする、分析結果）を分けて書く。対応は US-5 の表にある。
+
+### 前提にした事実（epic ブランチ dc785c4、2026-11-26）
+
+実測は`scripts/handoff_trial.py` の `Scenario` と `build` に、リポジトリの外の stages.yaml を通して行った。題材は心理的安全性の架空例で、数値はすべて架空である。
+
+- 論点 A・B・C を順に調べるシナリオを通した。issue #249 の下調べ（v0.19.0）の差分のうち、課題1・2・5・6 は Epic 33 の後も残る。Epic 33 が論点ツリーに足したのは、分析設計のカードの review コメントの件数と、検証仮説の判定の言葉だけである。
+- 論点 B の答えに論点 C の出来事を引用すると、`tree_io answer` は `unlinked-design` を返し、何も書かない。主題はツリー全体の出来事を引用できる（`QuestionTree.designs_by_branch`）。
+- 差が出なかった分析を回 4 に足し、主題の答えを書き直さないシナリオを通した。主題のカードから「回 3 で変わった」の印が消えた。印は最新の回の答えにだけ付く（`tree_render` の `marks_of`）。回 4 の証拠を主題の答えが引用していないことは、どこにも出ない。
+- 分析設計を `analyzing` のままにして、ツリーの決定で区切るシナリオを通した。論点のカードは「進捗: 検証中」「まだ答えていない」のままだった。
+- 1つの回で、C の2つの証拠が A と B の両方の引用のされ方を変えるシナリオを通した。主題の答えには両方を書けた。A と B のカードには何も出ない。
+- 進捗は論点に直接結んだ分析設計の状態から導く（`Progress.of`）。下の論点は見ない。
+- `TreeDecision` は `round`・`kind`・`node_id`・`reason`・`created_at` を持ち、知らない項目を拒む。既定値つきの項目を足せば、保存済みの YAML はそのまま読める。
+- `tree_io revise-root` は今も主題の版を上げられる。分析者に聞く手順は `/analysis-framing` にある。`/analysis-reflection` の決める場面はその道を最後の案内の1行で示すだけである。
+- 引き継ぎの試行の記録は 9 本ある（sonnet・haiku・opus 各3回、`docs/handoff-trials/`）。問い 1〜4 は 9 本とも正しい。問い 5 は 7 本が正しく、外れた 2 本はどちらも sonnet である。
+- レポート（`skills/_shared/theme_report.py`）は、読み手向けにすでに「主題」と出している。「根の」が残るのは、論点ツリーの HTML、skill 4本、問いの紙、用語集、PRD、ARCHITECTURE、HANDOFF_TRIAL である。
+- 確かめていないこと: どの分析が同じデータを使うか（[#236](https://github.com/etoyama/insight-blueprint-skills/issues/236)）。2本目の合成シナリオで、今の表示の読み手が何問外すか。#137 の原因（引用が無いから取り違える）。人の読み手での試行。
+
+## User Stories
+
+AC の正本はここ。
+
+### US-1: 読み手が、答えが変わった回で何が変わったかを、目で比べずに読める
+
+読み手として、答えがなぜ今の形なのかを確かめるために、前の回の答えと今の答えの違いを、証拠ごとに並べて読みたい。
+
+- [x] AC 1: 論点の現時点の答えに前の回の答えがあるとき、表示は答えが引用する出来事ごとに1行を出す。行は出来事の本文と、前の回でその出来事を引用した文と、今の回の文を並べる。出来事は新しく引用した、引用をやめた、同じ出来事を引用する文が変わった、変わっていない、の4つに分ける。1つの回で複数の出来事が変わっても、出来事ごとに1行ずつ出る。欄の初めに、前の回の答えを読んだ人がどこを読み直せばよいかを1文で書く。
+- [x] AC 2: 分け方は引用する出来事の id と、文の種類と本文の一致だけで決まる。表示は記録に無い解釈の言葉を足さない。
+- [x] AC 3: 答えの変化は保存しない。同じ論点ツリーと journal からは、同じ表示が出る。この Epic の前に書かれた論点ツリーでも出る。
+- [x] AC 4: ページは主題への現時点の答え、その答えの変化、次に調べる論点とその理由を、読み方の説明と論点の一覧より前に出す。読み方の説明は畳んで出す。
+- [x] AC 5: 振り返りの回が進んでも、論点の最後の答えの変化は読める。答えが最新の回のものでないとき、カードは答えの回と最新の回を並べ、その後の回で書き直していないことを出す。
+
+### US-2: 読み手が、先に調べた論点のカードから、上の論点での引用のされ方の変化に辿れる
+
+読み手として、先に出た結果を古い読み方のまま持ち帰らないために、その結果を上の論点の答えがどう引用しているかを、論点のカードから読みたい。
+
+- [x] AC 1: 論点のカードは、その論点の現時点の答えが引用する出来事を、上の論点の現時点の答えが引用していれば、上の論点の id・回・文を出し、そこへ辿れる。
+- [x] AC 2: 上の論点がその出来事を引用する文を、この論点の答えより後の回で変えていれば、カードは変わった回と、この論点の答えが変わっていないことを文で出す。
+- [x] AC 3: ツリーの検査は、論点が自分と下の論点に結んだ分析設計の出来事だけを引用できる決まりを保つ。
+- [x] AC 4: 直接の親でない上の論点（主題など）での引用も、同じように出る。
+
+### US-3: 読み手が、差が出なかった分析と止めた分析を、調べた結果として読める
+
+読み手として、調べたのに答えに現れていない結果を見落とさないために、上の答えが引用していない結果と、止めた理由を、論点のカードで読みたい。
+
+- [x] AC 1: 下の論点の現時点の答えが引用していて、その論点の現時点の答えが引用していない出来事を、論点のカードに、出どころの論点・回・文を添えて出す。その論点の答えが一度も引用していない出来事と、前の回までは引用していて今は引用していない出来事を、別の欄に分ける。前者は目立たせ、主題のぶんはページの冒頭にも出す。後者は控えめに出し、最後に引用した回と、引用をやめた回に新しく引用した出来事を添える。
+- [x] AC 2: 自分には分析設計を結ばず、下に置いた論点のどれかに結んでいる論点は、進捗の言葉を出さず、下の論点の進捗を言葉ごとの数で出す。「進捗の数」はこの論点を数えない。自分にも下に置いた論点にも分析設計を結んでいない論点は「未着手」と出し、「進捗の数」に数える。分析設計を直接結んだ論点は進捗の言葉を出す。どちらも、下に論点があればその数を添える。ページ、`tree_io progress`、レポート、skill が分析者に伝える進捗は、同じ規則に従う。
+- [x] AC 3: その論点を指す最新のツリーの決定が「区切る」である論点は、カードに、区切った回と理由を出す。
+- [x] AC 4: reflection は変えない文を前の回のまま書く。ツリーの決定を聞く前に、上の論点の答えが引用していない下の論点の結果を分析者に見せる。引用するかは分析者が決め、引用しなくても答えは書ける。
+
+### US-4: 読み手が決定の根拠を取り違えず、分析者が主題を見直す道を選べる
+
+読み手として、次に調べる論点を選んだ理由の根拠を取り違えないために、決定が引用した出来事を読みたい。
+分析者として、主題そのものが違っていたと分かったときに、決める場面でその道を選びたい。
+
+- [x] AC 1: ツリーの決定は理由の根拠にした journal の出来事の id を0個以上持てる。引用を持たない保存済みの論点ツリーは、そのまま読める。
+- [x] AC 2: 引用を持つ決定は書く前に検査する。引用先が journal に無い、論点ツリーのどの論点にも結んでいない分析設計の出来事である、理由の数が引用先の本文に無い、のどれかなら書かない。
+- [x] AC 3: 表示は決定の理由の下に、引用した出来事の id・分析設計・本文を出す。引用を持たない決定は引用していないことを文で出す。最初の論点を選ぶ決定にはその文を出さない。
+- [x] AC 4: reflection は、分析者が挙げた理由の元になった出来事があれば、決定の引用に入れる。根拠の出来事が無い決定は、引用なしで書く。
+- [x] AC 5: reflection の決める場面は、深める・親に戻る・区切るに並べて「主題そのものを見直す」を出す。選ぶと、今ある主題の版を上げる手順へ進む。ツリーの決定の種類は4つのままである。
+
+### US-5: 分析者が、論点ツリーを内側の用語ではなく、伝わる言葉で読む
+
+分析者として、論点ツリーの言葉でつまずかないために、記録の作りの言葉ではなく、起きていることをそのまま言う言葉で読みたい。
+
+- [x] AC 1: 論点ツリーの表示と、skill が分析者に出す文は、親を持たない論点を「主題」、古い版への答えを「見直す前の主題への答え」と呼ぶ。主題の版は番号で出さず、主題を見直した回数を言葉で言う。見直していない間は出さない（Decisions の `words-chosen-after-reading-the-real-pages`）。
+- [x] AC 2: 論点ツリーの表示、skill が分析者に出す文、レポートは、答えの文の種類を下の「用語を変えた語」の言葉で出す。
+- [x] AC 3: コード上の名前と YAML の項目名と値は変わらず、保存済みの論点ツリーはそのまま読める。
+- [x] AC 4: 用語集は「主題」「主題の版」を用語にし、「根の問い」「根の版」を使わない言い換えに置く。答えの文の種類も下の「用語を変えた語」の3語を用語にし、旧い3語を使わない言い換えに置く。
+- [x] AC 5: この Epic が足す欄と直す欄は、下の表の「分析者に見せる言葉」で書く。答えが引用した出来事のうち、人に聞いた答え（`hearing`）は「分析結果」と呼ばず、「人に聞いた答え」と出す。
+
+用語を変えた語。文書・コード・テストも、分析者に見せる文も、右の語を使う（2026-11-26、人間が PM のセッションで決めた。ADR-0055 の 7）。YAML の項目名と値、コード上の名前は変えない。
+
+- 根の問い → 主題
+- 根の版 → 主題の版（内側の用語。画面では使わず、下の表の言い方で出す。Decisions の `words-chosen-after-reading-the-real-pages`）
+- 根の変更前の答え → 見直す前の主題への答え
+- 言えること（`claim`） → これまでわかっていること
+- 弱める証拠と留保（`weakening`） → 注意すべきこと
+- 未判別（`undetermined`） → まだ決められないこと
+
+内側と画面で言葉が違う語。文書・コード・テストは左の列、分析者に見せる文は右の列を使う。
+
+| 内側の用語（文書・コード） | 分析者に見せる言葉 |
+|---|---|
+| 引用する（`cites`） | 根拠にする |
+| 答えが引用した journal の出来事 | 分析結果（`hearing` は「人に聞いた答え」） |
+| 下の論点 | 使わない。「分析結果のうち」のように、分析結果を主語にして言う |
+| 引用していない下の結果のうち、一度も引用していないもの | まだ答えに入れていない分析結果 |
+| 引用していない下の結果のうち、前は引用していたもの | 前は答えの根拠にしていて、今は外している分析結果 |
+| 振り返りの回（`round`）、回 N | N回目の振り返り |
+| 主題の版（`RootRevision`） | 主題を見直した回数を言葉で言う（主題を1回見直した）。見直していない間は出さない |
+
+### US-6: 開発者が、表示が効いたかを、変える前と後で比べられる
+
+開発者として、この Epic の表示が読み手の判断を助けたかを確かめるために、同じ合成シナリオを変える前と後で読ませて比べたい。
+
+- [x] AC 1: 合成シナリオが2本ある。2本目は、差が出なかった分析と、答えも数値も変わらないまま上の論点での引用のされ方が変わる論点を含む。
+- [x] AC 2: 問いの紙は全シナリオ共通で、6つ目の問い（答えも数値も変わっていないのに、上の論点の答えがその証拠を引用する文が変わった論点と、その証拠）を持つ。
+- [x] AC 3: 正解の鍵は、作った論点ツリーからテストが導き直す。6つ目の問いも、該当する論点が無いシナリオの「該当なし」も導く。決定が引用を持つシナリオでは、問い 5 の理由の出来事も導く。
+- [x] AC 4: 表示を変える前に、2本目の合成シナリオを今の表示で読ませた試行の記録が残る。
+- [x] AC 5: 表示を変えた後に、2本の合成シナリオを読ませた試行の記録が残り、前の記録と並べて読める。過去の試行の記録は書き換えない。
+
+## Stories
+
+Story は仮の分割で、起票は PM のセッションが行う。「触る所」が重なる Story は同じ波に置かない。
+
+| Story | User Story | 扱う AC | 触る所 | 前提 |
+|---|---|---|---|---|
+| 34.1 分析者に見せる言葉の言い換え | US-5 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/tree_render.py` の言葉の表（`_KIND_WORDS`、`_MARK_WORDS`、`_header`、`_root_history`、`_legend`）、`skills/_shared/theme_report.py` の答えの文の種類の言葉、`tests/test_theme_report.py`、`skills/analysis-framing/SKILL.md`、`skills/analysis-reflection/SKILL.md`、`skills/report-export/SKILL.md`、`skills/tree-upload/SKILL.md`、`docs/UBIQUITOUS_LANGUAGE.md`、`.yomiyasu-words/`、`docs/PRD.md`、`docs/ARCHITECTURE.md`、`tests/test_tree_render.py`、`tests/tree_io/`、`tests/skills/` | — |
+| 34.2 2本目の合成シナリオと6つ目の問い | US-6 | AC 1, AC 2, AC 3, AC 4 | `tests/fixtures/handoff/psy/`（新規）、`tests/fixtures/handoff/prompt.md`、`tests/fixtures/handoff/lib/key.yaml`、`scripts/handoff_trial.py`（`Q6`、`Answers`、`KeyAnswers`、`QUESTIONS`）、`tests/test_handoff_trial.py`、`docs/HANDOFF_TRIAL.md`、`tests/docs/test_handoff_trial_doc.py`、`docs/handoff-trials/` | 基準を取る段だけ 34.1 の後 |
+| 34.3 答えの変化を導き、カードと冒頭に出す | US-1 | AC 1, AC 2, AC 3, AC 4, AC 5 | `skills/_shared/tree_changes.py`（新規）、`skills/_shared/tree_render.py`、`skills/_shared/tree_io.py` の読む命令、`tests/test_tree_changes.py`（新規）、`tests/test_tree_render.py`、`tests/tree_io/test_render*.py` | 34.1 |
+| 34.4 ツリーの決定の引用（正本・検査・skill） | US-4、US-2 | US-4 AC 1, AC 2, AC 4, AC 5、US-2 AC 3 | `src/insight_blueprint/models/tree.py`、`skills/_shared/tree_io.py` の `decide`、`skills/_shared/tree_check.py`、`skills/analysis-reflection/SKILL.md` の Step T7、`skills/analysis-auto/SKILL.md`、`docs/ARCHITECTURE.md`、`docs/UBIQUITOUS_LANGUAGE.md`、`tests/test_tree_models.py`、`tests/test_tree_check.py`、`tests/tree_io/` | 34.1 |
+| 34.5 上の論点での引用と、引用していない下の結果 | US-2、US-3 | US-2 AC 1, AC 2, AC 4、US-3 AC 1 | `skills/_shared/tree_changes.py`、`skills/_shared/tree_render.py`（`tree_render_parts.py`・`tree_render_derived.py` に分けた）、`skills/_shared/tree_read.py::changes`、`tests/test_tree_changes.py`、`tests/test_tree_render.py`、`tests/test_tree_render_derived.py`、`tests/tree_io/test_render.py`、`docs/UBIQUITOUS_LANGUAGE.md` | 34.3 |
+| 34.6 進み具合と決定の表示 | US-3、US-4、US-6 | US-3 AC 2, AC 3、US-4 AC 3、US-6 AC 3（問い 5 の鍵） | `skills/_shared/tree_render.py`・`tree_render_parts.py`（34.5 で分けた。言葉と文脈）、`skills/_shared/tree_read.py` の `render`、`scripts/handoff_trial.py` の `build`、`tests/fixtures/handoff/lib/`、`tests/fixtures/handoff/psy/`、`tests/test_handoff_trial.py`、`docs/HANDOFF_TRIAL.md` | 34.4、34.5（引き継ぐことは下の注記） |
+| 34.7 表示を変えた後の引き継ぎの試行 | US-6 | AC 5 | `docs/handoff-trials/`、`docs/HANDOFF_TRIAL.md`、`docs/PRD.md` の成功基準、`docs/UBIQUITOUS_LANGUAGE.md` の試行の語 | 34.6 |
+| 34.8 reflection の案内 | US-3 | AC 4 | `skills/analysis-reflection/SKILL.md` の Step T3 と Step T5、`skills/analysis-auto/SKILL.md`、`tests/skills/` | 34.3 |
+
+- 波 1 は 34.1 と 34.2 で、並行で進められる。問いの紙・HANDOFF_TRIAL・図書館の鍵にある「根」と答えの文の種類の言い換えは、同じファイルを触る 34.2 が行う。US-5 AC 5 は欄を足す 34.3・34.5・34.6 も守る。PRD の成功基準の6つ目の項目と、用語集の試行の語は、34.1 と重ならないように 34.7 が直す。決定が引用を持つ前なので、34.2 の2本目の鍵は、問い 5 の理由の出来事を人が決める。34.6 が2本の合成シナリオの決定に引用を足し、鍵を導き直す。34.2 は、34.1 が epic ブランチに入った後に、今の表示で基準の試行を取る。
+- 波 2 は 34.3 と 34.4 で、並行で進められる。34.3 は表示、34.4 は正本と検査と skill で、触る所は重ならない。
+- 波 3 は 34.5 と 34.8 で、並行で進められる。34.5 は表示のコード、34.8 は reflection の SKILL.md で、触る所は重ならない。波 4 は 34.6、波 5 は 34.7 である。34.3・34.5・34.6 はどれも `tree_render.py` を触るので、順に進める。
+- 34.6 が引き継ぐこと。1つ目と2つ目は 34.2 のレビューが先送りした指摘、3つ目は 34.4 が見つけたこと（共有ノートの `266-decision-cites.md` の 3）である。
+  - q6 の規則の「前回も引用していた」側（上の論点が最後の回に初めて引用した出来事は挙げない）を通すシナリオが無い。`tests/test_handoff_trial.py` の導き方からその条件を消しても、テストは落ちない。鍵を導き直すときに、その形をシナリオに足すかを決める。
+  - `tests/test_handoff_trial.py` の `TestScore` の一部は psy でも回るが、LIB の id で間違いを作る。psy の分は新しいことを確かめていない。
+  - `scripts/handoff_trial.py` の `build` は、`decide` が違反を返して何も書かなくても、黙って先へ進む。`answer` と同じく、違反があれば止まるようにする。
+- 34.2 の基準で、今の表示の読み手が2本目の合成シナリオでも満点を取ったら、PM のセッションは波 2 の前に人間に知らせる。そのときは、表示の効果を Claude の試行では示せない。 34.2 の基準は満点で、PM のセッションが人間に知らせた。人間は止めずに波 2 を進めると決めた（Decisions の `keep-the-display-before-the-change-and-review-after-34-3`）。
+- どの Story も `CHANGELOG.md` の `[Unreleased]` に1行足す。重なるのはそこだけである。
+- 用語集は、コード上の名前を入れた Story が直す（名前が実在することをテストが確かめる）。
+
+Story が使う既存の helper（作り直さない）。
+
+| ほしいもの | 既にある所 |
+|---|---|
+| 合成シナリオを通して HTML を作る | `scripts/handoff_trial.py` の `Scenario`・`build`・`load_scenario`・`load_key`・`score`。step 名は `tree_io`・`design_io` の関数名と同じ |
+| 論点とその下の論点に結んだ分析設計 | `QuestionTree.designs_by_branch()`（`models/tree.py`） |
+| 上の論点を近い順に辿る | `_ancestors`（`models/tree.py`） |
+| 引用した出来事の本文を読む | `tree_read.cited_events`、`tree_render_parts.CitedEvent` |
+| 文の数を引用先と照らす | `tree_check.numbers_in`、`tree_check._cite_problems` |
+| 答えを書く前に検査して、違反なら書かない | `tree_io.answer`（`_checked`・`_save`）。`decide` も同じ形にする |
+| 出来事を HTML に出す | `tree_render._cited_event`、`tree_render_parts._statement`、`tree_render_parts._link` |
+| 表示の言葉の表 | `tree_render_parts` の `PROGRESS_WORDS`・`KIND_WORDS`・`_MARK_WORDS`・`_DECISION_LABELS` |
+| 表示のテストの道具 | `tests/tree_io/_support.py`、`tests/tree_io/conftest.py`、`tests/test_tree_render.py` |
+| 鍵をツリーから導き直すテスト | `tests/test_handoff_trial.py` の `TestTheKeyHoldsForTheTree` |
+| 主題の版を上げる手順 | `tree_io revise-root`、`skills/analysis-framing/SKILL.md` の Step 4c |
+
+## Ubiquitous Language
+
+この Epic で追加・変更する語。定義の正本は [docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) で、表は名前を入れた Story が直す。
+分析者に見せる語は比喩と、意味の取れない名詞句を避けた。
+
+- 追加: 答えの変化（`AnswerChange`）、証拠の変わり方（`ChangeKind`）、上の論点での引用（`CitedAbove`）、引用していない下の結果（`UncitedBelow`）
+- 変更: 主題（「根の問い」から改名。[ADR-0055](../adr/0055-the-root-question-is-shown-as-the-subject.md)）、主題の版（「根の版」から改名）、進捗（分析設計を直接結ばない論点の出し方）、ツリーの決定（引用を持てる）、ツリーの検査と違反（決定の引用も見る）、現時点の答え（文の種類の言葉と、定義の中の「根」の言い換え）、到達点・親の論点・論点ツリー（定義の中の「根」の言い換え）、合成シナリオ（2本になる）、引き継ぎの試行・正解の鍵・試行の記録（問いが6つになる）
+- 使わない: 枝、読み直し、根の問い、根の版。分析者に見せる文では引用、出来事、下の論点も使わない（US-5 の表）
+
+## Scope
+
+[docs/PRD.md](../PRD.md) のコアバリュー「journal / reflection」と、成功基準「引き継ぎの試行」を前進させる。
+[docs/ARCHITECTURE.md](../ARCHITECTURE.md) では、Question tree（`tree_io render` の表示、`tree_check`、`TreeDecision`）と、Skill layer（`/analysis-reflection`）を直す。
+
+- Epic 範囲内:
+  - 答えの変化、上の論点での引用、引用していない下の結果を正本から導き、論点ツリーの表示に出す（[ADR-0056](../adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md)）。
+  - 分析設計を直接結ばない論点の進み具合と、区切った論点の理由の表示（[ADR-0057](../adr/0057-a-question-without-a-design-shows-the-progress-below-it.md)）。
+  - ツリーの決定の引用と、決める場面の「主題そのものを見直す」（[ADR-0058](../adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md)）。
+  - 「根の問い」から「主題」への言い換えと、答えの文の種類など、分析者に見せる言葉の言い換え（[ADR-0055](../adr/0055-the-root-question-is-shown-as-the-subject.md)）。
+  - 2本目の合成シナリオと、6つ目の問い（[ADR-0059](../adr/0059-the-handoff-trial-has-a-second-scenario-and-a-sixth-question.md)）。
+- Epic 範囲外:
+  - 論点をまとめて任せること、論点ごとの分析の状態、次に調べる論点の候補の一覧。#250 に委ねる。
+  - 任せた確認と、答えを書いたのとは別のモデルによる確認。#251 に委ねる。
+  - どの分析が同じデータを使うかの表示。#236 に委ねる。
+  - 答えの文に、前の回の文の言い換えであることを示す項目を足すこと。試行で言い換えの雑音が多いと分かってから足す（ADR-0056）。
+  - 引用を持たない決定の理由に書いた数の検査と、主題を見直した理由（`RootRevision.reason`）の引用（ADR-0058）。
+  - 答えの変化をレポートに出すこと。レポートはテーマの最終報告で、回ごとの変化を載せない。
+  - US-5 の表に無い言葉（検証中、寄与、発見元、`type`、`direction`）の見直し。この Epic が触らない欄の言葉は直さない。見つけたら issue に書く。
+  - 分析結果を答えの根拠から外した理由と、答えに入れないと決めたことを記録する項目。試行と実データで要ると分かってから足す（ADR-0056）。
+  - 人の読み手での引き継ぎの試行を、いつ誰が行うか。PM のセッションが人間に聞く。
+- 触らない所:
+  - `tree_check` の `unlinked-design` が見る範囲（理由: 読み方の変化は上の論点の答えに書き、表示が逆向きに出す。検査を緩めると、無関係な分析の数値を引いた答えが通る。ADR-0056）。
+  - `Answer` と `AnswerStatement` の形（理由: 答えの変化は引用の差から導くので、書き手に項目を足させない。ADR-0056）。
+  - `RootRevision`・`root_revisions`・`tree_io revise-root` の名前（理由: 変えると保存済みの論点ツリーの移行が要る。ADR-0055）。
+  - `TreeDecisionKind`（理由: 主題を見直すのは今ある `revise-root` で、次に調べる論点を指す決定ではない。ADR-0058）。
+  - `tree_read.position` と `WalkState`（理由: 巡回は逐次のままで、現在地の導き方は変えない）。
+  - `skills/_shared/theme_report.py` の、答えの文の種類の言葉と、論点の表の「進捗」の欄のほかの所（理由: レポートはすでに「主題」と出していて、答えの変化は載せない。「進捗」の欄は、ページと同じ規則に従わせるために触った。Decisions の `story-34-6-progress-closed-and-grounds` の 2）。
+  - `docs/handoff-trials/` の過去の記録（理由: その時点の鍵での採点として残す。[ADR-0035](../adr/0035-handoff-trial-records-keep-their-score.md)）。
+  - Epic 33 までの DesignDoc と、ADR-0054 までの ADR の本文（理由: 閉じた Epic の DesignDoc には追記しない。[ADR-0009](../adr/0009-adopt-repo-template-flow.md)。旧い語は、用語集の「使わない言い換え」で読み替える）。
+  - `docs/WORKFLOW.md`、`docs/adr/flow/`、`.claude/skills/pm-session/`（理由: 開いている PR #241 と重なる。#241 がマージされたら理由は消える）。
+  - `CHANGELOG.md` の版の節と、`pyproject.toml` の版（理由: v0.20.0 のリリース作業が進んでいる。`[Unreleased]` には書く）。
+
+## Architecture
+
+```mermaid
+flowchart TD
+    subgraph canon["正本（.insight/）"]
+        TREE["themes/{theme}_tree.yaml<br/>QuestionTree"]
+        JOURNAL["designs/{id}_journal.yaml"]
+        DESIGN["designs/{id}_hypothesis.yaml"]
+    end
+
+    subgraph skill["Skill layer"]
+        REFL["/analysis-reflection<br/>Step T3 答えを書く<br/>Step T5 変化を見せる<br/>Step T7 決める"]
+        FRAME["/analysis-framing<br/>Step 4c 主題の版を上げる"]
+    end
+
+    subgraph lib["skills/_shared"]
+        IO["tree_io<br/>answer / decide / changes / render"]
+        CHECK["tree_check<br/>答えの文と決定の引用を検査"]
+        CHANGES["tree_changes（新規）<br/>答えの変化・上の論点での引用・<br/>引用していない下の結果を導く"]
+        READ["tree_read.render"]
+        RENDER["tree_render<br/>render_tree_html"]
+    end
+
+    HTML["themes/{theme}_tree.html<br/>冒頭: 主題への答え・答えの変化・次の論点<br/>論点のカード: 変化・上での引用・区切った理由"]
+
+    subgraph trial["引き継ぎの試行（開発用）"]
+        SCN["tests/fixtures/handoff/<br/>lib・psy の stages.yaml と key.yaml<br/>prompt.md（6つの問い）"]
+        HT["scripts/handoff_trial.py<br/>build / prompt / record"]
+        REC["docs/handoff-trials/"]
+    end
+
+    REFL --> IO
+    REFL -. 主題そのものを見直す .-> FRAME
+    FRAME --> IO
+    IO --> CHECK
+    IO --> TREE
+    CHECK --> JOURNAL
+    IO --> READ
+    READ --> TREE
+    READ --> JOURNAL
+    READ --> DESIGN
+    READ --> CHECK
+    READ --> CHANGES
+    READ --> RENDER
+    CHANGES --> RENDER
+    RENDER --> HTML
+    SCN --> HT
+    HT --> IO
+    HT --> REC
+    HTML -. 読み手に渡す .-> HT
+```
+
+- `tree_changes` は純粋な関数の集まりで、ファイルを読まない。`QuestionTree` だけを受け取り、導いた値を返す。
+- `tree_render` は、導いた値と、今ある入力（分析設計の要約、引用した出来事、違反）から HTML を作る。script も外部の資源も足さない（ADR-0024）。
+- 正本に足すのは、`TreeDecision` の引用だけである。
+
+## Domain Model
+
+型を足す案と変える案。`AnswerChange`・`EvidenceChange`・`ChangeKind`・`CitedAbove`・`UncitedBelow`・`DecisionViolation`・`Q6` は新しい型である。
+`TreeDecision` は項目を1つ足す。名前は案で、Story の実装で変えたら PR 説明に書いて人間の承認を得る。
+
+```mermaid
+classDiagram
+    class QuestionTree {
+        <<Aggregate Root>>
+        +theme_id
+        +root_revisions
+        +nodes
+        +decisions
+        +designs_by_branch()
+        +current_round()
+    }
+    class QuestionNode {
+        <<Entity>>
+        +id
+        +parent_question_id
+        +design_ids
+        +answers
+        +current_answer()
+    }
+    class Answer {
+        <<Value Object>>
+        +round
+        +root_revision
+        +statements
+    }
+    class AnswerStatement {
+        <<Value Object>>
+        +kind
+        +text
+        +cites
+    }
+    class TreeDecision {
+        <<Value Object>>
+        +round
+        +kind
+        +node_id
+        +reason
+        +cites
+    }
+    class AnswerChange {
+        <<Value Object>>
+        +node_id
+        +round
+        +previous_round
+        +evidence
+    }
+    class EvidenceChange {
+        <<Value Object>>
+        +event_id
+        +kind
+        +before
+        +after
+    }
+    class ChangeKind {
+        <<Enumeration>>
+        newly_cited
+        dropped
+        reworded
+        unchanged
+    }
+    class CitedAbove {
+        <<Value Object>>
+        +event_id
+        +node_id
+        +round
+        +statements
+        +reworded_in
+    }
+    class UncitedBelow {
+        <<Value Object>>
+        +event_id
+        +node_id
+        +round
+        +statements
+        +last_cited_round
+        +cited_instead
+    }
+    class Violation {
+        <<Value Object>>
+        +node_id
+        +round
+        +statement
+        +kind
+        +text
+    }
+    class DecisionViolation {
+        <<Value Object>>
+        +position
+        +round
+        +kind
+        +text
+    }
+    class Q6 {
+        <<Value Object>>
+        +nodes
+        +evidence
+    }
+    QuestionTree "1" *-- "1..*" QuestionNode
+    QuestionTree "1" *-- "0..*" TreeDecision
+    QuestionNode "1" *-- "0..*" Answer
+    Answer "1" *-- "1..*" AnswerStatement
+    AnswerChange "1" *-- "1..*" EvidenceChange
+    EvidenceChange --> ChangeKind
+    EvidenceChange --> AnswerStatement : before / after
+    AnswerChange ..> QuestionNode : 導く
+    CitedAbove ..> QuestionTree : 導く
+    UncitedBelow ..> QuestionTree : 導く
+    DecisionViolation ..> TreeDecision : 検査が挙げる
+```
+
+| 型 | 種類 | 不変条件 |
+|---|---|---|
+| `TreeDecision` | 値オブジェクト（正本） | `cites` は0個以上。id の形は `{theme}-H{nn}-E{nn}`。持たない保存済みの決定は、空として読む |
+| `AnswerChange` | 値オブジェクト（導く。保存しない） | 論点の最後の答えと、その1つ前の答えから導く。答えが1つの論点には無い。同じ論点ツリーからは同じ値になる |
+| `EvidenceChange` | 値オブジェクト（導く） | 出来事1つにつき1つ。`before` は前の回でその出来事を引用した文、`after` は今の回の文。`newly_cited` は `before` が空、`dropped` は `after` が空 |
+| `ChangeKind` | 列挙 | 出来事が前の回に無ければ `newly_cited`、今の回に無ければ `dropped`。両方にあって、引用する文（種類と本文）の集まりが違えば `reworded`、同じなら `unchanged` |
+| `CitedAbove` | 値オブジェクト（導く） | 論点の現時点の答えが引用する出来事を、上の論点の現時点の答えが引用しているときにだけある。`reworded_in` は、上の論点がその出来事を引用する文を、この論点の答えより後の回で初めて変えた回で、変えていなければ無い。比べる元は、この論点の答えの回までに上の論点が書いた最後の答えで、そこでまだ引用していなければ無い。今の答えが比べる元と同じことを言っていれば、途中で変えていても無い（Story 34.5 で `reworded_after` から変えた。人間が承認した） |
+| `UncitedBelow` | 値オブジェクト（導く） | 下の論点の現時点の答えが引用し、その論点の現時点の答えが引用していない出来事。答えがまだ無い論点では、下の論点が引用するすべての出来事。`last_cited_round` は、その論点の前の回の答えが最後に引用した回で、一度も引用していなければ無い。無いものは「まだ答えに入れていない分析結果」、あるものは「前は答えの根拠にしていて、今は外している分析結果」として出す。`cited_instead` は、引用をやめた回にその論点の答えが新しく引用した出来事で、`last_cited_round` があるときだけ持つ |
+| `DecisionViolation` | 値オブジェクト（検査が挙げる） | 引用を持つ決定にだけ挙がる。種類は答えの違反と同じ3つ（`missing-event`・`unlinked-design`・`number-not-cited`） |
+| `Q6` | 値オブジェクト（開発用） | 論点の id の集合と出来事の id の集合。該当が無ければ、どちらも空 |
+
+`Answer`・`AnswerStatement`・`QuestionNode`・`Violation`・`Progress`・`TreeDecisionKind`・`RootRevision` は変えない。
+
+## Module Responsibilities
+
+| モジュール / 関数 | 責務（する） | 境界（しない → 委譲先） |
+|---|---|---|
+| `skills/_shared/tree_changes.py`（新規） | `QuestionTree` から、答えの変化、上の論点での引用、引用していない下の結果を導く | ファイルを読まない → `tree_read`。出来事の本文を持たない → `tree_render` が `CitedEvent` と合わせる。HTML を作らない → `tree_render` |
+| `skills/_shared/tree_render.py` | ページの節を並べる。見出し・読み方・進捗の数・ツリーの決定・次の候補・論点ツリー・論点のカード・分析設計の派生・分析ノートを組み立てる。進み具合を数で出し、区切った理由と決定の引用を出す（34.6）。自分の節だけで使う文は、ここの f-string に持つ（読み方の全文の `_legend`、決定がいつかを言う `_decision_head` と `_closed`） | 導いた値の欄を作らない → `tree_render_derived`。言葉の表と、モジュールをまたいで使う言い回しを持たない → `tree_render_parts`。差を計算しない → `tree_changes`。違反を見つけない → `tree_check`。分析ノートを作らない → `design_note`（他 Epic 領分） |
+| `skills/_shared/tree_render_parts.py`（34.5 で分けた） | 1つのページの文脈（`_Context`。`tree_changes` の値を1回だけ導いて持つ）、答えをどこまで見せるか（`Shown`）、言葉の表（`PROGRESS_WORDS`・`KIND_WORDS`・`_CHANGE_WORDS` など）、モジュールをまたいで使う言い回し（`_SUBJECT`・`_RESULT_WORD`・`_reflection` など）、文・分析結果・回の行・リンクを出す部品（`_statement`・`_result`・`_round_meta`・`_link`）。表と部品の多くは `tree_render` だけが使う（`_DECISION_LABELS`・`_GROUNDS_WORDS`・`_answer_lines` など） | 節を並べない → `tree_render`。導いた値の欄を作らない → `tree_render_derived`。1つの節だけで使う文を持たない → その節のモジュール |
+| `skills/_shared/tree_render_derived.py`（34.5 で分けた） | `tree_changes` が導いた値の欄を作る。前の回から変わったこと、まだ答えに入れていない分析結果、前は答えの根拠にしていて今は外している分析結果、この論点の分析結果を根拠にしている答え。欄の本文の文は、ここの f-string に持つ（`_changes`・`_left_out`・`_used_above_row`） | 導かない → `tree_render_parts._Context` が `tree_changes` を呼ぶ。言葉の表と、モジュールをまたいで使う言い回しを持たない → `tree_render_parts` |
+| `skills/_shared/tree_read.py::render` | 正本を読み、決定が引用した出来事も読み、検査の結果を `tree_render` に渡す。`changes` は導いた値を JSON にする。`progress` は進捗の言葉か `null` と、下の論点の数を JSON にする | 言葉を決めない → `tree_render`。導かない → `tree_changes`・`QuestionTree.progress` |
+| `skills/_shared/tree_io.py::decide` | 引用つきの決定を、検査に通ってから書く | 検査の規則を持たない → `tree_check`。決定の種類と順の規則を持たない → `models/tree.py` |
+| `skills/_shared/tree_io.py` の読む命令（新規） | 導いた値を JSON で返し、reflection が分析者に見せられるようにする | 導かない → `tree_changes` |
+| `skills/_shared/tree_check.py` | 答えの文に加えて、引用を持つ決定を検査する。答えの文が引用できる範囲は変えない | 書かない → `tree_io`。表示しない → `tree_render` |
+| `src/insight_blueprint/models/tree.py::TreeDecision` | 引用の id の形を守る | 引用先が実在するかを見ない → `tree_check` |
+| `src/insight_blueprint/models/tree.py::QuestionTree.progress`・`progress_below` | 論点ごとの進捗の言葉（無い論点もある）と、下の論点の言葉ごとの数を、分析設計の状態から導く。ページ・`tree_io progress`・レポートが呼ぶ、進捗の規則の1か所（ADR-0057） | ファイルを読まない → 呼ぶ側が分析設計の状態を渡す。言葉を決めない → `tree_render_parts.PROGRESS_WORDS` |
+| `skills/analysis-reflection/SKILL.md` | 変えない文を前の回のまま書く。引用していない下の結果を見せる。決定に引用を入れる。「主題そのものを見直す」を並べる | 主題の版を上げる聞き方を持たない → `/analysis-framing` の Step 4c |
+| `scripts/handoff_trial.py` | 6つの問いの答えを読み、採点する | 過去の記録を採点し直さない（ADR-0035） |
+| `tests/fixtures/handoff/` | 2本の合成シナリオと鍵、共通の問いの紙を持つ | 鍵を手で保たない → `tests/test_handoff_trial.py` が導き直す |
+| `skills/_shared/theme_report.py`（他 Epic 領分） | レポートを書く。この Epic では、答えの文の種類の言葉を US-5 の表に合わせ、論点の表の「進捗」の欄をページと同じ規則にする（言葉の無い論点は下の論点の数を出す） | 答えの変化を載せない。進捗を導かない → `QuestionTree.progress`（`tree_read._report_node` が渡す） |
+
+## Sequence Diagram
+
+振り返りの回で答えを書き、表示を作り、決めるまで。
+
+```mermaid
+sequenceDiagram
+    actor A as 分析者
+    participant S as /analysis-reflection
+    participant IO as tree_io
+    participant C as tree_check
+    participant CH as tree_changes
+    participant R as tree_render
+    participant FS as .insight/（YAML・journal・HTML）
+
+    A->>S: テーマを振り返る
+    S->>IO: answer（論点ごとの文と引用）
+    IO->>C: 書く前に検査
+    C->>FS: 引用した出来事を読む
+    C-->>IO: 違反 0 件
+    IO->>FS: 振り返りの回を追記
+    S->>IO: 導いた値を読む
+    IO->>CH: 答えの変化・引用していない下の結果
+    CH-->>IO: 導いた値
+    IO-->>S: JSON
+    S-->>A: 変わった答えと、上の答えが引用していない下の結果を見せる
+    opt 分析者が引用すると決めた
+        S->>IO: answer（上の論点の答えを書き直す）
+    end
+    S->>IO: render
+    IO->>FS: 正本と journal を読む
+    IO->>C: 答えと決定を検査
+    IO->>CH: 導く
+    IO->>R: render_tree_html
+    R-->>IO: HTML
+    IO->>FS: {theme}_tree.html を書く
+    S-->>A: ページの場所を示す
+    S->>A: 深める・親に戻る・区切る・主題そのものを見直す、のどれか
+    alt 深める・親に戻る・区切る
+        A-->>S: 種類、論点、理由
+        S->>IO: decide（理由と、元になった出来事の引用）
+        IO->>C: 引用を検査
+        alt 違反なし
+            IO->>FS: 決定を追記
+        else 違反あり
+            IO-->>S: 何も書かない。違反を返す
+            S-->>A: 違反を見せて聞き直す
+        end
+    else 主題そのものを見直す
+        A-->>S: 見直す
+        S-->>A: /analysis-framing の主題の版を上げる手順へ進む
+    end
+```
+
+- 外部の境界はファイルシステムだけである。ネットワークには出ない。
+- 表示を作る道は1本で、`tree_io render` だけが HTML を書く。reflection が分析者に文で見せる値も、同じ `tree_changes` から来る。
+- 主題の版を上げた後は、同じ決める場面に戻り、新しい主題の下で次に調べる論点を選ぶ。
+
+## Decisions
+
+### Decision: first-edition-choices-of-epic-34
+
+- What: 初版で人間が選んだことを、5つの ADR に分けて書いた。言い換え（ADR-0055）、答えの変化の導き方と出し方（ADR-0056）、進み具合の出し方（ADR-0057）、決定の引用（ADR-0058）、試行のシナリオと問い（ADR-0059）である。
+- Why: 用語の改名、正本の形、表示の言葉の意味、成功基準を変えるので、効果がこの Epic を超える。
+- Criteria: 人間の選択（2026-11-26、このセッションで直接）。聞いた順は読み方の変化を書く所、導くか書かせるか、進み具合、決定の引用、試行、言い換えの時期である。どの判断も実測した事実をもとに Decision Analysis で聞いた。
+- Affected modules: 上の Stories 表の「触る所」。
+- Alternatives considered: 各 ADR の Decision Analysis にある。
+- Consequences: 見本（画面3）にあった「答えを動かした証拠」「消えた主張」という言い切りは、導出では出せない。表示は分析結果ごとに、前の回にそこから言っていたことと、今の回に言っていることを並べる。人間がこの後退を受け入れた（ADR-0056）。
+
+### Decision: keep-the-display-before-the-change-and-review-after-34-3
+
+- What: 34.2 の基準が満点でも、波 2 を止めずに進める。変える前の表示の HTML を残し、34.7 で人の読み手に変える前と後を読んでもらう。波 3 の前に、34.3 が入った実物の画面を人間が見て、34.5 と 34.6 を続けるかを決める。変える前の表示は、コミット e60678e で `scripts.handoff_trial build` した `LIB_tree.html` と `PSY_tree.html` である（同じコミットからいつでも作り直せる）。
+- Why: Claude の読み手は、今の表示で2本目の合成シナリオを満点で読んだ（[基準の記録](../handoff-trials/2026-11-26-psy-baseline.md)）。表示の効果は Claude の正答では示せない。測れるのは人の時間と、人がつまずいた所である。
+- Criteria: 変える前と後で比べられること、効かなかったときの無駄が小さいこと、Epic が人待ちで止まらないこと（人間が PM のセッションで決めた、2026-11-26、Decision Analysis の案B）。決め手は、前の HTML を残す費用がほぼ無く、Epic が止まらないことである。
+- Affected modules: Story 34.5・34.6（34.3 の実物を見た後に止める場合がある）、Story 34.7（人の読み手での試行）。
+- Alternatives considered: 計画のまま全部進める（変える前と後を比べられない）。波 2 の前に人の読み手で基準を取る（読み手が見つかるまで止まる）。表示の Story をやめる（読み方を組み立て直す負担に手を付けない）。
+- Consequences: 同じ人が変える前と後を読むと慣れが混ざるので、34.7 では2本の合成シナリオを入れ替える。読み手は1〜2人で、統計にはならない。34.5 と 34.6 は、34.3 の実物を見た後に止める場合がある。
+
+### Decision: decide-returns-the-violations-and-writes-nothing
+
+- What: `tree_io decide` は、引用を持つ決定が検査に通らないとき、決定の代わりに `{"violations": [...]}` を返し、exit 3 で終わる。通ったときの返り値は今までどおり決定そのものである。検査するのは今書く決定だけで、読む journal もその決定が引用したものだけである。前に書いた決定の引用が今の journal と合わなくても、その journal が読めなくても、新しい決定は止めない。1つの決定は同じ出来事を2回引用できない。`tree_check` の CLI は答えの文だけを報告し、決定の違反は出さない。
+- Why: ADR-0058 は「何も書かず、違反を返す」と決めたが、返す形と exit code、前の決定の扱いは決めていなかった。
+- Criteria: 今の呼び出し側（skill の手順、`scripts/handoff_trial.py`、テスト）が決定をそのまま受け取っていること（コードを読んだ）。`tree_io answer` が exit 3 を「書いていない。理由は stdout」に使っていること。決め手は今の呼び出し側を変えないことである。
+- Affected modules: `skills/_shared/tree_io.py::decide`、`skills/_shared/tree_check.py`、`skills/analysis-reflection/SKILL.md` の Step T7。
+- Alternatives considered: いつも `{"decision", "violations"}` の形で返す（今の呼び出し側をすべて直すことになる）。前の決定の違反でも止める（journal が後から変わると、決定を1つも足せなくなる）。`tree_check` の CLI に決定の違反を足す（reflection の Step T4 の読み方が変わる。表示に出す 34.6 が、要るかを決める）。
+- Consequences: 返り値の形が2通りになる。呼び出し側は `violations` があるかで見分ける。前に書いた決定の違反は、どこにも出ない（34.6 も表示に出さないと決めた）。
+
+### Decision: story-34-3-display-of-answer-changes
+
+- What: 答えの変化の出し方で、ADR-0056 と見本が決めていなかった所を4つ決めた。
+  1. 主題の答えの変化は、表をページの冒頭に1つだけ出す。主題のカードには冒頭へのリンクを置く。
+  2. 答えが最新の回のものでないとき、変化の欄は畳んで出す。答えの回の行に、その後の回で書き直していないことを続けて書く。
+  3. 表の列は「回 N で、ここから言っていたこと」「回 M で、ここから言っていること」と回の番号で書き、「前回」「今回」とは書かない。
+  4. 変わり方の言葉は「新しく根拠にした」「根拠から外した」「言っていることが変わった」「変わっていない」にした。導いた値を JSON で返す `changes` は、ほかの導く命令と同じ `tree_read` に置き、`tree_io changes` から呼ぶ。
+- Why: 冒頭とカードに同じ表が2つあると、読む量が増える。答えが古い回のものなら「今回」は最新の回と読み違える。見本の「今回初めて根拠にした」は、前に根拠にして外した分析結果をもう一度根拠にしたときに、記録と合わない。
+- Criteria: US-1 AC 4（冒頭に先に出し、残りを畳む）、AC 5（回が進んでも読める）、ADR-0056 の M2（表示が記録に無いことを言わない）、US-5 の表の言葉。決め手は M2 と AC 4。
+- Affected modules: `skills/_shared/tree_render.py`、`skills/_shared/tree_read.py`、`skills/_shared/tree_io.py`。
+- Alternatives considered: 主題のカードにも同じ表を出す（見本の形。読む量が増える）。古い回の変化も開いたまま出す（差が出なかった回の後に、済んだ変化が冒頭を占める）。
+  5. 導出は `tree_render` が `tree_changes` を呼んで行う（`render_tree_html` の引数は変えない）。初版の表は `tree_read.render` が導いた値を渡すとしていたので、Module Responsibilities の2行を直した。
+  6. `tree_render.py` は 1,000 行を超えた。この Story では分けない。34.5 の最初のコミットで、振る舞いを変えずに、文脈と部品のモジュールと、導いた値を出すモジュールに分ける。34.4 が並行で触っている間に半分近くを動かすとマージでぶつかり、分け目は2つ目の導いた値（上の論点での引用）が入ると決まるからである。
+  7. 表に並べる前の回の文は、今の記録と照らし直さずに、開いた所に出る（レビューの指摘）。ツリーの検査が見るのは今の答えだけで、前の回の文はこれまで畳んだ中にしか無かった。前の回の文を並べることは US-1 AC 1 が求めているので、出し方は変えず、読み方にそのことを書いた。前の回の答えも検査して通らない文を畳む案は、`tree_check` を触るので、この Story では採らない。
+  8. 比べる2つの答えが違う主題の版への答えなら、表の列に、それぞれが答えた主題の版を書く。
+- Consequences: 変わり方の4つの言葉は US-5 の表に無い。表の言葉（根拠にする、分析結果）を組み合わせて作ったので、人間が実物の画面で読んで直すなら、`tree_render_parts._CHANGE_WORDS` の1か所を直せば済む。34.5 が足す「上の論点での引用」は、冒頭の欄（`#subject-answer`）へリンクできる。
+
+### Decision: split-the-reflection-guide-out-of-story-34-6
+
+- What: Story 34.6 を2つに割る。表示（進み具合、区切った論点、決定の根拠、2本の合成シナリオの決定の引用）は 34.6（#268）に残す。reflection の案内（US-3 AC 4）は新しい Story 34.8（#270）にする。波 3 は 34.5 と 34.8 を並行で進め、波 4 を 34.6、波 5 を 34.7 にする。34.3 の実物の画面を人間が見たうえで、34.5 と 34.6 は続ける。
+- Why: 34.6 は AC が5個で、3つのユーザーストーリーにまたがっていた。reflection の案内は、表示の「言っていることが変わった」に言い換えの雑音が出るのを抑える手順なので、単独で確かめたい。
+- Criteria: 1つの Story で、まとまった1つの事を確かめられること。触る所が重ならない Story は並行で進められること。決め手は、reflection の案内を表示と切り離して確かめられることである（人間が PM のセッションで決めた、2026-11-26）。
+- Affected modules: Story 34.6・34.8 の触る所（上の Stories 表）。`skills/analysis-reflection/SKILL.md` の Step T3 と Step T5、`skills/analysis-auto/SKILL.md` は 34.8 が触る。
+- Alternatives considered: 34.6 のまま1つで進める（AC が5個で3つのユーザーストーリーにまたがり、reflection の案内だけを確かめられない）。reflection の案内を 34.5 に入れる（34.5 は表示のコードで、確かめ方が違う）。
+- Consequences: Story が1つ増え、DesignDoc への追記が1回増える。34.8 は 34.3 の後に始められ、34.6 を待たない。34.7 の前提は 34.6 のままで、34.8 は試行の HTML を変えない。
+
+### Decision: story-34-8-keep-the-words-and-ask-before-writing
+
+- What: `/analysis-reflection` のテーマの振り返りに、次の2つを足す。
+  1. Step T2: 答えのある論点は、今の答えの文から下書きを始める。新しい分析結果が意味を変えない文は、`kind`・`text`・`cites` を一字も変えずに送る。数・単位・語順を整えず、文を合わせたり割ったりしない。種類を移すのは、意味が変わるときか、T2 の決まりがそれを求めるときだけにする。新しい分析結果が関わらない文は、T2 の決まりに反する所か、`tree_io answer`・`tree_check` が違反と言う所だけを直し、Step T5 で理由を言う。主題の版が上がった後は、新しい主題に合わせて答えを書き直してよい。古い結果を読み直して言い方を変えることは、文を変える理由にしない。
+  2. Step T3 の初め: 答えを書く前に、下の論点の答えが引用していて、上の論点の下書きが引用していない出来事を、「まだ答えに入れていない分析結果」と「前は答えの根拠にしていて、今は外している分析結果」に分けて分析者に見せ、根拠にするかを聞く。聞くのは1回の振り返りで1回だけで、答えを聞くまで何も送らない。`contradicts` の出来事は T2 の決まりで引用し、一覧に載せない。選ばなかった結果は Step T5 にもう一度出す。`/analysis-auto` の止まる場面の表は、テーマの振り返りの行に T3 と T7 を並べる。
+- Why: 表示は文の一致で「言っていることが変わった」を決める（ADR-0056）。直す前の手順で、psy（回 3 の後に、主題の読み方を変えない分析結果を1つ足した）を `claude -p`（opus）に3回振り返らせた。`reworded` の行は 2・3・3 で、どれも新しい分析結果が原因ではなかった。前の回の文を自分で判断し直して書き換えたものである。意味を変えない言い換え（「差は見られなかった」を落とす）も、各回1文あった。直した後の6回は、`reworded` がどれも1行で、決まりに反する文の種類を直したもの（PSY-Q05。文は一字も変えていない）だった。問いに答えを渡さずに回した3回は、3回とも書く前に止まって問いを出した（数と確かめ方は Story Timeline と共有ノート）。
+- Criteria: 「言っていることが変わった」に、新しい分析結果か、決まりに反する文を直したことが原因の行だけが出ること（US-3 AC 4、ADR-0056 の Negative）。答えは1回の振り返りで1回だけ書くこと（Step T3 の「1回の呼び出しが1つの回」）。決め手は実物の比較の数である。
+- Affected modules: `skills/analysis-reflection/SKILL.md` の Step T2（下書きの決まり）、Step T3（初めの小節「Before writing: results no answer above rests on」）、Step T5（変えた理由と、選ばなかった分析結果の2つの見出し）。`skills/analysis-auto/SKILL.md` の止まる場面の表、description、Step 3 の 8。`tests/skills/test_answer_keeps_its_words_structure.py`、`tests/skills/test_auto_walk_structure.py`、`tests/skills/test_reflection_materials_structure.py`。
+- Alternatives considered: 問いを Step T5 に置き、`tree_io changes` の導いた値から見せる（根拠にすると選ばれたら、答えをもう一度書くことになり、1回の振り返りで回が2つ進む。答えを書かずに検査するコマンドは `tree_io` に無く、この Story はコードを触らない）。変えない文を厳しく縛らず「なるべく前の文のまま」と書く（直す前の比較で、判断し直しが毎回出ていた）。古い文の判断し直しを一切認めない（決まりに反する文や、検査に通らない文を直せない）。
+- Consequences:
+  - 問いの一覧は、Claude が検査の前の下書きから作る。コードが導いた値（34.5 の `UncitedBelow`）とは照らしていない。34.5 が入ったら、Step T5 の一覧を `tree_io changes` の値で確かめる手順を足せる。
+  - ADR-0025 は「検査を通る前の答えを分析者に見せない」と決めている。この問いで見せるのは journal の出来事の本文と、どの論点の答えがそれを根拠にしているかで、答えの文は見せない。そう読んで、ADR-0025 と両立するとした。書いた後に文が除かれると、問いで見せた「根拠にしている」が事実でなくなりうる。分析者が選んだ結果の文が除かれたときは、Step T5 の Removed statements でそれを言う。
+  - 新しい分析結果は、Claude が T2 の決まりで下書きに入れる。一覧に出るのは下書きが入れなかったものだけで、Claude が入れた結果を分析者が外す道は、この問いには無い。US-3 AC 4 の「引用するかは分析者が決める」は、下書きが入れなかった結果について満たす。
+  - 分析者に見せる問いの文（「この中から、答えの根拠にする分析結果を選んでください。選ばなくても答えは書けます。」）と、添える文（「（回 N の答えまで根拠にしていた）」「（「…」の答えが根拠にしている）」）は US-5 の表に無く、表の言葉を組み合わせて作った。問いの文は、人間がこの Story のセッションで3案（はい・いいえで聞く今の文、短くする、選ぶことを頼む）から選んだ。決め手は、選ぶことを直接頼むと答えにどの分析結果かが入り、選ばなくてよいことも分かることである。実物の試行は、選ぶ前の文で回した。
+  - 新しい分析結果が関わらない文の言い過ぎ（psy の主題の「優先する根拠になる」）は、直した後の手順では残る。決まりに反するかを Claude が判断するので、言い過ぎと読むかは回によって違いうる。直す前は3回とも落としていた。
+  - 問いに分析者が答えた後の流れ（選んで書く、選ばずに書く）は、実物で回していない。
+
+### Decision: story-34-5-left-out-results-and-answers-above
+
+- What: 引用していない下の結果と上の論点での引用の出し方で、ADR-0056 と見本が決めていなかった所を決めた。
+  1. `tree_render.py` を3つに分けた。ページの節を並べる `tree_render`、1つのページの文脈と言葉と、節がともに使う部品の `tree_render_parts`、導いた値の欄の `tree_render_derived` である。最初のコミットは移動だけで、テストを変えず、2本の合成シナリオの HTML は時刻を除いて同じだった。外から使う名前（`CitedEvent`、`KIND_WORDS` など）は `tree_render` から今までどおり読める。
+  2. `CitedAbove` は、図の `reworded_after`（真偽）の代わりに、変えた回 `reworded_in` を持つ。US-2 AC 2 は変わった回を出すことを求めていて、上の論点の今の答えの回（`round`）は、変えた回とは限らない。人間がこのセッションで承認した（Decision Analysis の案A）。比べる元は、この論点の答えの回までに上の論点が書いた最後の答えで、そこで上の論点がまだその出来事を引用していなければ、後で初めて引用しても「変えた」とは数えない。途中で言い換えても、今の答えが比べる元と同じことを言っていれば数えない（レビューの指摘。今の文は読んだときと同じなので、知らせても読み手が空振りする）。
+  3. 同じ出来事を2段の下の論点の答えが引用していれば、`UncitedBelow` は近い方の論点の答えから1つだけ作る。並びは、出どころの論点の順、その答えの中で引用した順。
+  4. 「まだ答えに入れていない分析結果」は開いて出し、「前は答えの根拠にしていて、今は外している分析結果」は件数を添えて畳む（US-3 AC 1 の「目立たせる」「控えめ」）。後者には、最後に根拠にした回と、その次の答えで新しく根拠にした分析結果の id を添える。外した回そのものは出さない（項目に無く、導くには型を足すことになるため）。
+  5. 主題の2つの欄はページの冒頭に出し、主題のカードには冒頭へのリンクだけを置く（34.3 の Decision の1と同じ）。冒頭の欄は、主題への答えが無いときも、検査に通らないときも出す。主題の答えの文は出さないので、畳む約束は崩れない。
+  6. 別の論点の答えが検査に通らないとき、その文は出さず、「論点 X の答えは記録と合わない。文は X のカードで確かめる」と文で書く。「記録と合わない答え」の印を使うと、そのカードの論点自身の答えの印と読める（既存のテスト `test_other_nodes_are_unmarked` がこれを止めた）。分析結果の本文は出す。
+  7. 上の論点へのリンクは、主題なら `#subject-answer`（主題の答えと、その変化がある所）、ほかの論点ならそのカードへ張る。
+  8. 先に調べた論点のカードに「主題への答えは、この分析結果をまだ根拠にしていない」と出すこと（見本の画面2にあった）はしなかった。同じ事実は上の論点のカードと冒頭に出ていて、AC はそれを求めていない。
+- Why: AC 1・2・4 と US-3 AC 1 を、記録と合う言い方だけで満たすため。
+- Criteria: US-2 AC 2（変わった回）、ADR-0056 の M2（記録に無いことを言わない）、US-5 AC 5 と表の言葉、Module Responsibilities の境界（表示は差を計算しない）。決め手は AC 2 と M2。
+- Affected modules: `skills/_shared/tree_changes.py`、`skills/_shared/tree_render*.py`、`skills/_shared/tree_read.py::changes`。
+- Alternatives considered: `reworded_after` を残して `reworded_in` も足す（同じ事実を2つの項目が持つ）。外した回も添える（`UncitedBelow` に項目が要る）。他の論点の検査に通らない答えを、その分析結果ごと隠す（差が出なかった分析を見落とさない、という目的に反する）。
+- Consequences: 冒頭の「まだ答えに入れていない分析結果」は、主題の下の論点の答えが引用する出来事のうち、主題が引用していないものをすべて並べる。論点が数十ある論点ツリーでは長くなる（合成シナリオは論点 6 つで、最も長くて2件）。1つの文が2つの分析結果を根拠にしていると、「この論点の分析結果を根拠にしている答え」でも同じ文が2つの項目に出る（34.3 の表と同じ形）。画面の新しい言い回し（「この論点の分析結果を根拠にしている答え」「回 L の答えまでは根拠にしていた」「その次の答えで新しく根拠にした分析結果」）は US-5 の表に無く、見本の言葉と表の言葉から作った。人間が実物で読んで直すなら、`tree_render_parts` の `_NOT_YET_WORDS`・`_NO_LONGER_WORDS`・`_USED_ABOVE_WORDS` と、`tree_render_derived` の文を直す。
+
+### Decision: story-34-6-progress-closed-and-grounds
+
+- What: 進み具合、区切った論点、決定の根拠の出し方で、ADR-0057・ADR-0058 と見本が決めていなかった所を決めた。
+  1. 分析設計を結ばず下に論点を置いた論点は、カードの進捗の言葉の代わりに「主題の下に置いた論点 N つ: 分析済み a、検証中 b、未着手 c」と出す（主題でない論点は「この論点の下に置いた論点」）。数は0でない言葉だけを、分析済み・検証中・未着手の順に出す。言い方は見本のものである。
+  2. 数えるのは下のすべての段の論点である。ただし、1 の形で出す論点（分析設計を結ばず、下に論点を置いた論点）は、どの段でも数えない。「進捗の数」がその論点を数えないのと同じ規則にした。最初は分析設計を結ばず下に論点を置いた論点をすべて 1 の形にしていた。そのため、図書館の主題は、下に論点が5つあっても「4 つ」と出た（LIB-Q04 が 1 の形）。人間は実物を読んだうえで、一度はこのままにすると決めた（Decision Analysis の案「今のまま」。決め手は、カードの数と「進捗の数」が同じ規則で数えること）。2026-11-26 の試行の後に、人間が PM のセッションで、試作を読んでから規則を直した。1 の形は下に置いた論点のどれかに分析設計を結んだ論点だけにする。下のどこにも分析設計が無い論点は「未着手」と出し、数える。直した理由は2つある。試行の図書館の問い 2 で、9 回のうち 6 回が LIB-Q04 を未着手から落とした。また、`tree_io progress` とレポートが同じ規則を持たず、主題を「未着手」と返していた。規則は `QuestionTree.progress` の1か所に置き、ページ・`tree_io progress`・レポートが呼ぶ（ADR-0057 の 6〜8）。直した後、図書館の主題は「主題の下に置いた論点 5 つ: 分析済み 2、未着手 3」と出る。レポートの論点の表の「進捗」の欄も、この規則に従わせた（Scope の触らない所を直した）。
+  3. 1 の形の論点のカードは進捗の色の枠を持たない。色は進捗の言葉に添えたものだからである。
+  4. 区切った論点のカードには「回 N の振り返りの後に区切った。理由: …」と出し、その下に決定の根拠を出す。回 0 の決定は「振り返りの前に区切った」と出す。区切った後に同じ論点を指す決定があれば、出さない。
+  5. 決定の根拠は、ツリーの決定の一覧、次に調べる論点、区切った論点のカードの3か所に、同じ形で出す。見出しは「この理由の根拠にした分析結果」で、人に聞いた答えだけなら「人に聞いた答え」、両方なら「分析結果と人に聞いた答え」と出す。各行はほかの欄と同じ部品（`_result`）で id・論点・分析設計・本文を出す。引用を持たない決定は「この理由は、根拠にした分析結果を挙げていない。」と出す。見本の「結果」を US-5 の表の「分析結果」にした。
+  6. 決定が引用した id を2つの出来事が持つときは、どちらの本文も出さず、「X は記録に2つあり、どちらを根拠にしたかは分からない。」と出す。答えの検査は止めない。答えの引用が同じ id を持つ場合（`check_cited` が止める）とは分けた。
+  7. 前に書いた決定の違反は表示に出さない。`decide` が書く前に検査しており、後から journal が変わったときだけ起きる。引用先が無ければ「記録に見つからない X」と出て、ほかの2種類は本文が出るので、読み手が理由と比べられる。
+  8. 2本の合成シナリオで、理由が分析結果に基づく決定に引用を足した（lib の回 1・回 2、psy の回 2・回 4）。psy の回 1 の決定（在宅勤務の論点へ深める）は、理由の元が journal の問い（PSY-H01-E02）で分析結果ではないので、引用しない。表示は「挙げていない」と出す。
+  9. 鍵の q5 は、`reason_events` を最後の決定の引用から、`also_allowed` を次の論点の発見元から、テストが導き直す。
+  10. 問い 6 の規則の「前回も引用していた」側は、合成シナリオに形を足さず、導き方を関数に出して小さな論点ツリーで確かめた（`tests/test_handoff_trial.py` の `TestTheQ6Rule`）。シナリオを変えると、34.2 の基準と同じ段階で比べられなくなる。
+  11. 新しい欄は `tree_render_derived` でなく `tree_render` に置いた。`tree_render_derived` は `tree_changes` の値の欄で、進み具合と決定は `_Context` とツリーの決定から出す（Module Responsibilities の `tree_render` の行のとおり）。言葉は `tree_render_parts` の表に足した。
+- Why: US-3 AC 2・3、US-4 AC 3 を、記録と合う言い方だけで満たすため。
+- Criteria: ADR-0057 の W3（進捗の言葉が1つの意味だけを持つ）、ADR-0058 の 4、US-5 の表、見本の言い方。決め手は ADR-0057 の W3 と、見本の言い方を使うこと。
+- Affected modules: `skills/_shared/tree_render.py`、`skills/_shared/tree_render_parts.py`、`skills/_shared/tree_read.py::render`、`scripts/handoff_trial.py`、`tests/fixtures/handoff/`。
+- Alternatives considered: 1 の形の論点も「未着手」として数える（ADR-0057 が退けた誤りが、下の段に残る）。1 の形の論点を「N つ」には入れ、言葉ごとの数には入れない（数の合計が N と合わない）。同じ id の引用で、ページの検査の知らせ（`CheckFailed`）を出す（知らせは答えの検査の言葉で、答えは確かめられる）。決定の違反をすべて表示に出す（言葉が増え、`decide` が書く前に止めている）。psy の主題の答えに、最後の回に初めて引用する出来事を足して問い 6 の形を作る（q3・q4 の鍵と、基準との比較が変わる）。
+- Consequences: 2 を直す前は、図書館の主題の「4 つ」が下の論点を数えた読み手の数と合わなかった。「進捗の数」は「未着手 2」と出たが、「次の候補」と鍵の q2（`untouched_nodes` から導く）は LIB-Q04 も入れて3つだった。34.7 の試行で、読み手は LIB-Q04 を落とした。2 を直した後は、「進捗の数」の未着手と「次の候補」が同じ論点を指す（`tests/test_handoff_trial.py` が、`tree_io progress` の未着手と鍵の q2 が同じことを確かめる）。区切った論点では「進捗: 検証中」と「区切った」が並ぶ。区切った論点の下の論点へ深めても、区切った論点を指す決定が出るまで「区切った」は消えない（どちらも ADR-0057 の Negative のまま）。画面の新しい言い回し（「この理由は、根拠にした分析結果を挙げていない。」「X は記録に2つあり、どちらを根拠にしたかは分からない。」、区切った論点の行、凡例の2段落）は人間がまだ読んでいない。見出しの後の各行が「分析結果 X」と始まり、見出しと同じ語が続く。直すなら `tree_render_parts` の `_BELOW_WORDS`・`_GROUNDS_WORDS`・`_NO_GROUNDS_WORDS`・`_SHARED_ID_WORDS` と、`tree_render` の `_closed`・`_legend` を直す。
+
+### Decision: words-chosen-after-reading-the-real-pages
+
+- What: 人間が図書館のシナリオの実物の画面を読み、分析者に見せる言葉を3つ選んだ。
+  1. 答えの変化の表の見出しから「ここから」を外し、「…で言っていたこと」「…で言っていること」にする。同じ言い回しの欄（読み方の説明、上の論点での引用、引用していない下の結果）は「この分析結果について言っていること」にする。
+  2. 振り返りの回は「N回目の振り返り」と言い、「回 N」と出さない（例: 「2回目の振り返り」「前の振り返りから変わったこと（1回目 → 2回目の振り返り）」「2回目の振り返りの後」）。回 0 の決定は「振り返りの前」のまま。
+  3. 主題の版は番号で出さない。主題を一度も見直していない間は、版について何も出さない。見直した後は、見出しに「主題を N回見直した」（履歴へのリンク）と出し、古い主題への答えに「見直す前の主題への答え」と出す。2回以上見直したときは「N回目の見直しの前の主題への答え」と回数を添える。履歴は「最初の主題」「N回目の見直しの後の主題」と出す。
+  4. 答えの上の印は「N回目の振り返りで変わったこと」と、「こと」を付ける（人間が Artifact のコメントで決めた、2026-11-26）。「N回目の振り返りで変わった」は、N回目で変わったのか、N回の振り返りを経て変わったのかが読み取りにくく、「こと」が付くと下の答えの文の見出しとして読める。同じ形の印「N回目の振り返りで初めて答えたこと」も揃えた（PM の案。人間はまだ読んでいない。戻すなら `tree_render_parts._MARK_WORDS` の1か所）。
+  5. 「前の振り返りから変わったこと」の表で、1つの文が2つの分析結果を根拠にすると同じ文が2つの行に出る件は、今のままにする（人間が PM のセッションで決めた、2026-11-26）。人間は心理的安全性の最新の画面で読んで引っかからなかった。PM が3枚の表を1行ずつ読むと、重なる2行は変わり方が違っていた。
+  YAML の `round`・`root_revision`、コード上の名前、内側の用語（振り返りの回、主題の版）は変えない。及ぶ所は、論点ツリーの表示、`/analysis-reflection` と `/analysis-framing` が分析者に出す文、`/report-export` の文、問いの紙（「この回」を「最後の振り返り」に。問いの意味は変えない）である。
+- Why: 人間が実物を読んでつまずいた。「ここから」は不自然で、「回 2」は内部の用語に見えて何の2回目かが分からず、「主題の版」の「版」は何を指すか分からなかった。見直していないテーマでも「主題の版 1」が見出しと全部の答えに出ていた。
+- Criteria: 人間が PM のセッションで選んだ（2026-11-26。1 と 2 は Decision Analysis）。US-5 AC 1 の中身（見直す前の主題への答えを見分けられる）を守ること。決め手は、数えているのがテーマの振り返りの回数で、そのまま言えば何の回数かが分かることである。
+- Affected modules: `skills/_shared/tree_render.py`・`tree_render_parts.py`・`tree_render_derived.py`、`skills/analysis-reflection/SKILL.md`、`skills/analysis-framing/SKILL.md`、`skills/report-export/SKILL.md`、`tests/fixtures/handoff/prompt.md`、`docs/UBIQUITOUS_LANGUAGE.md`、ADR-0055。
+- Alternatives considered: 「分析N巡目」と言う（人間の案。分析の数と振り返りの数が揃わない場面で表示が実際とずれ、用語集の「巡回」とも字が重なる）。日付で言う（同じ日に2回振り返ると見分けられず、回の順も読みにくい）。主題を見直した回数を「0回」も含めて常に出す（見直していないテーマに、意味のない行が出続ける）。同じ文が2つの行に出るとき、変わり方も文も同じ行をまとめる（34.5 のノートの案A。3枚の実物の表に当たる行が1つも無く、まとめても読む量が減らない）。2つ目以降の行で文を出さず「上の行と同じ文」と書く（行は減らず、行ごとに読めなくなる）。
+- Consequences: 文書・コード・テストは「振り返りの回」「回」「主題の版」を使い続けるので、内側と画面の言葉の組が2つ増えた（US-5 の表）。問いの紙の2語が変わり、過去の試行の記録と条件がずれる（34.7 の記録で日付と並べて読む）。主題を見直した合成の画面は、共有ノートのスクリプトで作った1枚だけで、fixture には足していない。冒頭の「まだ主題への答えに入れていない分析結果」が多いときに畳む作りは、この Epic では入れない（人間が PM のセッションで決めた、2026-11-26）。合成シナリオでは多くて2件で、何件から畳むかを決める材料が無いため、実際のテーマで長くなったときに直す。
+
+### Decision: words-are-not-yet-in-one-place
+
+- What: 分析者に見せる言葉を1つのモジュールに集めることは、この Epic ではしない。後の issue に回す。今の形は次のとおりで、Module Responsibilities の表をこの形に直した。`tree_render_parts` は言葉の表と、モジュールをまたいで使う言い回しを持つ。1つの節だけで使う文は、その節のモジュールの f-string にある（`tree_render` の `_legend`・`_decision_head`・`_closed`、`tree_render_derived` の `_changes`・`_left_out`・`_used_above_row`）。
+- Why: Epic のゲートのコード品質のレビューが、表の境界の列がコードと合わないと指摘した。表は `tree_render` と `tree_render_derived` が言葉を持たず、`tree_render_parts` が節どうしで共に使う部品を持つと書いていた。実際には、2つのモジュールが自分の文を持ち、`tree_render_parts` の名前の多くは `tree_render` だけが使う。
+- Criteria: 人間がリリースして、使いながら直すと決めたこと（2026-11-26）。決め手はリリースを遅らせないことである。
+- Affected modules: `skills/_shared/tree_render.py`、`skills/_shared/tree_render_parts.py`、`skills/_shared/tree_render_derived.py`、この DesignDoc の Module Responsibilities。
+- Alternatives considered: リリースの前に、言葉をすべて `tree_render_parts` に移す（動かす文が多く、リリースが遅れる）。表を直さない（読み手が、画面の言い回しを直す所は `tree_render_parts` だけだと思う）。
+- Consequences: 画面の言い回しを直すときは、`tree_render_parts` の表と、その節のモジュールの f-string の両方を探す。ほかの Decisions の Consequences に書いた直す所（`tree_render` の `_closed`・`_legend` など）は、今の形のままで合っている。
+
+### Cross-epic decisions (links to ADR)
+
+- [ADR-0055: 分析者に見せる言葉を内側の用語と分け、「根の問い」を「主題」と呼ぶ](../adr/0055-the-root-question-is-shown-as-the-subject.md): 表示の言葉と用語集だけを変え、コード上の名前と YAML は変えない。
+- [ADR-0056: 答えの変化は引用の差から導き、上の論点と先の論点の両方のカードに出す](../adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md): 書き手に項目を足させず、検査も緩めない。
+- [ADR-0057: 分析設計を直接結ばない論点は、下の論点の進捗を数で出す](../adr/0057-a-question-without-a-design-shows-the-progress-below-it.md): 進捗の言葉の意味は変えない。区切った論点はカードに理由を出す。
+- [ADR-0058: ツリーの決定は、理由の根拠にした出来事を引用できる](../adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md): 引用は任意で、あれば検査する。決める場面に「主題そのものを見直す」を並べる。
+- [ADR-0059: 引き継ぎの試行に、2本目の合成シナリオと6つ目の問いを足す](../adr/0059-the-handoff-trial-has-a-second-scenario-and-a-sixth-question.md): 表示を変える前に基準を取る。
+
+## Test Design Matrix
+
+| Story \ Layer | Unit | Integration | E2E |
+|---|---|---|---|
+| Story 34.1 | ✓ | ✓ | —（表示の言葉だけで、新しい通し道が無い。HTML は `scripts/handoff_trial.py build --scenario lib` で目で読んだ） |
+| Story 34.2 | ✓ | ✓ | ✓ |
+| Story 34.3 | ✓ | ✓ | ✓ |
+| Story 34.4 | ✓ | ✓ | —（決定の引用を表示に出すのは 34.6。`tree_io decide` は、リポジトリの外に作った図書館のシナリオの `.insight/` で、引用つき・引用なし・3種類の違反を実際に呼んで確かめた） |
+| Story 34.5 | ✓ | ✓ | ✓ |
+| Story 34.6 | ✓ | ✓ | ✓ |
+| Story 34.7 | ✓ | —（コードを変えていない。残した記録は既存の `test_a_kept_record_still_reads` が今の `Record` で読む） | —（自動テストではない。e3521d1 で `build` → 文脈を持たない `claude -p` → `record` を18回通した。[記録](../handoff-trials/2026-11-26-after-the-display.md)。ゲートの直しの後に 2cd6547 で同じく18回通した。[記録](../handoff-trials/2026-11-26-after-the-gate-fixes.md)） |
+| Story 34.8 | ✓ | —（足したのは SKILL.md の手順の文で、`tree_io` に新しい通し道が無い） | —（自動テストではない。リポジトリの外の psy で `claude -p` に振り返らせ、直す前と後で `tree_io changes` の `reworded` を数えた。Decisions の `story-34-8-keep-the-words-and-ask-before-writing`） |
+
+完了時に ✓ を付ける。このマトリクスが Epic PR のレビューゲート。
+
+## Story Timeline
+
+- 2026-11-26 — 初版: A・B・C のシナリオと、差が出なかった分析・止めた分析・1回で2つの変化のシナリオを、今の epic ブランチで実測した。6つの判断（d1〜d6）を人間が選んだ。
+- 2026-11-26 — 初版: 全体の整合で、波 1 の 34.1 と 34.2 がどちらも PRD と用語集を触ると分かった。PRD の成功基準と用語集の試行の語を 34.7 に移した。変えない文を前の回のまま書く決まりを US-3 AC 4 に、読み方の説明を畳むことを US-1 AC 4 に足した。
+- 2026-11-26 — 初版: 見本を Artifact で見せた（うまくいった日と悪い日の2枚。題材は心理的安全性の架空例で、コミットしていない）。悪い日は、差が出なかった分析、止めた分析、1回で2つの出来事の引用のされ方が変わった回を重ねた。分かった事実: 引用していない下の結果に「前はどの回まで引用していたか」を添えると、引用をやめた証拠の行方が読める。`UncitedBelow` に `last_cited_round` を足した。確かめていない前提: 言い換えただけの文が「文が変わった」に出る量。論点が数十ある論点ツリーでの読みやすさ。前の文と今の文を並べた表の、狭い画面での幅。表示を変えて読み手の正答が上がるか。
+- 2026-11-26 — 初版: 見本に人間が7件のコメントを付け、見本を直した。分析者に見せる言葉を内側の用語と分けた（US-5 の表。「これまでわかっていること」「注意すべきこと」「まだ決められないこと」「根拠にする」「分析結果」は人間が選んだ）。答えの変化の表は分析結果を行の中心に置く形にした。引用していない下の結果を、まだ答えに入れていないものと、前は根拠にしていて今は外しているものに分けた（`UncitedBelow` の `last_cited_round` と `cited_instead`）。レポートも答えの文の種類を同じ言葉で出すことにした。
+- 2026-11-26 — 初版を人間が承認した（Domain Model 図を含む。このセッションで直接）。レポートも答えの文の種類を同じ言葉で出すことを、あわせて承認した。
+- 2026-11-26 — Story 34.1 completed: 論点ツリーの表示・skill 4本・レポート・用語集・PRD・ARCHITECTURE を、主題・主題の版・見直す前の主題への答えと、答えの文の種類の3語に言い換えた。YAML と `revise-root` の名前は変えていない。用語集に US-5 の表を写し、DesignDoc の表と同じかをテストが確かめる。
+- 2026-11-26 — Story 34.2 completed: 2本目の合成シナリオ `psy`（4回）と問い 6 を足し、鍵の q6（図書館は該当なし）をツリーから導き直す。34.1 の後の表示で取った基準は、sonnet・haiku・opus 各3回の 9 回とも 6 問すべて正しかった（[記録](../handoff-trials/2026-11-26-psy-baseline.md)）。表示の効果は Claude の試行の正答では示せない。
+- 2026-11-26 — 答えの文の種類の3語（これまでわかっていること・注意すべきこと・まだ決められないこと）を、分析者に見せる言葉だけでなく用語にもすると、人間が PM のセッションで決めた（Decision Analysis の案B）。US-5 の表から用語を変えた6語を外し、「用語を変えた語」に分けた。旧い3語は用語集の「使わない言い換え」に置いた。引用と journal の出来事は内側の用語のまま（ADR-0055 の 7 と 9）。
+- 2026-11-26 — 34.2 の基準が満点だったので、人間が PM のセッションで、止めずに波 2 を進めると決めた（Decision Analysis の案B）。変える前の表示の HTML を残し、34.7 で人の読み手に前と後を読んでもらう。波 3 の前に、34.3 の実物の画面を人間が見る。
+- 2026-11-26 — Story 34.4 completed: `TreeDecision` に任意の `cites` を足し、`tree_io decide` は引用を持つ決定を書く前に検査する（違反は `DecisionViolation`。種類は答えの違反と同じ3つ）。reflection の決める場面は、理由の元になった出来事を引用に入れ、「主題そのものを見直す」を4つ目に並べる。引用を持たない保存済みの論点ツリーはそのまま読める。Domain Model の図は変えていない。
+- 2026-11-26 — Story 34.3 completed: 答えの変化を引用の差から導き（`tree_changes.answer_changes`）、ページの冒頭と論点のカードに出した。冒頭は主題への現時点の答え、前の回から変わったこと、次に調べる論点の順で、読み方は畳んだ。導いた値は `tree_io changes` が JSON で返す。2本の合成シナリオで「言っていることが変わった」に出た行は1行で、言い換えだけの行は無かった（分析者が書いた答えでは確かめていない）。
+- 2026-11-26 — 34.3 の実物の画面を見たうえで、34.5 と 34.6 を続けると、人間が PM のセッションで決めた。あわせて 34.6 を割り、reflection の案内（US-3 AC 4）を Story 34.8（#270）にした（Decisions の `split-the-reflection-guide-out-of-story-34-6`）。
+- 2026-11-26 — `/analysis-reflection` の、判定を変えない問いの行き先を伝える文では、その問いに呼び名を付けないと、人間が PM のセッションで決めた（Decision Analysis の案1）。捨てないことと、テーマの振り返りで主題への答えに、まだ決められないこと か 注意すべきこと として書くことだけを伝える。
+- 2026-11-26 — Story 34.8 completed: テーマの振り返りは、答えのある論点を今の答えの文から書き、新しい分析結果が意味を変えない文を一字も変えずに送る。答えを書く前に、上の論点の答えがまだ根拠にしていない分析結果を見せて、根拠にするかを聞く。リポジトリの外の psy で直す前と後を `claude -p`（opus）に3回ずつ振り返らせ、`reworded` は 2・3・3 行から 1・1・1 行になった（残った1行は決まりに反する文の種類の直し）。レビューの直しの後の版でも、同じく 1・1・1 行だった。問いに答えを渡さない版は、直した後の6回とも書く前に止まった。分析者が書く答えでは確かめていない。
+- 2026-11-26 — Story 34.5 completed: `tree_render.py` を3つに分けた（移動だけ）。論点の答えが根拠にしていない下の分析結果（`UncitedBelow`）を、ページの冒頭と論点のカードに、まだ答えに入れていないもの（開く）と前は根拠にしていたもの（畳む）に分けて出す。先に調べた論点のカードに、その分析結果を根拠にしている上の論点の答え（`CitedAbove`。主題まで）を出し、後の回で言っていることを変えていれば、変えた回と、この論点の答えが変わっていないことを書く。`CitedAbove` は図の `reworded_after` の代わりに `reworded_in` を持つ（人間が承認した）。差が出なかった回（psy の回 2、悪い日の回 5）で、その結果が主題への答えに入っていないことが冒頭から読める。
+- 2026-11-26 — Story 34.6 completed: 分析設計を結ばず下に論点を置いた論点は、進捗の言葉の代わりに下の論点の進捗を言葉ごとの数で出し、「進捗の数」はその論点を数えない。区切った論点のカードに区切った回と理由を出し、決定の理由の下に根拠にした分析結果か、挙げていないことを出す。2本の合成シナリオの決定に引用を足し、問い 5 の鍵をツリーから導き直す。`build` は決定の違反で止まる。触る所に `tree_render_parts.py` を足した（Stories 表を直した）。
+- 2026-11-26 — 分析設計を結ばず下に論点を置いた論点を、上の論点の「下に置いた論点 N つ」に数えない今の形を、人間がこのセッションで選んだ（Decision Analysis の案「今のまま」）。
+- 2026-11-26 — 答えの根拠にするかを聞く問いの文を、人間が Story 34.8 のセッションで直接選んだ（Decision Analysis の案C）。「この中から、答えの根拠にする分析結果を選んでください。選ばなくても答えは書けます。」
+- 2026-11-26 — 人間が図書館のシナリオの実物の画面を読み、言葉を3つ選んだ（「ここから」を外す、回を「N回目の振り返り」と言う、主題の版を見直した回数で言う。Decisions の `words-chosen-after-reading-the-real-pages`）。表示・skill・問いの紙・用語集・ADR-0055 を直した。
+- 2026-11-26 — 人間が新しい言葉の画面を2枚（心理的安全性の最新、主題を見直した後）読んだ。主題を見直した後の画面では引っかからなかった。答えの上の印に「こと」を付け（「N回目の振り返りで変わったこと」）、同じ文が2つの行に出る件は今のままにすると決めた（Decisions の `words-chosen-after-reading-the-real-pages` の 4 と 5）。この push で表示を固め、34.7 の試行は共有ノートの `final-display/` の HTML で読ませる。
+- 2026-11-26 — Story 34.7 completed: 表示を固めた後（e3521d1）で、2本の合成シナリオを sonnet・haiku・opus に3回ずつ読ませ、[記録](../handoff-trials/2026-11-26-after-the-display.md)を前の記録と並べた。正しかった回が上がったのは lib の q5（9 回中 7 回 → 9 回）だけで、落ちた問いがある。lib の q2 は 9 回中 3 回で、落とした6回はどれも LIB-Q04 を未着手に入れなかった（34.6 の後の画面は進捗の言葉を出さず、進捗の数も数えないが、鍵は未着手とする。34.6 のレビューの Medium が起きた）。q4 は haiku が答えの変化の表の別の行の出来事を足して、psy で3回、lib で1回落とした。どれを直すかは決めていない。人の読み手は分析者本人で、PM のセッションと Artifact のコメントで言ったことを記録にした。時間は計っていない。本人が問いの紙の6問に答える分は取れていない。lib の前は、Epic 34 の前の画面での記録が無いので、2026-11-21〜22 の記録と並べた。
+- 2026-11-26 — Epic のゲートで2つのレビュー（バグとセキュリティ、コード品質）を回した。マージの前に直すと付いた指摘のうち、人間の判断が要らない6つを直した。答えが根拠にしていない下の分析結果の行をページと同じ順に並べる、テストだけが呼ぶ決定の検査の関数を消す、主題を見直した後に論点ツリーの HTML を作り直す、Step T5 で `tree_io changes` の出力を読む、`CHANGELOG.md` の Upgrade note、Module Responsibilities の表をコードに合わせる（Decisions の `words-are-not-yet-in-one-place`）。
+- 2026-11-26 — 進捗の規則を1つにした。人間が PM のセッションで、試作を読んでから決めた。自分にも、下に置いた論点にも分析設計を結んでいない論点は「未着手」と出して数え、自分には結ばず下のどれかに結んだ論点だけを、下の論点の数で出す。規則は `QuestionTree.progress` に置き、ページ・`tree_io progress`・レポートが呼ぶ。`tree_io progress` は論点ごとに `progress`（言葉か `null`）と `below`（下の論点の言葉ごとの数）を返し、`/analysis-reflection` と `/analysis-framing` はページと同じ言い方で伝える。レポートの論点の表の「進捗」の欄も同じ規則にしたので、Scope の触らない所の `theme_report.py` の行を直した（Decisions の `story-34-6-progress-closed-and-grounds` の 2、ADR-0057）。図書館の主題は「主題の下に置いた論点 5 つ: 分析済み 2、未着手 3」、LIB-Q04 は「進捗: 未着手」と出る。psy の画面は凡例のほかは変わらない。
+- 2026-11-26 — 問いの紙の問い 4 を、鍵の規則をそのまま言う文にした。人間が PM のセッションで、試作を読んでから決めた（PM が直した表示で haiku に各シナリオ3回ずつ読ませ、6 回とも正しかった）。答えが変わった論点と、その答えが今回新しく根拠にした出来事を聞き、言っていることが変わった出来事と根拠から外した出来事は挙げないと書く。採点の規則と鍵は変えない。HANDOFF_TRIAL の問いの一覧と ADR-0059 に書き足した。PRD の成功基準の項目は、問いの紙の文ではないので変えていない。
+- 2026-11-26 — 2つの直しの後（2cd6547）で、引き継ぎの試行を取り直した。人間が PM のセッションで、試作を読んでから2つの直しを決め、取り直すことにした。2本の合成シナリオを sonnet・haiku・opus に3回ずつ読ませ、18 回とも6問すべて正しかった（[記録](../handoff-trials/2026-11-26-after-the-gate-fixes.md)）。表示の後に落ちた lib の q2（9 回中 3 回）と q4（lib 8 回、psy 6 回）、psy の q1（8 回）は 9 回に戻り、前の列を下回った問いは無い。q4 は問い 4 の文が変わったので、表示の後と同じ条件の比較ではない。初見の人の読み手では、まだ確かめていない。

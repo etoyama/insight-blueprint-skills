@@ -20,6 +20,7 @@ from skills._shared import design_io, tree_io
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills._shown import run_shown_commands, run_shown_line
 from tests.skills.test_skill_structure import _read_skill
+from tests.skills.test_theme_reflection_structure import _below_words
 
 
 def _reflection(heading: str) -> str:
@@ -31,7 +32,7 @@ def _framing(heading: str) -> str:
 
 
 def _library(insight: Path) -> None:
-    """LIB-Q02 is started (LIB-H01) and holds the start decision; LIB-Q03 is untouched."""
+    """LIB-Q02 is started (LIB-H01, one journal event) and holds the start decision; LIB-Q03 is untouched."""
     tree_io.create_tree(
         theme_id="LIB",
         question="取り置き期限を延ばす試行をするか",
@@ -65,6 +66,19 @@ def _library(insight: Path) -> None:
         base_dir=insight,
     )
     tree_io.link_design("LIB", "LIB-Q02", design["id"], base_dir=insight)
+    design_io.write_journal(
+        design["id"],
+        {
+            "events": [
+                {
+                    "id": f"{design['id']}-E01",
+                    "type": "observe",
+                    "content": "状態の履歴から取消を除くと、期限切れは152件だった",
+                }
+            ]
+        },
+        base_dir=insight,
+    )
 
 
 def _node(insight: Path, node_id: str) -> dict:
@@ -216,6 +230,13 @@ class TestFramingAsksWhichNodeComesNext:
         assert "latest decision" in step
         assert "`tree_io progress --theme {theme_id}`" in step
         assert "`tree_io candidates --theme {theme_id}`" in step
+
+    def test_the_progress_is_shown_as_the_page_shows_it(self) -> None:
+        """A node with no word shows the counts below it, never 未着手 (ADR-0057)."""
+        step = unwrap(_framing("#### 4d: "))
+        assert "`below`" in step
+        assert _below_words("この論点") in step
+        assert re.search(r"`null`[^.]*never[^.]*未着手[^.]*\.", step)
 
     def test_a_node_that_already_has_a_design_is_confirmed(self) -> None:
         step = unwrap(_framing("#### 4d: "))

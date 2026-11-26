@@ -1,0 +1,51 @@
+date: '2026-11-26'
+scenario: lib
+stage: round-2
+reader:
+  kind: claude
+  name: sonnet (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 延長の試行をするかは、来館できる日の少なさを確かめるまで決められない、というのが現時点の答えです。通知が翌日以降になった予約は期限切れが18%と多いという分かったことはありますが、通知の日を揃えても金曜に確保した本は16%のままという注意点があります。
+    verdict: undetermined
+  q2:
+    note: LIB-Q02は分析済みですが、まだ決められないことは残っていません。LIB-Q04は分析設計を結んでいませんが、下に論点があるため進捗の言葉が付かず、進捗の数にも含まれないので、どちらにも入れていません。
+    not_started:
+    - LIB-Q05
+    - LIB-Q06
+    analyzed_undetermined:
+    - LIB-Q03
+  q3:
+    note: E01は「これまでわかっていること」の根拠です。E02は「注意すべきこと」と「まだ決められないこと」の根拠で、検証仮説に反する証拠です。
+    supports:
+    - event_id: LIB-H02-E01
+      design_id: LIB-H02
+    weakens:
+    - event_id: LIB-H02-E02
+      design_id: LIB-H02
+  q4:
+    note: 主題の答えは、この2件を新しく根拠にして変わりました。同時にLIB-H01-E01は根拠から外れていますが、外した理由は記録にありません。LIB-Q03は2回目で初めて答えたため含めていません。
+    changed_nodes:
+    - LIB-Q01
+    evidence:
+    - LIB-H02-E01
+    - LIB-H02-E02
+  q5:
+    note: 通知の日を揃えても金曜に確保した本の期限切れが多いままなので、通知から期限まで何日開館していたかを先に確かめます。
+    node_id: LIB-Q06
+    reason_events:
+    - LIB-H02-E02
+  q6:
+    note: 答えを書き直していないのはLIB-Q02です。その答えが引用するLIB-H01-E01は、上の論点LIB-Q01の前回の答えでは引用されていましたが、今回の答えでは引用されていないため、該当はありません。
+    nodes: []
+    evidence: []
+score:
+  q1: true
+  q2: false
+  q3: true
+  q4: true
+  q5: true
+  q6: true

@@ -1,13 +1,14 @@
 """The handoff trial of a question tree (Epic 18, Story 18.8; docs/HANDOFF_TRIAL.md).
 
 A reader with no other context gets the tree HTML of a synthetic scenario and
-answers the five questions of the PRD success criteria. The answers name
-judgments by id, so scoring compares judgments and never wording.
+answers six questions: the five of the PRD success criteria and, since Epic 34
+(ADR-0059), the evidence an answer above now cites in other words. The answers
+name judgments by id, so scoring compares judgments and never wording.
 
 Usage, from the repository root:
-    python -m scripts.handoff_trial build --scenario lib --out DIR [--through STAGE]
+    python -m scripts.handoff_trial build --scenario lib|psy --out DIR [--through STAGE]
     python -m scripts.handoff_trial prompt --html PATH
-    python -m scripts.handoff_trial record --scenario lib --answers PATH \\
+    python -m scripts.handoff_trial record --scenario lib|psy --answers PATH \\
         --reader-kind claude|human --reader-name NAME --date YYYY-MM-DD \\
         [--minutes-confirm N --minutes-reconstruct N] --out PATH
 """
@@ -30,7 +31,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from skills._shared import design_io, tree_io
 
 FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "handoff"
-QUESTIONS = ("q1", "q2", "q3", "q4", "q5")
+QUESTIONS = ("q1", "q2", "q3", "q4", "q5", "q6")
 # Written into every directory build fills, so build never removes one it did not make.
 BUILT_MARK = ".handoff-trial"
 
@@ -42,11 +43,20 @@ def _answer(*, theme_id: str, answers: list[dict], base_dir: Path) -> dict:
     return result
 
 
+def _decide(*, theme_id: str, base_dir: Path, **decision: Any) -> dict:
+    # decide writes nothing when its cites fail the check, and says so only in
+    # what it returns: carrying on would build a tree without that decision.
+    result = tree_io.decide(theme_id, **decision, base_dir=base_dir)
+    if "violations" in result:
+        raise ValueError(f"the scenario's decision fails the tree check: {result}")
+    return result
+
+
 # Step name -> (function, whether it takes the theme). The YAML names the function.
 STEPS: dict[str, tuple[Callable[..., object], bool]] = {
     "create_tree": (tree_io.create_tree, True),
     "add_node": (tree_io.add_node, True),
-    "decide": (tree_io.decide, True),
+    "decide": (_decide, True),
     "link_design": (tree_io.link_design, True),
     "answer": (_answer, True),
     "candidate": (tree_io.candidate, True),
@@ -133,8 +143,8 @@ class Q5(_Question):
 
 
 class KeyQ5(Q5):
-    """The q5 key. A decision's reason is free text that cites no event, so a
-    reader may rightly name an event next to it, such as the node's origin."""
+    """The q5 key: the events the last decision cites (ADR-0058). A reader may
+    rightly name an event next to them too, such as the node's origin."""
 
     also_allowed: list[str] = []
 
@@ -149,6 +159,14 @@ class KeyQ5(Q5):
         )
 
 
+class Q6(_Question):
+    """Nodes whose answer and numbers stayed while an answer above them now cites
+    their evidence in other words, and that evidence. Both empty when none."""
+
+    nodes: list[str]
+    evidence: list[str]
+
+
 class Answers(BaseModel):
     """The reader's answers. A question left out is scored wrong, not refused."""
 
@@ -159,6 +177,7 @@ class Answers(BaseModel):
     q3: Q3 | None = None
     q4: Q4 | None = None
     q5: Q5 | None = None
+    q6: Q6 | None = None
 
 
 class KeyAnswers(Answers):
@@ -169,6 +188,7 @@ class KeyAnswers(Answers):
     q3: Q3
     q4: Q4
     q5: KeyQ5
+    q6: Q6
 
 
 class Key(BaseModel):
@@ -195,7 +215,9 @@ class Minutes(BaseModel):
 
 
 class Record(BaseModel):
-    """One trial: who read which stage, the answers, the score and the time taken."""
+    """One trial: who read which stage, the answers, the score and the time taken.
+
+    A record kept before q6 existed has no q6; it is read as it was scored (ADR-0035)."""
 
     model_config = ConfigDict(extra="forbid")
 

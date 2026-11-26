@@ -1,14 +1,15 @@
 """Tests for scripts/handoff_trial.py, the handoff trial of a question tree (Epic 18, Story 18.8).
 
 The trial hands the tree HTML of a synthetic scenario to a reader with no other
-context and scores the five questions of the PRD success criteria by the
-judgments the reader names (node, event and design ids), not by wording.
-Synthetic data only (public-library holds, theme LIB).
+context and scores the six questions by the judgments the reader names (node,
+event and design ids), not by wording. Synthetic data only: public-library
+holds (theme LIB) and psychological safety (theme PSY, Epic 34, ADR-0059).
 """
 
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -20,7 +21,12 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from insight_blueprint.models.design import AnalysisDesign, DesignForm, DesignStatus
+from insight_blueprint.models.design import (
+    TERMINAL_STATUSES,
+    AnalysisDesign,
+    DesignForm,
+    DesignStatus,
+)
 from insight_blueprint.models.tree import Progress, QuestionTree, StatementKind
 from scripts import handoff_trial
 from scripts.handoff_trial import (
@@ -35,20 +41,28 @@ from scripts.handoff_trial import (
     score,
 )
 from skills._shared import design_io, tree_io
+from skills._shared.tree_changes import ChangeKind
 from skills._shared.tree_check import check_theme
+from skills._shared.tree_render_parts import _CHANGE_WORDS
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = "lib"
+SCENARIOS = ("lib", "psy")
+
+
+@pytest.fixture(scope="module", params=SCENARIOS)
+def name(request: pytest.FixtureRequest) -> str:
+    return request.param
 
 
 @pytest.fixture(scope="module")
-def scenario() -> handoff_trial.Scenario:
-    return load_scenario(SCENARIO)
+def scenario(name: str) -> handoff_trial.Scenario:
+    return load_scenario(name)
 
 
 @pytest.fixture(scope="module")
-def key() -> handoff_trial.Key:
-    return load_key(SCENARIO)
+def key(name: str) -> handoff_trial.Key:
+    return load_key(name)
 
 
 @pytest.fixture
@@ -136,6 +150,18 @@ class TestStages:
         with pytest.raises(ValueError, match="start.*create_tree"):
             build(scenario, tmp_path)
 
+    def test_a_decision_the_check_refuses_stops_the_build(
+        self, tmp_path: Path, scenario: handoff_trial.Scenario
+    ) -> None:
+        """tree_io.decide writes nothing and returns the violations; build must not
+        carry on as if the decision were written."""
+        broken = scenario.model_copy(deep=True)
+        last = broken.stages[-1].steps[-1]["decide"]
+        last["cites"] = [f"{scenario.theme_id}-H09-E09"]
+
+        with pytest.raises(ValueError, match="missing-event"):
+            build(broken, tmp_path)
+
     def test_an_unknown_step_is_refused_before_anything_is_written(
         self, tmp_path: Path
     ) -> None:
@@ -218,13 +244,27 @@ class TestTheKeyHoldsForTheTree:
             n.id
             for n in tree.nodes
             if n.parent_question_id is not None
-            and progress[n.id] == Progress.analyzed.value
+            and progress[n.id]["progress"] == Progress.analyzed.value
             and (a := n.current_answer()) is not None
             and any(s.kind is StatementKind.undetermined for s in a.statements)
         }
         assert set(key.answers.q2.not_started) == {n.id for n in tree.untouched_nodes()}
         assert set(key.answers.q2.analyzed_undetermined) == undetermined
         assert undetermined, "the scenario needs an analyzed but undetermined node"
+
+    def test_the_not_started_questions_of_q2_are_the_ones_the_progress_calls_so(
+        self, built: Path, scenario: handoff_trial.Scenario, key: handoff_trial.Key
+    ) -> None:
+        """The page, tree_io progress and the key hold one rule (ADR-0057)."""
+        tree = tree_io.load_tree_model(scenario.theme_id, built)
+        progress = tree_io.progress(scenario.theme_id, built)
+        called_not_started = {
+            node_id
+            for node_id, found in progress.items()
+            if node_id != tree.root().id
+            and found["progress"] == Progress.not_started.value
+        }
+        assert called_not_started == set(key.answers.q2.not_started)
 
     def test_q3_splits_the_cited_events_by_the_kind_of_the_citing_statement(
         self, built: Path, scenario: handoff_trial.Scenario, key: handoff_trial.Key
@@ -280,12 +320,134 @@ class TestTheKeyHoldsForTheTree:
     ) -> None:
         tree = tree_io.load_tree_model(scenario.theme_id, built)
         assert key.answers.q5.node_id == tree.decisions[-1].node_id
-        assert key.answers.q5.reason_events
+
+    def test_q5_reason_is_what_the_last_decision_cites(
+        self, built: Path, scenario: handoff_trial.Scenario, key: handoff_trial.Key
+    ) -> None:
+        """ADR-0058: the reason's events come from the tree, not from whoever
+        writes the key. The event the node was promoted from may be named too."""
+        tree = tree_io.load_tree_model(scenario.theme_id, built)
+        last = tree.decisions[-1]
+        origin = tree.node(last.node_id).origin_event_id
+        assert last.cites, "the scenario's last decision cites its reason"
+        assert set(key.answers.q5.reason_events) == set(last.cites)
+        assert set(key.answers.q5.also_allowed) == {origin} - set(last.cites) - {None}
+
+    def test_q6_names_the_evidence_an_answer_above_now_cites_in_other_words(
+        self, built: Path, scenario: handoff_trial.Scenario, key: handoff_trial.Key
+    ) -> None:
+        found = _q6_of(tree_io.load_tree_model(scenario.theme_id, built))
+        assert set(key.answers.q6.nodes) == {n for n, _ in found}
+        assert set(key.answers.q6.evidence) == {e for _, e in found}
+
+
+def _q6_of(tree: QuestionTree) -> set[tuple[str, str]]:
+    """A node left as it was, whose cited event an answer above it rewrote in the
+    last round: cited before and now, by different statements (ADR-0056's
+    reworded). An event the answer above stopped citing, or first cites in the
+    last round, is not one.
+
+    Written apart from ``tree_changes.cited_above`` on purpose: the page shows
+    that one, so a key derived from it would agree with the page even when the
+    rule itself is wrong (ADR-0059's Negative).
+    """
+    last = tree.current_round()
+    parents = {n.id: n.parent_question_id for n in tree.nodes}
+    by_id = {n.id: n for n in tree.nodes}
+
+    def citing(statements: list, event: str) -> set[tuple]:
+        return {(s.kind, s.text) for s in statements if event in s.cites}
+
+    found: set[tuple[str, str]] = set()
+    for node in tree.nodes:
+        if not node.answers or node.answers[-1].round == last:
+            continue
+        events = {c for s in node.answers[-1].statements for c in s.cites}
+        above = parents[node.id]
+        while above is not None:
+            answers = by_id[above].answers
+            if len(answers) > 1 and answers[-1].round == last:
+                for event in events:
+                    before = citing(answers[-2].statements, event)
+                    after = citing(answers[-1].statements, event)
+                    if before and after and before != after:
+                        found.add((node.id, event))
+            above = parents[above]
+    return found
+
+
+class TestTheQ6Rule:
+    """The shapes of q6 the two scenarios do not hold (34.2's review): the rule
+    is the one the key test derives with, so a shape it misses is caught here."""
+
+    @staticmethod
+    def _tree(root_before: list[dict], root_now: list[dict]) -> QuestionTree:
+        def answer(round: int, statements: list[dict]) -> dict:
+            return {"round": round, "root_revision": 1, "statements": statements}
+
+        said = {"kind": "claim", "text": "相関は0.41", "cites": ["PSY-H01-E01"]}
+        return QuestionTree.model_validate(
+            {
+                "theme_id": "PSY",
+                "root_revisions": [
+                    {
+                        "revision": 1,
+                        "question": "上司への働きかけを優先すべきか",
+                        "aim": {
+                            "kind": "business",
+                            "decision_maker": "人事",
+                            "decision": "優先するか",
+                        },
+                    }
+                ],
+                "nodes": [
+                    {
+                        "id": "PSY-Q01",
+                        "question": "上司への働きかけを優先すべきか",
+                        "answers": [answer(1, root_before), answer(2, root_now)],
+                    },
+                    {
+                        "id": "PSY-Q02",
+                        "question": "関連はあるか",
+                        "parent_question_id": "PSY-Q01",
+                        "contribution": "無ければ外す",
+                        "answers": [answer(1, [said])],
+                    },
+                ],
+            }
+        )
+
+    def test_an_event_cited_in_other_words_is_named(self) -> None:
+        before = [{"kind": "claim", "text": "候補に残る", "cites": ["PSY-H01-E01"]}]
+        now = [
+            {"kind": "weakening", "text": "負荷で説明できる", "cites": ["PSY-H01-E01"]}
+        ]
+
+        assert _q6_of(self._tree(before, now)) == {("PSY-Q02", "PSY-H01-E01")}
+
+    def test_an_event_the_answer_above_first_cites_in_the_last_round_is_not(
+        self,
+    ) -> None:
+        before = [{"kind": "claim", "text": "別の結果", "cites": ["PSY-H02-E01"]}]
+        now = [{"kind": "claim", "text": "候補に残る", "cites": ["PSY-H01-E01"]}]
+
+        assert _q6_of(self._tree(before, now)) == set()
+
+    def test_an_event_the_answer_above_stops_citing_is_not(self) -> None:
+        before = [{"kind": "claim", "text": "候補に残る", "cites": ["PSY-H01-E01"]}]
+        now = [{"kind": "claim", "text": "別の結果", "cites": ["PSY-H02-E01"]}]
+
+        assert _q6_of(self._tree(before, now)) == set()
 
 
 class TestTheScenarioHasBothForms:
     """US-4 AC 5: the tree shows an exploration, a confirmation and a verdict apart
     from the answer of its node."""
+
+    @pytest.fixture
+    def built(self, tmp_path: Path) -> Path:
+        build(load_scenario("lib"), tmp_path)
+        return tmp_path
 
     def _designs(self, built: Path) -> list[AnalysisDesign]:
         return [
@@ -302,9 +464,9 @@ class TestTheScenarioHasBothForms:
         assert {DesignForm.exploration, DesignForm.confirmation} <= forms
 
     def test_a_node_has_a_verdict_that_differs_from_its_current_answer(
-        self, built: Path, scenario: handoff_trial.Scenario
+        self, built: Path
     ) -> None:
-        tree = tree_io.load_tree_model(scenario.theme_id, built)
+        tree = tree_io.load_tree_model("LIB", built)
         designs = {d.id: d for d in self._designs(built)}
         decided = {DesignStatus.supported, DesignStatus.rejected}
         differing = [
@@ -329,18 +491,74 @@ class TestTheScenarioHasBothForms:
         assert "検証仮説の判定: 支持" in html
 
 
+class TestTheSecondScenario:
+    """Epic 34 US-6 AC 1: psy holds an analysis that found no difference, and a
+    node whose answer and numbers stay while the answer above cites them in
+    other words."""
+
+    @pytest.fixture
+    def built(self, tmp_path: Path) -> Path:
+        build(load_scenario("psy"), tmp_path)
+        return tmp_path
+
+    def _designs(self, built: Path) -> list[AnalysisDesign]:
+        return [
+            AnalysisDesign.model_validate(
+                design_io.load_design(p.stem.split("_")[0], built)
+            )
+            for p in sorted((built / "designs").glob("*_hypothesis.yaml"))
+        ]
+
+    def test_it_has_a_rejected_confirmation_the_root_answer_never_cites(
+        self, built: Path
+    ) -> None:
+        tree = tree_io.load_tree_model("PSY", built)
+        rejected = {
+            d.id
+            for d in self._designs(built)
+            if d.form() is DesignForm.confirmation and d.status is DesignStatus.rejected
+        }
+        root_cites = {
+            tree_io.design_id_of(c)
+            for a in tree.root().answers
+            for s in a.statements
+            for c in s.cites
+        }
+        assert len(rejected) == 1
+        assert not rejected & root_cites
+
+    def test_no_analysis_is_left_unfinished(self, built: Path) -> None:
+        """ADR-0059: a stopped analysis is checked by the display tests, not here."""
+        assert all(d.status in TERMINAL_STATUSES for d in self._designs(built))
+
+    def test_q6_has_an_answer(self) -> None:
+        q6 = load_key("psy").answers.q6
+        assert q6.nodes
+        assert q6.evidence
+
+    def test_the_library_has_none(self) -> None:
+        q6 = load_key("lib").answers.q6
+        assert (q6.nodes, q6.evidence) == ([], [])
+
+    def test_every_name_and_number_is_said_to_be_made_up(self) -> None:
+        for file in ("stages.yaml", "key.yaml"):
+            head = (handoff_trial.FIXTURES / "psy" / file).read_text().splitlines()[:6]
+            assert any("made up" in line for line in head), file
+
+
 class TestTheKey:
     def test_a_key_that_leaves_a_question_out_is_refused_when_read(
         self, key: handoff_trial.Key
     ) -> None:
         partial = key.model_dump(mode="json")
-        del partial["answers"]["q5"]
-        with pytest.raises(ValidationError, match="q5"):
+        del partial["answers"]["q6"]
+        with pytest.raises(ValidationError, match="q6"):
             handoff_trial.Key.model_validate(partial)
 
 
 class TestScore:
-    """AC 2: scored by the judgment, never by the wording."""
+    """AC 2: scored by the judgment, never by the wording. A wrong answer names
+    ids of the scenario it scores, so each scenario is really put to the test."""
 
     def test_the_key_itself_is_right_on_every_question(
         self, key: handoff_trial.Key
@@ -348,12 +566,13 @@ class TestScore:
         assert score(key.answers, key) == dict.fromkeys(QUESTIONS, True)
 
     def test_one_wrong_judgment_marks_only_its_question(
-        self, key: handoff_trial.Key
+        self, key: handoff_trial.Key, name: str
     ) -> None:
         wrong = _key_answers(key)
-        wrong["q5"]["node_id"] = "LIB-Q04"
+        wrong["q5"]["node_id"] = f"{name.upper()}-Q04"
+        assert wrong["q5"]["node_id"] != key.answers.q5.node_id
         result = score(Answers.model_validate(wrong), key)
-        assert result == {"q1": True, "q2": True, "q3": True, "q4": True, "q5": False}
+        assert result == dict.fromkeys(QUESTIONS, True) | {"q5": False}
 
     def test_the_order_and_the_note_do_not_count(self, key: handoff_trial.Key) -> None:
         reworded = _key_answers(key)
@@ -381,25 +600,27 @@ class TestScore:
         only["q5"]["reason_events"] = list(key.answers.q5.also_allowed)
         assert score(Answers.model_validate(only), key)["q5"] is False
 
-    def test_naming_every_event_is_wrong(self, key: handoff_trial.Key) -> None:
+    def test_naming_every_event_is_wrong(
+        self, key: handoff_trial.Key, name: str
+    ) -> None:
         hedged = _key_answers(key)
-        hedged["q5"]["reason_events"] += [
-            *key.answers.q5.also_allowed,
-            "LIB-H01-E01",
-            "LIB-H02-E01",
-        ]
+        others = [f"{name.upper()}-H01-E01", f"{name.upper()}-H02-E01"]
+        assert not set(others) & set(key.answers.q5.reason_events)
+        hedged["q5"]["reason_events"] += [*key.answers.q5.also_allowed, *others]
         assert score(Answers.model_validate(hedged), key)["q5"] is False
 
     def test_a_reason_without_the_key_events_is_wrong(
-        self, key: handoff_trial.Key
+        self, key: handoff_trial.Key, name: str
     ) -> None:
         other = _key_answers(key)
-        other["q5"]["reason_events"] = ["LIB-H01-E01"]
+        assert f"{name.upper()}-H01-E01" not in key.answers.q5.reason_events
+        other["q5"]["reason_events"] = [f"{name.upper()}-H01-E01"]
         assert score(Answers.model_validate(other), key)["q5"] is False
 
-    def test_a_node_too_many_is_wrong(self, key: handoff_trial.Key) -> None:
+    def test_a_node_too_many_is_wrong(self, key: handoff_trial.Key, name: str) -> None:
         extra = _key_answers(key)
-        extra["q2"]["not_started"].append("LIB-Q02")
+        assert f"{name.upper()}-Q02" not in key.answers.q2.not_started
+        extra["q2"]["not_started"].append(f"{name.upper()}-Q02")
         assert score(Answers.model_validate(extra), key)["q2"] is False
 
 
@@ -424,12 +645,13 @@ class TestParseAnswers:
 
 
 class TestPrompt:
-    def test_the_prompt_asks_the_five_questions_then_gives_only_the_html(self) -> None:
+    def test_the_prompt_asks_every_question_then_gives_only_the_html(self) -> None:
         html = "<!doctype html><p>tree</p>"
         prompt = prompt_for(html)
         assert prompt.endswith(html)
         head = prompt[: -len(html)]
-        for n in range(1, 6):
+        assert QUESTIONS == tuple(Answers.model_fields)
+        for n in range(1, len(QUESTIONS) + 1):
             assert f"\n{n}. " in head
         for question, info in Answers.model_fields.items():
             assert f'"{question}"' in head
@@ -441,9 +663,40 @@ class TestPrompt:
         for field in handoff_trial.EventRef.model_fields:
             assert f'"{field}"' in head
 
+    def test_the_prompt_uses_the_words_the_analyst_sees(self) -> None:
+        """Epic 34 US-5: the subject, and the kinds of statement q1 names."""
+        head = prompt_for("")
+        for word in (
+            "主題",
+            "これまでわかっていること（claim）",
+            "まだ決められないこと（undetermined）",
+        ):
+            assert word in head
+        assert not re.search("根(?!拠)", head)
+        assert "未判別" not in head
+        # A round is counted as a reflection, as the page says it.
+        assert "この回" not in head
+        assert "最後の振り返りで初めて答えた論点" in head
+
+    def test_question_4_states_the_rule_of_its_key_in_the_words_of_the_page(
+        self,
+    ) -> None:
+        """The page lists every change as a row; q4's key counts only the newly cited."""
+        (q4,) = [line for line in prompt_for("").splitlines() if line.startswith("4. ")]
+        assert f"{_CHANGE_WORDS[ChangeKind.newly_cited][0]}出来事" in q4
+        assert (
+            "前回の答えも根拠にしていた出来事は、言っていることが変わっていても挙げない"
+            in q4
+        )
+        assert f"{_CHANGE_WORDS[ChangeKind.dropped][0]}出来事も挙げない" in q4
+
 
 class TestRecord:
-    """AC 3: the record keeps the five answers, right or wrong, and the time taken."""
+    """AC 3: the record keeps the answers, right or wrong, and the time taken."""
+
+    @pytest.fixture
+    def key(self) -> handoff_trial.Key:
+        return load_key(SCENARIO)
 
     def _record(self, key: handoff_trial.Key, **over: object) -> dict:
         return {
@@ -484,6 +737,16 @@ class TestRecord:
         with pytest.raises(ValidationError):
             Record.model_validate(self._record(key, comment="x"))
 
+    @pytest.mark.parametrize(
+        "kept",
+        sorted((REPO_ROOT / "docs" / "handoff-trials").glob("*.yaml")),
+        ids=lambda p: p.stem,
+    )
+    def test_a_kept_record_still_reads(self, kept: Path) -> None:
+        """ADR-0035: a record is read as it was scored, from before q6 too."""
+        record = Record.model_validate(yaml.safe_load(kept.read_text(encoding="utf-8")))
+        assert set(record.score) <= set(QUESTIONS)
+
 
 def _cli(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
@@ -514,6 +777,10 @@ def _record_cli(reply: Path, out: Path) -> subprocess.CompletedProcess[str]:
 
 
 class TestCli:
+    @pytest.fixture
+    def key(self) -> handoff_trial.Key:
+        return load_key(SCENARIO)
+
     def test_build_writes_the_html_and_prints_its_path(self, tmp_path: Path) -> None:
         done = _cli("build", "--scenario", SCENARIO, "--out", str(tmp_path))
         assert done.returncode == 0, done.stderr
@@ -551,7 +818,7 @@ class TestCli:
         assert done.returncode == 0, done.stderr
         record = Record.model_validate(yaml.safe_load(out.read_text(encoding="utf-8")))
         assert record.score["q1"] is False
-        assert sum(record.score.values()) == 4
+        assert sum(record.score.values()) == len(QUESTIONS) - 1
         assert "q1" in done.stdout
 
     def test_record_refuses_a_reply_that_is_not_json(self, tmp_path: Path) -> None:

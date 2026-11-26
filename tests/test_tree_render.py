@@ -31,8 +31,10 @@ from insight_blueprint.models.tree import (
 )
 from insight_blueprint.validate import validate_tree_schema
 from skills._shared import tree_render
+from skills._shared import tree_render_parts as parts
 from skills._shared._html import Html
 from skills._shared.design_note import intent_words_of, status_word
+from skills._shared.tree_changes import ChangeKind
 from skills._shared.tree_check import Violation, ViolationKind
 from skills._shared.tree_render import (
     CheckFailed,
@@ -318,6 +320,7 @@ def render(
     events: dict[str, CitedEvent] | None = None,
     violations: list[Violation] | CheckFailed | None = None,
     design_notes: dict[str, Html] | None = None,
+    shared: list[str] | None = None,
 ) -> str:
     shown = make_designs() if designs is None else designs
     return render_tree_html(
@@ -326,6 +329,7 @@ def render(
         make_events() if events is None else events,
         [] if violations is None else violations,
         stub_design_notes(shown) if design_notes is None else design_notes,
+        shared=frozenset(shared or ()),
     )
 
 
@@ -335,8 +339,9 @@ def page(
     events: dict[str, CitedEvent] | None = None,
     violations: list[Violation] | CheckFailed | None = None,
     design_notes: dict[str, Html] | None = None,
+    shared: list[str] | None = None,
 ) -> Element:
-    return parse(render(tree, designs, events, violations, design_notes))
+    return parse(render(tree, designs, events, violations, design_notes, shared))
 
 
 class TestSelfContained:
@@ -392,7 +397,8 @@ class TestHeader:
         assert ROOT_QUESTION in header
         assert "決める人: 図書館員" in squash(header)
         assert "決めること: 取り置き期限を延ばす試行を始めるか" in squash(header)
-        assert "根の版 2" in squash(header)
+        assert "主題を1回見直した" in squash(header)
+        assert "版" not in squash(header)
 
     def test_a_research_aim_carries_its_own_labels(self) -> None:
         tree = make_tree()
@@ -424,7 +430,9 @@ class TestHeader:
         html = render(tree=tree)
 
         assert "root-history" not in html
-        assert "根の変更前の答え" not in by_id(parse(html), "question-tree").text()
+        assert (
+            "見直す前の主題への答え" not in by_id(parse(html), "question-tree").text()
+        )
 
 
 class TestLegend:
@@ -433,12 +441,16 @@ class TestLegend:
 
         for word in ("未着手", "検証中", "分析済み"):
             assert word in legend
-        for word in ("言えること", "未判別", "弱める証拠と留保"):
+        for word in (
+            "これまでわかっていること",
+            "まだ決められないこと",
+            "注意すべきこと",
+        ):
             assert word in legend
         for word in (
-            "回 N で変わった",
-            "根の変更前の答え",
-            "回 N で初めて答えた",
+            "N回目の振り返りで変わったこと",
+            "見直す前の主題への答え",
+            "N回目の振り返りで初めて答えたこと",
             "記録と合わない答え",
         ):
             assert word in legend
@@ -454,6 +466,28 @@ class TestLegend:
         (explained,) = [p for p in paragraphs if "分析ノートを開く" in p]
         assert "このページの下" in explained
         assert "論点ツリーへ戻る" in explained
+
+
+def has_class(element: Element, name: str) -> bool:
+    return name in (element.attrs.get("class") or "").split()
+
+
+def node_card(root: Element, node_id: str) -> Element:
+    """The card of a node, without the cards nested under it."""
+    return next(e for e in by_id(root, node_id).children if e.tag == "div")
+
+
+def answer_text(root: Element, node_id: str) -> str:
+    """The statements of the current answer on the card of a node."""
+    (statements,) = [
+        e for e in node_card(root, node_id).children if has_class(e, "statements")
+    ]
+    return squash(statements.text())
+
+
+def marks_text(root: Element, node_id: str) -> str:
+    card = node_card(root, node_id)
+    return squash(" ".join(e.text() for e in card.walk() if has_class(e, "mark")))
 
 
 def node_text(root: Element, node_id: str) -> str:
@@ -498,7 +532,8 @@ class TestProgress:
     def test_the_counts_of_nodes_per_progress_word_are_shown(self) -> None:
         counts = squash(by_id(page(), "counts").text())
 
-        assert "未着手 3" in counts
+        # The subject has no design and nodes under it, so it is not counted (ADR-0057).
+        assert "未着手 2" in counts
         assert "検証中 1" in counts
         assert "分析済み 1" in counts
 
@@ -512,15 +547,16 @@ class TestProgress:
 
 class TestCurrentAnswer:
     def test_the_current_answer_is_text_with_the_word_for_each_kind(self) -> None:
-        shown = node_text(page(), "LIB-Q02")
+        root = page()
+        shown = answer_text(root, "LIB-Q02")
 
-        assert "言えること 取消を除くと期限切れは 346 件" in shown
-        assert "弱める証拠と留保 1館の1年度だけの数である" in shown
-        assert "振り返りの回 2" in shown
+        assert "これまでわかっていること 取消を除くと期限切れは 346 件" in shown
+        assert "注意すべきこと 1館の1年度だけの数である" in shown
         assert "400 件" not in shown
+        assert "2回目の振り返り" in node_text(root, "LIB-Q02")
 
     def test_an_undetermined_statement_carries_its_word(self) -> None:
-        assert "未判別 理由の記録が無く、偏りは判別できない" in node_text(
+        assert "まだ決められないこと 理由の記録が無く、偏りは判別できない" in node_text(
             page(), "LIB-Q04"
         )
 
@@ -547,7 +583,7 @@ class TestHeardStatements:
     def test_a_statement_citing_an_event_of_the_data_carries_no_such_word(
         self,
     ) -> None:
-        shown = node_text(page(events=self._heard("LIB-H01-E02")), "LIB-Q02")
+        shown = answer_text(page(events=self._heard("LIB-H01-E02")), "LIB-Q02")
 
         assert "取消を除くと期限切れは 346 件 （人に聞いた答えによる）" not in shown
         assert shown.count("（人に聞いた答えによる）") == 1
@@ -623,7 +659,7 @@ class TestDecisionRounds:
         tree = self._with(self._decision(kind, node_id))
         shown = squash(by_id(page(tree=tree), "decisions").text())
 
-        assert f"{label}（回 2 の振り返りの後）: {node_id} 答えを見た" in shown
+        assert f"{label}（2回目の振り返りの後）: {node_id} 答えを見た" in shown
 
     def test_a_decision_taken_before_any_reflection_says_so_instead_of_naming_round_0(
         self,
@@ -656,21 +692,21 @@ class TestMarks:
     ) -> None:
         shown = node_text(page(), "LIB-Q02")
 
-        assert "回 2 で変わった" in shown
+        assert "2回目の振り返りで変わったこと" in shown
         assert "初めて答えた" not in shown
 
     def test_the_previous_answer_is_shown_behind_a_changed_answer(self) -> None:
         folded = details_text(page(), "LIB-Q02")
 
         assert "取消を含めると期限切れは 400 件" in folded
-        assert "前の回の答え" in folded
+        assert "前の振り返りの答え" in folded
 
     def test_an_answer_first_written_in_the_latest_round_is_marked_as_first(
         self,
     ) -> None:
         shown = node_text(page(), "LIB-Q04")
 
-        assert "回 2 で初めて答えた" in shown
+        assert "2回目の振り返りで初めて答えたこと" in shown
         assert "変わった" not in shown
 
     def test_an_answer_from_an_earlier_round_carries_no_changed_mark(self) -> None:
@@ -686,18 +722,17 @@ class TestMarks:
         answers = tree["nodes"][1]["answers"]
         answers[0]["statements"] = answers[1]["statements"]
 
-        shown = node_text(page(tree=tree), "LIB-Q02")
-
-        assert "変わった" not in shown
-        assert "初めて答えた" not in shown
+        assert marks_text(page(tree=tree), "LIB-Q02") == ""
 
     def test_an_answer_written_against_an_older_root_revision_is_marked(self) -> None:
         shown = node_text(page(), "LIB-Q05")
 
-        assert "根の変更前の答え（根の版 1 への答え）" in shown
+        assert "見直す前の主題への答え" in shown
 
     def test_an_answer_of_the_current_root_revision_is_not_marked_stale(self) -> None:
-        assert "根の変更前の答え" not in node_text(page(), "LIB-Q02")
+        # The table of what changed names the subject the earlier answer answered;
+        # the mark is what says the current answer is to an earlier subject.
+        assert "見直す前の主題への答え" not in marks_text(page(), "LIB-Q02")
 
 
 def with_note(tree: dict, node_id: str, **note: object) -> dict:
@@ -832,14 +867,14 @@ class TestViolatingAnswers:
         shown = node_text(violation_page(), "LIB-Q04")
 
         assert "記録と合わない答え" not in shown
-        assert "回 2 で初めて答えた" in shown
+        assert "2回目の振り返りで初めて答えたこと" in shown
 
     def test_a_violation_does_not_hide_the_stale_root_mark(self) -> None:
         violations = [Violation("LIB-Q05", 1, 1, "missing-event", "LIB-H03-E01")]
         shown = node_text(page(violations=violations), "LIB-Q05")
 
         assert "記録と合わない答え" in shown
-        assert "根の変更前の答え" in shown
+        assert "見直す前の主題への答え" in shown
 
     def test_no_violation_means_no_mark_and_no_notice(self) -> None:
         root = page()
@@ -1077,9 +1112,9 @@ class TestDesignsUnderTheirNode:
         (card,) = branch_cards(root, "LIB-Q02")
         assert card.is_inside(by_id(root, "LIB-Q02"))
         assert card.is_inside(by_id(root, "question-tree"))
-        assert "LIB-H01" not in node_text(root, "LIB-Q02")
-        node_card = next(e for e in by_id(root, "LIB-Q02").children if e.tag == "div")
-        assert card.attrs["class"] != node_card.attrs["class"]
+        own = node_card(root, "LIB-Q02")
+        assert not card.is_inside(own)
+        assert card.attrs["class"] != own.attrs["class"]
 
     def test_the_designs_come_before_the_child_nodes(self) -> None:
         root = forms_page()
@@ -1228,11 +1263,11 @@ class TestStatusWords:
 
     def test_a_node_card_heads_its_answer_with_the_current_answer(self) -> None:
         root = page()
-        card = next(e for e in by_id(root, "LIB-Q02").children if e.tag == "div")
+        card = node_card(root, "LIB-Q02")
         paragraphs = [squash(e.text()) for e in card.children if e.tag in ("p", "ul")]
 
         heading = paragraphs.index("現時点の答え")
-        assert paragraphs[heading + 1].startswith("言えること")
+        assert paragraphs[heading + 1].startswith("これまでわかっていること")
 
     def test_a_node_without_an_answer_has_no_heading(self) -> None:
         assert "現時点の答え" not in node_text(page(), "LIB-Q03")
@@ -1512,8 +1547,9 @@ class TestEveryKindHasItsWord:
         ("words", "kinds"),
         [
             (tree_render.PROGRESS_WORDS, Progress),
-            (tree_render._KIND_WORDS, StatementKind),
-            (tree_render._MARK_WORDS, tree_render.Mark),
+            (tree_render.KIND_WORDS, StatementKind),
+            (tree_render._MARK_WORDS, parts.Mark),
+            (parts._CHANGE_WORDS, ChangeKind),
             (tree_render._DECISION_LABELS, TreeDecisionKind),
             (tree_render._AIM_LABELS, AimKind),
         ],
@@ -1600,3 +1636,42 @@ class TestReviewCommentsInTheDerivation:
 
     def test_the_derivation_row_shows_no_count_when_there_is_none(self) -> None:
         assert "review コメント" not in self._row("LIB-H04", 0)
+
+
+class TestTheWordsShownToTheAnalyst:
+    """Epic 34 US-5 AC 1, AC 2: the page speaks the analyst's words, not the code's."""
+
+    def test_the_header_calls_the_root_question_the_subject(self) -> None:
+        header = squash(by_id(page(), "header").text())
+
+        assert f"主題: {ROOT_QUESTION}" in header
+
+    def test_the_history_lists_each_revision_of_the_subject(self) -> None:
+        history = squash(by_id(page(), "root-history").text())
+
+        assert history.startswith("主題を見直した履歴")
+        assert f"最初の主題: {OLD_QUESTION}" in history
+        assert f"1回目の見直しの後の主題: {ROOT_QUESTION}" in history
+
+    def test_the_round_of_an_answer_is_said_as_the_count_of_reflections(
+        self,
+    ) -> None:
+        shown = node_text(page(), "LIB-Q05")
+
+        assert "1回目の振り返り" in shown
+        assert "版" not in shown
+
+    @pytest.mark.parametrize(
+        "entry",
+        [
+            "これまでわかっていること: 根拠にした分析結果から言えること。",
+            "まだ決められないこと: 分析をしても、分析結果からは決められないこと。",
+            "注意すべきこと: これまでわかっていることを弱める分析結果や、"
+            "言える範囲を狭める条件。",
+            "見直す前の主題への答え: 主題か到達点を見直す前の主題に対して書いた答え。",
+        ],
+    )
+    def test_the_legend_explains_each_word_in_the_analysts_words(
+        self, entry: str
+    ) -> None:
+        assert entry in squash(by_id(page(), "legend").text())

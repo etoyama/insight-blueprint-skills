@@ -7,6 +7,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upgrade note
+
+- **A tree with a decision that has `cites` cannot be read by an earlier version of the
+  plugin.** An earlier version rejects any key of a decision it does not know
+  ([ADR-0058](docs/adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md), #249).
+- **`tree_io progress` returns an object for each question, not a word.** A script that read
+  `progress[node_id]` as a string reads `progress[node_id]["progress"]`, which is `null` for a question
+  shown by the progress below it ([ADR-0057](docs/adr/0057-a-question-without-a-design-shows-the-progress-below-it.md), #249).
+
+### Changed
+
+- **The handoff trial was taken again on the display of Epic 34.** Nine Claude readers read each of `lib`
+  and `psy` on the fixed display (e3521d1), and the summary sits beside the records from before
+  (`docs/handoff-trials/2026-11-26-after-the-display.md`). Only `lib`'s q5 went up (7 of 9 right before, 9 of 9 after);
+  `lib`'s q2 went down to 3 of 9, as six readers left out LIB-Q04, whose card no longer says 未着手, and
+  haiku added a reworded or dropped result to q4's evidence four times. The analyst's own reading
+  is kept as the human reader's record, untimed. PRD's success criteria name the sixth question, and the
+  glossary's trial words say two scenarios and six questions (#269). Both falls were then fixed: 未着手
+  follows one rule (ADR-0057), and question 4 of the sheet asks only for the events the changed answer
+  newly rests on, not those it rewords or drops (ADR-0059; the key and the scoring do not change).
+  Taken again on the fixed display (2cd6547), all 18 runs got all six questions right
+  (`docs/handoff-trials/2026-11-26-after-the-gate-fixes.md`); q4 is not a like-for-like comparison,
+  since its wording changed (#249).
+- **The question tree counts reflections and revisions in words.** A round is shown as N回目の振り返り
+  (2回目の振り返り, 前の振り返りから変わったこと（1回目 → 2回目の振り返り）) instead of 回 N, and the table of
+  what changed says 言っていたこと / 言っていること without ここから. The mark above an answer reads
+  2回目の振り返りで変わったこと (and 2回目の振り返りで初めて答えたこと), so it heads the statements below it. A subject never revised says nothing of
+  its revision: 主題の版 1 is gone from the header and from every answer. Once revised, the header says
+  主題を1回見直した with a link to the history, and an answer to an earlier subject is 見直す前の主題への答え
+  (after two or more, 1回目の見直しの前の主題への答え). `/analysis-reflection`, `/analysis-framing`,
+  `/report-export` and the trial's prompt sheet use the same words; the YAML keys do not change.
+- **The question tree shows how far the questions under a question have come, why a question was closed,
+  and what each decision rests on.** A question with no design of its own but a design somewhere under
+  it no longer says 未着手: its card counts the progress of every question under it by word (主題の下に置いた論点
+  4 つ: 分析済み 3、未着手 1), and 進捗の数 leaves it out. A question with no design on it or anywhere under
+  it still says 未着手 and is counted, so 未着手 and 次の候補 name the same questions. `tree_io progress`,
+  the report's table of questions, and the progress `/analysis-reflection` and `/analysis-framing` tell
+  the analyst follow the same rule: `tree_io progress` now returns, for each question,
+  `{"progress": <word or null>, "below": {<word>: <count>}}`. A question whose latest decision closed it says on
+  its card the round it was closed after and why. Under the reason of every decision, the page shows the
+  analysis results it cites (id, design and text), or says the reason names none; the first decision is
+  not told so. `scripts.handoff_trial build` stops when a decision of the scenario fails the check, and
+  the key of question 5 is derived from what the last decision cites ([ADR-0057](docs/adr/0057-a-question-without-a-design-shows-the-progress-below-it.md),
+  [ADR-0058](docs/adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md), #268).
+- **A tree decision can cite the journal events its reason rests on.** `tree_io decide` takes an
+  optional `cites`. A decision that cites is checked before it is written: a cite that is not in the
+  journal, a cite of a design linked to no node of the tree, or a number in the reason that no cited
+  event holds returns `{"violations": [...]}` with exit code 3, and nothing is written. A decision
+  without cites is written as before, and a saved tree without them reads as it did. The decision gate
+  of `/analysis-reflection` puts the events behind the analyst's reason into the decision, and offers
+  主題そのものを見直す beside deepen, return and close; choosing it goes to the step of
+  `/analysis-framing` that raises the root revision ([ADR-0058](docs/adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md), #266).
+- **The theme reflection keeps the words of what did not change, and asks about the results the answers leave out.**
+  When `/analysis-reflection {theme_id}` writes a node's answer again, it starts from the current
+  answer and sends every statement that the new results do not change character for character, so
+  "said differently" on the tree shows real changes; it changes an old statement otherwise only to fix
+  a rule it breaks, and says why. Before it writes the answers, it shows the analyst the results that an
+  answer below rests on and the answer above does not (まだ答えに入れていない分析結果, and those it rested
+  on before), and asks whether to rest on them; the answers are written either way. `/analysis-auto`
+  pauses for that choice (#270).
+- **The question tree shows the results an answer leaves out, and how the answers above use a result.**
+  The top of the page and every question card list the analysis results that answers further down
+  rest on and this answer has never used (まだ答えに入れていない分析結果), with the question, round and
+  sentences they come from; a result of an analysis that found no difference lands here. Results the
+  answer used before and no longer does are folded apart, with the last round that used them and what
+  the next answer used instead. A card also lists the answers above it, up to the subject, that rest on
+  its results, with their round and sentences and a link to them; when such an answer says something
+  else of the result in a round after this card's answer, the card names that round and says this answer
+  stayed as it was. `tree_io changes` returns both as JSON under `cited_above` and `uncited_below`
+  ([ADR-0056](docs/adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md), #267).
+- **The question tree opens with the answer to the subject and what it changed.** The page now starts
+  with the current answer to the subject, what that answer changed since the answer before it, and the
+  question to look into next with its reason; the reading guide is folded. "What changed" lists one row
+  per analysis result the answer rests on, with what the earlier round said from it and what this round
+  says, sorted into newly used, no longer used, said differently and unchanged. Every question card
+  shows the same for its own answer, and an answer of an earlier round says that later rounds left it as
+  it is. The rows are derived from the cites of the two answers and never stored, so a tree saved before
+  shows them too; a sentence that was only reworded also counts as said differently. `tree_io changes
+  --theme <id>` returns the same values as JSON ([ADR-0056](docs/adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md), #265).
+- **The handoff trial has a second scenario and a sixth question.** `psy` (psychological safety, four
+  reflection rounds) holds an analysis that found no difference and a question whose answer and numbers
+  stay while the subject's answer cites its evidence in other words. Every scenario now asks q6 (that
+  question and its evidence, or none), and the key is derived from the built tree; the library's is
+  none. The sheet of questions and HANDOFF_TRIAL say "subject" instead of "root". Records kept before
+  have no q6 and keep their score. On the display before Epic 34's changes, all nine Claude readers got
+  all six questions of `psy` right ([ADR-0059](docs/adr/0059-the-handoff-trial-has-a-second-scenario-and-a-sixth-question.md), #264).
+- **The question tree speaks the analyst's words.** The page, the skills and the report call the
+  root question 主題, its revision 主題の版 and an answer to an older revision 見直す前の主題への答え,
+  and the kinds of statement これまでわかっていること, 注意すべきこと and まだ決められないこと. The YAML keys
+  and values (`root_revisions`, `claim`, …) and `tree_io revise-root` keep their names, so a saved
+  tree reads as it did; the glossary copies the table of words to show ([ADR-0055](docs/adr/0055-the-root-question-is-shown-as-the-subject.md), #263).
+
 ## [0.20.0] - 2026-11-26
 
 ### Changed

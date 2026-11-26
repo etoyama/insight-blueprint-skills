@@ -190,7 +190,7 @@ class TestApprovalGate:
     def test_shows_the_round_that_wrote_the_root_answer(self) -> None:
         # `round` is the last reflection; the root's answer can be older (29.1 review).
         step = _step(3)
-        assert "答えを書いた振り返りの回" in step
+        assert "答えを書いた振り返り: {root_answer_round}回目" in step
         assert "`root_answer_round`, not `round`" in step
 
     def test_warns_what_the_records_can_carry(self) -> None:

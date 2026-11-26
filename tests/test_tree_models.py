@@ -129,7 +129,7 @@ class TestQuestionTree:
 
     def test_the_root_question_must_match_the_current_revision(self) -> None:
         data = tree_dict()
-        data["nodes"][0]["question"] = "書き換えた根の問い"
+        data["nodes"][0]["question"] = "書き換えた主題"
         assert "current root revision" in errors_of(data)
 
     def test_an_unknown_field_is_rejected(self) -> None:
@@ -271,6 +271,69 @@ class TestDecisionKinds:
             decision("deepen", "LIB-Q02", round=0),
         )
         assert "rounds must not decrease" in errors_of(data)
+
+
+class TestDecisionCites:
+    """Epic 34, US-4 AC 1 (ADR-0058): a decision may cite the events behind its reason."""
+
+    OLD_FORM = """
+theme_id: LIB
+root_revisions:
+  - revision: 1
+    question: 取り置き期限を延ばす試行をするか
+    aim: {kind: business, decision_maker: 図書館員, decision: 取り置き期限を延ばす試行を始めるか}
+nodes:
+  - {id: LIB-Q01, question: 取り置き期限を延ばす試行をするか}
+  - id: LIB-Q02
+    question: 期限切れを一貫して数えられるか
+    parent_question_id: LIB-Q01
+    contribution: 予約取消が混ざると、延長で改善しうる件数が変わる
+    design_ids: [LIB-H01]
+    answers:
+      - round: 1
+        root_revision: 1
+        statements:
+          - {kind: claim, text: 取消を除いて比べられた, cites: [LIB-H01-E01]}
+decisions:
+  - {round: 0, kind: start, node_id: LIB-Q02, reason: 最初に数え方を確かめる}
+  - {round: 1, kind: close, node_id: LIB-Q02, reason: 数え方は定まった}
+"""
+
+    def test_a_tree_saved_before_cites_existed_reads_with_no_cites(self) -> None:
+        tree = QuestionTree.model_validate(YAML(typ="safe").load(self.OLD_FORM))
+        assert [d.cites for d in tree.decisions] == [[], []]
+
+    def test_a_decision_without_cites_is_written_as_it_was_before(self) -> None:
+        loaded = YAML(typ="safe").load(self.OLD_FORM)
+        dumped = QuestionTree.model_validate(loaded).model_dump(
+            mode="json", exclude_none=True, exclude_defaults=True
+        )
+        assert dumped == loaded
+
+    def test_a_decision_keeps_the_events_it_cites_in_order(self) -> None:
+        cited = decision("deepen", "LIB-Q02") | {
+            "cites": ["LIB-H02-E03", "LIB-H01-E01"]
+        }
+        tree = QuestionTree.model_validate(branching_tree(cited))
+        assert tree.decisions[-1].cites == ["LIB-H02-E03", "LIB-H01-E01"]
+
+    @pytest.mark.parametrize(
+        "cite", ["LIB-H01", "OTHER-H01-E01", "../LIB-H01-E01", "LIB-Q02", ""]
+    )
+    def test_a_cite_that_is_not_an_event_of_the_theme_is_rejected(
+        self, cite: str
+    ) -> None:
+        data = branching_tree(decision("deepen", "LIB-Q02") | {"cites": [cite]})
+        assert "must be LIB-H{nn}-E{nn}" in errors_of(data)
+
+    def test_a_decision_cites_an_event_once(self) -> None:
+        twice = {"cites": ["LIB-H01-E01", "LIB-H01-E01"]}
+        data = branching_tree(decision("deepen", "LIB-Q02") | twice)
+        assert "cites the same event twice" in errors_of(data)
+
+    def test_cites_are_a_list_never_one_string(self) -> None:
+        data = branching_tree(decision("deepen", "LIB-Q02") | {"cites": "LIB-H01-E01"})
+        assert "cites" in errors_of(data)
 
 
 class TestUntouchedNodes:
@@ -589,6 +652,52 @@ class TestProgress:
             DesignStatus.inconclusive,
         ]
         assert Progress.of(statuses) is Progress.analyzed
+
+    def test_a_question_with_no_design_on_it_or_below_it_is_not_started(
+        self,
+    ) -> None:
+        # LIB-Q02 has LIB-Q03 under it, and neither links a design (ADR-0057).
+        tree = QuestionTree.model_validate(branching_tree())
+        progress = tree.progress({})
+        assert progress["LIB-Q02"] is Progress.not_started
+        assert progress["LIB-Q03"] is Progress.not_started
+        assert progress["LIB-Q01"] is Progress.not_started
+
+    def test_a_question_with_a_design_only_below_it_has_no_progress_word(
+        self,
+    ) -> None:
+        data = branching_tree()
+        data["nodes"][2]["design_ids"] = ["LIB-H01"]
+        tree = QuestionTree.model_validate(data)
+        progress = tree.progress({"LIB-H01": DesignStatus.analyzing})
+        assert progress == {
+            "LIB-Q03": Progress.investigating,
+            "LIB-Q04": Progress.not_started,
+        }
+
+    def test_a_question_with_a_design_of_its_own_keeps_its_word(self) -> None:
+        data = branching_tree()
+        data["nodes"][1]["design_ids"] = ["LIB-H01"]
+        data["nodes"][2]["design_ids"] = ["LIB-H02"]
+        tree = QuestionTree.model_validate(data)
+        progress = tree.progress(
+            {"LIB-H01": DesignStatus.supported, "LIB-H02": DesignStatus.analyzing}
+        )
+        assert progress["LIB-Q02"] is Progress.analyzed
+
+    def test_the_progress_below_counts_every_depth_but_a_question_without_a_word(
+        self,
+    ) -> None:
+        data = branching_tree()
+        data["nodes"][2]["design_ids"] = ["LIB-H01"]
+        tree = QuestionTree.model_validate(data)
+        below = tree.progress_below(tree.progress({"LIB-H01": DesignStatus.analyzing}))
+        assert below["LIB-Q01"] == {
+            Progress.investigating: 1,
+            Progress.not_started: 1,
+        }
+        assert below["LIB-Q02"] == {Progress.investigating: 1}
+        assert below["LIB-Q04"] == {}
 
     def test_progress_is_not_a_field_of_the_tree(self) -> None:
         data = tree_dict()

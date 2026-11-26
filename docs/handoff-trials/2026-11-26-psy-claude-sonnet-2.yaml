@@ -1,0 +1,52 @@
+date: '2026-11-26'
+scenario: psy
+stage: round-4
+reader:
+  kind: claude
+  name: sonnet (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 現時点では、上司への働きかけを優先するかは、上司支援と負荷軽減の効果を見分けるまで決められない。同じ人で上司支援の評価が上がった年に心理的安全性が平均0.30上がったことはわかっている。ただし、評価が上がった回答者の78%は業務負荷も下がった部署にいたため、上司支援の効果とは言い切れない。
+    verdict: undetermined
+  q2:
+    note: PSY-Q02、PSY-Q03、PSY-Q05は分析済みで、答えに「まだ決められないこと」が無いので挙げていない。
+    not_started:
+    - PSY-Q06
+    analyzed_undetermined:
+    - PSY-Q04
+  q3:
+    note: PSY-H04-E01は「注意すべきこと」の根拠で、「まだ決められないこと」では両方の出来事が引用されている。
+    supports:
+    - event_id: PSY-H03-E01
+      design_id: PSY-H03
+    weakens:
+    - event_id: PSY-H04-E01
+      design_id: PSY-H04
+  q4:
+    note: 回3の「優先する根拠になる」という答えが、回4で注意すべきことと、まだ決められないことを含む答えに変わった。PSY-Q04は回4で初めて答えた論点なので除いた。
+    changed_nodes:
+    - PSY-Q01
+    evidence:
+    - PSY-H04-E01
+  q5:
+    note: 回4の後の決定の理由はPSY-H04-E01の内容にあたる。PSY-Q06の発見元はPSY-H04-E02。
+    node_id: PSY-Q06
+    reason_events:
+    - PSY-H04-E01
+    - PSY-H04-E02
+  q6:
+    note: 上の論点PSY-Q01は回3でも回4でもPSY-H03-E01を引用しているが、回4では「優先する根拠になる」という部分が無くなり、「まだ決められないこと」の文でも引用している。
+    nodes:
+    - PSY-Q03
+    evidence:
+    - PSY-H03-E01
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: true
+  q6: true

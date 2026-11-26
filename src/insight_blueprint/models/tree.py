@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from datetime import date, datetime
 from enum import StrEnum
 from typing import Self
@@ -218,12 +218,17 @@ class TreeDecision(BaseModel):
     kind: TreeDecisionKind
     node_id: str
     reason: str = Field(min_length=1)
+    # The journal events the reason rests on; a reason may rest on none (ADR-0058).
+    # The form of each cite is checked by QuestionTree, which knows the theme.
+    cites: list[str] = Field(default_factory=list)
     created_at: datetime | None = None
 
     @model_validator(mode="after")
-    def _start_precedes_the_first_round(self) -> Self:
+    def _check_decision(self) -> Self:
         if self.kind is TreeDecisionKind.start and self.round != 0:
             raise ValueError("round: a start decision is taken at round 0")
+        if len(set(self.cites)) != len(self.cites):
+            raise ValueError("cites: a decision cites the same event twice")
         return self
 
 
@@ -262,6 +267,10 @@ class QuestionTree(BaseModel):
                 branch[ancestor].update(node.design_ids)
         return branch
 
+    def linked_designs(self) -> set[str]:
+        """Every design linked to some node of the tree."""
+        return {design for node in self.nodes for design in node.design_ids}
+
     def untouched_nodes(self) -> list[QuestionNode]:
         """The next candidates: no design is linked to the node or anything below it."""
         branch = self.designs_by_branch()
@@ -270,6 +279,31 @@ class QuestionTree(BaseModel):
             for n in self.nodes
             if n.parent_question_id is not None and not branch[n.id]
         ]
+
+    def progress(self, statuses: Mapping[str, DesignStatus]) -> dict[str, Progress]:
+        """The progress word of each node that has one, from the status of each linked design.
+
+        A node with no design of its own but one somewhere below it has no word:
+        the page, ``tree_io progress`` and the report show the progress below it
+        instead (ADR-0057). A node with no design on it or below it is not started.
+        """
+        branch = self.designs_by_branch()
+        return {
+            n.id: Progress.of(statuses[d] for d in n.design_ids)
+            for n in self.nodes
+            if n.design_ids or not branch[n.id]
+        }
+
+    def progress_below(
+        self, progress: Mapping[str, Progress]
+    ) -> dict[str, Counter[Progress]]:
+        """For each node, how many nodes at any depth below it have each word of *progress*."""
+        parents = self._parent_map()
+        below: dict[str, Counter[Progress]] = {n.id: Counter() for n in self.nodes}
+        for node_id, word in progress.items():
+            for ancestor in _ancestors(parents, node_id):
+                below[ancestor][word] += 1
+        return below
 
     def _parent_map(self) -> dict[str, str | None]:
         return {n.id: n.parent_question_id for n in self.nodes}
@@ -329,12 +363,18 @@ class QuestionTree(BaseModel):
                 )
             for answer in node.answers:
                 for statement in answer.statements:
-                    for cite in statement.cites:
-                        if not event_pattern.fullmatch(cite):
-                            raise ValueError(
-                                f"{node.id}: cite '{cite}' must be "
-                                f"{self.theme_id}-H{{nn}}-E{{nn}}"
-                            )
+                    self._check_cites(node.id, statement.cites, event_pattern)
+        for position, decision in enumerate(self.decisions, start=1):
+            self._check_cites(f"decision {position}", decision.cites, event_pattern)
+
+    def _check_cites(
+        self, where: str, cites: list[str], event_pattern: re.Pattern[str]
+    ) -> None:
+        for cite in cites:
+            if not event_pattern.fullmatch(cite):
+                raise ValueError(
+                    f"{where}: cite '{cite}' must be {self.theme_id}-H{{nn}}-E{{nn}}"
+                )
 
     def _check_answer_revisions(self) -> None:
         current = self.current_revision().revision

@@ -1,0 +1,38 @@
+# The judgments a reader of the round-4 tree HTML should reach. Every name and number
+# in this scenario is made up. tests/test_handoff_trial.py derives each answer from
+# the built tree, so the key cannot drift from stages.yaml. q5.reason_events are what
+# the last decision cites, and q5.also_allowed is the event the next node was promoted
+# from (ADR-0058).
+stage: round-4
+answers:
+  q1:
+    verdict: undetermined
+    note: 主題への答えは、同じ人での0.30の上昇の78%が業務負荷も下がった部署のもので、上司支援と負荷軽減の効果を見分けるまで上司への働きかけを優先するかを決められない、である。
+  q2:
+    not_started: [PSY-Q06]
+    analyzed_undetermined: [PSY-Q04]
+    note: PSY-Q02・PSY-Q03・PSY-Q05 は分析済みで、これまでわかっていることだけなので、どちらにも入らない。PSY-Q05 は差が出なかった分析である。
+  q3:
+    supports:
+      - {event_id: PSY-H03-E01, design_id: PSY-H03}
+    weakens:
+      - {event_id: PSY-H04-E01, design_id: PSY-H04}
+    note: 主題の今の答えが引用する出来事を、引用した文の種類で分ける。「これまでわかっていること」が引用する出来事が支える証拠、「注意すべきこと」が引用する出来事が弱める証拠である。
+  q4:
+    changed_nodes: [PSY-Q01]
+    evidence: [PSY-H04-E01]
+    note: PSY-Q04 は回 4 で初めて答えたので、変わったに入れない。PSY-H03-E01 は回 3 の答えも引用していたので、新しく根拠にした出来事に入れない。
+  q5:
+    node_id: PSY-Q06
+    # The reason says most respondents whose rating of their manager rose were in
+    # departments whose workload also fell: that is PSY-H04-E01 (78%). PSY-H04-E02 is
+    # the question PSY-Q06 was promoted from; naming it next to the reason is fine,
+    # naming it instead of the reason misses why the node comes now. PSY-H03-E01 (0.30)
+    # is what the next node tests, not why it comes now, so it is not allowed.
+    reason_events: [PSY-H04-E01]
+    also_allowed: [PSY-H04-E02]
+    note: 上司支援の評価が上がった回答者の多くは業務負荷も下がった部署にいたので、片方だけが変わった部署で比べる。
+  q6:
+    nodes: [PSY-Q03]
+    evidence: [PSY-H03-E01]
+    note: PSY-Q03 の答えと0.30は回 3 のまま。主題の答えは回 3 ではそれを上司への働きかけを優先する根拠として引用し、回 4 では負荷軽減と分けられない変化として引用する。PSY-Q05 の差が出なかった結果は、主題の答えがどの回でも引用していない。

@@ -1,0 +1,56 @@
+date: '2026-11-26'
+scenario: lib
+stage: round-2
+reader:
+  kind: claude
+  name: haiku (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 現時点の答えには「これまでわかっていること」（通知が翌日以降の予約は期限切れが18%）もあるが、主題の決めること（延長の試行を始めるか）については「まだ決められないこと」として、来館できる日の少なさを確かめるまで決められないとしている。
+    verdict: undetermined
+  q2:
+    note: LIB-Q02 は分析済みだが、現時点の答えは「これまでわかっていること」だけで、まだ決められないことは残っていない。LIB-Q03 は分析済みで、「期限切れが通知の遅れで増えているかは、まだ見分けられない」が残る。
+    not_started:
+    - LIB-Q04
+    - LIB-Q05
+    - LIB-Q06
+    analyzed_undetermined:
+    - LIB-Q03
+  q3:
+    note: 主題の「これまでわかっていること」は LIB-H02-E01（supports）を根拠にしている。「注意すべきこと」と「まだ決められないこと」は
+      LIB-H02-E02（contradicts）を根拠にしている。
+    supports:
+    - event_id: LIB-H02-E01
+      design_id: LIB-H02
+    weakens:
+    - event_id: LIB-H02-E02
+      design_id: LIB-H02
+  q4:
+    note: 主題 LIB-Q01 の答えが1回目から2回目で変わり、新しく根拠にしたのは LIB-H02-E01 と LIB-H02-E02 である。LIB-H01-E01
+      は根拠から外したが、ここには含めない。LIB-Q03 は2回目で初めて答えたため、変わった論点には含めない。
+    changed_nodes:
+    - LIB-Q01
+    evidence:
+    - LIB-H02-E01
+    - LIB-H02-E02
+  q5:
+    note: 親に戻る（2回目の振り返りの後）で選ばれた。理由は、通知の日を揃えても金曜に確保した本の期限切れが16%のままだったことで、その根拠は LIB-H02-E02
+      である。
+    node_id: LIB-Q06
+    reason_events:
+    - LIB-H02-E02
+  q6:
+    note: 2回目の振り返りで書き直していない論点は LIB-Q02 だけである。その上の論点（LIB-Q01）は、1回目には LIB-H01-E01 を引用していたが、2回目には引用していないため、該当しない。LIB-Q04
+      から LIB-Q06 は答えを持たず、LIB-Q03 は2回目で初めて答えた論点である。
+    nodes: []
+    evidence: []
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: true
+  q6: true

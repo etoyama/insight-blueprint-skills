@@ -41,7 +41,7 @@ OWNED_GATES = {
     "framing ② first node": "`/analysis-framing` 4b",
     "framing ③ root revision": "`/analysis-framing` 4c",
     "framing ④ next node": "`/analysis-framing` 4d",
-    "theme reflection": "`/analysis-reflection {theme_id}` T7",
+    "theme reflection": "`/analysis-reflection {theme_id}` T3 + T7",
 }
 
 ROUND = [

@@ -1,0 +1,55 @@
+date: '2026-11-26'
+scenario: lib
+stage: round-2
+reader:
+  kind: claude
+  name: opus (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 主題の答えには、わかっていること（通知が翌日以降の予約は期限切れ18%）と注意すべきこと（金曜確保分は16%のまま）がある。ただし決めることである「延長の試行を始めるか」については、「来館できる日の少なさを確かめるまで決められない」としている。
+    verdict: undetermined
+  q2:
+    note: LIB-Q02 は分析済みだが、答えは『これまでわかっていること』だけで、決められないことは残っていない。LIB-Q04 は分析設計を結んでいないが、下に論点を置いているので進捗の言葉が無い。進捗の数（未着手
+      2）にも含まれないため、どちらにも挙げない。
+    not_started:
+    - LIB-Q05
+    - LIB-Q06
+    analyzed_undetermined:
+    - LIB-Q03
+  q3:
+    note: 'E01 は direction: supports で、『これまでわかっていること』の根拠になっている。E02 は direction: contradicts
+      で、『注意すべきこと』の根拠になっている。E02 は『まだ決められないこと』の根拠でもある。'
+    supports:
+    - event_id: LIB-H02-E01
+      design_id: LIB-H02
+    weakens:
+    - event_id: LIB-H02-E02
+      design_id: LIB-H02
+  q4:
+    note: 主題 LIB-Q01 は2回目の振り返りで答えが変わった。新しく根拠にしたのは H02-E01 と H02-E02 で、H01-E01 は根拠から外した。LIB-Q03
+      は2回目で初めて答えた論点なので含めない。LIB-Q02 は書き直していない。
+    changed_nodes:
+    - LIB-Q01
+    evidence:
+    - LIB-H02-E01
+    - LIB-H02-E02
+  q5:
+    note: 通知の日を揃えても金曜確保分の期限切れが多いままなので、開館日数を先に確かめる。LIB-Q06 の発見元は LIB-H02-E03 だが、理由の根拠として挙げられているのは
+      E02 である。
+    node_id: LIB-Q06
+    reason_events:
+    - LIB-H02-E02
+  q6:
+    note: 書き直していない論点は LIB-Q02 で、引用は LIB-H01-E01。上の論点 LIB-Q01 は、前回は H01-E01 を引用していたが、今回は根拠から外している。前回も今回も引用しているという条件を満たさないので、該当は無い。
+    nodes: []
+    evidence: []
+score:
+  q1: true
+  q2: false
+  q3: true
+  q4: true
+  q5: true
+  q6: true
