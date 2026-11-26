@@ -12,7 +12,7 @@ import pytest
 
 from skills._shared import design_io, tree_io
 from skills._shared._atomic import atomic_write_yaml
-from tests.test_tree_render import by_id, parse
+from tests._tree_page import by_id, parse
 from tests.tree_io._support import (
     ROOT_QUESTION,
     _add,

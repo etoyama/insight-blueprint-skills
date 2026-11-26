@@ -14,7 +14,7 @@ import pytest
 
 from skills._shared import design_io, tree_io
 from skills._shared._atomic import atomic_write_yaml
-from tests.test_tree_render import by_id, parse
+from tests._tree_page import by_id, parse
 from tests.tree_io._support import _add, _design, _rendered, _run_cli
 from tests.tree_io.test_render_design import (
     VERDICT_TEXT,

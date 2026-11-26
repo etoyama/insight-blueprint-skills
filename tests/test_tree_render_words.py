@@ -12,15 +12,15 @@ import re
 
 import pytest
 
-from tests.test_tree_render import (
+from tests._tree_page import (
     ROOT_QUESTION,
     by_id,
+    changed_root,
     make_tree,
     node_text,
     page,
     squash,
 )
-from tests.test_tree_render_derived import changed_root
 
 
 def _never_revised() -> dict:

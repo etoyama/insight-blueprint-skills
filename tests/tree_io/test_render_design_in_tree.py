@@ -14,7 +14,7 @@ import pytest
 
 from skills._shared import tree_io
 from skills._shared.design_note import note_anchor
-from tests.test_tree_render import by_id, parse
+from tests._tree_page import by_id, parse
 from tests.tree_io._support import _add, _design, _run_cli
 from tests.tree_io.test_render_design import VERDICT_TEXT, _write_verdict
 

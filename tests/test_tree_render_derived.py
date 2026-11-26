@@ -12,9 +12,10 @@ import pytest
 
 from skills._shared import tree_words
 from skills._shared.tree_check import CitedEvent, Violation
-from tests.test_tree_render import (
+from tests._tree_page import (
     Element,
     by_id,
+    changed_root,
     has_class,
     make_events,
     make_tree,
@@ -26,48 +27,6 @@ from tests.test_tree_render import (
     squash,
     stale,
 )
-
-
-def changed_root(tree: dict | None = None) -> dict:
-    """The tree with a root answered in rounds 1 and 2.
-
-    Round 2 keeps citing LIB-H01-E01 in other words, cites LIB-H01-E02 for the
-    first time, stops citing LIB-H03-E01 and says the same of LIB-H01-E03.
-    """
-    tree = make_tree() if tree is None else tree
-    tree["nodes"][0]["answers"] = [
-        {
-            "round": 1,
-            "root_revision": 1,
-            "statements": [
-                {
-                    "kind": "claim",
-                    "text": "期限切れは 400 件",
-                    "cites": ["LIB-H01-E01"],
-                },
-                {"kind": "claim", "text": "予約は減らない", "cites": ["LIB-H03-E01"]},
-                {"kind": "weakening", "text": "1年度だけ", "cites": ["LIB-H01-E03"]},
-            ],
-        },
-        {
-            "round": 2,
-            "root_revision": 2,
-            "statements": [
-                {
-                    "kind": "claim",
-                    "text": "期限切れは 346 件",
-                    "cites": ["LIB-H01-E01"],
-                },
-                {
-                    "kind": "undetermined",
-                    "text": "取消の理由は分からない",
-                    "cites": ["LIB-H01-E02"],
-                },
-                {"kind": "weakening", "text": "1年度だけ", "cites": ["LIB-H01-E03"]},
-            ],
-        },
-    ]
-    return tree
 
 
 def later_round(tree: dict) -> dict:

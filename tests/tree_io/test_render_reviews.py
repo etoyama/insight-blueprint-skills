@@ -14,7 +14,7 @@ import pytest
 from skills._shared import design_io, tree_io
 from skills._shared.design_note import note_anchor
 from tests._saved_verdicts import table_rows
-from tests.test_tree_render import branch_cards, by_id, card_text, parse
+from tests._tree_page import branch_cards, by_id, card_text, parse
 from tests.tree_io._support import _add, _rendered
 from tests.tree_io.test_render_design import VERDICT_TEXT, _write_verdict
 
