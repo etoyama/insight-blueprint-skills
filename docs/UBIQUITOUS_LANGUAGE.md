@@ -56,7 +56,7 @@
 | 論点 | `QuestionNode` | 論点ツリーの1つのノード。問いの文と、親の論点への寄与を持ち、答えるための分析設計を結べる。journal の `question` とは別に持つ | 子の問い、サブクエスチョン | [epic-18](design/epic-18-question-tree.md) |
 | 主題 | — | 論点ツリーの、親を持たない論点。ツリーに1つだけあり、到達点を持つ。コード上の名前と YAML の項目名は root のままである | 根の問い | [epic-18](design/epic-18-question-tree.md)、[ADR-0055](adr/0055-the-root-question-is-shown-as-the-subject.md) |
 | 到達点 | `Aim` | 主題が目指す所。業務では誰が何を決めるか、研究では想定読者と主張の範囲 | ゴール | [epic-18](design/epic-18-question-tree.md) |
-| 主題の版 | `RootRevision` | 主題か到達点を見直すたびに1つ上がる番号。見直した理由を持つ。古い版に対する現時点の答えは、見直す前の主題への答えとして表示する | 根の版 | [epic-18](design/epic-18-question-tree.md)、[ADR-0055](adr/0055-the-root-question-is-shown-as-the-subject.md) |
+| 主題の版 | `RootRevision` | 主題か到達点を見直すたびに1つ上がる番号。見直した理由を持つ。古い版に対する現時点の答えは、見直す前の主題への答えとして表示する。画面では版を番号で出さず、主題を見直した回数を言葉で言う | 根の版 | [epic-18](design/epic-18-question-tree.md)、[ADR-0055](adr/0055-the-root-question-is-shown-as-the-subject.md) |
 | 親の論点 | `parent_question_id` | 論点が寄与する、1つ上の論点。主題だけが持たない | — | [epic-29](design/epic-29-theme-report-export.md) |
 | 寄与 | `contribution` | 子の論点に答えると、親の論点の判断がどう進むか。論点の親子はこれで決める | — | [epic-18](design/epic-18-question-tree.md) |
 | 発見元 | `origin_event_id` | 探索中に生まれた論点が生まれた journal の出来事。着手のときに置いた論点は持たない | — | [epic-18](design/epic-18-question-tree.md) |
@@ -118,7 +118,7 @@
 ## Words shown to the analyst
 
 文書・コード・テストは内側の用語を使い、分析者に見せる文（論点ツリーの表示、skill が分析者に出す文、レポート）は右の列の言葉を使う（[ADR-0055](adr/0055-the-root-question-is-shown-as-the-subject.md)）。
-表には、内側と画面で言葉が違う語だけを置く。主題・主題の版と、答えの文の種類の3語は、内側でも同じ語を使う用語で、上の表にある。
+表には、内側と画面で言葉が違う語だけを置く。主題と、答えの文の種類の3語は、内側でも同じ語を使う用語で、上の表にある。主題の版と振り返りの回は内側の用語で、画面では表の言い方で出す。
 YAML の項目名と値は変えない。表の正本は [Epic 34 の DesignDoc の US-5](design/epic-34-what-moved-the-answer.md#us-5-分析者が論点ツリーを内側の用語ではなく伝わる言葉で読む) で、ここに写す。
 
 | 内側の用語（文書・コード） | 分析者に見せる言葉 |
@@ -128,6 +128,8 @@ YAML の項目名と値は変えない。表の正本は [Epic 34 の DesignDoc 
 | 下の論点 | 使わない。「分析結果のうち」のように、分析結果を主語にして言う |
 | 引用していない下の結果のうち、一度も引用していないもの | まだ答えに入れていない分析結果 |
 | 引用していない下の結果のうち、前は引用していたもの | 前は答えの根拠にしていて、今は外している分析結果 |
+| 振り返りの回（`round`）、回 N | N回目の振り返り |
+| 主題の版（`RootRevision`） | 主題を見直した回数を言葉で言う（主題を1回見直した）。見直していない間は出さない |
 
 ## コンテキストを分けるとき
 

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The question tree counts reflections and revisions in words.** A round is shown as N回目の振り返り
+  (2回目の振り返り, 前の振り返りから変わったこと（1回目 → 2回目の振り返り）) instead of 回 N, and the table of
+  what changed says 言っていたこと / 言っていること without ここから. A subject never revised says nothing of
+  its revision: 主題の版 1 is gone from the header and from every answer. Once revised, the header says
+  主題を1回見直した with a link to the history, and an answer to an earlier subject is 見直す前の主題への答え
+  (after two or more, 1回目の見直しの前の主題への答え). `/analysis-reflection`, `/analysis-framing`,
+  `/report-export` and the trial's prompt sheet use the same words; the YAML keys do not change.
 - **The question tree shows how far the questions under a question have come, why a question was closed,
   and what each decision rests on.** A question with no design of its own and questions under it no
   longer says 未着手: its card counts the progress of every question under it by word (主題の下に置いた論点

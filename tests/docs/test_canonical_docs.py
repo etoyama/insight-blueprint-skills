@@ -1398,6 +1398,18 @@ class TestWordsShownToTheAnalyst:
         for value in ("`claim`", "`weakening`", "`undetermined`"):
             assert value in definition
 
+    def test_a_round_and_a_revision_are_shown_in_words(self) -> None:
+        """Chosen after reading the real pages (Decision
+        words-chosen-after-reading-the-real-pages): no 回 N and no 版 on screen."""
+        shown = {
+            row[0]: row[1]
+            for row in table_rows(words.section(_read(self.GLOSSARY), self.SECTION))[2:]
+        }
+        assert shown["振り返りの回（`round`）、回 N"] == "N回目の振り返り"
+        assert shown["主題の版（`RootRevision`）"].startswith(
+            "主題を見直した回数を言葉で言う"
+        )
+
     def test_the_glossary_copies_the_table_of_the_design_doc(self) -> None:
         def rows(markdown: str) -> list[list[str]]:
             return table_rows(markdown)[2:]
