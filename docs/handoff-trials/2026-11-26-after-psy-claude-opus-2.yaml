@@ -1,0 +1,56 @@
+date: '2026-11-26'
+scenario: psy
+stage: round-4
+reader:
+  kind: claude
+  name: opus (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 主題 PSY-Q01 の4回目の答えにも claim（同じ人で平均0.30上昇）はある。ただし、上司への働きかけを優先するかという決めることに対しては「上司支援と負荷軽減の効果を見分けるまで決められない」とされている。そのため
+      undetermined に近い。
+    verdict: undetermined
+  q2:
+    note: PSY-Q02、PSY-Q03、PSY-Q05 は分析済みだが、答えは claim だけで、まだ決められないことは無い。そのため、どちらにも挙げない。
+    not_started:
+    - PSY-Q06
+    analyzed_undetermined:
+    - PSY-Q04
+  q3:
+    note: PSY-H04-E01 は「注意すべきこと」として引用されている。同じ人での上昇を上司支援の効果とは言い切れない、という形で claim を弱めている。
+    supports:
+    - event_id: PSY-H03-E01
+      design_id: PSY-H03
+    weakens:
+    - event_id: PSY-H04-E01
+      design_id: PSY-H04
+  q4:
+    note: PSY-Q01 は3回目から4回目で答えが変わった。PSY-H04-E01 を新しく根拠にし、それに合わせて PSY-H03-E01 について言う文も変わった。PSY-Q04
+      は4回目で初めて答えたので「変わった」に含めない。
+    changed_nodes:
+    - PSY-Q01
+    evidence:
+    - PSY-H04-E01
+  q5:
+    note: PSY-Q06 の発見元は PSY-H04-E02 の問いである。ただし、ツリーの決定が理由の根拠として挙げている分析結果は PSY-H04-E01
+      である。
+    node_id: PSY-Q06
+    reason_events:
+    - PSY-H04-E01
+  q6:
+    note: PSY-Q03 の答えは3回目のままで変わっていない。主題 PSY-Q01 は3回目にも4回目にも PSY-H03-E01 を引用しており、引用する文が変わった。PSY-Q02
+      は除く。PSY-Q01 が PSY-H01-E01 を引用したのは1回目だけで、前回にも今回にも引用していないためである。PSY-Q05 も除く。PSY-H02-E01
+      を引用する上の論点が無いためである。
+    nodes:
+    - PSY-Q03
+    evidence:
+    - PSY-H03-E01
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: true
+  q6: true

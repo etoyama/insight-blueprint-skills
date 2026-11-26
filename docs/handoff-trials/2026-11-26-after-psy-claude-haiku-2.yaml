@@ -1,0 +1,52 @@
+date: '2026-11-26'
+scenario: psy
+stage: round-4
+reader:
+  kind: claude
+  name: haiku (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 主題の答えは「同じ人で上司支援の評価が上がった年は心理的安全性が平均0.30上がった」という『これまでわかっていること』を含む。ただし、注意すべきことで同じ人での上昇を上司支援の効果とは言い切れないとし、主題の『上司への働きかけを優先するか』は『まだ決められないこと』とされている。
+    verdict: undetermined
+  q2:
+    note: '未着手はPSY-Q06（進捗: 未着手）。分析済みでまだ決められないことが残るのはPSY-Q04（『重なった部署で、上司支援と負荷軽減のどちらが心理的安全性を上げたのかは、まだ見分けられない』）。PSY-Q02、PSY-Q03、PSY-Q05は分析済みで、まだ決められないことは書かれていない。PSY-Q01は主題なので除いた。'
+    not_started:
+    - PSY-Q06
+    analyzed_undetermined:
+    - PSY-Q04
+  q3:
+    note: 主題の『これまでわかっていること』の根拠はPSY-H03-E01（分析設計PSY-H03）。『注意すべきこと』の根拠はPSY-H04-E01（分析設計PSY-H04）で、同じ人での上昇を上司支援の効果とは言い切れないとする理由になっている。
+    supports:
+    - event_id: PSY-H03-E01
+      design_id: PSY-H03
+    weakens:
+    - event_id: PSY-H04-E01
+      design_id: PSY-H04
+  q4:
+    note: 前の振り返り（3回目）から答えが変わったのは主題PSY-Q01のみ。PSY-H03-E01は言っていることが変わり、PSY-H04-E01は新しく根拠にされた。PSY-Q04は4回目で初めて答えたので『変わった』に含めない。PSY-Q03の答えは3回目のままで変わっていない。
+    changed_nodes:
+    - PSY-Q01
+    evidence:
+    - PSY-H03-E01
+    - PSY-H04-E01
+  q5:
+    note: 次に調べる論点はPSY-Q06（上司支援と業務負荷の片方だけが変わった部署で、心理的安全性はどう変わるか）。理由の根拠として挙げられているのはPSY-H04-E01（上司支援の評価が上がった回答者の78%は業務負荷も下がった部署にいた）のみ。
+    node_id: PSY-Q06
+    reason_events:
+    - PSY-H04-E01
+  q6:
+    note: 最後の振り返りで答えを書き直していないPSY-Q02、PSY-Q03、PSY-Q05のうち、上の論点の答えが前回（3回目）も今回（4回目）もそのイベントを引用し、引用する文が違うのはPSY-Q03のみ。上の論点PSY-Q01は、PSY-H03-E01を3回目では『上司への働きかけを優先する根拠になる』として、4回目では『平均0.30上がった』として引用している。PSY-Q02とPSY-Q05は、上の論点の答えがその出来事を引用していない（PSY-Q01の3回目はPSY-H01-E01を引用していない）ため該当しない。PSY-Q04は4回目で初めて答えたので対象外。
+    nodes:
+    - PSY-Q03
+    evidence:
+    - PSY-H03-E01
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: false
+  q5: true
+  q6: true

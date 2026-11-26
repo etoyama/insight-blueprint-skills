@@ -1,0 +1,57 @@
+date: '2026-11-26'
+scenario: psy
+stage: round-4
+reader:
+  kind: claude
+  name: opus (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 主題への現時点の答え（4回目の振り返り）は、上司への働きかけを優先するかは、上司支援と負荷軽減の効果を見分けるまで決められない、というものである。同じ人での平均0.30の上昇は「これまでわかっていること」として残る。ただし、78%が業務負荷も下がった部署にいたという「注意すべきこと」のため、優先するかの判断は保留になっている。
+    verdict: undetermined
+  q2:
+    note: PSY-Q06 は分析設計を結んでいないので未着手。PSY-Q04 は分析済みで、答えに「まだ決められないこと」（重なった部署でどちらが効いたか見分けられない）がある。PSY-Q02、PSY-Q03、PSY-Q05
+      は分析済みだが、答えは「これまでわかっていること」だけなので、どちらにも入れない。
+    not_started:
+    - PSY-Q06
+    analyzed_undetermined:
+    - PSY-Q04
+  q3:
+    note: PSY-H03-E01（同じ人で平均0.30上昇）は「これまでわかっていること」の根拠である。PSY-H04-E01（78%が業務負荷も下がった部署）は「注意すべきこと」として、上昇を上司支援の効果とは言い切れなくしている。PSY-H01-E01
+      は今は根拠から外れている。PSY-H02-E01 は主題の答えに入れていない。
+    supports:
+    - event_id: PSY-H03-E01
+      design_id: PSY-H03
+    weakens:
+    - event_id: PSY-H04-E01
+      design_id: PSY-H04
+  q4:
+    note: 主題 PSY-Q01 の答えが、3回目の「優先する根拠になる」から4回目の「決められない」に変わった。新しく根拠にした PSY-H04-E01
+      が変えた証拠である。PSY-H03-E01 は根拠のままで、言っていることが変わった。PSY-Q04 は4回目で初めて答えたので「変わった」に含めない。
+    changed_nodes:
+    - PSY-Q01
+    evidence:
+    - PSY-H04-E01
+  q5:
+    note: 片方だけが変わった部署で比べて、上司支援と負荷軽減を見分けるため。PSY-Q06 の発見元は PSY-H04-E02 だが、ツリーの決定の理由が根拠にしている分析結果は
+      PSY-H04-E01 である。
+    node_id: PSY-Q06
+    reason_events:
+    - PSY-H04-E01
+  q6:
+    note: PSY-Q03 の答えは3回目のまま変わっていない。一方、主題 PSY-Q01 は3回目にも4回目にも PSY-H03-E01 を引用していて、引用する文が変わった。PSY-Q02
+      の PSY-H01-E01 は、主題が今は引用していないので該当しない。PSY-Q05 の PSY-H02-E01 は、主題が一度も引用していないので該当しない。PSY-Q04
+      は4回目に答えたので対象外。
+    nodes:
+    - PSY-Q03
+    evidence:
+    - PSY-H03-E01
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: true
+  q6: true

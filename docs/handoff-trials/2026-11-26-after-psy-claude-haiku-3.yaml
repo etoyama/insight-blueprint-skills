@@ -1,0 +1,57 @@
+date: '2026-11-26'
+scenario: psy
+stage: round-4
+reader:
+  kind: claude
+  name: haiku (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 主題の答えの一文目は「同じ人でも、上司支援の評価が上がった年は心理的安全性が平均0.30上がった」という『これまでわかっていること』で、根拠は
+      PSY-H03-E01 である。ただし『注意すべきこと』と『まだ決められないこと』が続き、上司への働きかけを優先するかは決められていない。主な内容は claim
+      に近い。
+    verdict: claim
+  q2:
+    note: PSY-Q06 は進捗が未着手。PSY-Q04 は分析済みで、『まだ決められないこと』が残る。PSY-Q02、PSY-Q03、PSY-Q05 は分析済みだが答えが『これまでわかっていること』だけなので挙げていない。
+    not_started:
+    - PSY-Q06
+    analyzed_undetermined:
+    - PSY-Q04
+  q3:
+    note: 支持は、主題の『これまでわかっていること』が根拠にする PSY-H03-E01（分析設計 PSY-H03）。弱めるのは、『注意すべきこと』が根拠にする
+      PSY-H04-E01（分析設計 PSY-H04）。『まだ決められないこと』に引用された出来事は、どちらにも含めていない。
+    supports:
+    - event_id: PSY-H03-E01
+      design_id: PSY-H03
+    weakens:
+    - event_id: PSY-H04-E01
+      design_id: PSY-H04
+  q4:
+    note: 前の振り返り（3回目）から答えが変わったのは主題の PSY-Q01 だけ。PSY-H04-E01 を新しく根拠にし、PSY-H03-E01 は文の言い方が変わった。PSY-Q04
+      は4回目で初めて答えたので含めない。PSY-Q02、PSY-Q03、PSY-Q05 は答えが変わっていない。
+    changed_nodes:
+    - PSY-Q01
+    evidence:
+    - PSY-H04-E01
+    - PSY-H03-E01
+  q5:
+    note: 次に調べる論点は PSY-Q06。理由の根拠として挙げられているのは PSY-H04-E01 だけである。
+    node_id: PSY-Q06
+    reason_events:
+    - PSY-H04-E01
+  q6:
+    note: PSY-Q03 の答えは書き直されていない。その親の主題 PSY-Q01 は、3回目と4回目の両方で PSY-H03-E01 を引用しているが、文は『…優先する根拠になる』から『同じ人でも…上がった』へ変わった。PSY-Q02
+      と PSY-Q05 の上の論点は、同じ出来事を前回も今回も引用していないので該当しない。
+    nodes:
+    - PSY-Q03
+    evidence:
+    - PSY-H03-E01
+score:
+  q1: false
+  q2: true
+  q3: true
+  q4: false
+  q5: true
+  q6: true

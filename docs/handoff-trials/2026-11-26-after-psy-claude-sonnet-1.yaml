@@ -1,0 +1,51 @@
+date: '2026-11-26'
+scenario: psy
+stage: round-4
+reader:
+  kind: claude
+  name: sonnet (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 上司への働きかけを優先するかは、上司支援と負荷軽減の効果を見分けるまで決められません（4回目の振り返り）。同じ人でも上司支援の評価が上がった年は心理的安全性が平均0.30上がったという知見はあります。ただし、評価が上がった回答者の78%は業務負荷も下がった部署にいたため、この上昇を上司支援の効果とは言い切れません。
+    verdict: undetermined
+  q2:
+    note: PSY-Q04は分析済みですが、重なった部署で上司支援と負荷軽減のどちらが心理的安全性を上げたかは見分けられていません。PSY-Q02、Q03、Q05の現時点の答えには「まだ決められないこと」がありません。
+    not_started:
+    - PSY-Q06
+    analyzed_undetermined:
+    - PSY-Q04
+  q3:
+    note: 現時点の主題への答えが根拠にしている出来事だけを挙げています。PSY-H01-E01は以前は根拠でしたが、今は外れています。PSY-H02-E01は主題への答えに一度も使われていません。
+    supports:
+    - event_id: PSY-H03-E01
+      design_id: PSY-H03
+    weakens:
+    - event_id: PSY-H04-E01
+      design_id: PSY-H04
+  q4:
+    note: 主題の答えは、PSY-H04-E01を新しく根拠にしたことで、PSY-H03-E01を「優先する根拠になる」とする文から「決められない」へ変わりました。PSY-Q04は4回目で初めて答えたため含めていません。
+    changed_nodes:
+    - PSY-Q01
+    evidence:
+    - PSY-H04-E01
+  q5:
+    note: 上司支援の評価が上がった回答者の多くは業務負荷も下がった部署にいたため、片方だけが変わった部署で比べて両者の効果を見分けます。論点の発見元はPSY-H04-E02です。
+    node_id: PSY-Q06
+    reason_events:
+    - PSY-H04-E01
+  q6:
+    note: PSY-Q01は3回目と4回目の両方でPSY-H03-E01を引用し、引用する文を変えています。PSY-Q03の答えは3回目のままです。
+    nodes:
+    - PSY-Q03
+    evidence:
+    - PSY-H03-E01
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: true
+  q6: true

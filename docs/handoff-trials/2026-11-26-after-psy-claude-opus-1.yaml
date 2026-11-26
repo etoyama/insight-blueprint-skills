@@ -1,0 +1,57 @@
+date: '2026-11-26'
+scenario: psy
+stage: round-4
+reader:
+  kind: claude
+  name: opus (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 4回目の振り返りの主題への答えは、次の3文からなる。(1) 同じ人で上司支援の評価が上がった年は、心理的安全性が平均0.30上がった（claim）。(2)
+      上司支援の評価が上がった回答者の78%は、業務負荷も下がった部署にいた（注意すべきこと）。(3) 上司への働きかけを優先するかは、上司支援と負荷軽減の効果を見分けるまで決められない（undetermined）。決めること（上司への働きかけを優先するか）への答えは、まだ決められない側にある。
+    verdict: undetermined
+  q2:
+    note: PSY-Q02、PSY-Q03、PSY-Q05 も分析済みだが、答えは「これまでわかっていること」だけで、まだ決められないことは残っていない。
+    not_started:
+    - PSY-Q06
+    analyzed_undetermined:
+    - PSY-Q04
+  q3:
+    note: PSY-H04-E01 は「注意すべきこと」として引用されている。PSY-H01-E01 は1回目の振り返りまでは根拠だったが、今は外している。PSY-H02-E01
+      は主題への答えに一度も入っていない。
+    supports:
+    - event_id: PSY-H03-E01
+      design_id: PSY-H03
+    weakens:
+    - event_id: PSY-H04-E01
+      design_id: PSY-H04
+  q4:
+    note: 3回目から4回目で、PSY-H04-E01 を新しく根拠にした。そのため、PSY-H03-E01 について言っている文も書き換わった（「優先する根拠になる」を削り、まだ決められないことを加えた）。PSY-Q04
+      は4回目で初めて答えた論点なので、含めない。
+    changed_nodes:
+    - PSY-Q01
+    evidence:
+    - PSY-H04-E01
+  q5:
+    note: PSY-Q06 は、上司支援と業務負荷の片方だけが変わった部署で比べ、上司支援の効果と負荷軽減の効果を見分ける論点である。PSY-Q06 の発見元は
+      PSY-H04-E02 だが、ツリーの決定が理由の根拠として挙げているのは PSY-H04-E01 だけである。
+    node_id: PSY-Q06
+    reason_events:
+    - PSY-H04-E01
+  q6:
+    note: PSY-Q03 の答えは3回目のままである。一方、PSY-Q01 は3回目と4回目の両方で PSY-H03-E01 を引用しており、4回目でその文を変えた。PSY-Q02
+      は除外した。PSY-Q01 が PSY-H01-E01 を引用したのは1回目までで、今は引用していないためである。PSY-Q05 も除外した。PSY-Q01
+      は PSY-H02-E01 を一度も引用していないためである。
+    nodes:
+    - PSY-Q03
+    evidence:
+    - PSY-H03-E01
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: true
+  q5: true
+  q6: true

@@ -1,0 +1,58 @@
+date: '2026-11-26'
+scenario: psy
+stage: round-4
+reader:
+  kind: claude
+  name: haiku (Claude Code 2.1.332)
+minutes:
+  confirm: null
+  reconstruct: null
+answers:
+  q1:
+    note: 主題の現時点の答えには「これまでわかっていること」(同じ人での0.30上昇)もあるが、「注意すべきこと」で同じ人での上昇を上司支援の効果とは言い切れないとし、「まだ決められないこと」で上司への働きかけを優先するかは上司支援と負荷軽減の効果を見分けるまで決められないとしている。決める問いそのものが未決なので
+      undetermined とした。
+    verdict: undetermined
+  q2:
+    note: 主題 PSY-Q01 を除く論点は PSY-Q02、Q03、Q04、Q05、Q06。PSY-Q06 は未着手。PSY-Q04 は分析済みで、答えに「まだ決められないこと」が残る。PSY-Q02、Q03、Q05
+      は分析済みだが、答えは「これまでわかっていること」のみで未決の部分が無いため、どちらにも挙げていない。
+    not_started:
+    - PSY-Q06
+    analyzed_undetermined:
+    - PSY-Q04
+  q3:
+    note: 現時点の答えの「これまでわかっていること」(0.30上昇)は PSY-H03-E01 (PSY-H03) が支え、「注意すべきこと」(78%は業務負荷も下がった部署にいた)は
+      PSY-H04-E01 (PSY-H04) が弱めている。「まだ決められないこと」は主張ではないため含めていない。
+    supports:
+    - event_id: PSY-H03-E01
+      design_id: PSY-H03
+    weakens:
+    - event_id: PSY-H04-E01
+      design_id: PSY-H04
+  q4:
+    note: 3回目から4回目で答えが変わったのは主題 PSY-Q01 のみ。新しく根拠にした PSY-H04-E01 と、言っていることが変わった PSY-H03-E01
+      が変えた証拠。PSY-Q04 は4回目で初めて答えた論点なので含めない。PSY-Q03 は答え自体は3回目のままで変わっていない(変わったのは主題側がその出来事について言う文)。
+    changed_nodes:
+    - PSY-Q01
+    evidence:
+    - PSY-H04-E01
+    - PSY-H03-E01
+  q5:
+    note: 次に調べる論点は「深める（4回目の振り返りの後）」の PSY-Q06。理由の根拠として挙げられているのは PSY-H04-E01 のみ。
+    node_id: PSY-Q06
+    reason_events:
+    - PSY-H04-E01
+  q6:
+    note: 最後の振り返りで答えを書き直していない論点は PSY-Q02、Q03、Q05。PSY-Q03 の分析結果 PSY-H03-E01 は、親の主題
+      PSY-Q01 の3回目と4回目の答えの両方で引用されているが、文が「優先する根拠になる」から「平均0.30上がった」＋「決められない」へ変わっている。PSY-Q02
+      が引用する PSY-H01-E01 は主題の4回目の答えでは引用されていない。PSY-Q05 が引用する PSY-H02-E01 は、その祖先のどの答えでも引用されていない。
+    nodes:
+    - PSY-Q03
+    evidence:
+    - PSY-H03-E01
+score:
+  q1: true
+  q2: true
+  q3: true
+  q4: false
+  q5: true
+  q6: true
