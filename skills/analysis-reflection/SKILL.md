@@ -194,8 +194,8 @@ Then ask: 「この中に、答えが出ると判定（探索では答え）が�
 - When there is no open question, say so and go to the next question.
 - ある → recommend more investigation (→ /analysis-journal) before the design ends.
 - ない → go on to the next question.
-- A question whose answer changes no verdict is not dropped: it is a reservation on the root
-  question (主題への留保). Say that the theme reflection (`/analysis-reflection {theme_id}`)
+- A question whose answer changes no verdict is not dropped: it stays open on the subject
+  (主題について残る問い). Say that the theme reflection (`/analysis-reflection {theme_id}`)
   writes it as まだ決められないこと or 注意すべきこと for a node.
 
 #### この分析設計をどう終えるか

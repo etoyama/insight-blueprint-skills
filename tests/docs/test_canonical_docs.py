@@ -1335,6 +1335,31 @@ class TestWordsShownToTheAnalyst:
         assert old in self._rows()[term][words.AVOID].split("、")
         assert f"{old}\t{term}" in _read(".yomiyasu-words/flag.txt")
 
+    @pytest.mark.parametrize("old", ["言えること", "弱める証拠と留保", "未判別"])
+    def test_the_old_kind_words_are_variants_of_the_answer_and_are_flagged(
+        self, old: str
+    ) -> None:
+        """The three kind words are the terms too (ADR-0055, decided 2026-11-26)."""
+        assert old in self._rows()["現時点の答え"][words.AVOID].split("、")
+        assert any(
+            line.startswith(f"{old}\t")
+            for line in _read(".yomiyasu-words/flag.txt").splitlines()
+        )
+
+    def test_the_table_holds_only_words_that_differ_inside_and_on_screen(
+        self,
+    ) -> None:
+        """A renamed term is a term, not a row: a row names an inner word that
+        stays, and no old name a term avoids."""
+        rows = table_rows(words.section(_read(self.GLOSSARY), self.SECTION))[2:]
+        terms = self._rows()
+        avoided = {
+            v for r in terms.values() for v in r[words.AVOID].split("、") if v != "—"
+        }
+        for inner, shown, *_ in rows:
+            assert shown not in terms, shown
+            assert inner.split("（")[0] not in avoided, inner
+
     def test_a_flagged_old_word_suggests_the_word_shown_for_it(self) -> None:
         shown = {
             row[0]: row[1]

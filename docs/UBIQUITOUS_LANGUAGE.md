@@ -61,7 +61,7 @@
 | 寄与 | `contribution` | 子の論点に答えると、親の論点の判断がどう進むか。論点の親子はこれで決める | — | [epic-18](design/epic-18-question-tree.md) |
 | 発見元 | `origin_event_id` | 探索中に生まれた論点が生まれた journal の出来事。着手のときに置いた論点は持たない | — | [epic-18](design/epic-18-question-tree.md) |
 | 進捗 | `Progress` | 論点の分析がどこまで進んだか。未着手・検証中・分析済み。保存せず、結んだ分析設計の状態から導く | — | [epic-18](design/epic-18-question-tree.md) |
-| 現時点の答え | `Answer` | 振り返りで論点ごとに書く答え。文ごとに種類（これまでわかっていること `claim`・注意すべきこと `weakening`・まだ決められないこと `undetermined`）と、引用する journal の出来事を持つ。追記だけで、振り返りの回と主題の版を持つ | 暫定回答 | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
+| 現時点の答え | `Answer` | 振り返りで論点ごとに書く答え。文ごとに種類（これまでわかっていること `claim`・注意すべきこと `weakening`・まだ決められないこと `undetermined`）と、引用する journal の出来事を持つ。追記だけで、振り返りの回と主題の版を持つ | 暫定回答、言えること、弱める証拠と留保、未判別 | [ADR-0025](adr/0025-cited-answers-checked-after-writing.md) |
 | 振り返りの回 | `round` | テーマを横断する振り返りの通し番号。1回の `tree_io answer` が1つの回になる。前の回から変わった答えを見分けるのに使う | — | [epic-18](design/epic-18-question-tree.md) |
 | ツリーの決定 | `TreeDecision` | 論点ツリーで分析者が選んだこと（最初の論点を選ぶ、深める、親に戻る、区切る）と理由。次に調べる論点を指し、区切るときは区切った論点を指す。決めた時点の振り返りの回を持つ | — | [epic-18](design/epic-18-question-tree.md) |
 | 次の候補 | `NextCandidate` | 振り返りが示す、次に調べるとよい未着手の論点。主題を除き、自分にも下の論点にも分析設計を結んでいない論点を指す。人に聞く問い、その答えで変わる判断、既に分かっていること、聞いてきた答え（誰に、いつ）を添えられる | — | [epic-18](design/epic-18-question-tree.md) |
@@ -114,16 +114,11 @@
 ## Words shown to the analyst
 
 文書・コード・テストは内側の用語を使い、分析者に見せる文（論点ツリーの表示、skill が分析者に出す文、レポート）は右の列の言葉を使う（[ADR-0055](adr/0055-the-root-question-is-shown-as-the-subject.md)）。
+表には、内側と画面で言葉が違う語だけを置く。主題・主題の版と、答えの文の種類の3語は、内側でも同じ語を使う用語で、上の表にある。
 YAML の項目名と値は変えない。表の正本は [Epic 34 の DesignDoc の US-5](design/epic-34-what-moved-the-answer.md#us-5-分析者が論点ツリーを内側の用語ではなく伝わる言葉で読む) で、ここに写す。
 
 | 内側の用語（文書・コード） | 分析者に見せる言葉 |
 |---|---|
-| 根の問い | 主題 |
-| 根の版 | 主題の版 |
-| 根の変更前の答え | 見直す前の主題への答え |
-| 言えること（`claim`） | これまでわかっていること |
-| 弱める証拠と留保（`weakening`） | 注意すべきこと |
-| 未判別（`undetermined`） | まだ決められないこと |
 | 引用する（`cites`） | 根拠にする |
 | 答えが引用した journal の出来事 | 分析結果（`hearing` は「人に聞いた答え」） |
 | 下の論点 | 使わない。「分析結果のうち」のように、分析結果を主語にして言う |
