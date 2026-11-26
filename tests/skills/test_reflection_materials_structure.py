@@ -194,4 +194,4 @@ class TestAutoAgreesWithTheReflection:
 
     def test_the_theme_reflection_row_is_unchanged(self) -> None:
         row = table_row(self._auto(), "theme reflection")
-        assert row[1] == "**`/analysis-reflection {theme_id}` T7**"
+        assert row[1] == "**`/analysis-reflection {theme_id}` T3 + T7**"

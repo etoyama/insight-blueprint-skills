@@ -7,8 +7,8 @@ description: |
   design → review → premortem → notebook → journal → reflection → theme reflection →
   tree decision. Progresses automatically through low-friction steps and
   pauses only at genuine decision points (root question and aim, the node to investigate,
-  intent and the question to explore or the hypothesis, source registration, cost/risk, code with external effects, conclusion, the tree
-  decision, sending anything outside this machine).
+  intent and the question to explore or the hypothesis, source registration, cost/risk, code with external effects, conclusion, the results
+  the theme's answers rest on, the tree decision, sending anything outside this machine).
   Triggers: "オートで進めて", "自動で分析を回して", "autopilot", "guided auto",
   "最後まで進めて", "analysis auto", "論点を順に調べて".
 disable-model-invocation: true
@@ -58,7 +58,7 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | notebook | **non-allowlisted package / external comms beyond the declared source / other side-effects** | generate + run when premortem cleared AND it's declared-source read + allowlisted + local compute |
 | journal | — | auto-record the notebook verdict (observe/evidence/question) |
 | reflection | **この分析設計をどう終えるか (`/analysis-reflection` Step 3) + the terminal transition** — for a confirmation a verdict, more investigation or a derived design; for an exploration `explored` or more investigation, never a verdict | presenting the evidence summary and the place of the design note (`/analysis-reflection` Step 2) |
-| theme reflection | **`/analysis-reflection {theme_id}` T7** | — |
+| theme reflection | **`/analysis-reflection {theme_id}` T3 + T7** | — |
 | tree-upload | **the file to send as an Artifact** — asked by `/tree-upload` itself, at its approval gate; the driver adds no question of its own | starting `/tree-upload` when the analyst asks to hand the tree over |
 | catalog-register | **registering a data source** (external-data side-effect); unregistered source → stop | — |
 
@@ -221,10 +221,8 @@ the round until the analyst closes the walk or says stop.
    この分析設計をどう終えるか**, and at the terminal transition. An exploration ends as
    `explored` and is never asked for a verdict. Its Step 2 読むもの says what
    the analyst reads; the driver adds no list of files of its own.
-8. **theme reflection**: run `/analysis-reflection {theme_id}`. Before it writes the answers,
-   it shows the まだ答えに入れていない分析結果 and asks whether an answer rests on them:
-   pause for the analyst's choice. Never choose for them. Its Step T7 is the KEEP gate
-   of the round. Before that gate, show the path of the tree's HTML, so the analyst decides
+8. **theme reflection**: run `/analysis-reflection {theme_id}`. Its Steps T3 and T7 are the
+   KEEP gates of the round. Before that gate, show the path of the tree's HTML, so the analyst decides
    with the tree in view. When the analyst chooses 主題そのものを見直す at that gate, the
    reflection runs only 4c of `/analysis-framing {theme_id}`, a KEEP gate of its own. The
    round is not over then: after the revision the reflection asks the decision again at

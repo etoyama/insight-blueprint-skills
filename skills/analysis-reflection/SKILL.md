@@ -346,10 +346,10 @@ Rules for every statement:
 
 A node that already has an answer starts from the statements of its current answer in
 `tree_io get`, not from a blank draft. The new results are the journal events recorded
-since that answer. The display compares the two answers word for word: a statement that
-differs by one character under the same cite shows as 「言っていることが変わった」
-(ADR-0056), and a rewording the reader cannot tell from a change buries the change that
-matters.
+since that answer (for an answer with no `created_at`, the events of the branch it does
+not cite). The display compares the two answers word for word: a statement that differs
+by one character under the same cite shows as 「言っていることが変わった」 (ADR-0056), and a
+rewording the reader cannot tell from a change buries the change that matters.
 
 - A statement whose meaning the new results do not change is sent character for
   character as the current answer has it: the same `kind`, the same `text` and the same
@@ -357,30 +357,41 @@ matters.
   what a new result says.
 - Never restyle a number, a unit or the order of the words of a kept statement, and never
   merge or split kept statements. Move a statement to another `kind` only when its meaning
-  changes (a claim that a new result leaves open becomes `undetermined`).
+  changes (a claim that a new result leaves open becomes `undetermined`) or a rule of this
+  step requires it.
 - A statement no new result bears on is changed only where it breaks a rule of this step
   (a `contradicts` event cited outside a `weakening`, a claim that says more than its cited
-  events). Change only that part, and name the rule in Step T5. Reading old results
-  again in other words is not a reason to change a statement.
-- When no statement of a node changes, send them as they were: `tree_io answer` lists the
-  node under `unchanged` and writes nothing for it.
+  events) or where `tree_io answer` or `tree_check` reports a violation of it. Change only
+  that part, and name the rule or the violation in Step T5. Reading old results again in
+  other words is not a reason to change a statement.
+- When the 主題の版 has gone up since a node's answer (`root_revision` is lower than the
+  current one), rewrite that answer for the new 主題 where its question asks something new,
+  and say so in Step T5. A statement the new 主題 does not change still keeps its words.
 
-#### Results no answer above rests on
+### Step T3: Write the answers through tree_io
 
-Before Step T3, check what the answers above leave out. For the root and every node with
-nodes below it, take every event cited by the answer of a node below it (its draft, or its
-current answer when it gets none in this round) but not by its own draft. Split them in two:
+#### Before writing: results no answer above rests on
+
+Ask it once, before the first `tree_io answer` of this reflection. When you come back to
+this step from a violation or from Step T4, do not ask again.
+
+First apply the rules of Step T2 to the drafts: a `contradicts` event that bears on a node
+is cited in its `weakening`, not offered. Then, for the root and every node with nodes below
+it, take every event cited by the answer of a node below it (its draft, or its current
+answer when it gets none in this round) but not by its own draft. Split them in two:
 
 - An event that no answer of this node has cited: 「まだ答えに入れていない分析結果」.
 - An event that an earlier answer of this node cited and the draft does not:
   「前は答えの根拠にしていて、今は外している分析結果」. Name the last round that cited it.
 
-Show each event by its content, under the question of the node whose answer leaves it
-out. A `hearing` event is 「人に聞いた答え」, not 分析結果. Then ask:
+When no node leaves an event out, skip the question and send the answers. Otherwise show
+one block for each node that leaves an event out, each event by its content, and ask once
+for all of them:
 
 ```
 主題「{question}」の答えに、まだ入れていない分析結果:
   - {content}（「{question of the node whose answer rests on it}」の答えが根拠にしている）
+  - 人に聞いた答え: {content}（「{question of the node whose answer rests on it}」の答えが根拠にしている）
 前は答えの根拠にしていて、今は外している分析結果:
   - {content}（回 {round} の答えまで根拠にしていた）
 
@@ -388,18 +399,19 @@ out. A `hearing` event is 「人に聞いた答え」, not 分析結果. Then as
 ```
 
 Use 「論点「{question}」の答えに」 instead of 「主題「{question}」の答えに」 for a node that is not
-the root. The analyst decides. For each result they choose, add or rewrite the statements
-of the draft that rest on it, under the rules of this step. When they choose none, the
-answer is written without them. Never cite a result the analyst did not choose from this
-list. The list holds only what the drafts leave out: a new result that a draft already
-cites under the rules above is not on it. When no node leaves an event out, skip the
-question. Keep the results the analyst did not choose for Step T5.
+the root. A `hearing` event is listed as 人に聞いた答え, never as 分析結果. The analyst sees the
+contents of journal events here, not the statements of a draft: no answer reaches them
+before the tree check (ADR-0025).
 
-### Step T3: Write the answers through tree_io
+The analyst decides. Wait for the answer, and send nothing before it: once the answers are
+written, taking in a result the analyst chooses needs another round. For each result they
+choose, add or rewrite the statements of the draft that rest on it, under the rules of Step
+T2, and do not ask again for the nodes this changes. When they choose none, the answers are
+written without them. Never cite a result the analyst did not choose from this list. The
+list holds only what the drafts leave out: a new result that a draft already cites under the
+rules of Step T2 is not on it.
 
-Ask the question of "Results no answer above rests on" (Step T2) first, and wait for the
-analyst's answer. Send nothing before it: once the answers are written, taking in a result
-the analyst chooses needs another round.
+#### Send the answers
 
 Send the answers of every node of this reflection in one call. One call is one reflection
 round: `tree_io` sets `round` and `root_revision` itself, appends the answers, and leaves
@@ -479,7 +491,7 @@ Show no answer to the analyst before `tree_check` has run, and never show an ans
     [注意すべきこと] {text}  ← {cites}
 
 ── Changed in this round ──
-  - {node_id}: 初めての答え | 回 {previous_round} から変わった（{変えた理由}） | 主題の版が上がり、同じ文で書き直した
+  - {node_id}: 初めての答え | 回 {previous_round} から変わった（{reason}） | 主題の版が上がり、同じ文で書き直した
 
 ── Unchanged ──
   - {node_id}
@@ -503,12 +515,15 @@ Show no answer to the analyst before `tree_check` has run, and never show an ans
 - Changed and unchanged nodes come from `written`, `previous_round`, `restated` and
   `unchanged` in the output of `tree_io answer`. For a changed node, show the previous
   answer next to the new one. A `restated` answer says the same as before: say so
-  instead of calling it changed. For a changed node, say what changed it: the new result
-  each rewritten statement rests on (by its content), or the rule of Step T2 a statement
-  broke. The record keeps no reason, so this is the one place the analyst hears it.
+  instead of calling it changed. For a changed node, say what changed it in `{reason}`:
+  the new result each rewritten statement rests on (by its content, as 分析結果 or
+  人に聞いた答え), the rule of Step T2 or the violation a statement broke, or the new 主題.
+  The record keeps no reason, so this is the one place the analyst hears it.
 - Under the last two headings, list by content the results the analyst did not choose
-  before Step T3, each under the node whose answer leaves it out. Leave out a heading
-  with nothing under it. The analyst sees them again here, before the decision.
+  in Step T3, each under the node whose answer leaves it out, as the answers were written.
+  Leave out a heading with nothing under it. The analyst sees them again here, before the
+  decision. When a statement that rests on a result the analyst chose was removed in Step
+  T3, say so next to it under Removed statements.
 - A node under "Stale answers" shows its question and progress, not its answer.
 - An answer whose `root_revision` is lower than the current root revision answers an
   earlier root question: mark it "見直す前の主題への答え".
