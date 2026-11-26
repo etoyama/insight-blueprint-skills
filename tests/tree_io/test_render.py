@@ -598,3 +598,47 @@ class TestLeftOutAndUsedAboveThroughTheCommandLine:
             "論点 LIB-Q01 の答えは回 2 から、この分析結果から言っていることを変えた。"
             "この論点の答えは回 1 のままで、変わっていない。"
         ) in card
+
+
+class TestWhatADecisionRestsOn:
+    """Epic 34 US-4 AC 3, end to end: a decision's cited result reaches the page."""
+
+    def _decided(self, world: Path) -> None:
+        tree_io.decide(
+            "LIB", kind="start", node_id="LIB-Q02", reason="まず数える", base_dir=world
+        )
+        tree_io.decide(
+            "LIB",
+            kind="return",
+            node_id="LIB-Q03",
+            reason="数え方が定まったので次を見る",
+            cites=["LIB-H01-E01"],
+            base_dir=world,
+        )
+
+    def test_the_cited_result_no_answer_cites_is_read_and_shown(
+        self, world: Path
+    ) -> None:
+        self._decided(world)
+
+        page = parse(_rendered(world))
+
+        shown = by_id(page, "next-question").text()
+        assert "この理由の根拠にした分析結果" in shown
+        assert "LIB-H01 は期限切れ152件、取消除外後34.6%" in shown
+
+    def test_an_id_two_events_share_shows_neither_and_stops_no_check(
+        self, world: Path
+    ) -> None:
+        self._decided(world)
+        event = {"id": "LIB-H01-E01", "type": "observe", "content": "別の本文"}
+        journal = design_io.load_journal("LIB-H01", base_dir=world)
+        journal["events"].append(event)
+        design_io.write_journal("LIB-H01", journal, base_dir=world)
+
+        page = parse(_rendered(world))
+
+        shown = by_id(page, "next-question").text()
+        assert "LIB-H01-E01 は記録に2つあり" in shown
+        assert "別の本文" not in shown
+        assert "check-notice" not in _rendered(world)

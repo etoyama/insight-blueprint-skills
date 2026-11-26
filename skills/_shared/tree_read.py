@@ -318,7 +318,8 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
 
     A stale answer is not stored as withdrawn, so the page is where it shows. A
     cited id that two events share stops the check, not the page: it says so on
-    the page. A journal that cannot be read stops ``render``, so the analyst is
+    the page. A decision that cites such an id shows neither event; only the
+    answers' cites stop the check. A journal that cannot be read stops ``render``, so the analyst is
     told which file to fix.
     """
     tree = load_tree_model(theme_id, base_dir)
@@ -327,14 +328,18 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     designs = {
         design_id: DesignSummary.of(note) for design_id, note in design_notes.items()
     }
-    # Every round is read, since the page shows the history of each answer.
+    # Every round is read, since the page shows the history of each answer, and
+    # so is every decision, since the page shows what each reason rests on.
     events, duplicated = cited_events(
         (
-            cite
-            for node in tree.nodes
-            for answer in node.answers
-            for statement in answer.statements
-            for cite in statement.cites
+            *(
+                cite
+                for node in tree.nodes
+                for answer in node.answers
+                for statement in answer.statements
+                for cite in statement.cites
+            ),
+            *(cite for decision in tree.decisions for cite in decision.cites),
         ),
         base_dir,
     )
@@ -349,6 +354,7 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
         events,
         checked,
         {d: render_note(n) for d, n in design_notes.items()},
+        shared=frozenset(duplicated),
     )
     path = tree_path(theme_id, base_dir).with_suffix(".html")
     atomic_write_text(path, html)

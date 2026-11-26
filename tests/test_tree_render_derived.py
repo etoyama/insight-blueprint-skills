@@ -435,7 +435,8 @@ class TestTheNextQuestion:
 
         assert squash(section.text()) == (
             "次に調べる論点 深める（回 2 の振り返りの後）: LIB-Q04 "
-            "取消の理由に偏りはあるか 理由: 理由の偏りを先に見る"
+            "取消の理由に偏りはあるか 理由: 理由の偏りを先に見る "
+            "この理由は、根拠にした分析結果を挙げていない。"
         )
         assert [a.attrs["href"] for a in section.walk() if a.tag == "a"] == ["#LIB-Q04"]
 

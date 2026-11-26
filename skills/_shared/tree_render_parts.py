@@ -7,6 +7,7 @@ Pure, like ``tree_render``: every string is untrusted and goes through ``_html``
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -22,6 +23,7 @@ from insight_blueprint.models.tree import (
     QuestionNode,
     QuestionTree,
     StatementKind,
+    TreeDecision,
     TreeDecisionKind,
     design_id_of,
 )
@@ -220,6 +222,18 @@ _DECISION_LABELS = {
 }
 
 
+# How far the questions under a question have come (ADR-0057). "{whose}" is
+# the subject or this question; the analyst never reads "below" alone (US-5).
+_BELOW_WORDS = "{whose}の下に置いた論点 {count} つ: "
+
+
+# What a decision's reason rests on (ADR-0058). "{word}" is the word for what it
+# cites: an analysis result, what a person said, or both.
+_GROUNDS_WORDS = "この理由の根拠にした{word}"
+_NO_GROUNDS_WORDS = "この理由は、根拠にした分析結果を挙げていない。"
+_SHARED_ID_WORDS = "{event_id} は記録に2つあり、どちらを根拠にしたかは分からない。"
+
+
 _NOTE_LABELS = (
     ("ask", "人に聞く問い"),
     ("changes_if", "その答えで変わる判断"),
@@ -252,6 +266,8 @@ class _Context:
     changes: Mapping[str, AnswerChange]
     uncited: Mapping[str, tuple[UncitedBelow, ...]]
     cited_above: Mapping[str, tuple[CitedAbove, ...]]
+    # Cited ids two journal events share: which of them backs a cite is unknown.
+    shared: frozenset[str] = frozenset()
 
     @classmethod
     def of(
@@ -261,6 +277,7 @@ class _Context:
         events: Mapping[str, CitedEvent],
         checked: Sequence[Violation] | CheckFailed,
         design_notes: Mapping[str, Html],
+        shared: frozenset[str] = frozenset(),
     ) -> _Context:
         for node in tree.nodes:
             for design_id in node.design_ids:
@@ -298,6 +315,7 @@ class _Context:
             answer_changes(tree),
             uncited_below(tree),
             cited_above(tree),
+            shared,
         )
 
     def shown(self, node: QuestionNode) -> Shown:
@@ -306,6 +324,29 @@ class _Context:
         if node.id in self.violations:
             return Shown.violating
         return Shown.sound
+
+    def shown_by_below(self, node: QuestionNode) -> bool:
+        """A question with nodes under it and no design of its own has no
+        progress word: it shows the progress of the nodes under it (ADR-0057)."""
+        return not node.design_ids and bool(self.children.get(node.id))
+
+    def below(self, node: QuestionNode) -> Counter[Progress]:
+        """The progress of every node under *node*, but those shown by their own counts."""
+        found: Counter[Progress] = Counter()
+        stack = list(self.children.get(node.id, []))
+        while stack:
+            below = stack.pop()
+            if not self.shown_by_below(below):
+                found[self.progress[below.id]] += 1
+            stack.extend(self.children.get(below.id, []))
+        return found
+
+    def closed_by(self, node: QuestionNode) -> TreeDecision | None:
+        """The latest decision naming *node*, when it closed the node."""
+        naming = [d for d in self.tree.decisions if d.node_id == node.id]
+        if naming and naming[-1].kind is TreeDecisionKind.close:
+            return naming[-1]
+        return None
 
     def marks_of(self, node: QuestionNode) -> list[Mark]:
         answer = node.current_answer()

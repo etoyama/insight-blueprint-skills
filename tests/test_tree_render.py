@@ -320,6 +320,7 @@ def render(
     events: dict[str, CitedEvent] | None = None,
     violations: list[Violation] | CheckFailed | None = None,
     design_notes: dict[str, Html] | None = None,
+    shared: list[str] | None = None,
 ) -> str:
     shown = make_designs() if designs is None else designs
     return render_tree_html(
@@ -328,6 +329,7 @@ def render(
         make_events() if events is None else events,
         [] if violations is None else violations,
         stub_design_notes(shown) if design_notes is None else design_notes,
+        shared=frozenset(shared or ()),
     )
 
 
@@ -337,8 +339,9 @@ def page(
     events: dict[str, CitedEvent] | None = None,
     violations: list[Violation] | CheckFailed | None = None,
     design_notes: dict[str, Html] | None = None,
+    shared: list[str] | None = None,
 ) -> Element:
-    return parse(render(tree, designs, events, violations, design_notes))
+    return parse(render(tree, designs, events, violations, design_notes, shared))
 
 
 class TestSelfContained:
@@ -528,7 +531,8 @@ class TestProgress:
     def test_the_counts_of_nodes_per_progress_word_are_shown(self) -> None:
         counts = squash(by_id(page(), "counts").text())
 
-        assert "未着手 3" in counts
+        # The subject has no design and nodes under it, so it is not counted (ADR-0057).
+        assert "未着手 2" in counts
         assert "検証中 1" in counts
         assert "分析済み 1" in counts
 

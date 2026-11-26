@@ -49,14 +49,18 @@ from skills._shared.tree_render_derived import (
 )
 from skills._shared.tree_render_parts import (
     _AIM_LABELS,
+    _BELOW_WORDS,
     _CHANGE_WORDS,
     _DECISION_LABELS,
+    _GROUNDS_WORDS,
     _HEARD_RESULT_WORD,
     _HEARD_WORD,
     _MARK_WORDS,
+    _NO_GROUNDS_WORDS,
     _NO_LONGER_WORDS,
     _NOT_YET_WORDS,
     _NOTE_LABELS,
+    _SHARED_ID_WORDS,
     _SUBJECT,
     _SUBJECT_REVISION,
     _USED_ABOVE_WORDS,
@@ -74,8 +78,10 @@ from skills._shared.tree_render_parts import (
     _join_links,
     _link,
     _marks,
+    _result,
     _round_meta,
     _statement,
+    _word_of,
 )
 
 if TYPE_CHECKING:  # tree_check imports this module (CitedEvent)
@@ -132,6 +138,9 @@ _TREE_CSS = """.legend { background: var(--panel); border: 1px solid var(--line)
 }
 .uncited h3, .uncited h4, .cited-above h4 { margin: .3rem 0; font-size: 1rem; }
 .uncited-before summary { color: var(--muted); }
+.closed { border-left: 4px solid var(--investigating); padding: .1rem .7rem; margin: .6rem 0; }
+.grounds ul { margin: .2rem 0; }
+.grounds blockquote { margin: .2rem 0; padding-left: .6rem; border-left: 3px solid var(--line); }
 .uncited li, .uncited-before li, .cited-above li { margin: .4rem 0; }
 .uncited blockquote, .uncited-before blockquote {
   margin: .2rem 0; padding-left: .6rem; border-left: 3px solid var(--line);
@@ -145,18 +154,23 @@ def render_tree_html(
     events: Mapping[str, CitedEvent],
     violations: Sequence[Violation] | CheckFailed,
     design_notes: Mapping[str, Html],
+    shared: frozenset[str] = frozenset(),
 ) -> str:
-    """The page. *design_notes* maps a design id to the markup ``render_note`` returned."""
-    context = _Context.of(tree, designs, events, violations, design_notes)
+    """The page. *design_notes* maps a design id to the markup ``render_note`` returned.
+
+    *shared* holds the cited ids two journal events share; a decision citing one
+    shows neither text.
+    """
+    context = _Context.of(tree, designs, events, violations, design_notes, shared)
     body = join(
         [
             _header(tree),
             _check_notice(violations),
             _subject_answer(context),
-            _next_question(tree),
+            _next_question(context),
             _legend(),
             _counts(context),
-            _decisions(tree),
+            _decisions(context),
             _next_candidates(context),
             _question_tree(context),
             _derivation(context),
@@ -248,6 +262,19 @@ def _legend() -> Html:
             "意味は言葉が持つ。",
         ),
         _word_list(PROGRESS_WORDS.values()),
+        el(
+            "p",
+            "分析設計を結んでいない論点のうち、下に論点を置いたものは、進捗の言葉を"
+            "出さず、下に置いた論点の進捗を、言葉ごとの数で出す。「進捗の数」は、"
+            "その論点を数えない。分析設計を結んだ論点の下に論点を置いたときは、"
+            "進捗の言葉の後ろに、下に置いた論点の数を添える。",
+        ),
+        el(
+            "p",
+            "ツリーの決定の理由の下には、理由の根拠にした分析結果を出す。"
+            "根拠を挙げていない理由は、そのことを書く。区切った論点のカードには、"
+            "区切った回と理由を出す。",
+        ),
         el("p", "現時点の答えは、文ごとに種類の言葉を付けて並べる。"),
         _word_list(KIND_WORDS.values()),
         el("p", "答えの上に出す印。"),
@@ -341,7 +368,11 @@ def _note_link(design_id: str) -> Html:
 
 
 def _counts(context: _Context) -> Html:
-    found = Counter(context.progress.values())
+    found = Counter(
+        context.progress[node.id]
+        for node in context.tree.nodes
+        if not context.shown_by_below(node)
+    )
     return el(
         "section",
         el("h2", "進捗の数"),
@@ -371,14 +402,42 @@ def _decision_head(decision: TreeDecision) -> list[Html | str]:
     ]
 
 
-def _decisions(tree: QuestionTree) -> Html:
-    rows = [el("li", *_decision_head(d), f" {d.reason}") for d in tree.decisions]
+def _grounds(context: _Context, decision: TreeDecision) -> Html | None:
+    """What the reason of *decision* rests on, or that it names nothing (ADR-0058).
+
+    The first decision comes before any analysis, so it is not told to cite.
+    """
+    if not decision.cites:
+        if decision.kind is TreeDecisionKind.start:
+            return None
+        return el("p", _NO_GROUNDS_WORDS, class_="meta")
+    words = list(dict.fromkeys(_word_of(context, c) for c in decision.cites))
+    rows = [
+        el("li", _SHARED_ID_WORDS.format(event_id=c))
+        if c in context.shared
+        else el("li", *_result(context, c))
+        for c in decision.cites
+    ]
+    return el(
+        "div",
+        el("p", _GROUNDS_WORDS.format(word="と".join(words)), class_="meta"),
+        el("ul", join(rows)),
+        class_="grounds",
+    )
+
+
+def _decisions(context: _Context) -> Html:
+    rows = [
+        el("li", *_decision_head(d), f" {d.reason}", _grounds(context, d))
+        for d in context.tree.decisions
+    ]
     body = el("ul", join(rows)) if rows else el("p", "まだ決めていない。")
     return el("section", el("h2", "ツリーの決定"), body, id="decisions")
 
 
-def _next_question(tree: QuestionTree) -> Html:
+def _next_question(context: _Context) -> Html:
     """The last decision: it names the question to look into next, and why."""
+    tree = context.tree
     lines: list[Html]
     if not tree.decisions:
         lines = [el("p", "まだ決めていない。")]
@@ -400,6 +459,9 @@ def _next_question(tree: QuestionTree) -> Html:
             ),
             el("p", f"理由: {decision.reason}"),
         ]
+        grounds = _grounds(context, decision)
+        if grounds is not None:
+            lines.append(grounds)
         if decision.kind is TreeDecisionKind.close:
             lines.append(el("p", "区切ったので、次に調べる論点は決まっていない。"))
     return el("section", join([el("h2", "次に調べる論点"), *lines]), id="next-question")
@@ -546,12 +608,51 @@ def _design_card(context: _Context, node: QuestionNode, design: DesignSummary) -
     )
 
 
+def _progress_meta(context: _Context, node: QuestionNode) -> list[Html | str]:
+    """The progress word, the counts of the nodes under *node*, or both (ADR-0057)."""
+    parts: list[Html | str] = []
+    if not context.shown_by_below(node):
+        word = PROGRESS_WORDS[context.progress[node.id]][0]
+        parts += ["進捗: ", el("span", word, class_="progress")]
+    found = context.below(node)
+    if found:
+        whose = _SUBJECT if node.parent_question_id is None else "この論点"
+        counts = "、".join(
+            f"{PROGRESS_WORDS[p][0]} {found[p]}" for p in reversed(Progress) if found[p]
+        )
+        parts += [
+            "　" if parts else "",
+            el(
+                "span",
+                _BELOW_WORDS.format(whose=whose, count=found.total()),
+                counts,
+                class_="below",
+            ),
+        ]
+    return parts
+
+
+def _closed(context: _Context, node: QuestionNode) -> Html | None:
+    """The round a question was closed after, and why (ADR-0057)."""
+    decision = context.closed_by(node)
+    if decision is None:
+        return None
+    when = (
+        "振り返りの前に"
+        if decision.round == 0
+        else f"回 {decision.round} の振り返りの後に"
+    )
+    return el(
+        "div",
+        el("p", f"{when}区切った。理由: {decision.reason}"),
+        _grounds(context, decision),
+        class_="closed",
+    )
+
+
 def _node_card(context: _Context, node: QuestionNode) -> Html:
     progress = context.progress[node.id]
-    meta: list[Html | str] = [
-        "進捗: ",
-        el("span", PROGRESS_WORDS[progress][0], class_="progress"),
-    ]
+    meta = _progress_meta(context, node)
     if node.parent_question_id is not None:
         meta.append(f"　寄与: {node.contribution}")
     if node.origin_event_id is not None:
@@ -579,12 +680,15 @@ def _node_card(context: _Context, node: QuestionNode) -> Html:
             if not subject:
                 parts.append(_changes(context, node, "h4"))
             parts.append(_used_above(context, node, answer))
+    parts.append(_closed(context, node))
     if subject:
         parts += _pointers_to_the_top(context, node)
     else:
         parts += _left_out(context, node, "この論点の", "h4")
     parts += [_notes(node), _evidence(context, node, violated)]
-    return el("div", join(parts), class_=f"node progress-{progress.value}")
+    # The border colour is a progress word's: a node shown by its counts has none.
+    colour = "" if context.shown_by_below(node) else f" progress-{progress.value}"
+    return el("div", join(parts), class_=f"node{colour}")
 
 
 def _evidence(
