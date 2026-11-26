@@ -177,7 +177,8 @@ class TestAnAnswerThatChangesNoVerdictGoesToTheTheme:
 
     def test_such_a_question_is_left_to_the_theme_reflection(self) -> None:
         beat = _beat(OPEN_QUESTIONS)
-        assert "主題について残る問い" in beat
+        assert "主題への答えで注意すべきこと" in beat
+        assert "残る問い" not in beat
         assert "留保" not in beat
         assert "/analysis-reflection {theme_id}" in beat
         assert "まだ決められないこと" in beat and "注意すべきこと" in beat
