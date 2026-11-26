@@ -245,6 +245,16 @@ _DECISION_LABELS = {
 _BELOW_WORDS = "{whose}の下に置いた論点 {count} つ: "
 
 
+def below_text(subject: bool, found: Counter[Progress]) -> str:
+    """The progress below a node in words, as the page and the report say it."""
+    whose = _SUBJECT if subject else "この論点"
+    # The furthest first, as in the sample the analyst read (分析済み 3、未着手 1).
+    counts = "、".join(
+        f"{PROGRESS_WORDS[p][0]} {found[p]}" for p in reversed(Progress) if found[p]
+    )
+    return _BELOW_WORDS.format(whose=whose, count=found.total()) + counts
+
+
 # What a decision's reason rests on (ADR-0058). "{word}" is the word for what it
 # cites: an analysis result, what a person said, or both.
 _GROUNDS_WORDS = "この理由の根拠にした{word}"
@@ -276,8 +286,8 @@ class _Context:
     designs: Mapping[str, DesignSummary]
     events: Mapping[str, CitedEvent]
     design_notes: Mapping[str, Html]
-    # The progress word of each node that has one. A node with nodes under it and
-    # no design of its own has none: it shows the progress below it (ADR-0057).
+    # The progress word of each node that has one (QuestionTree.progress). A node
+    # with a design below it and none of its own shows the progress below it.
     progress: Mapping[str, Progress]
     # The progress of every node under each node, those without a word left out.
     below: Mapping[str, Counter[Progress]]
@@ -314,20 +324,7 @@ class _Context:
         children: dict[str | None, list[QuestionNode]] = {}
         for node in tree.nodes:
             children.setdefault(node.parent_question_id, []).append(node)
-        progress = {
-            node.id: Progress.of(designs[d].status for d in node.design_ids)
-            for node in tree.nodes
-            if node.design_ids or not children.get(node.id)
-        }
-        below: dict[str, Counter[Progress]] = {}
-        # Children before their parent, so each count adds up the counts below it.
-        for node in reversed(_page_order(tree.root(), children)):
-            found: Counter[Progress] = Counter()
-            for child in children.get(node.id, []):
-                if child.id in progress:
-                    found[progress[child.id]] += 1
-                found += below[child.id]
-            below[node.id] = found
+        progress = tree.progress({d: s.status for d, s in designs.items()})
         violations: dict[str, list[Violation]] = {}
         for violation in () if isinstance(checked, CheckFailed) else checked:
             violations.setdefault(violation.node_id, []).append(violation)
@@ -341,7 +338,7 @@ class _Context:
             events,
             design_notes,
             progress,
-            below,
+            tree.progress_below(progress),
             violations,
             linked_by,
             children,

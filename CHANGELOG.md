@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A tree with a decision that has `cites` cannot be read by an earlier version of the
   plugin.** An earlier version rejects any key of a decision it does not know
   ([ADR-0058](docs/adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md), #249).
+- **`tree_io progress` returns an object for each question, not a word.** A script that read
+  `progress[node_id]` as a string reads `progress[node_id]["progress"]`, which is `null` for a question
+  shown by the progress below it ([ADR-0057](docs/adr/0057-a-question-without-a-design-shows-the-progress-below-it.md), #249).
 
 ### Changed
 
@@ -31,9 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (after two or more, 1回目の見直しの前の主題への答え). `/analysis-reflection`, `/analysis-framing`,
   `/report-export` and the trial's prompt sheet use the same words; the YAML keys do not change.
 - **The question tree shows how far the questions under a question have come, why a question was closed,
-  and what each decision rests on.** A question with no design of its own and questions under it no
-  longer says 未着手: its card counts the progress of every question under it by word (主題の下に置いた論点
-  4 つ: 分析済み 3、未着手 1), and 進捗の数 leaves it out. A question whose latest decision closed it says on
+  and what each decision rests on.** A question with no design of its own but a design somewhere under
+  it no longer says 未着手: its card counts the progress of every question under it by word (主題の下に置いた論点
+  4 つ: 分析済み 3、未着手 1), and 進捗の数 leaves it out. A question with no design on it or anywhere under
+  it still says 未着手 and is counted, so 未着手 and 次の候補 name the same questions. `tree_io progress`,
+  the report's table of questions, and the progress `/analysis-reflection` and `/analysis-framing` tell
+  the analyst follow the same rule: `tree_io progress` now returns, for each question,
+  `{"progress": <word or null>, "below": {<word>: <count>}}`. A question whose latest decision closed it says on
   its card the round it was closed after and why. Under the reason of every decision, the page shows the
   analysis results it cites (id, design and text), or says the reason names none; the first decision is
   not told so. `scripts.handoff_trial build` stops when a decision of the scenario fails the check, and

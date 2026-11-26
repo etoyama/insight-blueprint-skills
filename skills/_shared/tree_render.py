@@ -49,7 +49,6 @@ from skills._shared.tree_render_derived import (
 )
 from skills._shared.tree_render_parts import (
     _AIM_LABELS,
-    _BELOW_WORDS,
     _CHANGE_WORDS,
     _DECISION_LABELS,
     _GROUNDS_WORDS,
@@ -83,6 +82,7 @@ from skills._shared.tree_render_parts import (
     _round_meta,
     _statement,
     _word_of,
+    below_text,
 )
 
 if TYPE_CHECKING:  # tree_check imports this module (CitedEvent)
@@ -279,10 +279,11 @@ def _legend() -> Html:
         _word_list(PROGRESS_WORDS.values()),
         el(
             "p",
-            "分析設計を結んでいない論点のうち、下に論点を置いたものは、進捗の言葉を"
-            "出さず、下に置いた論点の進捗を、言葉ごとの数で出す。「進捗の数」は、"
-            "その論点を数えない。分析設計を結んだ論点の下に論点を置いたときは、"
-            "進捗の言葉の後ろに、下に置いた論点の数を添える。",
+            "自分にも、下に置いた論点にも、分析設計を結んでいない論点は「未着手」と出し、"
+            "「進捗の数」にも数える。自分には分析設計を結ばず、下に置いた論点のどれかに"
+            "結んでいる論点は、進捗の言葉を出さず、下に置いた論点の進捗を、言葉ごとの数で"
+            "出す。「進捗の数」は、その論点を数えない。分析設計を結んだ論点の下に論点を"
+            "置いたときは、進捗の言葉の後ろに、下に置いた論点の数を添える。",
         ),
         el(
             "p",
@@ -635,17 +636,11 @@ def _progress_meta(context: _Context, node: QuestionNode) -> list[Html | str]:
         parts += ["進捗: ", el("span", PROGRESS_WORDS[progress][0], class_="progress")]
     found = context.below[node.id]
     if found:
-        whose = _SUBJECT if node.parent_question_id is None else "この論点"
-        # The furthest first, as in the sample the analyst read (分析済み 3、未着手 1).
-        counts = "、".join(
-            f"{PROGRESS_WORDS[p][0]} {found[p]}" for p in reversed(Progress) if found[p]
-        )
         parts += [
             "　" if parts else "",
             el(
                 "span",
-                _BELOW_WORDS.format(whose=whose, count=found.total()),
-                counts,
+                below_text(node.parent_question_id is None, found),
                 class_="below",
             ),
         ]

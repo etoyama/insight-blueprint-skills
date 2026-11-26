@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from datetime import date, datetime
 from enum import StrEnum
 from typing import Self
@@ -279,6 +279,31 @@ class QuestionTree(BaseModel):
             for n in self.nodes
             if n.parent_question_id is not None and not branch[n.id]
         ]
+
+    def progress(self, statuses: Mapping[str, DesignStatus]) -> dict[str, Progress]:
+        """The progress word of each node that has one, from the status of each linked design.
+
+        A node with no design of its own but one somewhere below it has no word:
+        the page, ``tree_io progress`` and the report show the progress below it
+        instead (ADR-0057). A node with no design on it or below it is not started.
+        """
+        branch = self.designs_by_branch()
+        return {
+            n.id: Progress.of(statuses[d] for d in n.design_ids)
+            for n in self.nodes
+            if n.design_ids or not branch[n.id]
+        }
+
+    def progress_below(
+        self, progress: Mapping[str, Progress]
+    ) -> dict[str, Counter[Progress]]:
+        """For each node, how many nodes at any depth below it have each word of *progress*."""
+        parents = self._parent_map()
+        below: dict[str, Counter[Progress]] = {n.id: Counter() for n in self.nodes}
+        for node_id, word in progress.items():
+            for ancestor in _ancestors(parents, node_id):
+                below[ancestor][word] += 1
+        return below
 
     def _parent_map(self) -> dict[str, str | None]:
         return {n.id: n.parent_question_id for n in self.nodes}

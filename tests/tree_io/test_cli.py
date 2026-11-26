@@ -98,7 +98,7 @@ class TestCli:
         assert json.loads(linked.stdout)["design_ids"] == [design_id]
 
         progress = self._run(insight, "progress", "--theme", "LIB")
-        assert json.loads(progress.stdout)["LIB-Q02"] == "investigating"
+        assert json.loads(progress.stdout)["LIB-Q02"]["progress"] == "investigating"
 
         got = self._run(insight, "get", "--theme", "LIB")
         assert json.loads(got.stdout)["theme_id"] == "LIB"

@@ -653,6 +653,52 @@ class TestProgress:
         ]
         assert Progress.of(statuses) is Progress.analyzed
 
+    def test_a_question_with_no_design_on_it_or_below_it_is_not_started(
+        self,
+    ) -> None:
+        # LIB-Q02 has LIB-Q03 under it, and neither links a design (ADR-0057).
+        tree = QuestionTree.model_validate(branching_tree())
+        progress = tree.progress({})
+        assert progress["LIB-Q02"] is Progress.not_started
+        assert progress["LIB-Q03"] is Progress.not_started
+        assert progress["LIB-Q01"] is Progress.not_started
+
+    def test_a_question_with_a_design_only_below_it_has_no_progress_word(
+        self,
+    ) -> None:
+        data = branching_tree()
+        data["nodes"][2]["design_ids"] = ["LIB-H01"]
+        tree = QuestionTree.model_validate(data)
+        progress = tree.progress({"LIB-H01": DesignStatus.analyzing})
+        assert progress == {
+            "LIB-Q03": Progress.investigating,
+            "LIB-Q04": Progress.not_started,
+        }
+
+    def test_a_question_with_a_design_of_its_own_keeps_its_word(self) -> None:
+        data = branching_tree()
+        data["nodes"][1]["design_ids"] = ["LIB-H01"]
+        data["nodes"][2]["design_ids"] = ["LIB-H02"]
+        tree = QuestionTree.model_validate(data)
+        progress = tree.progress(
+            {"LIB-H01": DesignStatus.supported, "LIB-H02": DesignStatus.analyzing}
+        )
+        assert progress["LIB-Q02"] is Progress.analyzed
+
+    def test_the_progress_below_counts_every_depth_but_a_question_without_a_word(
+        self,
+    ) -> None:
+        data = branching_tree()
+        data["nodes"][2]["design_ids"] = ["LIB-H01"]
+        tree = QuestionTree.model_validate(data)
+        below = tree.progress_below(tree.progress({"LIB-H01": DesignStatus.analyzing}))
+        assert below["LIB-Q01"] == {
+            Progress.investigating: 1,
+            Progress.not_started: 1,
+        }
+        assert below["LIB-Q02"] == {Progress.investigating: 1}
+        assert below["LIB-Q04"] == {}
+
     def test_progress_is_not_a_field_of_the_tree(self) -> None:
         data = tree_dict()
         data["nodes"][1]["progress"] = "analyzed"

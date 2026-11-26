@@ -242,13 +242,27 @@ class TestTheKeyHoldsForTheTree:
             n.id
             for n in tree.nodes
             if n.parent_question_id is not None
-            and progress[n.id] == Progress.analyzed.value
+            and progress[n.id]["progress"] == Progress.analyzed.value
             and (a := n.current_answer()) is not None
             and any(s.kind is StatementKind.undetermined for s in a.statements)
         }
         assert set(key.answers.q2.not_started) == {n.id for n in tree.untouched_nodes()}
         assert set(key.answers.q2.analyzed_undetermined) == undetermined
         assert undetermined, "the scenario needs an analyzed but undetermined node"
+
+    def test_the_not_started_questions_of_q2_are_the_ones_the_progress_calls_so(
+        self, built: Path, scenario: handoff_trial.Scenario, key: handoff_trial.Key
+    ) -> None:
+        """The page, tree_io progress and the key hold one rule (ADR-0057)."""
+        tree = tree_io.load_tree_model(scenario.theme_id, built)
+        progress = tree_io.progress(scenario.theme_id, built)
+        called_not_started = {
+            node_id
+            for node_id, found in progress.items()
+            if node_id != tree.root().id
+            and found["progress"] == Progress.not_started.value
+        }
+        assert called_not_started == set(key.answers.q2.not_started)
 
     def test_q3_splits_the_cited_events_by_the_kind_of_the_citing_statement(
         self, built: Path, scenario: handoff_trial.Scenario, key: handoff_trial.Key

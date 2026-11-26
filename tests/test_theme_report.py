@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import re
+from collections import Counter
 from dataclasses import replace
 from datetime import date, datetime
 from pathlib import Path
@@ -359,6 +360,21 @@ class TestIntroduction:
             "| LIB-Q03 | LIB-Q03 の問い | LIB-Q01 | LIB-Q03 に答えると分かること | 検証中 |",
             "| LIB-Q04 | LIB-Q04 の問い | LIB-Q03 | LIB-Q04 に答えると分かること | 未着手 |",
         ]
+
+    def test_a_question_with_no_progress_word_shows_the_progress_below_it(
+        self,
+    ) -> None:
+        """As on the page: no design of its own, one below it (ADR-0057)."""
+        below = Counter({Progress.analyzed: 1, Progress.not_started: 1})
+        intro = _section(
+            render_report(
+                _report(nodes=(_node("LIB-Q02", progress=None, below=below),))
+            ),
+            "## Introduction",
+        )
+
+        (row,) = [line for line in intro.splitlines() if line.startswith("| LIB-Q")]
+        assert row.endswith("| この論点の下に置いた論点 2 つ: 分析済み 1、未着手 1 |")
 
     def test_a_root_with_no_question_below_it_says_so_instead_of_a_table(
         self,

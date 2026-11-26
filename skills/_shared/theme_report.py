@@ -13,6 +13,7 @@ Appendix lists exactly the records the report cites.
 from __future__ import annotations
 
 import re
+from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 
@@ -40,7 +41,12 @@ from skills._shared.design_note import (
     lead_sentence,
     statement_of,
 )
-from skills._shared.tree_render import KIND_WORDS, PROGRESS_WORDS, CitedEvent
+from skills._shared.tree_render import (
+    KIND_WORDS,
+    PROGRESS_WORDS,
+    CitedEvent,
+    below_text,
+)
 from skills._shared.verdict_table import Fixed, Text, VerdictMetric, metric_tables
 
 _DASH = "—"
@@ -137,17 +143,19 @@ class ReportNode:
     """One question below the root, as the report shows it.
 
     ``answer`` is the current answer, given under whichever root revision; a
-    node without one is a question not answered yet.
+    node without one is a question not answered yet. ``progress`` is ``None``
+    for a node the page shows by the progress ``below`` it (ADR-0057).
     """
 
     id: str
     question: str
     parent: str
     contribution: str
-    progress: Progress
+    progress: Progress | None
     answer: Answer | None
     design_ids: tuple[str, ...]
     next_candidate: NextCandidate | None
+    below: Counter[Progress] = field(default_factory=Counter)
 
 
 @dataclass(frozen=True)
@@ -322,7 +330,9 @@ def _introduction(report: ThemeReport) -> list[str]:
                 _e(n.question),
                 n.parent,
                 _e(n.contribution),
-                PROGRESS_WORDS[n.progress][0],
+                below_text(False, n.below)
+                if n.progress is None
+                else PROGRESS_WORDS[n.progress][0],
             )
             for n in report.nodes
         ),

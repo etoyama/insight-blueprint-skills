@@ -14,6 +14,7 @@ Writes go through ``tree_io``, which also carries the CLI for these reads.
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import asdict
 from datetime import datetime
@@ -108,14 +109,32 @@ def status_of(design: dict) -> DesignStatus:
     return DesignStatus(design["status"])
 
 
-def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
-    """Derive the progress of every node from the status of its linked designs."""
-    return {
-        node.id: Progress.of(
-            status_of(require_design(design_id, base_dir))
+def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, dict]:
+    """The progress of every node, derived from the status of its linked designs.
+
+    Each node gets ``progress``, its word or ``None``, and ``below``, how many
+    nodes under it have each word (furthest first, words with none left out).
+    The rule is ``QuestionTree.progress``, the one the page shows (ADR-0057).
+    """
+    tree = load_tree_model(theme_id, base_dir)
+    words = tree.progress(
+        {
+            design_id: status_of(require_design(design_id, base_dir))
+            for node in tree.nodes
             for design_id in node.design_ids
-        ).value
-        for node in load_tree_model(theme_id, base_dir).nodes
+        }
+    )
+    below = tree.progress_below(words)
+    return {
+        node.id: {
+            "progress": None if node.id not in words else words[node.id].value,
+            "below": {
+                p.value: below[node.id][p]
+                for p in reversed(Progress)
+                if below[node.id][p]
+            },
+        }
+        for node in tree.nodes
     }
 
 
@@ -444,16 +463,21 @@ def _add_design_records(
                 )
 
 
-def _report_node(node: QuestionNode, notes: dict[str, DesignNote]) -> ReportNode:
+def _report_node(
+    node: QuestionNode,
+    progress: Mapping[str, Progress],
+    below: Mapping[str, Counter[Progress]],
+) -> ReportNode:
     return ReportNode(
         id=node.id,
         question=node.question,
         parent=node.parent_question_id or "",
         contribution=node.contribution,
-        progress=Progress.of(notes[d].design.status for d in node.design_ids),
+        progress=progress.get(node.id),
         answer=node.current_answer(),
         design_ids=tuple(node.design_ids),
         next_candidate=node.next_candidate,
+        below=below[node.id],
     )
 
 
@@ -469,7 +493,10 @@ def _theme_report(
     """
     notes = _linked_notes(tree, base_dir)
     root = tree.root()
-    nodes = tuple(_report_node(n, notes) for n in tree.nodes if n is not root)
+    # The rule the page shows (ADR-0057), so the two cannot disagree.
+    progress = tree.progress({d: note.design.status for d, note in notes.items()})
+    below = tree.progress_below(progress)
+    nodes = tuple(_report_node(n, progress, below) for n in tree.nodes if n is not root)
     designs = tuple(ReportDesign.of(note) for note in notes.values())
     # Two designs may read the same source; the report lists it once.
     sources = tuple(dict.fromkeys(s for note in notes.values() for s in note.sources))

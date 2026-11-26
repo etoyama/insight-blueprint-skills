@@ -308,7 +308,10 @@ an answer only after the tree check has passed (ADR-0025).
    `.insight`, run it again from the project directory: never `cd` before, since `tree_io`
    reads the `.insight` of the directory it is run from.
 2. `tree_io progress --theme {theme_id}` — the progress of each node, derived from its
-   linked designs.
+   linked designs. Each node has `progress`, its word (`not_started` 未着手,
+   `investigating` 検証中, `analyzed` 分析済み), and `below`, how many nodes under it have
+   each word. A node with no design of its own but one below it has `progress` `null` and
+   is shown by its `below`, as the page shows it (Step T5).
 3. For every design id in the `design_ids` of any node, read
    `.insight/designs/{design_id}_journal.yaml` with the Read tool. A design without a
    journal has no events to cite.
@@ -484,7 +487,7 @@ Show no answer to the analyst before `tree_check` has run, and never show an ans
 主題: {root question}
 
 {node_id}  {question}
-  Progress: {未着手 | 検証中 | 分析済み}
+  Progress: {未着手 | 検証中 | 分析済み}{　この論点の下に置いた論点 {N} つ: 分析済み a、検証中 b、未着手 c}
   Answer（{round}回目の振り返り{、見直す前の主題への答え}）:
     [これまでわかっていること] {text}  ← {cites}
     [まだ決められないこと] {text}  ← {cites}
@@ -535,6 +538,12 @@ the drafts.
   These are the results the analyst did not choose in Step T3. Leave out a heading with nothing under it. The analyst sees them again here, before the
   decision. When a statement that rests on a result the analyst chose was removed in Step
   T3, say so next to it under Removed statements.
+- Say the progress the way the page does. The word comes from `progress`. When `below`
+  is not empty, add its counts after the word: `この論点の下に置いた論点 {N} つ: 分析済み a、検証中 b、未着手 c`,
+  and `主題の下に置いた論点 {N} つ: 分析済み a、検証中 b、未着手 c` for the root question.
+  `{N}` is their sum, and a word with no count is left out. A node whose `progress` is
+  `null` shows the counts alone and is never shown as 未着手: it has no design of its own,
+  but one below it (ADR-0057).
 - A node under "Stale answers" shows its question and progress, not its answer.
 - An answer whose `root_revision` is lower than the current root revision answers an
   earlier root question: mark it "見直す前の主題への答え". After two or more revisions, say
@@ -718,7 +727,7 @@ Both are on PATH via the plugin. JSON on stdout.
 | Command | Used for |
 |---------|----------|
 | `tree_io get --theme T` | Load the question tree |
-| `tree_io progress --theme T` | Progress of each node, derived from its designs |
+| `tree_io progress --theme T` | Progress of each node (its word or `null`) and the counts below it, derived from its designs |
 | `tree_io answer --theme T` (stdin JSON) | Check and append the answers of one reflection round |
 | `tree_check --theme T` | Check the current answers after writing (read-only) |
 | `tree_io changes --theme T` | What each answer changed, and the results the answers above leave out (read-only) |

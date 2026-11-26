@@ -69,11 +69,11 @@ class TestProgressOfAQuestionWithoutADesign:
         assert "進捗: 未着手" in meta
         assert "下に置いた論点" not in meta
 
-    def test_the_counts_reach_every_depth_and_skip_a_question_shown_by_its_counts(
+    def test_a_question_with_no_design_on_it_or_below_it_is_not_started(
         self,
     ) -> None:
         tree = make_tree()
-        # LIB-Q05 gets a question under it, so it too is shown by its counts.
+        # LIB-Q05 gets a question under it, and neither links a design.
         tree["nodes"].append(
             {
                 "id": "LIB-Q06",
@@ -84,10 +84,33 @@ class TestProgressOfAQuestionWithoutADesign:
         )
         root = page(tree=tree)
 
-        assert "この論点の下に置いた論点 1 つ: 未着手 1" in _meta(root, "LIB-Q05")
-        assert "主題の下に置いた論点 4 つ: 分析済み 1、検証中 1、未着手 2" in _meta(
+        meta = _meta(root, "LIB-Q05")
+        assert "進捗: 未着手" in meta
+        assert "この論点の下に置いた論点 1 つ: 未着手 1" in meta
+        assert "主題の下に置いた論点 5 つ: 分析済み 1、検証中 1、未着手 3" in _meta(
             root, "LIB-Q01"
         )
+        assert "未着手 3" in squash(by_id(root, "counts").text())
+
+    def test_the_counts_reach_every_depth_and_skip_a_question_shown_by_its_counts(
+        self,
+    ) -> None:
+        tree = make_tree()
+        # LIB-Q05 gets a question under it with a design, so it is shown by its counts.
+        tree["nodes"].append(
+            {
+                "id": "LIB-Q06",
+                "question": "延長した館で予約は減ったか",
+                "parent_question_id": "LIB-Q05",
+                "contribution": "減らないなら、試行の意味が薄い",
+                "design_ids": ["LIB-H02"],
+            }
+        )
+        root = page(tree=tree)
+
+        meta = _meta(root, "LIB-Q05")
+        assert "進捗:" not in meta
+        assert "この論点の下に置いた論点 1 つ: 検証中 1" in meta
 
     def test_the_counts_of_the_page_leave_out_a_question_shown_by_its_counts(
         self,
@@ -101,6 +124,10 @@ class TestProgressOfAQuestionWithoutADesign:
     def test_the_legend_says_how_such_a_question_shows_its_progress(self) -> None:
         legend = squash(by_id(page(), "legend").text())
 
+        assert (
+            "自分にも、下に置いた論点にも、分析設計を結んでいない論点は「未着手」と出し"
+            in legend
+        )
         assert "下に置いた論点の進捗を、言葉ごとの数で出す" in legend
 
 

@@ -335,11 +335,14 @@ class TestLinkDerivedDesign:
         tree_io.link_design("LIB", node_id, parent, base_dir=tree)
         _finish(tree, parent)
         derived = _derived(tree, parent)
-        assert tree_io.progress("LIB", base_dir=tree)[node_id] == "analyzed"
+        assert tree_io.progress("LIB", base_dir=tree)[node_id]["progress"] == "analyzed"
 
         tree_io.link_derived_design("LIB", derived, base_dir=tree)
 
-        assert tree_io.progress("LIB", base_dir=tree)[node_id] == "investigating"
+        assert (
+            tree_io.progress("LIB", base_dir=tree)[node_id]["progress"]
+            == "investigating"
+        )
         where = tree_io.position("LIB", base_dir=tree)
         assert (where["state"], where["design_ids"]) == ("in_progress", [derived])
 
@@ -632,10 +635,32 @@ class TestProgress:
         tree_io.link_design("LIB", done_node, done_design, base_dir=tree)
 
         assert tree_io.progress("LIB", base_dir=tree) == {
-            "LIB-Q01": "not_started",
-            untouched: "not_started",
-            open_node: "investigating",
-            done_node: "analyzed",
+            # The subject has designs only below it: no word, the counts below it.
+            "LIB-Q01": {
+                "progress": None,
+                "below": {"analyzed": 1, "investigating": 1, "not_started": 1},
+            },
+            untouched: {"progress": "not_started", "below": {}},
+            open_node: {"progress": "investigating", "below": {}},
+            done_node: {"progress": "analyzed", "below": {}},
+        }
+
+    def test_a_question_with_no_design_on_it_or_below_it_is_not_started(
+        self, tree: Path
+    ) -> None:
+        parent = _add(tree)["id"]
+        child = _add(tree, parent_question_id=parent)["id"]
+
+        progress = tree_io.progress("LIB", base_dir=tree)
+
+        assert progress[parent] == {
+            "progress": "not_started",
+            "below": {"not_started": 1},
+        }
+        assert progress[child] == {"progress": "not_started", "below": {}}
+        assert progress["LIB-Q01"] == {
+            "progress": "not_started",
+            "below": {"not_started": 2},
         }
 
     def test_changes_when_the_design_reaches_a_terminal_status(
@@ -648,7 +673,7 @@ class TestProgress:
 
         _finish(tree, design_id)
 
-        assert tree_io.progress("LIB", base_dir=tree)[node_id] == "analyzed"
+        assert tree_io.progress("LIB", base_dir=tree)[node_id]["progress"] == "analyzed"
         after = (tree / "themes" / "LIB_tree.yaml").read_text(encoding="utf-8")
         assert after == before
 
