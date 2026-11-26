@@ -157,7 +157,10 @@ class TestResultsNoAnswerAboveRestsOnAreAskedBeforeTheAnswersAreWritten:
     def test_the_offer_never_says_cite_event_or_node_below(self) -> None:
         # Every Japanese run of the offer is text the analyst reads.
         shown = " ".join(re.findall(r"[぀-ヿ一-鿿「」、。（）]+", _offer()))
-        assert "根拠にする分析結果はありますか" in shown
+        assert (
+            "この中から、答えの根拠にする分析結果を選んでください。選ばなくても答えは書けます。"
+            in shown
+        )
         for inner in ("引用", "出来事", "下の論点"):
             assert inner not in shown
 
