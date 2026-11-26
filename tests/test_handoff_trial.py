@@ -1,14 +1,15 @@
 """Tests for scripts/handoff_trial.py, the handoff trial of a question tree (Epic 18, Story 18.8).
 
 The trial hands the tree HTML of a synthetic scenario to a reader with no other
-context and scores the five questions of the PRD success criteria by the
-judgments the reader names (node, event and design ids), not by wording.
-Synthetic data only (public-library holds, theme LIB).
+context and scores the six questions by the judgments the reader names (node,
+event and design ids), not by wording. Synthetic data only: public-library
+holds (theme LIB) and psychological safety (theme PSY, Epic 34, ADR-0059).
 """
 
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -20,7 +21,12 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from insight_blueprint.models.design import AnalysisDesign, DesignForm, DesignStatus
+from insight_blueprint.models.design import (
+    TERMINAL_STATUSES,
+    AnalysisDesign,
+    DesignForm,
+    DesignStatus,
+)
 from insight_blueprint.models.tree import Progress, QuestionTree, StatementKind
 from scripts import handoff_trial
 from scripts.handoff_trial import (
@@ -39,16 +45,22 @@ from skills._shared.tree_check import check_theme
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = "lib"
+SCENARIOS = ("lib", "psy")
+
+
+@pytest.fixture(scope="module", params=SCENARIOS)
+def name(request: pytest.FixtureRequest) -> str:
+    return request.param
 
 
 @pytest.fixture(scope="module")
-def scenario() -> handoff_trial.Scenario:
-    return load_scenario(SCENARIO)
+def scenario(name: str) -> handoff_trial.Scenario:
+    return load_scenario(name)
 
 
 @pytest.fixture(scope="module")
-def key() -> handoff_trial.Key:
-    return load_key(SCENARIO)
+def key(name: str) -> handoff_trial.Key:
+    return load_key(name)
 
 
 @pytest.fixture
@@ -282,10 +294,47 @@ class TestTheKeyHoldsForTheTree:
         assert key.answers.q5.node_id == tree.decisions[-1].node_id
         assert key.answers.q5.reason_events
 
+    def test_q6_names_the_evidence_an_answer_above_now_cites_in_other_words(
+        self, built: Path, scenario: handoff_trial.Scenario, key: handoff_trial.Key
+    ) -> None:
+        """A node left as it was, whose cited event an answer above it rewrote in
+        the last round: cited before and now, by different statements (ADR-0056's
+        reworded). An event the answer above stopped citing is not one."""
+        tree = tree_io.load_tree_model(scenario.theme_id, built)
+        last = tree.current_round()
+        parents = {n.id: n.parent_question_id for n in tree.nodes}
+        by_id = {n.id: n for n in tree.nodes}
+
+        def citing(statements: list, event: str) -> set[tuple]:
+            return {(s.kind, s.text) for s in statements if event in s.cites}
+
+        found: set[tuple[str, str]] = set()
+        for node in tree.nodes:
+            if not node.answers or node.answers[-1].round == last:
+                continue
+            events = {c for s in node.answers[-1].statements for c in s.cites}
+            above = parents[node.id]
+            while above is not None:
+                answers = by_id[above].answers
+                if len(answers) > 1 and answers[-1].round == last:
+                    for event in events:
+                        before = citing(answers[-2].statements, event)
+                        after = citing(answers[-1].statements, event)
+                        if before and after and before != after:
+                            found.add((node.id, event))
+                above = parents[above]
+        assert set(key.answers.q6.nodes) == {n for n, _ in found}
+        assert set(key.answers.q6.evidence) == {e for _, e in found}
+
 
 class TestTheScenarioHasBothForms:
     """US-4 AC 5: the tree shows an exploration, a confirmation and a verdict apart
     from the answer of its node."""
+
+    @pytest.fixture
+    def built(self, tmp_path: Path) -> Path:
+        build(load_scenario("lib"), tmp_path)
+        return tmp_path
 
     def _designs(self, built: Path) -> list[AnalysisDesign]:
         return [
@@ -302,9 +351,9 @@ class TestTheScenarioHasBothForms:
         assert {DesignForm.exploration, DesignForm.confirmation} <= forms
 
     def test_a_node_has_a_verdict_that_differs_from_its_current_answer(
-        self, built: Path, scenario: handoff_trial.Scenario
+        self, built: Path
     ) -> None:
-        tree = tree_io.load_tree_model(scenario.theme_id, built)
+        tree = tree_io.load_tree_model("LIB", built)
         designs = {d.id: d for d in self._designs(built)}
         decided = {DesignStatus.supported, DesignStatus.rejected}
         differing = [
@@ -329,13 +378,68 @@ class TestTheScenarioHasBothForms:
         assert "検証仮説の判定: 支持" in html
 
 
+class TestTheSecondScenario:
+    """Epic 34 US-6 AC 1: psy holds an analysis that found no difference, and a
+    node whose answer and numbers stay while the answer above cites them in
+    other words."""
+
+    @pytest.fixture
+    def built(self, tmp_path: Path) -> Path:
+        build(load_scenario("psy"), tmp_path)
+        return tmp_path
+
+    def _designs(self, built: Path) -> list[AnalysisDesign]:
+        return [
+            AnalysisDesign.model_validate(
+                design_io.load_design(p.stem.split("_")[0], built)
+            )
+            for p in sorted((built / "designs").glob("*_hypothesis.yaml"))
+        ]
+
+    def test_it_has_a_rejected_confirmation_the_root_answer_never_cites(
+        self, built: Path
+    ) -> None:
+        tree = tree_io.load_tree_model("PSY", built)
+        rejected = {
+            d.id
+            for d in self._designs(built)
+            if d.form() is DesignForm.confirmation and d.status is DesignStatus.rejected
+        }
+        root_cites = {
+            tree_io.design_id_of(c)
+            for a in tree.root().answers
+            for s in a.statements
+            for c in s.cites
+        }
+        assert len(rejected) == 1
+        assert not rejected & root_cites
+
+    def test_no_analysis_is_left_unfinished(self, built: Path) -> None:
+        """ADR-0059: a stopped analysis is checked by the display tests, not here."""
+        assert all(d.status in TERMINAL_STATUSES for d in self._designs(built))
+
+    def test_q6_has_an_answer(self) -> None:
+        q6 = load_key("psy").answers.q6
+        assert q6.nodes
+        assert q6.evidence
+
+    def test_the_library_has_none(self) -> None:
+        q6 = load_key("lib").answers.q6
+        assert (q6.nodes, q6.evidence) == ([], [])
+
+    def test_every_name_and_number_is_said_to_be_made_up(self) -> None:
+        for file in ("stages.yaml", "key.yaml"):
+            head = (handoff_trial.FIXTURES / "psy" / file).read_text().splitlines()[:6]
+            assert any("made up" in line for line in head), file
+
+
 class TestTheKey:
     def test_a_key_that_leaves_a_question_out_is_refused_when_read(
         self, key: handoff_trial.Key
     ) -> None:
         partial = key.model_dump(mode="json")
-        del partial["answers"]["q5"]
-        with pytest.raises(ValidationError, match="q5"):
+        del partial["answers"]["q6"]
+        with pytest.raises(ValidationError, match="q6"):
             handoff_trial.Key.model_validate(partial)
 
 
@@ -353,7 +457,7 @@ class TestScore:
         wrong = _key_answers(key)
         wrong["q5"]["node_id"] = "LIB-Q04"
         result = score(Answers.model_validate(wrong), key)
-        assert result == {"q1": True, "q2": True, "q3": True, "q4": True, "q5": False}
+        assert result == dict.fromkeys(QUESTIONS, True) | {"q5": False}
 
     def test_the_order_and_the_note_do_not_count(self, key: handoff_trial.Key) -> None:
         reworded = _key_answers(key)
@@ -424,12 +528,13 @@ class TestParseAnswers:
 
 
 class TestPrompt:
-    def test_the_prompt_asks_the_five_questions_then_gives_only_the_html(self) -> None:
+    def test_the_prompt_asks_every_question_then_gives_only_the_html(self) -> None:
         html = "<!doctype html><p>tree</p>"
         prompt = prompt_for(html)
         assert prompt.endswith(html)
         head = prompt[: -len(html)]
-        for n in range(1, 6):
+        assert QUESTIONS == tuple(Answers.model_fields)
+        for n in range(1, len(QUESTIONS) + 1):
             assert f"\n{n}. " in head
         for question, info in Answers.model_fields.items():
             assert f'"{question}"' in head
@@ -441,9 +546,24 @@ class TestPrompt:
         for field in handoff_trial.EventRef.model_fields:
             assert f'"{field}"' in head
 
+    def test_the_prompt_uses_the_words_the_analyst_sees(self) -> None:
+        """Epic 34 US-5: the subject, and the kinds of statement q1 names."""
+        head = prompt_for("")
+        for word in (
+            "主題",
+            "これまでわかっていること（claim）",
+            "まだ決められないこと（undetermined）",
+        ):
+            assert word in head
+        assert not re.search("根(?!拠)", head)
+
 
 class TestRecord:
-    """AC 3: the record keeps the five answers, right or wrong, and the time taken."""
+    """AC 3: the record keeps the answers, right or wrong, and the time taken."""
+
+    @pytest.fixture
+    def key(self) -> handoff_trial.Key:
+        return load_key(SCENARIO)
 
     def _record(self, key: handoff_trial.Key, **over: object) -> dict:
         return {
@@ -514,6 +634,10 @@ def _record_cli(reply: Path, out: Path) -> subprocess.CompletedProcess[str]:
 
 
 class TestCli:
+    @pytest.fixture
+    def key(self) -> handoff_trial.Key:
+        return load_key(SCENARIO)
+
     def test_build_writes_the_html_and_prints_its_path(self, tmp_path: Path) -> None:
         done = _cli("build", "--scenario", SCENARIO, "--out", str(tmp_path))
         assert done.returncode == 0, done.stderr
@@ -551,7 +675,7 @@ class TestCli:
         assert done.returncode == 0, done.stderr
         record = Record.model_validate(yaml.safe_load(out.read_text(encoding="utf-8")))
         assert record.score["q1"] is False
-        assert sum(record.score.values()) == 4
+        assert sum(record.score.values()) == len(QUESTIONS) - 1
         assert "q1" in done.stdout
 
     def test_record_refuses_a_reply_that_is_not_json(self, tmp_path: Path) -> None:

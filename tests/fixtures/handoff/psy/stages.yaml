@@ -1,0 +1,179 @@
+# Second synthetic scenario of the handoff trial (Epic 34, ADR-0059): psychological safety.
+# Every name and number here is made up. Four reflection rounds: the relation across
+# respondents (A), an analysis that found no difference, the change within the same
+# respondents (B), and the overlap with workload (C). In the last round B's answer and
+# numbers stay, while the subject's answer cites B's evidence in other words.
+theme_id: PSY
+stages:
+  - id: start
+    summary: >-
+      着手時に分かっていたこと。人事は、心理的安全性を高める施策として、上司への働きかけを優先するかを決めたい。
+      調べる論点は、回答者間の関連、同じ人の年ごとの変化、業務負荷の変化との重なりの3つ。まず関連があるかを見る。
+    steps:
+      - create_tree:
+          question: 心理的安全性を高める施策として、上司への働きかけを優先すべきか
+          aim: {kind: business, decision_maker: 人事, decision: 上司への働きかけを優先するか}
+      - add_node:
+          question: 上司支援の評価が高い人ほど、心理的安全性も高いか
+          parent_question_id: PSY-Q01
+          contribution: 関連が無ければ、上司への働きかけを候補から外す
+      - add_node:
+          question: 同じ人で、上司支援の評価が上がった年に心理的安全性も上がるか
+          parent_question_id: PSY-Q01
+          contribution: もともと両方を高く評価する人がいる、という説明を退けられる
+      - add_node:
+          question: 上司支援の変化は、業務負荷の変化と重なっていないか
+          parent_question_id: PSY-Q01
+          contribution: 重なるなら、上司支援と負荷軽減のどちらを優先するか決められない
+      - decide:
+          kind: start
+          node_id: PSY-Q02
+          reason: まず、上司支援と心理的安全性に関連があるかを見る
+
+  - id: round-1
+    summary: >-
+      1つ目の分析設計（探索、A）で分かったこと。回答者間で、上司支援の評価と心理的安全性の相関は0.41だった。
+      journal の問いから、在宅勤務の多い人でも同じ関連があるかの論点を足し、次に調べると決めた。
+    steps:
+      - create_design:
+          title: 上司支援と心理的安全性の関連
+          analysis_intent: exploratory
+          exploration_question: 上司支援の評価と心理的安全性の相関はどれだけか
+          exploration_background: 同じ年の回答者どうしを比べる
+      - link_design: {node_id: PSY-Q02, design_id: PSY-H01}
+      - append_journal_event:
+          design_id: PSY-H01
+          event_fields:
+              type: evidence
+              content: 上司支援の評価と心理的安全性の相関は0.41だった
+      - append_journal_event:
+          design_id: PSY-H01
+          event_fields:
+              type: question
+              content: 在宅勤務の多い人でも、同じ関連があるか
+      - transition_status: {design_id: PSY-H01, target: explored}
+      - add_node:
+          question: 上司支援と心理的安全性の関連は、在宅勤務の多い人で弱いか
+          parent_question_id: PSY-Q02
+          contribution: 弱いなら、上司への働きかけの対象を出社の多い部署に絞る
+          origin_event_id: PSY-H01-E02
+      - answer:
+          answers:
+            - node_id: PSY-Q02
+              statements:
+                - {kind: claim, text: 上司支援の評価と心理的安全性の相関は0.41だった, cites: [PSY-H01-E01]}
+            - node_id: PSY-Q01
+              statements:
+                - {kind: claim, text: 相関は0.41で、上司への働きかけは施策の候補に残る, cites: [PSY-H01-E01]}
+                - {kind: undetermined, text: 回答者どうしの比較なので、上司支援を変えたときの効果は分からない, cites: [PSY-H01-E01]}
+      - decide:
+          kind: deepen
+          node_id: PSY-Q05
+          reason: 関連が在宅勤務の多さで変わるなら、働きかけの対象を絞れるので、先に確かめる
+
+  - id: round-2
+    summary: >-
+      2つ目の分析設計（検証）で分かったこと。在宅勤務が週3日以上の人の相関は0.40で、それ以外の人の0.42と差が無く、
+      検証仮説は rejected で終わった。差が出なかった分析で、振り返りの回 2 では主題の答えを書き直していない。
+      同じ人の年ごとの変化を次に調べると決めた。
+    steps:
+      - create_design:
+          title: 在宅勤務の多さと関連の強さ
+          hypothesis_statement: 在宅勤務が週3日以上の人では、上司支援と心理的安全性の相関が低い
+          hypothesis_background: 在宅勤務が多いと、上司と話す機会が減る
+          metrics:
+            - target: 相関の差（在宅勤務が週3日未満の人 − 週3日以上の人）
+              tier: primary
+              comparison: 差が0.10以上なら支持。0.05未満なら棄却。その間は結論しない
+      - link_design: {node_id: PSY-Q05, design_id: PSY-H02}
+      - append_journal_event:
+          design_id: PSY-H02
+          event_fields:
+              type: evidence
+              content: 在宅勤務が週3日以上の人の相関は0.40で、それ以外の人の0.42との差は0.02だった
+              metadata: {direction: contradicts}
+      - transition_status: {design_id: PSY-H02, target: rejected}
+      - answer:
+          answers:
+            - node_id: PSY-Q05
+              statements:
+                - {kind: claim, text: 在宅勤務が週3日以上の人の相関は0.40で、それ以外の人の0.42との差は0.02で、差は見られなかった, cites: [PSY-H02-E01]}
+      - decide:
+          kind: return
+          node_id: PSY-Q03
+          reason: 在宅勤務の多さで関連は変わらなかったので、同じ人の年ごとの変化で確かめる
+
+  - id: round-3
+    summary: >-
+      3つ目の分析設計（探索、B）で分かったこと。同じ人で、上司支援の評価が上がった年は心理的安全性が平均0.30上がった。
+      振り返りの回 3 で主題の答えを書き直し、上司への働きかけを優先する根拠とした。業務負荷との重なりを次に調べると決めた。
+    steps:
+      - create_design:
+          title: 同じ人の年ごとの変化
+          analysis_intent: exploratory
+          exploration_question: 上司支援の評価が上がった年に、心理的安全性はどれだけ変わるか
+          exploration_background: 同じ回答者を2年続けて追える
+      - link_design: {node_id: PSY-Q03, design_id: PSY-H03}
+      - append_journal_event:
+          design_id: PSY-H03
+          event_fields:
+              type: evidence
+              content: 上司支援の評価が上がった年は、心理的安全性が平均0.30上がった
+      - transition_status: {design_id: PSY-H03, target: explored}
+      - answer:
+          answers:
+            - node_id: PSY-Q03
+              statements:
+                - {kind: claim, text: 上司支援の評価が上がった年は、心理的安全性が平均0.30上がった, cites: [PSY-H03-E01]}
+            - node_id: PSY-Q01
+              statements:
+                - {kind: claim, text: 同じ人でも、上司支援の評価が上がった年は心理的安全性が平均0.30上がり、上司への働きかけを優先する根拠になる, cites: [PSY-H03-E01]}
+      - decide:
+          kind: return
+          node_id: PSY-Q04
+          reason: 同じ時期に変わった業務負荷と、上司支援の変化が重なっていないかを確かめる
+
+  - id: round-4
+    summary: >-
+      4つ目の分析設計（探索、C）で分かったこと。上司支援の評価が上がった回答者の78%は、業務負荷も下がった部署にいた。
+      振り返りの回 4 で主題の答えを書き直した。同じ人での0.30の上昇は数値も B の答えもそのままだが、
+      主題の答えはそれを、優先する根拠ではなく、負荷軽減と分けられない変化として引用するようになった。
+      journal の問いから、片方だけが変わった部署を比べる論点を足し、次に調べると決めた。
+    steps:
+      - create_design:
+          title: 業務負荷の変化との重なり
+          analysis_intent: exploratory
+          exploration_question: 上司支援の評価が上がった回答者は、業務負荷も下がった部署にどれだけ集まっているか
+          exploration_background: 部署ごとの業務負荷の指標がある
+      - link_design: {node_id: PSY-Q04, design_id: PSY-H04}
+      - append_journal_event:
+          design_id: PSY-H04
+          event_fields:
+              type: evidence
+              content: 上司支援の評価が上がった回答者の78%は、業務負荷も下がった部署にいた
+      - append_journal_event:
+          design_id: PSY-H04
+          event_fields:
+              type: question
+              content: 上司支援と業務負荷の片方だけが変わった部署では、心理的安全性はどう変わったか
+      - transition_status: {design_id: PSY-H04, target: explored}
+      - add_node:
+          question: 上司支援と業務負荷の片方だけが変わった部署で、心理的安全性はどう変わるか
+          parent_question_id: PSY-Q04
+          contribution: 上司支援の効果と負荷軽減の効果を見分ける
+          origin_event_id: PSY-H04-E02
+      - answer:
+          answers:
+            - node_id: PSY-Q04
+              statements:
+                - {kind: claim, text: 上司支援の評価が上がった回答者の78%は、業務負荷も下がった部署にいた, cites: [PSY-H04-E01]}
+                - {kind: undetermined, text: 重なった部署で、上司支援と負荷軽減のどちらが心理的安全性を上げたのかは、まだ見分けられない, cites: [PSY-H04-E01]}
+            - node_id: PSY-Q01
+              statements:
+                - {kind: claim, text: 同じ人でも、上司支援の評価が上がった年は心理的安全性が平均0.30上がった, cites: [PSY-H03-E01]}
+                - {kind: weakening, text: 上司支援の評価が上がった回答者の78%は業務負荷も下がった部署にいて、同じ人での上昇を上司支援の効果とは言い切れない, cites: [PSY-H04-E01]}
+                - {kind: undetermined, text: 上司への働きかけを優先するかは、上司支援と負荷軽減の効果を見分けるまで決められない, cites: [PSY-H03-E01, PSY-H04-E01]}
+      - decide:
+          kind: deepen
+          node_id: PSY-Q06
+          reason: 上司支援の評価が上がった回答者の多くは業務負荷も下がった部署にいたので、片方だけが変わった部署で比べて、上司支援と負荷軽減を見分ける

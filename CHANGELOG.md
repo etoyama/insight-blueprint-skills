@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The handoff trial has a second scenario and a sixth question.** `psy` (psychological safety, four
+  reflection rounds) holds an analysis that found no difference and a question whose answer and numbers
+  stay while the subject's answer cites its evidence in other words. Every scenario now asks q6 (that
+  question and its evidence, or none), and the key is derived from the built tree; the library's is
+  none. The sheet of questions and HANDOFF_TRIAL say "subject" instead of "root". Records kept before
+  have no q6 and keep their score ([ADR-0059](docs/adr/0059-the-handoff-trial-has-a-second-scenario-and-a-sixth-question.md), #264).
 - **A confirmatory notebook judges its primary metric by two lines.** The contract has the primary
   metric hold `support_line` and `reject_line` (numbers copied from the design's `comparison`) and a
   `judgment` of `supported`, `rejected` or `inconclusive`; `threshold` and `pass` stay with secondary

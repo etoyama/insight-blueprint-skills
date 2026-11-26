@@ -37,6 +37,26 @@ class TestTheDocumentIsReachable:
     def test_it_names_the_prd_success_criteria(self) -> None:
         assert "](PRD.md#成功基準)" in section(_doc(), "## Purpose")
 
+    def test_it_lists_every_question_the_reader_answers(self) -> None:
+        body = section(_doc(), "## Purpose")
+        for n in range(1, len(handoff_trial.QUESTIONS) + 1):
+            assert f"\n{n}. " in body
+        assert f"\n{len(handoff_trial.QUESTIONS) + 1}. " not in body
+
+
+class TestScenarios:
+    """Epic 34 US-6: two synthetic scenarios share one sheet of questions."""
+
+    def test_each_scenario_is_named_with_its_place(self) -> None:
+        body = section(_doc(), "## Scenario")
+        for path in sorted(handoff_trial.FIXTURES.iterdir()):
+            if path.is_dir():
+                assert f"`tests/fixtures/handoff/{path.name}/`" in body
+
+    def test_it_uses_the_words_the_analyst_sees(self) -> None:
+        """Epic 34 US-5: the subject, not the root."""
+        assert not re.search("根(?!拠)", _doc())
+
 
 class TestTheReaderGetsOnlyTheHtml:
     """AC 2: a Claude session with no context reads the HTML and nothing else."""
@@ -82,13 +102,13 @@ class TestScoring:
         """US-4 AC 5 of Epic 32: an exploration's evidence carries no direction."""
         body = section(_doc(), "## Step 4")
         (row,) = [line for line in body.splitlines() if line.startswith("| q3 |")]
-        assert "「言えること」" in row
-        assert "「弱める証拠と留保」" in row
+        assert "「これまでわかっていること」" in row
+        assert "「注意すべきこと」" in row
         assert "引用した文の種類" in row
 
 
 class TestRecord:
-    """AC 3: a trial leaves the five answers, right or wrong, and the time taken."""
+    """AC 3: a trial leaves the answers, right or wrong, and the time taken."""
 
     def test_a_human_records_both_times(self) -> None:
         body = unwrap(section(_doc(), "## Step 5"))
