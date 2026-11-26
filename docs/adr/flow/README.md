@@ -1,7 +1,7 @@
 # 開発フローの決定（repo-template のコピー）
 
 このディレクトリには [etoyama/repo-template](https://github.com/etoyama/repo-template) の ADR の
-コピーだけを置く。採用したコミットは `6ed7225a57aa74a02102bb5f9ac69d186a73f2b4`（FLOW-0011〜0013 を足した時点。FLOW-0001〜0010 の本文は変わっていない）。
+コピーだけを置く。採用したコミットは `0bb14074e1e955a85947aa76482bee9ec689c949`（FLOW-0017〜0020 を足した時点。FLOW-0001〜0016 の本文は変わっていない）。
 [docs/WORKFLOW.md](../../WORKFLOW.md) と `.claude/rules/` のテンプレートは、ここの文書を決定の出典として参照する。
 
 - 番号は repo-template のものを保つ。表記は `FLOW-000N` とし、`ADR-000N` とは書かない。
@@ -29,3 +29,7 @@
 | [0014](0014-start-all-waves-in-first-human-turn.md) | 後に続く波の子は、最初に子を立てる人間のターンで、全部待機の指示で立てておく | Accepted |
 | [0015](0015-copy-pm-address-from-listagents.md) | ブリーフに書く PM の宛先は ListAgents から写し、PM のシステムプロンプトの宛先と置き場は写さない | Accepted |
 | [0016](0016-try-with-real-data-before-epic-pr.md) | 利用者が触る Epic では、ゲートの後、Epic PR の前に、実データで使ってみる | Accepted |
+| [0017](0017-try-before-asking-human.md) | 人間に判断を仰ぐ前に、30分以内に試せることは試し、結果を添えて聞く | Accepted |
+| [0018](0018-check-proposals-against-real-artifact.md) | 子セッションやレビューが出した案は、PM が実物と照らしてから人間に渡す | Accepted |
+| [0019](0019-human-reads-real-screen-after-first-display-story.md) | 利用者が読む画面を変える Epic では、画面を初めて変える Story の後に、人間が実物の画面と言い回しの一覧を読む | Accepted |
+| [0020](0020-recheck-whole-after-mockup-comments.md) | DesignDoc 初版で、見本へのコメントを反映した後に、全体の整合をもう一度回す | Accepted |

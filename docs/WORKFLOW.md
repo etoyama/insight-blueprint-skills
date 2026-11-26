@@ -68,11 +68,13 @@ CLAUDE.md の肥大化はこのルールで構造的に防ぐ。
 ```mermaid
 flowchart LR
     A["Epic 起票<br/>(type:epic)"] --> B["DesignDoc 初版<br/>背景 / ユーザーストーリー /<br/>構成図 / ドメインモデル図 /<br/>シーケンス図"]
-    B --> B2["全体の整合 / 見本<br/>→ 人間の承認"]
+    B --> B2["全体の整合 / 見本<br/>→ 見本の反映の後に、もう一度整合<br/>→ 人間の承認"]
     B2 --> C["Story 分割<br/>(type:story, AC≤5)"]
     C --> D["Story 実装"]
     D --> E["DesignDoc 詳細化<br/>Decisions / Timeline /<br/>Test Matrix ✓"]
     E -->|次の Story| D
+    E -->|画面を初めて変えた Story の後| R["人間が実物の画面と<br/>言い回しの一覧を読む"]
+    R --> D
     E --> F["Test Design Matrix 全✓"]
     F --> T["実データで使ってみる<br/>→ findings を人間が仕分ける"]
     T --> G["Epic PR →<br/>人間レビュー・人間マージ"]
@@ -98,6 +100,10 @@ flowchart LR
      そのホストの制約も確かめる。見本はコミットしない。分かった事実と、確かめていない前提を、
      DesignDoc か ADR に書き戻す。利用者から見える変化がない Epic では省いてよい。
      省いたら、その理由を Story Timeline に1行書く。
+   - **見本の後の整合**: 見本へのコメントを反映して DesignDoc や ADR を変えたら、承認を求める前に、
+     全体の整合をもう一度回す（決定: [FLOW-0020](adr/flow/0020-recheck-whole-after-mockup-comments.md)）。
+     反映で変えた所を挙げ、それを写している所（用語の表、AC、Scope、図、関係する ADR）を1つずつ見る。
+     反映で文書を変えなかったときは、回さない。
 3. Story 分割: ユーザーストーリーに沿って Story を起票し、DesignDoc の Stories 表に追記する。
 4. Story 実装: TDD（Red → Green → Refactor、
    [.claude/rules/coding-principles.md](../.claude/rules/coding-principles.md)）で実装する。
@@ -109,6 +115,15 @@ flowchart LR
    - 利用者に効く変更があれば、リリースノートに1行書く。このリポジトリでは CHANGELOG の `[Unreleased]` に書く。
    - Story の差分に、バグ・セキュリティの観点のレビューを1本回す。直すものは Story の中で直す。
      コード品質の観点は、Epic 完了の前にまとめて見る。
+
+   利用者が読む画面（HTML、レポート、CLI の出力など、利用者が言葉を読む所）を変える Epic では、
+   画面を初めて変える Story が入った後に、**人間が実物の画面を読む**
+   （決定: [FLOW-0019](adr/flow/0019-human-reads-real-screen-after-first-display-story.md)）。
+   - 同じ段で、画面に出す言い回しの一覧（見出し、ラベル、問い、案内の文）を人間が読む。
+     一覧は、実物の画面か、画面を作るコードから抜き出す。
+   - 人間の指摘は、人間が「今直す / 後の Story で直す」に仕分ける。読んだことを Story Timeline に1行書く。
+   - 画面に言葉を出す後の Story は、この段の後に始める。言葉を出さない Story は待たない。
+   - 利用者が読む画面を変えない Epic には置かない。
 5. Epic 完了: Test Design Matrix 全✓ が Epic PR のレビューゲート。PR を開く前に §8 の推敲を行う。
    利用者が触る Epic では、ゲートのレビューと直しの後、Epic PR を開く前に、**実データで使ってみる**
    （決定: [FLOW-0016](adr/flow/0016-try-with-real-data-before-epic-pr.md)）。
@@ -163,6 +178,13 @@ ADR の Problem と Decision Analysis、および人間に判断を仰ぐとき�
 `decision-analysis` スキルの形式に従う（決定: [FLOW-0004](adr/flow/0004-decision-analysis-plugin.md)）。
 プラグインは `.claude/settings.json` で宣言し、clone ごとに `scripts/install-plugins.sh` で入れる。形式の正本はスキルにあり、本書には写さない。
 提示が足りなかったときは、人間が「DA で」と言うか、理由を聞き返せば出し直される。
+
+人間に判断を仰ぐ前に、30分以内に試せることは試す（決定: [FLOW-0017](adr/flow/0017-try-before-asking-human.md)）。
+聞くときに、何を変え、何回確かめ、どうなったかを添える。
+Decision Analysis は、試しても決まらない判断（好み、方針、費用と効き目の釣り合い）に使い、
+試した結果は「前提にした事実」に書く。
+試すのは、手元で元に戻せることだけにする。30分を過ぎたら止め、そこまでの結果を添えて聞く。
+結果が出ても、判断は人間に仰ぐ。
 
 ## 7. ユビキタス言語
 
