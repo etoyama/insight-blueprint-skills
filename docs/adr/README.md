@@ -59,6 +59,7 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0057](0057-a-question-without-a-design-shows-the-progress-below-it.md) | 分析設計を直接結ばない論点は、下の論点の進捗を数で出す | Accepted |
 | [0058](0058-a-tree-decision-may-cite-the-events-behind-its-reason.md) | ツリーの決定は、理由の根拠にした出来事を引用できる | Accepted |
 | [0059](0059-the-handoff-trial-has-a-second-scenario-and-a-sixth-question.md) | 引き継ぎの試行に、2本目の合成シナリオと6つ目の問いを足す | Accepted |
+| [0060](0060-a-trial-record-names-the-model-that-read.md) | 試行の記録は、読み手が Claude ならモデルの ID を持つ | Accepted |
 
 - ADR-0001〜0008 は旧形式のまま残す。ADR-0009 からは新形式（Problem と Decision Analysis の節を持つ）で書く。
 - 開発フローの決定の出典は [flow/](flow/README.md) にある。repo-template の ADR のコピーで、`FLOW-000N` と表記する。

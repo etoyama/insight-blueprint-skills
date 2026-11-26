@@ -9,7 +9,8 @@ Usage, from the repository root:
     python -m scripts.handoff_trial build --scenario lib|psy --out DIR [--through STAGE]
     python -m scripts.handoff_trial prompt --html PATH
     python -m scripts.handoff_trial record --scenario lib|psy --answers PATH \\
-        --reader-kind claude|human --reader-name NAME --date YYYY-MM-DD \\
+        --reader-kind claude|human --reader-name NAME [--reader-model ID] \\
+        --date YYYY-MM-DD \\
         [--minutes-confirm N --minutes-reconstruct N] --out PATH
 """
 
@@ -203,6 +204,10 @@ class Reader(BaseModel):
 
     kind: Literal["human", "claude"]
     name: str
+    # The alias in `name` (`sonnet`) moves to a new version without a trace, so two
+    # trials can only be compared when the id is kept. Optional because the records
+    # kept before ADR-0060 have none and are not rewritten (ADR-0035).
+    model: str | None = None
 
 
 class Minutes(BaseModel):
@@ -318,13 +323,19 @@ def _prompt(args: argparse.Namespace) -> int:
 
 
 def _record(args: argparse.Namespace) -> int:
+    if args.reader_kind == "claude" and not args.reader_model:
+        raise ValueError(
+            "--reader-model: a Claude trial records the model id that answered"
+        )
     key = load_key(args.scenario)
     answers = parse_answers(Path(args.answers).read_text(encoding="utf-8"))
     record = Record(
         date=date.fromisoformat(args.date),
         scenario=args.scenario,
         stage=key.stage,
-        reader=Reader(kind=args.reader_kind, name=args.reader_name),
+        reader=Reader(
+            kind=args.reader_kind, name=args.reader_name, model=args.reader_model
+        ),
         minutes=Minutes(
             confirm=args.minutes_confirm, reconstruct=args.minutes_reconstruct
         ),
@@ -363,6 +374,7 @@ def _main(argv: list[str] | None = None) -> int:
     r.add_argument("--answers", required=True)
     r.add_argument("--reader-kind", required=True, choices=["human", "claude"])
     r.add_argument("--reader-name", required=True)
+    r.add_argument("--reader-model", help="the model id that answered (Claude)")
     r.add_argument("--date", required=True)
     r.add_argument("--minutes-confirm", type=float)
     r.add_argument("--minutes-reconstruct", type=float)
