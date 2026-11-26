@@ -6,6 +6,8 @@ that leads with the subject (ADR-0056). Synthetic data only (theme LIB).
 
 from __future__ import annotations
 
+import pytest
+
 from skills._shared import tree_render
 from skills._shared.tree_check import Violation
 from skills._shared.tree_render import (
@@ -347,7 +349,7 @@ class TestTheTopOfThePage:
     def test_a_subject_without_an_answer_says_so(self) -> None:
         top = squash(by_id(page(), "subject-answer").text())
 
-        assert top == "主題への現時点の答え 主題にはまだ答えていない。"
+        assert top.startswith("主題への現時点の答え 主題にはまだ答えていない。")
 
     def test_the_top_shows_what_the_answer_to_the_subject_changed(self) -> None:
         root = page(tree=changed_root())
@@ -370,10 +372,10 @@ class TestTheTopOfThePage:
         own = node_card(root, "LIB-Q01")
 
         assert not [e for e in own.walk() if e.tag == "table"]
-        (link,) = [a for a in own.walk() if a.attrs.get("href") == "#subject-answer"]
-        assert (
-            squash(link.text()) == "前の回から変わったことは、ページの冒頭に出している"
-        )
+        links = [a for a in own.walk() if a.attrs.get("href") == "#subject-answer"]
+        assert "前の回から変わったことは、ページの冒頭に出している" in [
+            squash(a.text()) for a in links
+        ]
 
     def test_an_answer_to_the_subject_of_an_earlier_round_says_so_at_the_top(
         self,
@@ -469,3 +471,307 @@ class TestTheWayAnEventChangedHasItsWord:
         from skills._shared.tree_changes import ChangeKind
 
         assert set(tree_render._CHANGE_WORDS) == set(ChangeKind)
+
+
+# --- What the answers below cite and the answer does not, and the answers above ---
+
+NULL_RESULT = "通知を3日早めても、期限切れの数に差は見られなかった"
+
+
+def results() -> dict[str, CitedEvent]:
+    """The events of make_events, a null result of LIB-H02 and what LIB-H03 found."""
+    return {
+        **make_events(),
+        "LIB-H01-E03": CitedEvent("LIB-H01-E03", "observe", None, "1年度だけの記録"),
+        "LIB-H02-E01": CitedEvent("LIB-H02-E01", "evidence", "refutes", NULL_RESULT),
+        "LIB-H03-E01": CitedEvent(
+            "LIB-H03-E01", "evidence", "refutes", "延長した館でも予約は減らなかった"
+        ),
+    }
+
+
+def null_round(tree: dict | None = None) -> dict:
+    """changed_root, and LIB-Q03 answered in round 2 with a result the root leaves out.
+
+    The root cited LIB-H03-E01 (of LIB-Q05) in round 1 and dropped it in round 2,
+    in which it newly cited LIB-H01-E02.
+    """
+    tree = changed_root(tree)
+    tree["nodes"][2]["answers"] = [
+        {
+            "round": 2,
+            "root_revision": 2,
+            "statements": [
+                {
+                    "kind": "claim",
+                    "text": "通知の日は効かない",
+                    "cites": ["LIB-H02-E01"],
+                }
+            ],
+        }
+    ]
+    return tree
+
+
+def null_page(tree: dict | None = None, **over: object) -> Element:
+    return page(null_round(tree), events=results(), **over)  # type: ignore[arg-type]
+
+
+def of_class(inside: Element, name: str) -> list[Element]:
+    return [e for e in inside.walk() if has_class(e, name)]
+
+
+def one_of_class(inside: Element, name: str) -> Element:
+    (found,) = of_class(inside, name)
+    return found
+
+
+class TestResultsNotYetInTheSubjectAnswer:
+    """US-3 AC 1: the top of the page lists what the subject's answer leaves out."""
+
+    def block(self, root: Element) -> str:
+        return squash(one_of_class(by_id(root, "subject-answer"), "uncited").text())
+
+    def test_a_result_never_cited_is_listed_with_its_node_round_and_statement(
+        self,
+    ) -> None:
+        shown = self.block(null_page())
+
+        assert shown.startswith("まだ主題への答えに入れていない分析結果")
+        assert "分析結果 LIB-H02-E01" in shown
+        assert NULL_RESULT in shown
+        assert "論点 LIB-Q03 の回 2 の答えが、この分析結果から言っていること:" in shown
+        assert "これまでわかっていること 通知の日は効かない" in shown
+
+    def test_it_says_a_result_without_a_difference_lands_here(self) -> None:
+        assert "差が出なかった分析の結果も、ここに出る。" in self.block(null_page())
+
+    def test_the_block_is_open(self) -> None:
+        root = null_page()
+        top = by_id(root, "subject-answer")
+
+        assert not is_folded(one_of_class(top, "uncited"), top)
+
+    def test_a_result_cited_before_is_not_in_this_block(self) -> None:
+        assert "LIB-H03-E01" not in self.block(null_page())
+
+    def test_it_follows_the_changes_and_comes_before_the_next_question(self) -> None:
+        text = squash(null_page().text())
+
+        assert (
+            text.index("前の回から変わったこと")
+            < text.index("まだ主題への答えに入れていない分析結果")
+            < text.index("次に調べる論点")
+        )
+
+    def test_a_subject_without_an_answer_lists_every_result_cited_below(self) -> None:
+        shown = self.block(page(events=results()))
+
+        for event_id in ("LIB-H01-E01", "LIB-H01-E02", "LIB-H03-E01"):
+            assert event_id in shown
+
+    def test_nothing_left_out_shows_no_block(self) -> None:
+        tree = changed_root()
+        for node in tree["nodes"][1:]:
+            node.pop("answers", None)
+
+        assert of_class(by_id(page(tree), "subject-answer"), "uncited") == []
+
+    def test_a_statement_that_failed_the_check_stays_in_its_card(self) -> None:
+        failed = [Violation("LIB-Q03", 2, 1, "number-not-cited", "3")]
+
+        shown = self.block(null_page(violations=failed))
+
+        assert "通知の日は効かない" not in shown
+        assert (
+            "論点 LIB-Q03 の答えは記録と合わない。文は LIB-Q03 のカードで確かめる"
+            in shown
+        )
+        assert NULL_RESULT in shown
+
+    def test_what_a_person_said_is_not_called_an_analysis_result(self) -> None:
+        events = results()
+        events["LIB-H02-E01"] = CitedEvent("LIB-H02-E01", "hearing", None, "効かない")
+
+        shown = self.block(page(null_round(), events=events))
+
+        assert "人に聞いた答え LIB-H02-E01" in shown
+        assert "分析結果 LIB-H02-E01" not in shown
+
+
+class TestResultsTheSubjectAnswerNoLongerRestsOn:
+    """US-3 AC 1: a result cited before is set apart, quietly, with its rounds."""
+
+    def block(self, root: Element) -> Element:
+        return one_of_class(by_id(root, "subject-answer"), "uncited-before")
+
+    def test_it_is_folded_under_its_own_heading_with_a_count(self) -> None:
+        root = null_page()
+        block = self.block(root)
+
+        assert block.tag == "details"
+        assert squash(block.children[0].text()) == (
+            "前は主題への答えの根拠にしていて、今は外している分析結果 1 件"
+        )
+
+    def test_it_gives_the_last_round_that_cited_it_and_what_came_in_instead(
+        self,
+    ) -> None:
+        shown = squash(self.block(null_page()).text())
+
+        assert "分析結果 LIB-H03-E01" in shown
+        assert "回 1 の答えまでは根拠にしていた。" in shown
+        assert "その次の答えで新しく根拠にした分析結果: LIB-H01-E02" in shown
+        assert "論点 LIB-Q05 の回 1 の答えが、この分析結果から言っていること:" in shown
+
+    def test_the_never_cited_block_does_not_hold_it(self) -> None:
+        root = null_page()
+
+        assert "LIB-H02-E01" not in squash(self.block(root).text())
+
+
+def reworded_round(tree: dict | None = None) -> dict:
+    """null_round, and a round 3 in which the root says another thing of LIB-H01-E01."""
+    tree = null_round(tree)
+    tree["nodes"][0]["answers"].append(
+        {
+            "round": 3,
+            "root_revision": 2,
+            "statements": [
+                {
+                    "kind": "weakening",
+                    "text": "346 件は1館だけの数",
+                    "cites": ["LIB-H01-E01"],
+                },
+                {
+                    "kind": "undetermined",
+                    "text": "取消の理由は分からない",
+                    "cites": ["LIB-H01-E02"],
+                },
+                {"kind": "weakening", "text": "1年度だけ", "cites": ["LIB-H01-E03"]},
+            ],
+        }
+    )
+    return tree
+
+
+class TestTheAnswersAboveThatRestOnTheResult:
+    """US-2 AC 1, AC 2, AC 4: the card of an earlier node shows how it is used above."""
+
+    def above(self, root: Element, node_id: str) -> Element:
+        return one_of_class(node_card(root, node_id), "cited-above")
+
+    def test_the_card_names_the_answer_above_its_round_and_statements(self) -> None:
+        shown = squash(self.above(null_page(), "LIB-Q02").text())
+
+        assert shown.startswith("この論点の分析結果を根拠にしている答え")
+        assert (
+            "分析結果 LIB-H01-E01 を、論点 LIB-Q01（主題）の回 2 の答えが根拠にしている:"
+            in shown
+        )
+        assert "これまでわかっていること 期限切れは 346 件" in shown
+
+    def test_the_subject_links_to_the_top_of_the_page(self) -> None:
+        links = [
+            a.attrs["href"]
+            for a in self.above(null_page(), "LIB-Q02").walk()
+            if a.tag == "a"
+        ]
+
+        assert "#subject-answer" in links
+
+    def test_an_answer_that_did_not_change_says_nothing_about_a_change(self) -> None:
+        assert "変えた" not in squash(self.above(null_page(), "LIB-Q02").text())
+
+    def test_a_later_change_above_gives_its_round_and_that_this_answer_stayed(
+        self,
+    ) -> None:
+        shown = squash(
+            self.above(page(reworded_round(), events=results()), "LIB-Q02").text()
+        )
+
+        assert "論点 LIB-Q01（主題）の回 3 の答えが根拠にしている:" in shown
+        assert (
+            "論点 LIB-Q01 の答えは回 3 から、この分析結果から言っていることを変えた。"
+            "この論点の答えは回 2 のままで、変わっていない。"
+        ) in shown
+
+    def test_an_answer_further_above_is_listed_after_the_parent(self) -> None:
+        shown = squash(self.above(null_page(), "LIB-Q04").text())
+
+        parent = shown.index("論点 LIB-Q02 の回 2 の答え")
+        subject = shown.index("論点 LIB-Q01（主題）の回 2 の答え")
+        assert parent < subject
+
+    def test_a_parent_that_is_not_the_subject_links_to_its_card(self) -> None:
+        links = [
+            a.attrs["href"]
+            for a in self.above(null_page(), "LIB-Q04").walk()
+            if a.tag == "a"
+        ]
+
+        assert "#LIB-Q02" in links
+
+    def test_an_answer_above_that_failed_the_check_stays_in_its_card(self) -> None:
+        failed = [Violation("LIB-Q01", 2, 1, "number-not-cited", "346")]
+
+        shown = squash(self.above(null_page(violations=failed), "LIB-Q02").text())
+
+        assert "期限切れは 346 件" not in shown
+        assert (
+            "論点 LIB-Q01 の答えは記録と合わない。文は LIB-Q01 のカードで確かめる"
+            in shown
+        )
+
+    def test_a_card_whose_answer_nobody_above_cites_has_no_such_block(self) -> None:
+        assert of_class(node_card(null_page(), "LIB-Q03"), "cited-above") == []
+
+
+class TestTheCardOfANodeWithResultsBelow:
+    """US-3 AC 1 on the cards: each node lists what its own answer leaves out."""
+
+    def test_a_node_lists_the_results_below_its_answer_leaves_out(self) -> None:
+        tree = null_round()
+        tree["nodes"][1]["answers"][-1]["statements"].pop()  # LIB-H01-E02 left out
+
+        shown = squash(
+            one_of_class(
+                node_card(page(tree, events=results()), "LIB-Q02"), "uncited"
+            ).text()
+        )
+
+        assert shown.startswith("まだこの論点の答えに入れていない分析結果")
+        assert "論点 LIB-Q04 の回 2 の答えが、この分析結果から言っていること:" in shown
+
+    def test_the_card_of_the_subject_links_to_the_top_of_the_page(self) -> None:
+        card = node_card(null_page(), "LIB-Q01")
+
+        assert of_class(card, "uncited") == []
+        assert "まだ答えに入れていない分析結果は、ページの冒頭に出している" in squash(
+            card.text()
+        )
+
+
+class TestTheNewSectionsSpeakTheAnalystsWords:
+    """US-5 AC 5: no internal word reaches the analyst in the sections this Story adds."""
+
+    @pytest.mark.parametrize("word", ["下の論点", "引用", "出来事"])
+    def test_no_internal_word(self, word: str) -> None:
+        root = page(reworded_round(), events=results())
+        sections = [
+            *of_class(root, "uncited"),
+            *of_class(root, "uncited-before"),
+            *of_class(root, "cited-above"),
+        ]
+
+        assert sections
+        for section in sections:
+            assert word not in squash(section.text())
+
+    def test_the_legend_explains_the_new_sections(self) -> None:
+        legend = squash(by_id(page(), "legend").text())
+
+        assert "「まだ答えに入れていない分析結果」" in legend
+        assert "「前は答えの根拠にしていて、今は外している分析結果」" in legend
+        assert "「この論点の分析結果を根拠にしている答え」" in legend
+        assert "外した理由は記録に無いので、出さない。" in legend

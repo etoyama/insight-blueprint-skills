@@ -1,5 +1,9 @@
 """The sections of a tree page that show what ``tree_changes`` derives (ADR-0056).
 
+What an answer changed since the answer before it, the results the answers
+below it rest on and it leaves out, and the answers above that rest on the
+results of a node.
+
 Nothing is computed here: the values come from ``_Context``, and this module
 only decides how they read. Pure, like ``tree_render``.
 """
@@ -11,12 +15,23 @@ from collections.abc import Sequence
 
 from insight_blueprint.models.tree import Answer, AnswerStatement, QuestionNode
 from skills._shared._html import Html, el, join
-from skills._shared.tree_changes import AnswerChange, ChangeKind, EvidenceChange
+from skills._shared.tree_changes import (
+    AnswerChange,
+    ChangeKind,
+    CitedAbove,
+    EvidenceChange,
+    UncitedBelow,
+)
 from skills._shared.tree_render_parts import (
     _CHANGE_WORDS,
     _HEARD_RESULT_WORD,
+    _NO_LONGER_WORDS,
+    _NOT_YET_WORDS,
     _RESULT_WORD,
+    _SUBJECT,
     _SUBJECT_REVISION,
+    _USED_ABOVE_WORDS,
+    Shown,
     _Context,
     _heard_word,
     _is_heard,
@@ -143,4 +158,159 @@ def _said_cell(
     return el(
         "td",
         el("ul", join(_statement(s, *_heard_word(context, s)) for s in statements)),
+    )
+
+
+def _left_out(context: _Context, node: QuestionNode, whose: str) -> list[Html | None]:
+    """The results the answers below *node* rest on and its answer leaves out.
+
+    One never in the answer stands out; one the answer dropped is folded. Why
+    it was dropped is not on record, so only its rounds are said.
+    """
+    rows = context.uncited.get(node.id, ())
+    never = [r for r in rows if r.last_cited_round is None]
+    dropped = [r for r in rows if r.last_cited_round is not None]
+    heading = "h3" if node.parent_question_id is None else "h4"
+    parts: list[Html | None] = []
+    if never:
+        parts.append(
+            el(
+                "div",
+                el(heading, _NOT_YET_WORDS.format(whose=whose)),
+                el(
+                    "p",
+                    f"{whose}答えが一度も根拠にしていない分析結果。"
+                    "差が出なかった分析の結果も、ここに出る。"
+                    "答えに入れるかは分析者が決める。",
+                    class_="meta",
+                ),
+                el("ul", join(_left_out_row(context, r) for r in never)),
+                class_="uncited",
+            )
+        )
+    if dropped:
+        parts.append(
+            el(
+                "details",
+                el(
+                    "summary",
+                    f"{_NO_LONGER_WORDS.format(whose=whose)} {len(dropped)} 件",
+                ),
+                el("ul", join(_left_out_row(context, r) for r in dropped)),
+                class_="uncited-before",
+            )
+        )
+    return parts
+
+
+def _left_out_row(context: _Context, row: UncitedBelow) -> Html:
+    parts: list[Html | str | None] = list(_result(context, row.event_id))
+    if row.last_cited_round is not None:
+        instead = (
+            f"その次の答えで新しく根拠にした{_RESULT_WORD}: "
+            f"{'、'.join(row.cited_instead)}。"
+            if row.cited_instead
+            else None
+        )
+        parts.append(
+            el("p", f"回 {row.last_cited_round} の答えまでは根拠にしていた。", instead)
+        )
+    below = context.tree.node(row.node_id)
+    if context.shown(below) is Shown.violating:
+        parts.append(_unchecked_elsewhere(below))
+    else:
+        parts += [
+            el(
+                "p",
+                f"論点 {below.id} の回 {row.round} の答えが、"
+                f"この{_word_of(context, row.event_id)}から言っていること:",
+            ),
+            _said(context, row.statements),
+        ]
+    return el("li", *parts)
+
+
+def _used_above(context: _Context, node: QuestionNode, answer: Answer) -> Html | None:
+    """How the answers above *node* use the results its answer rests on (US-2)."""
+    rows = context.cited_above.get(node.id, ())
+    if not rows:
+        return None
+    return el(
+        "div",
+        el("h4", _USED_ABOVE_WORDS),
+        el("ul", join(_used_above_row(context, r, answer) for r in rows)),
+        class_="cited-above",
+    )
+
+
+def _used_above_row(context: _Context, row: CitedAbove, answer: Answer) -> Html:
+    upper = context.tree.node(row.node_id)
+    word = _word_of(context, row.event_id)
+    # The subject's answer, and what it changed, lead the page.
+    if upper.parent_question_id is None:
+        name, target, gap = f"論点 {upper.id}（{_SUBJECT}）", "subject-answer", ""
+    else:
+        name, target, gap = f"論点 {upper.id}", upper.id, " "
+    parts: list[Html | str | None] = [
+        el(
+            "p",
+            f"{word} {row.event_id} を、",
+            _link(target, name),
+            f"{gap}の回 {row.round} の答えが根拠にしている:",
+        )
+    ]
+    if context.shown(upper) is Shown.violating:
+        parts.append(_unchecked_elsewhere(upper))
+    else:
+        parts.append(_said(context, row.statements))
+    if row.reworded_in is not None:
+        parts.append(
+            el(
+                "p",
+                f"論点 {upper.id} の答えは回 {row.reworded_in} から、"
+                f"この{word}から言っていることを変えた。"
+                f"この論点の答えは回 {answer.round} のままで、変わっていない。",
+            )
+        )
+    return el("li", *parts)
+
+
+def _said(context: _Context, statements: Sequence[AnswerStatement]) -> Html:
+    return el(
+        "ul",
+        join(_statement(s, *_heard_word(context, s)) for s in statements),
+        class_="statements",
+    )
+
+
+def _word_of(context: _Context, event_id: str) -> str:
+    return _HEARD_RESULT_WORD if _is_heard(context, event_id) else _RESULT_WORD
+
+
+def _left_out_on_the_card(context: _Context, node: QuestionNode) -> list[Html | None]:
+    if node.parent_question_id is not None:
+        return _left_out(context, node, "この論点の")
+    # The lists of the subject are at the top of the page; one copy is enough.
+    rows = context.uncited.get(node.id, ())
+    words = []
+    if any(r.last_cited_round is None for r in rows):
+        words.append(_NOT_YET_WORDS.format(whose=""))
+    if any(r.last_cited_round is not None for r in rows):
+        words.append(_NO_LONGER_WORDS.format(whose=""))
+    return [
+        el("p", _link("subject-answer", f"{w}は、ページの冒頭に出している"))
+        for w in words
+    ]
+
+
+def _unchecked_elsewhere(node: QuestionNode) -> Html:
+    """In place of another node's answer that failed the check.
+
+    Its statements stay folded in its own card. The mark is not used here: on
+    this card it would read as the mark of this node's answer.
+    """
+    return el(
+        "p",
+        f"論点 {node.id} の答えは記録と合わない。",
+        _link(node.id, f"文は {node.id} のカードで確かめる"),
     )

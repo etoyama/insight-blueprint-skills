@@ -41,7 +41,13 @@ from skills._shared.design_note import (
     status_word,
 )
 from skills._shared.design_note_reviews import AFTER_ANALYSIS
-from skills._shared.tree_render_derived import _changes, _changes_on_the_card
+from skills._shared.tree_render_derived import (
+    _changes,
+    _changes_on_the_card,
+    _left_out,
+    _left_out_on_the_card,
+    _used_above,
+)
 from skills._shared.tree_render_parts import (
     _AIM_LABELS,
     _CHANGE_WORDS,
@@ -49,9 +55,12 @@ from skills._shared.tree_render_parts import (
     _HEARD_RESULT_WORD,
     _HEARD_WORD,
     _MARK_WORDS,
+    _NO_LONGER_WORDS,
+    _NOT_YET_WORDS,
     _NOTE_LABELS,
     _SUBJECT,
     _SUBJECT_REVISION,
+    _USED_ABOVE_WORDS,
     _VIOLATION_WORDS,
     KIND_WORDS,
     PROGRESS_WORDS,
@@ -121,6 +130,16 @@ _TREE_CSS = """.legend { background: var(--panel); border: 1px solid var(--line)
 .changes td ul { list-style: none; margin: 0; padding: 0; }
 .changes blockquote { margin: .2rem 0 0; padding-left: .6rem; border-left: 3px solid var(--line); }
 .changes .none { color: var(--muted); }
+.uncited { border-left: 4px solid var(--investigating); padding: .1rem .7rem; margin: .6rem 0; }
+.uncited-before, .cited-above {
+  border-left: 4px solid var(--line); padding: .1rem .7rem; margin: .6rem 0;
+}
+.uncited h3, .uncited h4, .cited-above h4 { margin: .3rem 0; font-size: 1rem; }
+.uncited-before summary { color: var(--muted); }
+.uncited li, .uncited-before li, .cited-above li { margin: .4rem 0; }
+.uncited blockquote, .uncited-before blockquote {
+  margin: .2rem 0; padding-left: .6rem; border-left: 3px solid var(--line);
+}
 """
 
 
@@ -212,6 +231,21 @@ def _legend() -> Html:
             "表に並べる前の回の文は、今の記録と照らし直していない。",
         ),
         _word_list(_CHANGE_WORDS.values()),
+        el(
+            "p",
+            f"「{_NOT_YET_WORDS.format(whose='')}」は、論点の答えが一度も根拠にして"
+            "いない分析結果を、その分析結果を根拠にした論点の答えと並べて出す。"
+            "差が出なかった分析の結果も、ここに出る。"
+            f"「{_NO_LONGER_WORDS.format(whose='')}」は、最後に根拠にした回と、"
+            "その次の答えで新しく根拠にした分析結果を添えて、畳んで出す。"
+            "外した理由は記録に無いので、出さない。",
+        ),
+        el(
+            "p",
+            f"「{_USED_ABOVE_WORDS}」は、論点の分析結果を、上の論点の答えが"
+            "どう使っているかを出す。上の論点が、この論点の答えより後の回で、"
+            "その分析結果から言っていることを変えていれば、変えた回を書く。",
+        ),
         el(
             "p",
             "進捗は、論点に結んだ分析設計の状態から導いた言葉。色は添えただけで、"
@@ -389,6 +423,7 @@ def _subject_answer(context: _Context) -> Html:
             assert answer is not None  # an answered node
             parts += _answer_lines(context, root, answer)
             parts.append(_changes(context, root, "h3"))
+    parts += _left_out(context, root, f"{_SUBJECT}への")
     return el("section", join(parts), class_="now", id="subject-answer")
 
 
@@ -543,7 +578,11 @@ def _node_card(context: _Context, node: QuestionNode) -> Html:
         case Shown.sound:
             assert answer is not None  # an answered node
             parts += _answer_lines(context, node, answer, heading="現時点の答え")
-            parts.append(_changes_on_the_card(context, node))
+            parts += [
+                _changes_on_the_card(context, node),
+                _used_above(context, node, answer),
+            ]
+    parts += _left_out_on_the_card(context, node)
     parts += [_notes(node), _evidence(context, node, violated)]
     return el("div", join(parts), class_=f"node progress-{progress.value}")
 

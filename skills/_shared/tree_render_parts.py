@@ -28,7 +28,15 @@ from insight_blueprint.models.tree import (
 from skills._shared._html import Html, el, join
 from skills._shared.design_note import DesignNote, intent_word, statement_of
 from skills._shared.design_note_reviews import comments_after_analysis
-from skills._shared.tree_changes import AnswerChange, ChangeKind, answer_changes
+from skills._shared.tree_changes import (
+    AnswerChange,
+    ChangeKind,
+    CitedAbove,
+    UncitedBelow,
+    answer_changes,
+    cited_above,
+    uncited_below,
+)
 
 if TYPE_CHECKING:  # tree_check imports CitedEvent from here, through tree_render
     from skills._shared.tree_check import Violation
@@ -179,6 +187,13 @@ _CHANGE_WORDS = {
 }
 
 
+# The results an answer leaves out, and the answers above that rest on a
+# result (ADR-0056). "{whose}" names the answer: the subject's, this node's, or
+# none in the legend. The analyst never reads "below", "cite" or "event" (US-5).
+_NOT_YET_WORDS = "まだ{whose}答えに入れていない分析結果"
+_NO_LONGER_WORDS = "前は{whose}答えの根拠にしていて、今は外している分析結果"
+_USED_ABOVE_WORDS = "この論点の分析結果を根拠にしている答え"
+
 # What an answer rests on, in the analyst's words: an event of the data, or what
 # a person said (a hearing event is not called an analysis result, US-5 AC 5).
 _RESULT_WORD = "分析結果"
@@ -235,6 +250,8 @@ class _Context:
     linked_by: Mapping[str, list[str]]
     children: Mapping[str | None, list[QuestionNode]]
     changes: Mapping[str, AnswerChange]
+    uncited: Mapping[str, tuple[UncitedBelow, ...]]
+    cited_above: Mapping[str, tuple[CitedAbove, ...]]
 
     @classmethod
     def of(
@@ -279,6 +296,8 @@ class _Context:
             linked_by,
             children,
             answer_changes(tree),
+            uncited_below(tree),
+            cited_above(tree),
         )
 
     def shown(self, node: QuestionNode) -> Shown:
