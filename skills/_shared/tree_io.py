@@ -6,13 +6,14 @@ instead of writing the file themselves. Every write is checked against the
 the pre-write hook only guards the Write/Edit tool path, not direct python writes.
 
 Progress is never written. What is derived from the tree (``progress``,
-``position``, the generated view ``render`` writes) lives in ``tree_read``; the
-CLI here runs those commands too.
+``position``, ``changes``, the generated view ``render`` writes) lives in
+``tree_read``; the CLI here runs those commands too.
 
 Usage from a skill (CLI):
     echo '<json>' | python -m skills._shared.tree_io create --base-dir .insight
     echo '{"answers": [...]}' | python -m skills._shared.tree_io answer --theme LIB
     python -m skills._shared.tree_io render --design LIB-H01   # the analysis note
+    python -m skills._shared.tree_io changes --theme LIB   # what each answer changed
     python -m skills._shared.tree_io report --theme LIB   # .insight/reports/LIB.md
 
 Exit 0: done. Exit 1: error (message on stderr). Exit 3 (answer, decide and report
@@ -59,6 +60,7 @@ from skills._shared.tree_check import check_last_decision, check_tree
 from skills._shared.tree_read import (
     ReportStop,
     WalkState,
+    changes,
     load_tree,
     load_tree_model,
     named_like_its_file,
@@ -604,6 +606,7 @@ _COMMANDS: dict[str, tuple[_Handler, bool]] = {
     "get": (_get, False),
     "position": (_position, False),
     "progress": (lambda a, base, p: progress(a.theme, base_dir=base), False),
+    "changes": (lambda a, base, p: changes(a.theme, base_dir=base), False),
     "render": (_render, False),
     "report": (_report, False),
 }

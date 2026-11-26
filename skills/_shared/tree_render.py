@@ -148,6 +148,7 @@ _TREE_CSS = """.legend { background: var(--panel); border: 1px solid var(--line)
   border: 1px solid var(--line); padding: .3rem .5rem; text-align: left; vertical-align: top;
 }
 .changes tbody th { color: var(--mark); width: 7.5em; }
+.changes td:nth-child(2) { width: 27%; }
 .changes td ul { list-style: none; margin: 0; padding: 0; }
 .changes blockquote { margin: .2rem 0 0; padding-left: .6rem; border-left: 3px solid var(--line); }
 .changes .none { color: var(--muted); }
@@ -802,21 +803,8 @@ def _answer_lines(
             join(_statement(s, *_heard_word(context, s)) for s in answer.statements),
             class_="statements",
         ),
-        _round_meta(answer),
-        _not_rewritten_since(context, answer),
+        _round_meta(answer, context.tree.current_round()),
     ]
-
-
-def _not_rewritten_since(context: _Context, answer: Answer) -> Html | None:
-    """Says that later rounds left the answer as it is; the marks only know the latest round."""
-    latest = context.tree.current_round()
-    if answer.round == latest:
-        return None
-    return el(
-        "p",
-        f"この答えは回 {answer.round} のもの。最新の振り返りは回 {latest} で、"
-        f"回 {answer.round} より後の回では、この答えを書き直していない。",
-    )
 
 
 def _changes_on_the_card(context: _Context, node: QuestionNode) -> Html | None:
@@ -981,11 +969,26 @@ def _heard_word(context: _Context, statement: AnswerStatement) -> tuple[str, ...
     return ()
 
 
-def _round_meta(answer: Answer) -> Html:
+def _round_meta(answer: Answer, latest: int | None = None) -> Html:
+    """The round of an answer; with *latest*, also that later rounds left it as it is.
+
+    The marks only know the latest round, so without this line a round that
+    passes would leave no trace on an answer it did not touch.
+    """
+    untouched = (
+        f"　最新の振り返りは回 {latest} で、回 {answer.round} より後の回では、"
+        "この答えを書き直していない。"
+        if latest is not None and answer.round < latest
+        else None
+    )
     return el(
         "p",
-        f"振り返りの回 {answer.round}（{_SUBJECT_REVISION} {answer.root_revision}）",
-        class_="meta",
+        el(
+            "span",
+            f"振り返りの回 {answer.round}（{_SUBJECT_REVISION} {answer.root_revision}）",
+            class_="meta",
+        ),
+        untouched,
     )
 
 

@@ -49,6 +49,7 @@ from skills._shared.theme_report import (
     ThemeReport,
     render_report,
 )
+from skills._shared.tree_changes import answer_changes
 from skills._shared.tree_check import Violation, check_cited, current_cites
 from skills._shared.tree_render import (
     CheckFailed,
@@ -113,6 +114,34 @@ def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]
             for design_id in node.design_ids
         ).value
         for node in load_tree_model(theme_id, base_dir).nodes
+    }
+
+
+def changes(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
+    """What each answer changed since the answer before it, derived. Writes nothing.
+
+    The page ``render`` writes shows the same values with the content of each
+    event; here a skill gets them to show the analyst (ADR-0056).
+    """
+    tree = load_tree_model(theme_id, base_dir)
+    return {
+        "answer_changes": [
+            {
+                "node_id": change.node_id,
+                "round": change.round,
+                "previous_round": change.previous_round,
+                "evidence": [
+                    {
+                        "event_id": evidence.event_id,
+                        "kind": evidence.kind.value,
+                        "before": [s.model_dump(mode="json") for s in evidence.before],
+                        "after": [s.model_dump(mode="json") for s in evidence.after],
+                    }
+                    for evidence in change.evidence
+                ],
+            }
+            for change in answer_changes(tree).values()
+        ]
     }
 
 

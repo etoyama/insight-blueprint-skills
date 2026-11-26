@@ -1894,7 +1894,7 @@ class TestAnAnswerOfAnEarlierRound:
         shown = node_text(page(), "LIB-Q05")
 
         assert (
-            "この答えは回 1 のもの。最新の振り返りは回 2 で、"
+            "振り返りの回 1（主題の版 1） 最新の振り返りは回 2 で、"
             "回 1 より後の回では、この答えを書き直していない。" in shown
         )
 
@@ -1993,7 +1993,9 @@ class TestTheTopOfThePage:
         root = page(tree=later_round(changed_root()))
         top = by_id(root, "subject-answer")
 
-        assert "この答えは回 2 のもの。最新の振り返りは回 3 で" in squash(top.text())
+        assert "振り返りの回 2（主題の版 2） 最新の振り返りは回 3 で" in squash(
+            top.text()
+        )
         assert changes_of(root, top).tag == "details"
 
     def test_an_answer_to_the_subject_that_fails_the_check_is_not_shown_at_the_top(
