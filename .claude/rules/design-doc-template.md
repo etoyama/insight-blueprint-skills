@@ -185,3 +185,5 @@ Story 完了とキーイベントの追記専用ログ。
 
 - YYYY-MM-DD — Story N.M completed: <一行サマリ>
 - YYYY-MM-DD — 初版: 見本を省いた（<利用者から見える変化がない理由>）
+- YYYY-MM-DD — 実データで使ってみた: findings N 件（Epic で直した M 件、issue #NN）
+- YYYY-MM-DD — 実データで使ってみる段を省いた（<利用者から見える変化がない理由>）
