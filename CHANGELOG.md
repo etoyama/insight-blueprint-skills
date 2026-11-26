@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upgrade note
+
+- **A tree with a decision that has `cites` cannot be read by an earlier version of the
+  plugin.** An earlier version rejects any key of a decision it does not know
+  ([ADR-0058](docs/adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md), #249).
+
 ### Changed
 
 - **The handoff trial was taken again on the display of Epic 34.** Nine Claude readers read each of `lib`

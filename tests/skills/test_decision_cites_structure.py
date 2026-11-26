@@ -16,6 +16,7 @@ import pytest
 
 from insight_blueprint.models.tree import TreeDecisionKind
 from skills._shared import tree_io
+from tests.docs._changelog import changelog_entry
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills._shown import run_shown_commands
 from tests.skills.test_next_candidate_structure import _library
@@ -177,4 +178,19 @@ class TestTheDriverLetsTheGateReviseTheSubject:
     def test_the_round_goes_on_at_the_same_gate(self) -> None:
         assert re.search(
             rf"{REVISE}[^.]*\.[^.]*round is not over[^.]*Step T7", _auto_walk()
+        )
+
+
+class TestTheChangelogWarnsOlderPlugins:
+    """`TreeDecision` forbids keys it does not know, so a plugin from before Epic 34
+    rejects a tree whose decision has `cites`."""
+
+    def test_the_upgrade_note_says_an_older_plugin_cannot_read_the_tree(self) -> None:
+        changelog = (Path(__file__).resolve().parents[2] / "CHANGELOG.md").read_text(
+            encoding="utf-8"
+        )
+        entry = changelog_entry(changelog, "a decision that has `cites`")
+        note = unwrap(section(entry, "### Upgrade note"))
+        assert re.search(
+            r"a decision that has `cites` cannot be read by an earlier version", note
         )
