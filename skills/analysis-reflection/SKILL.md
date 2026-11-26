@@ -195,8 +195,8 @@ Then ask: 「この中に、答えが出ると判定（探索では答え）が�
 - ある → recommend more investigation (→ /analysis-journal) before the design ends.
 - ない → go on to the next question.
 - A question whose answer changes no verdict is not dropped: it is a reservation on the root
-  question (根の問いへの留保). Say that the theme reflection (`/analysis-reflection {theme_id}`)
-  writes it as 未判別 or 弱める証拠と留保 for a node.
+  question (主題への留保). Say that the theme reflection (`/analysis-reflection {theme_id}`)
+  writes it as まだ決められないこと or 注意すべきこと for a node.
 
 #### この分析設計をどう終えるか
 
@@ -302,7 +302,7 @@ an answer only after the tree check has passed (ADR-0025).
 
 1. `tree_io get --theme {theme_id}` — load the question tree (JSON). If it prints `{}`,
    the theme has no tree: "このテーマには論点ツリーがない。/analysis-framing {theme_id} で
-   根の問いと論点を決めよう" → exit.
+   主題と論点を決めよう" → exit.
    If `{path}` in `tree_io: no tree at {path}` on stderr is not under this project's
    `.insight`, run it again from the project directory: never `cd` before, since `tree_io`
    reads the `.insight` of the directory it is run from.
@@ -322,9 +322,9 @@ Each statement has a `kind`, a `text` and `cites`:
 
 | `kind` | What the statement does |
 |---|---|
-| `claim` | 言えること — what the cited events let you say about the node's question |
-| `undetermined` | 未判別 — what the cited events leave open, even though the analysis ran |
-| `weakening` | 弱める証拠と留保 — a cited event that speaks against a claim, or a limit on how far it reaches |
+| `claim` | これまでわかっていること — what the cited events let you say about the node's question |
+| `undetermined` | まだ決められないこと — what the cited events leave open, even though the analysis ran |
+| `weakening` | 注意すべきこと — a cited event that speaks against a claim, or a limit on how far it reaches |
 
 Rules for every statement:
 
@@ -412,18 +412,18 @@ Show no answer to the analyst before `tree_check` has run, and never show an ans
 ### Step T5: Present the current answers
 
 ```
-── Theme Reflection: {theme_id} (round {round}, root revision {root_revision}) ──
-Root question: {root question}
+── Theme Reflection: {theme_id} (round {round}, 主題の版 {root_revision}) ──
+主題: {root question}
 
 {node_id}  {question}
   Progress: {未着手 | 検証中 | 分析済み}
-  Answer (round {round}{, 根の変更前の答え}):
-    [言えること] {text}  ← {cites}
-    [未判別] {text}  ← {cites}
-    [弱める証拠と留保] {text}  ← {cites}
+  Answer (round {round}{, 見直す前の主題への答え}):
+    [これまでわかっていること] {text}  ← {cites}
+    [まだ決められないこと] {text}  ← {cites}
+    [注意すべきこと] {text}  ← {cites}
 
 ── Changed in this round ──
-  - {node_id}: 初めての答え | 回 {previous_round} から変わった | 根の版が上がり、同じ文で書き直した
+  - {node_id}: 初めての答え | 回 {previous_round} から変わった | 主題の版が上がり、同じ文で書き直した
 
 ── Unchanged ──
   - {node_id}
@@ -444,7 +444,10 @@ Root question: {root question}
   instead of calling it changed.
 - A node under "Stale answers" shows its question and progress, not its answer.
 - An answer whose `root_revision` is lower than the current root revision answers an
-  earlier root question: mark it "根の変更前の答え".
+  earlier root question: mark it "見直す前の主題への答え".
+- In every sentence for the analyst, call the root question 主題, a root revision 主題の版,
+  and an answer to an earlier root revision 見直す前の主題への答え (ADR-0055). The YAML
+  keys and `tree_io revise-root` keep the word root.
 - List every removed statement with its violation. Never drop one silently: the analyst
   must know what the answer does not say.
 - Show the `path` that `tree_io render` printed: the analyst reads the tree there.
@@ -556,7 +559,7 @@ After a `hear` or a `decide`, run `tree_io render --theme {theme_id}` again and 
 
 - After `deepen` or `return`: "次の論点の Framing Brief を出すなら /analysis-framing {theme_id}"
 - After `close`: "区切った。再開するときは /analysis-framing {theme_id}"
-- "根の問いか到達点を変えるなら /analysis-framing {theme_id}"
+- "主題か到達点を変えるなら /analysis-framing {theme_id}"
 - "分析設計の結論を出すなら /analysis-reflection {design_id}"
 
 ## design_io Reference

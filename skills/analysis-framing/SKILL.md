@@ -144,6 +144,9 @@ Discuss with the user to narrow the direction (a question to explore, or a hypot
 The agreed direction is kept as the theme's **question tree**
 (`.insight/themes/{theme_id}_tree.yaml`): the root question, its aim, and the first-level
 nodes under it. The analyst settles them at two KEEP gates (4a, 4b). You draft, the analyst decides.
+In every sentence for the analyst, call the root question 主題, a root revision 主題の版,
+and an answer to an earlier root revision 見直す前の主題への答え (ADR-0055). The YAML keys
+and `tree_io revise-root` keep the word root.
 A run handed the position of the theme reads the end of 4d before it asks anything in 4a or 4c.
 
 Do NOT create a design, its `hypothesis_statement` or its `exploration_question`. The Framing Brief
@@ -397,7 +400,7 @@ Then end with the next step:
 | /analysis-design | → /analysis-framing | データ不足で仮説の方向を再検討: "データを探し直すなら /analysis-framing" |
 | /analysis-reflection | → /analysis-framing | 新しい探索の問いか検証仮説が要るが、データと方向を先に探す: "新しい角度を探すなら /analysis-framing" |
 | /catalog-register | → /analysis-framing | データ登録完了、フレーミングに戻る: "フレーミングに戻るなら /analysis-framing" |
-| /analysis-auto | → /analysis-framing | guided autopilot が論点ツリーを作る、次の論点の Framing Brief を得る、根の問いを変える |
+| /analysis-auto | → /analysis-framing | guided autopilot が論点ツリーを作る、次の論点の Framing Brief を得る、主題を変える |
 | /analysis-framing | → /analysis-design | 方向が定まった（Framing Brief 付き）: "分析設計を作るなら /analysis-design" |
 | /analysis-framing | → /tree-upload | 論点ツリーを書き、図（HTML）を作った: "論点ツリーの図を URL で渡すなら /tree-upload" |
 | /analysis-framing | → /catalog-register | 必要なデータが未登録: "データを登録するなら /catalog-register" |

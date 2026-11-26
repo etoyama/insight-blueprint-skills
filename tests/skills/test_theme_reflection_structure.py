@@ -119,9 +119,9 @@ class TestThemeReflectionWritesCitedAnswers:
     @pytest.mark.parametrize(
         ("kind", "label"),
         [
-            ("claim", "言えること"),
-            ("undetermined", "未判別"),
-            ("weakening", "弱める証拠と留保"),
+            ("claim", "これまでわかっていること"),
+            ("undetermined", "まだ決められないこと"),
+            ("weakening", "注意すべきこと"),
         ],
     )
     def test_each_kind_of_statement_is_explained(self, kind: str, label: str) -> None:

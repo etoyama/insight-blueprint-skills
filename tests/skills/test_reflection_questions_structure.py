@@ -177,9 +177,9 @@ class TestAnAnswerThatChangesNoVerdictGoesToTheTheme:
 
     def test_such_a_question_is_left_to_the_theme_reflection(self) -> None:
         beat = _beat(OPEN_QUESTIONS)
-        assert "根の問いへの留保" in beat
+        assert "主題への留保" in beat
         assert "/analysis-reflection {theme_id}" in beat
-        assert "未判別" in beat and "弱める証拠と留保" in beat
+        assert "まだ決められないこと" in beat and "注意すべきこと" in beat
 
     def test_no_text_for_the_analyst_uses_hibiku(self) -> None:
         assert "響" not in _skill()
