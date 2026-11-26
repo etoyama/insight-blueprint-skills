@@ -130,6 +130,60 @@ class TestRecord:
         assert "採点し直さない" in body
 
 
+class TestTheReaderModelIsKept:
+    """ADR-0060: two trials compare only when each names the model that answered."""
+
+    def test_the_claude_command_returns_the_model_that_answered(self) -> None:
+        command = _claude_command()
+        assert command[command.index("--output-format") + 1] == "json"
+        assert "`modelUsage`" in unwrap(section(_doc(), "## Step 2"))
+
+    def test_the_record_command_passes_the_model(self) -> None:
+        body = section(_doc(), "## Step 5").replace("\\\n", " ")
+        (line,) = [x for x in body.splitlines() if "handoff_trial record" in x]
+        command = shlex.split(line)
+        assert command[command.index("--reader-model") + 1].startswith("claude-")
+
+    def test_the_record_type_names_the_model_and_the_records_without_it(self) -> None:
+        body = unwrap(section(_doc(), "## Step 5"))
+        assert "`reader.model`" in body
+        assert "](adr/0060-" in body
+        assert "2026-11-26 までの記録" in body
+
+
+class TestTheKeyIsCheckedByAPerson:
+    """The key is derived by rule from the scenario; no person answered it.
+
+    When the questions or the rules change, a person answers once, so a rule that
+    no longer fits the page is told apart from a page that reads badly."""
+
+    HEADING = "## Checking the key by hand"
+
+    def test_it_says_when_to_check(self) -> None:
+        body = unwrap(section(_doc(), self.HEADING))
+        assert "`tests/fixtures/handoff/prompt.md`" in body
+        assert "`key.yaml`" in body
+        assert "Step 4" in body
+
+    def test_a_person_answers_every_question_of_every_scenario(self) -> None:
+        body = unwrap(section(_doc(), self.HEADING))
+        assert f"{len(handoff_trial.QUESTIONS)}つの問い" in body
+        for path in sorted(handoff_trial.FIXTURES.iterdir()):
+            if path.is_dir():
+                assert f"`{path.name}`" in body
+
+    def test_the_answers_are_scored_with_the_same_command(self) -> None:
+        body = section(_doc(), self.HEADING)
+        assert "--reader-kind human" in body
+        assert "docs/handoff-trials/" in unwrap(body)
+
+    def test_a_disagreement_is_sorted_before_anything_is_fixed(self) -> None:
+        body = unwrap(section(_doc(), self.HEADING))
+        for cause in ("画面", "問いの文", "採点の決まり"):
+            assert f"**{cause}**" in body
+        assert "PR の説明" in body
+
+
 class TestCommandsExist:
     def test_every_named_subcommand_exists(self) -> None:
         named = set(_SCRIPT_CALL.findall(_doc()))

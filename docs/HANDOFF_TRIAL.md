@@ -75,8 +75,16 @@ CLAUDE.md を拾わないように、空のディレクトリで実行する。
 ```bash
 uv run python -m scripts.handoff_trial prompt --html "$TRIAL/insight/themes/LIB_tree.html" > "$TRIAL/input.txt"
 mkdir "$TRIAL/empty" && cd "$TRIAL/empty"
-CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 claude -p --tools "" --strict-mcp-config --setting-sources "" --disable-slash-commands --no-session-persistence --model sonnet --system-prompt "Answer only from the text the user gives you." < "$TRIAL/input.txt" > "$TRIAL/reply.txt"
+CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 claude -p --tools "" --strict-mcp-config --setting-sources "" --disable-slash-commands --no-session-persistence --model sonnet --system-prompt "Answer only from the text the user gives you." --output-format json < "$TRIAL/input.txt" > "$TRIAL/reply.json"
+jq -r .result "$TRIAL/reply.json" > "$TRIAL/reply.txt"
+jq -r '.modelUsage | keys[]' "$TRIAL/reply.json"
+jq .num_turns "$TRIAL/reply.json"
 ```
+
+`--output-format json` の応答は、答えの文（`result`）のほかに、答えたモデルとターンの数を持つ。
+
+- `modelUsage` のキーが答えたモデルの ID である（例: `claude-sonnet-5-5`）。`--model sonnet` の `sonnet` は呼び名で、指すモデルは時期で変わる。Step 5 の記録にはここで読んだ ID を渡す。思い込みで書かない。
+- `num_turns` が 1 なら、ツールは一度も呼ばれていない。
 
 問いと HTML はモデルの API に届く。モデルの API 以外には送らない。Artifact や Claude Docs には何も送らない。
 合成データだけなので、API に届いて困るものは無い。
@@ -84,7 +92,7 @@ CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 claude -p --tools "" --strict-mcp-config --set
 これらのフラグでも、managed（組織の管理者が置く）設定と、その hook は外せない。
 `--bare` なら hook と CLAUDE.md の探索まで切れるが、認証が API キーに限られる。
 
-隔離が効いているかは、同じフラグに `--output-format json` を足して確かめる。`num_turns` が 1 なら、ツールは一度も呼ばれていない。
+隔離が効いているかは、この `num_turns` で確かめる。
 2026-11-21 の確認では `num_turns` は 1 だった。あわせて「呼べるツール、CLAUDE.md の中身、作業ディレクトリ」を聞くと、ツールは空、CLAUDE.md と memory は見えない、作業ディレクトリは分からない、と答えた。この答えはモデルの自己申告なので、証拠としては `num_turns` より弱い。
 
 ## Step 3: Hand it to a person
@@ -124,7 +132,7 @@ q5 の理由だけは集合の一致で採点しない。HTML は決定の理由
 リポジトリのルートに戻ってから実行する。
 
 ```bash
-uv run python -m scripts.handoff_trial record --scenario lib --answers "$TRIAL/reply.txt" --reader-kind claude --reader-name "sonnet (Claude Code 2.1.227)" --date 2026-11-21 --out docs/handoff-trials/2026-11-21-claude-sonnet.yaml
+uv run python -m scripts.handoff_trial record --scenario lib --answers "$TRIAL/reply.txt" --reader-kind claude --reader-name "sonnet (Claude Code 2.1.227)" --reader-model claude-sonnet-5-5 --date 2026-11-21 --out docs/handoff-trials/2026-11-21-claude-sonnet.yaml
 ```
 
 記録は1回の試行を1ファイルにし、`docs/handoff-trials/` にコミットする。合成データだけなので公開してよい。
@@ -132,6 +140,7 @@ uv run python -m scripts.handoff_trial record --scenario lib --answers "$TRIAL/r
 
 - `date`、`scenario`、`stage`（鍵の段階）
 - `reader`: `kind`（`human` か `claude`）と `name`
+- `reader.model`: 答えたモデルの ID（Step 2 の `modelUsage` から読む）。Claude の試行では `--reader-model` で渡す。渡さないと `record` は記録を書かずに止まる。人の試行では渡さない
 - `minutes.confirm` と `minutes.reconstruct`: 確認と再構成にかかった分。人の試行では両方が要る。Claude の試行では空にする
 - `answers`: 問いへの答え（`note` を含む）。q6 を足す前の記録は q6 を持たない
 - `score`: 問いごとの正誤
@@ -140,4 +149,38 @@ uv run python -m scripts.handoff_trial record --scenario lib --answers "$TRIAL/r
 記録の正誤は、その時点の鍵での採点として残す。CI は記録を今の鍵で採点し直さない（[ADR-0035](adr/0035-handoff-trial-records-keep-their-score.md)）。
 鍵を直しても、過去の記録は書き換えない。鍵が変わる前と後の記録を比べるときは、記録の日付と鍵の git の履歴を見る。
 
+2026-11-26 までの記録は `reader.model` を持たない（[ADR-0060](adr/0060-a-trial-record-names-the-model-that-read.md)）。`name` にあるのは呼び名と CLI のバージョンだけである。
+その記録と後の記録を比べるときは、同じモデルが読んだとは言えない。表示を変える前と後を比べたいときは、前と後の両方を取り、`reader.model` が同じことを確かめる。
+
 時間の目標値は、既存のフローでの基準値が取れてから決める（[PRD の成功基準](PRD.md#成功基準)）。
+
+## Checking the key by hand
+
+正解の鍵は合成シナリオの記録から、Step 4 の採点の決まりで導いている。人が画面を読んで答えたものではない。
+そのため、問いの文や採点の決まりが画面の出し方とずれても、テストは通る。ずれは、読み手の点が落ちて初めて見える。
+Epic 34 では、点が落ちるたびに、画面が悪いのか、決まりが画面に合わなくなったのかを見分ける必要があった。
+
+次のどれかを変えたら、Claude の試行を回す前に、人が1回点検する。
+
+- 読み手に渡す問いと答えの形（`tests/fixtures/handoff/prompt.md`）
+- Step 4 の採点の決まりと、それを導き直すテスト（`tests/test_handoff_trial.py`）
+- 鍵（各シナリオの `key.yaml`）のうち、人が手で決めている所
+
+手順は次のとおり。
+
+1. `lib` と `psy` の両方で、Step 1 のとおり HTML を作る。
+2. 点検する人は `key.yaml` を見ずに、HTML をブラウザで読み、6つの問いに答える。答えは `prompt.md` の形の JSON で書く。
+3. Step 5 と同じ `record` で、答えを鍵と照らす。記録は `$TRIAL` に書き、`docs/handoff-trials/` には置かない。点検する人は文脈を持つ開発者で、試行の読み手ではないからだ。時間は採点に効かないので、かかった分をそのまま渡す。
+
+   ```bash
+   uv run python -m scripts.handoff_trial record --scenario lib --answers "$TRIAL/check-lib.json" --reader-kind human --reader-name "開発者" --minutes-confirm 5 --minutes-reconstruct 2 --date 2026-11-26 --out "$TRIAL/check-lib.yaml"
+   ```
+
+4. 誤と出た問いは、直す前に、次の3つのどれがずれているかを見分ける。
+   - **画面**: 決まりが正解とする判断を、画面から読み取れない。画面を直す（表示の変更は Epic で扱う）。
+   - **問いの文**: 問いが聞いていることと、決まりが採点することが違う。`prompt.md` の文を直す。
+   - **採点の決まり**: 画面を読んだ人の答えのほうが正しい。決まりと、それを導き直すテストを直す。
+5. 直したら、誤と出た問いだけ、2 からやり直す。
+6. 結果を PR の説明に書く。点検した人、シナリオごとの正誤、誤と出た問いをどれに見分けて何を直したか、を書く。
+
+点検は、決まりが画面に合っていることを1人が1回確かめるだけである。初見の読み手に判断が伝わるかは確かめない。それは Step 3 の人の試行で確かめる。
