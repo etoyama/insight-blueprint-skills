@@ -207,6 +207,32 @@ class TestEpicBranchTrial:
         assert "claude plugin marketplace remove insight-blueprint-epic<N>" in undo
         assert "~/.claude/plugins/cache/insight-blueprint-epic<N>" in undo
 
+    def _part(self, heading: str) -> str:
+        return unwrap(section(section(_read("CONTRIBUTING.md"), self.HEADING), heading))
+
+    def test_the_brief_of_a_trying_session_says_how_to_check(self) -> None:
+        """Epic 35 real-data finding 3: a brief checked the skill list and stopped twice."""
+        check = self._part("#### Check")
+        assert re.search(
+            r"試すセッションに渡す指示[^。]*skill の一覧で確かめない", check
+        )
+        assert "`/insight-blueprint:analysis-auto`" in check
+        assert re.search(r"人間が[^。]*打つ", check)
+
+    def test_a_worktree_copies_the_settings_from_the_main_checkout(self) -> None:
+        """Epic 35 real-data finding 2: --scope local wrote to the main checkout."""
+        worktree = self._part("#### Trying in a worktree")
+        assert "<main>/.claude/settings.local.json" in worktree
+        assert re.search(r"Claude Code \d+\.\d+\.\d+", worktree)
+        for key in ("`enabledPlugins`", "`extraKnownMarketplaces`"):
+            assert key in worktree, key
+        assert "claude plugin list" in worktree
+
+    def test_the_undo_of_a_worktree_restores_the_main_checkout(self) -> None:
+        undo = self._part("#### Undo")
+        assert "<main>" in undo
+        assert "main.settings.local.json.bak" in undo
+
 
 class TestRoadmap:
     """US-2 AC 1, AC 2: the PRD roadmap is the one list of Epics; ARCHITECTURE has a context map."""
