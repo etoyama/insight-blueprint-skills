@@ -114,7 +114,7 @@ Epic 06 からは軽量版の上に分析の能力を足していく。
 | Epic 32 | [epic-32](design/epic-32-exploration-and-confirmation.md) | 探索と検証の区別を分析設計の入口から出口まで効かせる | 完了 |
 | Epic 33 | [epic-33](design/epic-33-verdict-on-record.md) | 検証の判定を記録で守る | 完了 |
 | Epic 34 | [epic-34](design/epic-34-what-moved-the-answer.md) | 後から届いた結果で何が変わったかを、論点ツリーでたどれるようにする | 完了 |
-| Epic 35 | [epic-35](design/epic-35-hand-over-questions.md) | 互いを待たない論点をまとめて任せて、まとめて戻る | 進行中 |
+| Epic 35 | [epic-35](design/epic-35-hand-over-questions.md) | 互いを待たない論点をまとめて任せて、まとめて戻る | 完了 |
 
 各 Epic の DesignDoc は `## Scope` 節で、本書のどの要件と
 ARCHITECTURE のどのコンポーネントを前進させるかを示す。
