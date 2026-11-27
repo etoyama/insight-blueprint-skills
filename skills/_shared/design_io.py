@@ -35,6 +35,7 @@ from insight_blueprint.models.analysis_stage import (
     asks_analyst,
     confirmation,
     open_confirmations,
+    records_a_result,
     stop,
 )
 from insight_blueprint.models.common import THEME_ID_PATTERN, now_jst
@@ -314,6 +315,8 @@ def update_design(
         merged = {**current, **changes, "updated_at": now_jst().isoformat()}
 
         model = validate_schema(merged)  # raises ValidationError if invalid
+        if model.status.value != current.get("status"):
+            _keep_a_stopped_status(design_id, current, base_dir)
         on_disk = _parsed_or_none(current)
         if on_disk is None and model.status.value != current.get("status"):
             # Without a readable design there is no form to check the move against.
@@ -350,9 +353,24 @@ def transition_status(
         current = load_design(design_id, base_dir)
         if not current:
             raise ValueError(f"Design '{design_id}' not found")
+        _keep_a_stopped_status(design_id, current, base_dir)
         data = _moved(current, validate_schema(current), target)
         atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml", data)
         return data
+
+
+def _keep_a_stopped_status(design_id: str, current: dict, base_dir: Path) -> None:
+    """ValueError if *design_id*, read as *current*, was stopped: its status stays.
+
+    Moving it would end an analysis that has no result, and the stop would
+    drop out of the stage (ADR-0064 7). Called before any write that changes
+    the status.
+    """
+    if stage_in(design_id, current, base_dir) is AnalysisStage.stopped:
+        raise ValueError(
+            f"{design_id} is stopped: its status does not change. A stopped "
+            "analysis is not resumed; to try again, derive another design"
+        )
 
 
 def _moved(current: dict, on_disk: AnalysisDesign, target: str) -> dict:
@@ -418,6 +436,11 @@ def append_journal_event(
     or ``stop_analysis``. A journal written by hand is held to the same rule by
     the skills' own text (analysis-journal, ADR-0064 8).
     """
+    _refuse_marks(event_fields)
+    return _append_event(design_id, event_fields, base_dir)
+
+
+def _refuse_marks(event_fields: dict) -> None:
     metadata = event_fields.get("metadata")
     marked = [m for m in MARKS if m in metadata] if isinstance(metadata, dict) else []
     if marked:
@@ -425,7 +448,36 @@ def append_journal_event(
             f"metadata.{marked[0]} is written only by design_io ask-analyst, "
             "answer-analyst and stop"
         )
-    return _append_event(design_id, event_fields, base_dir)
+
+
+def append_journal_events(
+    design_id: str, events: list[dict], base_dir: Path = DEFAULT_BASE_DIR
+) -> list[dict]:
+    """Append *events* to the journal of *design_id*, in order, and return them as written.
+
+    The way an execution agent records its results: the read and the write sit
+    in one lock, so a stop the dialogue agent writes meanwhile is not lost, and
+    neither are these (ADR-0062 2). All of them are written or none. Each event
+    holds a ``type`` and a ``content``; a mark is refused as in
+    ``append_journal_event``. A stopped analysis takes no new result: its agent
+    learns here that it was stopped (ADR-0064 7).
+    """
+    if not isinstance(events, list) or not events:
+        raise ValueError("events is empty: give a list of events to append")
+    for event in events:
+        if not isinstance(event, dict):
+            raise ValueError(f"an event is a mapping, not {event!r}")
+        _required_text(event.get("type"), "the type of an event")
+        _required_text(event.get("content"), "the content of an event")
+        _refuse_marks(event)
+    with write_lock(base_dir):
+        stage = stage_of(design_id, base_dir)
+        if stage is AnalysisStage.stopped:
+            raise ValueError(
+                f"{design_id} is stopped: it takes no new result. Record nothing "
+                "more and return"
+            )
+        return [_append_event(design_id, event, base_dir) for event in events]
 
 
 def _append_event(design_id: str, event_fields: dict, base_dir: Path) -> dict:
@@ -520,6 +572,29 @@ def stage_of(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> AnalysisStage
     Raises ValueError if the design does not exist.
     """
     return _stage_and_events(design_id, base_dir)[0]
+
+
+def stage_report(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
+    """The stage of *design_id*, whether a result is on record, and what it asks.
+
+    What a skill reads instead of working these out from the status and the
+    journal. ``result_on_record`` does not follow the status: it stays true
+    while a review of the result holds the design. ``asks`` lists the
+    confirmations no answer names yet, each with the id an answer names.
+    """
+    design = load_design(design_id, base_dir)
+    if not design:
+        raise ValueError(f"Design '{design_id}' not found")
+    stage, events = _stage_in(design_id, design, base_dir)
+    return {
+        "design_id": design_id,
+        "stage": stage.value,
+        "result_on_record": records_a_result(events, design.get("analysis_started_at")),
+        "asks": [
+            {"id": e.get("id"), "content": e.get("content")}
+            for e in open_confirmations(events)
+        ],
+    }
 
 
 def _check_stage(
@@ -628,6 +703,7 @@ def append_review_batch(
                 f"Design must be reviewable to save a review batch, "
                 f"current status: '{current['status']}'"
             )
+        _keep_a_stopped_status(design_id, current, base_dir)
         on_disk = validate_schema(current)
         # Moved before the batch is written: a move the design cannot make must
         # not leave a batch behind with the status unchanged.
@@ -705,6 +781,11 @@ _COMMANDS: dict[str, tuple[_Handler, bool]] = {
     ),
     "stop": (
         lambda a, base, p: stop_analysis(a.id, p.get("content"), base_dir=base),
+        True,
+    ),
+    "stage": (lambda a, base, p: stage_report(a.id, base_dir=base), False),
+    "journal-append": (
+        lambda a, base, p: append_journal_events(a.id, p.get("events"), base_dir=base),
         True,
     ),
     "list-reviews": (

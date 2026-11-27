@@ -16,32 +16,26 @@ from datetime import datetime
 from enum import StrEnum
 
 from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
-from insight_blueprint.models.journal import JOURNAL_MARKS
+from insight_blueprint.models.journal import DECIDE, HEARING, JOURNAL_MARKS, QUESTION
 
 # The metadata keys of the marks (ADR-0064 8).
 MARKS = JOURNAL_MARKS
 _ASKS_ANALYST, _ANSWERS, _STOPPED = MARKS
 
-_QUESTION = "question"
-_DECIDE = "decide"
-# What /analysis-design copies in before premortem: it does not mean the
-# analysis ran (analysis-auto, Step 1).
-_HEARING = "hearing"
-
 
 def confirmation(content: str) -> dict:
     """The fields of a confirmation the analysis asks of the analyst."""
-    return {"type": _QUESTION, "content": content, "metadata": {_ASKS_ANALYST: True}}
+    return {"type": QUESTION, "content": content, "metadata": {_ASKS_ANALYST: True}}
 
 
 def answer(question_id: str, content: str) -> dict:
     """The fields of the analyst's answer to the confirmation *question_id*."""
-    return {"type": _DECIDE, "content": content, "metadata": {_ANSWERS: question_id}}
+    return {"type": DECIDE, "content": content, "metadata": {_ANSWERS: question_id}}
 
 
 def stop(reason: str) -> dict:
     """The fields of the reason the analysis was stopped."""
-    return {"type": _DECIDE, "content": reason, "metadata": {_STOPPED: True}}
+    return {"type": DECIDE, "content": reason, "metadata": {_STOPPED: True}}
 
 
 def _metadata(event: dict) -> dict:
@@ -51,14 +45,12 @@ def _metadata(event: dict) -> dict:
 
 def asks_analyst(event: dict) -> bool:
     """Whether *event* is a confirmation the analysis asks of the analyst."""
-    return (
-        event.get("type") == _QUESTION and _metadata(event).get(_ASKS_ANALYST) is True
-    )
+    return event.get("type") == QUESTION and _metadata(event).get(_ASKS_ANALYST) is True
 
 
 def answers_of(event: dict) -> str | None:
     """The id of the confirmation *event* answers, or None if it answers none."""
-    if event.get("type") != _DECIDE:
+    if event.get("type") != DECIDE:
         return None
     answered = _metadata(event).get(_ANSWERS)
     return answered if isinstance(answered, str) else None
@@ -66,7 +58,7 @@ def answers_of(event: dict) -> str | None:
 
 def stops(event: dict) -> bool:
     """Whether *event* is the reason the analysis was stopped."""
-    return event.get("type") == _DECIDE and _metadata(event).get(_STOPPED) is True
+    return event.get("type") == DECIDE and _metadata(event).get(_STOPPED) is True
 
 
 def open_confirmations(events: Iterable[dict]) -> list[dict]:
@@ -84,7 +76,7 @@ def _records_a_result(event: dict, started_at: datetime | None) -> bool:
     before the run (ADR-0061 6.4 as amended). An event whose time cannot be
     compared with the mark counts, as every event did before the amendment.
     """
-    if event.get("type") == _HEARING or asks_analyst(event) or answers_of(event):
+    if event.get("type") == HEARING or asks_analyst(event) or answers_of(event):
         return False
     if started_at is None:
         return True
@@ -92,6 +84,16 @@ def _records_a_result(event: dict, started_at: datetime | None) -> bool:
         return _moment(event.get("created_at")) >= started_at
     except (TypeError, ValueError):
         return True
+
+
+def records_a_result(events: Iterable[dict], started_at: datetime | str | None) -> bool:
+    """Whether *events* hold a result of the run that began at *started_at*.
+
+    The status of the design is not read: a result stays on record while a
+    review of it holds the design (ADR-0054).
+    """
+    start = _mark(started_at)
+    return any(_records_a_result(e, start) for e in events)
 
 
 def _moment(value: object) -> datetime:
@@ -135,7 +137,6 @@ class AnalysisStage(StrEnum):
         a mark read from a file as text is read as what it says.
         """
         status = DesignStatus(status)
-        start = _mark(started_at)
         events = list(events)
         if status in TERMINAL_STATUSES:
             return cls.finished
@@ -145,7 +146,7 @@ class AnalysisStage(StrEnum):
             return cls.awaiting_confirmation
         if status is not DesignStatus.analyzing:
             return cls.before_run
-        if any(_records_a_result(e, start) for e in events):
+        if records_a_result(events, started_at):
             return cls.awaiting_reflection
         return cls.running
 

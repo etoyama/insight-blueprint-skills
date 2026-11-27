@@ -468,6 +468,18 @@ class TestCopyHearing:
             tree_io.copy_hearing("LIB", "LIB-Q03", design_id, base_dir=heard)
         assert self._journal_path(heard).read_bytes() == before
 
+    def test_a_stopped_analysis_is_refused_and_its_journal_is_left_as_it_is(
+        self, heard: Path
+    ) -> None:
+        """Story 35.7: a stopped analysis is not resumed, so nothing more is copied in."""
+        design_id = self._design_of(heard)
+        design_io.stop_analysis(design_id, "今回は任せない", base_dir=heard)
+        before = self._journal_path(heard).read_bytes()
+
+        with pytest.raises(ValueError, match=f"{design_id} is stopped.*next design"):
+            tree_io.copy_hearing("LIB", "LIB-Q03", design_id, base_dir=heard)
+        assert self._journal_path(heard).read_bytes() == before
+
     def test_the_refusal_says_where_the_answer_goes_instead(self, heard: Path) -> None:
         design_id = self._design_of(heard)
         _finish(heard, design_id)

@@ -35,8 +35,10 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from ruamel.yaml import YAMLError
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.common import now_jst
 from insight_blueprint.models.design import TERMINAL_STATUSES
+from insight_blueprint.models.journal import HEARING, QUESTION
 from insight_blueprint.models.tree import (
     Answer,
     AnswerStatement,
@@ -56,6 +58,7 @@ from skills._shared.design_io import (
     append_journal_event,
     journal_events,
     resolve_base_dir,
+    stage_in,
 )
 from skills._shared.tree_check import check_last_decision, check_tree, reported
 from skills._shared.tree_read import (
@@ -140,7 +143,7 @@ def _require_question_event(event_id: str, base_dir: Path) -> None:
     event = next((e for e in events if e.get("id") == event_id), None)
     if event is None:
         raise ValueError(f"journal event '{event_id}' not found")
-    if event.get("type") != "question":
+    if event.get("type") != QUESTION:
         raise ValueError(
             f"journal event '{event_id}' is not a question (type: {event.get('type')})"
         )
@@ -432,7 +435,7 @@ def copy_hearing(
             old = old if isinstance(old, dict) else {}
             # YAML reads an unquoted date back as a date, not the string we wrote.
             if (
-                existing.get("type") == "hearing"
+                existing.get("type") == HEARING
                 and existing.get("content") == note.answer
                 and {k: str(old.get(k)) for k in same} == same
             ):
@@ -441,17 +444,25 @@ def copy_hearing(
                     "reason": "the answer is already in the journal",
                 }
 
-        status = status_of(require_design(design_id, base_dir))
-        if status in TERMINAL_STATUSES:
-            # A concluded analysis keeps the record it was concluded on.
+        design = require_design(design_id, base_dir)
+        status = status_of(design)
+        stopped = stage_in(design_id, design, base_dir) is AnalysisStage.stopped
+        if status in TERMINAL_STATUSES or stopped:
+            # A concluded analysis keeps the record it was concluded on, and a
+            # stopped one is not resumed (ADR-0064 7).
+            ended = (
+                "stopped: a stopped analysis"
+                if stopped
+                else f"{status.value}: a finished design"
+            )
             raise ValueError(
-                f"{design_id} is {status.value}: a finished design takes no new hearing. "
+                f"{design_id} is {ended} takes no new hearing. "
                 f"The answer stays on {node_id}; copy it into the next design linked there"
             )
 
         event = append_journal_event(
             design_id,
-            {"type": "hearing", "content": note.answer, "metadata": metadata},
+            {"type": HEARING, "content": note.answer, "metadata": metadata},
             base_dir,
         )
         return {"copied": True, "event": event}

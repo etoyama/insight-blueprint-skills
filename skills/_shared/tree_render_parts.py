@@ -14,6 +14,7 @@ from enum import StrEnum
 
 from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import DesignForm, DesignStatus
+from insight_blueprint.models.journal import HEARING
 from insight_blueprint.models.tree import (
     Answer,
     AnswerStatement,
@@ -222,7 +223,7 @@ def answer_lines(
 
 def is_heard(context: Context, event_id: str) -> bool:
     event = context.events.get(event_id)
-    return event is not None and event.type == "hearing"
+    return event is not None and event.type == HEARING
 
 
 def result_lines(context: Context, event_id: str) -> list[Html | str]:

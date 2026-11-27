@@ -360,7 +360,7 @@ def _section(anchor: str, name: str, heading: str, *content: Html | None) -> Htm
     )
 
 
-def _status(note: DesignNote, anchor: str) -> Html:
+def _status(note: DesignNote, anchor: str, stage_line: str | None) -> Html:
     last = note.events[-1] if note.events else None
     if last is None:
         journal = "journal にまだ出来事が無い。"
@@ -375,6 +375,7 @@ def _status(note: DesignNote, anchor: str) -> Html:
         el("p", f"{INTENT_LABEL}: {intent_word(design)}"),
         el("p", LEGACY_NOTE) if form is DesignForm.legacy_exploration else None,
         el("p", f"状態: {status_word(form, design.status)}（{design.status.value}）"),
+        None if stage_line is None else el("p", stage_line),
         el("p", journal),
         el("p", f"notebook の結果（verdict）: {verdict}"),
         None
@@ -813,14 +814,19 @@ def _local_files(note: DesignNote, anchor: str) -> Html:
     return _section(anchor, "files", "手元のファイル", body)
 
 
-def render_note(note: DesignNote) -> Html:
-    """The note as one ``<section>``, ready to sit inside a page."""
+def render_note(note: DesignNote, stage_line: str | None = None) -> Html:
+    """The note as one ``<section>``, ready to sit inside a page.
+
+    *stage_line* goes under the status line. Its words belong to the tree page
+    (``tree_words.note_stage_line``), which this module cannot import, so the
+    caller hands the line in.
+    """
     design = note.design
     anchor = note_anchor(design.id)
     return el(
         "section",
         el("h2", f"分析ノート {design.id} {design.title}"),
-        _status(note, anchor),
+        _status(note, anchor, stage_line),
         _opening(design, anchor),
         _decision(design, anchor),
         _method(design, anchor),
@@ -839,5 +845,9 @@ def render_note(note: DesignNote) -> Html:
     )
 
 
-def render_note_page(note: DesignNote) -> str:
-    return page(f"分析ノート {note.design.id}", BASE_CSS + NOTE_CSS, render_note(note))
+def render_note_page(note: DesignNote, stage_line: str | None = None) -> str:
+    return page(
+        f"分析ノート {note.design.id}",
+        BASE_CSS + NOTE_CSS,
+        render_note(note, stage_line),
+    )

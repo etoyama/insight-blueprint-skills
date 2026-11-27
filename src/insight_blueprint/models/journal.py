@@ -9,3 +9,13 @@ the pre-write hook can import, so the hook and the stage rule read one list.
 # A confirmation asked of the analyst, the analyst's answer to one, and the
 # reason an analysis was stopped.
 JOURNAL_MARKS = ("asks_analyst", "answers", "stopped")
+
+# The types of event a rule reads. A journal may hold other types: these are
+# the ones the stage of an analysis, the open questions and the tree's checks
+# tell apart, so each reader names them from here.
+QUESTION = "question"
+DECIDE = "decide"
+CONCLUDE = "conclude"
+# What /analysis-design copies in before premortem: an answer the analyst heard,
+# which does not mean the analysis ran.
+HEARING = "hearing"

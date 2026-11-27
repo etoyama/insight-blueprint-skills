@@ -189,6 +189,20 @@ STAGE_WORDS = {
 }
 
 STAGE_LABEL = "分析の段階"
+
+
+def note_stage_line(stage: AnalysisStage, stop_reason: str | None) -> str | None:
+    """The line the note of a stopped design adds under its status; None for any other.
+
+    The status line copies the YAML, and a stopped design keeps its status
+    (ADR-0064 7): read alone, "分析中" would say the analysis still runs.
+    """
+    if stage is not AnalysisStage.stopped:
+        return None
+    word = STAGE_WORDS[stage][0]
+    return f"段階: {word}" if stop_reason is None else f"段階: {word}（{stop_reason}）"
+
+
 STOP_REASON = "止めた理由"
 WHAT_IS_ASKED = "確認したいこと"
 LINKED_NODES = "結んだ論点"

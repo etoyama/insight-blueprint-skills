@@ -20,6 +20,7 @@ from skills._shared.tree_words import (
     STOP_REASON,
     WHAT_IS_ASKED,
     asks_heading,
+    note_stage_line,
 )
 from tests._tree_page import (
     Element,
@@ -125,3 +126,11 @@ def test_the_next_question_names_every_question_handed_over(staged: Path) -> Non
     shown = squash(by_id(_page(staged), "next-question").text())
 
     assert "LIB-Q02 予約者の待ち、LIB-Q03 曜日ごとの通知時刻、LIB-Q04 開館日数" in shown
+
+
+def test_the_note_of_the_stopped_design_says_so_under_its_status(staged: Path) -> None:
+    """Story 35.7: the status line copies the YAML, so the stage is said beside it."""
+    html = Path(tree_io.render("LIB", base_dir=staged)["path"]).read_text("utf-8")
+
+    line = note_stage_line(AnalysisStage.stopped, WHY)
+    assert html.count(f"<p>{line}</p>") == 1
