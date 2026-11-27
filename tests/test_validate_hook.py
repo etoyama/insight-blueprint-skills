@@ -170,6 +170,46 @@ class TestReconstructContent:
 # ---------------------------------------------------------------------------
 
 
+SCOPE = {
+    "population": "2026年4月に取り置きされた本",
+    "grain": "取り置き1件",
+    "denominator": "取り置きの件数",
+}
+
+
+class TestHookReadsTheDataScope:
+    """US-7 AC 1 (ADR-0066): the scope is optional, and whole when held."""
+
+    def _write(self, tmp_path: Path, data: dict) -> subprocess.CompletedProcess[str]:
+        path = tmp_path / ".insight" / "designs" / "FP-H01_hypothesis.yaml"
+        return run_hook(
+            {
+                "tool_name": "Write",
+                "tool_input": {"file_path": str(path), "content": dump_yaml(data)},
+            }
+        )
+
+    def test_a_design_with_a_data_scope_is_allowed(self, tmp_path: Path) -> None:
+        result = self._write(tmp_path, design_dict(data_scope=SCOPE))
+        assert result.returncode == 0, result.stderr
+
+    def test_an_edit_of_a_saved_design_without_a_scope_is_allowed(
+        self, tmp_path: Path
+    ) -> None:
+        path = write_design(tmp_path, "FP-H01", design_dict())
+        result = edit(path, "title: Test design", "title: Renamed design")
+        assert result.returncode == 0, result.stderr
+
+    def test_a_data_scope_with_a_blank_denominator_is_blocked(
+        self, tmp_path: Path
+    ) -> None:
+        result = self._write(
+            tmp_path, design_dict(data_scope={**SCOPE, "denominator": " "})
+        )
+        assert result.returncode == 2
+        assert "denominator" in result.stderr
+
+
 class TestHookSubprocessAllow:
     def test_non_design_file_is_ignored(self, tmp_path: Path) -> None:
         result = run_hook(

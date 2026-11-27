@@ -39,8 +39,19 @@ from insight_blueprint.validate import (
     validate_update,
     with_analysis_mark,
 )
-from skills._shared._atomic import atomic_write_yaml
+from skills._shared._atomic import atomic_write_yaml, write_lock
 from skills._shared._stdin import read_payload
+from skills._shared.analysis_stage import (
+    ANSWERS,
+    ASKS_ANALYST,
+    DECIDE,
+    MARKS,
+    QUESTION,
+    STOPPED,
+    AnalysisStage,
+    asks_analyst,
+    open_confirmations,
+)
 from skills._shared.ids import SAFE_ID_PATTERN
 
 DEFAULT_BASE_DIR = Path(os.environ.get("INSIGHT_BASE_DIR", ".insight"))
@@ -224,6 +235,7 @@ def create_design(
     next_action: dict | None = None,
     referenced_knowledge: dict[str, list[str]] | None = None,
     decision_context: dict | None = None,
+    data_scope: dict | None = None,
     base_dir: Path = DEFAULT_BASE_DIR,
 ) -> dict:
     """Create a design document. Validates via validate.py before writing.
@@ -234,35 +246,38 @@ def create_design(
     form that cannot be created: mixed, a legacy exploration) or pydantic
     ValidationError (schema) without writing on failure.
     """
-    design_id = next_design_id(theme_id, base_dir)
-    candidate: dict[str, Any] = {
-        "id": design_id,
-        "theme_id": theme_id,
-        "title": title,
-        "exploration_question": exploration_question,
-        "exploration_background": exploration_background,
-        "hypothesis_statement": hypothesis_statement,
-        "hypothesis_background": hypothesis_background,
-        "analysis_intent": analysis_intent,
-        "parent_id": parent_id,
-        "metrics": metrics or [],
-        "explanatory": explanatory or [],
-        "chart": chart or [],
-        "source_ids": source_ids or [],
-        "next_action": next_action,
-        "referenced_knowledge": referenced_knowledge or {},
-        "decision_context": decision_context,
-    }
-    if methodology is not None:
-        candidate["methodology"] = methodology
+    with write_lock(base_dir):
+        design_id = next_design_id(theme_id, base_dir)
+        candidate: dict[str, Any] = {
+            "id": design_id,
+            "theme_id": theme_id,
+            "title": title,
+            "exploration_question": exploration_question,
+            "exploration_background": exploration_background,
+            "hypothesis_statement": hypothesis_statement,
+            "hypothesis_background": hypothesis_background,
+            "analysis_intent": analysis_intent,
+            "parent_id": parent_id,
+            "metrics": metrics or [],
+            "explanatory": explanatory or [],
+            "chart": chart or [],
+            "source_ids": source_ids or [],
+            "next_action": next_action,
+            "referenced_knowledge": referenced_knowledge or {},
+            "decision_context": decision_context,
+        }
+        if methodology is not None:
+            candidate["methodology"] = methodology
+        if data_scope is not None:
+            candidate["data_scope"] = data_scope
 
-    model = validate_schema(candidate)  # raises ValidationError if invalid
-    errors = validate_creation(model)
-    if errors:
-        raise ValueError("; ".join(errors))
-    data = model.model_dump(mode="json")
-    atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml", data)
-    return data
+        model = validate_schema(candidate)  # raises ValidationError if invalid
+        errors = validate_creation(model)
+        if errors:
+            raise ValueError("; ".join(errors))
+        data = model.model_dump(mode="json")
+        atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml", data)
+        return data
 
 
 def _merge_referenced_knowledge(
@@ -284,39 +299,40 @@ def update_design(
     Raises ValueError if the design is absent or the change is invalid; nothing
     is written on failure.
     """
-    current = load_design(design_id, base_dir)
-    if not current:
-        raise ValueError(f"Design '{design_id}' not found")
+    with write_lock(base_dir):
+        current = load_design(design_id, base_dir)
+        if not current:
+            raise ValueError(f"Design '{design_id}' not found")
 
-    changes = dict(changes)
-    if "referenced_knowledge" in changes:
-        changes["referenced_knowledge"] = _merge_referenced_knowledge(
-            dict(current.get("referenced_knowledge", {})),
-            changes["referenced_knowledge"],
-        )
+        changes = dict(changes)
+        if "referenced_knowledge" in changes:
+            changes["referenced_knowledge"] = _merge_referenced_knowledge(
+                dict(current.get("referenced_knowledge", {})),
+                changes["referenced_knowledge"],
+            )
 
-    merged = {**current, **changes, "updated_at": now_jst().isoformat()}
+        merged = {**current, **changes, "updated_at": now_jst().isoformat()}
 
-    model = validate_schema(merged)  # raises ValidationError if invalid
-    on_disk = _parsed_or_none(current)
-    if on_disk is None and model.status.value != current.get("status"):
-        # Without a readable design there is no form to check the move against.
-        raise ValueError(
-            f"Design '{design_id}' on disk is invalid: repair it without "
-            "changing its status, then transition"
-        )
-    # A design broken on disk is checked as a new one, so an update may repair
-    # it, but it keeps what a started analysis holds.
-    if on_disk is None:
-        errors = validate_creation(model) + validate_repair(model, current)
-    else:
-        model = with_analysis_mark(model, on_disk)
-        errors = validate_update(model, on_disk)
-    if errors:
-        raise ValueError("; ".join(errors))
-    data = model.model_dump(mode="json")
-    atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml", data)
-    return data
+        model = validate_schema(merged)  # raises ValidationError if invalid
+        on_disk = _parsed_or_none(current)
+        if on_disk is None and model.status.value != current.get("status"):
+            # Without a readable design there is no form to check the move against.
+            raise ValueError(
+                f"Design '{design_id}' on disk is invalid: repair it without "
+                "changing its status, then transition"
+            )
+        # A design broken on disk is checked as a new one, so an update may repair
+        # it, but it keeps what a started analysis holds.
+        if on_disk is None:
+            errors = validate_creation(model) + validate_repair(model, current)
+        else:
+            model = with_analysis_mark(model, on_disk)
+            errors = validate_update(model, on_disk)
+        if errors:
+            raise ValueError("; ".join(errors))
+        data = model.model_dump(mode="json")
+        atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml", data)
+        return data
 
 
 def _parsed_or_none(data: dict) -> AnalysisDesign | None:
@@ -330,12 +346,13 @@ def transition_status(
     design_id: str, target: str, base_dir: Path = DEFAULT_BASE_DIR
 ) -> dict:
     """Transition a design's status, under the checks an update meets."""
-    current = load_design(design_id, base_dir)
-    if not current:
-        raise ValueError(f"Design '{design_id}' not found")
-    data = _moved(current, validate_schema(current), target)
-    atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml", data)
-    return data
+    with write_lock(base_dir):
+        current = load_design(design_id, base_dir)
+        if not current:
+            raise ValueError(f"Design '{design_id}' not found")
+        data = _moved(current, validate_schema(current), target)
+        atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml", data)
+        return data
 
 
 def _moved(current: dict, on_disk: AnalysisDesign, target: str) -> dict:
@@ -382,8 +399,9 @@ def journal_events(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> list[di
 def write_journal(
     design_id: str, data: dict, base_dir: Path = DEFAULT_BASE_DIR
 ) -> None:
-    _validate_id(design_id)
-    atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_journal.yaml", data)
+    with write_lock(base_dir):
+        _validate_id(design_id)
+        atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_journal.yaml", data)
 
 
 def append_journal_event(
@@ -395,37 +413,51 @@ def append_journal_event(
     set here. A journal that does not exist yet gets the header
     ``/analysis-journal`` writes. A journal that is not a mapping with a list of
     events is refused and left untouched: reading it as empty would overwrite it.
+    The marks of a confirmation, an answer and a stop are refused: only
+    ``ask_analyst``, ``answer_analyst`` and ``stop_analysis`` write them (ADR-0064 8).
     """
-    _validate_id(design_id)
-    path = _designs_dir(base_dir) / f"{design_id}_journal.yaml"
-    now = now_jst().isoformat()
-    journal = _read_journal(path)
-    if not journal:
-        journal = {
-            "metadata": {"design_id": design_id, "created_at": now},
-            "events": [],
+    metadata = event_fields.get("metadata")
+    marked = [m for m in MARKS if isinstance(metadata, dict) and m in metadata]
+    if marked:
+        raise ValueError(
+            f"metadata.{marked[0]} is written only by design_io ask-analyst, "
+            "answer-analyst and stop"
+        )
+    return _append_event(design_id, event_fields, base_dir)
+
+
+def _append_event(design_id: str, event_fields: dict, base_dir: Path) -> dict:
+    with write_lock(base_dir):
+        _validate_id(design_id)
+        path = _designs_dir(base_dir) / f"{design_id}_journal.yaml"
+        now = now_jst().isoformat()
+        journal = _read_journal(path)
+        if not journal:
+            journal = {
+                "metadata": {"design_id": design_id, "created_at": now},
+                "events": [],
+            }
+        events = journal.get("events") or []
+        if not isinstance(events, list):
+            raise ValueError(f"'events' in {path.name} is not a list")
+        taken = [
+            int(m[1])
+            for e in events
+            if isinstance(e, dict)
+            and (m := re.fullmatch(rf"{re.escape(design_id)}-E(\d+)", str(e.get("id"))))
+        ]
+        event = {
+            "id": f"{design_id}-E{max(taken, default=0) + 1:02d}",
+            **event_fields,
+            "created_at": now,
         }
-    events = journal.get("events") or []
-    if not isinstance(events, list):
-        raise ValueError(f"'events' in {path.name} is not a list")
-    taken = [
-        int(m[1])
-        for e in events
-        if isinstance(e, dict)
-        and (m := re.fullmatch(rf"{re.escape(design_id)}-E(\d+)", str(e.get("id"))))
-    ]
-    event = {
-        "id": f"{design_id}-E{max(taken, default=0) + 1:02d}",
-        **event_fields,
-        "created_at": now,
-    }
-    journal["events"] = [*events, event]
-    metadata = journal.get("metadata")
-    if not isinstance(metadata, dict):
-        metadata = journal["metadata"] = {}
-    metadata["updated_at"] = now
-    write_journal(design_id, journal, base_dir)
-    return event
+        journal["events"] = [*events, event]
+        metadata = journal.get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = journal["metadata"] = {}
+        metadata["updated_at"] = now
+        write_journal(design_id, journal, base_dir)
+        return event
 
 
 def _read_journal(path: Path) -> dict:
@@ -438,6 +470,102 @@ def _read_journal(path: Path) -> dict:
     if not isinstance(data, dict):
         raise ValueError(f"{path.name} is not a mapping")
     return data
+
+
+# ---------------------------------------------------------------------------
+# Confirmations, answers and stops (ADR-0064 8): the only writers of the marks
+# ---------------------------------------------------------------------------
+
+
+def _text_of(text: str, what: str) -> str:
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError(f"{what} is empty")
+    return text
+
+
+def _stage_of(design_id: str, base_dir: Path) -> tuple[AnalysisStage, list[dict]]:
+    """The stage of *design_id* and its events, read under the caller's lock."""
+    design = load_design(design_id, base_dir)
+    if not design:
+        raise ValueError(f"Design '{design_id}' not found")
+    events = journal_events(design_id, base_dir)
+    return AnalysisStage.of(DesignStatus(design["status"]), events), events
+
+
+def ask_analyst(
+    design_id: str, content: str, base_dir: Path = DEFAULT_BASE_DIR
+) -> dict:
+    """Record that a running analysis waits for the analyst, and what it asks.
+
+    *content* says what the analysis cannot go on without changing. Only a
+    running analysis asks: one before its run is confirmed before it is handed
+    over, and one with results has touched the data already (ADR-0064 1).
+    """
+    content = _text_of(content, "the confirmation")
+    with write_lock(base_dir):
+        stage, _ = _stage_of(design_id, base_dir)
+        if stage is not AnalysisStage.running:
+            raise ValueError(
+                f"{design_id} is {stage.value}: only a running analysis asks the analyst"
+            )
+        return _append_event(
+            design_id,
+            {"type": QUESTION, "content": content, "metadata": {ASKS_ANALYST: True}},
+            base_dir,
+        )
+
+
+def answer_analyst(
+    design_id: str, question_id: str, content: str, base_dir: Path = DEFAULT_BASE_DIR
+) -> dict:
+    """Record the analyst's answer to the confirmation *question_id*."""
+    content = _text_of(content, "the answer")
+    with write_lock(base_dir):
+        stage, events = _stage_of(design_id, base_dir)
+        if stage in (AnalysisStage.stopped, AnalysisStage.finished):
+            raise ValueError(f"{design_id} is {stage.value}: it takes no answer")
+        if not any(e.get("id") == question_id and asks_analyst(e) for e in events):
+            raise ValueError(
+                f"{question_id} is not a confirmation in the journal of {design_id}"
+            )
+        if not any(e.get("id") == question_id for e in open_confirmations(events)):
+            raise ValueError(f"{question_id} is already answered")
+        return _append_event(
+            design_id,
+            {"type": DECIDE, "content": content, "metadata": {ANSWERS: question_id}},
+            base_dir,
+        )
+
+
+# The stages an analysis may be stopped from (the State Diagram of Epic 35):
+# one with results waits for its reflection, which ends it instead.
+_STOPPABLE = frozenset(
+    {
+        AnalysisStage.before_run,
+        AnalysisStage.running,
+        AnalysisStage.awaiting_confirmation,
+    }
+)
+
+
+def stop_analysis(
+    design_id: str, reason: str, base_dir: Path = DEFAULT_BASE_DIR
+) -> dict:
+    """Record why the analysis of *design_id* stops. Its status does not change.
+
+    A stopped analysis is not resumed: to try again, derive another design
+    (ADR-0064 7).
+    """
+    reason = _text_of(reason, "the reason")
+    with write_lock(base_dir):
+        stage, _ = _stage_of(design_id, base_dir)
+        if stage not in _STOPPABLE:
+            raise ValueError(f"{design_id} is {stage.value}: it cannot be stopped")
+        return _append_event(
+            design_id,
+            {"type": DECIDE, "content": reason, "metadata": {STOPPED: True}},
+            base_dir,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -475,36 +603,37 @@ def append_review_batch(
                 f"Allowed: {sorted(ALLOWED_TARGET_SECTIONS)}"
             )
 
-    current = load_design(design_id, base_dir)
-    if not current:
-        raise ValueError(f"Design '{design_id}' not found")
-    if DesignStatus(current["status"]) not in _REVIEWABLE:
-        raise ValueError(
-            f"Design must be reviewable to save a review batch, "
-            f"current status: '{current['status']}'"
-        )
-    on_disk = validate_schema(current)
-    # Moved before the batch is written: a move the design cannot make must
-    # not leave a batch behind with the status unchanged.
-    moved = _moved(current, on_disk, status_after)
+    with write_lock(base_dir):
+        current = load_design(design_id, base_dir)
+        if not current:
+            raise ValueError(f"Design '{design_id}' not found")
+        if DesignStatus(current["status"]) not in _REVIEWABLE:
+            raise ValueError(
+                f"Design must be reviewable to save a review batch, "
+                f"current status: '{current['status']}'"
+            )
+        on_disk = validate_schema(current)
+        # Moved before the batch is written: a move the design cannot make must
+        # not leave a batch behind with the status unchanged.
+        moved = _moved(current, on_disk, status_after)
 
-    batch = ReviewBatch(
-        id=f"RB-{uuid.uuid4().hex[:8]}",
-        design_id=design_id,
-        status_after=target,
-        reviewer=reviewer,
-        comments=[BatchComment(**c) for c in comments],
-        # Read before the move: the approval that first enters analyzing
-        # writes the mark, yet its review came before the analysis.
-        after_analysis_started=analysis_started(on_disk),
-    )
-    designs = _designs_dir(base_dir)
-    reviews_path = designs / f"{design_id}_reviews.yaml"
-    existing = read_yaml(reviews_path)
-    batches = [*existing.get("batches", []), batch.model_dump(mode="json")]
-    atomic_write_yaml(reviews_path, {**existing, "batches": batches})
-    atomic_write_yaml(designs / f"{design_id}_hypothesis.yaml", moved)
-    return batch.model_dump(mode="json")
+        batch = ReviewBatch(
+            id=f"RB-{uuid.uuid4().hex[:8]}",
+            design_id=design_id,
+            status_after=target,
+            reviewer=reviewer,
+            comments=[BatchComment(**c) for c in comments],
+            # Read before the move: the approval that first enters analyzing
+            # writes the mark, yet its review came before the analysis.
+            after_analysis_started=analysis_started(on_disk),
+        )
+        designs = _designs_dir(base_dir)
+        reviews_path = designs / f"{design_id}_reviews.yaml"
+        existing = read_yaml(reviews_path)
+        batches = [*existing.get("batches", []), batch.model_dump(mode="json")]
+        atomic_write_yaml(reviews_path, {**existing, "batches": batches})
+        atomic_write_yaml(designs / f"{design_id}_hypothesis.yaml", moved)
+        return batch.model_dump(mode="json")
 
 
 def list_review_batches(
@@ -548,6 +677,20 @@ _COMMANDS: dict[str, tuple[_Handler, bool]] = {
     "get": (lambda a, base, p: load_design(a.id, base_dir=base), False),
     "list": (lambda a, base, p: list_designs(base_dir=base, status=a.status), False),
     "review-batch": (_review_batch, True),
+    "ask-analyst": (
+        lambda a, base, p: ask_analyst(a.id, p.get("content"), base_dir=base),
+        True,
+    ),
+    "answer-analyst": (
+        lambda a, base, p: answer_analyst(
+            a.id, p.get("answers"), p.get("content"), base_dir=base
+        ),
+        True,
+    ),
+    "stop": (
+        lambda a, base, p: stop_analysis(a.id, p.get("content"), base_dir=base),
+        True,
+    ),
     "list-reviews": (
         lambda a, base, p: list_review_batches(a.id, base_dir=base),
         False,

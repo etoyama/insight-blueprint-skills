@@ -12,6 +12,7 @@ from insight_blueprint.models.design import (
     AnalysisDesign,
     ChartIntent,
     ChartSpec,
+    DataScope,
     DecisionContext,
     DesignForm,
     DesignStatus,
@@ -327,6 +328,49 @@ def test_decision_context_with_only_one_side_is_rejected(half: dict) -> None:
     """US-2 AC 1: a decision context is either absent or has both sides filled."""
     with pytest.raises(ValidationError):
         AnalysisDesign(**_minimal_design_data(decision_context=half))
+
+
+# ---------------------------------------------------------------------------
+# DataScope tests (Epic 35 US-7, ADR-0066)
+# ---------------------------------------------------------------------------
+
+_SCOPE = {
+    "population": "2026年4月に取り置きされた本",
+    "grain": "取り置き1件",
+    "denominator": "取り置きの件数",
+}
+
+
+def test_a_design_without_a_data_scope_reads_as_none() -> None:
+    """US-7 AC 1: a saved design without the scope still reads."""
+    design = AnalysisDesign(**_minimal_design_data())
+    assert design.data_scope is None
+
+
+def test_a_design_without_a_data_scope_writes_no_data_scope() -> None:
+    """US-7 AC 1: writing a saved design back adds no field to it."""
+    dumped = AnalysisDesign(**_minimal_design_data()).model_dump(mode="json")
+    assert "data_scope" not in dumped
+
+
+def test_data_scope_is_built_from_a_dict_and_written_back() -> None:
+    design = AnalysisDesign(**_minimal_design_data(data_scope=_SCOPE))
+
+    assert design.data_scope == DataScope(**_SCOPE)
+    assert design.model_dump(mode="json")["data_scope"] == _SCOPE
+
+
+@pytest.mark.parametrize("name", sorted(_SCOPE))
+@pytest.mark.parametrize("value", [None, "", "   "], ids=["missing", "empty", "blank"])
+def test_a_data_scope_with_a_part_unwritten_is_rejected(
+    name: str, value: str | None
+) -> None:
+    """US-7 AC 1: a scope holds all three, written."""
+    scope = {k: v for k, v in _SCOPE.items() if k != name}
+    if value is not None:
+        scope[name] = value
+    with pytest.raises(ValidationError, match=name):
+        AnalysisDesign(**_minimal_design_data(data_scope=scope))
 
 
 # ---------------------------------------------------------------------------

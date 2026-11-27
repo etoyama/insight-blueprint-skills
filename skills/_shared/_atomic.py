@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import os
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -66,3 +68,29 @@ def atomic_write_text(path: Path, text: str) -> None:
             except OSError:
                 pass
             raise
+
+
+# One lock per .insight base dir, kept for the life of the process: a FileLock
+# instance counts how often its holder took it, so a writer that calls another
+# writer under the lock takes it again instead of waiting on itself.
+_WRITE_LOCKS: dict[Path, FileLock] = {}
+
+WRITE_LOCK_NAME = ".write.lock"
+
+
+@contextmanager
+def write_lock(base_dir: Path) -> Iterator[None]:
+    """Hold the lock of *base_dir* from reading a record to writing it back (ADR-0062).
+
+    The lock of ``atomic_write_yaml`` covers only the moment of the write: two
+    processes that read the same highest id both write it. Every writer of
+    designs, journals and question trees under one ``.insight`` takes this one
+    lock, so no two writers interleave and no order of locks can deadlock.
+    """
+    path = Path(base_dir).resolve() / WRITE_LOCK_NAME
+    lock = _WRITE_LOCKS.get(path)
+    if lock is None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        lock = _WRITE_LOCKS[path] = FileLock(str(path))
+    with lock:
+        yield

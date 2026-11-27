@@ -194,6 +194,28 @@ class DecisionContext(BaseModel):
     decision: str = Field(min_length=1)
 
 
+class DataScope(BaseModel):
+    """What one analysis counts: its population, grain and denominator (ADR-0066).
+
+    All three are written as sentences and none is blank, so a design never
+    names a population without the unit it counts it in. An analysis that
+    measures no share says in its denominator that it has none.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    population: str
+    grain: str
+    denominator: str
+
+    @model_validator(mode="after")
+    def _every_part_is_written(self) -> Self:
+        for name in ("population", "grain", "denominator"):
+            if not getattr(self, name).strip():
+                raise ValueError(f"{name}: a data scope needs it written")
+        return self
+
+
 class AnalysisDesign(BaseModel):
     """Analysis design document for hypothesis-driven EDA."""
 
@@ -219,6 +241,9 @@ class AnalysisDesign(BaseModel):
     referenced_knowledge: dict[str, list[str]] = Field(default_factory=dict)
     methodology: Methodology | None = None
     decision_context: DecisionContext | None = None
+    # Optional; a design saved before Epic 35 has none and is written back
+    # without the field (ADR-0066).
+    data_scope: DataScope | None = None
     # Written once, when the design first enters analyzing or a conclusion, and
     # kept through a review of the result. A design saved before Epic 33 has
     # none and is read by its status (ADR-0053).
@@ -303,7 +328,7 @@ class AnalysisDesign(BaseModel):
         self, handler: SerializerFunctionWrapHandler
     ) -> dict[str, Any]:
         data = handler(self)
-        for name in (*_FORM_FIELDS, "analysis_started_at"):
+        for name in (*_FORM_FIELDS, "analysis_started_at", "data_scope"):
             if data.get(name, "") is None:
                 del data[name]
         return data

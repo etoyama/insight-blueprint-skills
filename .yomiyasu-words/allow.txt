@@ -25,6 +25,11 @@ revision
 journal
 journal の出来事
 未解決の問い
+分析者への確認
+分析者の答え
+止めた理由
+分析の段階
+データの範囲
 reflection
 読むもの
 分析ノート

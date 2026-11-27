@@ -410,15 +410,34 @@ def _decision(design: AnalysisDesign, anchor: str) -> Html:
     return _section(anchor, "decision", "決定の文脈", body)
 
 
+def _data_scope(design: AnalysisDesign) -> list[Html]:
+    """What the analysis counts, next to how it counts it (ADR-0066 5)."""
+    scope = design.data_scope
+    if scope is None:
+        return []
+    return [
+        el("p", f"対象: {scope.population}"),
+        el("p", f"粒度: {scope.grain}"),
+        el("p", f"分母: {scope.denominator}"),
+    ]
+
+
 def _method(design: AnalysisDesign, anchor: str) -> Html:
     methodology = design.methodology
     if methodology is None:
-        return _section(anchor, "method", "手法", el("p", "手法は書かれていない。"))
+        return _section(
+            anchor,
+            "method",
+            "手法",
+            *_data_scope(design),
+            el("p", "手法は書かれていない。"),
+        )
     steps = (methodology.model_extra or {}).get("steps")
     return _section(
         anchor,
         "method",
         "手法",
+        *_data_scope(design),
         el("p", f"手法: {methodology.method}"),
         el("p", f"パッケージ: {methodology.package}") if methodology.package else None,
         el("p", f"理由: {methodology.reason}") if methodology.reason else None,

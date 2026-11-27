@@ -1083,3 +1083,35 @@ class TestCriterionBeforeTheAnalysis:
         design_id = _explore(insight)["id"]
         design_io.transition_status(design_id, "explored", base_dir=insight)
         assert _on_disk(insight, design_id)["status"] == "explored"
+
+
+class TestDataScope:
+    """US-7 AC 1 (ADR-0066): create and update carry the scope through validation."""
+
+    SCOPE = {
+        "population": "2026年4月に取り置きされた本",
+        "grain": "取り置き1件",
+        "denominator": "取り置きの件数",
+    }
+
+    def test_create_writes_the_data_scope(self, insight: Path) -> None:
+        data = _explore(insight, data_scope=self.SCOPE)
+
+        assert design_io.load_design(data["id"], insight)["data_scope"] == self.SCOPE
+
+    def test_create_without_a_data_scope_writes_no_field(self, insight: Path) -> None:
+        data = _explore(insight)
+
+        assert "data_scope" not in design_io.load_design(data["id"], insight)
+
+    def test_create_refuses_a_scope_with_a_part_missing(self, insight: Path) -> None:
+        with pytest.raises(ValidationError, match="grain"):
+            _explore(insight, data_scope={"population": "本", "denominator": "件数"})
+        assert design_io.list_designs(insight) == []
+
+    def test_update_adds_a_data_scope_to_a_saved_design(self, insight: Path) -> None:
+        _saved(insight, "FP-H01")
+
+        design_io.update_design("FP-H01", {"data_scope": self.SCOPE}, insight)
+
+        assert design_io.load_design("FP-H01", insight)["data_scope"] == self.SCOPE

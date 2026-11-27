@@ -74,8 +74,11 @@ def test_a_command_without_payload_returns_while_stdin_stays_open(
 
 
 WITH_PAYLOAD = [
+    (design_io, "answer-analyst"),
+    (design_io, "ask-analyst"),
     (design_io, "create"),
     (design_io, "review-batch"),
+    (design_io, "stop"),
     (design_io, "update"),
     (catalog_io, "add-knowledge"),
     (catalog_io, "create"),
