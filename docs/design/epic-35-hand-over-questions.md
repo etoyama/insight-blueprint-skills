@@ -72,7 +72,7 @@ AC の正本はここ。
 - [ ] AC 1: 論点ツリーの決定は、次に調べる論点に加えて、一緒に任せた論点を0個以上持てる。一緒に任せた論点は論点ツリーにある論点で、互いにも、次に調べる論点とも重ならない。区切る決定は持てない。
 - [ ] AC 2: 一緒に任せた論点を持たない保存済みの論点ツリーは、そのまま読める。読んで書き戻しても、内容は変わらない。
 - [ ] AC 3: 巡回の現在地は、最新の決定が指す全部の論点について、結んだ分析設計と、その分析の段階を返す。終わっていない分析が1つでもあれば、巡回が終わったとは返さない。
-- [ ] AC 4: 決定の種類の検査（深める、親に戻る、区切る）は、前の決定が指した全部の論点を基準にする。
+- [ ] AC 4: 決定の種類の検査は、前の決定が指した全部の論点を基準にする。深めるはそのどれかの中へ進み、親に戻るはそのどれの中でもない所へ進み、区切るはそのどれかで区切る。
 - [ ] AC 5: 対話エージェントは、論点を選ぶ場面で複数の論点を選ばせる。別の論点の結果を入力に使う論点は一緒に任せず、その理由を分析者に言う。
 
 ### US-2: 分析者が、任せる前に1回、分析設計を横に並べて読み、コメントを返せる
@@ -92,7 +92,7 @@ AC の正本はここ。
 - [ ] AC 1: 分析の段階は保存しない。分析設計の状態と journal から導き、実行前・進行中・あなたの確認待ち・止めた・振り返り待ち・終わった、を見分ける。規則は1か所にある。
 - [ ] AC 2: 論点ツリーの HTML は、論点に結んだ分析設計ごとに、分析の段階を言葉と色で出す。色だけでは伝えない。止めた分析には理由を、確認待ちの分析には何を確認したいかを添える。
 - [ ] AC 3: ページは、分析者の確認を待つ分析を冒頭に抜き出す。無いときは抜き出しの欄を出さない。
-- [ ] AC 4: ページ、`tree_io position`、`tree_io progress`、レポート、skill が分析者に伝える進み具合は、同じ規則を使う。止めた分析だけを結んだ論点を、進行中と出さない。
+- [ ] AC 4: 論点の進捗は、未着手・検証中・分析済み・止めた、の4つになる。結んだ分析設計が全部止めた論点は「止めた」と出し、止めた以外の分析設計が1つでもあれば、止めた分析設計を数えずに決める。ページ、`tree_io position`、`tree_io progress`、レポート、skill が分析者に伝える進み具合は、同じ規則を使う。
 - [ ] AC 5: ページの「次に調べる論点」と決定の一覧は、決定が指す全部の論点を出す。
 
 ### US-4: 分析者が読んでいない内容でデータに触らず、分析を1つずつ止められる
@@ -155,13 +155,13 @@ Story は仮の分割で、起票は PM のセッションが行う。「触る�
 | Story | 波 | User Story | 扱う AC | 触る所 | 前提 |
 |---|---|---|---|---|---|
 | 35.1 id と振り返りの回を数えない | 1 | US-6 | AC 1, AC 2, AC 3, AC 4 | `skills/_shared/tree_check.py`（`numbers_in`、`_cite_problems`）、`skills/_shared/tree_io.py` の違反を返す所の文、`skills/analysis-reflection/SKILL.md` の数の書き方の表、`tests/test_tree_check.py`、`tests/tree_io/`、`docs/UBIQUITOUS_LANGUAGE.md` のツリーの検査 | — |
-| 35.2 書き込みのロック、分析の段階、確認と止める命令、データの範囲 | 1 | US-5、US-3、US-4、US-7 | US-5 AC 1（`design_io` の分）、US-3 AC 1、US-4 AC 5、US-7 AC 1, AC 3 | `skills/_shared/_atomic.py`（ロックの helper）、`skills/_shared/design_io.py`、`skills/_shared/analysis_stage.py`（新規）、`src/insight_blueprint/models/design.py`（`DataScope`）、`skills/_shared/design_note.py`・`design_note_read.py`（データの範囲を出す。答えの付いた確認を未解決の問いから外す）、`skills/analysis-journal/SKILL.md` の metadata の表、`tests/`、`docs/UBIQUITOUS_LANGUAGE.md` | — |
+| 35.2 書き込みのロック、分析の段階、確認と止める命令、データの範囲 | 1 | US-5、US-3、US-4、US-7 | US-5 AC 1（`design_io` の分）、US-3 AC 1、US-4 AC 5、US-7 AC 1, AC 3 | `skills/_shared/_atomic.py`（ロックの helper）、`skills/_shared/design_io.py`、`skills/_shared/analysis_stage.py`（新規）、`src/insight_blueprint/models/design.py`（`DataScope`）、`skills/_shared/design_note.py`・`design_note_read.py`（データの範囲を出す）、`skills/analysis-journal/SKILL.md` の metadata の表、`tests/`、`docs/UBIQUITOUS_LANGUAGE.md` | — |
 | 35.3 決定が複数の論点を指し、現在地が全部を返す | 2 | US-1、US-5、US-3 | US-1 AC 1, AC 2, AC 3, AC 4、US-5 AC 1（`tree_io` の分） | `src/insight_blueprint/models/tree.py`（`TreeDecision`、`_check_decision_after`、`Progress`、`QuestionTree.progress`）、`skills/_shared/tree_io.py`（`decide` と書き込みの全部）、`skills/_shared/tree_read.py`（`position`、`progress`）、`docs/ARCHITECTURE.md`、`docs/UBIQUITOUS_LANGUAGE.md`（「論点ツリーの決定」への改名を含む）、`.yomiyasu-words/`、`tests/test_tree_models.py`、`tests/tree_io/` | 35.2 |
 | 35.4 分析の段階と確認待ちを論点ツリーに出す | 3 | US-3 | AC 2, AC 3, AC 4, AC 5 | `skills/_shared/tree_words.py`、`skills/_shared/tree_render.py`・`tree_render_parts.py`・`_html.py`、`skills/_shared/design_note.py` の `_progress`、`skills/_shared/tree_read.py` の `render` と `_theme_report`、`skills/_shared/theme_report.py`、`scripts/handoff_trial.py`、`tests/test_tree_render.py`、`tests/test_theme_report.py`、`tests/tree_io/test_render*.py` | 35.3 |
 | 人が実物の画面と言い回しの一覧を読む（FLOW-0019） | 3 の後 | — | — | 合成シナリオで作った論点ツリーの HTML と、`tree_words.py` から抜き出した言い回しの一覧 | 35.4 |
 | 35.5 任せる前に読む節とコメント欄 | 4 | US-2 | AC 2, AC 3, AC 4 | `skills/_shared/tree_render_handover.py`（新規）、`skills/_shared/tree_render.py`、`skills/_shared/tree_words.py`、`skills/_shared/tree_read.py` の `render`、`tests/test_tree_render_handover.py`（新規）、`tests/tree_io/test_render*.py` | 人が画面を読む段 |
 | 35.6 まとめて任せる流れ | 5 | US-1、US-2、US-5、US-7 | US-1 AC 5、US-2 AC 1, AC 5、US-5 AC 2、US-7 AC 2 | `skills/analysis-auto/SKILL.md`、`skills/analysis-framing/SKILL.md` の 4b と 4d、`skills/analysis-reflection/SKILL.md` の Step T7、`skills/analysis-design/SKILL.md`、`tests/skills/` | 35.5 |
-| 35.7 任せた後の確認、止めること、まとめて戻ること | 6 | US-4、US-5 | US-4 AC 1, AC 2, AC 3, AC 4、US-5 AC 3 | `skills/analysis-auto/SKILL.md`、`skills/analysis-notebook/SKILL.md` の Step 7、`skills/premortem/SKILL.md`、`tests/skills/`、`docs/ARCHITECTURE.md` の guided autopilot のシーケンス | 35.6 |
+| 35.7 任せた後の確認、止めること、まとめて戻ること | 6 | US-4、US-5 | US-4 AC 1, AC 2, AC 3, AC 4、US-5 AC 3 | `skills/analysis-auto/SKILL.md`、`skills/analysis-notebook/SKILL.md` の Step 7、`skills/premortem/SKILL.md`、`skills/_shared/design_note_read.py`（答えの付いた確認を未解決の問いから外す）、`tests/skills/`、`tests/test_design_note*.py`、`docs/ARCHITECTURE.md` の guided autopilot のシーケンス | 35.6 |
 
 - 波 1 は 35.1 と 35.2 で、並行で進められる。35.1 は `tree_check` と `tree_io`、35.2 は `design_io` と分析設計のモデルで、触る所は重ならない。
   用語集は2つとも触る。35.1 は「ツリーの検査」の行、35.2 は足す行だけを触る。
@@ -198,8 +198,8 @@ Story が使う既存の helper（作り直さない）。
 この Epic で追加・変更する語。定義の正本は [docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) で、表は名前を入れた Story が直す。
 
 - 追加: 一緒に任せた論点（`with_node_ids`）、分析の段階（`AnalysisStage`）、任せる前の確認、分析者への確認（`ask-analyst`）、対話エージェント（`driver`）、実行エージェント（`worker`）、データの範囲（`DataScope`、`data_scope`）
-- 変更: 論点ツリーの決定（「ツリーの決定」から改名。一緒に任せた論点を持てる。[ADR-0061](../adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md)）、
-  巡回（論点を1つ以上調べるひと回り）、巡回の現在地（決定が指す全部の論点を返す）、進捗（分析の段階から導く）、
+- 変更: 進捗（「止めた」を足し、分析の段階から導く）、論点ツリーの決定（「ツリーの決定」から改名。一緒に任せた論点を持てる。[ADR-0061](../adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md)）、
+  巡回（論点を1つ以上調べるひと回り）、巡回の現在地（決定が指す全部の論点を返す）、
   ツリーの検査（id と振り返りの回を数えない。[ADR-0065](../adr/0065-ids-and-reflection-rounds-are-not-counted-as-numbers.md)）、
   未解決の問い（答えの付いた分析者への確認を数えない）、guided autopilot と KEEP ゲート（任せる前の確認と、任せた後の確認）
 - 使わない: ツリーの決定、親（対話エージェントを指すとき）、子・サブエージェント（実行エージェントを指すとき）、ボード（論点ツリーの表示を指すとき）
@@ -353,10 +353,10 @@ classDiagram
 | 型 | 種類 | 不変条件 |
 |---|---|---|
 | `TreeDecision` | 値オブジェクト | `with_node_ids` は論点ツリーにある論点で、互いにも `node_id` とも重ならない。`close` は `with_node_ids` を持たない。既定は空で、持たない保存済みの決定は空として読む |
-| `QuestionTree` | 集約ルート | 決定の種類の検査は、前の決定の `node_id` と `with_node_ids` の全部を基準にする。深めるは、そのどれかの中へ進む。親に戻るは、そのどれの中でもない所へ進む |
+| `QuestionTree` | 集約ルート | 決定の種類の検査は、前の決定の `node_id` と `with_node_ids` の全部を基準にする。深めるは、そのどれかの中へ進む。親に戻るは、そのどれの中でもない所へ進む。区切るは、そのどれかで区切る |
 | `DataScope` | 値オブジェクト | 対象・粒度・分母は3つとも空でない。分析設計は組ごと持つか、持たない |
 | `AnalysisStage` | 値オブジェクト | 保存しない。分析設計の状態と journal から、決まった順で1つに決まる（下の State Diagram） |
-| `Progress` | 値オブジェクト | 保存しない。止めた分析は、論点の進捗に数えない |
+| `Progress` | 値オブジェクト | 保存しない。未着手・検証中・分析済み・止めた の4つ。結んだ分析設計が全部止めたなら止めた。止めた以外が1つでもあれば、止めた分析設計を数えずに決める |
 | `Journal` | 集約ルート | 確認・答え・止めた理由の印は `design_io` の専用の命令だけが書く。答えは、どの確認への答えかを持つ |
 
 ### State Diagram
@@ -478,4 +478,5 @@ sequenceDiagram
 
 ## Story Timeline
 
-- 2026-11-27 — 初版: 人間が d1〜d5 と、分析設計にデータの範囲を足すことを決めた。範囲を削る案（3つ）は採らなかった。
+- 2026-11-27 — 初版: 人間が d1〜d5 と、分析設計にデータの範囲を足すことを決めた。範囲を削る案（4つ）は採らなかった。
+- 2026-11-27 — 全体の整合: 任せない分析設計は結んでから止める、全部止めた論点の進捗は「止めた」、を人間が決めた。区切る決定の検査の書き漏れを直した。
