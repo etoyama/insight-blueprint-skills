@@ -815,6 +815,7 @@ Epic の一覧と DesignDoc へのリンクは [PRD のロードマップ](PRD.m
 | Epic 32 | Validation library（分析設計の形、`explored`、意図を見る遷移）+ Skill layer（`/analysis-framing`・`/analysis-design`・`/analysis-auto`・`/analysis-review`・`/analysis-notebook`・`/analysis-journal`・`/analysis-reflection`・`/premortem` の意図による分け方）+ `tree_io render` と `tree_io report` の表示（論点の下の分析設計の枝、状態の言葉、定型文） |
 | Epic 33 | notebook の契約（verdict の指標の形）+ Validation library（分析の印、分析を始めた後の固定）+ Skill layer（`/analysis-review`・`/analysis-revision` の結果の review）+ `tree_io render` と `tree_io report` の表示（指標の表、レビューの節、review コメントの件数） |
 | Epic 34 | Question tree（`tree_io render` の表示: 答えの変化、上の論点での引用、引用していない下の結果、進み具合の数。`tree_check` と `TreeDecision` の引用）+ Skill layer（`/analysis-reflection` の決める場面）+ 引き継ぎの試行（2本目の合成シナリオと6つ目の問い） |
+| Epic 35 | Question tree（`TreeDecision` が指す論点の並び、`tree_io position` と進捗が読む分析の段階、`tree_io render` の任せる前に読む節、`tree_check` が数えないもの）+ YAML I/O（`design_io` と `tree_io` の読んでから書くまでのロック、分析設計のデータの範囲、分析者への確認と止める命令）+ Skill layer（`/analysis-auto` のまとめて任せる流れ） |
 
 
 ## 参照
