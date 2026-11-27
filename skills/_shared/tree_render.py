@@ -39,12 +39,18 @@ from skills._shared.design_note import (
     note_anchor,
 )
 from skills._shared.design_note_reviews import AFTER_ANALYSIS
+from skills._shared.handover import HandoverDesign
 from skills._shared.tree_check import CitedEvent, Violation
 from skills._shared.tree_render_derived import (
     changes_section,
     left_out_sections,
     pointers_to_the_top,
     used_above_section,
+)
+from skills._shared.tree_render_handover import (
+    HANDOVER_CSS,
+    HANDOVER_SCRIPT,
+    handover_section,
 )
 from skills._shared.tree_render_parts import (
     CheckFailed,
@@ -167,18 +173,24 @@ def render_tree_html(
     design_notes: Mapping[str, Html],
     *,
     shared: frozenset[str],
+    handover: Mapping[str, HandoverDesign],
 ) -> str:
     """The page. *design_notes* maps a design id to the markup ``render_note`` returned.
 
     *shared* holds the cited ids two journal events share; a decision citing one
-    shows neither text.
+    shows neither text. *handover* holds, at least, each design the check before
+    a hand-over lays out (ADR-0063).
     """
     context = Context.of(tree, designs, events, violations, design_notes, shared)
+    check = handover_section(context, handover)
     body = join(
         [
             _header(tree),
             _check_notice(violations),
+            # Both are the analyst's to do now: an analysis already running
+            # waits on its answer, so it comes first.
             asks_section(context),
+            check,
             _subject_answer(context),
             _next_question(context),
             legend(),
@@ -191,7 +203,11 @@ def render_tree_html(
         ]
     )
     return page(
-        f"論点ツリー {tree.theme_id}", BASE_CSS + _TREE_CSS + STAGE_CSS + NOTE_CSS, body
+        f"論点ツリー {tree.theme_id}",
+        BASE_CSS + _TREE_CSS + STAGE_CSS + HANDOVER_CSS + NOTE_CSS,
+        body,
+        # The page has a script only for the comments of the check (ADR-0063 7).
+        None if check is None else HANDOVER_SCRIPT,
     )
 
 

@@ -194,6 +194,16 @@ _SECTIONS = (
     ("progress", "分析の経過"),
     ("files", "手元のファイル"),
 )
+# The headings of the note by anchor: the check before a hand-over names its
+# rows of the method and the sources in them, so the two read alike.
+SECTION_WORDS = dict(_SECTIONS)
+
+# The words of the note that the check before a hand-over also names its rows
+# by (ADR-0063 2): what the design means to do, what it counts (ADR-0066 5),
+# and its figures.
+INTENT_LABEL = "意図"
+SCOPE_WORDS = {"population": "対象", "grain": "粒度", "denominator": "分母"}
+FIGURES_HEADING = "図"
 
 
 @dataclass(frozen=True)
@@ -362,7 +372,7 @@ def _status(note: DesignNote, anchor: str) -> Html:
     form = design.form()
     return el(
         "div",
-        el("p", f"意図: {intent_word(design)}"),
+        el("p", f"{INTENT_LABEL}: {intent_word(design)}"),
         el("p", LEGACY_NOTE) if form is DesignForm.legacy_exploration else None,
         el("p", f"状態: {status_word(form, design.status)}（{design.status.value}）"),
         el("p", journal),
@@ -422,9 +432,8 @@ def _data_scope(design: AnalysisDesign) -> list[Html]:
     if scope is None:
         return []
     return [
-        el("p", f"対象: {scope.population}"),
-        el("p", f"粒度: {scope.grain}"),
-        el("p", f"分母: {scope.denominator}"),
+        el("p", f"{SCOPE_WORDS[field]}: {getattr(scope, field)}")
+        for field in SCOPE_WORDS
     ]
 
 
@@ -586,7 +595,7 @@ def _figures(note: DesignNote, anchor: str) -> Html:
         if note.figures
         else el("p", "図はまだ無い。")
     )
-    return el("div", el("h4", "図"), body, id=f"{anchor}-figures")
+    return el("div", el("h4", FIGURES_HEADING), body, id=f"{anchor}-figures")
 
 
 def _results(note: DesignNote, anchor: str) -> Html:

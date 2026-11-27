@@ -47,6 +47,7 @@ from skills._shared.design_io import (
 )
 from skills._shared.design_note import DesignNote, note_anchor, render_note
 from skills._shared.design_note_read import load_design_note, render_design_note
+from skills._shared.handover import HandoverDesign, differing_rows, to_hand_over
 from skills._shared.theme_report import (
     ReportDesign,
     ReportNode,
@@ -66,6 +67,7 @@ from skills._shared.tree_render import (
     DesignSummary,
     render_tree_html,
 )
+from skills._shared.tree_words import HANDOVER_ROW_WORDS
 
 
 def tree_path(theme_id: str, base_dir: Path) -> Path:
@@ -420,6 +422,7 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
         checked,
         {d: render_note(n) for d, n in design_notes.items()},
         shared=frozenset(duplicated),
+        handover={d: HandoverDesign.of(n.design) for d, n in design_notes.items()},
     )
     path = tree_path(theme_id, base_dir).with_suffix(".html")
     atomic_write_text(path, html)
@@ -428,6 +431,32 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     for design_id in design_notes:
         (Path(base_dir) / "notes" / f"{design_id}.html").unlink(missing_ok=True)
     return {"path": str(path)}
+
+
+def handover(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
+    """The check before a hand-over, as the page lays it out. Writes nothing.
+
+    ``design_ids`` are the designs to read before they are handed over, in the
+    order of the last decision; ``differing`` holds each compared row whose
+    values differ between them: its ``row`` (a ``HandoverRow``), the ``label``
+    the page names it by, and the ``values`` of each design (None where the
+    design does not write it). The page marks the same rows (ADR-0063 4, 5).
+    """
+    tree = load_tree_model(theme_id, base_dir)
+    notes = _linked_notes(tree, base_dir)
+    design_ids = to_hand_over(tree, {d: note.stage for d, note in notes.items()})
+    designs = [HandoverDesign.of(notes[d].design) for d in design_ids]
+    return {
+        "design_ids": design_ids,
+        "differing": [
+            {
+                "row": row.value,
+                "label": HANDOVER_ROW_WORDS[row],
+                "values": {d.id: d.values[row] for d in designs},
+            }
+            for row in differing_rows(designs)
+        ],
+    }
 
 
 def render_design(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:

@@ -19,6 +19,7 @@ from insight_blueprint.models.tree import QuestionTree
 from insight_blueprint.validate import validate_tree_schema
 from skills._shared._html import Html
 from skills._shared.design_note import intent_words_of
+from skills._shared.handover import HandoverDesign, HandoverRow
 from skills._shared.tree_check import CitedEvent, Violation
 from skills._shared.tree_render import CheckFailed, DesignSummary, render_tree_html
 from skills._shared.tree_words import MARK_WORDS, Mark
@@ -291,6 +292,14 @@ def stub_design_notes(designs: dict[str, DesignSummary]) -> dict[str, Html]:
     }
 
 
+def blank_handover(designs: dict[str, DesignSummary]) -> dict[str, HandoverDesign]:
+    """Each design as the check before a hand-over reads it, writing no row."""
+    return {
+        d: HandoverDesign(d, s.title, s.form, dict.fromkeys(HandoverRow))
+        for d, s in designs.items()
+    }
+
+
 def make_designs() -> dict[str, DesignSummary]:
     return {
         "LIB-H01": summary("LIB-H01", "取消を除く数え方", "supported", None),
@@ -317,6 +326,7 @@ def render(
     violations: list[Violation] | CheckFailed | None = None,
     design_notes: dict[str, Html] | None = None,
     shared: list[str] | None = None,
+    handover: dict[str, HandoverDesign] | None = None,
 ) -> str:
     shown = make_designs() if designs is None else designs
     return render_tree_html(
@@ -326,6 +336,7 @@ def render(
         [] if violations is None else violations,
         stub_design_notes(shown) if design_notes is None else design_notes,
         shared=frozenset(shared or ()),
+        handover=blank_handover(shown) if handover is None else handover,
     )
 
 
@@ -336,8 +347,11 @@ def page(
     violations: list[Violation] | CheckFailed | None = None,
     design_notes: dict[str, Html] | None = None,
     shared: list[str] | None = None,
+    handover: dict[str, HandoverDesign] | None = None,
 ) -> Element:
-    return parse(render(tree, designs, events, violations, design_notes, shared))
+    return parse(
+        render(tree, designs, events, violations, design_notes, shared, handover)
+    )
 
 
 def has_class(element: Element, name: str) -> bool:

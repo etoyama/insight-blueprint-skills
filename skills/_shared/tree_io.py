@@ -8,7 +8,7 @@ Each writer holds ``write_lock`` from reading the tree to writing it back
 (ADR-0062), so two writers at once never lose each other's change.
 
 Progress is never written. What is derived from the tree (``progress``,
-``position``, ``changes``, the generated view ``render`` writes) lives in
+``position``, ``changes``, ``handover``, the generated view ``render`` writes) lives in
 ``tree_read``; the CLI here runs those commands too.
 
 Usage from a skill (CLI):
@@ -62,6 +62,7 @@ from skills._shared.tree_read import (
     ReportStop,
     WalkState,
     changes,
+    handover,
     load_tree,
     load_tree_model,
     named_like_its_file,
@@ -629,6 +630,7 @@ _COMMANDS: dict[str, tuple[_Handler, bool]] = {
     "answer": (lambda a, base, p: answer(a.theme, base_dir=base, **p), True),
     "get": (_get, False),
     "position": (_position, False),
+    "handover": (lambda a, base, p: handover(a.theme, base_dir=base), False),
     "progress": (lambda a, base, p: progress(a.theme, base_dir=base), False),
     "changes": (lambda a, base, p: changes(a.theme, base_dir=base), False),
     "render": (_render, False),

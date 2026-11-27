@@ -29,7 +29,16 @@ from insight_blueprint.models.tree import (
     TreeDecisionKind,
 )
 from skills._shared._html import Html, el, join
-from skills._shared.design_note import EVENT_WORDS, intent_words_of, status_word
+from skills._shared.design_note import (
+    EVENT_WORDS,
+    FIGURES_HEADING,
+    INTENT_LABEL,
+    SCOPE_WORDS,
+    SECTION_WORDS,
+    intent_words_of,
+    status_word,
+)
+from skills._shared.handover import COMPARED_ROWS, HandoverRow
 from skills._shared.tree_changes import ChangeKind
 
 # The words the page says of the subject (ADR-0055); YAML and code say root.
@@ -198,6 +207,49 @@ def asks_heading(count: int) -> str:
     return f"{STAGE_WORDS[AnalysisStage.awaiting_confirmation][0]}（{count}件）"
 
 
+# The check before a hand-over (ADR-0063): the page and tree_io handover name
+# the rows in these words, so the chat sums up a row as the page shows it.
+HANDOVER_HEADING = "分析を任せる前の確認"
+# A row the analysis note also names is named as the note names it.
+HANDOVER_ROW_WORDS = {
+    HandoverRow.intent: INTENT_LABEL,
+    HandoverRow.statement: "何に答えるか",
+    HandoverRow.criterion: "判定の基準",
+    HandoverRow.population: SCOPE_WORDS["population"],
+    HandoverRow.grain: SCOPE_WORDS["grain"],
+    HandoverRow.denominator: SCOPE_WORDS["denominator"],
+    HandoverRow.sources: SECTION_WORDS["sources"],
+    HandoverRow.method: SECTION_WORDS["method"],
+    HandoverRow.metric: "主指標",
+    HandoverRow.extraction: "抽出・加工条件",
+    HandoverRow.chart: FIGURES_HEADING,
+}
+DIFFERS_WORD = "分析間の違い"
+NOT_WRITTEN = "書かれていない。"
+NO_CRITERION = "探索は判定しないので、判定の基準は無い。"
+COMMENT_WORD = "コメント"
+GATHER_BUTTON = "コメントをまとめる"
+GATHERED_HEAD = f"{HANDOVER_HEADING}への{COMMENT_WORD}"
+NO_COMMENT = f"{COMMENT_WORD}は書かれていない。"
+HANDOVER_LEAD = (
+    "次の分析設計を、エージェントに任せる前に読む。"
+    + "・".join(HANDOVER_ROW_WORDS[r] for r in COMPARED_ROWS)
+    + f"の値が分析設計の間で違う行には「{DIFFERS_WORD}」と付く。"
+    f"直してほしいことは分析設計ごとの{COMMENT_WORD}欄に書き、"
+    f"「{GATHER_BUTTON}」を押して、下に出た文をチャットに貼る。"
+    "直すことが無ければ、チャットでエージェントに、このまま任せると答える。"
+)
+GATHERED_NOTE = (
+    "まとめた文はこのページの中に出るだけで、どこにも送らない。"
+    "コピーして、チャットに貼る。"
+)
+
+
+def handover_heading(count: int) -> str:
+    """The heading of the check before a hand-over, with how many designs it lays out."""
+    return f"{HANDOVER_HEADING}（{count}件）"
+
+
 # The words shown to the analyst are not the glossary's terms (ADR-0055): the
 # kinds keep their YAML values, the page says what each one tells the analyst.
 KIND_WORDS = {
@@ -346,7 +398,8 @@ def legend() -> Html:
             "p",
             f"ページの冒頭には、{SUBJECT}への{CURRENT_ANSWER_HEADING}、前の回から変わったこと、"
             f"{NEXT_QUESTION_HEADING}を出す。あなたの確認を待つ分析があれば、"
-            "それらより前に抜き出す。その下に、論点ごとのカードを並べる。",
+            f"それらより前に抜き出す。その次に、任せる前に読む分析設計があれば、"
+            f"「{HANDOVER_HEADING}」を出す。その下に、論点ごとのカードを並べる。",
         ),
         el(
             "p",
@@ -404,6 +457,15 @@ def legend() -> Html:
             "確認したいことを添える。分析設計の状態の言葉は、"
             + "と".join(f"「{STAGE_WORDS[s][0]}」" for s in STAGES_WITH_STATUS)
             + "の分析設計にだけ添える。",
+        ),
+        el(
+            "p",
+            f"「{HANDOVER_HEADING}」は、最新の論点ツリーの決定が指す論点に結んだ、"
+            f"「{STAGE_WORDS[AnalysisStage.before_run][0]}」の分析設計を列に並べる。"
+            f"「{DIFFERS_WORD}」は、値の文字が分析設計の間で違えば付く。"
+            "同じ意味を違う言葉で書いた行にも付く。"
+            f"{COMMENT_WORD}欄に書いた文は、ボタンでこのページの中にまとめて出すだけで、"
+            "どこにも送らない。",
         ),
         el(
             "p",
@@ -474,7 +536,9 @@ def _status_rows() -> list[tuple[str, DesignStatus, list[str]]]:
 
 
 def _status_table() -> Html:
-    head = el("tr", join(el("th", h) for h in ("表示の言葉", "YAML の status", "意図")))
+    head = el(
+        "tr", join(el("th", h) for h in ("表示の言葉", "YAML の status", INTENT_LABEL))
+    )
     body = join(
         el("tr", el("td", word), el("td", status.value), el("td", "、".join(intents)))
         for word, status, intents in _status_rows()

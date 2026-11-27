@@ -22,8 +22,9 @@ def el(tag: str, *children: str | None, **attrs: str | None) -> Html:
 
     A ``None`` child or attribute is left out.
     """
+    # class_ is class, data_row is data-row.
     rendered = "".join(
-        f' {name.rstrip("_")}="{escape(value, quote=True)}"'
+        f' {name.rstrip("_").replace("_", "-")}="{escape(value, quote=True)}"'
         for name, value in attrs.items()
         if value is not None
     )
@@ -83,8 +84,13 @@ summary { cursor: pointer; color: var(--accent); }
 """
 
 
-def page(title: str, css: str, body: Html) -> str:
-    """A standalone page: no script, no external resource, no timestamp."""
+def page(title: str, css: str, body: Html, script: str | None = None) -> str:
+    """A standalone page: no external resource, no timestamp.
+
+    *script*, a constant of a renderer and never a value of the records, runs
+    inside the page and sends nothing out (ADR-0063 7). Without one the page
+    has no script.
+    """
     head = el(
         "head",
         Html('<meta charset="utf-8">'),
@@ -92,4 +98,7 @@ def page(title: str, css: str, body: Html) -> str:
         el("title", title),
         el("style", Html(css)),
     )
-    return "<!doctype html>\n" + el("html", head, el("body", body), lang="ja") + "\n"
+    ran = None if script is None else el("script", Html(script))
+    return (
+        "<!doctype html>\n" + el("html", head, el("body", body, ran), lang="ja") + "\n"
+    )
