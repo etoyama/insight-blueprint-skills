@@ -19,7 +19,7 @@ import os
 import re
 import sys
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -321,8 +321,6 @@ def update_design(
 
         model = validate_schema(merged)  # raises ValidationError if invalid
         moves = model.status.value != current.get("status")
-        if moves:
-            _refuse_the_move(design_id, current, model.status, base_dir)
         on_disk = _parsed_or_none(current)
         if on_disk is None and moves:
             # Without a readable design there is no form to check the move against.
@@ -339,9 +337,9 @@ def update_design(
             errors = validate_update(model, on_disk)
         if errors:
             raise ValueError("; ".join(errors))
-        data = model.model_dump(mode="json")
-        atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml", data)
-        return data
+        return _write_design(
+            design_id, current, model.model_dump(mode="json"), base_dir
+        )
 
 
 def _parsed_or_none(data: dict) -> AnalysisDesign | None:
@@ -359,33 +357,44 @@ def transition_status(
         current = load_design(design_id, base_dir)
         if not current:
             raise ValueError(f"Design '{design_id}' not found")
-        _refuse_the_move(design_id, current, DesignStatus(target), base_dir)
         data = _moved(current, validate_schema(current), target)
-        atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml", data)
-        return data
+        return _write_design(design_id, current, data, base_dir)
 
 
-def _refuse_the_move(
-    design_id: str, current: dict, target: DesignStatus, base_dir: Path
-) -> None:
-    """ValueError if *design_id*, read as *current*, may not move to *target*.
+def _write_design(
+    design_id: str,
+    current: dict,
+    data: dict,
+    base_dir: Path,
+    written_first: Mapping[Path, dict] | None = None,
+) -> dict:
+    """Write *data* over *current*, the file of *design_id*: the one way a design is written back.
 
-    A stopped design keeps its status: moving it would end an analysis that
-    has no result, and the stop would drop out of the stage (ADR-0064 7). One
-    that waits for the analyst does not end: its confirmation would drop out
-    unanswered (ADR-0064 1). Every write that changes the status calls this first.
+    A move of the status is refused here, before anything is written, so no
+    writer can forget it. A stopped design keeps its status: moving it would
+    end an analysis that has no result, and the stop would drop out of the
+    stage (ADR-0064 7). One that waits for the analyst does not end: its
+    confirmation would drop out unanswered (ADR-0064 1). *written_first* are
+    files written just before the design, under the same refusal (the batch
+    of a review).
     """
-    stage = stage_reading(design_id, base_dir, current).stage
-    if stage is AnalysisStage.stopped:
-        raise ValueError(
-            f"{design_id} is stopped: its status does not change. A stopped "
-            "analysis is not resumed; to try again, derive another design"
-        )
-    if stage is AnalysisStage.awaiting_confirmation and target in TERMINAL_STATUSES:
-        raise ValueError(
-            f"{design_id} waits for the analyst: it does not end before its "
-            "confirmation is answered (design_io answer-analyst) or it is stopped"
-        )
+    target = DesignStatus(data["status"])
+    if target.value != current.get("status"):
+        stage = stage_reading(design_id, base_dir, current).stage
+        if stage is AnalysisStage.stopped:
+            raise ValueError(
+                f"{design_id} is stopped: its status does not change. A stopped "
+                "analysis is not resumed; to try again, derive another design"
+            )
+        if stage is AnalysisStage.awaiting_confirmation and target in TERMINAL_STATUSES:
+            raise ValueError(
+                f"{design_id} waits for the analyst: it does not end before its "
+                "confirmation is answered (design_io answer-analyst) or it is stopped"
+            )
+    for path, contents in (written_first or {}).items():
+        atomic_write_yaml(path, contents)
+    atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml", data)
+    return data
 
 
 def _moved(current: dict, on_disk: AnalysisDesign, target: str) -> dict:
@@ -718,7 +727,6 @@ def append_review_batch(
                 f"Design must be reviewable to save a review batch, "
                 f"current status: '{current['status']}'"
             )
-        _refuse_the_move(design_id, current, target, base_dir)
         on_disk = validate_schema(current)
         # Moved before the batch is written: a move the design cannot make must
         # not leave a batch behind with the status unchanged.
@@ -734,12 +742,16 @@ def append_review_batch(
             # writes the mark, yet its review came before the analysis.
             after_analysis_started=analysis_started(on_disk),
         )
-        designs = _designs_dir(base_dir)
-        reviews_path = designs / f"{design_id}_reviews.yaml"
+        reviews_path = _designs_dir(base_dir) / f"{design_id}_reviews.yaml"
         existing = read_yaml(reviews_path)
         batches = [*existing.get("batches", []), batch.model_dump(mode="json")]
-        atomic_write_yaml(reviews_path, {**existing, "batches": batches})
-        atomic_write_yaml(designs / f"{design_id}_hypothesis.yaml", moved)
+        _write_design(
+            design_id,
+            current,
+            moved,
+            base_dir,
+            written_first={reviews_path: {**existing, "batches": batches}},
+        )
         return batch.model_dump(mode="json")
 
 
