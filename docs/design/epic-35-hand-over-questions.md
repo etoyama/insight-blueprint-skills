@@ -507,6 +507,24 @@ sequenceDiagram
 - Alternatives considered: 今のまま `concluded` を返し、35.6 の流れで塞ぐ（流れが外れると論点が落ちる）。新しい `WalkState` を足す（35.6 の表と分岐が増える）。
 - Consequences: 終わった分析の振り返りは、空の論点の分析が終わるまで待ち、1回にまとまる。任せた論点を落とすときは、新しい決定を書く。
 
+### Decision: story-35-4-stopped-cards-come-last
+
+- What: 論点の下の分析設計のカードを、終わっていない分析、終わった分析、止めた分析の順に並べる。各組の中は新しいものから。
+- Why: 止めた分析は再開しない（ADR-0064）。終わっていない分析と一緒に並べると、まだ動く分析と読み違える（35.3 の引き継ぎ）。
+- Criteria: 分析者が戻ったときに、次にすることを上から読めること（US-3）。止めた分析は巡回を待たせない（Decision `story-35-3-a-stopped-analysis-does-not-hold-the-walk`）と同じ読み方。
+- Affected modules: `skills/_shared/tree_render.py::_card_order`
+- Alternatives considered: 止めた分析を終わった分析と一緒に並べる（判定の付いた分析と、結論の無い分析が混ざる）。
+- Consequences: 終わった分析の判定が、止めた分析より先に読める。人が画面を読む段で変えてよい。
+
+### Decision: story-35-4-the-status-word-only-where-the-stage-needs-it
+
+- What: 分析設計のカード・短い行・分析設計の派生の節は、分析の段階の言葉を出す。状態の言葉（レビュー中、検証仮説の判定: 支持 など）は、段階が任せる前か終わったときだけ添える。分析ノートの「状態:」の行は YAML の値を写す行なので変えない。
+- Why: 止めた分析・確認待ち・振り返り待ちの分析設計は、状態が `analyzing`（任せる前に止めたものは `in_review`）のまま変わらない。状態の言葉を添えると「止めた　分析中」と並び、矛盾して読める。任せる前は修正待ちかどうかを、終わったは判定を、状態の言葉だけが伝える。
+- Criteria: 段階の言葉が意味を持つこと（US-3 AC 2）。分析者に見せる文を比喩や矛盾なく読めること。
+- Affected modules: `skills/_shared/tree_words.py::STAGES_WITH_STATUS`、`skills/_shared/tree_render_stage.py::stage_parts`、`skills/_shared/tree_render.py`（`_design_card`、`_derivation`）、`tests/test_tree_render.py`（分析中の言葉を確かめていたテストを、仕様の変更として直した）
+- Alternatives considered: 状態の言葉を常に添え、凡例で違いを説明する（カードの上で矛盾して読める）。状態の言葉を出さない（判定と修正待ちが読めなくなる）。
+- Consequences: カードから「分析中」の言葉が消える。分析ノートは今までどおり YAML の状態を出す。人が画面を読む段で確かめる（`284-s4-words.md` の5と7）。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0061: 論点ツリーの決定は一緒に任せた論点を持てて、分析の段階は記録から導く](../adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md): 決定に `with_node_ids` を足す。分析の段階は保存しない。「ツリーの決定」を「論点ツリーの決定」に改名する。
@@ -524,7 +542,7 @@ sequenceDiagram
 | Story 35.1 | ✓ | ✓ | —（表示の通し道は変えていない。ページの違反は同じ `check_cited` を通る。`tree_io decide` は合成シナリオ（`scripts.handoff_trial build --scenario lib`）で、id と「2回目の振り返り」が通り、「1を超える」の 1・まだ無い回・ツリーに無い id が `fix` つきで拒まれることを、実際に呼んで確かめた） |
 | Story 35.2 | ✓ | ✓ | —（skill の流れに入れるのは 35.6・35.7。リポジトリの外の `.insight/` で、2プロセスの `design_io create` を20回（id の重なり0回）、`ask-analyst`・`answer-analyst`・`stop` と分析の段階の移り変わり、`data_scope` を持つ分析設計と持たない保存済みの分析設計が検証 hook を通り分析ノートに出ることを、コマンドで確かめた） |
 | Story 35.3 | ✓ | ✓ | —（skill の流れに入れるのは 35.6。合成シナリオ（`scripts.handoff_trial build --scenario lib`）で、`with_node_ids` に2つの論点を持つ決定を CLI で書き、片方だけ終えた状態で `tree_io position` が `in_progress` と両方の分析設計と段階を返すこと、止めると `concluded`、空の論点が残ると `not_started` になることを確かめた。2プロセスで同時に `tree_io link` を20回走らせ、20件が残った。変更前のコードで作った論点ツリーを読んで書き戻し、バイト単位で同じだった） |
-| Story 35.4 | ☐ | ☐ | ☐ |
+| Story 35.4 | ✓ | ✓ | —（skill の流れに入れるのは 35.6・35.7。合成シナリオ `lib-stages`（`scripts.handoff_trial build --scenario lib-stages`）で、6つの段階・冒頭の確認待ちの欄・止めた理由・「次に調べる論点」の2つの論点が出ることをブラウザで確かめた。同じ `.insight` で、`tree_io progress`・`position`・ページ・レポートの進捗と段階が全部の論点で同じだった） |
 | Story 35.5 | ☐ | ☐ | ☐ |
 | Story 35.6 | ☐ | ☐ | ☐ |
 | Story 35.7 | ☐ | ☐ | ☐ |
@@ -540,3 +558,4 @@ sequenceDiagram
 - 2026-11-27 — Story 35.1 completed: 論点ツリーの id と今の回以下の「N回目の振り返り」を数として数えない。拒んだ数には `tree_io` が `fix` で直し方を付ける（#285）。
 - 2026-11-27 — Story 35.2 completed: 書き込みのロック（`write_lock`）、分析の段階（`AnalysisStage`）、確認・答え・止めたの命令、データの範囲（`DataScope`）。レビューの2件を人間が Decision Analysis で決めた。分析の段階は分析の印より後の出来事だけを結果と数える（ADR-0061 の追記。Domain Model の `of` が分析の印を取る）。journal の印は検証 hook でも守る（ADR-0067）。計画外の判断は2件。実行エージェントが journal を手で書く間のロック（M3）は 35.7 に渡す。
 - 2026-11-27 — Story 35.3 completed: 論点ツリーの決定が一緒に任せた論点（`with_node_ids`）を持ち、巡回の現在地・進捗・レポートが決定の全部の論点と分析の段階を読む。進捗に「止めた」を足し、`tree_io` の書き込みを `write_lock` で囲んだ。「ツリーの決定」を「論点ツリーの決定」に改名した。`AnalysisStage` を `src/insight_blueprint/models/` に移した（#287）。計画外の判断は4件で、2件（止めた分析は巡回を待たせない、空の論点は巡回を終わらせない）は人間が決めた。人間が ARCHITECTURE の Domain Model の変更を承認した。ページの「次に調べる論点」と決定の一覧、止めたの色は 35.4 に渡す。
+- 2026-11-27 — Story 35.4 completed: 論点ツリーの HTML が、分析設計ごとに分析の段階を言葉と色で出し、止めた理由と確認したいことを添える。確認待ちの分析を冒頭に抜き出し、止めたの色を足し、止めたカードを最後に並べ、「次に調べる論点」と決定の一覧が決定の全部の論点を出す（#288）。計画外の判断は2件（Decisions）。合成シナリオ `lib-stages` を足した。人が画面を読む段の言い回しの一覧と、人間が決める7件は共有ノートの `284-s4-words.md` にある。

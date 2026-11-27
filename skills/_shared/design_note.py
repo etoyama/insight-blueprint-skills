@@ -127,8 +127,10 @@ class DesignNote:
     conclusion: Conclusion | None  # None: the design is not in a terminal status
     stage: AnalysisStage  # AnalysisStage.of the design and its journal (ADR-0061 6)
     reviews: tuple[NoteReviewBatch, ...] = ()  # newest first
-    stop_reason: str | None = None  # the text of the stop event; None when not stopped
-    asks: tuple[str, ...] = ()  # what each confirmation no answer names yet asks
+    # The first stop event's text; None unless the stage is stopped.
+    stop_reason: str | None = None
+    # What each confirmation no answer names yet asks; () unless the stage waits for it.
+    asks: tuple[str, ...] = ()
 
 
 NOTE_CSS = """

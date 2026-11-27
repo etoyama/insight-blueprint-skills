@@ -80,13 +80,13 @@ def test_each_card_says_the_stage_read_from_the_journal(staged: Path) -> None:
 def test_the_stopped_card_quotes_the_reason_the_stop_wrote(staged: Path) -> None:
     (card,) = branch_cards(_page(staged), "LIB-Q03")
 
-    assert f"{STOP_REASON}{WHY}" in card_text(card)
+    assert f"{STOP_REASON}: {WHY}" in card_text(card)
 
 
 def test_the_confirmation_leads_the_page_until_it_is_answered(staged: Path) -> None:
     asks = squash(by_id(_page(staged), "asks").text())
     assert asks.startswith(asks_heading(1))
-    assert f"{WHAT_IS_ASKED}{ASKED}" in asks
+    assert f"{WHAT_IS_ASKED}: {ASKED}" in asks
 
     (question,) = [
         e

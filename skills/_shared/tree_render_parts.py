@@ -7,7 +7,7 @@ untrusted and goes through ``_html``.
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -25,6 +25,7 @@ from insight_blueprint.models.tree import (
     design_id_of,
 )
 from skills._shared._html import Html, el, join
+from skills._shared.design_io import design_number
 from skills._shared.design_note import DesignNote, intent_word, statement_of
 from skills._shared.design_note_reviews import comments_after_analysis
 from skills._shared.tree_changes import (
@@ -60,8 +61,8 @@ class DesignSummary:
     statement: str  # the question of an exploration, else the hypothesis
     stage: AnalysisStage
     comments_after_analysis: int = 0  # review comments of the result review
-    stop_reason: str | None = None  # why it was stopped; None unless stopped
-    asks: tuple[str, ...] = ()  # what it waits for the analyst on; () unless waiting
+    stop_reason: str | None = None  # as DesignNote.stop_reason
+    asks: tuple[str, ...] = ()  # as DesignNote.asks
 
     @classmethod
     def of(cls, note: DesignNote) -> DesignSummary:
@@ -78,12 +79,8 @@ class DesignSummary:
             statement=statement_of(design)[0],
             stage=note.stage,
             comments_after_analysis=comments_after_analysis(note.reviews),
-            # A finished analysis that once stopped or asked carries neither: the
-            # stage says which of the two the page has to add (ADR-0061 6).
-            stop_reason=note.stop_reason
-            if note.stage is AnalysisStage.stopped
-            else None,
-            asks=note.asks if note.stage is AnalysisStage.awaiting_confirmation else (),
+            stop_reason=note.stop_reason,
+            asks=note.asks,
         )
 
 
@@ -279,13 +276,24 @@ def current_round_meta(context: Context, answer: Answer) -> Html:
     return el("p", el("span", reflection(answer.round), class_="meta"), untouched)
 
 
-def join_links(node_ids: list[str]) -> list[Html | str]:
+def join_parts(groups: Iterable[list[Html | str]]) -> list[Html | str]:
+    """The parts of each group, with 、 between one group and the next."""
     parts: list[Html | str] = []
-    for position, node_id in enumerate(node_ids):
+    for position, group in enumerate(groups):
         if position:
             parts.append("、")
-        parts.append(link_to(node_id, node_id))
+        parts += group
     return parts
+
+
+def join_links(node_ids: list[str]) -> list[Html | str]:
+    return join_parts([link_to(n, n)] for n in node_ids)
+
+
+def id_key(design_id: str) -> tuple[int, str]:
+    """Order by the number after ``-H``: ``H10`` follows ``H9``."""
+    number = design_number(design_id)
+    return (-1 if number is None else number, design_id)
 
 
 def statement_list(context: Context, statements: Sequence[AnswerStatement]) -> Html:

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The question tree page shows where each analysis stands and what waits for the analyst.** Each linked
+  design says its analysis stage in words and a colour, with the reason a stopped one was stopped and what one
+  waiting for the analyst asks. The analyses that wait for the analyst lead the page, and no such section is
+  shown when none waits. A question whose designs were all stopped reads as stopped in its own colour, and
+  stopped designs come after the finished ones. The next question and the list of decisions name every
+  question a decision hands over. The synthetic scenario `lib-stages` builds a page with every stage
+  ([ADR-0061](docs/adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md), #288).
 - **A handed-over analysis can ask the analyst, take the answer and be stopped, and two writers no
   longer lose a record.** `design_io ask-analyst`, `answer-analyst` and `stop` write the marks of a
   confirmation, its answer and a stop into the journal, and are the only writers of them. The stage of an

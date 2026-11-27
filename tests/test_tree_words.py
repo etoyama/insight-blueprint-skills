@@ -194,8 +194,9 @@ class TestEachPhrasingIsSpelledOnce:
                 "次の分析は、あなたの答えを待って止まっている。"
                 "答えは、チャットでエージェントに伝える。",
             ),
-            (tree_words.WHAT_IS_ASKED, "確認したいこと: "),
-            (tree_words.STOP_REASON, "止めた理由: "),
+            (tree_words.WHAT_IS_ASKED, "確認したいこと"),
+            (tree_words.STOP_REASON, "止めた理由"),
+            (tree_words.LINKED_NODES, "結んだ論点"),
             (
                 # The furthest first, with all three words.
                 tree_words.below_text(

@@ -58,9 +58,7 @@ BASE_CSS = """
   --panel: #ffffff; --accent: #0b5cad;
   --not-started: #6b7280; --investigating: #9a6700; --analyzed: #1a7f37;
   --stopped: #4b5058; --mark: #8250df;
-  --stage-before-run: #59636e; --stage-running: #0b5cad;
-  --stage-awaiting-confirmation: #a3321f; --stage-stopped: #4b5058;
-  --stage-awaiting-reflection: #6b3fb0; --stage-finished: #1a7f37;
+  --awaiting-confirmation: #a3321f; --awaiting-reflection: #6b3fb0;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -68,9 +66,7 @@ BASE_CSS = """
     --panel: #1c2024; --accent: #6cb2ff;
     --not-started: #9aa4af; --investigating: #e3b341; --analyzed: #56d364;
     --stopped: #b4b8c2; --mark: #c297ff;
-    --stage-before-run: #9aa4af; --stage-running: #6cb2ff;
-    --stage-awaiting-confirmation: #ff9a87; --stage-stopped: #b4b8c2;
-    --stage-awaiting-reflection: #c7a8ff; --stage-finished: #56d364;
+    --awaiting-confirmation: #ff9a87; --awaiting-reflection: #c7a8ff;
   }
 }
 body {

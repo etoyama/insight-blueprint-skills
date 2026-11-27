@@ -178,8 +178,12 @@ STAGE_WORDS = {
 }
 
 STAGE_LABEL = "分析の段階"
-STOP_REASON = "止めた理由: "
-WHAT_IS_ASKED = "確認したいこと: "
+STOP_REASON = "止めた理由"
+WHAT_IS_ASKED = "確認したいこと"
+LINKED_NODES = "結んだ論点"
+# A design keeps its status while it waits, stops or has its results, so the
+# status word goes with these stages only: there it says what the stage does not.
+STAGES_WITH_STATUS = (AnalysisStage.before_run, AnalysisStage.finished)
 ASKS_LEAD = (
     "次の分析は、あなたの答えを待って止まっている。"
     "答えは、チャットでエージェントに伝える。"
@@ -394,8 +398,9 @@ def legend() -> Html:
             "p",
             f"「{STAGE_WORDS[AnalysisStage.awaiting_confirmation][0]}」の分析は、"
             "ページの冒頭にも抜き出す。止めた分析には止めた理由を、確認待ちの分析には"
-            "確認したいことを添える。分析設計の状態の言葉は、任せる前と終わった"
-            "分析設計にだけ添える。",
+            "確認したいことを添える。分析設計の状態の言葉は、"
+            + "と".join(f"「{STAGE_WORDS[s][0]}」" for s in STAGES_WITH_STATUS)
+            + "の分析設計にだけ添える。",
         ),
         el(
             "p",

@@ -8,6 +8,7 @@ names every question a decision hands over (AC 5). Synthetic data only.
 
 from __future__ import annotations
 
+import re
 from datetime import timedelta
 
 import pytest
@@ -119,14 +120,14 @@ class TestEachDesignSaysItsStage:
 
         (card,) = branch_cards(page(designs=designs), "LIB-Q02")
 
-        assert f"{STOP_REASON}{STOPPED_WHY}" in card_text(card)
+        assert f"{STOP_REASON}: {STOPPED_WHY}" in card_text(card)
 
     def test_a_design_waiting_for_the_analyst_says_what_it_asks(self) -> None:
         designs = _staged(AnalysisStage.awaiting_confirmation, asks=(ASKED,))
 
         (card,) = branch_cards(page(designs=designs), "LIB-Q02")
 
-        assert f"{WHAT_IS_ASKED}{ASKED}" in card_text(card)
+        assert f"{WHAT_IS_ASKED}: {ASKED}" in card_text(card)
 
     def test_a_running_design_carries_neither_a_reason_nor_a_question(self) -> None:
         (card,) = branch_cards(page(designs=_staged(AnalysisStage.running)), "LIB-Q02")
@@ -139,9 +140,9 @@ class TestEachDesignSaysItsStage:
         self, stage: AnalysisStage
     ) -> None:
         css = render(designs=_staged(stage))
-        variable = f"--stage-{stage.value.replace('_', '-')}"
+        (rule,) = re.findall(rf"\.stage-{stage.value} \{{[^}}]*\}}", css)
+        (variable,) = re.findall(r"var\((--[a-z-]+)\)", rule)
 
-        assert f".stage-{stage.value} {{" in css
         assert BASE_CSS.count(f"{variable}:") == 2
 
     def test_the_legend_explains_each_stage_and_that_the_colour_only_adds(
@@ -182,8 +183,8 @@ class TestTheAnalysesWaitingForTheAnalystLeadThePage:
         text = squash(asks.text())
         assert text.startswith(f"{asks_heading(1)} {ASKS_LEAD}")
         assert "LIB-H01 取消を除く数え方" in text
-        assert f"{WHAT_IS_ASKED}{ASKED}" in text
-        assert f"{WHAT_IS_ASKED}{second}" in text
+        assert f"{WHAT_IS_ASKED}: {ASKED}" in text
+        assert f"{WHAT_IS_ASKED}: {second}" in text
         hrefs = [e.attrs["href"] for e in asks.walk() if e.tag == "a"]
         assert "#design-LIB-H01" in hrefs
         assert "#LIB-Q02" in hrefs

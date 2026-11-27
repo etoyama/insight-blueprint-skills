@@ -90,7 +90,6 @@ class Scenario(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     theme_id: str
-    # A scenario that goes on from another: its stages follow those of *base*.
     base: str | None = None
     stages: list[Stage] = Field(min_length=1)
 
