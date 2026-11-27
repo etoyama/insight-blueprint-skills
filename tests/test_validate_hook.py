@@ -210,6 +210,64 @@ class TestHookReadsTheDataScope:
         assert "denominator" in result.stderr
 
 
+class TestHookGuardsTheMarksOfAJournal:
+    """ADR-0067: a Write or Edit of a journal leaves the marks of design_io alone."""
+
+    HEAD = (
+        "metadata:\n  design_id: FP-H01\n"
+        "  created_at: '2026-11-27T10:00:00+09:00'\nevents:\n"
+    )
+
+    @staticmethod
+    def _event(n: int, kind: str = "observe", metadata: str = "{}") -> str:
+        return (
+            f"- id: FP-H01-E{n:02d}\n  type: {kind}\n  content: x\n"
+            f"  metadata: {metadata}\n  created_at: '2026-11-27T11:00:00+09:00'\n"
+        )
+
+    @staticmethod
+    def _path(tmp_path: Path) -> Path:
+        designs = tmp_path / ".insight" / "designs"
+        designs.mkdir(parents=True, exist_ok=True)
+        return designs / "FP-H01_journal.yaml"
+
+    def _write(self, path: Path, content: str) -> subprocess.CompletedProcess[str]:
+        return run_hook(
+            {
+                "tool_name": "Write",
+                "tool_input": {"file_path": str(path), "content": content},
+            }
+        )
+
+    def test_a_journal_is_a_guarded_file(self) -> None:
+        assert hook.is_guarded_file("/p/.insight/designs/FP-H01_journal.yaml")
+        assert not hook.is_guarded_file("/p/.insight/notes/FP-H01_journal.yaml")
+
+    def test_writing_events_without_marks_is_allowed(self, tmp_path: Path) -> None:
+        body = self.HEAD + self._event(1) + self._event(2, "question")
+        result = self._write(self._path(tmp_path), body)
+        assert result.returncode == 0, result.stderr
+
+    def test_an_edit_that_appends_an_event_is_allowed(self, tmp_path: Path) -> None:
+        path = self._path(tmp_path)
+        path.write_text(self.HEAD + self._event(1), encoding="utf-8")
+        result = edit(path, self._event(1), self._event(1) + self._event(2))
+        assert result.returncode == 0, result.stderr
+
+    def test_writing_a_mark_by_hand_is_blocked(self, tmp_path: Path) -> None:
+        body = self.HEAD + self._event(1, "question", "{asks_analyst: true}")
+        result = self._write(self._path(tmp_path), body)
+        assert result.returncode == 2
+        assert "design_io" in result.stderr
+
+    def test_an_edit_that_removes_a_stop_is_blocked(self, tmp_path: Path) -> None:
+        path = self._path(tmp_path)
+        stop = self._event(2, "decide", "{stopped: true}")
+        path.write_text(self.HEAD + self._event(1) + stop, encoding="utf-8")
+        result = edit(path, stop, "")
+        assert result.returncode == 2
+
+
 class TestHookSubprocessAllow:
     def test_non_design_file_is_ignored(self, tmp_path: Path) -> None:
         result = run_hook(

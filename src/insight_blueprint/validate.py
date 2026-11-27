@@ -13,6 +13,7 @@ dicts in.
 
 from __future__ import annotations
 
+import json
 from collections import Counter
 from collections.abc import Sequence
 from datetime import datetime
@@ -29,6 +30,7 @@ from insight_blueprint.models.design import (
     DesignStatus,
     MetricTier,
 )
+from insight_blueprint.models.journal import JOURNAL_MARKS
 from insight_blueprint.models.tree import QuestionTree
 
 # State-transition allow-table, for every form at once: which conclusion a
@@ -477,6 +479,45 @@ def _may_change_intent(current: AnalysisDesign, new: AnalysisDesign) -> bool:
         and new.hypothesis_statement == current.hypothesis_statement
         and new.hypothesis_background == current.hypothesis_background
     )
+
+
+def _marked_events(data: dict | None) -> list:
+    events = (data or {}).get("events") or []
+    if not isinstance(events, list):
+        raise ValueError("events: a journal holds a list of events")
+    # Read as plain data, so the order of keys in a mapping does not count.
+    return [
+        json.loads(json.dumps(event, default=str))
+        for event in events
+        if isinstance(event, dict)
+        and isinstance(event.get("metadata"), dict)
+        and any(mark in event["metadata"] for mark in JOURNAL_MARKS)
+    ]
+
+
+def validate_journal_change(new: dict, current: dict | None) -> list[str]:
+    """Errors for a hand write of a journal (ADR-0067). Empty means allowed.
+
+    The events that hold a mark of ``JOURNAL_MARKS`` must stay exactly as they
+    are: a mark is added, changed or removed only by design_io, whose writes
+    the hook does not see. Every other event is free. A journal on disk that
+    cannot be read is read as holding no marks.
+    """
+    try:
+        written = _marked_events(new)
+    except ValueError as exc:
+        return [str(exc)]
+    try:
+        kept = _marked_events(current)
+    except ValueError:
+        kept = []
+    if written == kept:
+        return []
+    return [
+        f"metadata.{'/'.join(JOURNAL_MARKS)}: events with these marks are written "
+        "only by design_io ask-analyst, answer-analyst and stop, and never "
+        "changed or removed by hand"
+    ]
 
 
 def validate_tree_schema(data: dict) -> QuestionTree:

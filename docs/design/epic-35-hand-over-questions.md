@@ -335,7 +335,7 @@ classDiagram
         stopped
         awaiting_reflection
         finished
-        +of(status, events)
+        +of(status, events, started_at)
     }
     class Progress {
         <<Value Object>>
@@ -347,7 +347,7 @@ classDiagram
     QuestionNode --> "0..*" AnalysisDesign : design_ids
     AnalysisDesign "1" *-- "0..1" DataScope
     AnalysisDesign "1" -- "1" Journal
-    AnalysisStage ..> AnalysisDesign : 状態を読む
+    AnalysisStage ..> AnalysisDesign : 状態と分析の印を読む
     AnalysisStage ..> Journal : 印を読む
     Progress ..> AnalysisStage : 論点ごとに畳む
 ```
@@ -359,7 +359,7 @@ classDiagram
 | `DataScope` | 値オブジェクト | 対象・粒度・分母は3つとも空でない。分析設計は組ごと持つか、持たない |
 | `AnalysisStage` | 値オブジェクト | 保存しない。分析設計の状態と journal から、決まった順で1つに決まる（下の State Diagram） |
 | `Progress` | 値オブジェクト | 保存しない。未着手・検証中・分析済み・止めた の4つ。結んだ分析設計が全部止めたなら止めた。止めた以外が1つでもあれば、止めた分析設計を数えずに決める |
-| `Journal` | 集約ルート | 確認・答え・止めた理由の印は `design_io` の専用の命令だけが書く。答えは、どの確認への答えかを持つ |
+| `Journal` | 集約ルート | 確認・答え・止めた理由の印は `design_io` の専用の命令だけが書く。ツールの書き込みが印を持つ出来事を足す・消す・書き換えるのは、検証 hook が止める（ADR-0067）。答えは、どの確認への答えかを持つ |
 
 ### State Diagram
 
@@ -385,7 +385,7 @@ stateDiagram-v2
 1. 分析設計が terminal status なら、終わった。
 2. journal に止めた印があれば、止めた。
 3. journal に、答えの付いていない分析者への確認があれば、確認待ち。
-4. 分析設計が `analyzing` で、journal に `hearing`・分析者への確認・その答え以外の出来事があれば、振り返り待ち。
+4. 分析設計が `analyzing` で、journal に `hearing`・分析者への確認・その答え以外の出来事が、分析の印（`analysis_started_at`）より後にあれば、振り返り待ち。印の無い保存済みの記録は、時刻を問わず数える（ADR-0061 の追記、Story 35.2）。
 5. 分析設計が `analyzing` なら、進行中。
 6. それ以外は実行前。
 
@@ -479,6 +479,7 @@ sequenceDiagram
 - [ADR-0064: 任せた分析は、読んだ内容を変える前に聞き、1つずつ止められる](../adr/0064-a-handed-over-analysis-asks-before-changing-what-was-read-and-can-be-stopped.md): 条件は原則1つ。確認と止めた理由は journal に、専用の命令から書く。
 - [ADR-0065: ツリーの検査は、id と振り返りの回を数として数えない](../adr/0065-ids-and-reflection-rounds-are-not-counted-as-numbers.md): 数えないのはこの2つだけで、比べる相手の値は今までどおり拒む。
 - [ADR-0066: 分析設計は、対象・粒度・分母を持てる](../adr/0066-a-design-may-state-its-population-grain-and-denominator.md): 任意の組として足し、まとめて任せる分析設計では必須にする。
+- [ADR-0067: 検証 hook は、journal の印を design_io が書いたとおりに保つ](../adr/0067-the-hook-keeps-the-journal-marks-of-design-io.md): ツールの書き込みが印を持つ出来事を変えるのを止める（Story 35.2）。
 
 ## Test Design Matrix
 
@@ -501,3 +502,4 @@ sequenceDiagram
 - 2026-11-27 — 全体の整合: 任せない分析設計は結んでから止める、全部止めた論点の進捗は「止めた」、を人間が決めた。区切る決定の検査の書き漏れを直した。
 - 2026-11-27 — 人間が初版を承認した。
 - 2026-11-27 — Story 35.1 completed: 論点ツリーの id と今の回以下の「N回目の振り返り」を数として数えない。拒んだ数には `tree_io` が `fix` で直し方を付ける（#285）。
+- 2026-11-27 — Story 35.2 completed: 書き込みのロック（`write_lock`）、分析の段階（`AnalysisStage`）、確認・答え・止めたの命令、データの範囲（`DataScope`）。レビューの2件を人間が Decision Analysis で決めた。分析の段階は分析の印より後の出来事だけを結果と数える（ADR-0061 の追記。Domain Model の `of` が分析の印を取る）。journal の印は検証 hook でも守る（ADR-0067）。計画外の判断は2件。実行エージェントが journal を手で書く間のロック（M3）は 35.7 に渡す。

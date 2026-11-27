@@ -13,12 +13,14 @@ event its builder makes, so reading and writing a mark sit side by side.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime
 from enum import StrEnum
 
 from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
+from insight_blueprint.models.journal import JOURNAL_MARKS
 
 # The metadata keys of the marks (ADR-0064 8).
-MARKS = ("asks_analyst", "answers", "stopped")
+MARKS = JOURNAL_MARKS
 _ASKS_ANALYST, _ANSWERS, _STOPPED = MARKS
 
 _QUESTION = "question"
@@ -75,10 +77,38 @@ def open_confirmations(events: Iterable[dict]) -> list[dict]:
     return [e for e in events if asks_analyst(e) and e.get("id") not in answered]
 
 
-def _records_a_result(event: dict) -> bool:
-    return not (
-        event.get("type") == _HEARING or asks_analyst(event) or answers_of(event)
-    )
+def _records_a_result(event: dict, started_at: datetime | None) -> bool:
+    """Whether *event* is a result of the run that began at *started_at*.
+
+    A hearing, a confirmation and its answer are not results. Nor is an event
+    written before the analysis mark: /analysis-journal may record reasoning
+    before the run (ADR-0061 6.4 as amended). An event whose time cannot be
+    compared with the mark counts, as every event did before the amendment.
+    """
+    if event.get("type") == _HEARING or asks_analyst(event) or answers_of(event):
+        return False
+    if started_at is None:
+        return True
+    try:
+        return _moment(event.get("created_at")) >= started_at
+    except (TypeError, ValueError):
+        return True
+
+
+def _moment(value: object) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        return datetime.fromisoformat(value)
+    raise TypeError(f"not a time: {value!r}")
+
+
+def _mark(started_at: datetime | str | None) -> datetime | None:
+    """The analysis mark as a time; None when there is none or it cannot be read."""
+    try:
+        return None if started_at is None else _moment(started_at)
+    except (TypeError, ValueError):
+        return None
 
 
 class AnalysisStage(StrEnum):
@@ -92,13 +122,21 @@ class AnalysisStage(StrEnum):
     finished = "finished"
 
     @classmethod
-    def of(cls, status: DesignStatus | str, events: Iterable[dict]) -> AnalysisStage:
+    def of(
+        cls,
+        status: DesignStatus | str,
+        events: Iterable[dict],
+        started_at: datetime | str | None,
+    ) -> AnalysisStage:
         """The stage of a design in *status* whose journal holds *events*.
 
-        The first line that holds decides, in the order of ADR-0061 6. A status
-        read from a file as text is read as its ``DesignStatus``.
+        *started_at* is the design's analysis mark (``analysis_started_at``);
+        None for a record saved without one, whose events are all read. The
+        first line that holds decides, in the order of ADR-0061 6. A status or
+        a mark read from a file as text is read as what it says.
         """
         status = DesignStatus(status)
+        start = _mark(started_at)
         events = list(events)
         if status in TERMINAL_STATUSES:
             return cls.finished
@@ -108,7 +146,7 @@ class AnalysisStage(StrEnum):
             return cls.awaiting_confirmation
         if status is not DesignStatus.analyzing:
             return cls.before_run
-        if any(_records_a_result(e) for e in events):
+        if any(_records_a_result(e, start) for e in events):
             return cls.awaiting_reflection
         return cls.running
 

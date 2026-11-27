@@ -61,7 +61,7 @@ flowchart TD
     skills -->|read/write| yaml
     cc -->|Write/Edit/MultiEdit| hook
     hook -->|検証| validate
-    hook -->|"対象: *_hypothesis.yaml、*_tree.yaml"| yaml
+    hook -->|"対象: *_hypothesis.yaml、*_tree.yaml、*_journal.yaml の印"| yaml
     skills --> notebook
 ```
 
@@ -87,7 +87,8 @@ flowchart TD
   答えの変化、上の論点での引用、引用していない下の結果も項目に無く、保存しない。`tree_changes` が論点ツリーだけから導き、`tree_io render` の表示に出す。同じ値を `tree_io changes` が JSON で返す（[ADR-0056](adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md)）。
 - **pre-write hook（`hooks/validate-design.py`, plugin 同梱 `hooks/hooks.json`）** —
   `.insight/designs/*_hypothesis.yaml` と `.insight/themes/*_tree.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
-  にかけ、違反を `exit 2` でブロックする I/O 殻。論点ツリーでは、ファイル名のテーマと中身の `theme_id` が同じことも確かめる。利用者の install 先プロジェクトでも効く
+  にかけ、違反を `exit 2` でブロックする I/O 殻。論点ツリーでは、ファイル名のテーマと中身の `theme_id` が同じことも確かめる。
+  `.insight/designs/*_journal.yaml` では、分析者への確認・答え・止めた理由の印を持つ出来事が変わらないことだけを確かめる。印は `design_io` の命令が Python から書き、hook を通らない（[ADR-0067](adr/0067-the-hook-keeps-the-journal-marks-of-design-io.md)）。利用者の install 先プロジェクトでも効く
   （この repo の `.claude/settings.json` は dev 用に同スクリプトを配線）。
 - **Skill-managed YAML（`.insight/`）** — designs / journals / themes / catalog / knowledge。skill が直接管理する。
   論点ツリー（`themes/{theme_id}_tree.yaml`）は `tree_io` を通して書く。
@@ -179,7 +180,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 │   └── package_allowlist.yaml      # 任意: 既定の許可リストに足して notebook が使ってよいパッケージ（下記†）
 ├── designs/
 │   ├── {id}_hypothesis.yaml        # design_io create/update（pre-write hook が検証）
-│   ├── {id}_journal.yaml           # journal イベント
+│   ├── {id}_journal.yaml           # journal イベント（pre-write hook が印だけ検証）
 │   ├── {id}_reviews.yaml           # review バッチ
 │   └── {id}_revision.yaml          # /analysis-revision の修正追跡
 ├── themes/

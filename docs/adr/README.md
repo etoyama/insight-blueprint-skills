@@ -66,6 +66,7 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0064](0064-a-handed-over-analysis-asks-before-changing-what-was-read-and-can-be-stopped.md) | 任せた分析は、読んだ内容を変える前に聞き、1つずつ止められる | Accepted |
 | [0065](0065-ids-and-reflection-rounds-are-not-counted-as-numbers.md) | ツリーの検査は、id と振り返りの回を数として数えない | Accepted |
 | [0066](0066-a-design-may-state-its-population-grain-and-denominator.md) | 分析設計は、対象・粒度・分母を持てる | Accepted |
+| [0067](0067-the-hook-keeps-the-journal-marks-of-design-io.md) | 検証 hook は、journal の印を design_io が書いたとおりに保つ | Accepted |
 
 - ADR-0001〜0008 は旧形式のまま残す。ADR-0009 からは新形式（Problem と Decision Analysis の節を持つ）で書く。
 - 開発フローの決定の出典は [flow/](flow/README.md) にある。repo-template の ADR のコピーで、`FLOW-000N` と表記する。

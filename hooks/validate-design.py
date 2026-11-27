@@ -9,8 +9,10 @@ pure functions in ``insight_blueprint.validate``.
 
 Contract:
 - Reads a PreToolUse JSON payload on stdin (``tool_name`` + ``tool_input``).
-- Only acts on writes to ``.insight/designs/*_hypothesis.yaml`` and
-  ``.insight/themes/*_tree.yaml`` (ADR-0024); anything else exits 0 (allow).
+- Only acts on writes to ``.insight/designs/*_hypothesis.yaml``,
+  ``.insight/themes/*_tree.yaml`` (ADR-0024) and
+  ``.insight/designs/*_journal.yaml`` (ADR-0067: only the marks of design_io
+  are checked); anything else exits 0 (allow).
 - On a schema or state-transition violation: prints details to stderr and exits
   2 (block the write).
 - On an unexpected internal error: if the target is one of the guarded files,
@@ -40,6 +42,7 @@ EXIT_BLOCK = 2
 
 DESIGN_SUFFIX = "_hypothesis.yaml"
 TREE_SUFFIX = "_tree.yaml"
+JOURNAL_SUFFIX = "_journal.yaml"
 
 
 def _yaml():  # returns a ruamel YAML instance
@@ -76,8 +79,24 @@ def tree_theme_id(file_path: str | None) -> str | None:
     return None
 
 
+def is_journal_file(file_path: str | None) -> bool:
+    """True if *file_path* is a ``.insight/designs/*_journal.yaml`` journal."""
+    if not file_path:
+        return False
+    path = Path(file_path)
+    return (
+        path.name.endswith(JOURNAL_SUFFIX)
+        and path.parent.name == "designs"
+        and path.parent.parent.name == ".insight"
+    )
+
+
 def is_guarded_file(file_path: str | None) -> bool:
-    return is_design_file(file_path) or tree_theme_id(file_path) is not None
+    return (
+        is_design_file(file_path)
+        or tree_theme_id(file_path) is not None
+        or is_journal_file(file_path)
+    )
 
 
 def extract_target_path(tool_input: dict) -> str | None:
@@ -141,7 +160,11 @@ def evaluate(tool_name: str, tool_input: dict) -> list[str]:
 
     Performs the file I/O, then delegates to the pure validation library.
     """
-    from insight_blueprint.validate import validate_design_change, validate_tree
+    from insight_blueprint.validate import (
+        validate_design_change,
+        validate_journal_change,
+        validate_tree,
+    )
 
     file_path = extract_target_path(tool_input)
     if not is_guarded_file(file_path):
@@ -163,6 +186,8 @@ def evaluate(tool_name: str, tool_input: dict) -> list[str]:
         except Exception:  # pre-existing corruption: skip the comparison
             current_data = None
 
+    if is_journal_file(file_path):
+        return validate_journal_change(new_data, current_data)
     theme_id = tree_theme_id(file_path)
     if theme_id is not None:
         return validate_tree(new_data, expected_theme_id=theme_id, current=current_data)

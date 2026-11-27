@@ -499,7 +499,8 @@ def _stage_and_events(
             f"Design '{design_id}' on disk has no valid status: repair it first"
         ) from None
     events = journal_events(design_id, base_dir)
-    return AnalysisStage.of(status, events), events
+    stage = AnalysisStage.of(status, events, design.get("analysis_started_at"))
+    return stage, events
 
 
 def stage_of(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> AnalysisStage:

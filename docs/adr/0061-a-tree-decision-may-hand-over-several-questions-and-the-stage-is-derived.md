@@ -83,11 +83,27 @@ ADR-0026 は巡回を「論点を1つ調べるひと回り」と決め、決定�
    1. 分析設計が terminal status なら、終わった（`finished`）。
    2. journal に止めた印があれば、止めた（`stopped`）。
    3. journal に、答えの付いていない分析者への確認があれば、確認待ち（`awaiting_confirmation`）。
-   4. 分析設計が `analyzing` で、journal に `hearing`・分析者への確認・その答え以外の出来事があれば、振り返り待ち（`awaiting_reflection`）。
+   4. 分析設計が `analyzing` で、journal に `hearing`・分析者への確認・その答え以外の出来事が、分析の印（`analysis_started_at`、[ADR-0053](0053-a-started-confirmation-keeps-its-hypothesis-criterion-and-intent.md)）より後にあれば、振り返り待ち（`awaiting_reflection`）。印の無い保存済みの記録と、時刻を印と比べられない出来事は、時刻を問わず数える（2026-11-27 に追記。下の「追記」）。
    5. 分析設計が `analyzing` なら、進行中（`running`）。
    6. それ以外は実行前（`before_run`）。
 7. 論点の進捗（`Progress`）は結んだ分析設計の分析の段階から導く。進捗の言葉に「止めた」（`stopped`）を足す（人間の判断、2026-11-27）。結んだ分析設計が全部止めた論点は止めたと出し、止めた以外の分析設計が1つでもあれば、止めた分析設計を数えずに決める。下の論点の進捗の数（[ADR-0057](0057-a-question-without-a-design-shows-the-progress-below-it.md)）にも、止めたを数える。ページ、`tree_io position`、`tree_io progress`、レポート、skill は同じ規則を使う。
 8. 用語「ツリーの決定」を「論点ツリーの決定」に改名する。用語集、画面の見出し、この Epic 以降の文書と skill の文を直し、旧い語は使わない言い換えに置く。コード上の名前（`TreeDecision`）と YAML の項目名は変えない。閉じた Epic の文書は直さない。
+
+### 追記（2026-11-27、Story 35.2）
+
+Decision 6.4 は、もとは分析の印を見ず、`hearing`・確認・答え以外の出来事が1つでもあれば振り返り待ちとしていた。
+Story 35.2 のレビューで、次のことがわかった。`/analysis-design` は分析設計を作った直後に `/analysis-journal` を案内する（`skills/analysis-design/SKILL.md`）。
+その journal に `hypothesize` や `decide` が書いてあると、`analyzing` に入った瞬間に振り返り待ちになる。
+試すと、`AnalysisStage.of('analyzing', [hypothesize])` は `awaiting_reflection` を返した。
+すると、分析者への確認も止めることも拒まれ、何も走っていないのに「計算が終わり、振り返りを待っている」と出る。
+
+人間は、Decision Analysis で次の2つの案から A を選んだ（2026-11-27）。
+
+- 案A: 分析の印より後に作られた出来事だけを数える。
+- 案B: 数える種類を `observe` と `evidence` に絞る。
+
+決め手は2つあった。案B は、notebook が未解決の問い（`question`）だけを書いた分析を、進行中のまま残す。実行の前に手で書いた `observe` も、結果と読む。
+この追記で、Domain Model の `AnalysisStage.of` は分析の印を引数に取る（`of(status, events, started_at)`）。
 
 ## Consequences
 

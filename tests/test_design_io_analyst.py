@@ -297,3 +297,17 @@ def test_a_design_without_a_valid_status_is_refused_with_a_reason(
 
     with pytest.raises(ValueError, match="no valid status"):
         design_io.stop_analysis("FP-H01", "x", insight)
+
+
+def test_reasoning_journaled_before_the_run_does_not_block_a_confirmation(
+    insight: Path,
+) -> None:
+    """ADR-0061 6.4 as amended: /analysis-journal may run before the analysis."""
+    design_id = _design(insight, "in_review")
+    design_io.append_journal_event(
+        design_id, {"type": "hypothesize", "content": "延ばすと減る"}, insight
+    )
+    design_io.transition_status(design_id, "analyzing", insight)
+
+    assert _stage(insight, design_id) is AnalysisStage.running
+    design_io.ask_analyst(design_id, "分母を変えないと進めない", insight)

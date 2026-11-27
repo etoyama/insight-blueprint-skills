@@ -15,7 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   analysis is derived, never stored, by `skills/_shared/analysis_stage.py`. `design_io` holds one lock from
   reading to writing back, so two processes creating designs at once get different ids. A design may hold
   its population, grain and denominator (`data_scope`), shown in the method section of its note; saved
-  designs read as before ([ADR-0061](docs/adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md),
+  designs read as before. An event counts as a result only after the analysis mark, so reasoning journaled
+  before the run leaves the analysis running. The pre-write hook now refuses a Write or Edit of a journal that
+  adds, removes or changes an event with one of the marks
+  ([ADR-0067](docs/adr/0067-the-hook-keeps-the-journal-marks-of-design-io.md), [ADR-0061](docs/adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md),
   [ADR-0062](docs/adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md),
   [ADR-0064](docs/adr/0064-a-handed-over-analysis-asks-before-changing-what-was-read-and-can-be-stopped.md),
   [ADR-0066](docs/adr/0066-a-design-may-state-its-population-grain-and-denominator.md), #286).
