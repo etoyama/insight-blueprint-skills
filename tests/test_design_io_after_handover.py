@@ -133,6 +133,62 @@ class TestAStoppedAnalysisKeepsItsStatus:
         assert _status(insight, design_id) == "explored"
 
 
+WAITING_REFUSAL = "waits for the analyst"
+
+
+class TestAnAnalysisWaitingForTheAnalystIsNotEnded:
+    """An open confirmation would drop out of the stage if the design ended (ADR-0064 1)."""
+
+    def test_a_transition_to_an_end_is_refused(self, insight: Path) -> None:
+        design_id = _design(insight)
+        design_io.ask_analyst(design_id, "分母を変えないと進めない", insight)
+
+        with pytest.raises(ValueError, match=WAITING_REFUSAL):
+            design_io.transition_status(design_id, "explored", insight)
+
+        assert _status(insight, design_id) == "analyzing"
+        assert design_io.stage_of(design_id, insight).value == "awaiting_confirmation"
+
+    def test_an_update_to_an_end_is_refused(self, insight: Path) -> None:
+        design_id = _design(insight)
+        design_io.ask_analyst(design_id, "分母を変えないと進めない", insight)
+
+        with pytest.raises(ValueError, match=WAITING_REFUSAL):
+            design_io.update_design(design_id, {"status": "explored"}, insight)
+
+        assert _status(insight, design_id) == "analyzing"
+
+    def test_a_review_that_ends_it_is_refused(self, insight: Path) -> None:
+        design_id = _design(insight)
+        design_io.ask_analyst(design_id, "分母を変えないと進めない", insight)
+        design_io.transition_status(design_id, "in_review", insight)
+
+        with pytest.raises(ValueError, match=WAITING_REFUSAL):
+            design_io.append_review_batch(
+                design_id, "explored", [{"comment": "終える"}], base_dir=insight
+            )
+
+        assert _status(insight, design_id) == "in_review"
+        assert design_io.list_review_batches(design_id, insight) == []
+
+    def test_a_move_that_does_not_end_it_goes_through(self, insight: Path) -> None:
+        design_id = _design(insight)
+        design_io.ask_analyst(design_id, "分母を変えないと進めない", insight)
+
+        design_io.transition_status(design_id, "in_review", insight)
+
+        assert _status(insight, design_id) == "in_review"
+
+    def test_an_answered_analysis_may_end(self, insight: Path) -> None:
+        design_id = _design(insight)
+        asked = design_io.ask_analyst(design_id, "分母を変えないと進めない", insight)
+        design_io.answer_analyst(design_id, asked["id"], "そのまま", insight)
+
+        design_io.transition_status(design_id, "explored", insight)
+
+        assert _status(insight, design_id) == "explored"
+
+
 class TestStageCommand:
     """One command reads the stage, so a skill never works it out from the journal."""
 

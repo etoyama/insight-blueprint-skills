@@ -40,7 +40,11 @@ from insight_blueprint.models.analysis_stage import (
     stop,
 )
 from insight_blueprint.models.common import THEME_ID_PATTERN, now_jst
-from insight_blueprint.models.design import AnalysisDesign, DesignStatus
+from insight_blueprint.models.design import (
+    TERMINAL_STATUSES,
+    AnalysisDesign,
+    DesignStatus,
+)
 from insight_blueprint.models.review import BatchComment, ReviewBatch
 from insight_blueprint.validate import (
     VALID_TRANSITIONS,
@@ -318,7 +322,7 @@ def update_design(
         model = validate_schema(merged)  # raises ValidationError if invalid
         moves = model.status.value != current.get("status")
         if moves:
-            _refuse_a_move_of_a_stopped_design(design_id, current, base_dir)
+            _refuse_the_move(design_id, current, model.status, base_dir)
         on_disk = _parsed_or_none(current)
         if on_disk is None and moves:
             # Without a readable design there is no form to check the move against.
@@ -355,25 +359,32 @@ def transition_status(
         current = load_design(design_id, base_dir)
         if not current:
             raise ValueError(f"Design '{design_id}' not found")
-        _refuse_a_move_of_a_stopped_design(design_id, current, base_dir)
+        _refuse_the_move(design_id, current, DesignStatus(target), base_dir)
         data = _moved(current, validate_schema(current), target)
         atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml", data)
         return data
 
 
-def _refuse_a_move_of_a_stopped_design(
-    design_id: str, current: dict, base_dir: Path
+def _refuse_the_move(
+    design_id: str, current: dict, target: DesignStatus, base_dir: Path
 ) -> None:
-    """ValueError if *design_id*, read as *current*, was stopped: its status stays.
+    """ValueError if *design_id*, read as *current*, may not move to *target*.
 
-    Moving it would end an analysis that has no result, and the stop would
-    drop out of the stage (ADR-0064 7). Every write that changes the status
-    calls this first.
+    A stopped design keeps its status: moving it would end an analysis that
+    has no result, and the stop would drop out of the stage (ADR-0064 7). One
+    that waits for the analyst does not end: its confirmation would drop out
+    unanswered (ADR-0064 1). Every write that changes the status calls this first.
     """
-    if stage_in(design_id, current, base_dir) is AnalysisStage.stopped:
+    stage = stage_in(design_id, current, base_dir)
+    if stage is AnalysisStage.stopped:
         raise ValueError(
             f"{design_id} is stopped: its status does not change. A stopped "
             "analysis is not resumed; to try again, derive another design"
+        )
+    if stage is AnalysisStage.awaiting_confirmation and target in TERMINAL_STATUSES:
+        raise ValueError(
+            f"{design_id} waits for the analyst: it does not end before its "
+            "confirmation is answered (design_io answer-analyst) or it is stopped"
         )
 
 
@@ -728,7 +739,7 @@ def append_review_batch(
                 f"Design must be reviewable to save a review batch, "
                 f"current status: '{current['status']}'"
             )
-        _refuse_a_move_of_a_stopped_design(design_id, current, base_dir)
+        _refuse_the_move(design_id, current, target, base_dir)
         on_disk = validate_schema(current)
         # Moved before the batch is written: a move the design cannot make must
         # not leave a batch behind with the status unchanged.
