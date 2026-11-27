@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **After the hand-over, an analysis asks before it changes what the analyst read, one analysis can be
   stopped, and the endings are asked together.** An execution agent that cannot go on without changing
-  the population, grain, denominator, extraction, a source, the primary metric or the criterion stops
+  the population, grain, denominator, extraction, a source, the primary metric, what a result is
+  compared against or the criterion stops
   before it touches the data and records a confirmation with `design_io ask-analyst`; the other analyses
   go on. `/analysis-auto` asks the analyst, records the answer with `design_io answer-analyst`, runs
   premortem again and hands the analysis over again, or stops it. The analyst may stop one analysis at
