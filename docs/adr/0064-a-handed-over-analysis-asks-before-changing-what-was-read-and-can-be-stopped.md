@@ -16,9 +16,9 @@ Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)
 - premortem は抽出の行数を見積もり、`.insight/config.yaml` の `premortem.static_rows_high`（既定 1,000 万行）を超えると `HIGH` で止まる（`skills/premortem/lib/risk_evaluator.py`、`.insight/config.example.yaml`）。金額や時間の上限は無い。
 - まとめて任せる流れでは、premortem は任せる前に回る（手で通したとき、3つぶんを1回で回せた）。任せた後に費用が変わるのは、抽出を変えたときである。
 - 許可リストに無いパッケージ、宣言していないデータソース、外へ送ることは、今も KEEP ゲートで止まる（ADR-0005、[ADR-0016](0016-approval-before-external-send.md)）。
-- journal の出来事は、種類ごとに自由な項目（metadata）を持てる。未解決の問いは、`conclude` の `metadata.resolves` に挙がっていない `question` である（`skills/_shared/design_note_read.py`）。
+- journal の出来事は種類ごとに自由な項目（metadata）を持てる。未解決の問いは、`conclude` の `metadata.resolves` に挙がっていない `question` である（`skills/_shared/design_note_read.py`）。
 - journal の出来事の種類を足すと、種類の一覧を持つ所の全部に波及する（`hearing` を足した [ADR-0028](0028-hearing-is-its-own-journal-event.md)）。
-- 実行エージェントは、自分の journal だけを書く（[ADR-0062](0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md)）。
+- 実行エージェントは自分の journal だけを書く（[ADR-0062](0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md)）。
 - 図書館の合成シナリオで、journal に仮の印を置き、確認待ちと止めたを導けた（1回）。
 - 確かめていないこと: 確認待ちが実際にどのくらい出るか（手で通した2回では0回）。
 
@@ -91,14 +91,14 @@ Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)
 条件は案A、記録の置き場は案C を採る（人間の判断、2026-11-27）。決め手は、条件が W1 と W2、置き場が W4 である。
 
 1. 実行エージェントは、任せる前に分析者が読んだ内容を変えないと進めないとき、データに触る前に止まり、分析者への確認を自分の journal に書いて、対話エージェントに戻る。読んだ内容とは、分析設計の対象・粒度・分母・抽出・データソース・主指標・判定の基準である。
-2. 確認を待つ間、止まるのはその分析だけである。対話エージェントは、ほかの実行エージェントを止めずに、分析者に確認を聞く。
+2. 確認を待つ間、止まるのはその分析だけである。対話エージェントはほかの実行エージェントを止めずに、分析者に確認を聞く。
 3. 分析者の答えは、対話エージェントがその分析設計の journal に書く。答えは、どの確認への答えかを持つ。答えで分析設計が変わるときは、対話エージェントが分析設計を直す。抽出を変えたら、実行の前に premortem をやり直し、`HIGH` 以上なら今のゲートで止まる。
 4. 費用の上限は新しく置かない。任せる前と、抽出を変えた後の premortem が、今ある行数の線で見る。
 5. 許可リストに無いパッケージ、宣言していないデータソース、外へ送ることは、今の KEEP ゲートのまま止まる。
-6. 分析者は、進行中の分析を1つだけ止められる。任せる前の確認で、任せないと決めた分析設計も同じように止める。対話エージェントが、止めた理由をその分析設計の journal に書く。
+6. 分析者は進行中の分析を1つだけ止められる。任せる前の確認で、任せないと決めた分析設計も同じように止める。対話エージェントが、止めた理由をその分析設計の journal に書く。
 7. 止めた分析は再開しない。やり直すときは、派生で別の分析設計を作る。止めた分析設計の状態は変えない。
 8. 記録の形は次のとおり。印は `design_io` の専用の命令だけが書き、skill は metadata を手で書かない。
-   - 分析者への確認: `question` の出来事。本文は、何を変えないと進めないか。印は `metadata.asks_analyst`。
+   - 分析者への確認: `question` の出来事。本文は何を変えないと進めないか。印は `metadata.asks_analyst`。
    - 分析者の答え: `decide` の出来事。本文は答え。`metadata.answers` に、確認の出来事の id を持つ。
    - 止めた理由: `decide` の出来事。本文は理由。印は `metadata.stopped`。
 9. 答えの付いた分析者への確認は、未解決の問いに数えない。

@@ -61,7 +61,7 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0059](0059-the-handoff-trial-has-a-second-scenario-and-a-sixth-question.md) | 引き継ぎの試行に、2本目の合成シナリオと6つ目の問いを足す | Accepted |
 | [0060](0060-a-trial-record-names-the-model-that-read.md) | 試行の記録は、読み手が Claude ならモデルの ID を持つ | Accepted |
 | [0061](0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md) | 論点ツリーの決定は一緒に任せた論点を持てて、分析の段階は記録から導く | Accepted |
-| [0062](0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md) | 共有する記録は対話エージェントだけが書き、読んでから書くまでをロックする | Accepted |
+| [0062](0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md) | 論点ツリーと分析設計は対話エージェントだけが書き、読んでから書くまでをロックする | Accepted |
 | [0063](0063-designs-to-hand-over-are-saved-then-read-side-by-side-on-the-page.md) | 任せる分析設計は先に保存し、ページで横に並べて読む | Accepted |
 | [0064](0064-a-handed-over-analysis-asks-before-changing-what-was-read-and-can-be-stopped.md) | 任せた分析は、読んだ内容を変える前に聞き、1つずつ止められる | Accepted |
 | [0065](0065-ids-and-reflection-rounds-are-not-counted-as-numbers.md) | ツリーの検査は、id と振り返りの回を数として数えない | Accepted |

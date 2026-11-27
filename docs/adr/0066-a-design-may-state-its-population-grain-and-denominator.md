@@ -7,15 +7,15 @@ Accepted
 ## Context
 
 Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)、[DesignDoc](../design/epic-35-hand-over-questions.md)）の初版で、ほかの決定を組み合わせる途中で見つけた。
-[ADR-0063](0063-designs-to-hand-over-are-saved-then-read-side-by-side-on-the-page.md) は、任せる分析設計を横に並べ、分析設計の間で違う行にコードが印を付けると決めた。
-[ADR-0064](0064-a-handed-over-analysis-asks-before-changing-what-was-read-and-can-be-stopped.md) は、任せる前に読んだ内容を変えないと進めないなら聞くと決めた。
+[ADR-0063](0063-designs-to-hand-over-are-saved-then-read-side-by-side-on-the-page.md) は任せる分析設計を横に並べ、分析設計の間で違う行にコードが印を付けると決めた。
+[ADR-0064](0064-a-handed-over-analysis-asks-before-changing-what-was-read-and-can-be-stopped.md) は任せる前に読んだ内容を変えないと進めないなら聞くと決めた。
 どちらも、対象（誰を、何を数えるか）・粒度（1行が何か）・分母（割合の下に置く数）が記録にあることを前提にしている。
 
 比較の土台にした事実。
 
-- `AnalysisDesign` が持つのは、問いか検証仮説、手法、指標、説明変数、図、データソースである。`Methodology` は手法名・パッケージ・理由と、自由な項目（抽出の手順など）を持つ（`src/insight_blueprint/models/design.py` を読んだ）。対象・粒度・分母の項目は無い。
+- `AnalysisDesign` が持つのは、探索の問いか検証仮説、手法、指標、説明変数、図、データソースである。`Methodology` は手法名・パッケージ・理由と、自由な項目（抽出の手順など）を持つ（`src/insight_blueprint/models/design.py` を読んだ）。対象・粒度・分母の項目は無い。
 - 今の確認（design ③）は、想定の粒度とおおよその行数を、対話エージェントがチャットで言う（`skills/analysis-auto/SKILL.md`）。記録には残らない。
-- 見本の画面1 は、粒度と分母の行に「A と違う」の印を付けている。
+- 見本の画面1 は粒度と分母の行に「A と違う」の印を付けている。
 - `AnalysisDesign` は既定値つきの項目を足せる。決定の文脈（`DecisionContext`）は、任意で、あるときは両方が空でない組として足された（[ADR-0014](0014-analysis-design-decision-context.md)）。
 
 ## Problem
@@ -49,7 +49,7 @@ Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)
 
 | 案 | 起きうる悪い結果 | 抑え方 |
 |---|---|---|
-| 案A | 文で書くので、同じ意味を違う言葉で書いた分析設計にも「違う」の印が付く | 印は読む所を示すだけで、判断は分析者がする |
+| 案A | 文で書くので、同じ意味を違う言葉で書いた分析設計にも、値が違うという印が付く | 印は読む所を示すだけで、判断は分析者がする |
 | 案A | 項目に書いた粒度と、実際の抽出の粒度がずれる | 任せる前の確認で、抽出と並べて読む。機械では照らさない |
 | 案B | 粒度の違いに気づかずに任せる | 抑えにくい |
 
@@ -57,11 +57,11 @@ Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)
 
 案A を採る（人間の判断、2026-11-27）。
 
-1. 分析設計は、データの範囲（`data_scope`）を任意で持てる。データの範囲は、対象（`population`）・粒度（`grain`）・分母（`denominator`）の組で、どれも文で書く。
+1. 分析設計はデータの範囲（`data_scope`）を任意で持てる。データの範囲は、対象（`population`）・粒度（`grain`）・分母（`denominator`）の組で、どれも文で書く。
 2. データの範囲を持つときは、3つとも空でない。持たない保存済みの分析設計は、そのまま読める。
-3. まとめて任せる分析設計は、データの範囲を持つ。持たない分析設計は、任せる前の確認に進めない。
+3. まとめて任せる分析設計はデータの範囲を持つ。持たない分析設計は、任せる前の確認に進めない。
 4. 単独で起動した `/analysis-design` と、論点を1つだけ調べる巡回では、任意のままにする。
-5. 分析ノートは、データの範囲を手法の近くに出す。任せる前に読む節は、3つをそれぞれの行に出す。
+5. 分析ノートはデータの範囲を手法の近くに出す。任せる前の確認の節は、3つをそれぞれの行に出す。
 6. 割合を測らない分析の分母は、分母が無いことを文で書く。
 
 ## Consequences

@@ -80,7 +80,7 @@ AC の正本はここ。
 分析者として、実行の前に読んで直せることを保ったまま止まる回数を減らすために、任せる分析設計を1ページに並べて読み、分析設計ごとにコメントを返したい。
 
 - [ ] AC 1: 対話エージェントは、任せる分析設計を `in_review` で保存し、論点に結んでから、分析者に確認を求める。確認の前には、premortem も回さず、データにも触らない。
-- [ ] AC 2: 論点ツリーの HTML は、最新の決定が指す論点に結んだ実行前の分析設計を、列に並べた節を持つ。行は、意図、何に答えるか（探索は問い、検証は検証仮説）、判定の基準、対象、粒度、分母、データソース、手法、主指標、抽出、図である。抽出は全文を読める。
+- [ ] AC 2: 論点ツリーの HTML は、最新の決定が指す論点に結んだ実行前の分析設計を、列に並べた節を持つ。行は、意図、何に答えるか（探索は探索の問い、検証は検証仮説）、判定の基準、対象、粒度、分母、データソース、手法、主指標、抽出、図である。抽出は全文を読める。
 - [ ] AC 3: 同じ行の値が分析設計の間で違うとき、コードがその行に印を付ける。印が付くのは対象・粒度・分母・データソースの行である。対話エージェントは、印の付いた行をチャットにも要約して出す。
 - [ ] AC 4: 節は分析設計ごとのコメント欄を持つ。分析者が書いたコメントを、分析設計の id を添えた1つの文にまとめて、ページに出す。ページは外へ何も送らない。
 - [ ] AC 5: 分析者が貼ったコメントを、対話エージェントは分析設計ごとに review コメントとして記録し、分析設計を直し、節を作り直してもう一度確認を求める。任せないと決めた分析設計は、理由つきで止める。
@@ -137,7 +137,9 @@ AC の正本はここ。
 
 | 内側の用語（文書・コード） | 分析者に見せる言葉 |
 |---|---|
-| 任せる前の確認 | 任せる前に読む |
+| 任せる前の確認 | 分析を任せる前の確認 |
+| 分析設計の間で値が違う行の印 | 分析間の違い |
+| 抽出の行（SQL は `methodology.steps` のクエリの全文、CSV などはファイル・列・絞り込み） | 抽出・加工条件 |
 | 一緒に任せた論点 | 使わない。「次に調べる論点」に、決定が指す全部の論点を並べる |
 | 分析の段階: 実行前（`before_run`） | 任せる前 |
 | 分析の段階: 進行中（`running`） | 進行中 |
@@ -159,7 +161,7 @@ Story は仮の分割で、起票は PM のセッションが行う。「触る�
 | 35.3 決定が複数の論点を指し、現在地が全部を返す | 2 | US-1、US-5、US-3 | US-1 AC 1, AC 2, AC 3, AC 4、US-5 AC 1（`tree_io` の分） | `src/insight_blueprint/models/tree.py`（`TreeDecision`、`_check_decision_after`、`Progress`、`QuestionTree.progress`）、`skills/_shared/tree_io.py`（`decide` と書き込みの全部）、`skills/_shared/tree_read.py`（`position`、`progress`）、`docs/ARCHITECTURE.md`、`docs/UBIQUITOUS_LANGUAGE.md`（「論点ツリーの決定」への改名を含む）、`.yomiyasu-words/`、`tests/test_tree_models.py`、`tests/tree_io/` | 35.2 |
 | 35.4 分析の段階と確認待ちを論点ツリーに出す | 3 | US-3 | AC 2, AC 3, AC 4, AC 5 | `skills/_shared/tree_words.py`、`skills/_shared/tree_render.py`・`tree_render_parts.py`・`_html.py`、`skills/_shared/design_note.py` の `_progress`、`skills/_shared/tree_read.py` の `render` と `_theme_report`、`skills/_shared/theme_report.py`、`scripts/handoff_trial.py`、`tests/test_tree_render.py`、`tests/test_theme_report.py`、`tests/tree_io/test_render*.py` | 35.3 |
 | 人が実物の画面と言い回しの一覧を読む（FLOW-0019） | 3 の後 | — | — | 合成シナリオで作った論点ツリーの HTML と、`tree_words.py` から抜き出した言い回しの一覧 | 35.4 |
-| 35.5 任せる前に読む節とコメント欄 | 4 | US-2 | AC 2, AC 3, AC 4 | `skills/_shared/tree_render_handover.py`（新規）、`skills/_shared/tree_render.py`、`skills/_shared/tree_words.py`、`skills/_shared/tree_read.py` の `render`、`tests/test_tree_render_handover.py`（新規）、`tests/tree_io/test_render*.py` | 人が画面を読む段 |
+| 35.5 任せる前の確認の節とコメント欄 | 4 | US-2 | AC 2, AC 3, AC 4 | `skills/_shared/tree_render_handover.py`（新規）、`skills/_shared/tree_render.py`、`skills/_shared/tree_words.py`、`skills/_shared/tree_read.py` の `render`、`tests/test_tree_render_handover.py`（新規）、`tests/tree_io/test_render*.py` | 人が画面を読む段 |
 | 35.6 まとめて任せる流れ | 5 | US-1、US-2、US-5、US-7 | US-1 AC 5、US-2 AC 1, AC 5、US-5 AC 2、US-7 AC 2 | `skills/analysis-auto/SKILL.md`、`skills/analysis-framing/SKILL.md` の 4b と 4d、`skills/analysis-reflection/SKILL.md` の Step T7、`skills/analysis-design/SKILL.md`、`tests/skills/` | 35.5 |
 | 35.7 任せた後の確認、止めること、まとめて戻ること | 6 | US-4、US-5 | US-4 AC 1, AC 2, AC 3, AC 4、US-5 AC 3 | `skills/analysis-auto/SKILL.md`、`skills/analysis-notebook/SKILL.md` の Step 7、`skills/premortem/SKILL.md`、`skills/_shared/design_note_read.py`（答えの付いた確認を未解決の問いから外す）、`tests/skills/`、`tests/test_design_note*.py`、`docs/ARCHITECTURE.md` の guided autopilot のシーケンス | 35.6 |
 
@@ -220,7 +222,7 @@ YAML I/O（`design_io` の書き込みと、分析設計のモデル）、Skill 
 - Epic 範囲外:
   - 前の分析の結果を入力に使う分析を一緒に任せること。次に調べる論点の候補をエージェントが出すこと。戻ったときに図を並べて見る場所と、選ぶ画面。#271。次の Epic に委ねる。
   - 任せた確認（機械か別のモデルが確かめるもの）と、どの分析が同じデータを使うかの表示。#251 と #236 に委ねる。
-  - セッションをまたぐ実行。実行エージェントは、同じセッションの中のサブエージェントに限る。
+  - セッションをまたぐ実行。実行エージェントは同じセッションの中のサブエージェントに限る。
   - Artifact に置いた表示を更新する手段（#216）。任せる前の確認は手元の HTML で見せるので、要らない。
   - 金額・読むバイト数・時間の上限。費用は premortem の行数の線で見る（ADR-0064）。
   - 比べる相手の値（「1を超える」の 1）を、根拠に足さずに書けるようにすること。実データで使う段で頻度を見てから考える（ADR-0065）。
@@ -256,7 +258,7 @@ flowchart TD
         tree[("themes/{theme}_tree.yaml")]
         designs[("designs/{id}_hypothesis.yaml")]
         journals[("designs/{id}_journal.yaml")]
-        html["themes/{theme}_tree.html<br/>任せる前に読む節・分析の段階・確認待ち"]
+        html["themes/{theme}_tree.html<br/>任せる前の確認の節・分析の段階・確認待ち"]
         nb["notebook・verdict"]
     end
     analyst <-->|選ぶ・コメントを貼る・答える・止める| driver
@@ -281,7 +283,7 @@ flowchart TD
     stage -.->|読む| journals
 ```
 
-- 対話エージェントだけが論点ツリー・分析設計・論点ツリーの HTML を書く。実行エージェントは、自分の notebook・verdict・journal だけを書く。
+- 対話エージェントだけが論点ツリー・分析設計・論点ツリーの HTML を書く。実行エージェントは自分の notebook・verdict・journal だけを書く。
 - 正本は論点ツリーの YAML、分析設計、journal である。分析の段階はどこにも保存しない。
 - daemon・MCP サーバ・SQLite を足さない。コメント欄はページの中だけで動き、外へ何も送らない。
 
@@ -385,7 +387,7 @@ stateDiagram-v2
 3. journal に、答えの付いていない分析者への確認があれば、確認待ち。
 4. 分析設計が `analyzing` で、journal に `hearing`・分析者への確認・その答え以外の出来事があれば、振り返り待ち。
 5. 分析設計が `analyzing` なら、進行中。
-6. それ以外は、実行前。
+6. それ以外は実行前。
 
 ## Sequence Diagram
 
@@ -406,7 +408,7 @@ sequenceDiagram
         D->>T: link
     end
     D->>T: render
-    T->>F: 論点ツリーの HTML（任せる前に読む節）
+    T->>F: 論点ツリーの HTML（任せる前の確認の節）
     D->>A: ページのパスと、違う行の要約
     A->>D: コメントをまとめた文を貼る
     D->>I: review コメントを記録し、分析設計を直す
@@ -456,7 +458,7 @@ sequenceDiagram
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0061: 論点ツリーの決定は一緒に任せた論点を持てて、分析の段階は記録から導く](../adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md): 決定に `with_node_ids` を足す。分析の段階は保存しない。「ツリーの決定」を「論点ツリーの決定」に改名する。
-- [ADR-0062: 共有する記録は対話エージェントだけが書き、読んでから書くまでをロックする](../adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md): 分担とロックの両方で、並行の書き込みから記録を守る。
+- [ADR-0062: 論点ツリーと分析設計は対話エージェントだけが書き、読んでから書くまでをロックする](../adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md): 分担とロックの両方で、並行の書き込みから記録を守る。
 - [ADR-0063: 任せる分析設計は先に保存し、ページで横に並べて読む](../adr/0063-designs-to-hand-over-are-saved-then-read-side-by-side-on-the-page.md): 手元の HTML に節を作り、違う行にコードが印を付け、コメント欄を置く。
 - [ADR-0064: 任せた分析は、読んだ内容を変える前に聞き、1つずつ止められる](../adr/0064-a-handed-over-analysis-asks-before-changing-what-was-read-and-can-be-stopped.md): 条件は原則1つ。確認と止めた理由は journal に、専用の命令から書く。
 - [ADR-0065: ツリーの検査は、id と振り返りの回を数として数えない](../adr/0065-ids-and-reflection-rounds-are-not-counted-as-numbers.md): 数えないのはこの2つだけで、比べる相手の値は今までどおり拒む。
@@ -479,4 +481,5 @@ sequenceDiagram
 ## Story Timeline
 
 - 2026-11-27 — 初版: 人間が d1〜d5 と、分析設計にデータの範囲を足すことを決めた。範囲を削る案（4つ）は採らなかった。
+- 2026-11-27 — 人間が見本（画面1・画面2・言い回しの一覧）を読んだ: 指摘 3 件、すべて画面の言葉で、今直した（分析を任せる前の確認、分析間の違い、抽出・加工条件）。
 - 2026-11-27 — 全体の整合: 任せない分析設計は結んでから止める、全部止めた論点の進捗は「止めた」、を人間が決めた。区切る決定の検査の書き漏れを直した。

@@ -1,4 +1,4 @@
-# ADR-0062: 共有する記録は対話エージェントだけが書き、読んでから書くまでをロックする
+# ADR-0062: 論点ツリーと分析設計は対話エージェントだけが書き、読んでから書くまでをロックする
 
 ## Status
 
@@ -8,18 +8,18 @@ Accepted
 
 Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)、[DesignDoc](../design/epic-35-hand-over-questions.md)）の初版で決めた。
 互いを待たない論点をまとめて任せると、複数の分析が同じセッションの中で並行で走る。
-本書は、分析者と話す `/analysis-auto` のセッションの Claude を対話エージェント、分析設計を1つ渡されて実行するサブエージェントを実行エージェントと呼ぶ（人間が選んだ、2026-11-27）。
+本書は分析者と話す `/analysis-auto` のセッションの Claude を対話エージェント、分析設計を1つ渡されて実行するサブエージェントを実行エージェントと呼ぶ（人間が選んだ、2026-11-27）。
 
 比較の土台にした事実（main 9d26c39、図書館の合成シナリオ、2プロセス同時、各20回）。
 
 - `design_io.create_design` を同時に呼ぶと、20回中20回、同じ id になり、片方が黙って上書きされた。`next_design_id` は読んでから書くまでロックしない。
 - `tree_io.link_design` を同時に呼ぶと、20回中20回、片方の結び付けが消えた。`answer`・`decide`・`add_node` も同じ形である。
-- 今のロックは、書き戻す一瞬だけに掛かる（`skills/_shared/_atomic.py` の `atomic_write_yaml`）。
+- 今のロックは書き戻す一瞬だけに掛かる（`skills/_shared/_atomic.py` の `atomic_write_yaml`）。
 - 読んでから書くまでを `filelock` のロックで囲むと、同じ id は20回中0回、消えた結び付けは20回中0回、エラーは0回だった。`filelock` は既に依存にある。
 - 実データで手で通したとき、対話エージェントが論点ツリーと分析設計を順に書き、実行エージェントが自分の notebook と journal だけを書く分け方では、ぶつからなかった（1回）。
-- `/analysis-notebook` の Step 7 は `tree_io render` で論点ツリーの HTML を書き直す。実行エージェントの1人は、指示に反してこれを走らせた。
+- `/analysis-notebook` の Step 7 は `tree_io render` で論点ツリーの HTML を書き直す。実行エージェントの1人は指示に反してこれを走らせた。
 - journal は分析設計ごとの別ファイルである。
-- 確かめていないこと: ロックを待つ時間が、実際の分析で気になるか。
+- 確かめていないこと: ロックを待つ時間が実際の分析で気になるか。
 
 ## Problem
 
@@ -71,8 +71,8 @@ Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)
 1. まとめて任せた実行では、論点ツリーの YAML、分析設計、論点ツリーの HTML を書くのは対話エージェントだけである。対話エージェントの書き込みは順に行う。
 2. 実行エージェントが書くのは、渡された分析設計の notebook・verdict・journal だけである。
 3. まとめて任せた実行では、実行エージェントは `/analysis-notebook` の Step 7 の `tree_io render` を走らせない。対話エージェントが、実行エージェントの戻りのたびに書き直す。単独で起動した `/analysis-notebook` は、今までどおり自分で書き直す。
-4. `design_io` と `tree_io` の書き込みは、読んでから書き戻すまでを1つのロックで囲む。分析設計の id の採番から書き込みまで、分析設計の更新と状態の遷移、journal の追記、論点ツリーを書く命令の全部が対象である。ロックの helper は `skills/_shared/_atomic.py` に1つ置く。
-5. 文書と skill は、2つの役目を対話エージェント、実行エージェントと呼ぶ。
+4. `design_io` と `tree_io` の書き込みは読んでから書き戻すまでを1つのロックで囲む。分析設計の id の採番から書き込みまで、分析設計の更新と状態の遷移、journal の追記、論点ツリーを書く命令の全部が対象である。ロックの helper は `skills/_shared/_atomic.py` に1つ置く。
+5. 文書と skill は2つの役目を対話エージェント、実行エージェントと呼ぶ。
 
 ## Consequences
 
