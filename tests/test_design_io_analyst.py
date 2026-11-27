@@ -14,7 +14,8 @@ from pathlib import Path
 
 import pytest
 
-from insight_blueprint.models.analysis_stage import MARKS, AnalysisStage
+from insight_blueprint.models.analysis_stage import AnalysisStage
+from insight_blueprint.models.journal import JOURNAL_MARKS
 from skills._shared import design_io
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -27,7 +28,7 @@ def insight(tmp_path: Path) -> Path:
     return base
 
 
-ASKS_ANALYST, ANSWERS, STOPPED = MARKS
+ASKS_ANALYST, ANSWERS, STOPPED = JOURNAL_MARKS
 
 
 def _design(insight: Path, status: str = "analyzing") -> str:

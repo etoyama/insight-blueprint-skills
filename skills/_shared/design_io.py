@@ -28,7 +28,6 @@ from ruamel.yaml import YAML
 
 from insight_blueprint.models.analysis_stage import (
     ASKS_FROM,
-    MARKS,
     RECORDS_FROM,
     SETTLED,
     STOPS_FROM,
@@ -44,6 +43,7 @@ from insight_blueprint.models.design import (
     AnalysisDesign,
     DesignStatus,
 )
+from insight_blueprint.models.journal import marks_held
 from insight_blueprint.models.review import BatchComment, ReviewBatch
 from insight_blueprint.validate import (
     VALID_TRANSITIONS,
@@ -465,9 +465,7 @@ def append_journal_event(
 
 
 def _refuse_marks(event_fields: dict) -> None:
-    metadata = event_fields.get("metadata")
-    marked = [m for m in MARKS if m in metadata] if isinstance(metadata, dict) else []
-    if marked:
+    if marked := marks_held(event_fields):
         raise ValueError(
             f"metadata.{marked[0]} is written only by design_io ask-analyst, "
             "answer-analyst and stop"

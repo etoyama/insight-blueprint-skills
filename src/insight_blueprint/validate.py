@@ -30,7 +30,7 @@ from insight_blueprint.models.design import (
     DesignStatus,
     MetricTier,
 )
-from insight_blueprint.models.journal import JOURNAL_MARKS
+from insight_blueprint.models.journal import JOURNAL_MARKS, marks_held
 from insight_blueprint.models.tree import QuestionTree
 
 # State-transition allow-table, for every form at once: which conclusion a
@@ -489,9 +489,7 @@ def _marked_events(data: dict | None) -> list:
     return [
         json.loads(json.dumps(event, default=str))
         for event in events
-        if isinstance(event, dict)
-        and isinstance(event.get("metadata"), dict)
-        and any(mark in event["metadata"] for mark in JOURNAL_MARKS)
+        if marks_held(event)
     ]
 
 

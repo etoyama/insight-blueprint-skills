@@ -11,12 +11,12 @@ import re
 
 import pytest
 
-from insight_blueprint.models.analysis_stage import MARKS
+from insight_blueprint.models.journal import JOURNAL_MARKS
 from skills._shared import design_io
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills.test_skill_structure import _read_skill
 
-ASKS_ANALYST, ANSWERS, STOPPED = MARKS
+ASKS_ANALYST, ANSWERS, STOPPED = JOURNAL_MARKS
 
 
 def _convention() -> str:

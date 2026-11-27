@@ -18,9 +18,7 @@ from enum import StrEnum
 from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 from insight_blueprint.models.journal import DECIDE, HEARING, JOURNAL_MARKS, QUESTION
 
-# The metadata keys of the marks (ADR-0064 8).
-MARKS = JOURNAL_MARKS
-_ASKS_ANALYST, _ANSWERS, _STOPPED = MARKS
+_ASKS_ANALYST, _ANSWERS, _STOPPED = JOURNAL_MARKS
 
 
 def confirmation(content: str) -> dict:

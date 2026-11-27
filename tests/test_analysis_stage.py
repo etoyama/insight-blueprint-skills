@@ -8,7 +8,6 @@ from __future__ import annotations
 import pytest
 
 from insight_blueprint.models.analysis_stage import (
-    MARKS,
     AnalysisStage,
     answer,
     answers_of,
@@ -18,8 +17,9 @@ from insight_blueprint.models.analysis_stage import (
     stops,
 )
 from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
+from insight_blueprint.models.journal import JOURNAL_MARKS
 
-ASKS_ANALYST, ANSWERS, STOPPED = MARKS
+ASKS_ANALYST, ANSWERS, STOPPED = JOURNAL_MARKS
 
 
 def _ask(event_id: str = "FP-H01-E01") -> dict:
