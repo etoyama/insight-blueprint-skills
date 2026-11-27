@@ -14,10 +14,14 @@ from pathlib import Path
 
 import pytest
 
+from insight_blueprint.models.analysis_stage import SETTLED, AnalysisStage
 from scripts.handoff_trial import build, load_scenario
-from skills._shared import design_io
+from skills._shared import design_io, tree_io
 from tests.skills._auto import (
     auto,
+    auto_gates,
+    auto_step,
+    framing_section,
     gate_row,
     handover_item,
     handover_item_text,
@@ -31,6 +35,18 @@ from tests.skills._shown import (
     run_shown_line,
 )
 from tests.skills.test_skill_structure import _read_skill
+
+# Step 3H, the round of a decision that names several nodes (Epic 35, Story 35.6).
+HANDOVER = [
+    "briefs",
+    "designs",
+    "check before handing over",
+    "premortem",
+    "hand over",
+    "return",
+    "confirmation",
+    "endings",
+]
 
 WAITING, RUNNING = "LIB-H04", "LIB-H05"
 STOPPING = "#### Stopping an analysis"
@@ -347,13 +363,13 @@ class TestTheEndingsAreAskedTogether:
 class TestTheReflectionReadsTheStage:
     """A reader of whether the analysis ran follows the one rule (ADR-0061 6)."""
 
-    def _step(self) -> str:
+    def auto_step(self) -> str:
         return section(_read_skill("analysis-reflection"), "### Step 1")
 
     def test_whether_a_result_is_on_record_comes_from_design_io(
         self, staged: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        step = self._step()
+        step = self.auto_step()
         assert (
             run_shown_design_line(
                 step.replace("{design_id}", "LIB-H03"), "stage", staged
@@ -365,6 +381,248 @@ class TestTheReflectionReadsTheStage:
         assert re.search(r"[Nn]ever work[^.]*out[^.]*journal", unwrap(step))
 
     def test_a_stopped_analysis_is_not_reflected_on(self) -> None:
-        step = unwrap(self._step())
+        step = unwrap(self.auto_step())
         assert re.search(r"`stopped`[^.]*no result to reflect on", step)
         assert re.search(r"deriving a new design", step)
+
+
+@pytest.fixture
+def handed(tmp_path: Path) -> Path:
+    """The synthetic theme whose last decision names three nodes, each with a design not yet run."""
+    build(load_scenario("lib-handover"), tmp_path)
+    return tmp_path
+
+
+def _stages(insight: Path) -> dict[str, str]:
+    nodes = tree_io.position("LIB", base_dir=insight)["nodes"]
+    return {d["design_id"]: d["stage"] for node in nodes for d in node["designs"]}
+
+
+class TestSeveralNodesGoThroughOneCheck:
+    """Epic 35, Story 35.6: a decision that names several nodes is handed over together."""
+
+    def _handover(self) -> str:
+        return auto_step("### Step 3H:")
+
+    def test_a_round_of_several_nodes_enters_the_hand_overauto_step(self) -> None:
+        locate = unwrap(auto_step("### Step 1:"))
+        assert re.search(r"more than one node[^.]*`node_ids`[^.]*Step 3H", locate)
+        assert re.search(r"[Ss]tep 3H[^.]*several nodes", round_item("next round"))
+
+    def test_every_item_names_the_designs_it_acts_on(self) -> None:
+        """A resumed run goes through the items in order; each skips what it has nothing for."""
+        heads = dict(
+            re.findall(r"^\d+\. \*\*(.+?)\*\* \((.+?)\):", self._handover(), re.M)
+        )
+        assert list(heads) == HANDOVER
+        named = " ".join(heads.values())
+        for stage in set(AnalysisStage) - SETTLED:
+            assert f"`{stage.value}`" in named, stage
+        assert "`undesigned_node_ids`" in heads["briefs"]
+        assert re.search(r"skipped when there are none", unwrap(self._handover()))
+
+    def test_the_step_has_its_items_in_order(self) -> None:
+        found = re.findall(r"^\d+\. \*\*(.+?)\*\*", self._handover(), re.MULTILINE)
+        assert found == HANDOVER
+
+    def test_the_check_is_a_keep_gate_asked_once_for_all_the_designs(self) -> None:
+        _, keep, auto = table_row(auto_gates(), "check before handing over")
+        assert keep.startswith("**")
+        assert "Step 3H" in keep
+        assert "`in_review`" in auto
+
+    def test_every_node_without_a_design_gets_its_brief(self) -> None:
+        """Decision 1 of the Story: all of them go into the one check."""
+        item = handover_item("briefs")
+        assert "`undesigned_node_ids`" in item
+        assert "/analysis-framing {theme_id}" in item
+        assert re.search(r"every node", item)
+
+    def test_the_designs_are_saved_and_linked_before_the_check(self) -> None:
+        """US-2 AC 1 (ADR-0063 1)."""
+        item = handover_item("designs")
+        assert "/analysis-design" in item
+        assert "`in_review`" in item
+        assert re.search(r"[Nn]o premortem[^.]*no data", item)
+        assert re.search(r"one after another[^.]*never[^.]*parallel", item)
+        assert re.search(r"four[^.]*beats[^.]*not asked", item)
+
+    def test_a_design_handed_over_states_its_data_scope(self) -> None:
+        """US-7 AC 2 (ADR-0066 3)."""
+        assert "`data_scope`" in handover_item("designs")
+        check = handover_item("check before handing over")
+        assert re.search(r"`no_data_scope`[^.]*not empty[^.]*do not ask", check)
+
+    def test_the_shown_commands_build_the_page_and_name_the_differing_rows(
+        self, handed: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """US-2 AC 1, ADR-0063 5: the path of the page and the rows the code marked."""
+        check = self._handover()
+        assert run_shown_line(check, "render", handed, monkeypatch) == 0
+        assert run_shown_line(check, "handover", handed, monkeypatch) == 0
+        item = handover_item("check before handing over")
+        for name in ("`path`", "`differing`", "`label`", "`values`"):
+            assert name in item, name
+        assert re.search(r"[Nn]ever compare the values yourself", item)
+        assert "分析を任せる前の確認" in item
+
+    def test_the_shown_commands_record_a_comment_and_stop_a_design(
+        self,
+        handed: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """US-2 AC 5: a comment becomes a review comment of its design; one design is stopped."""
+        check = handover_item_text("check before handing over")
+        run_shown_design_commands(check, handed, monkeypatch, capsys)
+        assert run_shown_design_line(check, "transition", handed) == 0
+        # The item points at the one place that shows how an analysis is stopped.
+        stopping = handover_part("#### Stopping an analysis")
+        run_shown_design_commands(stopping, handed, monkeypatch, capsys)
+
+        commented, stopped = "LIB-H03", "LIB-H05"
+        batches = design_io.list_review_batches(commented, base_dir=handed)
+        assert [c["comment"] for b in batches for c in b["comments"]] == [
+            "粒度を本1冊にそろえてほしい"
+        ]
+        assert (
+            design_io.load_design(commented, base_dir=handed)["status"] == "in_review"
+        )
+        assert _stages(handed)[stopped] == "stopped"
+        assert tree_io.handover("LIB", base_dir=handed)["design_ids"] == [
+            "LIB-H04",
+            commented,
+        ]
+
+    def test_a_comment_and_a_stop_keep_the_analysts_words(self) -> None:
+        item = handover_item("check before handing over")
+        assert "分析を任せる前の確認へのコメント" in item
+        assert re.search(r"comment[^.]*analyst's words", item)
+        assert re.search(r"reason[^.]*analyst's words", item)
+        assert re.search(r"ask(s)? (the check )?again", item)
+
+    def test_premortem_runs_only_after_the_check(self) -> None:
+        item = handover_item("premortem")
+        assert "/premortem" in item
+        assert "--target analyzing" in item
+        assert re.search(r"`HARD_BLOCK`/`HIGH`[^.]*stop", item)
+
+    def test_a_refused_move_into_the_analysis_goes_back_to_the_check(self) -> None:
+        # Review: a confirmation without its criterion is refused, and the item said nothing.
+        item = handover_item("premortem")
+        assert re.search(
+            r"exits non-zero[^.]*stderr[^.]*back to \*\*check before handing over\*\*",
+            item,
+        )
+
+    def test_each_design_goes_to_its_own_execution_agent(self) -> None:
+        item = handover_item("hand over")
+        assert re.search(r"one execution agent[^.]*each design", item)
+        assert "same message" in item
+
+    def test_only_the_dialogue_agent_writes_the_shared_records(self) -> None:
+        """US-5 AC 2 (ADR-0062 1, 2)."""
+        step = unwrap(self._handover())
+        assert re.search(
+            r"dialogue agent[^.]*alone writes[^.]*tree[^.]*designs[^.]*HTML", step
+        )
+        brief = unwrap(
+            section(self._handover(), "#### The brief of an execution agent")
+        )
+        assert re.search(r"only[^.]*notebook[^.]*verdict[^.]*journal", brief)
+        assert re.search(r"[Nn]ever[^.]*`tree_io render`", brief)
+        assert re.search(r"[Nn]ever[^.]*`design_io`", brief)
+        assert re.search(r"never asks the analyst", brief)
+        assert "ADR-0062" in step
+
+    def test_a_running_analysis_no_agent_holds_is_handed_over_again(self) -> None:
+        """Decision 3 of the Story: an execution agent does not outlive its conversation."""
+        item = handover_item("premortem")
+        assert re.search(r"did not start[^.]*in this conversation", item)
+        assert re.search(r"hand it over again[^.]*tell the analyst", item)
+
+    def test_an_agent_that_returned_without_a_result_is_not_started_again_unasked(
+        self,
+    ) -> None:
+        item = handover_item("return")
+        assert re.search(
+            r"`running`[^.]*without a result\. Tell the analyst[^.]*only if they ask",
+            item,
+        )
+
+    def test_a_round_whose_designs_all_stopped_still_gets_its_theme_reflection(
+        self,
+    ) -> None:
+        item = handover_item("check before handing over")
+        assert re.search(r"every design[^.]*stopped[^.]*\*\*theme reflection\*\*", item)
+
+
+class TestTheAnalystMayChooseSeveralNodes:
+    """US-1 AC 5: several nodes in one decision, none of which waits for another."""
+
+    def _rule(self) -> str:
+        return unwrap(
+            framing_section("#### 4d:").split("**Several nodes in one decision.**")[1]
+        )
+
+    def test_the_rest_of_the_chosen_nodes_go_into_with_node_ids(self) -> None:
+        assert '`"with_node_ids"`' in self._rule()
+
+    def test_a_node_that_waits_for_another_is_left_out_and_the_analyst_is_told(
+        self,
+    ) -> None:
+        rule = self._rule()
+        assert "needs a result of another chosen node" in rule
+        assert re.search(r"[Ll]eave it out of the decision", rule)
+        assert re.search(r"tell the analyst which result", rule)
+        assert re.search(r"write it nowhere", rule)
+
+    def test_a_close_takes_no_other_node(self) -> None:
+        assert re.search(r"`close`[^.]*none", self._rule())
+
+    def test_the_first_choice_and_the_reflection_point_at_the_same_rule(self) -> None:
+        for prose in (
+            framing_section("#### 4b:"),
+            section(_read_skill("analysis-reflection"), "### Step T7:"),
+        ):
+            assert "Several nodes in one decision" in unwrap(prose)
+
+    def test_a_run_handed_the_position_takes_every_node_without_a_design(self) -> None:
+        gate = unwrap(framing_section("#### 4d:"))
+        assert re.search(r"`undesigned_node_ids`[^.]*as the answer", gate)
+        assert re.search(r"Brief[^.]*each of them", gate)
+
+    def test_a_round_resumed_halfway_still_gets_its_remaining_briefs(self) -> None:
+        # Review: once one design is saved the state is in_progress, and the gate asked again.
+        gate = unwrap(framing_section("#### 4d:"))
+        assert re.search(
+            r"`not_started`, or `in_progress` with `undesigned_node_ids` not empty",
+            gate,
+        )
+
+    def test_the_gate_shows_every_node_the_decision_names(self) -> None:
+        assert "`node_ids`" in unwrap(framing_section("#### 4d:"))
+        step = unwrap(section(_read_skill("analysis-reflection"), "### Step T7:"))
+        assert "`node_ids`" in step
+
+
+class TestARoundWithoutAResult:
+    """Decision 2 of the Story: every analysis of the round was stopped."""
+
+    def _load(self) -> str:
+        return unwrap(section(_read_skill("analysis-reflection"), "### Step T1:"))
+
+    def test_the_reflection_reads_the_position(self) -> None:
+        load = section(_read_skill("analysis-reflection"), "### Step T1:")
+        assert re.search(r"tree_io position --theme", load)
+        reference = section(
+            _read_skill("analysis-reflection"), "## tree_io / tree_check"
+        )
+        assert table_row(reference, "`tree_io position --theme T`")
+
+    def test_no_answer_is_written_and_the_analyst_is_asked_to_leave_them(self) -> None:
+        load = self._load()
+        assert re.search(r"every[^.]*`stopped`[^.]*no result", load)
+        assert re.search(r"write no answer", load)
+        assert "止めた理由" in load
+        assert re.search(r"Step T6", load)

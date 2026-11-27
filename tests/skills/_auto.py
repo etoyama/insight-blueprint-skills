@@ -65,3 +65,18 @@ def design_beat(name: str) -> str:
 def gate_row(step: str) -> list[str]:
     """The cells of the Gate policy row whose first cell is ``step``."""
     return table_row(split_sections(auto())["Gate policy"], step)
+
+
+def auto_gates() -> str:
+    """The Gate policy section of /analysis-auto."""
+    return split_sections(auto())["Gate policy"]
+
+
+def auto_step(heading: str) -> str:
+    """The body under a heading of /analysis-auto."""
+    return section(auto(), heading)
+
+
+def framing_section(heading: str) -> str:
+    """The body under a heading of /analysis-framing."""
+    return section(_read_skill("analysis-framing"), heading)
