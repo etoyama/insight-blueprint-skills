@@ -471,6 +471,42 @@ sequenceDiagram
 - Alternatives considered: 答えの文にも id を勧める（分析者が読む文に id が並ぶ）。
 - Consequences: 決定の理由には id を書け、答えの文はこれまでどおり id を使わずに書く。
 
+### Decision: story-35-3-the-analysis-stage-lives-in-the-models
+
+- What: `AnalysisStage` とその印の helper を `skills/_shared/analysis_stage.py` から `src/insight_blueprint/models/analysis_stage.py` に移す。終わった段階の集合 `SETTLED`（終わった・止めた）も同じモジュールに置く。
+- Why: `Progress.of(stages)`（Domain Model）は `models/tree.py` にあり、src は skills を import できない。35.2 が `JOURNAL_MARKS` を src に置いたのと同じ理由である。
+- Criteria: 段階の名前と規則を1か所に置くこと（US-3 AC 1）。
+- Affected modules: `src/insight_blueprint/models/analysis_stage.py`、`src/insight_blueprint/models/tree.py`、`skills/_shared/design_io.py`、`skills/_shared/tree_read.py`、それを import するテスト
+- Alternatives considered: `Progress.of` に段階の文字列を渡す（段階の名前が2か所に分かれる）。
+- Consequences: 35.2 の引き継ぎにある `skills/_shared/analysis_stage.py` は、もう無い。
+
+### Decision: story-35-3-a-stopped-analysis-does-not-hold-the-walk
+
+- What: 巡回の現在地は、止めた分析を「終わっていない分析」に数えない。決定の後の分析設計がどれも終わったか止めたなら `concluded` を返す。全部止めた場合も `concluded` で、テーマの振り返りへ進む。
+- Why: 止めた分析は再開しない（ADR-0064）。数えると、片方を終え片方を止めた巡回が `in_progress` のまま動かない（合成シナリオで試した）。抜けるには、止めた分析設計を terminal status に遷移させるしかなく、止めた分析に結論を付けることになる。
+- Criteria: 止めた分析を残したまま巡回が次へ進めること（ADR-0064）。進捗の規則（ADR-0061 7、止めたは数えない）と同じ読み方をすること。人間が案A を選んだ（2026-11-27）。
+- Affected modules: `skills/_shared/tree_read.py::position`、`src/insight_blueprint/models/analysis_stage.py::SETTLED`、`skills/analysis-auto/SKILL.md` の Step 1 の表
+- Alternatives considered: 数える（止めた分析に判定や explored を付けないと進めない）。全部止めたら新しい状態を返す（`WalkState` と 35.6 の分岐が増える）。
+- Consequences: 全部止めた巡回でもテーマの振り返りに入る。答える結果は無く、聞くのは次の決定と答えを変えないことである。聞き方は 35.6・35.7 の skill の文で決める。
+
+### Decision: story-35-3-the-order-of-the-progress-words
+
+- What: 進捗の語を、先へ進んだものから 分析済み、止めた、検証中、未着手 の順に並べる（`Progress` の宣言順）。仮の並びで、人が実物の画面を読む段で人間が決める。
+- Why: 下の論点の数は先へ進んだものから並べている（ADR-0057 の見本）。止めたは、それ以上進まない点で分析済みに近い。
+- Criteria: 今の並びの規則を崩さないこと。PM が仮の並びとして進めることを了承した（2026-11-27）。
+- Affected modules: `src/insight_blueprint/models/tree.py::Progress`、`skills/_shared/tree_words.py::PROGRESS_WORDS`、`skills/analysis-framing/SKILL.md` 4d、`skills/analysis-reflection/SKILL.md` の T1・T5・末尾の表
+- Alternatives considered: 止めたを最後に置く。
+- Consequences: 画面を読む段で変えると、宣言順と SKILL.md の文の両方が変わる。
+
+### Decision: story-35-3-a-question-handed-over-without-a-design-keeps-the-walk-open
+
+- What: 終わっていない分析が無く、決定が指す論点のどれかに決定の後の分析設計が無ければ、巡回の現在地は `not_started` を返し、その論点を `undesigned_node_ids` に並べる。区切る決定では並べない。
+- Why: 一緒に任せた論点に分析設計を作り損ねると、残りが終わった時点で `concluded` になり、`/analysis-auto` がその論点を黙って落とした（合成シナリオで再現した。thermos のバグの観点の指摘）。
+- Criteria: 任せた論点を、分析者に言わずに落とさない（US-1）。`WalkState` と `analysis-auto` の表を増やさない。人間が案A を選んだ（2026-11-27）。
+- Affected modules: `skills/_shared/tree_read.py::position`、`skills/analysis-auto/SKILL.md` の Step 1 の表、`docs/ARCHITECTURE.md`、`docs/UBIQUITOUS_LANGUAGE.md` の巡回の現在地
+- Alternatives considered: 今のまま `concluded` を返し、35.6 の流れで塞ぐ（流れが外れると論点が落ちる）。新しい `WalkState` を足す（35.6 の表と分岐が増える）。
+- Consequences: 終わった分析の振り返りは、空の論点の分析が終わるまで待ち、1回にまとまる。任せた論点を落とすときは、新しい決定を書く。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0061: 論点ツリーの決定は一緒に任せた論点を持てて、分析の段階は記録から導く](../adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md): 決定に `with_node_ids` を足す。分析の段階は保存しない。「ツリーの決定」を「論点ツリーの決定」に改名する。
@@ -487,7 +523,7 @@ sequenceDiagram
 |---|---|---|---|
 | Story 35.1 | ✓ | ✓ | —（表示の通し道は変えていない。ページの違反は同じ `check_cited` を通る。`tree_io decide` は合成シナリオ（`scripts.handoff_trial build --scenario lib`）で、id と「2回目の振り返り」が通り、「1を超える」の 1・まだ無い回・ツリーに無い id が `fix` つきで拒まれることを、実際に呼んで確かめた） |
 | Story 35.2 | ✓ | ✓ | —（skill の流れに入れるのは 35.6・35.7。リポジトリの外の `.insight/` で、2プロセスの `design_io create` を20回（id の重なり0回）、`ask-analyst`・`answer-analyst`・`stop` と分析の段階の移り変わり、`data_scope` を持つ分析設計と持たない保存済みの分析設計が検証 hook を通り分析ノートに出ることを、コマンドで確かめた） |
-| Story 35.3 | ☐ | ☐ | ☐ |
+| Story 35.3 | ✓ | ✓ | —（skill の流れに入れるのは 35.6。合成シナリオ（`scripts.handoff_trial build --scenario lib`）で、`with_node_ids` に2つの論点を持つ決定を CLI で書き、片方だけ終えた状態で `tree_io position` が `in_progress` と両方の分析設計と段階を返すこと、止めると `concluded`、空の論点が残ると `not_started` になることを確かめた。2プロセスで同時に `tree_io link` を20回走らせ、20件が残った。変更前のコードで作った論点ツリーを読んで書き戻し、バイト単位で同じだった） |
 | Story 35.4 | ☐ | ☐ | ☐ |
 | Story 35.5 | ☐ | ☐ | ☐ |
 | Story 35.6 | ☐ | ☐ | ☐ |
@@ -503,3 +539,4 @@ sequenceDiagram
 - 2026-11-27 — 人間が初版を承認した。
 - 2026-11-27 — Story 35.1 completed: 論点ツリーの id と今の回以下の「N回目の振り返り」を数として数えない。拒んだ数には `tree_io` が `fix` で直し方を付ける（#285）。
 - 2026-11-27 — Story 35.2 completed: 書き込みのロック（`write_lock`）、分析の段階（`AnalysisStage`）、確認・答え・止めたの命令、データの範囲（`DataScope`）。レビューの2件を人間が Decision Analysis で決めた。分析の段階は分析の印より後の出来事だけを結果と数える（ADR-0061 の追記。Domain Model の `of` が分析の印を取る）。journal の印は検証 hook でも守る（ADR-0067）。計画外の判断は2件。実行エージェントが journal を手で書く間のロック（M3）は 35.7 に渡す。
+- 2026-11-27 — Story 35.3 completed: 論点ツリーの決定が一緒に任せた論点（`with_node_ids`）を持ち、巡回の現在地・進捗・レポートが決定の全部の論点と分析の段階を読む。進捗に「止めた」を足し、`tree_io` の書き込みを `write_lock` で囲んだ。「ツリーの決定」を「論点ツリーの決定」に改名した。`AnalysisStage` を `src/insight_blueprint/models/` に移した（#287）。計画外の判断は4件で、2件（止めた分析は巡回を待たせない、空の論点は巡回を終わらせない）は人間が決めた。人間が ARCHITECTURE の Domain Model の変更を承認した。ページの「次に調べる論点」と決定の一覧、止めたの色は 35.4 に渡す。

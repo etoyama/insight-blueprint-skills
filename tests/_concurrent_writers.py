@@ -61,9 +61,10 @@ def copy_hearings(
     from skills._shared import tree_io
 
     _wait_until(start_at)
-    return [
-        tree_io.copy_hearing("LIB", node_id, design_id, base_dir=Path(base_dir))[
-            "copied"
-        ]
-        for _ in range(count)
-    ]
+    copied: list[bool] = []
+    for _ in range(count):
+        result = tree_io.copy_hearing(
+            "LIB", node_id, design_id, base_dir=Path(base_dir)
+        )
+        copied.append(result["copied"])
+    return copied

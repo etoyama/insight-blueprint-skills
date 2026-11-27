@@ -7,7 +7,6 @@ Tests follow TDD Red-Green-Refactor cycle. Tests marked with
 import pytest
 from pydantic import ValidationError
 
-from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import (
     TERMINAL_STATUSES,
     AnalysisDesign,
@@ -24,6 +23,7 @@ from insight_blueprint.models.design import (
     VariableRole,
 )
 from insight_blueprint.models.tree import Progress
+from tests._stages import stage_of_status
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -681,7 +681,7 @@ class TestExploredIsTerminal:
 
     def test_a_node_whose_designs_are_explored_is_analyzed(self) -> None:
         statuses = [DesignStatus.explored, DesignStatus.supported]
-        stages = [AnalysisStage.of(s, (), None) for s in statuses]
+        stages = [stage_of_status(s) for s in statuses]
         assert Progress.of(stages) is Progress.analyzed
 
 

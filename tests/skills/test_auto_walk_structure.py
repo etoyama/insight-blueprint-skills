@@ -128,6 +128,7 @@ class TestTheThemeIsTheEntry:
         for state in ("in_progress", "concluded"):
             assert "`node_ids`" in rows[f"`{state}`"], state
         assert "stopped" in rows["`in_progress`"]
+        assert "`undesigned_node_ids`" in rows["`not_started`"]
 
     def test_an_analyzing_design_resumes_by_its_events_not_by_its_journal_file(
         self,

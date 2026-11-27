@@ -22,6 +22,7 @@ from skills._shared.design_note import intent_words_of
 from skills._shared.tree_check import CitedEvent, Violation
 from skills._shared.tree_render import CheckFailed, DesignSummary, render_tree_html
 from skills._shared.tree_words import MARK_WORDS, Mark
+from tests._stages import stage_of_status
 
 BUSINESS_AIM = {
     "kind": "business",
@@ -271,7 +272,7 @@ def summary(
         form=form,
         intent=intent_words_of(form)[0] if intent is None else intent,
         statement=statement,
-        stage=AnalysisStage.of(status, (), None) if stage is None else stage,
+        stage=stage_of_status(status) if stage is None else stage,
         comments_after_analysis=comments_after_analysis,
     )
 

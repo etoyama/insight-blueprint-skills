@@ -169,7 +169,7 @@ class Context:
 
     def closed_by(self, node: QuestionNode) -> TreeDecision | None:
         """The latest decision naming *node*, when it closed the node."""
-        naming = [d for d in self.tree.decisions if d.node_id == node.id]
+        naming = [d for d in self.tree.decisions if node.id in d.node_ids()]
         if naming and naming[-1].kind is TreeDecisionKind.close:
             return naming[-1]
         return None

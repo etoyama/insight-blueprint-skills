@@ -23,7 +23,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from insight_blueprint.models.analysis_stage import AnalysisStage
+from insight_blueprint.models.analysis_stage import SETTLED, AnalysisStage
 from insight_blueprint.models.common import THEME_ID_PATTERN
 from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 from insight_blueprint.models.tree import (
@@ -42,7 +42,7 @@ from skills._shared.design_io import (
     journal_events,
     load_design,
     read_yaml,
-    stage_of,
+    stage_in,
     theme_of,
 )
 from skills._shared.design_note import DesignNote, note_anchor, render_note
@@ -115,21 +115,24 @@ def status_of(design: dict) -> DesignStatus:
     return DesignStatus(design["status"])
 
 
-def _stages(tree: QuestionTree, base_dir: Path) -> dict[str, AnalysisStage]:
-    """The analysis stage of every linked design, each read once, in tree order.
+def _designs_and_stages(
+    design_ids: Iterable[str], base_dir: Path
+) -> tuple[dict[str, dict], dict[str, AnalysisStage]]:
+    """Each design of *design_ids* and its analysis stage, each read once, in order.
 
     One design at a time, so the first broken design is the one reported.
     """
+    designs: dict[str, dict] = {}
     stages: dict[str, AnalysisStage] = {}
-    for node in tree.nodes:
-        for design_id in node.design_ids:
-            if design_id not in stages:
-                require_design(design_id, base_dir)
-                stages[design_id] = stage_of(design_id, base_dir)
-    return stages
+    for design_id in dict.fromkeys(design_ids):
+        designs[design_id] = require_design(design_id, base_dir)
+        stages[design_id] = stage_in(design_id, designs[design_id], base_dir)
+    return designs, stages
 
 
-def _staged(design_ids: Iterable[str], stages: Mapping[str, AnalysisStage]) -> list:
+def _with_stages(
+    design_ids: Iterable[str], stages: Mapping[str, AnalysisStage]
+) -> list[dict[str, str]]:
     """*design_ids* with the stage of each, as ``position`` and ``progress`` return them."""
     return [{"design_id": d, "stage": stages[d].value} for d in design_ids]
 
@@ -144,13 +147,15 @@ def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, dict
     ADR-0061 7).
     """
     tree = load_tree_model(theme_id, base_dir)
-    stages = _stages(tree, base_dir)
+    _, stages = _designs_and_stages(
+        (d for node in tree.nodes for d in node.design_ids), base_dir
+    )
     words = tree.progress(stages)
     below = tree.progress_below(words)
     return {
         node.id: {
             "progress": None if node.id not in words else words[node.id].value,
-            "designs": _staged(node.design_ids, stages),
+            "designs": _with_stages(node.design_ids, stages),
             "below": {
                 p.value: below[node.id][p]
                 for p in reversed(Progress)
@@ -218,11 +223,6 @@ def _made_after(design_id: str, design: dict, decision_time: datetime | None) ->
         ) from None
 
 
-# The stages that no longer hold the walk: a stopped analysis is not resumed
-# (ADR-0064), so waiting for it would hold the walk for ever.
-_DONE_FOR_THE_WALK = frozenset({AnalysisStage.finished, AnalysisStage.stopped})
-
-
 def position(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
     """Where the walk of the theme stands, derived from the last decision. Writes nothing.
 
@@ -235,14 +235,19 @@ def position(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
     - ``in_progress``: ``design_ids`` are the unfinished designs on the nodes.
       After a ``close`` only designs made since the close count: what the
       analyst left unfinished when closing stays closed.
-    - ``concluded``: ``design_ids`` were made after the decision and none is
-      unfinished; the round still lacks its theme reflection and its decision.
-    - ``not_started``: no design was made on the nodes since the decision.
+    - ``concluded``: ``design_ids`` were made after the decision, every node
+      has one of them, and none is unfinished; the round still lacks its theme
+      reflection and its decision.
+    - ``not_started``: none is unfinished, and ``undesigned_node_ids`` names
+      the nodes with no design made on them since the decision. A finished
+      analysis on another node waits: the round is reflected on as one.
     - ``closed``: the last decision closed the walk at ``node_id``, and no
       design was made on it since.
 
     Beside the state: ``node_id`` and ``decision``, the last decision;
-    ``node_ids``, every node it names, its own first; ``nodes``, for each of
+    ``node_ids``, every node it names, its own first; ``undesigned_node_ids``,
+    those with no design made since the decision (none after a ``close``);
+    ``nodes``, for each of
     them in that order, every design linked there with its analysis stage.
     """
     if not load_tree(theme_id, base_dir):
@@ -255,19 +260,23 @@ def position(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
     named = [tree.node(node_id) for node_id in decision.node_ids()]
     # A design linked to two of the nodes is one analysis.
     linked = list(dict.fromkeys(d for node in named for d in node.design_ids))
-    designs = {d: require_design(d, base_dir) for d in linked}
-    stages = {d: stage_of(d, base_dir) for d in linked}
+    designs, stages = _designs_and_stages(linked, base_dir)
 
     def later(design_ids: list[str]) -> list[str]:
         return [
             d for d in design_ids if _made_after(d, designs[d], decision.created_at)
         ]
 
-    unfinished = [d for d in linked if stages[d] not in _DONE_FOR_THE_WALK]
+    unfinished = [d for d in linked if stages[d] not in SETTLED]
     if closed:
         unfinished = later(unfinished)
+    # A node handed over is not dropped for want of a design: the walk waits for
+    # one on it. A close names where the walk stopped, so it waits for none.
+    undesigned = [] if closed else [n.id for n in named if not later(n.design_ids)]
     if unfinished:
         state, design_ids = WalkState.in_progress, unfinished
+    elif undesigned:
+        state, design_ids = WalkState.not_started, []
     elif made_since := later(linked):
         state, design_ids = WalkState.concluded, made_since
     else:
@@ -279,8 +288,9 @@ def position(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
         "node_ids": decision.node_ids(),
         "decision": decision.model_dump(mode="json"),
         "design_ids": design_ids,
+        "undesigned_node_ids": undesigned,
         "nodes": [
-            {"node_id": node.id, "designs": _staged(node.design_ids, stages)}
+            {"node_id": node.id, "designs": _with_stages(node.design_ids, stages)}
             for node in named
         ],
     }

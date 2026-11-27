@@ -171,6 +171,14 @@ class TestAClosedQuestion:
 
         assert "区切った" not in node_text(page(tree=tree), "LIB-Q03")
 
+    def test_a_question_handed_over_after_it_was_closed_no_longer_says_so(
+        self,
+    ) -> None:
+        """Epic 35 US-1 AC 1: a decision names its questions handed over too."""
+        tree = _closed(_decision("return", "LIB-Q02", with_node_ids=["LIB-Q03"]))
+
+        assert "区切った" not in node_text(page(tree=tree), "LIB-Q03")
+
     def test_a_question_never_closed_says_nothing_of_it(self) -> None:
         assert "区切った" not in node_text(page(), "LIB-Q03")
 

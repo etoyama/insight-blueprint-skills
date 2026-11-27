@@ -16,7 +16,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from insight_blueprint.models.analysis_stage import AnalysisStage
+from insight_blueprint.models.analysis_stage import SETTLED, AnalysisStage
 from insight_blueprint.models.common import THEME_ID_PATTERN
 
 
@@ -53,7 +53,7 @@ class Progress(StrEnum):
             return cls.not_started
         if found == {AnalysisStage.stopped}:
             return cls.stopped
-        if found - {AnalysisStage.stopped} == {AnalysisStage.finished}:
+        if found <= SETTLED:
             return cls.analyzed
         return cls.investigating
 

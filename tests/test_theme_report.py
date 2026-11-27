@@ -11,7 +11,6 @@ from pathlib import Path
 
 import pytest
 
-from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import AnalysisDesign, DesignForm, DesignStatus
 from insight_blueprint.models.tree import (
     Aim,
@@ -48,6 +47,7 @@ from skills._shared.verdict_table import (
     VerdictMetric,
 )
 from tests._saved_verdicts import SAVED_VERDICTS, save_design_with_verdict
+from tests._stages import stage_of_status
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 # The glossary's own reader, as the documents' tests use it.
@@ -1359,7 +1359,7 @@ def _from_note(
             lineage=None,
             local_files=(),
             conclusion=conclusion,
-            stage=AnalysisStage.of(design.status, (), None),
+            stage=stage_of_status(design.status),
         )
     )
 

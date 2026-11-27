@@ -123,7 +123,7 @@ tree_io position --theme LIB
 |---|---|---|
 | `no_tree` | The theme has no question tree. stderr names the file it looked for: check that it is under this project's `.insight` | Step 2 |
 | `no_decision` | A tree without a first node to investigate: an earlier framing stopped halfway | Step 2, item 3 (`/analysis-framing` finishes it: 4c, "An unfinished tree") |
-| `not_started` | The latest decision names `node_id`, and no design was made on it since | Step 3, item 1 |
+| `not_started` | No design is unfinished, and `undesigned_node_ids` names the nodes of the latest decision with no design made on them since | Step 3, item 1 |
 | `in_progress` | `design_ids` are the unfinished designs on the nodes the decision names (`node_ids`); a stopped one is not unfinished | Step 3, at the item the first of them calls for |
 | `concluded` | `design_ids` were made after the decision on its `node_ids`, and each is finished or stopped; the round lacks its theme reflection | Step 3, item 8 |
 | `closed` | The analyst closed the walk at `node_id`, and no design was made on it since | Step 3, item 1 |

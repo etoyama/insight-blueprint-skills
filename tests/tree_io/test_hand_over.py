@@ -156,6 +156,28 @@ class TestPosition:
             {"design_id": stopped, "stage": "stopped"}
         ]
 
+    def test_a_question_handed_over_without_a_design_keeps_the_walk_open(
+        self, handed_over: Path
+    ) -> None:
+        """A question left without a design is not dropped (Decisions, 35.3)."""
+        finished = _designed(handed_over, "LIB-Q02")
+        _finish(handed_over, finished)
+
+        position = tree_io.position("LIB", base_dir=handed_over)
+
+        assert (position["state"], position["design_ids"]) == ("not_started", [])
+        assert position["undesigned_node_ids"] == ["LIB-Q03"]
+
+    def test_every_question_with_a_design_since_the_decision_has_none_undesigned(
+        self, handed_over: Path
+    ) -> None:
+        _finish(handed_over, _designed(handed_over, "LIB-Q02"))
+        _finish(handed_over, _designed(handed_over, "LIB-Q03"))
+
+        assert (
+            tree_io.position("LIB", base_dir=handed_over)["undesigned_node_ids"] == []
+        )
+
     def test_a_question_without_a_design_lists_none(self, handed_over: Path) -> None:
         running = _running(handed_over, "LIB-Q02")
 

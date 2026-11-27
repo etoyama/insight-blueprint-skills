@@ -451,7 +451,7 @@ sequenceDiagram
 （[ADR-0016](adr/0016-approval-before-external-send.md)）。`/tree-upload` は、分析者が頼んだときにだけ起動する。`/report-export` は巡回の中では起動しない。
 
 再開する所は `tree_io position` が導く。最新の論点ツリーの決定が指す全部の論点（次に調べる論点と一緒に任せた論点）を読み、
-終わっていない分析設計が1つでもあれば `in_progress`、決定より後に作った分析設計がどれも終わったか止めたなら `concluded`、どちらも無ければ `not_started` になる。
+終わっていない分析設計が1つでもあれば `in_progress`、決定が指す論点のどれかに決定より後の分析設計が無ければ `not_started`（`undesigned_node_ids` がその論点を並べる）、どれにもあって、どれも終わったか止めたなら `concluded` になる。
 止めた分析は再開しないので、巡回を待たせない。`position` は論点ごとに、結んだ分析設計とその分析の段階も返す（[ADR-0061](adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md)）。最後の決定が区切るで、その後に分析設計を起こしていなければ `closed` になる。
 
 ## Domain Model

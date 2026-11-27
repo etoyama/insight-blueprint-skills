@@ -7,7 +7,6 @@ import re
 
 import pytest
 
-from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import AnalysisDesign, DesignStatus
 from skills._shared.design_note import (
     CodeCell,
@@ -34,6 +33,7 @@ from skills._shared.verdict_table import (
     VerdictMetric,
 )
 from tests._saved_verdicts import table_rows
+from tests._stages import stage_of_status
 
 PNG = b"\x89PNG\r\n\x1a\nnot-really-a-png"
 EVIL = '<script>alert(1)</script>"'
@@ -78,7 +78,7 @@ def _note(**over: object) -> DesignNote:
         )
     fields.update(over)
     # The stage its status gives with an empty journal, unless told.
-    fields.setdefault("stage", AnalysisStage.of(fields["design"].status, (), None))
+    fields.setdefault("stage", stage_of_status(fields["design"].status))
     return DesignNote(**fields)
 
 

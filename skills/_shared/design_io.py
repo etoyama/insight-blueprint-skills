@@ -492,6 +492,17 @@ def _stage_and_events(
     design = load_design(design_id, base_dir)
     if not design:
         raise ValueError(f"Design '{design_id}' not found")
+    return _stage_in(design_id, design, base_dir)
+
+
+def stage_in(design_id: str, design: dict, base_dir: Path) -> AnalysisStage:
+    """The analysis stage of *design_id*, whose file the caller already read as *design*."""
+    return _stage_in(design_id, design, base_dir)[0]
+
+
+def _stage_in(
+    design_id: str, design: dict, base_dir: Path
+) -> tuple[AnalysisStage, list[dict]]:
     try:
         status = DesignStatus(design.get("status"))
     except ValueError:

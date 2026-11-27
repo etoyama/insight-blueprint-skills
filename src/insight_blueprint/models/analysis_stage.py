@@ -5,8 +5,7 @@ applies it. A reader that shows how far an analysis went calls
 ``AnalysisStage.of`` instead of reading statuses and events itself.
 
 The marks of a confirmation, of its answer and of a stop are written only by
-the commands of ``design_io`` (``ask-analyst``, ``answer-analyst``, ``stop``;
-ADR-0064 8), from the events built here. A mark counts only on the kind of
+the commands ADR-0064 8 names, from the events built here. A mark counts only on the kind of
 event its builder makes, so reading and writing a mark sit side by side.
 """
 
@@ -164,3 +163,8 @@ STOPS_FROM = frozenset(
         AnalysisStage.awaiting_confirmation,
     }
 )
+
+# The stages that are over: a finished analysis has its end, and a stopped one is
+# never resumed (ADR-0064). Neither holds the walk, and a node whose analyses are
+# all over is analyzed unless every one of them was stopped (ADR-0061 7).
+SETTLED = frozenset({AnalysisStage.finished, AnalysisStage.stopped})

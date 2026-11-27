@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A tree decision may hand over several questions, and the walk reads every one of them.** A decision holds the
+  questions handed over with its own (`with_node_ids`); saved trees read and write back as before. `tree_io position`
+  returns every node of the last decision with each linked design and its analysis stage, never says the walk is
+  concluded while an analysis is unfinished or a handed-over question has no design, and lets a stopped analysis
+  go. Progress is folded from the analysis stage and gains 止めた. Every `tree_io` writer holds the write lock, so two
+  processes linking at once keep both links. 「ツリーの決定」 is now 「論点ツリーの決定」
+  ([ADR-0061](docs/adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md),
+  [ADR-0062](docs/adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md), #287).
 - **The tree check no longer counts an id of the tree or a past reflection round as a number.** An answer or a
   decision reason may name a node, a linked design or its event, and "N回目の振り返り" up to the current round;
   any other number still needs a cited event that records it, and `tree_io` now says how to fix it in `fix`
