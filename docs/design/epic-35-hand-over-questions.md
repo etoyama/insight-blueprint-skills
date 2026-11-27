@@ -339,6 +339,21 @@ classDiagram
         finished
         +of(status, events, started_at)
     }
+    class StageReading {
+        <<Value Object>>
+        +stage
+        +status
+        +result_on_record
+        +asks
+        +stop_reason
+        +of(status, events, started_at)
+        +takes_a_result
+    }
+    class Ask {
+        <<Value Object>>
+        +id
+        +content
+    }
     class Progress {
         <<Value Object>>
         +of(stages)
@@ -352,6 +367,8 @@ classDiagram
     AnalysisStage ..> AnalysisDesign : 状態と分析の印を読む
     AnalysisStage ..> Journal : 印を読む
     Progress ..> AnalysisStage : 論点ごとに畳む
+    StageReading ..> AnalysisStage : 段階に確認・止めた理由・結果があるかを添える
+    StageReading "1" *-- "0..*" Ask
 ```
 
 | 型 | 種類 | 不変条件 |
@@ -360,6 +377,8 @@ classDiagram
 | `QuestionTree` | 集約ルート | 決定の種類の検査は、前の決定の `node_id` と `with_node_ids` の全部を基準にする。深めるは、そのどれかの中へ進む。親に戻るは、そのどれの中でもない所へ進む。区切るは、そのどれかで区切る |
 | `DataScope` | 値オブジェクト | 対象・粒度・分母は3つとも空でない。分析設計は組ごと持つか、持たない |
 | `AnalysisStage` | 値オブジェクト | 保存しない。分析設計の状態と journal から、決まった順で1つに決まる（下の State Diagram） |
+| `StageReading` | 値オブジェクト | 保存しない。`stage` は `AnalysisStage.of` と同じ規則で決まる。`asks` は確認待ちのときだけ、`stop_reason` は止めたときだけ持つ。`result_on_record` は段階に従わず、結果のレビューが分析設計を `in_review` に戻している間も真のままで、分析に入っていない分析設計では偽。`takes_a_result` は進行中か振り返り待ちで、かつ `analyzing` のときだけ真 |
+| `Ask` | 値オブジェクト | 答えの付いていない分析者への確認1つ。`id` は答えが指す出来事の id |
 | `Progress` | 値オブジェクト | 保存しない。未着手・調べている・分析済み・止めた の4つ。結んだ分析設計が全部止めたなら止めた。止めた以外が1つでもあれば、止めた分析設計を数えずに決める |
 | `Journal` | 集約ルート | 確認・答え・止めた理由の印は `design_io` の専用の命令だけが書く。ツールの書き込みが印を持つ出来事を足す・消す・書き換えるのは、検証 hook が止める（ADR-0067）。答えは、どの確認への答えかを持つ |
 
@@ -709,11 +728,11 @@ sequenceDiagram
 
 ### Decision: gate-the-stage-is-read-into-one-value
 
-- What: 分析の段階・結果が記録にあるか・答えの付いていない確認・止めた理由を、1つの値 `StageReading`（段階の読み取り）にまとめる。`design_io stage` はこれを返し、止めた理由（`stop_reason`）も返す。分析ノートもこれを読む。読む関数は `design_io.stage_reading` の1つにした。`StageReading` は `skills/_shared/stage_reading.py` に置き、`src/insight_blueprint/models/` には置かない。計画外の判断（2件目）。
+- What: 分析の段階・結果が記録にあるか・答えの付いていない確認・止めた理由を、1つの値 `StageReading`（段階の読み取り）にまとめる。`design_io stage` はこれを返し、止めた理由（`stop_reason`）も返す。分析ノートもこれを読む。読む関数は `design_io.stage_reading` の1つにした。`StageReading` と `Ask` は `src/insight_blueprint/models/analysis_stage.py` に置き、Domain Model に値オブジェクトとして足す（人間が 2026-11-28 に承認した）。計画外の判断（2件目）。
 - Why: 段階に添える値の読み方が、`design_io.stage_report`・`design_note_read`・skill の文に割れていた。`/analysis-reflection` は止めた理由を journal から自分で読んでいた。`stage_report` は、実行前に止めた分析設計の推論を結果と数えていた。
-- Criteria: 段階の規則を1か所に置くこと（US-3 AC 1）。置き場所は、Domain Model 図を人間の承認なしに変えないこと（ゲートの brief）を決め手にした。`models/` の型は ARCHITECTURE の classDiagram に全部載る（`tests/docs/test_canonical_docs.py`）。
-- Affected modules: `skills/_shared/stage_reading.py`、`skills/_shared/design_io.py`（`stage_reading`・`stage_report`）、`skills/_shared/design_note_read.py`、`skills/_shared/tree_read.py`、`skills/_shared/tree_io.py`（`copy_hearing`）、`src/insight_blueprint/models/analysis_stage.py`（`result_on_record`）、`skills/analysis-reflection/SKILL.md`（Step T1）
-- Alternatives considered: `models/analysis_stage.py` に置く（classDiagram に `StageReading` と `Ask` を足すことになり、人間の承認が要る。承認されたら移す）。`DesignNote` が `StageReading` をそのまま持つ（描画の読み手が全部変わる。今は `stage`・`stop_reason`・`asks` に写す）。
+- Criteria: 段階の規則を1か所に置くこと（US-3 AC 1）。段階の読み取りは段階と同じく分析設計と journal から導く値なので、`AnalysisStage` と同じ所に置く。`models/` の型は ARCHITECTURE の classDiagram に全部載る（`tests/docs/test_canonical_docs.py`）ので、図に足すことを人間が承認した。
+- Affected modules: `src/insight_blueprint/models/analysis_stage.py`（`StageReading`・`Ask`）、`skills/_shared/design_io.py`（`stage_reading`・`stage_report`）、`skills/_shared/design_note_read.py`、`skills/_shared/tree_read.py`、`skills/_shared/tree_io.py`（`copy_hearing`）、`src/insight_blueprint/models/analysis_stage.py`（`result_on_record`）、`skills/analysis-reflection/SKILL.md`（Step T1）
+- Alternatives considered: `skills/_shared/stage_reading.py` に置いて図を変えない（最初はこうしたが、段階と同じ領分の値が models の外に出て、図からも読めない）。`DesignNote` が `StageReading` をそのまま持つ（描画の読み手が全部変わる。今は `stage`・`stop_reason`・`asks` に写す）。
 - Consequences: `design_io stage` の出力に `stop_reason` が増えた。止めた分析は `asks` を返さない（前は答えの付いていない確認を返した）。分析に入っていない分析設計は、止めても `result_on_record` が偽になった。
 
 ### Cross-epic decisions (links to ADR)
@@ -754,3 +773,4 @@ sequenceDiagram
 - 2026-11-27 — Story 35.5 completed: 論点ツリーの HTML に「分析を任せる前の確認」の節（最新の決定が指す論点の実行前の分析設計を列に並べ、対象・粒度・分母・データソースの違いに印、分析設計ごとのコメント欄とまとめた文）。`tree_io handover` が同じ規則を返す。人が画面を読む段の直し5件を入れた。
 - 2026-11-27 — Story 35.6 completed: `/analysis-auto` が、複数の論点を指す決定の巡回をまとめて任せる（Step 3H）。分析設計を `in_review` で保存して結び、任せる前の確認を1回求め、コメントを review コメントに記録し、任せない分析設計を止め、分析設計ごとに実行エージェントへ渡す。入る項目は `tree_io position` の分析の段階で決める。`tree_io handover` はデータの範囲の無い分析設計を挙げる（#290）。決めたことは Decisions の6件。thermos（バグ・品質の2本）の指摘を直した: 途中で再開した巡回が残りの Brief を取れること、次の巡回が Step 3H に入ること、遷移が拒まれたときの戻り先、段階と項目の対応を Step 3H に寄せること、用語集に対話エージェントと実行エージェントを足すこと。実行エージェントの戻りのたびの書き直し、任せた後の確認、終え方をまとめて聞くことは 35.7 に渡す。
 - 2026-11-27 — Story 35.7 completed: 任せた後、実行エージェントは分析者が読んだ内容を変える前に `design_io ask-analyst` で確認を書いて戻り、対話エージェントが聞いて `answer-analyst` か `stop` を書く。分析者は分析を1つだけ止められ、止めた分析設計は状態も結果も変わらない。論点ツリーの HTML は対話エージェントが戻りのたびに書き直し、戻った分析の終え方は1回の問いで聞く。`design_io stage` と `design_io journal-append` を足した（#291）。決めたことは Decisions の6件で、計画外の判断は1件（`design_io stage`）。先送りの指摘（止めた分析を `transition` で終えられる穴、M3、出来事の種類の名前、分析ノートの段階の行、`/analysis-reflection` の Step 1）を直した。thermos（バグ・品質の2本）の指摘を直した: 結果を書けるのは進行中と振り返り待ちの分析だけにすること、命令が出来事の id を振り直すこと、追記を1回の読み書きにすること、走っていない分析設計を結果なしと読むこと、未解決の問いの規則をコードと `/analysis-journal` で揃えること、分析ノートが段階の行を自分で作ること。
+- 2026-11-28 — 人間が Domain Model の変更（StageReading と Ask を値オブジェクトとして足す）を承認した

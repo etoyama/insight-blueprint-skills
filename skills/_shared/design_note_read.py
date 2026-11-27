@@ -25,7 +25,10 @@ from typing import cast
 
 from ruamel.yaml import YAMLError
 
-from insight_blueprint.models.analysis_stage import answered_confirmation_ids
+from insight_blueprint.models.analysis_stage import (
+    StageReading,
+    answered_confirmation_ids,
+)
 from insight_blueprint.models.design import (
     TERMINAL_STATUSES,
     AnalysisDesign,
@@ -56,7 +59,6 @@ from skills._shared.design_note_reviews import (
     NoteReviewBatch,
     NoteReviewComment,
 )
-from skills._shared.stage_reading import StageReading
 from skills._shared.tree_words import note_stage_line
 from skills._shared.verdict_table import (
     CONFIDENCE,

@@ -32,6 +32,7 @@ from insight_blueprint.models.analysis_stage import (
     SETTLED,
     STOPS_FROM,
     AnalysisStage,
+    StageReading,
     answer,
     asks_analyst,
     confirmation,
@@ -58,7 +59,6 @@ from insight_blueprint.validate import (
 from skills._shared._atomic import atomic_write_yaml, write_lock
 from skills._shared._stdin import read_payload
 from skills._shared.ids import SAFE_ID_PATTERN
-from skills._shared.stage_reading import StageReading
 
 DEFAULT_BASE_DIR = Path(os.environ.get("INSIGHT_BASE_DIR", ".insight"))
 

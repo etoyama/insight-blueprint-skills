@@ -768,6 +768,21 @@ classDiagram
         awaiting_reflection
         finished
     }
+    class StageReading {
+        <<Value Object>>
+        stage
+        status
+        result_on_record
+        asks
+        stop_reason
+        +of(status, events, started_at)
+        +takes_a_result
+    }
+    class Ask {
+        <<Value Object>>
+        id
+        content
+    }
 
     AnalysisDesign "1" *-- "0..1" Methodology
     AnalysisDesign "1" *-- "0..1" DecisionContext
@@ -803,6 +818,8 @@ classDiagram
     QuestionNode ..> Progress : 導く（保存しない）
     Progress ..> AnalysisStage : 論点ごとに畳む
     AnalysisStage ..> AnalysisDesign : status と analysis_started_at と journal から導く
+    StageReading ..> AnalysisStage : 段階に確認・止めた理由・結果があるかを添える
+    StageReading "1" *-- "0..*" Ask
     QuestionNode "1" *-- "*" Answer
     QuestionNode "1" *-- "0..1" NextCandidate
     Answer "1" *-- "1..*" AnswerStatement
@@ -819,6 +836,7 @@ classDiagram
 `RiskDecision`・`SourceChecks`・`PremortemConfig` は `/premortem` の入出力で、ファイルには保存しない。
 `Progress` も保存しない。論点に結んだ分析設計の分析の段階（`AnalysisStage`）を畳んで導く。
 `AnalysisStage` も保存しない。分析設計の `status` と分析の印と journal から導く（[ADR-0061](adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md)）。
+`StageReading` も保存しない。分析の段階に、結果が記録にあるか・答えの付いていない確認（`Ask`）・止めた理由を添えて1回で読む。
 `DesignForm` も保存しない。分析設計の意図と項目から導く（[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md)）。
 
 | 型 | 種類 | 不変条件 |
@@ -828,6 +846,8 @@ classDiagram
 | `DataSource` | 集約ルート | `type` は空でない open string（[ADR-0004](adr/0004-open-string-catalog-taxonomy.md)） |
 | `DomainKnowledge` | 集約ルート | 1つの `source_id` に属する。`category` は空でない open string |
 | `QuestionTree` | 集約ルート | 1テーマに1つ。主題（親を持たない論点）はちょうど1つで、その文は今の主題の版の問いと同じ。論点の親は同じツリーにあり、循環しない。主題の版は1から1ずつ増え、今の版より前の版は書き換えも削除もできない。結ぶ分析設計と発見元は同じテーマのもの。論点ツリーの決定は追記だけで、最初の決定は `start`。決定は次に調べる論点（`node_id`）に加えて、一緒に任せた論点（`with_node_ids`）を持てる。一緒に任せた論点はツリーにあり、互いにも `node_id` とも重ならず、`close` は持てない。種類は直前の決定が指した全部の論点を基準にし、`deepen` はそのどれかの中、`return` はそのどれの外、`close` はそのどれかを指す（[ADR-0061](adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md)）。論点ツリーの決定の引用（`cites`）は0個以上で、id の形は `{theme}-H{nn}-E{nn}`。引用を持たない保存済みの決定は空として読む（[ADR-0058](adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md)）。モデルに無い項目を持てない（[epic-18](design/epic-18-question-tree.md)） |
+| `StageReading` | 値オブジェクト | 保存しない。`stage` は `AnalysisStage.of` と同じ規則で決まる。`asks` は確認待ちのときだけ、`stop_reason` は止めたときだけ持つ。`result_on_record` は段階に従わず、結果のレビューが分析設計を `in_review` に戻している間も真のままで、分析に入っていない分析設計では偽。`takes_a_result` は進行中か振り返り待ちで、かつ `analyzing` のときだけ真 |
+| `Ask` | 値オブジェクト | 答えの付いていない分析者への確認1つ。`id` は答えが指す出来事の id |
 
 ### Python のクラスを持たないファイルの契約
 

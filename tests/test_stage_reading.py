@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from insight_blueprint.models.analysis_stage import AnalysisStage
+from insight_blueprint.models.analysis_stage import AnalysisStage, Ask, StageReading
 from insight_blueprint.models.design import DesignStatus
-from skills._shared.stage_reading import Ask, StageReading
 from tests._stages import (
     ANALYZING,
     MARK,
