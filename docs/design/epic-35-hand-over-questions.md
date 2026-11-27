@@ -163,7 +163,7 @@ Story は仮の分割で、起票は PM のセッションが行う。「触る�
 | 人が実物の画面と言い回しの一覧を読む（FLOW-0019） | 3 の後 | — | — | 合成シナリオで作った論点ツリーの HTML と、`tree_words.py` から抜き出した言い回しの一覧 | 35.4 |
 | 35.5 任せる前の確認の節とコメント欄 | 4 | US-2 | AC 2, AC 3, AC 4 | `skills/_shared/tree_render_handover.py`（新規）、`skills/_shared/tree_render.py`、`skills/_shared/tree_words.py`、`skills/_shared/tree_read.py` の `render`、`tests/test_tree_render_handover.py`（新規）、`tests/tree_io/test_render*.py` | 人が画面を読む段 |
 | 35.6 まとめて任せる流れ | 5 | US-1、US-2、US-5、US-7 | US-1 AC 5、US-2 AC 1, AC 5、US-5 AC 2、US-7 AC 2 | `skills/analysis-auto/SKILL.md`、`skills/analysis-framing/SKILL.md` の 4b と 4d、`skills/analysis-reflection/SKILL.md` の Step T1・T7、`skills/analysis-design/SKILL.md`、`skills/_shared/handover.py`・`tree_read.py`（`handover` の `no_data_scope`）、`tests/skills/`、`tests/tree_io/test_render_handover.py` | 35.5 |
-| 35.7 任せた後の確認、止めること、まとめて戻ること | 6 | US-4、US-5 | US-4 AC 1, AC 2, AC 3, AC 4、US-5 AC 3 | `skills/analysis-auto/SKILL.md`、`skills/analysis-notebook/SKILL.md` の Step 7、`skills/premortem/SKILL.md`、`skills/_shared/design_note_read.py`（答えの付いた確認を未解決の問いから外す）、`tests/skills/`、`tests/test_design_note*.py`、`docs/ARCHITECTURE.md` の guided autopilot のシーケンス | 35.6 |
+| 35.7 任せた後の確認、止めること、まとめて戻ること | 6 | US-4、US-5 | US-4 AC 1, AC 2, AC 3, AC 4、US-5 AC 3 | `skills/analysis-auto/SKILL.md`、`skills/analysis-notebook/SKILL.md` の Step 1・6・7、`skills/premortem/SKILL.md`、`skills/analysis-reflection/SKILL.md` の Step 1・2、`skills/analysis-journal/SKILL.md` の Open Questions、`skills/_shared/design_io.py`（`stage`、`journal-append`、止めた分析設計の状態）、`skills/_shared/design_note_read.py`（答えの付いた確認を未解決の問いから外す）、`skills/_shared/design_note.py`・`tree_words.py`（段階の行）、`skills/_shared/tree_io.py`（`copy_hearing`）、`src/insight_blueprint/models/journal.py`・`analysis_stage.py`、`tests/skills/`、`tests/test_design_note*.py`、`tests/test_design_io_after_handover.py`、`docs/ARCHITECTURE.md` の guided autopilot のシーケンス | 35.6 |
 
 - 波 1 は 35.1 と 35.2 で、並行で進められる。35.1 は `tree_check` と `tree_io`、35.2 は `design_io` と分析設計のモデルで、触る所は重ならない。
   用語集は2つとも触る。35.1 は「ツリーの検査」の行、35.2 は足す行だけを触る。
@@ -644,6 +644,60 @@ sequenceDiagram
 - Alternatives considered: `tree_io handover` が非ゼロで終わる（どの分析設計かを skill が読めない）。`design_io transition --target analyzing` がデータの範囲を求める（論点が1つの巡回では任意である。ADR-0066 4）。
 - Consequences: 検査は「あるか」だけを見る（ADR-0066 の Negative のまま）。コメントの付いた分析設計は、一度 `revision_requested` を通る。
 
+### Decision: story-35-7-the-endings-are-asked-in-one-question
+
+- What: まとめて任せた巡回では、戻った分析の終え方を、1回にまとめて聞く（`/analysis-auto` の Step 3H の **endings**）。対話エージェントは先に、分析設計ごとに `/analysis-reflection {design_id}` の Step 2（要約と読むもの）までを進める。次に、分析設計ごとの見出しの下に Step 3 の3つの問いを、Step 3 の言い回しのまま並べ、1つの問いとして出す。終える分析設計に Step 4 が聞くこと（結果の review を先に受けるか、探索の仮の答え、状態の変更）も同じ問いで言い、Step 4 では聞き直さない。分析者は全部の分析設計に1回の返事で答える。返事に無い分析設計は終えず、聞き直す。聞くのは、実行エージェントが1つも動いておらず、確認待ちの分析も無いときである。
+- Why: 分析設計ごとに振り返りの3問を聞くと、止まる回数が分析設計の数だけ増える。終え方をまとめて聞くことは人間が決めた（2026-11-27）。
+- Criteria: 止まる回数を1回にすること。`/analysis-reflection` の Step 3 を変えないこと（Stories の節）。分析者が答えていない終え方で分析設計を終えないこと（ADR-0007）。
+- Affected modules: `skills/analysis-auto/SKILL.md`（Gate policy の `endings` の行、Step 3H の **endings**）
+- Alternatives considered: 3つ目の問い（どう終えるか）だけをまとめる（1つ目と2つ目は分析設計ごとに止まり、回数が減らない）。`/analysis-reflection` に複数の分析設計を受け取る入口を足す（Step 3 を変えることになる）。
+- Consequences: 分析設計が3つなら、分析者が1回で答える文に、9つの問いが並ぶ。読み切れるかは実データで使う段で確かめる。調べ足す、または派生で調べ直すと答えた分析設計は巡回を終わらせず、その答えのとおりに進めてから **endings** に戻る。
+
+### Decision: story-35-7-an-execution-agent-records-through-design-io
+
+- What: 実行エージェントは、notebook の結果を `design_io journal-append --id` で journal に書く（`/analysis-notebook` の Step 6）。命令は読んでから書くまでを `write_lock` で囲み、出来事の id と時刻を振る。全部を書くか、1つも書かない。止めた分析には書かない。単独で起動した `/analysis-notebook` も同じ命令を使う。`/analysis-journal` は今までどおり手で書く。
+- Why: 実行エージェントが journal を手で読んで書く間は、ロックを取れない。その間に対話エージェントが `design_io stop` を書くと、片方の出来事が消えうる（35.2 のレビューの M3）。ファイルをツールで書く手順に、ロックを取らせる方法は無い。
+- Criteria: ADR-0062 の 2 と 4（実行エージェントが書くのは自分の journal、書き込みは1つのロックで囲む）。止めたことを、実行エージェントが記録から知れること（ADR-0064 の 7）。2つのプロセスで結果の追記と `stop` を同時に走らせ、どの分析設計でも片方だけが残った（先にロックを取った方が勝つ。止めた分析は結果を拒み、結果のある分析は `stop` を拒む）。
+- Affected modules: `skills/_shared/design_io.py`（`append_journal_events`、CLI の `journal-append`）、`skills/analysis-notebook/SKILL.md`（Step 6 と命令の表）、`skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-auto/SKILL.md`（実行エージェントへの指示の「書くもの」）
+- Alternatives considered: 手で書くまま残し、検証 hook に任せる（hook は印を持つ出来事が消えるのを止めるが、`design_io stop` が実行エージェントの出来事を上書きするのは止めない）。まとめて任せた実行でだけ命令を使う（同じ Step 6 に書き方が2つできる）。
+- Consequences: `/analysis-notebook` の Step 6 は、単独の起動でも命令を通る。出来事の中身は変わらない。`/analysis-journal` が手で書く間のロックは、この決定では塞がない（分析者と話しながら1つずつ書くので、まとめて任せた実行とは並ばない）。
+
+### Decision: story-35-7-the-event-types-a-rule-reads-are-named-in-one-place
+
+- What: 規則が読み分ける出来事の種類の名前（`question`、`decide`、`conclude`、`hearing`）を `src/insight_blueprint/models/journal.py` に置き、`analysis_stage`・`design_note_read`・`tree_io`・`tree_render_parts` はそこから読む。`design_note.py` の `EVENT_WORDS`（種類ごとの見せる言葉の表）と、結果の節が拾う `observe`・`evidence` は動かさない。
+- Why: 答えの付いた確認を未解決の問いから外すと、`design_note_read` も確認の印を読む。同じ種類の名前を、段階の規則と別に綴ることになる（35.2 の品質レビューの指摘）。
+- Criteria: 規則が同じ種類を指すこと。検証 hook が import できる場所であること（`JOURNAL_MARKS` と同じ理由）。Rule of Three（4つのモジュールが同じ名前を綴っていた）。
+- Affected modules: `src/insight_blueprint/models/journal.py`、`src/insight_blueprint/models/analysis_stage.py`、`skills/_shared/design_note_read.py`、`skills/_shared/tree_io.py`、`skills/_shared/tree_render_parts.py`
+- Alternatives considered: 出来事の種類の全部を型（`StrEnum`）にする（journal は schema を持たず、skill が手で書く種類もある。種類の一覧を持つと、Scope の「触らない所」に反する）。そのままにする（規則が読む種類を足すたびに、綴りが増える）。
+- Consequences: 見せる言葉の表は、種類の名前を自分で綴ったままである（#273 の範囲）。
+
+### Decision: story-35-7-a-design-changed-by-an-answer-is-not-read-again-on-the-page
+
+- What: 分析者の答えで分析設計を直したとき、任せる前の確認の節でもう一度読ませない。`handover.READ_BEFORE_HANDOVER` は実行前だけのままにする。対話エージェントは、直した項目ごとに、直す前と後の値をチャットで言う。その後 premortem をやり直してから、もう一度渡す。
+- Why: 分析者は、何を変えないと進めないかを確認で読み、変えてよいと答えている。節に段階を足すと、答えを待たずに走っている進行中の分析設計も節に並び、任せる前の分析設計と見分けられない。
+- Criteria: 止まる回数を増やさないこと。分析者が読んでいない内容でデータに触らないこと（ADR-0064 の M1）。分析者が読むのは確認の本文と、直した項目の前後である。
+- Affected modules: `skills/analysis-auto/SKILL.md`（Step 3H の **confirmation**）
+- Alternatives considered: 答えで直した分析設計を節に並べ、もう一度確認を求める（確認が2回になる。走っている分析設計と混ざる）。
+- Consequences: 走り始めた検証の分析設計は、検証仮説と判定の基準を変えられない（ADR-0053）。答えがそれを変えるなら `design_io update` が拒むので、対話エージェントはその分析を止め、派生の分析設計を作ることを勧める。派生の分析設計は実行前なので、任せる前の確認を通る。
+
+### Decision: story-35-7-a-stopped-design-keeps-its-status-in-every-write
+
+- What: 止めた分析設計は、状態を変える書き込みの全部（`design_io transition`、状態を変える `design_io update`、`design_io review-batch`）を拒む。`tree_io copy-hearing` も、止めた分析設計には書かない。`/premortem` は止めた分析設計を評価から外し、`/analysis-notebook` の Step 1 と `/analysis-reflection` の Step 1 は、止めた分析を走らせず、振り返らない。分析ノートは、止めた分析設計の状態の行の下に「段階: 止めた（理由）」を出す。走っている分析を止める手順は `/analysis-auto` の「Stopping an analysis」の1か所に置き、任せる前の確認と、分析者が頼んだときの両方がそこを指す。
+- Why: 止めた分析設計を `transition` で `explored` に進められ、段階が終わったになり、止めた理由と論点の「止めた」が消えた（PM と 35.4 が試して見つけた）。ADR-0064 の 7 と State Diagram に反する。分析ノートの「状態: 分析中」は、止めた分析設計でもそのまま出ていた（人が画面を読む段の 7。人間が決めた）。
+- Criteria: ADR-0064 の 7（止めた分析設計の状態は変えない、再開しない）。合成シナリオで、止めた分析設計への `transition`・`journal-append` が拒まれ、ページと分析ノートに止めた理由が残ることを確かめた。
+- Affected modules: `skills/_shared/design_io.py`（`_keep_a_stopped_status`）、`skills/_shared/tree_io.py`（`copy_hearing`）、`skills/_shared/tree_words.py`（`note_stage_line`）、`skills/_shared/design_note.py`・`design_note_read.py`、`skills/premortem/SKILL.md`、`skills/analysis-notebook/SKILL.md`、`skills/analysis-reflection/SKILL.md`（Step 1）、`skills/analysis-auto/SKILL.md`
+- Alternatives considered: `transition` だけで拒む（`update` と `review-batch` から同じ穴が開く）。`/premortem` の評価の関数が止めた分析設計を SKIP にする（関数は I/O を持たず、journal を読めない）。
+- Consequences: 結果が記録にある分析（振り返り待ち）は止められない（35.2 のまま）。対話エージェントは、その分析の終え方を **endings** で聞くと言う。状態を変えない `update` は、止めた分析設計にも通る。
+
+### Decision: story-35-7-design-io-stage-gives-the-stage-to-the-skills
+
+- What: `design_io stage --id` を足す。分析の段階（`stage`）、結果が記録にあるか（`result_on_record`）、答えの付いていない確認の id と本文（`asks`）を返す。何も書かない。`/analysis-auto` の **confirmation**、`/analysis-notebook` の Step 1、`/analysis-reflection` の Step 1、`/premortem` がこれを読む。計画外の判断（1件目）。
+- Why: 分析設計を1つだけ扱う skill には、段階を読む命令が無かった（`tree_io position` はテーマと論点ツリーが要る）。`/analysis-reflection` の Step 1 は、分析が走ったかを「`hearing` 以外の出来事があるか」で自分で決めていて、段階の規則と食い違いえた（35.6 が見つけた）。答える相手の確認の id も、journal を手で読むしかなかった。
+- Criteria: 段階の規則を1か所に置くこと（US-3 AC 1）。結果の review が分析設計を `in_review` に戻している間も、結果があると読めること（ADR-0054。段階は実行前になるので、段階だけでは決められない）。
+- Affected modules: `skills/_shared/design_io.py`（`stage_report`、CLI の `stage`）、`src/insight_blueprint/models/analysis_stage.py`（`records_a_result`。止めた理由は結果に数えない）
+- Alternatives considered: `design_io list` の返り値に段階を足す（分析設計の dict に、保存しない値が混ざる）。skill の文で journal の読み方を書く（規則が2か所になる）。
+- Consequences: 走る前に `/analysis-journal` で書いた推論しか無い分析設計は、`result_on_record` が false になり、`/analysis-reflection` は記録を先に勧める（前は振り返りに進んだ）。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0061: 論点ツリーの決定は一緒に任せた論点を持てて、分析の段階は記録から導く](../adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md): 決定に `with_node_ids` を足す。分析の段階は保存しない。「ツリーの決定」を「論点ツリーの決定」に改名する。
@@ -664,7 +718,7 @@ sequenceDiagram
 | Story 35.4 | ✓ | ✓ | —（skill の流れに入れるのは 35.6・35.7。合成シナリオ `lib-stages`（`scripts.handoff_trial build --scenario lib-stages`）で、6つの段階・冒頭の確認待ちの欄・止めた理由・「次に調べる論点」の2つの論点が出ることをブラウザで確かめた。同じ `.insight` で、`tree_io progress`・`position`・ページ・レポートの進捗と段階が全部の論点で同じだった） |
 | Story 35.5 | ✓ | ✓ | —（skill の流れに入れるのは 35.6。合成シナリオ `lib-handover`（`scripts.handoff_trial build --scenario lib-handover`）でページを作り、ブラウザで、3列の並び、抽出の全文、分析間の違いの印、コメント欄とまとめた文、外へのリクエストが無いことを確かめた。`lib-stages` で、直した言葉・並び・止めたの形も確かめた） |
 | Story 35.6 | ✓ | ✓ | —（実行エージェントを本当に走らせるのは、実データで使う段で行う。合成シナリオ `lib-handover` で、skill の文の順に命令を呼んだ。2つの論点を指す決定で `not_started` と `undesigned_node_ids`、`in_review` で保存して結ぶと `in_progress` と実行前、範囲の無い分析設計が `no_data_scope` に挙がる、コメントが review コメントに残り `in_review` に戻る、1つを止めると節から消えてページに止めた理由が出る、`analyzing` へ遷移すると進行中、全部止めると `concluded` で答えを書かずに次の決定が通る、を確かめた） |
-| Story 35.7 | ☐ | ☐ | ☐ |
+| Story 35.7 | ✓ | ✓ | —（実行エージェントを本当に走らせるのは、実データで使う段で行う。合成シナリオ `lib-handover` で、skill の文の順に命令を呼んだ。1つを任せずに止める、残りを `analyzing` へ遷移する、片方が `journal-append` で結果を書いて振り返り待ちになる、もう片方が `ask-analyst` で確認待ちになりページの冒頭に出る、`design_io stage` が確認の id と本文を返す、`answer-analyst` で進行中に戻り冒頭の欄が消える、走っている分析を止めると `journal-append` と `transition` が拒まれる、結果のある分析は `stop` が拒まれる、終えると `concluded` になる、止めた2つの分析ノートに「段階: 止めた（理由）」が出る、を確かめた） |
 
 完了時に ✓ を付ける。このマトリクスが Epic PR のレビューゲート。
 
@@ -681,3 +735,4 @@ sequenceDiagram
 - 2026-11-27 — 人間が実物の画面と言い回しの一覧を読んだ: 指摘8件（35.5 で直す5件、35.7 で直す1件、変えない2件）。
 - 2026-11-27 — Story 35.5 completed: 論点ツリーの HTML に「分析を任せる前の確認」の節（最新の決定が指す論点の実行前の分析設計を列に並べ、対象・粒度・分母・データソースの違いに印、分析設計ごとのコメント欄とまとめた文）。`tree_io handover` が同じ規則を返す。人が画面を読む段の直し5件を入れた。
 - 2026-11-27 — Story 35.6 completed: `/analysis-auto` が、複数の論点を指す決定の巡回をまとめて任せる（Step 3H）。分析設計を `in_review` で保存して結び、任せる前の確認を1回求め、コメントを review コメントに記録し、任せない分析設計を止め、分析設計ごとに実行エージェントへ渡す。入る項目は `tree_io position` の分析の段階で決める。`tree_io handover` はデータの範囲の無い分析設計を挙げる（#290）。決めたことは Decisions の6件。thermos（バグ・品質の2本）の指摘を直した: 途中で再開した巡回が残りの Brief を取れること、次の巡回が Step 3H に入ること、遷移が拒まれたときの戻り先、段階と項目の対応を Step 3H に寄せること、用語集に対話エージェントと実行エージェントを足すこと。実行エージェントの戻りのたびの書き直し、任せた後の確認、終え方をまとめて聞くことは 35.7 に渡す。
+- 2026-11-27 — Story 35.7 completed: 任せた後、実行エージェントは分析者が読んだ内容を変える前に `design_io ask-analyst` で確認を書いて戻り、対話エージェントが聞いて `answer-analyst` か `stop` を書く。分析者は分析を1つだけ止められ、止めた分析設計は状態も結果も変わらない。論点ツリーの HTML は対話エージェントが戻りのたびに書き直し、戻った分析の終え方は1回の問いで聞く。`design_io stage` と `design_io journal-append` を足した（#291）。決めたことは Decisions の6件で、計画外の判断は1件（`design_io stage`）。先送りの指摘（止めた分析を `transition` で終えられる穴、M3、出来事の種類の名前、分析ノートの段階の行、`/analysis-reflection` の Step 1）を直した。

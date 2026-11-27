@@ -346,7 +346,7 @@ sequenceDiagram
 （[ADR-0005](adr/0005-selective-autonomous-chaining.md)）。個々の skill・CLI・premortem・notebook 実行とのやり取りを示す。
 
 図の読み方: 上から下へ時間が進む。矢印は呼び出しと応答で、`【KEEP】` の付いた矢印だけが分析者に聞く。
-`alt` は場合分け、`opt` は条件が合うときだけ、`loop` は巡回の繰り返しを表す。
+`alt` は場合分け、`opt` は条件が合うときだけ、`loop` は巡回の繰り返し、`par` は並行で進むことを表す。
 
 ```mermaid
 sequenceDiagram
@@ -356,6 +356,7 @@ sequenceDiagram
     participant H as pre-write hook + validate.py
     participant PM as /premortem
     participant NB as /analysis-notebook + python
+    participant W as 実行エージェント（分析設計ごと）
     participant TU as /tree-upload
     participant FS as .insight/
     participant DC as Artifact
@@ -388,6 +389,36 @@ sequenceDiagram
             opt closed
                 D->>U: 【KEEP】次に設計する論点（再開する論点）
             end
+        end
+
+        opt 決定が2つ以上の論点を指す（まとめて任せる巡回。下の design から分析設計ごとの結論までの代わりに進む）
+            D->>IO: design_io create（論点ごとに in_review、データの範囲つき）→ tree_io link（順に）
+            D->>IO: tree_io render → tree_io handover（任せる前の確認の節と、分析間の違い）
+            D->>U: 【KEEP】分析を任せる前の確認（そのまま任せるか、コメントを返すか、任せない分析設計を止めるか）
+            D->>PM: 任せる分析設計の全部を premortem にかける
+            D->>IO: design_io transition（in_review→analyzing、順に）
+            par 分析設計ごとに並行
+                D->>W: 分析設計を1つ渡す
+                W->>FS: notebook・verdict
+                alt 読んだ内容のまま進められる
+                    W->>IO: design_io journal-append（結果を journal に書く）
+                else 分析者が読んだ内容を変えないと進めない
+                    W->>IO: design_io ask-analyst（データに触る前に、確認を journal に書く）
+                end
+                W-->>D: 戻る
+            end
+            D->>IO: tree_io render → tree_io position（実行エージェントの戻りのたび）
+            opt 確認待ちの分析がある（ほかの分析は進んだまま）
+                D->>U: 【KEEP】任せた分析の確認に答えるか、その分析を止めるか
+                D->>IO: design_io answer-analyst（答えで分析設計が変わるなら design_io update）か design_io stop
+                Note over D,W: 答えた分析は、premortem をやり直してから、もう一度渡す
+            end
+            opt 分析者が、分析を1つ止めると言った
+                D->>IO: design_io stop（止めた理由。分析設計の状態は変えない）
+            end
+            D->>U: 【KEEP】戻った分析の終え方を、まとめて聞く
+            D->>IO: 分析設計ごとに conclude と design_io transition（terminal status、順に）
+            D->>IO: tree_io render
         end
 
         Note over D,FS: design（AUTO: Framing Brief から各フィールドを自動ドラフト → KEEP: ①〜④を順に確認）
@@ -449,6 +480,14 @@ sequenceDiagram
 
 巡回の中で、外部へ送ることを分析者に聞くのは、`/tree-upload` の KEEP ゲート（1回）だけである。driver は「送るか」を別に聞かない
 （[ADR-0016](adr/0016-approval-before-external-send.md)）。`/tree-upload` は、分析者が頼んだときにだけ起動する。`/report-export` は巡回の中では起動しない。
+
+決定が2つ以上の論点を指す巡回では、driver が対話エージェントになり、分析設計ごとに実行エージェントへ渡す
+（[ADR-0062](adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md)）。
+論点ツリー・分析設計・論点ツリーの HTML を書くのは対話エージェントだけで、HTML は実行エージェントの戻りのたびに書き直す。
+実行エージェントは自分の notebook・verdict・journal だけを書き、journal は `design_io` の命令を通して書く。
+任せた後に分析者に聞くのは、任せた分析の確認（あれば）と、戻った分析の終え方である
+（[ADR-0064](adr/0064-a-handed-over-analysis-asks-before-changing-what-was-read-and-can-be-stopped.md)）。
+止めた分析は再開せず、状態も変えない。
 
 再開する所は `tree_io position` が導く。最新の論点ツリーの決定が指す全部の論点（次に調べる論点と一緒に任せた論点）を読み、
 終わっていない分析設計が1つでもあれば `in_progress`、決定が指す論点のどれかに決定より後の分析設計が無ければ `not_started`（`undesigned_node_ids` がその論点を並べる）、どれにもあって、どれも終わったか止めたなら `concluded` になる。

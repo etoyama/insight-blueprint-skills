@@ -101,8 +101,9 @@ class TestReflectionTakesAThemeOrADesign:
 
     def test_a_journal_with_only_a_heard_answer_is_not_reflected_on(self) -> None:
         # The heard answer is copied in before the analysis runs (/analysis-design).
+        # Whether a result is on record is read from design_io (Epic 35, Story 35.7).
         load = _step("### Step 1: ")
-        assert "other than `hearing`" in load
+        assert re.search(r"`result_on_record` is false[^.]*`hearing`", load)
 
     def test_a_theme_without_a_tree_is_sent_to_framing(self) -> None:
         load = _step("### Step T1: ")

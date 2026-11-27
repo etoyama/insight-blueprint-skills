@@ -184,6 +184,15 @@ class TestStageCommand:
 
         assert design_io.stage_report(design_id, insight)["result_on_record"] is False
 
+    def test_the_reason_of_a_stop_is_not_a_result(self, insight: Path) -> None:
+        design_id = _design(insight)
+        design_io.stop_analysis(design_id, "先に別の論点を見る", insight)
+
+        report = design_io.stage_report(design_id, insight)
+
+        assert report["stage"] == "stopped"
+        assert report["result_on_record"] is False
+
     def test_it_lists_what_the_analysis_asks_with_the_id_to_answer(
         self, insight: Path
     ) -> None:

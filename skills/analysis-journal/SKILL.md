@@ -216,7 +216,9 @@ roots = [d for d in designs if d["parent_id"] is None]
 
 A `question` event is considered **open** if no `conclude` event references it via
 `metadata.resolves`. `metadata.resolves` holds one event id or a list of event ids
-(/analysis-reflection writes a list). To list open questions:
+(/analysis-reflection writes a list). A confirmation a handed-over analysis asked
+(`asks_analyst`) that a `decide` event names in `answers` is not open either: the analyst's
+answer settled it. To list open questions:
 
 ```
 questions = [e for e in events if e.type == "question"]
@@ -225,6 +227,8 @@ for e in events:
     if e.type == "conclude" and e.metadata.get("resolves"):
         r = e.metadata["resolves"]
         resolved_ids |= set(r) if isinstance(r, list) else {r}
+    if e.type == "decide" and e.metadata.get("answers"):
+        resolved_ids.add(e.metadata["answers"])
 open_questions = [q for q in questions if q.id not in resolved_ids]
 ```
 

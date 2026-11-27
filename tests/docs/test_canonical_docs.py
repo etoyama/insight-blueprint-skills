@@ -981,6 +981,28 @@ class TestQuestionTreeDocs:
         ):
             assert any(gate in line for line in keeps), gate
 
+    def test_architecture_autopilot_hands_several_questions_over_together(
+        self,
+    ) -> None:
+        """Epic 35, Story 35.7 (US-4, US-5 AC 3): the round of a decision of several questions."""
+        sequence = section(_read("docs/ARCHITECTURE.md"), self.AUTOPILOT)
+        assert "participant W as 実行エージェント" in sequence
+        for call in (
+            "tree_io handover",
+            "design_io journal-append",
+            "design_io ask-analyst",
+            "design_io answer-analyst",
+            "design_io stop",
+        ):
+            assert call in sequence, call
+        keeps = [line for line in sequence.splitlines() if "【KEEP" in line]
+        for gate in ("分析を任せる前の確認", "任せた分析の確認", "終え方"):
+            assert any(gate in line for line in keeps), gate
+        # Only the dialogue agent rebuilds the page, each time an agent returns.
+        renders = [line for line in sequence.splitlines() if "tree_io render" in line]
+        assert renders and all(line.strip().startswith("D->>") for line in renders)
+        assert "戻りのたび" in sequence
+
     def test_architecture_autopilot_writes_no_report(self) -> None:
         """Epic 29 US-5 AC 2: the walk writes no report; the decision shows the tree's HTML."""
         sequence = section(_read("docs/ARCHITECTURE.md"), self.AUTOPILOT)

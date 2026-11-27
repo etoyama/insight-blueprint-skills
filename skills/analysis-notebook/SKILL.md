@@ -69,7 +69,18 @@ The design's data sources (`source_ids`) must be registered in the catalog (else
    (the contract's "`results` shape"). A design still `in_review` writes it with /analysis-design;
    a design that began its analysis cannot take a criterion any more, so suggest deriving a new
    design with /analysis-design (`parent_id`).
-3. Status: needs `analyzing`. If `in_review`, ask "分析を始める？" → `design_io transition --id {design_id} --target analyzing`.
+3. Stage: read it with the command below, never from the status and the journal yourself.
+
+```bash
+design_io stage --id {design_id}
+```
+
+   A `stopped` analysis is not run and not resumed: `design_io list --status analyzing`
+   lists it still, since a stop leaves the status as it was. Say that it was stopped, and
+   suggest deriving a new design with /analysis-design (`parent_id`). An analysis that is
+   `awaiting_confirmation` waits for the analyst's answer to what `asks` holds: do not run
+   it before `design_io answer-analyst` has recorded that answer.
+4. Status: needs `analyzing`. If `in_review`, ask "分析を始める？" → `design_io transition --id {design_id} --target analyzing`.
    If the design is terminal (`supported`/`rejected`/`inconclusive`/`explored`), it can't be analyzed — don't force a
    transition (there is no edge back to `analyzing`); tell the user to branch a new design (/analysis-design)
    or pick another id instead.
@@ -122,7 +133,8 @@ A notebook with any other cell shows no code in the analysis note. Drive the con
   `/analysis-design` Step 2.6, and — under `/analysis-auto` — already confirmed by the user at the
   data-extraction gate), this cell must **use that query as-is**; do not silently substitute a different
   table, column set, or filter. A genuinely required change means re-confirming with the user, not an
-  unannounced divergence. This is the only cell that assigns `raw_df`.
+  unannounced divergence (an execution agent of `/analysis-auto` records it with
+  `design_io ask-analyst` and returns, as its brief says). This is the only cell that assigns `raw_df`.
 - `# %% data_prep`: methodology-independent cleaning, each step via `tracked_pipe`
 - `# %% analysis`: from `methodology.method` + `methodology.steps` (code patterns) + `analysis_intent`;
   build the `results` dict in the shape of the design's form (the contract's "`results` shape"):
@@ -170,12 +182,27 @@ re-run Step 4. Keep it interactive — resolve with the user rather than looping
 ### Step 6: Record to the journal
 
 Read `.insight/notebooks/{design_id}_verdict.json` and append `observe` / `evidence` /
-`question` events to `.insight/designs/{design_id}_journal.yaml` per the verdict→journal
-mapping (references). Preserve existing events; continue ids from the current max; **never emit `conclude`**.
+`question` events to the journal per the verdict→journal mapping (references), all of them
+in one command; **never emit `conclude`**.
+
+```bash
+echo '{"events": [{"type": "observe", "content": "2025年10月から12月の予約が1,204件ある"}, {"type": "evidence", "content": "取り置きの期限切れは分館で少ない"}, {"type": "question", "content": "冬だけの傾向か"}]}' \
+  | design_io journal-append --id {design_id}
+```
+
+The command gives each event its id and time and keeps the events already there. Never
+write the journal file yourself here: another session may be writing the same journal, and
+the command holds the lock of `.insight` from its read to its write
+([ADR-0062](../../docs/adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md)).
+If it refuses because the analysis was stopped, record nothing more and return: a stopped
+analysis takes no result.
 
 ### Step 7: Hand off
 
-Run `tree_io render --design {design_id}` so that the design note shows the results you
+When you run as an execution agent of `/analysis-auto` (its brief says so), skip this step
+and return what the brief asks for: the dialogue agent rebuilds the page on your return.
+
+Otherwise, run `tree_io render --design {design_id}` so that the design note shows the results you
 recorded, and tell the analyst where the note is: read the JSON it prints as the
 `#### 読むもの` of /analysis-reflection says, and show its `分析ノート:` line. This step is
 not a gate: ask nothing. If the render exits non-zero, show its stderr; the journal keeps
@@ -190,12 +217,15 @@ the events of Step 6.
 |---------|----------|
 | `design_io list --status analyzing` | Find designs ready to analyze |
 | `design_io get --id ID` | Load methodology / intent / `source_ids` |
+| `design_io stage --id ID` | The stage of the analysis: a stopped one is not run |
 | `design_io transition --id ID --target analyzing` | Move an in_review design into analysis |
+| `design_io journal-append --id ID` | Append the events of the verdict to the journal |
 | `catalog_io get --id SOURCE --with-connection` | Full source incl. `connection` (drives data_load) |
 | `catalog_io get-schema --id SOURCE` | Column schema (+ PK, row-count) only — no connection |
 
-Journal is appended by writing `.insight/designs/{id}_journal.yaml` directly (same as
-/analysis-journal) — there is no journal CLI subcommand.
+/analysis-journal still writes `.insight/designs/{id}_journal.yaml` directly, in a
+conversation with the analyst. This skill may run beside other analyses, so it appends
+through `design_io journal-append`.
 
 ## Chaining
 

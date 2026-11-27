@@ -8,6 +8,7 @@ every terminal status.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from insight_blueprint.models.design import CONCLUSIONS_OF, TERMINAL_STATUSES
@@ -41,3 +42,24 @@ def test_open_questions_follow_the_journal_skill_definition() -> None:
     assert (
         f"no `{CONCLUDE}` event references it via `metadata.{RESOLVES}`" in definition
     )
+
+
+def test_an_answered_confirmation_is_not_an_open_question() -> None:
+    """Epic 35 US-4 AC 3 (ADR-0064 9): the note and the journal skill read it alike."""
+    board = unwrap(
+        section(
+            JOURNAL_SKILL.read_text(encoding="utf-8"),
+            "## Open Questions (Inquiry Board)",
+        )
+    )
+
+    assert re.search(r"`asks_analyst`[^.]*`answers`[^.]*not open", board)
+    reflection = unwrap(
+        section(
+            (JOURNAL_SKILL.parents[1] / "analysis-reflection/SKILL.md").read_text(
+                encoding="utf-8"
+            ),
+            "### Step 2",
+        )
+    )
+    assert re.search(r"Open Questions[^.]*/analysis-journal", reflection)

@@ -44,8 +44,20 @@ identify remaining gaps, or decide to branch.
 
 1. `design_io get --id {design_id}` — load design (JSON)
 2. Read `.insight/designs/{design_id}_journal.yaml` using Read tool — load journal
-3. If no journal exists, or it holds no event other than `hearing` (the answer `/analysis-design`
-   copied in before the analysis ran): "ジャーナルがない。まず /analysis-journal {id} で推論過程を記録してから振り返ろう" → exit
+3. Read whether the analysis left a result. Never work it out from the status and the
+   journal yourself:
+
+```bash
+design_io stage --id {design_id}
+```
+
+   - `stage` is `stopped`: the analysis was stopped, so there is no result to reflect on.
+     Say so, and suggest deriving a new design with /analysis-design (`parent_id`) → exit
+   - `stage` is `awaiting_confirmation`: the analysis waits for the analyst's answer to what
+     `asks` holds. Say so → exit
+   - `result_on_record` is false: the journal is missing, or holds only what was written
+     before the analysis ran (the answer `/analysis-design` copied in as a `hearing`, say):
+     "ジャーナルがない。まず /analysis-journal {id} で推論過程を記録してから振り返ろう" → exit
 
 ### Step 2: Present Analysis Summary
 
@@ -87,6 +99,9 @@ Without a direction: {count} items
 論点: {node_ids}
 気づいたことはこのチャットで返せば、journal に残す。
 ```
+
+Open Questions lists the questions that are open as /analysis-journal defines it (Open
+Questions): a confirmation the analyst already answered is not one of them.
 
 An exploration's evidence carries no `direction` (ADR-0050): show it all under
 `Without a direction` and leave out the other two lines. A legacy exploration may hold both:

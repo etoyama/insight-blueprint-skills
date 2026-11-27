@@ -12,15 +12,23 @@ def auto() -> str:
     return _read_skill("analysis-auto")
 
 
-def step_item(step: str, name: str) -> str:
-    """The numbered item ``N. **name**`` under the heading *step*, up to the next item or heading."""
+def step_item_text(step: str, name: str) -> str:
+    """The numbered item ``N. **name**`` under the heading *step*, as written.
+
+    It ends at the next item or heading, so its commands keep their lines.
+    """
     found = re.search(
         rf"^\d+\. \*\*{re.escape(name)}\*\*.*?(?=^\d+\. \*\*|^#{{2,4}} |\Z)",
         section(auto(), step),
         re.MULTILINE | re.DOTALL,
     )
     assert found, f"{step} has no '{name}' item"
-    return unwrap(found.group(0))
+    return found.group(0)
+
+
+def step_item(step: str, name: str) -> str:
+    """The item of ``step_item_text`` with its wrapped lines joined."""
+    return unwrap(step_item_text(step, name))
 
 
 def round_item(name: str) -> str:
@@ -31,6 +39,16 @@ def round_item(name: str) -> str:
 def handover_item(name: str) -> str:
     """An item of the round of several nodes (Step 3H)."""
     return step_item("### Step 3H:", name)
+
+
+def handover_item_text(name: str) -> str:
+    """An item of the round of several nodes (Step 3H), as written."""
+    return step_item_text("### Step 3H:", name)
+
+
+def handover_part(heading: str) -> str:
+    """The body under a ``####`` heading of Step 3H, as written."""
+    return section(section(auto(), "### Step 3H:"), heading)
 
 
 def design_beat(name: str) -> str:

@@ -18,6 +18,8 @@ from insight_blueprint.models.analysis_stage import SETTLED, AnalysisStage
 from scripts.handoff_trial import build, load_scenario
 from skills._shared import design_io, tree_io
 from tests.skills._auto import handover_item as _handover_item
+from tests.skills._auto import handover_item_text as _handover_item_text
+from tests.skills._auto import handover_part as _handover_part
 from tests.skills._auto import round_item as _round_item
 from tests.skills._markdown import section, table_row, table_rows, unwrap
 from tests.skills._shown import (
@@ -60,6 +62,8 @@ HANDOVER = [
     "premortem",
     "hand over",
     "return",
+    "confirmation",
+    "endings",
 ]
 
 ROUND = [
@@ -489,9 +493,7 @@ class TestSeveralNodesGoThroughOneCheck:
         )
         assert list(heads) == HANDOVER
         named = " ".join(heads.values())
-        for stage in (
-            set(AnalysisStage) - SETTLED - {AnalysisStage.awaiting_confirmation}
-        ):
+        for stage in set(AnalysisStage) - SETTLED:
             assert f"`{stage.value}`" in named, stage
         assert "`undesigned_node_ids`" in heads["briefs"]
         assert re.search(r"skipped when there are none", unwrap(self._handover()))
@@ -548,9 +550,12 @@ class TestSeveralNodesGoThroughOneCheck:
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         """US-2 AC 5: a comment becomes a review comment of its design; one design is stopped."""
-        check = self._handover()
+        check = _handover_item_text("check before handing over")
         run_shown_design_commands(check, handed, monkeypatch, capsys)
         assert run_shown_design_line(check, "transition", handed) == 0
+        # The item points at the one place that shows how an analysis is stopped.
+        stopping = _handover_part("#### Stopping an analysis")
+        run_shown_design_commands(stopping, handed, monkeypatch, capsys)
 
         commented, stopped = "LIB-H03", "LIB-H05"
         batches = design_io.list_review_batches(commented, base_dir=handed)
@@ -571,7 +576,6 @@ class TestSeveralNodesGoThroughOneCheck:
         assert "分析を任せる前の確認へのコメント" in item
         assert re.search(r"comment[^.]*analyst's words", item)
         assert re.search(r"reason[^.]*analyst's words", item)
-        assert re.search(r"[Nn]ever (delete|unlink)", item)
         assert re.search(r"ask(s)? (the check )?again", item)
 
     def test_premortem_runs_only_after_the_check(self) -> None:
@@ -619,7 +623,8 @@ class TestSeveralNodesGoThroughOneCheck:
     ) -> None:
         item = _handover_item("return")
         assert re.search(
-            r"still `running`[^.]*tell the analyst[^.]*only if they ask", item
+            r"`running`[^.]*without a result\. Tell the analyst[^.]*only if they ask",
+            item,
         )
 
     def test_a_round_whose_designs_all_stopped_still_gets_its_theme_reflection(

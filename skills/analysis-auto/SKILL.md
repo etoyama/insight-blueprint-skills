@@ -8,7 +8,8 @@ description: |
   tree decision. A decision that names several nodes hands their designs over together, after
   one check of all of them. Progresses automatically through low-friction steps and
   pauses only at genuine decision points (root question and aim, the node to investigate,
-  intent and the question to explore or the hypothesis, the designs to hand over together, source registration, cost/risk, code with external effects, conclusion, the results
+  intent and the question to explore or the hypothesis, the designs to hand over together,
+  what a handed-over analysis cannot go on without changing, source registration, cost/risk, code with external effects, conclusion, the results
   the theme's answers rest on, the tree decision, sending anything outside this machine).
   Triggers: "オートで進めて", "自動で分析を回して", "autopilot", "guided auto",
   "最後まで進めて", "analysis auto", "論点を順に調べて".
@@ -55,6 +56,8 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | design ③ data-extraction | **confirm the data-acquisition plan** — the actual query text (`methodology.steps`, with each table as `{source:ID}`) for SQL sources, or the data source id + columns + filter for CSV/others, plus expected grain & rough row scale | auto-drafting the query / column selection from the catalog schema |
 | design ④ charts | **confirm the planned `chart[]` specs (intent / type / x / y)** | auto-drafting chart specs from the direction |
 | check before handing over | **the designs of a round of several nodes, read side by side on the page: hand them over as they are, comment on a design, or leave a design out** — asked once for all of them (Step 3H) | drafting the designs, saving them `in_review`, linking them, rebuilding the page |
+| confirmation after handing over | **what a handed-over analysis cannot go on without changing: answer it, or stop that analysis** — asked for one analysis at a time, while the others go on (Step 3H) | rebuilding the page on every return, recording the answer, running premortem again |
+| endings | **how the analyses that came back end: the three questions of `/analysis-reflection` Step 3 for each design** — asked once for all of them (Step 3H) | the summary and 読むもの of each design, and after the reply the conclusions and the terminal transitions |
 | review (optional) | **the verdict** (revision_requested vs approve) | running the critique itself |
 | premortem | **result is `HARD_BLOCK`/`HIGH`** → stop, surface the risk | running premortem; `LOW`/`MEDIUM` |
 | notebook | **non-allowlisted package / external comms beyond the declared source / other side-effects** | generate + run when premortem cleared AND it's declared-source read + allowlisted + local compute |
@@ -74,7 +77,8 @@ adjust it, rather than collapsing the whole design into a single "looks good?". 
 (data-extraction) is where the *actual data pull* — the SQL query or the CSV file+columns+filter —
 gets a seat, so premortem then estimates cost against the **confirmed** query.
 The four beats belong to a round of one node; a round of several nodes has the check before
-handing over in their place (Step 3H).
+handing over in their place (Step 3H). The **reflection** row is that of a round of one node
+as well: a round of several nodes asks the **endings** in its place.
 
 Ask the analyst nothing outside the KEEP column. If in doubt whether something is a genuine
 decision, **stop and ask** — bias toward the KEEP column.
@@ -144,7 +148,7 @@ tree_io position --theme LIB
 |---|---|---|
 | `before_run` | Saved, and not run yet | **review** or **premortem** |
 | `running` | Moved into the analysis, with no result on record | **premortem** |
-| `awaiting_confirmation` | It asked the analyst something and waits for the answer | Tell the analyst that it waits for their answer, and show the path of the tree's HTML, whose top says what it asks |
+| `awaiting_confirmation` | It asked the analyst something and waits for the answer | **confirmation** of Step 3H, then **premortem** |
 | `awaiting_reflection` | Its result is on record | **reflection** |
 
    With more than one unfinished design, carry the first and tell the analyst which ones wait.
@@ -250,7 +254,7 @@ the round until the analyst closes the walk or says stop.
    decision open or says stop, go to Step 4 as well: the tree keeps its last decision, and the
    next run resumes from it.
 
-Two things happen only when the analyst asks for them, at any point of the walk, in Step 3H
+Three things happen only when the analyst asks for them, at any point of the walk, in Step 3H
 as well:
 
 - **The root question or the aim changes** → run `/analysis-framing {theme_id}`, whose KEEP
@@ -261,10 +265,12 @@ as well:
   ask whether to send: the skill lists the file and waits at its own KEEP gate, the only
   question about it. Never answer it for them
   ([ADR-0016](../../docs/adr/0016-approval-before-external-send.md)). Never start it unasked.
+- **The analyst asks to stop an analysis** → do what *Stopping an analysis* of Step 3H says,
+  in a round of one node as well. Never stop an analysis unasked.
 
 ### Step 3H: Hand several nodes over together
 
-A round of several nodes runs this step in place of **framing brief** to **journal** of
+A round of several nodes runs this step in place of **framing brief** to **reflection** of
 Step 3. Each design then runs in an execution agent of its own: a subagent you start in this
 conversation and hand one design.
 
@@ -321,14 +327,8 @@ design_io transition --id LIB-H03 --target in_review
      to change, ask the analyst before you change anything. After the comments are recorded,
      run both commands of this item again and ask the check again, saying what changed. This
      repeats until the analyst hands the designs over.
-   - A design the analyst leaves out is stopped, with the reason in the analyst's words:
-
-```bash
-echo '{"content": "先に予約の数え方を確かめたいので、今回は任せない"}' | design_io stop --id LIB-H05
-```
-
-     Never delete the design or unlink it from its node: the page shows it as 止めた, with
-     the reason. A stopped analysis is not resumed.
+   - A design the analyst leaves out is stopped, with the reason in the analyst's words, as
+     *Stopping an analysis* below says.
    - When every design of the round is stopped, nothing is handed over: go to
      **theme reflection** of Step 3.
 4. **premortem** (`before_run` after the check, and `running`): run `/premortem` for each of
@@ -347,14 +347,100 @@ design_io transition --id LIB-H04 --target analyzing
    A `running` design whose execution agent you did not start in this conversation has
    none: run its premortem here and hand it over again, and tell the analyst in the plan
    of Step 1 which analyses are handed over again, since the earlier run left no result on
-   record.
+   record. A design whose confirmation the analyst has just answered is `running` with no
+   agent at work as well: its premortem runs here again, since the answer may have changed
+   its extraction, and it is handed over again.
 5. **hand over** (`running`): start one execution agent for each design, all of them in the
-   same message so that they run side by side. Give each the brief below.
-6. **return** (`awaiting_reflection`): when the agents have returned, read `tree_io position`
-   again. Run **reflection** of Step 3 for each of these designs, in the order of
-   `design_ids`, then go on to **theme reflection**. A design that is still `running` came
-   back without a result: tell the analyst what its agent reported, and hand it over again
-   only if they ask.
+   same message so that they run side by side. Give each the brief below. Start them in the
+   background when the host lets you, so that each return reaches you on its own.
+6. **return** (a design whose execution agent came back): each time one or more agents
+   have returned, without waiting for the others, rebuild the page and read where the round
+   stands:
+
+```bash
+tree_io render --theme LIB
+tree_io position --theme LIB
+```
+
+   The dialogue agent alone rebuilds the page; an execution agent never does
+   ([ADR-0062](../../docs/adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md)).
+   Then go by the `stage` of each design that came back:
+   - `awaiting_confirmation` → **confirmation**, right away.
+   - `awaiting_reflection` → it waits for **endings**. Ask nothing about it yet.
+   - `running` → it came back without a result. Tell the analyst what its agent reported,
+     and hand it over again only if they ask.
+
+   This item and **confirmation** repeat until no execution agent is at work.
+7. **confirmation** (`awaiting_confirmation`): a KEEP gate, asked as soon as an analysis
+   waits, for one analysis at a time. Only that analysis waits: never stop or hold back
+   another execution agent for it.
+
+```bash
+design_io stage --id LIB-H04
+```
+
+   - `asks` holds what the analysis asks, each with the `id` an answer names. Never read
+     the confirmation out of the journal yourself. Show the analyst the design it belongs
+     to and each `content` as written, then ask one question and wait: answer it, or stop
+     this analysis. Never answer for them.
+   - The analyst answers → record the answer in the analyst's words:
+
+```bash
+echo '{"answers": "LIB-H04-E01", "content": "2025年10月以降の予約に絞ってよい"}' | design_io answer-analyst --id LIB-H04
+```
+
+   - When the answer changes the design, write the change with `design_io update` before
+     anything runs, and tell the analyst each field you changed, with its value before and
+     after. A design that began its analysis keeps its hypothesis and the criterion of its
+     verdict: when `update` refuses the change, show stderr and offer to stop this analysis
+     and derive a design from it (*Stopping an analysis*).
+   - The answered analysis is `running` again, with no agent at work. Take it back to
+     **premortem**, which runs again before any data is touched, and then to **hand over**:
+     add what it asked and the analyst's answer to the brief of its new agent.
+   - The analyst stops it → *Stopping an analysis*.
+8. **endings** (`awaiting_reflection`): a KEEP gate, asked once for all of these designs,
+   when no execution agent is at work and no analysis waits for a confirmation.
+   - For each design, in the order of `design_ids`, run `/analysis-reflection {design_id}`
+     through its Step 2: the summary and 読むもの. Ask nothing yet.
+   - Then ask one question for all of them and wait. Under a heading for each design, with
+     its id and title, put the three questions of `/analysis-reflection` Step 3 as that step
+     words them for the form of the design; the third is この分析設計をどう終えるか, with
+     its choices. Add no question of your own, and leave none out. Say in the same question
+     what Step 4 would ask of a design that ends (a review of its result first, the
+     tentative answer of an exploration, the change of its status), so that Step 4 asks
+     nothing again. The analyst answers for all the designs in one reply.
+   - Never end a design on an answer the analyst did not give: ask again about each design
+     the reply does not cover.
+   - Then do what each answer chose, as `/analysis-reflection` says. A design that ends goes
+     through its Step 4, one design after another, never in parallel: the `conclude` event,
+     then the terminal transition. A design the analyst wants to look into further, or to
+     derive from, keeps the round open: carry on with it as its answer says and come back
+     to this item. A derived design is a new design on its node, and goes through
+     **check before handing over**.
+   - When every design of the round has ended or is stopped, run `tree_io render --theme`
+     once more and go on to **theme reflection** of Step 3.
+
+#### Stopping an analysis
+
+The analyst may stop one analysis at any point: at the check before handing over, while it
+runs, or while it waits for their answer. Stop only the one they name: the others go on.
+
+```bash
+echo '{"content": "先に予約の数え方を確かめたいので、今回は任せない"}' | design_io stop --id LIB-H05
+```
+
+- The reason is in the analyst's words. Ask for it when they gave none.
+- When its execution agent is still at work, stop that agent as well if the host lets you.
+  The stop holds either way: `design_io journal-append` refuses a stopped analysis, so its
+  agent records nothing more and returns.
+- `stop` refuses an analysis whose result is on record (`awaiting_reflection`): say so, and
+  that its ending is asked at **endings**.
+- Never delete the design or unlink it from its node, and never move it: the page shows it
+  as 止めた, with the reason, and `design_io transition` refuses a stopped design.
+- A stopped analysis is not resumed. To try again, derive a design from it with
+  `/analysis-design` (`parent_id`): a new design on the same node, which goes through
+  **check before handing over** before it runs.
+- Rebuild the page after a stop (`tree_io render --theme`).
 
 #### The brief of an execution agent
 
@@ -366,16 +452,26 @@ An execution agent knows nothing of this conversation. Write its brief from thes
   written out as its path, and follow it for this design: build the notebook, run it, and
   record its verdict in the journal. The design is already `analyzing` and its premortem
   has cleared.
-- What it writes: only the notebook, the verdict and the journal of this design.
+- What it writes: only the notebook, the verdict and the journal of this design. The
+  journal goes in through `design_io journal-append` and `design_io ask-analyst`, never by
+  writing the file.
 - What it never runs: any `design_io` command that writes a design (`create`, `update`,
-  `transition`, `review-batch`, `stop`), and any `tree_io` command that writes. Never
-  `tree_io render` either, also where `/analysis-notebook` says to run it: the dialogue agent
-  rebuilds the page.
-- Where it stops: before a package outside the allowlist, a source the design does not
-  declare, or any other side effect (what **notebook** of Step 3 stops for). It does not do
-  that thing. It never asks the analyst anything: it returns and says what it needs.
-- What it returns: the `design_id`, and either that the verdict is in the journal, or why
-  it stopped.
+  `transition`, `review-batch`, `stop`), `design_io answer-analyst`, and any `tree_io`
+  command that writes. Never `tree_io render` either: the dialogue agent rebuilds the page.
+- Where it stops: the analyst read this design before it was handed over. When the
+  analysis cannot go on without changing something they read (its population, grain or
+  denominator, its extraction, a source, its primary metric, the criterion of its
+  verdict), it stops before it touches the data, records what it would have to change
+  with `design_io ask-analyst`, and returns. It never asks the analyst anything itself:
+
+```bash
+echo '{"content": "予約の記録が2025年10月より前に無い。対象を2025年10月以降の予約に変えてよいか"}' | design_io ask-analyst --id LIB-H05
+```
+
+  Before a package outside the allowlist or any other side effect, it does not do that
+  thing either: it returns and says what it needs, with no confirmation in the journal.
+- What it returns: the `design_id`, and one of three: that the verdict is in the journal,
+  the `id` of the confirmation it recorded, or why it stopped.
 
 ### Step 4: Summarize
 
@@ -392,8 +488,8 @@ to Claude Docs. Never start it, and do not ask whether to export
 `/rq-problematization`, `/analysis-framing`, `/analysis-design`, `/analysis-review`, `/premortem`,
 `/analysis-notebook`, `/analysis-journal`, `/analysis-reflection`, `/tree-upload`, `/catalog-register` — each remains explicit-invocable on its own; `/analysis-auto` only
 sequences them and enforces the gate policy. It never writes the question tree itself: the skills do,
-through `tree_io`. In Step 3H it writes the designs' review comments, their changes and their
-stops through `design_io`, and rebuilds the page.
+through `tree_io`. In Step 3H it writes the designs' review comments, their changes, their
+stops and the analyst's answers through `design_io`, and rebuilds the page.
 
 ## Chaining
 

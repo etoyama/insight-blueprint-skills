@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **After the hand-over, an analysis asks before it changes what the analyst read, one analysis can be
+  stopped, and the endings are asked together.** An execution agent that cannot go on without changing
+  the population, grain, denominator, extraction, a source, the primary metric or the criterion stops
+  before it touches the data and records a confirmation with `design_io ask-analyst`; the other analyses
+  go on. `/analysis-auto` asks the analyst, records the answer with `design_io answer-analyst`, runs
+  premortem again and hands the analysis over again, or stops it. The analyst may stop one analysis at
+  any point; a stopped design keeps its status in every write (`transition`, `update`, `review-batch`),
+  takes no result and no hearing, and its analysis note says 段階: 止めた with the reason. The page is
+  rebuilt by `/analysis-auto` each time an agent returns, and `/analysis-notebook` skips its own render
+  when it runs as an execution agent. When the analyses are back, the three questions of
+  `/analysis-reflection` are asked for all of them in one question. `design_io stage` gives the stage,
+  whether a result is on record and the open confirmations; `design_io journal-append` writes the events
+  of a run under the write lock. An answered confirmation is no longer an open question
+  ([ADR-0064](docs/adr/0064-a-handed-over-analysis-asks-before-changing-what-was-read-and-can-be-stopped.md),
+  [ADR-0062](docs/adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md), #291).
 - **`/analysis-auto` hands several questions over together, after one check.** When the analyst chooses
   several questions that do not wait for each other, the decision names them all and the round designs
   each, saves the designs `in_review`, links them and asks once, with the page of the tree and the rows

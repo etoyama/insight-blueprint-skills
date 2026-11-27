@@ -71,12 +71,15 @@ def open_confirmations(events: Iterable[dict]) -> list[dict]:
 def _records_a_result(event: dict, started_at: datetime | None) -> bool:
     """Whether *event* is a result of the run that began at *started_at*.
 
-    A hearing, a confirmation and its answer are not results. Nor is an event
+    A hearing, a confirmation, its answer and the reason of a stop are not
+    results. Nor is an event
     written before the analysis mark: /analysis-journal may record reasoning
     before the run (ADR-0061 6.4 as amended). An event whose time cannot be
     compared with the mark counts, as every event did before the amendment.
     """
-    if event.get("type") == HEARING or asks_analyst(event) or answers_of(event):
+    if event.get("type") == HEARING:
+        return False
+    if asks_analyst(event) or answers_of(event) or stops(event):
         return False
     if started_at is None:
         return True
