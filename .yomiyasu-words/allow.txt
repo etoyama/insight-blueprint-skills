@@ -95,5 +95,7 @@ premortem
 パッケージ許可リスト
 既定の許可リスト
 guided autopilot
+対話エージェント
+実行エージェント
 KEEP ゲート
 AUTO

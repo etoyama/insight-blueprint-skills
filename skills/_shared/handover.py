@@ -35,14 +35,12 @@ class HandoverRow(StrEnum):
     chart = "chart"
 
 
+# The rows of the data scope (ADR-0066): a design states all three or none.
+SCOPE_ROWS = (HandoverRow.population, HandoverRow.grain, HandoverRow.denominator)
+
 # The rows a mark compares between the designs (ADR-0063 4): what is counted,
 # and from what. The other rows differ by nature from one design to the next.
-COMPARED_ROWS = (
-    HandoverRow.population,
-    HandoverRow.grain,
-    HandoverRow.denominator,
-    HandoverRow.sources,
-)
+COMPARED_ROWS = (*SCOPE_ROWS, HandoverRow.sources)
 
 # The stages a design is read from before it is handed over.
 READ_BEFORE_HANDOVER = frozenset({AnalysisStage.before_run})
@@ -139,13 +137,14 @@ class HandoverDesign:
     title: str
     values: Mapping[HandoverRow, Value]
 
-    states_scope: bool
-
     @classmethod
     def of(cls, design: AnalysisDesign) -> HandoverDesign:
-        return cls(
-            design.id, design.title, _values(design), design.data_scope is not None
-        )
+        return cls(design.id, design.title, _values(design))
+
+    @property
+    def states_scope(self) -> bool:
+        """Whether the design states its data scope, which a hand-over needs (ADR-0066 3)."""
+        return all(self.values[row] is not Absent.not_written for row in SCOPE_ROWS)
 
 
 def to_hand_over(tree: QuestionTree, stages: Mapping[str, AnalysisStage]) -> list[str]:

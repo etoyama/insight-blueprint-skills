@@ -447,8 +447,11 @@ def handover(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]
     ``design_ids`` are the designs to read before they are handed over, in the
     order of the last decision; ``differing`` holds each compared row whose
     values differ between them: its ``row`` (a ``HandoverRow``), the ``label``
-    the page names it by, and the ``values`` of each design (None where the
-    design does not write it). The page marks the same rows (ADR-0063 4, 5).
+    the page names it by, and the ``values`` of each design (``not_written``
+    where the design does not write it). The page marks the same rows
+    (ADR-0063 4, 5). ``no_data_scope`` are the designs among them that state no
+    data scope: a design handed over with others states one (ADR-0066 3), so
+    the driver has it written before it asks for the check.
     """
     tree = load_tree_model(theme_id, base_dir)
     # Read as render reads them, so the command and the page cannot disagree.

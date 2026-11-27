@@ -289,7 +289,7 @@ methodology = {
 > **Under `/analysis-auto`, in a round of several nodes** (its Step 3H): draft every field from
 > the Framing Brief and write the `data_scope`, then create the design (Step 3) without asking.
 > The analyst reads the design on the page, beside the others, before anything runs, and a
-> design without a `data_scope` is not shown to them for that check
+> design without a `data_scope` is not put to that check until it states one
 > ([ADR-0066](../../docs/adr/0066-a-design-may-state-its-population-grain-and-denominator.md)).
 > Take the intent the Brief suggests; the analyst changes it by a comment at the check.
 

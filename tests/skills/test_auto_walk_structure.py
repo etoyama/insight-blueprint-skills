@@ -23,6 +23,7 @@ from tests.skills._markdown import section, table_row, table_rows, unwrap
 from tests.skills._shown import (
     run_shown_commands,
     run_shown_design_commands,
+    run_shown_design_line,
     run_shown_line,
 )
 from tests.skills.test_skill_structure import (
@@ -150,17 +151,20 @@ class TestTheThemeIsTheEntry:
     def test_an_unfinished_design_is_entered_by_its_stage(self) -> None:
         """The stage is derived in one place (ADR-0061 6): the driver reads it, never its inputs."""
         locate = _step("### Step 1:")
-        rows = {cells[0] for cells in table_rows(locate)}
+        enter = {cells[0]: cells[-1] for cells in table_rows(locate)}
         for stage in set(AnalysisStage) - SETTLED:
-            assert f"`{stage.value}`" in rows, stage
-        resume = unwrap(locate)
-        assert re.search(r"[Nn]ever work the stage out[^.]*status[^.]*journal", resume)
-        assert "other than `hearing`" not in resume
+            assert enter[f"`{stage.value}`"] not in ("", "—"), stage
+        # A design moved into the analysis with no result yet goes through premortem again.
+        assert enter["`running`"] == "**premortem**"
+        assert "**premortem**" in enter["`before_run`"]
+        assert enter["`awaiting_reflection`"] == "**reflection**"
+        assert re.search(
+            r"[Nn]ever work the stage out[^.]*status[^.]*journal", unwrap(locate)
+        )
 
     def test_a_design_of_a_theme_with_a_tree_is_entered_by_its_stage(self) -> None:
         assert "its stage calls for" in unwrap(_step("### Step 1:"))
         assert "its stage calls for" in unwrap(_step("### Step 2:"))
-        assert "its status calls for" not in _auto()
 
     def test_no_tree_goes_to_framing(self) -> None:
         build = unwrap(_step("### Step 2:"))
@@ -462,13 +466,6 @@ def handed(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _design_line(prose: str, command: str) -> list[str]:
-    """The arguments of the one-line ``design_io <command> ...`` shown in *prose*."""
-    shown = re.search(rf"^[ \t]*design_io ({re.escape(command)} [^\n]+)$", prose, re.M)
-    assert shown, f"no design_io {command} command is shown"
-    return shown[1].split()
-
-
 def _stages(insight: Path) -> dict[str, str]:
     nodes = tree_io.position("LIB", base_dir=insight)["nodes"]
     return {d["design_id"]: d["stage"] for node in nodes for d in node["designs"]}
@@ -483,8 +480,21 @@ class TestSeveralNodesGoThroughOneCheck:
     def test_a_round_of_several_nodes_enters_the_hand_over_step(self) -> None:
         locate = unwrap(_step("### Step 1:"))
         assert re.search(r"more than one node[^.]*`node_ids`[^.]*Step 3H", locate)
-        header = table_rows(_step("### Step 1:"))
-        assert any("several nodes" in cell for cells in header for cell in cells)
+        assert re.search(r"[Ss]tep 3H[^.]*several nodes", _round_item("next round"))
+
+    def test_every_item_names_the_designs_it_acts_on(self) -> None:
+        """A resumed run goes through the items in order; each skips what it has nothing for."""
+        heads = dict(
+            re.findall(r"^\d+\. \*\*(.+?)\*\* \((.+?)\):", self._handover(), re.M)
+        )
+        assert list(heads) == HANDOVER
+        named = " ".join(heads.values())
+        for stage in (
+            set(AnalysisStage) - SETTLED - {AnalysisStage.awaiting_confirmation}
+        ):
+            assert f"`{stage.value}`" in named, stage
+        assert "`undesigned_node_ids`" in heads["briefs"]
+        assert re.search(r"skipped when there are none", unwrap(self._handover()))
 
     def test_the_step_has_its_items_in_order(self) -> None:
         found = re.findall(r"^\d+\. \*\*(.+?)\*\*", self._handover(), re.MULTILINE)
@@ -495,7 +505,6 @@ class TestSeveralNodesGoThroughOneCheck:
         assert keep.startswith("**")
         assert "Step 3H" in keep
         assert "`in_review`" in auto
-        assert re.search(r"four[^.]*beats[^.]*one node", unwrap(_gates()))
 
     def test_every_node_without_a_design_gets_its_brief(self) -> None:
         """Decision 1 of the Story: all of them go into the one check."""
@@ -540,14 +549,14 @@ class TestSeveralNodesGoThroughOneCheck:
     ) -> None:
         """US-2 AC 5: a comment becomes a review comment of its design; one design is stopped."""
         check = self._handover()
-        ran = run_shown_design_commands(check, handed, monkeypatch, capsys)
-        back = _design_line(check, "transition")
-        assert design_io._main([*back, "--base-dir", str(handed)]) == 0
+        run_shown_design_commands(check, handed, monkeypatch, capsys)
+        assert run_shown_design_line(check, "transition", handed) == 0
 
         commented, stopped = "LIB-H03", "LIB-H05"
-        assert [r.get("design_id") or r["id"] for r in ran][0] == commented
         batches = design_io.list_review_batches(commented, base_dir=handed)
-        assert [c["comment"] for b in batches for c in b["comments"]]
+        assert [c["comment"] for b in batches for c in b["comments"]] == [
+            "粒度を本1冊にそろえてほしい"
+        ]
         assert (
             design_io.load_design(commented, base_dir=handed)["status"] == "in_review"
         )
@@ -571,6 +580,14 @@ class TestSeveralNodesGoThroughOneCheck:
         assert "--target analyzing" in item
         assert re.search(r"`HARD_BLOCK`/`HIGH`[^.]*stop", item)
 
+    def test_a_refused_move_into_the_analysis_goes_back_to_the_check(self) -> None:
+        # Review: a confirmation without its criterion is refused, and the item said nothing.
+        item = _handover_item("premortem")
+        assert re.search(
+            r"exits non-zero[^.]*stderr[^.]*back to \*\*check before handing over\*\*",
+            item,
+        )
+
     def test_each_design_goes_to_its_own_execution_agent(self) -> None:
         item = _handover_item("hand over")
         assert re.search(r"one execution agent[^.]*each design", item)
@@ -593,16 +610,23 @@ class TestSeveralNodesGoThroughOneCheck:
 
     def test_a_running_analysis_no_agent_holds_is_handed_over_again(self) -> None:
         """Decision 3 of the Story: an execution agent does not outlive its conversation."""
-        locate = unwrap(_step("### Step 1:"))
-        assert re.search(r"did not start[^.]*in this conversation", locate)
-        assert re.search(r"hand(ed)? (it )?over again", locate)
-        assert re.search(r"tell the analyst[^.]*again", locate)
+        item = _handover_item("premortem")
+        assert re.search(r"did not start[^.]*in this conversation", item)
+        assert re.search(r"hand it over again[^.]*tell the analyst", item)
+
+    def test_an_agent_that_returned_without_a_result_is_not_started_again_unasked(
+        self,
+    ) -> None:
+        item = _handover_item("return")
+        assert re.search(
+            r"still `running`[^.]*tell the analyst[^.]*only if they ask", item
+        )
 
     def test_a_round_whose_designs_all_stopped_still_gets_its_theme_reflection(
         self,
     ) -> None:
         item = _handover_item("check before handing over")
-        assert re.search(r"every design[^.]*stopped[^.]*item 8", item)
+        assert re.search(r"every design[^.]*stopped[^.]*\*\*theme reflection\*\*", item)
 
 
 class TestTheAnalystMayChooseSeveralNodes:
@@ -623,7 +647,7 @@ class TestTheAnalystMayChooseSeveralNodes:
         assert "needs a result of another chosen node" in rule
         assert re.search(r"[Ll]eave it out of the decision", rule)
         assert re.search(r"tell the analyst which result", rule)
-        assert re.search(r"[Nn]o field[^.]*records", rule)
+        assert re.search(r"write it nowhere", rule)
 
     def test_a_close_takes_no_other_node(self) -> None:
         assert re.search(r"`close`[^.]*none", self._rule())
@@ -640,6 +664,14 @@ class TestTheAnalystMayChooseSeveralNodes:
         assert re.search(r"`undesigned_node_ids`[^.]*as the answer", gate)
         assert re.search(r"Brief[^.]*each of them", gate)
 
+    def test_a_round_resumed_halfway_still_gets_its_remaining_briefs(self) -> None:
+        # Review: once one design is saved the state is in_progress, and the gate asked again.
+        gate = unwrap(_framing("#### 4d:"))
+        assert re.search(
+            r"`not_started`, or `in_progress` with `undesigned_node_ids` not empty",
+            gate,
+        )
+
     def test_the_gate_shows_every_node_the_decision_names(self) -> None:
         assert "`node_ids`" in unwrap(_framing("#### 4d:"))
         step = unwrap(section(_read_skill("analysis-reflection"), "### Step T7:"))
@@ -652,9 +684,7 @@ class TestARoundWithoutAResult:
     def _load(self) -> str:
         return unwrap(section(_read_skill("analysis-reflection"), "### Step T1:"))
 
-    def test_the_reflection_reads_the_position(
-        self, handed: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_the_reflection_reads_the_position(self) -> None:
         load = section(_read_skill("analysis-reflection"), "### Step T1:")
         assert re.search(r"tree_io position --theme", load)
         reference = section(

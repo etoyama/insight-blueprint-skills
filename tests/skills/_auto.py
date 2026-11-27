@@ -12,26 +12,25 @@ def auto() -> str:
     return _read_skill("analysis-auto")
 
 
-def round_item(name: str) -> str:
-    """The numbered item ``N. **name**`` of the round, up to the next item or heading."""
+def step_item(step: str, name: str) -> str:
+    """The numbered item ``N. **name**`` under the heading *step*, up to the next item or heading."""
     found = re.search(
         rf"^\d+\. \*\*{re.escape(name)}\*\*.*?(?=^\d+\. \*\*|^#{{2,4}} |\Z)",
-        section(auto(), "### Step 3:"),
+        section(auto(), step),
         re.MULTILINE | re.DOTALL,
     )
-    assert found, f"the round has no '{name}' item"
+    assert found, f"{step} has no '{name}' item"
     return unwrap(found.group(0))
+
+
+def round_item(name: str) -> str:
+    """An item of the round of one node (Step 3)."""
+    return step_item("### Step 3:", name)
 
 
 def handover_item(name: str) -> str:
-    """The numbered item ``N. **name**`` of Step 3H, up to the next item or heading."""
-    found = re.search(
-        rf"^\d+\. \*\*{re.escape(name)}\*\*.*?(?=^\d+\. \*\*|^#{{2,4}} |\Z)",
-        section(auto(), "### Step 3H:"),
-        re.MULTILINE | re.DOTALL,
-    )
-    assert found, f"Step 3H has no '{name}' item"
-    return unwrap(found.group(0))
+    """An item of the round of several nodes (Step 3H)."""
+    return step_item("### Step 3H:", name)
 
 
 def design_beat(name: str) -> str:

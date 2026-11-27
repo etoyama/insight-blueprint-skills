@@ -295,12 +295,13 @@ design cannot be written before the other's result is known: what it counts, wha
 extracts or the line it judges by is to be chosen from what the other finds. Before you write
 the decision, say for each chosen node in one line whether it needs a result of another chosen
 node. If it does, leave it out of the decision and tell the analyst which result it waits for,
-and that it can be chosen in the round after that result. No field of the tree records that
-one node waits for another, so the reason is said here and written nowhere. If the analyst says
+and that it can be chosen in the round after that result. No field records it: say it,
+write it nowhere. If the analyst says
 the node does not need that result, their word stands.
 
 **When handed the position.** A run may be handed the output of
-`tree_io position --theme {theme_id}`. When its `state` is `not_started`, the latest decision
+`tree_io position --theme {theme_id}`. When its `state` is `not_started`, or `in_progress`
+with `undesigned_node_ids` not empty, the latest decision
 names nodes the analyst chose, and `undesigned_node_ids` holds those with nothing designed on
 them since: take `undesigned_node_ids` as the answer, do not ask again and write no decision,
 and skip the question of 4c about what
@@ -368,7 +369,8 @@ and leave the other out:
   `exploratory`.
 
 Never suggest `mixed`: a new design cannot be `mixed`. `/analysis-design` asks the intent again
-whatever the Brief suggests.
+whatever the Brief suggests, except in a round of several nodes, where the analyst reads it on
+the page.
 
 ````markdown
 ## Framing Brief

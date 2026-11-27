@@ -592,7 +592,7 @@ sequenceDiagram
 
 ### Decision: story-35-6-a-decision-of-several-nodes-is-handed-over-together
 
-- What: 最新の論点ツリーの決定が2つ以上の論点を指す巡回を、まとめて任せる巡回とする（`/analysis-auto` の Step 3H）。論点が1つの巡回は、今までの4つの確認のままである。巡回の現在地が `not_started` で `undesigned_node_ids` が複数あるときは、その全部に分析設計を起こし、1回の任せる前の確認にまとめる。Step 3H の各項目は、分析の段階ごとに分析設計を扱う。途中で止まった実行は、段階から入る項目が決まり、同じことをくり返さない。
+- What: 最新の論点ツリーの決定が2つ以上の論点を指す巡回を、まとめて任せる巡回とする（`/analysis-auto` の Step 3H）。論点が1つの巡回は、今までの4つの確認のままである。巡回の現在地が `not_started` で `undesigned_node_ids` が複数あるときは、その全部に分析設計を起こし、1回の任せる前の確認にまとめる。Step 3H の各項目は扱う分析設計を分析の段階で名指しする。途中で止まった実行も項目を上から順に通り、当てはまる分析設計の無い項目を飛ばすので、同じことをくり返さない。`/analysis-framing` の 4d は `position` を渡されたとき、`not_started` でも `in_progress` でも、`undesigned_node_ids` が空でなければそれを答えとして取る。
 - Why: 止まる回数を、論点ごとの数回からまとめて1回に減らすのが Epic の目的である。論点を1つずつ起こして確認すると、確認が論点の数だけ要る。
 - Criteria: US-1 AC 5、US-2 AC 1。論点を1つだけ調べる巡回の確認は変えない（ADR-0063 9）。見分ける値を `tree_io position` の `node_ids` の1か所にすること。
 - Affected modules: `skills/analysis-auto/SKILL.md`（Step 1 の表、Step 3H）、`skills/analysis-framing/SKILL.md`（4d の「When handed the position」）
@@ -610,16 +610,16 @@ sequenceDiagram
 
 ### Decision: story-35-6-a-running-analysis-without-an-agent-is-handed-over-again
 
-- What: `/analysis-auto` が起動したとき、分析の段階が進行中（`running`）で、この会話で実行エージェントを立てていない分析設計は、premortem をやり直して、もう一度渡す。分析者には、どの分析をもう一度任せるかと、前の実行が結果を記録に残していないことを、最初の計画で言う。同じ会話の中で実行エージェントが結果を書かずに戻った分析設計は、戻りの報告を分析者に伝え、分析者の言葉なしにはもう一度渡さない。
+- What: `/analysis-auto` が起動したとき、分析の段階が進行中（`running`）で、この会話で実行エージェントを立てていない分析設計は、premortem をやり直して、もう一度渡す。分析者にはどの分析をもう一度任せるかと、前の実行が結果を記録に残していないことを、最初の計画で言う。同じ会話の中で実行エージェントが結果を書かずに戻った分析設計は、戻りの報告を分析者に伝え、分析者に頼まれたときだけもう一度渡す。
 - Why: 実行エージェントは同じ会話の中のサブエージェントで、会話をまたいで生きない（Scope）。進行中は「任せて、まだ結果の記録が無い」ことしか言わない（ADR-0061 の Negative）。論点が1つの巡回は、今も同じ段階から premortem に入り直して走らせる。
 - Criteria: 止まる回数を増やさないこと。分析者は任せる前の確認でその分析設計を読んでいて、premortem が行数の線をもう一度見ること。論点が1つの巡回と同じ動きにすること。
-- Affected modules: `skills/analysis-auto/SKILL.md`（Step 1 の段階の表の下、Step 3H の 6）
+- Affected modules: `skills/analysis-auto/SKILL.md`（Step 3H の premortem と return）
 - Alternatives considered: 分析者に、もう一度任せるか止めるかを聞く（KEEP ゲートが1つ増える。分析者が答えに使える情報は、対話エージェントが言う内容と同じである）。
 - Consequences: 別の会話がまだ同じ分析を走らせていると、同じ抽出が2回走る。同じ `.insight/` を2つの会話で同時に巡回することは、この Epic では守らない。
 
 ### Decision: story-35-6-the-agent-says-which-result-a-chosen-node-waits-for
 
-- What: 分析者が複数の論点を選んだとき、対話エージェントは決定を書く前に、選んだ論点ごとに、ほかの選んだ論点の結果が要るかを1行で言う。要る論点は決定から外し、どの結果を待つかと、その結果の後の巡回で選べることを言う。待つとは、数える対象・抽出・判定の線を、ほかの論点の結果から決めることである。分析者が要らないと言えば、分析者の言葉に従う。規則は `/analysis-framing` の 4d に1か所置き、4b と `/analysis-reflection` の Step T7 はそこを指す。
+- What: 分析者が複数の論点を選んだとき、対話エージェントは決定を書く前に、選んだ論点ごとに、ほかの選んだ論点の結果が要るかを1行で言う。要る論点は決定から外し、どの結果を待つかと、その結果の後の巡回で選べることを言う。待つとは数える対象・抽出・判定の線を、ほかの論点の結果から決めることである。分析者が要らないと言えば、分析者の言葉に従う。規則は `/analysis-framing` の 4d に1か所置き、4b と `/analysis-reflection` の Step T7 はそこを指す。
 - Why: 依存を書く項目は無い（前の結果を使う分析は次の Epic）。手で通したとき、抽出がほかの論点の結果で決まる論点を、文でしか書けなかった。
 - Criteria: US-1 AC 5。規則を1か所に置くこと。記録の項目を足さないこと（Scope）。
 - Affected modules: `skills/analysis-framing/SKILL.md`（4b、4d）、`skills/analysis-reflection/SKILL.md`（Step T7）
@@ -628,8 +628,8 @@ sequenceDiagram
 
 ### Decision: story-35-6-the-brief-of-an-execution-agent-is-a-list-in-the-skill
 
-- What: 実行エージェントへの指示は、`/analysis-auto` の Step 3H の下の「The brief of an execution agent」に、項目の一覧で置く。項目は、渡す分析設計と作業フォルダ、すること（`/analysis-notebook` を読んで従う）、書くもの（自分の notebook・verdict・journal だけ）、走らせないもの（分析設計を書く `design_io` の命令、書き込む `tree_io` の命令、`tree_io render`）、止まる所（分析者に聞かずに戻る）、返すもの、である。
-- Why: 実行エージェントは会話の中身を知らない。手で通したとき、実行エージェントの1人が指示に反して `tree_io render` を走らせた。35.7 は、分析者への確認（`design_io ask-analyst`）で戻る条件を、同じ一覧に足す。
+- What: 実行エージェントへの指示は `/analysis-auto` の Step 3H の下の「The brief of an execution agent」に、項目の一覧で置く。項目は渡す分析設計と作業フォルダ、すること（`/analysis-notebook` を読んで従う）、書くもの（自分の notebook・verdict・journal だけ）、走らせないもの（分析設計を書く `design_io` の命令、書き込む `tree_io` の命令、`tree_io render`）、止まる所（分析者に聞かずに戻る）、返すもの、である。
+- Why: 実行エージェントは会話の中身を知らない。手で通したとき、実行エージェントの1人が指示に反して `tree_io render` を走らせた。35.7 は分析者への確認（`design_io ask-analyst`）で戻る条件を、同じ一覧に足す。
 - Criteria: US-5 AC 2（ADR-0062 1・2）。35.7 が項目を足せる形にすること。
 - Affected modules: `skills/analysis-auto/SKILL.md`
 - Alternatives considered: `/analysis-notebook` の側に、まとめて任せた実行での決まりを書く（Step 7 の切り分けは 35.7 の範囲である）。
@@ -637,10 +637,10 @@ sequenceDiagram
 
 ### Decision: story-35-6-the-check-names-designs-without-a-data-scope-and-comments-are-review-batches
 
-- What: `tree_io handover` は、並べる分析設計のうちデータの範囲を持たないものを `no_data_scope` に返す。対話エージェントは、これが空でない間は任せる前の確認を求めず、先にデータの範囲を書く。分析者が貼ったコメントは、分析設計ごとに `design_io review-batch --status revision_requested` で記録し、`design_io update` で直し、`design_io transition --target in_review` で戻す。任せないと決めた分析設計は `design_io stop` で止める。premortem が `HARD_BLOCK`・`HIGH` を返したら、分析者が決めるまで、どの分析設計も任せない。
-- Why: データの範囲を持たない分析設計は、対象・粒度・分母の行が「書いていない」になり、分析間の違いの印が意味を持たない。`review-batch` は分析設計の状態の遷移を必ず伴う（`design_io.append_review_batch`）。修正待ちの分析設計も分析の段階は実行前のままなので、直している間もページの節に残る。
+- What: `tree_io handover` は、並べる分析設計のうちデータの範囲を持たないものを `no_data_scope` に返す。対話エージェントは、これが空でない間は任せる前の確認を求めず、先にデータの範囲を書く。分析者が貼ったコメントは、分析設計ごとに `design_io review-batch --status revision_requested` で記録し、`design_io update` で直し、`design_io transition --target in_review` で戻す。任せないと決めた分析設計は `design_io stop` で止める。premortem が `HARD_BLOCK`・`HIGH` を返したら、分析者が決めるまで、どの分析設計も任せない。`analyzing` への遷移が拒まれた分析設計（判定の基準の無い検証など）は、拒んだ理由を見せて任せる前の確認に戻し、残りは進める。
+- Why: データの範囲を持たない分析設計は、対象・粒度・分母の行が「書いていない」になり、分析間の違いの印が意味を持たない。`review-batch` は分析設計の状態の遷移を必ず伴う（`design_io.append_review_batch`）。修正待ちの分析設計も分析の段階は実行前のままなので、直している間もページの節に残る。`/analysis-review` は通さない。コメントは分析者がページで書いたもので、批評を起こす手順が要らないためである。
 - Criteria: US-7 AC 2、US-2 AC 5。印と同じ読み方（`_handover_designs`）で検査すること。合成シナリオで、範囲の無い分析設計が `no_data_scope` に挙がり、コメントが review コメントとして残り、止めた分析設計が節から消えて「止めた」と理由つきで出ることを確かめた。
-- Affected modules: `skills/_shared/handover.py`（`HandoverDesign.states_scope`）、`skills/_shared/tree_read.py::handover`、`skills/analysis-auto/SKILL.md`（Step 3H の 3・4）、`skills/analysis-design/SKILL.md`（`data_scope` の項目）
+- Affected modules: `skills/_shared/handover.py`（`HandoverDesign.states_scope`、`SCOPE_ROWS`）、`skills/_shared/tree_read.py::handover`、`skills/analysis-auto/SKILL.md`（Step 3H の 3・4）、`skills/analysis-design/SKILL.md`（`data_scope` の項目）
 - Alternatives considered: `tree_io handover` が非ゼロで終わる（どの分析設計かを skill が読めない）。`design_io transition --target analyzing` がデータの範囲を求める（論点が1つの巡回では任意である。ADR-0066 4）。
 - Consequences: 検査は「あるか」だけを見る（ADR-0066 の Negative のまま）。コメントの付いた分析設計は、一度 `revision_requested` を通る。
 
@@ -680,4 +680,4 @@ sequenceDiagram
 - 2026-11-27 — Story 35.4 completed: 論点ツリーの HTML が、分析設計ごとに分析の段階を言葉と色で出し、止めた理由と確認したいことを添える。確認待ちの分析を冒頭に抜き出し、止めたの色を足し、止めたカードを最後に並べ、「次に調べる論点」と決定の一覧が決定の全部の論点を出す（#288）。計画外の判断は2件（Decisions）。合成シナリオ `lib-stages` を足した。人が画面を読む段の言い回しの一覧と、人間が決める7件は共有ノートの `284-s4-words.md` にある。
 - 2026-11-27 — 人間が実物の画面と言い回しの一覧を読んだ: 指摘8件（35.5 で直す5件、35.7 で直す1件、変えない2件）。
 - 2026-11-27 — Story 35.5 completed: 論点ツリーの HTML に「分析を任せる前の確認」の節（最新の決定が指す論点の実行前の分析設計を列に並べ、対象・粒度・分母・データソースの違いに印、分析設計ごとのコメント欄とまとめた文）。`tree_io handover` が同じ規則を返す。人が画面を読む段の直し5件を入れた。
-- 2026-11-27 — Story 35.6 completed: `/analysis-auto` が、複数の論点を指す決定の巡回をまとめて任せる（Step 3H）。分析設計を `in_review` で保存して結び、任せる前の確認を1回求め、コメントを review コメントに記録し、任せない分析設計を止め、分析設計ごとに実行エージェントへ渡す。入る項目は `tree_io position` の分析の段階で決める。`tree_io handover` はデータの範囲の無い分析設計を挙げる（#290）。決めたことは Decisions の6件。実行エージェントの戻りのたびの書き直し、任せた後の確認、終え方をまとめて聞くことは 35.7 に渡す。
+- 2026-11-27 — Story 35.6 completed: `/analysis-auto` が、複数の論点を指す決定の巡回をまとめて任せる（Step 3H）。分析設計を `in_review` で保存して結び、任せる前の確認を1回求め、コメントを review コメントに記録し、任せない分析設計を止め、分析設計ごとに実行エージェントへ渡す。入る項目は `tree_io position` の分析の段階で決める。`tree_io handover` はデータの範囲の無い分析設計を挙げる（#290）。決めたことは Decisions の6件。thermos（バグ・品質の2本）の指摘を直した: 途中で再開した巡回が残りの Brief を取れること、次の巡回が Step 3H に入ること、遷移が拒まれたときの戻り先、段階と項目の対応を Step 3H に寄せること、用語集に対話エージェントと実行エージェントを足すこと。実行エージェントの戻りのたびの書き直し、任せた後の確認、終え方をまとめて聞くことは 35.7 に渡す。

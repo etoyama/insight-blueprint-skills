@@ -60,3 +60,10 @@ def run_shown_design_commands(
         assert design_io._main(args) == 0, shown[0]
         results.append(json.loads(capsys.readouterr().out))
     return results
+
+
+def run_shown_design_line(prose: str, command: str, insight: Path) -> int:
+    """Run the one-line ``design_io <command> ...`` shown in *prose*."""
+    shown = re.search(rf"^[ \t]*design_io ({re.escape(command)} [^\n]+)$", prose, re.M)
+    assert shown, f"no design_io {command} command is shown"
+    return design_io._main([*shown[1].split(), "--base-dir", str(insight)])

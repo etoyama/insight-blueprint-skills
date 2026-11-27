@@ -83,7 +83,7 @@
 | 引き継ぎの試行 | — | 論点ツリーの表示だけを別の読み手に渡し、現在地と次の一手を説明できるかを確かめること。製品の成功基準。問いは6つで、6つ目（答えも数値も変わっていないのに、上の論点の答えがその証拠を引用する文が変わった論点）は Epic 34 で足した | — | [epic-18](design/epic-18-question-tree.md) |
 | 正解の鍵 | — | 引き継ぎの試行で、合成シナリオの論点ツリーを読んだ人が出すべき判断。論点・出来事・分析設計の id と答えの種類で書き、読み手の答えをこれと比べて採点する | — | [epic-18](design/epic-18-question-tree.md) |
 | 試行の記録 | — | 引き継ぎの試行1回分の記録。読み手、6つの問いへの答え（6つ目を足す前の記録は5つ）、問いごとの正誤、確認と再構成にかかった時間を持つ。読み手が Claude なら、答えたモデルの ID も持つ（2026-11-26 までの記録は持たない） | — | [epic-18](design/epic-18-question-tree.md)、[ADR-0060](adr/0060-a-trial-record-names-the-model-that-read.md) |
-| 巡回 | — | guided autopilot が、論点ツリーの決定が指す1つ以上の論点を調べるひと回り。論点に分析設計を起こすところから、論点ツリーの決定を残すところまで | イテレーション | [ADR-0026](adr/0026-analysis-auto-walks-the-question-tree.md)、[ADR-0061](adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md) |
+| 巡回 | — | guided autopilot が、論点ツリーの決定が指す1つ以上の論点を調べるひと回り。論点に分析設計を起こすところから、論点ツリーの決定を残すところまで。決定が2つ以上の論点を指す巡回は、分析設計をまとめて任せる: 任せる前の確認を1回求め、分析設計ごとに実行エージェントへ渡す | イテレーション | [ADR-0026](adr/0026-analysis-auto-walks-the-question-tree.md)、[ADR-0061](adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md) |
 | 巡回の現在地 | `tree_io position`、`WalkState` | 巡回を再開する所。保存せず、最新の論点ツリーの決定が指す全部の論点と、そこに結んだ分析設計の分析の段階から導く。終わっていない分析が1つでもあれば、巡回が終わったとは返さない。決定の後の分析設計が無い論点があるときも返さない。止めた分析は終わっていない分析に数えない。論点ごとに、結んだ分析設計と分析の段階も返す。状態の一覧は `tree_read` の `WalkState` にある | — | [epic-18](design/epic-18-question-tree.md)、[ADR-0061](adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md) |
 | framing | `/analysis-framing`、`Framing Brief` | 使えるデータと既存の分析を見て、分析の方向を決めること。結果を Framing Brief にまとめる | — | fork 前 |
 | notebook | `/analysis-notebook` | 分析設計の手法から生成して実行する素の Python のスクリプト。`# %% <名前>` の行で7つの cell に区切り、冒頭の docstring に分析設計の id・題・探索の問いか検証仮説・intent を書く。`python` で上から下へ1段で走る | ノートブック | [epic-07](design/epic-07-analysis-notebook.md)、[ADR-0045](adr/0045-notebook-is-plain-python-with-percent-cells.md) |
@@ -120,6 +120,8 @@
 | パッケージ許可リスト | `package_allowlist.yaml`、`allowlist_ok` | notebook が import してよいパッケージの宣言。premortem と guided autopilot は、既定の許可リストにこれを足したものを、notebook へ進んでよいかの境界に使う。ファイルが無ければ既定の許可リストだけを使う | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |
 | 既定の許可リスト | `notebook` extra | notebook の契約がすべての notebook で import するパッケージ。plugin の env に最初から入っている。パッケージ許可リストの有無や中身にかかわらず許す | — | [ADR-0021](adr/0021-default-package-allowlist.md)、[ADR-0027](adr/0027-default-allowlist-always-allowed.md) |
 | guided autopilot | `/analysis-auto` | driver が既存の skill を順に動かし、KEEP ゲートでだけ止まる実行 | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |
+| 対話エージェント | — | `/analysis-auto` を起動したセッションの Claude。分析者と話し、分析を任せ、論点ツリー・分析設計・論点ツリーの HTML を書く。まとめて任せた実行で、これらを書くのは対話エージェントだけである | — | [ADR-0062](adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md) |
+| 実行エージェント | — | 対話エージェントが分析設計を1つ渡して実行させる、同じセッションの中の Claude。書くのは、渡された分析設計の notebook・verdict・journal だけである。分析者とは話さない | — | [ADR-0062](adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md) |
 | KEEP ゲート | `KEEP` | skill が止まって分析者の判断を待つ所。guided autopilot はここでだけ止まる。`.insight/` の中身を外部へ送る skill は、単独で起動されたときもここで承認を待つ | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md)、[ADR-0016](adr/0016-approval-before-external-send.md) |
 | AUTO | `AUTO` | guided autopilot が分析者に聞かずに進める所 | — | [ADR-0005](adr/0005-selective-autonomous-chaining.md) |
 
