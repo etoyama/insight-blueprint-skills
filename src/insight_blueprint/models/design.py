@@ -9,6 +9,7 @@ from pydantic import (
     ConfigDict,
     Field,
     SerializerFunctionWrapHandler,
+    field_validator,
     model_serializer,
     model_validator,
 )
@@ -202,18 +203,20 @@ class DataScope(BaseModel):
     measures no share says in its denominator that it has none.
     """
 
+    # Like the other parts of a design, a field this plugin does not know yet
+    # is kept rather than refused, so a newer plugin's record still reads.
     model_config = ConfigDict(extra="allow")
 
     population: str
     grain: str
     denominator: str
 
-    @model_validator(mode="after")
-    def _every_part_is_written(self) -> Self:
-        for name in ("population", "grain", "denominator"):
-            if not getattr(self, name).strip():
-                raise ValueError(f"{name}: a data scope needs it written")
-        return self
+    @field_validator("population", "grain", "denominator")
+    @classmethod
+    def _written(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("a data scope needs it written")
+        return value
 
 
 class AnalysisDesign(BaseModel):
@@ -328,7 +331,7 @@ class AnalysisDesign(BaseModel):
         self, handler: SerializerFunctionWrapHandler
     ) -> dict[str, Any]:
         data = handler(self)
-        for name in (*_FORM_FIELDS, "analysis_started_at", "data_scope"):
+        for name in _LEFT_OUT_WHEN_NONE:
             if data.get(name, "") is None:
                 del data[name]
         return data
@@ -348,3 +351,6 @@ _FORM_FIELDS = (
     "hypothesis_statement",
     "hypothesis_background",
 )
+# Fields a design without them is written back without, so a saved design
+# keeps its shape (ADR-0048, ADR-0053, ADR-0066).
+_LEFT_OUT_WHEN_NONE = (*_FORM_FIELDS, "analysis_started_at", "data_scope")

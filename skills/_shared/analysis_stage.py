@@ -6,7 +6,8 @@ applies it. A reader that shows how far an analysis went calls
 
 The marks of a confirmation, of its answer and of a stop are written only by
 the commands of ``design_io`` (``ask-analyst``, ``answer-analyst``, ``stop``;
-ADR-0064 8). A mark counts only on the kind of event its command writes.
+ADR-0064 8), from the events built here. A mark counts only on the kind of
+event its builder makes, so reading and writing a mark sit side by side.
 """
 
 from __future__ import annotations
@@ -16,17 +17,30 @@ from enum import StrEnum
 
 from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 
-# The metadata keys the commands of design_io write (ADR-0064 8).
-ASKS_ANALYST = "asks_analyst"
-ANSWERS = "answers"
-STOPPED = "stopped"
-MARKS = (ASKS_ANALYST, ANSWERS, STOPPED)
+# The metadata keys of the marks (ADR-0064 8).
+MARKS = ("asks_analyst", "answers", "stopped")
+_ASKS_ANALYST, _ANSWERS, _STOPPED = MARKS
 
-QUESTION = "question"
-DECIDE = "decide"
+_QUESTION = "question"
+_DECIDE = "decide"
 # What /analysis-design copies in before premortem: it does not mean the
 # analysis ran (analysis-auto, Step 1).
-HEARING = "hearing"
+_HEARING = "hearing"
+
+
+def confirmation(content: str) -> dict:
+    """The fields of a confirmation the analysis asks of the analyst."""
+    return {"type": _QUESTION, "content": content, "metadata": {_ASKS_ANALYST: True}}
+
+
+def answer(question_id: str, content: str) -> dict:
+    """The fields of the analyst's answer to the confirmation *question_id*."""
+    return {"type": _DECIDE, "content": content, "metadata": {_ANSWERS: question_id}}
+
+
+def stop(reason: str) -> dict:
+    """The fields of the reason the analysis was stopped."""
+    return {"type": _DECIDE, "content": reason, "metadata": {_STOPPED: True}}
 
 
 def _metadata(event: dict) -> dict:
@@ -36,32 +50,34 @@ def _metadata(event: dict) -> dict:
 
 def asks_analyst(event: dict) -> bool:
     """Whether *event* is a confirmation the analysis asks of the analyst."""
-    return event.get("type") == QUESTION and _metadata(event).get(ASKS_ANALYST) is True
+    return (
+        event.get("type") == _QUESTION and _metadata(event).get(_ASKS_ANALYST) is True
+    )
 
 
-def answered_id(event: dict) -> str | None:
+def answers_of(event: dict) -> str | None:
     """The id of the confirmation *event* answers, or None if it answers none."""
-    if event.get("type") != DECIDE:
+    if event.get("type") != _DECIDE:
         return None
-    answered = _metadata(event).get(ANSWERS)
+    answered = _metadata(event).get(_ANSWERS)
     return answered if isinstance(answered, str) else None
 
 
 def stops(event: dict) -> bool:
     """Whether *event* is the reason the analysis was stopped."""
-    return event.get("type") == DECIDE and _metadata(event).get(STOPPED) is True
+    return event.get("type") == _DECIDE and _metadata(event).get(_STOPPED) is True
 
 
 def open_confirmations(events: Iterable[dict]) -> list[dict]:
     """The confirmations among *events* that no answer names yet, in order."""
     events = list(events)
-    answered = {answered_id(e) for e in events} - {None}
+    answered = {answers_of(e) for e in events} - {None}
     return [e for e in events if asks_analyst(e) and e.get("id") not in answered]
 
 
 def _records_a_result(event: dict) -> bool:
     return not (
-        event.get("type") == HEARING or asks_analyst(event) or answered_id(event)
+        event.get("type") == _HEARING or asks_analyst(event) or answers_of(event)
     )
 
 
@@ -76,10 +92,11 @@ class AnalysisStage(StrEnum):
     finished = "finished"
 
     @classmethod
-    def of(cls, status: DesignStatus, events: Iterable[dict]) -> AnalysisStage:
+    def of(cls, status: DesignStatus | str, events: Iterable[dict]) -> AnalysisStage:
         """The stage of a design in *status* whose journal holds *events*.
 
-        The first line that holds decides, in the order of ADR-0061 6.
+        The first line that holds decides, in the order of ADR-0061 6. A status
+        read from a file as text is read as its ``DesignStatus``.
         """
         status = DesignStatus(status)
         events = list(events)
@@ -94,3 +111,18 @@ class AnalysisStage(StrEnum):
         if any(_records_a_result(e) for e in events):
             return cls.awaiting_reflection
         return cls.running
+
+
+# The stages a confirmation and a stop may be written from (the State Diagram
+# of docs/design/epic-35-hand-over-questions.md). Only a running analysis asks:
+# one before its run is read before it is handed over, and one with results has
+# touched the data already (ADR-0064 1). One with results waits for its
+# reflection, which ends it instead of a stop.
+ASKS_FROM = frozenset({AnalysisStage.running})
+STOPS_FROM = frozenset(
+    {
+        AnalysisStage.before_run,
+        AnalysisStage.running,
+        AnalysisStage.awaiting_confirmation,
+    }
+)

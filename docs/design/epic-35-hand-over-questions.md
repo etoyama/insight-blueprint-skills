@@ -485,7 +485,7 @@ sequenceDiagram
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
 | Story 35.1 | ✓ | ✓ | —（表示の通し道は変えていない。ページの違反は同じ `check_cited` を通る。`tree_io decide` は合成シナリオ（`scripts.handoff_trial build --scenario lib`）で、id と「2回目の振り返り」が通り、「1を超える」の 1・まだ無い回・ツリーに無い id が `fix` つきで拒まれることを、実際に呼んで確かめた） |
-| Story 35.2 | ☐ | ☐ | ☐ |
+| Story 35.2 | ✓ | ✓ | —（skill の流れに入れるのは 35.6・35.7。リポジトリの外の `.insight/` で、2プロセスの `design_io create` を20回（id の重なり0回）、`ask-analyst`・`answer-analyst`・`stop` と分析の段階の移り変わり、`data_scope` を持つ分析設計と持たない保存済みの分析設計が検証 hook を通り分析ノートに出ることを、コマンドで確かめた） |
 | Story 35.3 | ☐ | ☐ | ☐ |
 | Story 35.4 | ☐ | ☐ | ☐ |
 | Story 35.5 | ☐ | ☐ | ☐ |

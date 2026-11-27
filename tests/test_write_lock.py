@@ -68,3 +68,24 @@ class TestWriteLock:
         assert len(set(ids)) == 2 * ROUNDS
         written = [e["id"] for e in design_io.journal_events(design_id, insight)]
         assert sorted(written) == sorted(ids)
+
+
+def test_threads_meeting_a_new_base_dir_share_one_lock(tmp_path: Path) -> None:
+    import threading
+
+    base = tmp_path / ".insight"
+    barrier = threading.Barrier(8)
+    done: list[bool] = []
+
+    def take() -> None:
+        barrier.wait()
+        with write_lock(base), write_lock(base):
+            done.append(True)
+
+    threads = [threading.Thread(target=take, daemon=True) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=10)
+
+    assert len(done) == 8

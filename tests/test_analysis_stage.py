@@ -9,11 +9,17 @@ import pytest
 
 from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 from skills._shared.analysis_stage import (
-    ANSWERS,
-    ASKS_ANALYST,
-    STOPPED,
+    MARKS,
     AnalysisStage,
+    answer,
+    answers_of,
+    asks_analyst,
+    confirmation,
+    stop,
+    stops,
 )
+
+ASKS_ANALYST, ANSWERS, STOPPED = MARKS
 
 
 def _ask(event_id: str = "FP-H01-E01") -> dict:
@@ -136,3 +142,14 @@ class TestMarksCountOnlyOnTheirEvents:
 
 def test_a_status_read_from_a_file_as_text_is_read_as_its_status() -> None:
     assert AnalysisStage.of("analyzing", []) is AnalysisStage.running
+
+
+class TestTheBuildersMakeWhatTheReadersRead:
+    def test_a_built_confirmation_is_a_confirmation(self) -> None:
+        assert asks_analyst(confirmation("分母を変えないと進めない"))
+
+    def test_a_built_answer_names_its_confirmation(self) -> None:
+        assert answers_of(answer("FP-H01-E01", "そのまま")) == "FP-H01-E01"
+
+    def test_a_built_stop_stops(self) -> None:
+        assert stops(stop("先に別の論点を見る"))

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -74,6 +75,9 @@ def atomic_write_text(path: Path, text: str) -> None:
 # instance counts how often its holder took it, so a writer that calls another
 # writer under the lock takes it again instead of waiting on itself.
 _WRITE_LOCKS: dict[Path, FileLock] = {}
+# Two threads that met a new base dir at once would each build a FileLock, and
+# a nested writer of the first would then wait on the second: on its own lock.
+_WRITE_LOCKS_GUARD = threading.Lock()
 
 WRITE_LOCK_NAME = ".write.lock"
 
@@ -84,13 +88,15 @@ def write_lock(base_dir: Path) -> Iterator[None]:
 
     The lock of ``atomic_write_yaml`` covers only the moment of the write: two
     processes that read the same highest id both write it. Every writer of
-    designs, journals and question trees under one ``.insight`` takes this one
-    lock, so no two writers interleave and no order of locks can deadlock.
+    ``design_io`` takes this one lock per ``.insight``, so no two writers
+    interleave and no order of locks can deadlock. The writers of ``tree_io``
+    take it from Story 35.3; until then they hold only the lock of the write.
     """
     path = Path(base_dir).resolve() / WRITE_LOCK_NAME
-    lock = _WRITE_LOCKS.get(path)
-    if lock is None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        lock = _WRITE_LOCKS[path] = FileLock(str(path))
+    with _WRITE_LOCKS_GUARD:
+        lock = _WRITE_LOCKS.get(path)
+        if lock is None:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            lock = _WRITE_LOCKS[path] = FileLock(str(path))
     with lock:
         yield

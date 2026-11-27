@@ -42,15 +42,15 @@ from insight_blueprint.validate import (
 from skills._shared._atomic import atomic_write_yaml, write_lock
 from skills._shared._stdin import read_payload
 from skills._shared.analysis_stage import (
-    ANSWERS,
-    ASKS_ANALYST,
-    DECIDE,
+    ASKS_FROM,
     MARKS,
-    QUESTION,
-    STOPPED,
+    STOPS_FROM,
     AnalysisStage,
+    answer,
     asks_analyst,
+    confirmation,
     open_confirmations,
+    stop,
 )
 from skills._shared.ids import SAFE_ID_PATTERN
 
@@ -413,11 +413,13 @@ def append_journal_event(
     set here. A journal that does not exist yet gets the header
     ``/analysis-journal`` writes. A journal that is not a mapping with a list of
     events is refused and left untouched: reading it as empty would overwrite it.
-    The marks of a confirmation, an answer and a stop are refused: only
-    ``ask_analyst``, ``answer_analyst`` and ``stop_analysis`` write them (ADR-0064 8).
+    The marks of a confirmation, an answer and a stop are refused here, so a
+    writer through this module goes through ``ask_analyst``, ``answer_analyst``
+    or ``stop_analysis``. A journal written by hand is held to the same rule by
+    the skills' own text (analysis-journal, ADR-0064 8).
     """
     metadata = event_fields.get("metadata")
-    marked = [m for m in MARKS if isinstance(metadata, dict) and m in metadata]
+    marked = [m for m in MARKS if m in metadata] if isinstance(metadata, dict) else []
     if marked:
         raise ValueError(
             f"metadata.{marked[0]} is written only by design_io ask-analyst, "
@@ -477,51 +479,74 @@ def _read_journal(path: Path) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def _text_of(text: str, what: str) -> str:
+def _required_text(text: str | None, what: str) -> str:
+    """*text* itself; ValueError if it is missing or blank (a payload may omit it)."""
     if not isinstance(text, str) or not text.strip():
         raise ValueError(f"{what} is empty")
     return text
 
 
-def _stage_of(design_id: str, base_dir: Path) -> tuple[AnalysisStage, list[dict]]:
-    """The stage of *design_id* and its events, read under the caller's lock."""
+def _stage_and_events(
+    design_id: str, base_dir: Path
+) -> tuple[AnalysisStage, list[dict]]:
     design = load_design(design_id, base_dir)
     if not design:
         raise ValueError(f"Design '{design_id}' not found")
+    try:
+        status = DesignStatus(design.get("status"))
+    except ValueError:
+        raise ValueError(
+            f"Design '{design_id}' on disk has no valid status: repair it first"
+        ) from None
     events = journal_events(design_id, base_dir)
-    return AnalysisStage.of(DesignStatus(design["status"]), events), events
+    return AnalysisStage.of(status, events), events
+
+
+def stage_of(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> AnalysisStage:
+    """The analysis stage of *design_id*, read from its design and journal.
+
+    Raises ValueError if the design does not exist.
+    """
+    return _stage_and_events(design_id, base_dir)[0]
+
+
+def _check_stage(
+    design_id: str, allowed: frozenset[AnalysisStage], refusal: str, base_dir: Path
+) -> None:
+    """ValueError saying *refusal* unless the stage of *design_id* is in *allowed*."""
+    stage = stage_of(design_id, base_dir)
+    if stage not in allowed:
+        raise ValueError(f"{design_id} is {stage.value}: {refusal}")
 
 
 def ask_analyst(
-    design_id: str, content: str, base_dir: Path = DEFAULT_BASE_DIR
+    design_id: str, content: str | None, base_dir: Path = DEFAULT_BASE_DIR
 ) -> dict:
     """Record that a running analysis waits for the analyst, and what it asks.
 
-    *content* says what the analysis cannot go on without changing. Only a
-    running analysis asks: one before its run is confirmed before it is handed
-    over, and one with results has touched the data already (ADR-0064 1).
+    *content* says what the analysis cannot go on without changing (ADR-0064 1).
     """
-    content = _text_of(content, "the confirmation")
+    content = _required_text(content, "the confirmation")
     with write_lock(base_dir):
-        stage, _ = _stage_of(design_id, base_dir)
-        if stage is not AnalysisStage.running:
-            raise ValueError(
-                f"{design_id} is {stage.value}: only a running analysis asks the analyst"
-            )
-        return _append_event(
-            design_id,
-            {"type": QUESTION, "content": content, "metadata": {ASKS_ANALYST: True}},
-            base_dir,
+        _check_stage(
+            design_id, ASKS_FROM, "only a running analysis asks the analyst", base_dir
         )
+        return _append_event(design_id, confirmation(content), base_dir)
 
 
 def answer_analyst(
-    design_id: str, question_id: str, content: str, base_dir: Path = DEFAULT_BASE_DIR
+    design_id: str,
+    question_id: str | None,
+    content: str | None,
+    base_dir: Path = DEFAULT_BASE_DIR,
 ) -> dict:
     """Record the analyst's answer to the confirmation *question_id*."""
-    content = _text_of(content, "the answer")
+    content = _required_text(content, "the answer")
     with write_lock(base_dir):
-        stage, events = _stage_of(design_id, base_dir)
+        stage, events = _stage_and_events(design_id, base_dir)
+        # An open confirmation keeps the stage at awaiting_confirmation, so the
+        # check that counts is the one below; this one names a stopped or
+        # finished analysis instead of saying its confirmation was answered.
         if stage in (AnalysisStage.stopped, AnalysisStage.finished):
             raise ValueError(f"{design_id} is {stage.value}: it takes no answer")
         if not any(e.get("id") == question_id and asks_analyst(e) for e in events):
@@ -530,42 +555,21 @@ def answer_analyst(
             )
         if not any(e.get("id") == question_id for e in open_confirmations(events)):
             raise ValueError(f"{question_id} is already answered")
-        return _append_event(
-            design_id,
-            {"type": DECIDE, "content": content, "metadata": {ANSWERS: question_id}},
-            base_dir,
-        )
-
-
-# The stages an analysis may be stopped from (the State Diagram of Epic 35):
-# one with results waits for its reflection, which ends it instead.
-_STOPPABLE = frozenset(
-    {
-        AnalysisStage.before_run,
-        AnalysisStage.running,
-        AnalysisStage.awaiting_confirmation,
-    }
-)
+        return _append_event(design_id, answer(str(question_id), content), base_dir)
 
 
 def stop_analysis(
-    design_id: str, reason: str, base_dir: Path = DEFAULT_BASE_DIR
+    design_id: str, reason: str | None, base_dir: Path = DEFAULT_BASE_DIR
 ) -> dict:
     """Record why the analysis of *design_id* stops. Its status does not change.
 
     A stopped analysis is not resumed: to try again, derive another design
     (ADR-0064 7).
     """
-    reason = _text_of(reason, "the reason")
+    reason = _required_text(reason, "the reason")
     with write_lock(base_dir):
-        stage, _ = _stage_of(design_id, base_dir)
-        if stage not in _STOPPABLE:
-            raise ValueError(f"{design_id} is {stage.value}: it cannot be stopped")
-        return _append_event(
-            design_id,
-            {"type": DECIDE, "content": reason, "metadata": {STOPPED: True}},
-            base_dir,
-        )
+        _check_stage(design_id, STOPS_FROM, "it cannot be stopped", base_dir)
+        return _append_event(design_id, stop(reason), base_dir)
 
 
 # ---------------------------------------------------------------------------

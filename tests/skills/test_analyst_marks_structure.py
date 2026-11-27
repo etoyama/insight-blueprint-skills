@@ -12,9 +12,11 @@ import re
 import pytest
 
 from skills._shared import design_io
-from skills._shared.analysis_stage import ANSWERS, ASKS_ANALYST, STOPPED
+from skills._shared.analysis_stage import MARKS
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills.test_skill_structure import _read_skill
+
+ASKS_ANALYST, ANSWERS, STOPPED = MARKS
 
 
 def _convention() -> str:

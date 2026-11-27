@@ -423,21 +423,18 @@ def _data_scope(design: AnalysisDesign) -> list[Html]:
 
 
 def _method(design: AnalysisDesign, anchor: str) -> Html:
+    scope = _data_scope(design)
     methodology = design.methodology
     if methodology is None:
         return _section(
-            anchor,
-            "method",
-            "手法",
-            *_data_scope(design),
-            el("p", "手法は書かれていない。"),
+            anchor, "method", "手法", *scope, el("p", "手法は書かれていない。")
         )
     steps = (methodology.model_extra or {}).get("steps")
     return _section(
         anchor,
         "method",
         "手法",
-        *_data_scope(design),
+        *scope,
         el("p", f"手法: {methodology.method}"),
         el("p", f"パッケージ: {methodology.package}") if methodology.package else None,
         el("p", f"理由: {methodology.reason}") if methodology.reason else None,

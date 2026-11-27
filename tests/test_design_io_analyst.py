@@ -15,12 +15,7 @@ from pathlib import Path
 import pytest
 
 from skills._shared import design_io
-from skills._shared.analysis_stage import (
-    ANSWERS,
-    ASKS_ANALYST,
-    STOPPED,
-    AnalysisStage,
-)
+from skills._shared.analysis_stage import MARKS, AnalysisStage
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -30,6 +25,9 @@ def insight(tmp_path: Path) -> Path:
     base = tmp_path / ".insight"
     (base / "designs").mkdir(parents=True)
     return base
+
+
+ASKS_ANALYST, ANSWERS, STOPPED = MARKS
 
 
 def _design(insight: Path, status: str = "analyzing") -> str:
@@ -50,8 +48,7 @@ def _design(insight: Path, status: str = "analyzing") -> str:
 
 
 def _stage(insight: Path, design_id: str) -> AnalysisStage:
-    status = design_io.load_design(design_id, insight)["status"]
-    return AnalysisStage.of(status, design_io.journal_events(design_id, insight))
+    return design_io.stage_of(design_id, insight)
 
 
 def _observe(insight: Path, design_id: str) -> None:
@@ -290,3 +287,13 @@ class TestCommandLine:
         )
         assert stopped.returncode == 0, stopped.stderr
         assert _stage(insight, design_id) is AnalysisStage.stopped
+
+
+def test_a_design_without_a_valid_status_is_refused_with_a_reason(
+    insight: Path,
+) -> None:
+    path = insight / "designs" / "FP-H01_hypothesis.yaml"
+    path.write_text("id: FP-H01\ntitle: broken\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="no valid status"):
+        design_io.stop_analysis("FP-H01", "x", insight)
