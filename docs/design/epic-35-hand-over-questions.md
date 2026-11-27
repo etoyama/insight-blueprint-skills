@@ -249,8 +249,9 @@ flowchart TD
     end
     subgraph cli["skills/_shared"]
         design_io["design_io<br/>作る・直す・遷移・journal<br/>確認を求める・答える・止める"]
-        tree_io["tree_io<br/>decide・link・answer<br/>position・progress・render"]
+        tree_io["tree_io<br/>decide・link・answer<br/>position・progress・render・handover"]
         stage["analysis_stage<br/>分析の段階を導く"]
+        handover["handover<br/>任せる前に並べる分析設計と<br/>分析間の違い"]
         check["tree_check<br/>id と回を数えない"]
         lock["_atomic<br/>読んでから書くまでのロック"]
     end
@@ -275,6 +276,7 @@ flowchart TD
     tree_io --> lock
     tree_io --> check
     tree_io --> stage
+    tree_io --> handover
     design_io --> designs
     design_io --> journals
     tree_io --> tree
@@ -525,6 +527,69 @@ sequenceDiagram
 - Alternatives considered: 状態の言葉を常に添え、凡例で違いを説明する（カードの上で矛盾して読める）。状態の言葉を出さない（判定と修正待ちが読めなくなる）。
 - Consequences: カードから「分析中」の言葉が消える。分析ノートは今までどおり YAML の状態を出す。人が画面を読む段で確かめる（`284-s4-words.md` の5と7）。
 
+### Decision: story-35-5-the-progress-word-says-the-question-is-being-looked-into
+
+- What: 人が実物の画面を読む段（2026-11-27、`284-s4-words.md` の番号）で人間が決めた5件を入れる。1: 冒頭の「進捗の数」もカードの下と同じく先へ進んだ順（分析済み、止めた、調べている、未着手）に並べる。2: 論点の進捗「検証中」を「調べている」に変える。分析の段階の「進行中」は変えない。4: 止めた論点の枠を破線に、止めた段階に斜線を足す。色は増やさない。6: 冒頭の確認待ちの欄の文を「この確認には、チャットでエージェントに答える。」にする。8: `tree_io report` は止めた分析設計を `stopped_designs` に分け、`unfinished_designs` は分析の段階で数える（`SETTLED` でないもの）。`report-export` は「止めた分析設計: N 件」を別の行に出す。
+- Why: 「検証中」と「進行中」が同じページに並び、論点の進捗と分析の段階を読み分けにくかった。止めたの灰色は未着手の灰色と近かった。止めた分析設計は結論を待っていないのに、レポートの承認の文では結論の出ていない分析設計に数えていた。
+- Criteria: 人間の決定（2026-11-27）。3（任せる前だけの論点も調べている）と5（状態の言葉の添え方）は今のまま、7（分析ノートの状態の行）は 35.7 が扱う。
+- Affected modules: `skills/_shared/tree_words.py`（`PROGRESS_WORDS`、`ASKS_LEAD`）、`skills/_shared/tree_render.py::_counts`、`skills/_shared/tree_render_stage.py::STAGE_CSS`、`skills/_shared/theme_report.py::ReportDesign`（`stage`）、`skills/_shared/tree_read.py::report`、`skills/report-export/SKILL.md`、`skills/analysis-framing/SKILL.md`、`skills/analysis-reflection/SKILL.md`、`docs/UBIQUITOUS_LANGUAGE.md` の進捗
+- Alternatives considered: 進捗の語を変えず、分析の段階の「進行中」を変える（人間は進捗の側を選んだ）。
+- Consequences: ADR-0033・0055・0057・0061 の本文は、決めたときの記録として「検証中」のまま残す。Decision `story-35-3-the-order-of-the-progress-words` の仮の並びはこの決定で確かめた並びになった。
+
+### Decision: story-35-5-the-check-sits-after-the-asks
+
+- What: 「分析を任せる前の確認」の節は、冒頭の確認待ちの欄の次、主題への現時点の答えの前に置く。
+- Why: どちらも分析者が今することである。確認待ちの分析はもう走っていて答えを待って止まっている。任せる前の分析はまだ何も始まっていない。止まっている方を先に読む。
+- Criteria: 分析者が戻ったときに、次にすることを上から読めること（US-3、Decision `story-35-4-stopped-cards-come-last` と同じ読み方）。
+- Affected modules: `skills/_shared/tree_render.py::render_tree_html`、`skills/_shared/tree_words.py::legend`
+- Alternatives considered: 任せる前の確認を先に置く（走っている分析の待ちが、表の下に押し出される）。
+- Consequences: 両方あるページでは、表の前に確認待ちの欄が来る。
+
+### Decision: story-35-5-the-check-reads-designs-before-their-run-on-the-last-decision
+
+- What: 節に並べるのは、最新の論点ツリーの決定が指す全部の論点に結んだ、分析の段階が実行前の分析設計だけである。区切る決定では並べない。並べる段階は `handover.READ_BEFORE_HANDOVER` の1か所にある。2つの論点に結んだ分析設計は1つの列にする。
+- Why: 任せる前の確認は、今回まとめて任せる分析設計を読む場である（ADR-0063 2）。前の決定の論点に残った実行前の分析設計まで並べると、今回任せないものが混ざる。
+- Criteria: US-2 AC 2。抽出を変えて確認待ちになった分析設計をもう一度読ませる話は 35.7 の範囲なので、段階を1か所に足せば広がる形にする（ブリーフ）。
+- Affected modules: `skills/_shared/handover.py::to_hand_over`、`READ_BEFORE_HANDOVER`
+- Alternatives considered: テーマの実行前の分析設計を全部並べる（今回任せないものが混ざる）。決定の後に作った分析設計だけにする（決定の前に作って結んだ分析設計が落ちる）。
+- Consequences: 合成シナリオ `lib-stages` の LIB-H07（LIB-Q04 の実行前）は、最新の決定が LIB-Q04 を指さないので並ばない。
+
+### Decision: story-35-5-the-extraction-is-shown-in-full-and-wraps-at-words
+
+- What: 抽出・加工条件の行は `methodology.steps` の各段を、畳まずに全文で出す。段ごとに `pre` で書いたままの改行と字下げを残し、列の幅で折り返す。単語の途中では折らない。
+- Why: 任せる前の確認は抽出を読んで直す場である（ADR-0007、ADR-0063 W2）。畳むと、3列を見比べるたびに開く手間がかかる。合成シナリオ `lib-handover` の3列（最長で12行のクエリ）を実物で開いて、横に並べたまま読めた。
+- Criteria: AC 2 の「抽出は全文を読める」。実物で確かめた（ブリーフ）。
+- Affected modules: `skills/_shared/tree_render_handover.py`（`_value`、`HANDOVER_CSS`）
+- Alternatives considered: 見本の画面1のように畳む（列を見比べにくい）。折り返さず横に流す（列が広がり、表を横に動かさないと隣の列が読めない）。
+- Consequences: 長いクエリでは節が縦に長くなる。
+
+### Decision: story-35-5-the-comments-are-gathered-in-the-page
+
+- What: コメント欄は表の最後の行に、分析設計ごとに1つ置く。「コメントをまとめる」を押すと、書かれた欄だけを「分析を任せる前の確認へのコメント」の見出しの下に「id: コメント」の行で並べ、読むだけの欄に出して選択する。クリップボードにも入れてみる（入らなくてもよい）。どの欄も空なら「コメントは書かれていない。」と出す。script はページの中で完結し、言葉はページが欄の属性で渡す。
+- Why: 分析者が分析設計ごとに直してほしいことを、1回で返せるようにするため（ADR-0063 課題3）。チャットに貼った文から、どの分析設計への指摘かを id で読めるようにする。
+- Criteria: AC 4、ADR-0063 6・7。外へ送らないことはテストで固定した（script が送る関数を持たない、form・外部の読み込みが無い）。実物でボタンを押し、2つの欄の文がまとまり、ページの読み込みの他にリクエストが無いことを確かめた。
+- Affected modules: `skills/_shared/tree_render_handover.py`（`_comment_row`、`HANDOVER_SCRIPT`）、`skills/_shared/_html.py::page`（script を1つ持てる）
+- Alternatives considered: 欄を表の下にまとめる（どの列への欄かが離れる）。
+- Consequences: 論点ツリーの HTML が初めて script を持つ。任せる前の確認の節が無いページは、今までどおり script を持たない。
+
+### Decision: story-35-5-tree-io-handover-gives-the-rule-to-the-chat
+
+- What: `tree_io handover --theme <id>` を足す。並べる分析設計の id（`design_ids`）と、値が違う行ごとに行の名前・見せる言葉・分析設計ごとの値（`differing`）を返す。何も書かない。ページの印と同じ `handover.differing_rows` を呼ぶ。
+- Why: 対話エージェントは印の付いた行をチャットにも要約して出す（AC 3、ADR-0063 5）。チャットの側で値を比べ直すと、ページの印と食い違いうる。
+- Criteria: 印の規則を1か所に置き、35.6 がチャットで同じ規則を呼べること（ブリーフ）。計画外の判断（1件目）。
+- Affected modules: `skills/_shared/tree_read.py::handover`、`skills/_shared/tree_io.py`、`skills/_shared/handover.py`
+- Alternatives considered: `tree_io position` の返り値に足す（現在地の命令が、表示の行の言葉まで持つ）。35.6 が skill の文で値を比べる（印とチャットの要約がずれうる）。
+- Consequences: 35.6 は `/analysis-auto` の文から `tree_io handover` を呼ぶ。
+
+### Decision: story-35-5-the-row-words-are-borrowed-from-the-note
+
+- What: 任せる前の確認の行の名前のうち、分析ノートが同じ意味で出す語（意図、対象・粒度・分母、手法、データソース、図）は、`design_note` の語（`INTENT_LABEL`、`SCOPE_WORDS`、`SECTION_WORDS`、`FIGURES_HEADING`）を借りる。残りの行の名前（何に答えるか、判定の基準、主指標、抽出・加工条件）は `tree_words` に置く。
+- Why: 同じ語を `tree_words` で綴り直すと、構造テスト（`test_no_other_shared_module_holds_a_copy_of_a_word`）が、分析ノートとレポートの同じ綴りを写しとして拒んだ。テストを緩めず、分析ノートの語を借りれば、分析ノートとページの行の名前がずれない。
+- Criteria: 言葉は1か所で綴る（ADR-0055、#273）。計画外の判断（2件目）。
+- Affected modules: `skills/_shared/design_note.py`、`skills/_shared/tree_words.py`
+- Alternatives considered: 構造テストに例外を足す（守りのテストを緩める）。行の名前を変える（分析ノートと画面で同じものを違う名前で呼ぶ）。
+- Consequences: 分析ノートの見出しを変えると、任せる前の確認の行の名前も変わる。`theme_report.py` の表の見出し「意図」「手法」はまだ自分で綴っている（#273 の続き）。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0061: 論点ツリーの決定は一緒に任せた論点を持てて、分析の段階は記録から導く](../adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md): 決定に `with_node_ids` を足す。分析の段階は保存しない。「ツリーの決定」を「論点ツリーの決定」に改名する。
@@ -543,7 +608,7 @@ sequenceDiagram
 | Story 35.2 | ✓ | ✓ | —（skill の流れに入れるのは 35.6・35.7。リポジトリの外の `.insight/` で、2プロセスの `design_io create` を20回（id の重なり0回）、`ask-analyst`・`answer-analyst`・`stop` と分析の段階の移り変わり、`data_scope` を持つ分析設計と持たない保存済みの分析設計が検証 hook を通り分析ノートに出ることを、コマンドで確かめた） |
 | Story 35.3 | ✓ | ✓ | —（skill の流れに入れるのは 35.6。合成シナリオ（`scripts.handoff_trial build --scenario lib`）で、`with_node_ids` に2つの論点を持つ決定を CLI で書き、片方だけ終えた状態で `tree_io position` が `in_progress` と両方の分析設計と段階を返すこと、止めると `concluded`、空の論点が残ると `not_started` になることを確かめた。2プロセスで同時に `tree_io link` を20回走らせ、20件が残った。変更前のコードで作った論点ツリーを読んで書き戻し、バイト単位で同じだった） |
 | Story 35.4 | ✓ | ✓ | —（skill の流れに入れるのは 35.6・35.7。合成シナリオ `lib-stages`（`scripts.handoff_trial build --scenario lib-stages`）で、6つの段階・冒頭の確認待ちの欄・止めた理由・「次に調べる論点」の2つの論点が出ることをブラウザで確かめた。同じ `.insight` で、`tree_io progress`・`position`・ページ・レポートの進捗と段階が全部の論点で同じだった） |
-| Story 35.5 | ☐ | ☐ | ☐ |
+| Story 35.5 | ✓ | ✓ | —（skill の流れに入れるのは 35.6。合成シナリオ `lib-handover`（`scripts.handoff_trial build --scenario lib-handover`）でページを作り、ブラウザで、3列の並び、抽出の全文、分析間の違いの印、コメント欄とまとめた文、外へのリクエストが無いことを確かめた。`lib-stages` で、直した言葉・並び・止めたの形も確かめた） |
 | Story 35.6 | ☐ | ☐ | ☐ |
 | Story 35.7 | ☐ | ☐ | ☐ |
 
@@ -559,3 +624,5 @@ sequenceDiagram
 - 2026-11-27 — Story 35.2 completed: 書き込みのロック（`write_lock`）、分析の段階（`AnalysisStage`）、確認・答え・止めたの命令、データの範囲（`DataScope`）。レビューの2件を人間が Decision Analysis で決めた。分析の段階は分析の印より後の出来事だけを結果と数える（ADR-0061 の追記。Domain Model の `of` が分析の印を取る）。journal の印は検証 hook でも守る（ADR-0067）。計画外の判断は2件。実行エージェントが journal を手で書く間のロック（M3）は 35.7 に渡す。
 - 2026-11-27 — Story 35.3 completed: 論点ツリーの決定が一緒に任せた論点（`with_node_ids`）を持ち、巡回の現在地・進捗・レポートが決定の全部の論点と分析の段階を読む。進捗に「止めた」を足し、`tree_io` の書き込みを `write_lock` で囲んだ。「ツリーの決定」を「論点ツリーの決定」に改名した。`AnalysisStage` を `src/insight_blueprint/models/` に移した（#287）。計画外の判断は4件で、2件（止めた分析は巡回を待たせない、空の論点は巡回を終わらせない）は人間が決めた。人間が ARCHITECTURE の Domain Model の変更を承認した。ページの「次に調べる論点」と決定の一覧、止めたの色は 35.4 に渡す。
 - 2026-11-27 — Story 35.4 completed: 論点ツリーの HTML が、分析設計ごとに分析の段階を言葉と色で出し、止めた理由と確認したいことを添える。確認待ちの分析を冒頭に抜き出し、止めたの色を足し、止めたカードを最後に並べ、「次に調べる論点」と決定の一覧が決定の全部の論点を出す（#288）。計画外の判断は2件（Decisions）。合成シナリオ `lib-stages` を足した。人が画面を読む段の言い回しの一覧と、人間が決める7件は共有ノートの `284-s4-words.md` にある。
+- 2026-11-27 — 人間が実物の画面と言い回しの一覧を読んだ: 指摘8件（35.5 で直す5件、35.7 で直す1件、変えない2件）。
+- 2026-11-27 — Story 35.5 completed: 論点ツリーの HTML に「分析を任せる前の確認」の節（最新の決定が指す論点の実行前の分析設計を列に並べ、対象・粒度・分母・データソースの違いに印、分析設計ごとのコメント欄とまとめた文）。`tree_io handover` が同じ規則を返す。人が画面を読む段の直し5件を入れた。

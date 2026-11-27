@@ -50,7 +50,7 @@ HANDOVER_CSS = """.handover {
   display: block; color: var(--investigating); font-weight: 700; font-size: .85rem;
 }
 .handover pre {
-  margin: 0 0 .3rem; white-space: pre-wrap; overflow-wrap: anywhere;
+  margin: 0 0 .3rem; white-space: pre-wrap; overflow-wrap: break-word;
   background: var(--bg); padding: .3rem .4rem; font-size: .85rem;
 }
 .handover ul { margin: 0; padding-left: 1.1rem; }

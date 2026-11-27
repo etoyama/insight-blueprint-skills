@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The question tree page lays out the designs to hand over side by side, before they run.** The designs
+  not yet run on the questions the last decision names stand in columns, with their intent, what they
+  answer, the criterion, population, grain, denominator, sources, method, primary metric, the full
+  extraction and the charts. The code marks the population, grain, denominator and source rows whose
+  values differ between them, and `tree_io handover` gives the same rows to the chat. Each design has a
+  comment box; a button gathers the comments, each after its design id, into one text on the page,
+  which sends nothing out. The progress word 検証中 becomes 調べている, the counts read from the furthest,
+  stopped takes a dashed frame and stripes, and `tree_io report` names stopped designs apart in
+  `stopped_designs`. The synthetic scenario `lib-handover` builds such a page
+  ([ADR-0063](docs/adr/0063-designs-to-hand-over-are-saved-then-read-side-by-side-on-the-page.md), #289).
 - **The question tree page shows where each analysis stands and what waits for the analyst.** Each linked
   design says its analysis stage in words and a colour, with the reason a stopped one was stopped and what one
   waiting for the analyst asks. The analyses that wait for the analyst lead the page, and no such section is

@@ -1,0 +1,126 @@
+# Synthetic scenario of Epic 35, Story 35.5: the lib scenario, then three
+# questions handed over together, each with a design saved but not yet run.
+# The three count in different ways, so the check before the hand-over marks
+# the rows that differ. It answers nothing, so it is no reflection round and
+# has no key: a person reads its page (FLOW-0019). Every name and number here
+# is made up.
+theme_id: LIB
+base: lib
+stages:
+  - id: hand-over-check
+    summary: >-
+      2回目の振り返りの後、互いの結果を待たない3つの論点を、まとめてエージェントに任せることにした。
+      3つの分析設計を保存して論点に結び、任せる前に分析者が横に並べて読む。
+      どれもまだデータに触っていない。
+    steps:
+      - add_node:
+          question: 曜日ごとに通知の時刻は違うか
+          parent_question_id: LIB-Q01
+          contribution: 金曜の夕方の通知が月曜にずれるなら、延長より通知の手順を直す方が効く
+      - decide:
+          kind: return
+          node_id: LIB-Q05
+          with_node_ids: [LIB-Q06, LIB-Q07]
+          reason: 次の予約者の待ち、開館日数、通知の時刻は、互いの結果を待たずに調べられる
+      - create_design:
+          title: 通知から期限までの開館日数
+          analysis_intent: exploratory
+          exploration_question: 確保した曜日ごとに、通知から期限まで何日開館していたか
+          exploration_background: 金曜に確保した本は、通知の日を揃えても期限切れが多いままだった
+          data_scope:
+            population: 2025年度に取り置いた予約
+            grain: 予約1件
+            denominator: 取り置いた予約の全件
+          source_ids: [lib_holds, lib_calendar]
+          methodology:
+            method: 曜日ごとの集計
+            package: pandas
+            reason: 曜日ごとの開館日数の分布を並べて見るため
+            steps:
+              - description: |-
+                  SELECT h.hold_id,
+                         h.ready_on,
+                         h.expires_on,
+                         EXTRACT(DOW FROM h.ready_on) AS ready_dow,
+                         COUNT(c.day) FILTER (WHERE c.is_open) AS open_days_until_expiry
+                  FROM {source:lib_holds} AS h
+                  JOIN {source:lib_calendar} AS c
+                    ON c.day > h.ready_on AND c.day <= h.expires_on
+                  WHERE h.ready_on BETWEEN '2025-04-01' AND '2026-03-31'
+                    AND h.status IN ('picked_up', 'expired')
+                  GROUP BY h.hold_id, h.ready_on, h.expires_on
+          metrics:
+            - target: 通知から期限までの開館日数
+              tier: primary
+              aggregation: 曜日ごとの平均
+              comparison: 確保した曜日ごとに並べる
+          chart:
+            - intent: distribution
+              type: box
+              description: 確保した曜日ごとの開館日数
+              x: 確保した曜日
+              y: 開館日数
+      - link_design: {node_id: LIB-Q06, design_id: LIB-H03}
+      - create_design:
+          title: 次の予約者の待ち
+          analysis_intent: confirmatory
+          hypothesis_statement: 期限を2日延ばすと、次の予約者の待ちは平均1日以上延びる
+          hypothesis_background: 待ちが大きく延びるなら、延長の試行は割に合わない
+          data_scope:
+            population: 2025年度に取り置いた予約
+            grain: 本1冊
+            denominator: 予約が2件以上ついた本
+          source_ids: [lib_holds]
+          methodology:
+            method: 期限を2日延ばしたときの待ちの再計算
+            package: pandas
+            steps:
+              - description: |-
+                  SELECT book_id, hold_id, queue_position, ready_on, picked_up_on, expires_on
+                  FROM {source:lib_holds}
+                  WHERE ready_on BETWEEN '2025-04-01' AND '2026-03-31'
+                    AND book_id IN (
+                      SELECT book_id FROM {source:lib_holds} GROUP BY book_id HAVING COUNT(*) >= 2
+                    )
+              - description: 期限を2日延ばしたときの、次の予約者の確保日を本ごとに計算し直す
+          metrics:
+            - target: 次の予約者の待ちの延び
+              tier: primary
+              aggregation: 本ごとの平均
+              comparison: 平均が1日以上なら支持、0.3日以下なら棄却、その間は結論しない
+          chart:
+            - intent: distribution
+              type: histogram
+              description: 本ごとの待ちの延び
+              x: 待ちの延び（日）
+              y: 本の数
+      - link_design: {node_id: LIB-Q05, design_id: LIB-H04}
+      - create_design:
+          title: 曜日ごとの通知時刻
+          analysis_intent: exploratory
+          exploration_question: 確保した曜日ごとに、通知を送った時刻はどう違うか
+          exploration_background: 金曜の夕方に確保した本は、月曜の朝にまとめて通知している
+          data_scope:
+            population: 2025年度に取り置いた予約
+            grain: 予約1件
+            denominator: 通知を送った予約
+          source_ids: [lib_notices]
+          methodology:
+            method: 曜日と時刻のクロス集計
+            steps:
+              - description: |-
+                  SELECT hold_id, ready_at, notified_at
+                  FROM {source:lib_notices}
+                  WHERE ready_at >= '2025-04-01'
+          metrics:
+            - target: 確保から通知までの時間
+              tier: primary
+              aggregation: 中央値
+              comparison: 確保した曜日と時間帯ごとに並べる
+          chart:
+            - intent: comparison
+              type: heatmap
+              description: 曜日と時間帯ごとの通知までの時間
+              x: 確保した時間帯
+              y: 確保した曜日
+      - link_design: {node_id: LIB-Q07, design_id: LIB-H05}

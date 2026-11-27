@@ -42,6 +42,7 @@ from scripts.handoff_trial import (
     score,
 )
 from skills._shared import design_io, tree_io
+from skills._shared.handover import COMPARED_ROWS
 from skills._shared.tree_changes import ChangeKind
 from skills._shared.tree_check import check_theme
 from skills._shared.tree_words import CHANGE_WORDS, STAGE_WORDS
@@ -914,3 +915,29 @@ class TestTheStagesScenario:
         assert 'id="asks"' in html
         assert len(position["node_ids"]) > 1
         assert Progress.stopped in {n["progress"] for n in progress.values()}
+
+
+class TestTheHandoverScenario:
+    """Epic 35, Story 35.5: one page that lays out designs before their hand-over.
+
+    ``lib-handover`` adds a stage to ``lib``: the last decision hands over three
+    questions, each with a design not yet run, which count in different ways.
+    A person reads its page (FLOW-0019); it has no key.
+    """
+
+    def test_it_starts_with_every_stage_of_its_base(self) -> None:
+        base, handed = load_scenario("lib"), load_scenario("lib-handover")
+
+        assert handed.stages[: len(base.stages)] == base.stages
+
+    def test_its_page_lays_out_three_designs_and_marks_a_difference(
+        self, tmp_path: Path
+    ) -> None:
+        html = build(load_scenario("lib-handover"), tmp_path).read_text("utf-8")
+        check = tree_io.handover("LIB", base_dir=tmp_path)
+
+        assert len(check["design_ids"]) == 3
+        assert check["differing"]
+        # One compared row is the same in all three, so the mark is not on every row.
+        assert len(check["differing"]) < len(COMPARED_ROWS)
+        assert 'id="handover"' in html
