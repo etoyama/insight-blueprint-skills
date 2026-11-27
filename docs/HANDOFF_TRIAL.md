@@ -39,7 +39,7 @@
 試行には使わないシナリオが1本ある。`lib-stages`（`tests/fixtures/handoff/lib-stages/`）は、`lib` の全部の段階に続けて、
 論点をまとめて任せた段階 `hand-over` を足す。分析の段階（任せる前、進行中、あなたの確認待ち、止めた、
 計算が終わり、振り返りを待っている、終わった）が1つのページに全部出る。人が実物の画面を読む段（FLOW-0019）で読む。
-振り返りを足さず、`key.yaml` も持たないので、採点はしない。`stages.yaml` の `base: lib` が、続ける元のシナリオを指す。
+振り返りを足さず、`key.yaml` も持たないので、採点はしない。`stages.yaml` の `base: lib` が続ける元のシナリオを指す。
 
 もう1本の `lib-handover`（`tests/fixtures/handoff/lib-handover/`）も試行には使わない。`lib` の全部の段階に続けて、
 3つの論点をまとめて任せる前の段階 `hand-over-check` を足す。3つの分析設計は保存して論点に結んだが、まだ任せていない。

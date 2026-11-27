@@ -483,7 +483,7 @@ sequenceDiagram
 
 決定が2つ以上の論点を指す巡回では、driver が対話エージェントになり、分析設計ごとに実行エージェントへ渡す
 （[ADR-0062](adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md)）。
-論点ツリー・分析設計・論点ツリーの HTML を書くのは対話エージェントだけで、HTML は実行エージェントの戻りのたびに書き直す。
+論点ツリー・分析設計・論点ツリーの HTML を書くのは対話エージェントだけで、HTML は実行エージェントが戻るたびに書き直す。
 実行エージェントは自分の notebook・verdict・journal だけを書き、journal は `design_io` の命令を通して書く。
 任せた後に分析者に聞くのは、任せた分析の確認（あれば）と、戻った分析の終え方である
 （[ADR-0064](adr/0064-a-handed-over-analysis-asks-before-changing-what-was-read-and-can-be-stopped.md)）。
@@ -491,7 +491,7 @@ sequenceDiagram
 
 再開する所は `tree_io position` が導く。最新の論点ツリーの決定が指す全部の論点（次に調べる論点と一緒に任せた論点）を読み、
 終わっていない分析設計が1つでもあれば `in_progress`、決定が指す論点のどれかに決定より後の分析設計が無ければ `not_started`（`undesigned_node_ids` がその論点を並べる）、どれにもあって、どれも終わったか止めたなら `concluded` になる。
-止めた分析は再開しないので、巡回を待たせない。`position` は論点ごとに、結んだ分析設計とその分析の段階も返す（[ADR-0061](adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md)）。最後の決定が区切るで、その後に分析設計を起こしていなければ `closed` になる。
+止めた分析は再開しないので、巡回を待たせない。`position` は論点ごとに、結んだ分析設計とその分析の段階も返す（[ADR-0061](adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md)）。最後の決定が区切る決定で、その後に分析設計を起こしていなければ `closed` になる。
 
 ## Domain Model
 

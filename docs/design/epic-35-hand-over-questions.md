@@ -13,7 +13,7 @@ Epic issue（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/2
   - 課題2: 分析設計の確認は、分析設計ごとに4回止まる。3つで12回になる。並べて読めないので、分析設計の間で粒度や分母が違うことに気づきにくい。
   - 課題3: 任せた後、分析がどこまで進んだかを見分けられない。走っている分析も、計算が終わって振り返りを待つ分析も、論点ツリーには「検証中」と出る。
   - 課題4: 任せた後に、分析者が読んでいない抽出や分母で走らせない決まりが無い。進行中の分析を1つだけ止める手段と、止めた理由を残す所も無い。
-  - 課題5: 分析を並行で走らせると、記録が黙って消える。分析設計の id が重なり、論点への結び付けが消える。
+  - 課題5: 分析を並行で走らせると、記録が気づかないうちに消える。分析設計の id が重なり、論点への結び付けが消える。
   - 課題6: 論点ツリーの決定の理由や答えの文に、論点の id や「2回目の振り返り」と書くと、根拠に無い数として拒まれる
     （[#277](https://github.com/etoyama/insight-blueprint-skills/issues/277)）。まとめて任せると、理由に複数の論点の id を書きたくなる。
   - 課題7: 分析設計は、対象・粒度・分母を書く項目を持たない。確認のときにチャットで言うだけで、記録に残らない。
@@ -480,7 +480,7 @@ sequenceDiagram
 - Why: 引用していない出来事の有無を確かめるには、結んだ分析設計の journal を全部読む必要がある。検査は今、引用した出来事の journal だけを読む（ADR-0058 の「前の決定の journal は読まない」と同じ考え）。
 - Criteria: ADR-0065 の W3（守りに新しい穴を開けない）。無い出来事の id（`LIB-H01-E99`）は結果の数を運ばないので、通しても記録に無い結果は届かない。
 - Affected modules: `skills/_shared/tree_check.py`、`skills/_shared/tree_words.py`
-- Alternatives considered: 結んだ分析設計の journal を全部読み、実在する出来事の id だけを数えない（読む journal が増え、決定の検査が前の記録に引きずられる）。
+- Alternatives considered: 結んだ分析設計の journal を全部読み、実在する出来事の id だけを数えない（読む journal が増え、決定の検査が前の記録に左右される）。
 - Consequences: 無い出来事の id を文に書いても拒まれない。引用の実在は今までどおり `missing-event` が確かめる。
 
 ### Decision: story-35-1-answers-still-keep-ids-in-cites
@@ -522,7 +522,7 @@ sequenceDiagram
 ### Decision: story-35-3-a-question-handed-over-without-a-design-keeps-the-walk-open
 
 - What: 終わっていない分析が無く、決定が指す論点のどれかに決定の後の分析設計が無ければ、巡回の現在地は `not_started` を返し、その論点を `undesigned_node_ids` に並べる。区切る決定では並べない。
-- Why: 一緒に任せた論点に分析設計を作り損ねると、残りが終わった時点で `concluded` になり、`/analysis-auto` がその論点を黙って落とした（合成シナリオで再現した。thermos のバグの観点の指摘）。
+- Why: 一緒に任せた論点に分析設計を作り損ねると、残りが終わった時点で `concluded` になり、`/analysis-auto` がその論点を分析者に知らせずに落とした（合成シナリオで再現した。thermos のバグの観点の指摘）。
 - Criteria: 任せた論点を、分析者に言わずに落とさない（US-1）。`WalkState` と `analysis-auto` の表を増やさない。人間が案A を選んだ（2026-11-27）。
 - Affected modules: `skills/_shared/tree_read.py::position`、`skills/analysis-auto/SKILL.md` の Step 1 の表、`docs/ARCHITECTURE.md`、`docs/UBIQUITOUS_LANGUAGE.md` の巡回の現在地
 - Alternatives considered: 今のまま `concluded` を返し、35.6 の流れで塞ぐ（流れが外れると論点が落ちる）。新しい `WalkState` を足す（35.6 の表と分岐が増える）。
@@ -729,7 +729,7 @@ sequenceDiagram
 ### Decision: gate-the-stage-is-read-into-one-value
 
 - What: 分析の段階・結果が記録にあるか・答えの付いていない確認・止めた理由を、1つの値 `StageReading`（段階の読み取り）にまとめる。`design_io stage` はこれを返し、止めた理由（`stop_reason`）も返す。分析ノートもこれを読む。読む関数は `design_io.stage_reading` の1つにした。`StageReading` と `Ask` は `src/insight_blueprint/models/analysis_stage.py` に置き、Domain Model に値オブジェクトとして足す（人間が 2026-11-28 に承認した）。計画外の判断（2件目）。
-- Why: 段階に添える値の読み方が、`design_io.stage_report`・`design_note_read`・skill の文に割れていた。`/analysis-reflection` は止めた理由を journal から自分で読んでいた。`stage_report` は、実行前に止めた分析設計の推論を結果と数えていた。
+- Why: 段階に添える値の読み方が、`design_io.stage_report`・`design_note_read`・skill の文に分かれていた。`/analysis-reflection` は止めた理由を journal から自分で読んでいた。`stage_report` は、実行前に止めた分析設計の推論を結果と数えていた。
 - Criteria: 段階の規則を1か所に置くこと（US-3 AC 1）。段階の読み取りは段階と同じく分析設計と journal から導く値なので、`AnalysisStage` と同じ所に置く。`models/` の型は ARCHITECTURE の classDiagram に全部載る（`tests/docs/test_canonical_docs.py`）ので、図に足すことを人間が承認した。
 - Affected modules: `src/insight_blueprint/models/analysis_stage.py`（`StageReading`・`Ask`）、`skills/_shared/design_io.py`（`stage_reading`・`stage_report`）、`skills/_shared/design_note_read.py`、`skills/_shared/tree_read.py`、`skills/_shared/tree_io.py`（`copy_hearing`）、`src/insight_blueprint/models/analysis_stage.py`（`result_on_record`）、`skills/analysis-reflection/SKILL.md`（Step T1）
 - Alternatives considered: `skills/_shared/stage_reading.py` に置いて図を変えない（最初はこうしたが、段階と同じ領分の値が models の外に出て、図からも読めない）。`DesignNote` が `StageReading` をそのまま持つ（描画の読み手が全部変わる。今は `stage`・`stop_reason`・`asks` に写す）。
@@ -771,6 +771,6 @@ sequenceDiagram
 - 2026-11-27 — Story 35.4 completed: 論点ツリーの HTML が、分析設計ごとに分析の段階を言葉と色で出し、止めた理由と確認したいことを添える。確認待ちの分析を冒頭に抜き出し、止めたの色を足し、止めたカードを最後に並べ、「次に調べる論点」と決定の一覧が決定の全部の論点を出す（#288）。計画外の判断は2件（Decisions）。合成シナリオ `lib-stages` を足した。人が画面を読む段の言い回しの一覧と、人間が決める7件は共有ノートの `284-s4-words.md` にある。
 - 2026-11-27 — 人間が実物の画面と言い回しの一覧を読んだ: 指摘8件（35.5 で直す5件、35.7 で直す1件、変えない2件）。
 - 2026-11-27 — Story 35.5 completed: 論点ツリーの HTML に「分析を任せる前の確認」の節（最新の決定が指す論点の実行前の分析設計を列に並べ、対象・粒度・分母・データソースの違いに印、分析設計ごとのコメント欄とまとめた文）。`tree_io handover` が同じ規則を返す。人が画面を読む段の直し5件を入れた。
-- 2026-11-27 — Story 35.6 completed: `/analysis-auto` が、複数の論点を指す決定の巡回をまとめて任せる（Step 3H）。分析設計を `in_review` で保存して結び、任せる前の確認を1回求め、コメントを review コメントに記録し、任せない分析設計を止め、分析設計ごとに実行エージェントへ渡す。入る項目は `tree_io position` の分析の段階で決める。`tree_io handover` はデータの範囲の無い分析設計を挙げる（#290）。決めたことは Decisions の6件。thermos（バグ・品質の2本）の指摘を直した: 途中で再開した巡回が残りの Brief を取れること、次の巡回が Step 3H に入ること、遷移が拒まれたときの戻り先、段階と項目の対応を Step 3H に寄せること、用語集に対話エージェントと実行エージェントを足すこと。実行エージェントの戻りのたびの書き直し、任せた後の確認、終え方をまとめて聞くことは 35.7 に渡す。
-- 2026-11-27 — Story 35.7 completed: 任せた後、実行エージェントは分析者が読んだ内容を変える前に `design_io ask-analyst` で確認を書いて戻り、対話エージェントが聞いて `answer-analyst` か `stop` を書く。分析者は分析を1つだけ止められ、止めた分析設計は状態も結果も変わらない。論点ツリーの HTML は対話エージェントが戻りのたびに書き直し、戻った分析の終え方は1回の問いで聞く。`design_io stage` と `design_io journal-append` を足した（#291）。決めたことは Decisions の6件で、計画外の判断は1件（`design_io stage`）。先送りの指摘（止めた分析を `transition` で終えられる穴、M3、出来事の種類の名前、分析ノートの段階の行、`/analysis-reflection` の Step 1）を直した。thermos（バグ・品質の2本）の指摘を直した: 結果を書けるのは進行中と振り返り待ちの分析だけにすること、命令が出来事の id を振り直すこと、追記を1回の読み書きにすること、走っていない分析設計を結果なしと読むこと、未解決の問いの規則をコードと `/analysis-journal` で揃えること、分析ノートが段階の行を自分で作ること。
+- 2026-11-27 — Story 35.6 completed: `/analysis-auto` が、複数の論点を指す決定の巡回をまとめて任せる（Step 3H）。分析設計を `in_review` で保存して結び、任せる前の確認を1回求め、コメントを review コメントに記録し、任せない分析設計を止め、分析設計ごとに実行エージェントへ渡す。入る項目は `tree_io position` の分析の段階で決める。`tree_io handover` はデータの範囲の無い分析設計を挙げる（#290）。決めたことは Decisions の6件。thermos（バグ・品質の2本）の指摘を直した: 途中で再開した巡回が残りの Brief を取れること、次の巡回が Step 3H に入ること、遷移が拒まれたときの戻り先、段階と項目の対応を Step 3H に寄せること、用語集に対話エージェントと実行エージェントを足すこと。実行エージェントが戻るたびの書き直し、任せた後の確認、終え方をまとめて聞くことは 35.7 に渡す。
+- 2026-11-27 — Story 35.7 completed: 任せた後、実行エージェントは分析者が読んだ内容を変える前に `design_io ask-analyst` で確認を書いて戻り、対話エージェントが聞いて `answer-analyst` か `stop` を書く。分析者は分析を1つだけ止められ、止めた分析設計は状態も結果も変わらない。論点ツリーの HTML は実行エージェントが戻るたびに対話エージェントが書き直し、戻った分析の終え方は1回の問いで聞く。`design_io stage` と `design_io journal-append` を足した（#291）。決めたことは Decisions の6件で、計画外の判断は1件（`design_io stage`）。先送りの指摘（止めた分析を `transition` で終えられる穴、M3、出来事の種類の名前、分析ノートの段階の行、`/analysis-reflection` の Step 1）を直した。thermos（バグ・品質の2本）の指摘を直した: 結果を書けるのは進行中と振り返り待ちの分析だけにすること、命令が出来事の id を振り直すこと、追記を1回の読み書きにすること、走っていない分析設計を結果なしと読むこと、未解決の問いの規則をコードと `/analysis-journal` で揃えること、分析ノートが段階の行を自分で作ること。
 - 2026-11-28 — 人間が Domain Model の変更（StageReading と Ask を値オブジェクトとして足す）を承認した

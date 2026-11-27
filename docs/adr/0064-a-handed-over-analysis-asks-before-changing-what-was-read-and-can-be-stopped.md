@@ -8,7 +8,7 @@ Accepted（[ADR-0005](0005-selective-autonomous-chaining.md) のゲートに、�
 
 Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)、[DesignDoc](../design/epic-35-hand-over-questions.md)）の初版で決めた。
 分析者は任せる前に1回、分析設計を並べて読む（[ADR-0063](0063-designs-to-hand-over-are-saved-then-read-side-by-side-on-the-page.md)）。
-その後は実行エージェントが走り、分析者は席を外す。[#250](https://github.com/etoyama/insight-blueprint-skills/issues/250) は、任せた後に確認する条件を4つ挙げた
+その後は実行エージェントが走り、分析者は席を外す。[#250](https://github.com/etoyama/insight-blueprint-skills/issues/250) は任せた後に確認する条件を4つ挙げた
 （分母か粒度を変えないと進めない、新しいデータソースが要る、費用が上限を超える、データや結果を外へ送る）。
 
 比較の土台にした事実。
@@ -24,7 +24,7 @@ Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)
 
 ## Problem
 
-- 課題1: 任せた後に、実行エージェントが分析者の読んでいない内容で走ると、実行の前に読んで直せる約束（[ADR-0007](0007-upstream-judgment-gates.md)）が崩れる。何でも聞くと、止まる回数が戻る。
+- 課題1: 任せた後に、実行エージェントが分析者の読んでいない内容で走ると、実行の前に読んで直せるという約束（[ADR-0007](0007-upstream-judgment-gates.md)）が守られなくなる。何でも聞くと、止まる回数が戻る。
 - 課題2: 確認を待つ分析と、分析者が止めた分析を書く所が無い。止めた分析は進行中のまま残り、理由は誰にも読めない。
 - 課題3: 「費用が上限を超える」の上限が、何の値かが決まっていない。
 
@@ -113,10 +113,10 @@ Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)
 
 ### Negative
 
-- 条件を守るかは、実行エージェントが skill に従うことに頼る（ADR-0005 の Negative のまま）。照らす相手（対象・粒度・分母）が記録にあることが、守りやすくする（[ADR-0066](0066-a-design-may-state-its-population-grain-and-denominator.md)）。
+- 条件を守るかは、実行エージェントが skill に従うことに頼る（ADR-0005 の Negative のまま）。照らす相手（対象・粒度・分母）が記録にあるので、守りやすくなる（[ADR-0066](0066-a-design-may-state-its-population-grain-and-denominator.md)）。
 - 行数は少ないが高い抽出は、止まらない。
 - 止めた分析設計は `analyzing` か `in_review` のまま残る。状態だけを読む所（分析設計の一覧など）は、止めたと分からない。
-- 印は metadata の決まりである。専用の命令を通さずに journal を手で書くと、分析の段階が狂う。
+- 印は metadata の決まりである。専用の命令を通さずに journal を手で書くと、分析の段階を正しく導けなくなる。
 - 止めた分析は再開できない。同じ問いをやり直すと、分析設計が1つ増える。
 
 ## Alternatives considered

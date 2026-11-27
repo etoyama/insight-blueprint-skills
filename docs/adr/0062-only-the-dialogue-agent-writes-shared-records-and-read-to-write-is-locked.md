@@ -12,7 +12,7 @@ Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)
 
 比較の土台にした事実（main 9d26c39、図書館の合成シナリオ、2プロセス同時、各20回）。
 
-- `design_io.create_design` を同時に呼ぶと、20回中20回、同じ id になり、片方が黙って上書きされた。`next_design_id` は読んでから書くまでロックしない。
+- `design_io.create_design` を同時に呼ぶと、20回中20回、同じ id になり、片方が知らせもなく上書きされた。`next_design_id` は読んでから書くまでロックしない。
 - `tree_io.link_design` を同時に呼ぶと、20回中20回、片方の結び付けが消えた。`answer`・`decide`・`add_node` も同じ形である。
 - 今のロックは書き戻す一瞬だけに掛かる（`skills/_shared/_atomic.py` の `atomic_write_yaml`）。
 - 読んでから書くまでを `filelock` のロックで囲むと、同じ id は20回中0回、消えた結び付けは20回中0回、エラーは0回だった。`filelock` は既に依存にある。
@@ -23,7 +23,7 @@ Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)
 
 ## Problem
 
-- 課題1: 2つの実行エージェントが同時に分析設計を作ると、片方が黙って上書きされる。
+- 課題1: 2つの実行エージェントが同時に分析設計を作ると、片方が気づかないうちに上書きされる。
 - 課題2: 同時に論点ツリーを書くと、片方の書き込みが消える。
 - 課題3: 複数の実行エージェントが同じ論点ツリーの HTML を書くと、ほかの分析の結果が抜けた HTML が残りうる。
 
@@ -70,7 +70,7 @@ Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)
 
 1. まとめて任せた実行では、論点ツリーの YAML、分析設計、論点ツリーの HTML を書くのは対話エージェントだけである。対話エージェントの書き込みは順に行う。
 2. 実行エージェントが書くのは、渡された分析設計の notebook・verdict・journal だけである。
-3. まとめて任せた実行では、実行エージェントは `/analysis-notebook` の Step 7 の `tree_io render` を走らせない。対話エージェントが、実行エージェントの戻りのたびに書き直す。単独で起動した `/analysis-notebook` は、今までどおり自分で書き直す。
+3. まとめて任せた実行では、実行エージェントは `/analysis-notebook` の Step 7 の `tree_io render` を走らせない。実行エージェントが戻るたびに、対話エージェントが書き直す。単独で起動した `/analysis-notebook` は、今までどおり自分で書き直す。
 4. `design_io` と `tree_io` の書き込みは読んでから書き戻すまでを1つのロックで囲む。分析設計の id の採番から書き込みまで、分析設計の更新と状態の遷移、journal の追記、論点ツリーを書く命令の全部が対象である。ロックの helper は `skills/_shared/_atomic.py` に1つ置く。
 5. 文書と skill は2つの役目を対話エージェント、実行エージェントと呼ぶ。
 

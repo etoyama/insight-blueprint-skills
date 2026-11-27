@@ -8,12 +8,12 @@ Accepted
 
 Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)、[DesignDoc](../design/epic-35-hand-over-questions.md)）の Story 35.2（[#286](https://github.com/etoyama/insight-blueprint-skills/issues/286)）のレビューで見つけた。
 [ADR-0064](0064-a-handed-over-analysis-asks-before-changing-what-was-read-and-can-be-stopped.md) の 8 は、分析者への確認・分析者の答え・止めた理由の印（`metadata.asks_analyst`・`answers`・`stopped`）を、`design_io` の専用の命令だけが書くと決めた（US-4 AC 5）。
-分析の段階は、この印から導く（[ADR-0061](0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md) の 6）。
+分析の段階はこの印から導く（[ADR-0061](0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md) の 6）。
 
 比較の土台にした事実。
 
 - `design_io.append_journal_event` は3つの印を拒む。命令（`ask-analyst`・`answer-analyst`・`stop`）は、段階を確かめてから印を書く（テストで確かめた）。
-- 実行エージェントは、journal を Write ツールで直接書く（`skills/analysis-notebook/SKILL.md` の Step 6 と design_io Reference の注）。`/analysis-journal` も同じ。
+- 実行エージェントは journal を Write ツールで直接書く（`skills/analysis-notebook/SKILL.md` の Step 6 と design_io Reference の注）。`/analysis-journal` も同じ。
 - 検証 hook（`hooks/validate-design.py`）が見るのは、分析設計と論点ツリーだけで、journal は見なかった（読んだ）。
 - hook は Write・Edit・MultiEdit のツールの書き込みでだけ動く。`design_io` の Python からの書き込みでは動かない。
 - hook の写しに journal の検査を足して試した（scratchpad、2026-11-27）。印の無い出来事を Write や Edit で足すのは通った。新しい journal の Write、命令が印を書いた後の追記も通った。印を手で足す Write、止めた出来事を消す Edit、確認の本文を書き換える Edit は止まった。
@@ -21,7 +21,7 @@ Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)
 ## Problem
 
 - 課題1: 手で `asks_analyst: true` を書けば、段階の検査を通らずに確認待ちになる。印を書き換えれば、答えの付き先が変わる。
-- 課題2: 止めた出来事を Edit で消すと、止めた分析が黙って再開する（ADR-0064 の 7 に反する）。
+- 課題2: 止めた出来事を Edit で消すと、止めた分析が気づかないうちに再開する（ADR-0064 の 7 に反する）。
 - 課題3: 今は SKILL.md の文だけが、手の書き込みから印を守っている。
 
 扱わない範囲: 実行エージェントが journal を手で読んでから書き戻すまでの間のロック（[ADR-0062](0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md) の分担で扱う。Story 35.7 に渡す）。印の無い出来事の形を検査すること（journal は形を持たない）。
@@ -54,7 +54,7 @@ Epic 35（[#284](https://github.com/etoyama/insight-blueprint-skills/issues/284)
 |---|---|---|
 | 案A | 壊れた journal を手で直す途中の書き込みが止まる | 止めたときの文が YAML の誤りを出す。分析設計と同じ扱い |
 | 案A | hook の不具合で journal が書けなくなる（fail-closed） | 検査は純粋な関数で、テストで守る |
-| 案B | 手で印を足し消しして、段階が嘘になる | 抑えにくい |
+| 案B | 手で印を足し消しして、導いた段階が実際と合わなくなる | 抑えにくい |
 | 何もしない | 案B と同じで、記録にも残らない | 無い |
 
 ## Decision
