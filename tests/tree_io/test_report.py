@@ -62,6 +62,7 @@ class TestReportWritten:
             "round": 1,
             "root_answer_round": 1,
             "unfinished_designs": ["LIB-H01", "LIB-H02"],
+            "stopped_designs": [],
         }
         text = _report_path(answered).read_text("utf-8")
         assert text.startswith("# 取り置き期限を延ばす試行をするか\n")
@@ -110,7 +111,9 @@ class TestReportWritten:
             if line.startswith("| LIB-Q") and line.count(" | ") == 4
         }
         assert rows["| LIB-Q04"].endswith("| 未着手 |")
-        assert rows["| LIB-Q06"].endswith("| この論点の下に置いた論点 1 つ: 検証中 1 |")
+        assert rows["| LIB-Q06"].endswith(
+            "| この論点の下に置いた論点 1 つ: 調べている 1 |"
+        )
 
     def test_a_linked_design_that_is_not_finished_does_not_stop_the_report(
         self, answered: Path
@@ -121,6 +124,18 @@ class TestReportWritten:
 
         assert result["written"] is True
         assert result["unfinished_designs"] == ["LIB-H02"]
+
+    def test_a_stopped_design_is_named_apart_from_the_unfinished(
+        self, answered: Path
+    ) -> None:
+        # The analyst asked on the real page (35.5) that a stopped design is not
+        # read as one still waiting for its conclusion; the stage tells them apart.
+        design_io.stop_analysis("LIB-H02", "通知の時刻が無かった", base_dir=answered)
+
+        result = tree_io.report("LIB", base_dir=answered)
+
+        assert result["unfinished_designs"] == ["LIB-H01"]
+        assert result["stopped_designs"] == ["LIB-H02"]
 
     def test_a_design_linked_to_two_nodes_is_listed_once(self, answered: Path) -> None:
         tree_io.link_design("LIB", "LIB-Q03", "LIB-H01", base_dir=answered)

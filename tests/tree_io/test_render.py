@@ -304,7 +304,7 @@ class TestRender:
             tree_io.progress("LIB", base_dir=tree)["LIB-Q02"]["progress"]
             == "investigating"
         )
-        assert "検証中 1" in page
+        assert "調べている 1" in page
         assert "分析済み 0" in page
         assert "写した分析設計" in page
 

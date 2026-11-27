@@ -25,7 +25,7 @@ from pydantic import BaseModel
 
 from insight_blueprint.models.analysis_stage import SETTLED, AnalysisStage
 from insight_blueprint.models.common import THEME_ID_PATTERN
-from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
+from insight_blueprint.models.design import DesignStatus
 from insight_blueprint.models.tree import (
     Answer,
     Progress,
@@ -576,7 +576,8 @@ def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
     A tree that fails its schema, a journal that cannot be read and a cited id
     that two events share stay errors. So does a linked design that no longer
     exists, as in ``progress``. A linked design that is not finished does not
-    stop the report: ``unfinished_designs`` names it. ``round`` is the last
+    stop the report: ``unfinished_designs`` names it, and ``stopped_designs``
+    names a stopped one, which is not counted as unfinished. ``round`` is the last
     reflection round of the tree, ``root_answer_round`` the one that wrote the
     answer to the root.
     """
@@ -629,7 +630,12 @@ def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
         # A later round may have answered other nodes only, so the last round
         # does not say how old the answer to the root is.
         "root_answer_round": root_answer.round,
+        # By the stage, as position counts them: a stopped design has no
+        # conclusion to wait for, so the analyst reads it apart (35.5).
         "unfinished_designs": [
-            d.id for d in theme_report.designs if d.status not in TERMINAL_STATUSES
+            d.id for d in theme_report.designs if d.stage not in SETTLED
+        ],
+        "stopped_designs": [
+            d.id for d in theme_report.designs if d.stage is AnalysisStage.stopped
         ],
     }

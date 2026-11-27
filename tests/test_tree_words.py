@@ -192,7 +192,7 @@ class TestEachPhrasingIsSpelledOnce:
             (
                 tree_words.ASKS_LEAD,
                 "次の分析は、あなたの答えを待って止まっている。"
-                "答えは、チャットでエージェントに伝える。",
+                "この確認には、チャットでエージェントに答える。",
             ),
             (tree_words.WHAT_IS_ASKED, "確認したいこと"),
             (tree_words.STOP_REASON, "止めた理由"),
@@ -209,7 +209,7 @@ class TestEachPhrasingIsSpelledOnce:
                         }
                     ),
                 ),
-                "主題の下に置いた論点 4 つ: 分析済み 1、検証中 1、未着手 2",
+                "主題の下に置いた論点 4 つ: 分析済み 1、調べている 1、未着手 2",
             ),
             (
                 tree_words.below_text(
@@ -220,7 +220,7 @@ class TestEachPhrasingIsSpelledOnce:
             ),
             (
                 tree_words.below_text(False, Counter({Progress.investigating: 1})),
-                "この論点の下に置いた論点 1 つ: 検証中 1",
+                "この論点の下に置いた論点 1 つ: 調べている 1",
             ),
         ],
     )
@@ -232,7 +232,7 @@ class TestEachPhrasingIsSpelledOnce:
     @pytest.mark.parametrize(
         ("table", "words"),
         [
-            (tree_words.PROGRESS_WORDS, ["未着手", "検証中", "止めた", "分析済み"]),
+            (tree_words.PROGRESS_WORDS, ["未着手", "調べている", "止めた", "分析済み"]),
             (
                 tree_words.STAGE_WORDS,
                 [

@@ -121,7 +121,7 @@ class TestProgressOfAQuestionWithoutADesign:
 
         meta = _meta(root, "LIB-Q05")
         assert "進捗:" not in meta
-        assert "この論点の下に置いた論点 1 つ: 検証中 1" in meta
+        assert "この論点の下に置いた論点 1 つ: 調べている 1" in meta
 
     def test_the_counts_of_the_page_leave_out_a_question_shown_by_its_counts(
         self,
@@ -129,7 +129,7 @@ class TestProgressOfAQuestionWithoutADesign:
         counts = squash(by_id(page(), "counts").text())
 
         assert "未着手 2" in counts
-        assert "検証中 1" in counts
+        assert "調べている 1" in counts
         assert "分析済み 1" in counts
 
     def test_the_legend_says_how_such_a_question_shows_its_progress(self) -> None:

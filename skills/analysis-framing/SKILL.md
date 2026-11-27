@@ -254,9 +254,9 @@ the theme (at the end of this step).
 1. Run `tree_io progress --theme {theme_id}` and `tree_io candidates --theme {theme_id}`.
 2. Show the node the latest decision names (the last entry of `decisions`), with its
    progress and the designs linked to it. Say the progress the way the page does: the word
-   of `progress` (`not_started` 未着手, `investigating` 検証中, `stopped` 止めた,
+   of `progress` (`not_started` 未着手, `investigating` 調べている, `stopped` 止めた,
    `analyzed` 分析済み), then,
-   when `below` is not empty, `この論点の下に置いた論点 {N} つ: 分析済み a、止めた b、検証中 c、未着手 d`
+   when `below` is not empty, `この論点の下に置いた論点 {N} つ: 分析済み a、止めた b、調べている c、未着手 d`
    (`主題` in place of `この論点` for the root question; `{N}` is their sum, and a word with
    no count is left out). A node whose `progress` is `null` shows the counts alone and is
    never shown as 未着手: it has no design of its own, but one below it (ADR-0057). Show the

@@ -54,7 +54,7 @@ to report.
    send nothing: the paths built from it must stay inside `.insight/`.
 2. Run `tree_io report --theme {theme_id}`. It prints one JSON object on stdout.
    - It exits 0 and `written` is true: go on with `path`, `figures`, `round`,
-     `root_answer_round`, and `unfinished_designs` from that JSON.
+     `root_answer_round`, `unfinished_designs`, and `stopped_designs` from that JSON.
    - It exits 3 and `written` is false: the report was not written. Tell the analyst each of
      the `reasons` with what fixes it, send nothing, and exit:
      - `no_tree`: "このテーマには論点ツリーがない。/analysis-framing {theme_id} で作ろう"
@@ -117,6 +117,7 @@ Doc は自分だけに見える状態で作られる。ほかの人に見せる�
 
 答えを書いた振り返り: {root_answer_round}回目（最後の振り返りは{round}回目）
 結論の出ていない分析設計: {count} 件（{unfinished_designs の id を読点で並べる。0 件なら括弧ごと出さない}）
+止めた分析設計: {stopped_count} 件（{stopped_designs の id を読点で並べる。0 件なら括弧ごと出さない}）
 
 レポートには主題、答え、到達点、分析設計の記録の文が入る。記録には、クエリ・テーブル名・
 プロジェクト id・ファイルのパスが入っていることがある。機密や個人情報が無いか、送る前に確かめてほしい。
@@ -128,6 +129,8 @@ Doc は自分だけに見える状態で作られる。ほかの人に見せる�
 - The round is `root_answer_round`, not `round`: a later reflection can leave the root's answer
   as it was, and that answer is the one the report states. Show `round` only in the parenthesis.
 - `{count}` is the length of `unfinished_designs`. Do not count anything yourself.
+- `{stopped_count}` is the length of `stopped_designs`. A stopped design has no conclusion to
+  wait for, so `unfinished_designs` does not hold it: show the two lines apart.
 - With no asset upload, the figure line says the figures are not sent, so the list holds only
   what leaves the machine.
 

@@ -277,7 +277,8 @@ def _counts(context: Context) -> Html:
             "p",
             join(
                 el("span", f"{PROGRESS_WORDS[p][0]} {found[p]}", class_="count")
-                for p in Progress
+                # The furthest first, as below_text says the counts under a card.
+                for p in reversed(Progress)
             ),
         ),
         id="counts",

@@ -143,7 +143,10 @@ class Mark(StrEnum):
 # so the legend cannot drift from the page.
 PROGRESS_WORDS = {
     Progress.not_started: ("未着手", "分析設計を結んでいない。"),
-    Progress.investigating: ("検証中", "結んだ分析設計に、終わっていないものがある。"),
+    Progress.investigating: (
+        "調べている",
+        "結んだ分析設計に、終わっていないものがある。",
+    ),
     Progress.stopped: ("止めた", "結んだ分析設計をすべて止めた。"),
     Progress.analyzed: (
         "分析済み",
@@ -186,7 +189,7 @@ LINKED_NODES = "結んだ論点"
 STAGES_WITH_STATUS = (AnalysisStage.before_run, AnalysisStage.finished)
 ASKS_LEAD = (
     "次の分析は、あなたの答えを待って止まっている。"
-    "答えは、チャットでエージェントに伝える。"
+    "この確認には、チャットでエージェントに答える。"
 )
 
 

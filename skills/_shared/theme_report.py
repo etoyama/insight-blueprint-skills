@@ -17,6 +17,7 @@ from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import DesignForm, DesignStatus
 from insight_blueprint.models.tree import (
     Aim,
@@ -171,6 +172,7 @@ class ReportDesign:
     package: str
     method_reason: str
     status: DesignStatus
+    stage: AnalysisStage  # tells a stopped design from one still open (35.5)
     conclude_events: tuple[NoteEvent, ...]
     contradicting_evidence: tuple[NoteEvent, ...]
     metrics: tuple[VerdictMetric, ...]
@@ -198,6 +200,7 @@ class ReportDesign:
             package="" if methodology is None else methodology.package,
             method_reason="" if methodology is None else methodology.reason,
             status=design.status,
+            stage=note.stage,
             conclude_events=() if conclusion is None else conclusion.conclude_events,
             # Evidence against the hypothesis counts before the design concludes too.
             contradicting_evidence=contradicting_evidence(note.events, form),

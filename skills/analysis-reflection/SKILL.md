@@ -309,7 +309,7 @@ an answer only after the tree check has passed (ADR-0025).
    reads the `.insight` of the directory it is run from.
 2. `tree_io progress --theme {theme_id}` — the progress of each node, derived from its
    linked designs. Each node has `progress`, its word (`not_started` 未着手,
-   `investigating` 検証中, `stopped` 止めた, `analyzed` 分析済み), and `below`, how many nodes under it have
+   `investigating` 調べている, `stopped` 止めた, `analyzed` 分析済み), and `below`, how many nodes under it have
    each word. A node with no design of its own but one below it has `progress` `null` and
    is shown by its `below`, as the page shows it (Step T5).
 3. For every design id in the `design_ids` of any node, read
@@ -489,7 +489,7 @@ Show no answer to the analyst before `tree_check` has run, and never show an ans
 主題: {root question}
 
 {node_id}  {question}
-  Progress: {未着手 | 検証中 | 止めた | 分析済み}{　この論点の下に置いた論点 {N} つ: 分析済み a、止めた b、検証中 c、未着手 d}
+  Progress: {未着手 | 調べている | 止めた | 分析済み}{　この論点の下に置いた論点 {N} つ: 分析済み a、止めた b、調べている c、未着手 d}
   Answer（{round}回目の振り返り{、見直す前の主題への答え}）:
     [これまでわかっていること] {text}  ← {cites}
     [まだ決められないこと] {text}  ← {cites}
@@ -541,8 +541,8 @@ the drafts.
   decision. When a statement that rests on a result the analyst chose was removed in Step
   T3, say so next to it under Removed statements.
 - Say the progress the way the page does. The word comes from `progress`. When `below`
-  is not empty, add its counts after the word: `この論点の下に置いた論点 {N} つ: 分析済み a、止めた b、検証中 c、未着手 d`,
-  and `主題の下に置いた論点 {N} つ: 分析済み a、止めた b、検証中 c、未着手 d` for the root question.
+  is not empty, add its counts after the word: `この論点の下に置いた論点 {N} つ: 分析済み a、止めた b、調べている c、未着手 d`,
+  and `主題の下に置いた論点 {N} つ: 分析済み a、止めた b、調べている c、未着手 d` for the root question.
   `{N}` is their sum, and a word with no count is left out. A node whose `progress` is
   `null` shows the counts alone and is never shown as 未着手: it has no design of its own,
   but one below it (ADR-0057).

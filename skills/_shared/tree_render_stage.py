@@ -27,7 +27,9 @@ from skills._shared.tree_words import (
     asks_heading,
 )
 
-STAGE_CSS = """.progress-stopped { border-left-color: var(--stopped); }
+# Stopped is grey, near the grey of not started, so it also has a shape: a
+# dashed frame on its question and stripes on its stage (35.5, the real page).
+STAGE_CSS = """.progress-stopped { border-left-color: var(--stopped); border-left-style: dashed; }
 .stage {
   font-weight: 700; border: 1px solid; border-radius: 3px; padding: 0 .4em;
   white-space: nowrap;
@@ -35,7 +37,12 @@ STAGE_CSS = """.progress-stopped { border-left-color: var(--stopped); }
 .stage-before_run { color: var(--muted); border-style: dashed; }
 .stage-running { color: var(--accent); }
 .stage-awaiting_confirmation { color: var(--awaiting-confirmation); }
-.stage-stopped { color: var(--stopped); }
+.stage-stopped {
+  color: var(--stopped);
+  background: repeating-linear-gradient(
+    -45deg, transparent 0 4px, color-mix(in srgb, currentColor 22%, transparent) 4px 6px
+  );
+}
 .stage-awaiting_reflection { color: var(--awaiting-reflection); }
 .stage-finished { color: var(--analyzed); }
 .asks {

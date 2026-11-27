@@ -33,7 +33,13 @@ from skills._shared.tree_check import CitedEvent, Violation, ViolationKind
 from skills._shared.tree_render import (
     CheckFailed,
 )
-from skills._shared.tree_words import STAGE_WORDS, SUBJECT, Mark, reflection
+from skills._shared.tree_words import (
+    PROGRESS_WORDS,
+    STAGE_WORDS,
+    SUBJECT,
+    Mark,
+    reflection,
+)
 from tests._tree_page import (
     BUSINESS_AIM,
     OLD_QUESTION,
@@ -181,7 +187,7 @@ class TestProgress:
         root = page()
 
         assert "進捗: 分析済み" in node_text(root, "LIB-Q02")
-        assert "進捗: 検証中" in node_text(root, "LIB-Q03")
+        assert "進捗: 調べている" in node_text(root, "LIB-Q03")
         assert "進捗: 未着手" in node_text(root, "LIB-Q04")
 
     def test_the_counts_of_nodes_per_progress_word_are_shown(self) -> None:
@@ -189,8 +195,18 @@ class TestProgress:
 
         # The subject has no design and nodes under it, so it is not counted (ADR-0057).
         assert "未着手 2" in counts
-        assert "検証中 1" in counts
+        assert "調べている 1" in counts
         assert "分析済み 1" in counts
+
+    def test_the_counts_go_from_the_furthest_as_under_each_card(self) -> None:
+        # The order the analyst chose on the real page (35.5): the counts at the
+        # top read in the order of the counts under a card.
+        counts = squash(by_id(page(), "counts").text())
+
+        words = [PROGRESS_WORDS[p][0] for p in reversed(Progress)]
+        assert [counts.index(w) for w in words] == sorted(
+            counts.index(w) for w in words
+        )
 
     def test_a_linked_design_missing_from_the_designs_is_an_error(self) -> None:
         designs = make_designs()

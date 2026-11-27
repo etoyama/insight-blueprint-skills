@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import AnalysisDesign, DesignForm, DesignStatus
 from insight_blueprint.models.tree import (
     Aim,
@@ -121,6 +122,7 @@ def _design(design_id: str = "LIB-H01", **over: object) -> ReportDesign:
         "package": "scipy",
         "method_reason": "2群の期限切れ率を比べるため",
         "status": DesignStatus.supported,
+        "stage": AnalysisStage.finished,
         "conclude_events": (),
         "contradicting_evidence": (),
         "metrics": (),
@@ -360,7 +362,7 @@ class TestIntroduction:
         rows = [line for line in lines if line.startswith("| LIB-Q")]
         assert rows == [
             "| LIB-Q02 | LIB-Q02 の問い | LIB-Q01 | LIB-Q02 に答えると分かること | 分析済み |",
-            "| LIB-Q03 | LIB-Q03 の問い | LIB-Q01 | LIB-Q03 に答えると分かること | 検証中 |",
+            "| LIB-Q03 | LIB-Q03 の問い | LIB-Q01 | LIB-Q03 に答えると分かること | 調べている |",
             "| LIB-Q04 | LIB-Q04 の問い | LIB-Q03 | LIB-Q04 に答えると分かること | 未着手 |",
         ]
 

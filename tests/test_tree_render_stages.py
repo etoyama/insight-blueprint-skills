@@ -145,6 +145,19 @@ class TestEachDesignSaysItsStage:
 
         assert BASE_CSS.count(f"{variable}:") == 2
 
+    def test_stopped_has_a_shape_besides_its_grey(self) -> None:
+        # The grey of stopped is near the grey of not started (35.5, the real
+        # page): stopped adds a dashed frame and stripes, not another colour.
+        css = render(designs=_staged(AnalysisStage.stopped))
+        (frame,) = re.findall(r"\.progress-stopped \{[^}]*\}", css)
+        (stage,) = re.findall(r"\.stage-stopped \{[^}]*\}", css)
+        (before,) = re.findall(r"\.stage-before_run \{[^}]*\}", css)
+
+        assert "border-left-style: dashed" in frame
+        assert "repeating-linear-gradient" in stage
+        assert "repeating-linear-gradient" not in before
+        assert re.findall(r"var\((--[a-z-]+)\)", stage) == ["--stopped"]
+
     def test_the_legend_explains_each_stage_and_that_the_colour_only_adds(
         self,
     ) -> None:
