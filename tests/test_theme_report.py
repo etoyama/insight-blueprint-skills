@@ -21,6 +21,7 @@ from insight_blueprint.models.tree import (
     Progress,
     TreeDecision,
 )
+from skills._shared import tree_words
 from skills._shared.design_note import (
     FORM_WORDS,
     Conclusion,
@@ -792,7 +793,7 @@ class TestFutureDirections:
         )
 
         assert "- 調べるのを止めた論点: LIB-Q02 LIB-Q02 の問い" in future
-        assert "次に調べる論点" not in future
+        assert tree_words.NEXT_QUESTION_HEADING not in future
 
     def test_an_answer_heard_about_a_next_candidate_is_given_with_who_and_when(
         self,

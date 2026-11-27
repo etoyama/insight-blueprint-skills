@@ -11,6 +11,7 @@ from __future__ import annotations
 import pytest
 
 from skills._shared import tree_words
+from skills._shared.tree_changes import ChangeKind
 from skills._shared.tree_check import CitedEvent, Violation
 from skills._shared.tree_words import (
     CHANGES_HEADING,
@@ -112,7 +113,7 @@ class TestWhatAnAnswerChanged:
 
         assert len(rows_of(section, folded=False)) == 2
         kind, event, before, after = row_of(section, "LIB-H01-E01")
-        assert kind == "言っていることが変わった"
+        assert kind == tree_words.CHANGE_WORDS[ChangeKind.reworded][0]
         assert "期限切れは取消除外で 346 件" in event
         assert before == "これまでわかっていること 取消を含めると期限切れは 400 件"
         assert after == "これまでわかっていること 取消を除くと期限切れは 346 件"
@@ -120,7 +121,7 @@ class TestWhatAnAnswerChanged:
     def test_a_newly_cited_event_says_it_was_no_ground_before(self) -> None:
         kind, event, before, after = row_of(self.section(), "LIB-H01-E02")
 
-        assert kind == "新しく根拠にした"
+        assert kind == tree_words.CHANGE_WORDS[ChangeKind.newly_cited][0]
         assert "取消の理由列は空欄が多い" in event
         assert before == "根拠にしていなかった"
         assert after == "注意すべきこと 1館の1年度だけの数である"
@@ -130,7 +131,7 @@ class TestWhatAnAnswerChanged:
         section = changes_of(by_id(root, "subject-answer"))
 
         row = row_of(section, "LIB-H03-E01")
-        assert row[0] == "根拠から外した"
+        assert row[0] == tree_words.CHANGE_WORDS[ChangeKind.dropped][0]
         assert row[2] == "これまでわかっていること 予約は減らない"
         assert row[3] == "根拠にしていない"
 
@@ -201,7 +202,7 @@ class TestWhatAnAnswerChanged:
         outside = squash(
             " ".join(e.text() for e in section.walk() if e.tag in ("p", "summary"))
         )
-        assert "分析結果" not in outside
+        assert tree_words.RESULT_WORD not in outside
 
     def test_a_change_of_the_subject_between_the_two_answers_is_named(self) -> None:
         head = [squash(h.text()) for h in self.section().walk() if h.tag == "th"]
@@ -326,10 +327,10 @@ class TestTheTopOfThePage:
 
         assert squash(section.text()).startswith(changes_title(1, 2))
         assert {r[0] for r in rows_of(section)} == {
-            "言っていることが変わった",
-            "新しく根拠にした",
-            "根拠から外した",
-            "変わっていない",
+            tree_words.CHANGE_WORDS[ChangeKind.reworded][0],
+            tree_words.CHANGE_WORDS[ChangeKind.newly_cited][0],
+            tree_words.CHANGE_WORDS[ChangeKind.dropped][0],
+            tree_words.CHANGE_WORDS[ChangeKind.unchanged][0],
         }
 
     def test_the_card_of_the_subject_points_at_the_top_instead_of_repeating_it(
@@ -524,7 +525,7 @@ class TestResultsNotYetInTheSubjectAnswer:
         assert (
             text.index(CHANGES_HEADING)
             < text.index(f"まだ{SUBJECT}への答えに入れていない分析結果")
-            < text.index("次に調べる論点")
+            < text.index(tree_words.NEXT_QUESTION_HEADING)
         )
 
     def test_a_subject_without_an_answer_lists_every_result_cited_below(self) -> None:
@@ -630,7 +631,7 @@ class TestTheAnswersAboveThatRestOnTheResult:
     def test_the_card_names_the_answer_above_its_round_and_statements(self) -> None:
         shown = squash(self.above(null_page(), "LIB-Q02").text())
 
-        assert shown.startswith("この論点の分析結果を根拠にしている答え")
+        assert shown.startswith(tree_words.USED_ABOVE_WORDS)
         assert (
             f"分析結果 LIB-H01-E01 を、論点 LIB-Q01（{SUBJECT}）の{reflection(2)}の答えが根拠にしている:"
             in shown

@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections import Counter
 
 from insight_blueprint.models.tree import Progress
+from skills._shared import tree_words
 from skills._shared.tree_check import CitedEvent
 from skills._shared.tree_words import below_text, reflection
 from tests._tree_page import (
@@ -251,7 +252,7 @@ class TestWhatADecisionRestsOn:
 
         shown = squash(by_id(page(tree=tree), "next-question").text())
 
-        assert "この理由は、根拠にした分析結果を挙げていない。" in shown
+        assert tree_words.NO_GROUNDS_WORDS in shown
 
     def test_what_a_person_said_is_not_called_an_analysis_result(self) -> None:
         events = make_events()
@@ -310,4 +311,4 @@ class TestWhatADecisionRestsOn:
         )
 
         assert "この理由の根拠にした分析結果" in shown
-        assert "人に聞いた答え" not in shown
+        assert tree_words.HEARD_RESULT_WORD not in shown

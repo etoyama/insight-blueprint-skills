@@ -15,6 +15,7 @@ import pytest
 
 from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.tree import Progress, TreeDecisionKind
+from skills._shared import tree_words
 from skills._shared._html import BASE_CSS
 from skills._shared.tree_words import (
     ASKS_LEAD,
@@ -165,7 +166,7 @@ class TestEachDesignSaysItsStage:
 
         for word, meaning in STAGE_WORDS.values():
             assert f"{word}: {meaning}" in legend
-        assert "分析の段階" in legend
+        assert tree_words.STAGE_LABEL in legend
 
 
 def _asking(*asks: str) -> dict:

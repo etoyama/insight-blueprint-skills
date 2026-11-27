@@ -477,7 +477,7 @@ class TestNextCandidates:
         )
 
     def test_the_legend_points_at_the_section(self) -> None:
-        assert "次の候補" in by_id(page(), "legend").text()
+        assert tree_words.NEXT_CANDIDATES_HEADING in by_id(page(), "legend").text()
 
 
 def violation_page() -> Element:
@@ -563,7 +563,7 @@ class TestEvidence:
     ) -> None:
         folded = details_text(page(), "LIB-Q02")
 
-        assert "根拠を開く" in folded
+        assert tree_words.OPEN_EVIDENCE in folded
         assert "LIB-H01-E01" in folded
         assert "期限切れは取消除外で 346 件" in folded
         assert "design: LIB-H01" in folded
@@ -771,7 +771,7 @@ class TestDesignsUnderTheirNode:
         assert "分析設計・探索" in text
         assert "探索の問い: 取消を除くと、期限切れは何件か" in text
         assert "探索済み（判定はしない）" in text
-        assert "分析ノートを開く" in text
+        assert tree_words.OPEN_NOTE in text
         assert "判定:" not in text
         assert "支持" not in text
 
@@ -904,11 +904,13 @@ class TestStatusWords:
         card = node_card(root, "LIB-Q02")
         paragraphs = [squash(e.text()) for e in card.children if e.tag in ("p", "ul")]
 
-        heading = paragraphs.index("現時点の答え")
-        assert paragraphs[heading + 1].startswith("これまでわかっていること")
+        heading = paragraphs.index(tree_words.CURRENT_ANSWER_HEADING)
+        assert paragraphs[heading + 1].startswith(
+            tree_words.KIND_WORDS[StatementKind.claim][0]
+        )
 
     def test_a_node_without_an_answer_has_no_heading(self) -> None:
-        assert "現時点の答え" not in node_text(page(), "LIB-Q03")
+        assert tree_words.CURRENT_ANSWER_HEADING not in node_text(page(), "LIB-Q03")
 
 
 def linking(design_ids: list[str]) -> dict:
@@ -1024,7 +1026,7 @@ class TestOrderOfLinkedDesigns:
 
 
 class TestAnchorsToTheNotes:
-    OPEN = "分析ノートを開く"
+    OPEN = tree_words.OPEN_NOTE
 
     def _hrefs(self, element: Element) -> list[str]:
         return [e.attrs["href"] for e in element.walk() if e.tag == "a"]  # type: ignore[misc]
@@ -1099,7 +1101,7 @@ class TestDesignNotes:
             assert [e.attrs["href"] for e in paragraph.walk() if e.tag == "a"] == [
                 "#question-tree"
             ]
-            assert "結んだ論点" not in paragraph.text()
+            assert tree_words.LINKED_NODES not in paragraph.text()
 
     def test_note_markup_is_placed_as_markup_not_escaped_again(self) -> None:
         designs = make_designs()
