@@ -504,6 +504,7 @@ class TestReportRefused:
         found = result["reasons"][0]["violations"]
         assert {v["node_id"] for v in found} == {"LIB-Q01", "LIB-Q02"}
         assert {v["kind"] for v in found} == {"number-not-cited"}
+        assert all("take the number out" in v["fix"] for v in found)
         assert _report_path(answered).read_bytes() == older
 
     def test_no_root_answer_and_violations_are_both_given_in_that_order(

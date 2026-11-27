@@ -440,6 +440,40 @@ class TestIdsAndReflectionRoundsAreNotNumbers:
             ("number-not-cited", "02"),
         ]
 
+    def test_an_event_id_of_a_linked_design_is_a_name_even_if_not_recorded(
+        self,
+    ) -> None:
+        # The cite, not the text, is what must exist: missing-event checks it.
+        assert self.found("LIB-H01-E99 と並べると、期限切れは152件") == []
+
+    def test_a_dash_right_after_an_id_is_a_hyphen_as_before(self) -> None:
+        # The id is blanked out with letters, so the rule of _NUMBER still
+        # reads a dash right after it as a hyphen, not as a minus.
+        assert self.found("LIB-Q03−1.34 を見ると、期限切れは152件") == []
+
+    @pytest.mark.parametrize(
+        ("text", "token"),
+        [
+            ("率比は1.2回目の振り返りで1を超えた", "1.2"),
+            ("差は1,002回目の振り返りで", "1,002"),
+            ("LIB-Q02.7 倍だった", "02.7"),
+            ("LIB-H01-E01.5倍だった", "01.5"),
+        ],
+    )
+    def test_a_number_that_only_ends_in_a_name_is_counted_whole(
+        self, text: str, token: str
+    ) -> None:
+        # A name is left out only when the whole number is the name: the tail
+        # of 1.2 is not a round, and the head of 02.7 is not an id.
+        assert ("number-not-cited", token) in self.found(text, round=2)
+
+    def test_a_sign_before_an_id_is_not_moved_onto_the_next_number(self) -> None:
+        assert self.found("▲LIB-Q02 5%") == [("number-not-cited", "5")]
+
+    def test_a_round_too_long_to_be_an_int_is_still_checked(self) -> None:
+        found = self.found("9" * 5000 + "回目の振り返りで")
+        assert [kind for kind, _ in found] == ["number-not-cited"]
+
     def test_a_number_beside_an_id_is_still_counted(self) -> None:
         assert self.found("LIB-Q03 では期限切れが30%増えた") == [
             ("number-not-cited", "30")
@@ -881,6 +915,7 @@ class TestMain:
                 "statement": 1,
                 "kind": "number-not-cited",
                 "text": "153",
+                "fix": tree_check.NUMBER_FIX,
             }
         ]
 

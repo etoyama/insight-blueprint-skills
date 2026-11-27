@@ -27,7 +27,6 @@ import argparse
 import json
 import sys
 from collections.abc import Callable, Sequence
-from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -56,13 +55,7 @@ from skills._shared.design_io import (
     journal_events,
     resolve_base_dir,
 )
-from skills._shared.tree_check import (
-    NUMBER_FIX,
-    DecisionViolation,
-    Violation,
-    check_last_decision,
-    check_tree,
-)
+from skills._shared.tree_check import check_last_decision, check_tree, reported
 from skills._shared.tree_read import (
     ReportStop,
     WalkState,
@@ -307,18 +300,10 @@ def decide(
     )
     # Checked before the journals are read, so a malformed cite never reaches a path.
     candidate_tree = _checked(tree, theme_id)
-    violations = [_reported(v) for v in check_last_decision(candidate_tree, base_dir)]
+    violations = [reported(v) for v in check_last_decision(candidate_tree, base_dir)]
     if violations:
         return {"violations": violations}
     return _dump(_save(candidate_tree, theme_id, base_dir).decisions[-1])
-
-
-def _reported(violation: Violation | DecisionViolation) -> dict:
-    """A violation as the caller reads it: a number not cited carries its fix."""
-    reported = asdict(violation)
-    if violation.kind == "number-not-cited":
-        reported["fix"] = NUMBER_FIX
-    return reported
 
 
 def candidates(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> list[dict]:
@@ -491,7 +476,7 @@ def answer(
     candidate_tree = _checked(tree, theme_id)
     being_written = {w["node_id"] for w in written}
     result["violations"] = [
-        _reported(v)
+        reported(v)
         for v in check_tree(candidate_tree, base_dir)
         if v.node_id in being_written
     ]

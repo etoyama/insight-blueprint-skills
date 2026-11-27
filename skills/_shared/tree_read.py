@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping
-from dataclasses import asdict
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
@@ -53,7 +52,13 @@ from skills._shared.theme_report import (
     render_report,
 )
 from skills._shared.tree_changes import answer_changes, cited_above, uncited_below
-from skills._shared.tree_check import CitedEvent, Violation, check_cited, current_cites
+from skills._shared.tree_check import (
+    CitedEvent,
+    Violation,
+    check_cited,
+    current_cites,
+    reported,
+)
 from skills._shared.tree_render import (
     CheckFailed,
     DesignSummary,
@@ -565,7 +570,7 @@ def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
                 "kind": ReportStop.violations,
                 "message": f"The answers of theme '{theme_id}' have "
                 f"{len(violations)} violation(s) of the cited-answer check",
-                "violations": [asdict(v) for v in violations],
+                "violations": [reported(v) for v in violations],
             }
         )
     if reasons or root_answer is None:

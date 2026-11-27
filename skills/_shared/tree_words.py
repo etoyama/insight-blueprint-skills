@@ -62,7 +62,7 @@ def reflection(round: int) -> str:
 
 def _reflection_named() -> re.Pattern[str]:
     head, tail = _REFLECTION.split("{round}")
-    return re.compile(rf"(?<![0-9]){re.escape(head)}(?P<n>\d+){re.escape(tail)}")
+    return re.compile(rf"{re.escape(head)}(?<![0-9])(?P<n>\d+){re.escape(tail)}")
 
 
 # A reflection round named in a sentence in the words of ``reflection``, its N

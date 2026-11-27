@@ -453,7 +453,23 @@ sequenceDiagram
 
 ## Decisions
 
-この Epic の中で完結する決定は、まだ無い。
+### Decision: story-35-1-an-event-id-is-named-by-its-linked-design
+
+- What: ツリーの検査は、出来事の id を、その分析設計が論点ツリーのどこかの論点に結んであれば数えない。journal にその出来事が実際にあるかは見ない。「N回目の振り返り」は、ページが振り返りの回を言う言葉（`tree_words.reflection`）と同じ形だけを読む。
+- Why: 引用していない出来事の有無を確かめるには、結んだ分析設計の journal を全部読む必要がある。検査は今、引用した出来事の journal だけを読む（ADR-0058 の「前の決定の journal は読まない」と同じ考え）。
+- Criteria: ADR-0065 の W3（守りに新しい穴を開けない）。無い出来事の id（`LIB-H01-E99`）は結果の数を運ばないので、通しても記録に無い結果は届かない。
+- Affected modules: `skills/_shared/tree_check.py`、`skills/_shared/tree_words.py`
+- Alternatives considered: 結んだ分析設計の journal を全部読み、実在する出来事の id だけを数えない（読む journal が増え、決定の検査が前の記録に引きずられる）。
+- Consequences: 無い出来事の id を文に書いても拒まれない。引用の実在は今までどおり `missing-event` が確かめる。
+
+### Decision: story-35-1-answers-still-keep-ids-in-cites
+
+- What: `analysis-reflection` の Step T2 は「id を `text` に書かない」から「日付を書かない」に変え、id とその回は数えないと書いたうえで、出来事の id は `cites` に置くという指示を残す。
+- Why: 拒まれる理由は消えたが、分析者が読む答えの文に id は要らない（言葉を分析者向けにする方針）。
+- Criteria: ADR-0065 の Decision 5（答えの文と決定の理由に同じ規則）と、分析者に見せる文の書き方。
+- Affected modules: `skills/analysis-reflection/SKILL.md`、`tests/skills/test_theme_reflection_structure.py`
+- Alternatives considered: 答えの文にも id を勧める（分析者が読む文に id が並ぶ）。
+- Consequences: 決定の理由には id を書け、答えの文はこれまでどおり id を使わずに書く。
 
 ### Cross-epic decisions (links to ADR)
 
@@ -468,7 +484,7 @@ sequenceDiagram
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| Story 35.1 | ☐ | ☐ | ☐ |
+| Story 35.1 | ✓ | ✓ | —（表示の通し道は変えていない。ページの違反は同じ `check_cited` を通る。`tree_io decide` は合成シナリオ（`scripts.handoff_trial build --scenario lib`）で、id と「2回目の振り返り」が通り、「1を超える」の 1・まだ無い回・ツリーに無い id が `fix` つきで拒まれることを、実際に呼んで確かめた） |
 | Story 35.2 | ☐ | ☐ | ☐ |
 | Story 35.3 | ☐ | ☐ | ☐ |
 | Story 35.4 | ☐ | ☐ | ☐ |
@@ -484,3 +500,4 @@ sequenceDiagram
 - 2026-11-27 — 人間が見本（画面1・画面2・言い回しの一覧）を読んだ: 指摘 3 件、すべて画面の言葉で、今直した（分析を任せる前の確認、分析間の違い、抽出・加工条件）。
 - 2026-11-27 — 全体の整合: 任せない分析設計は結んでから止める、全部止めた論点の進捗は「止めた」、を人間が決めた。区切る決定の検査の書き漏れを直した。
 - 2026-11-27 — 人間が初版を承認した。
+- 2026-11-27 — Story 35.1 completed: 論点ツリーの id と今の回以下の「N回目の振り返り」を数として数えない。拒んだ数には `tree_io` が `fix` で直し方を付ける（#285）。
