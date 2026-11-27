@@ -1,0 +1,67 @@
+# Synthetic scenario of Epic 35, Story 35.4: the lib scenario, then the questions
+# handed over together, one analysis at each stage. It answers nothing, so it is
+# no reflection round and has no key: a person reads its page (FLOW-0019).
+# Every name and number here is made up.
+theme_id: LIB
+base: lib
+stages:
+  - id: hand-over
+    summary: >-
+      2回目の振り返りの後、互いの結果を待たない論点をまとめてエージェントに任せた。
+      開館日数の分析は計算が終わり、振り返りを待っている。次の予約者の待ちの分析は、対象を変えてよいかを分析者に聞いて止まっている。
+      曜日ごとの通知時刻の分析は、通知の時刻が記録されていなかったので、任せる前に止めた。
+      来館できる日の分析は、まだ任せていない。待ちの延び方を別の数え方で見る分析は、進行中である。
+    steps:
+      - add_node:
+          question: 曜日ごとに通知の時刻は違うか
+          parent_question_id: LIB-Q01
+          contribution: 金曜の夕方の通知が月曜にずれるなら、延長より通知の手順を直す方が効く
+      - decide:
+          kind: return
+          node_id: LIB-Q05
+          with_node_ids: [LIB-Q07]
+          reason: 待ちの延び方と、曜日ごとの通知時刻は、互いの結果を待たずに調べられる
+      - create_design:
+          title: 通知から期限までの開館日数
+          analysis_intent: exploratory
+          exploration_question: 通知から期限まで、何日開館していたか
+          exploration_background: 金曜に確保した本は期限切れが多いままだった
+      - link_design: {node_id: LIB-Q06, design_id: LIB-H03}
+      - transition_status: {design_id: LIB-H03, target: analyzing}
+      - append_journal_event:
+          design_id: LIB-H03
+          event_fields:
+              type: observe
+              content: 金曜に確保した本は、通知から期限までの開館日が平均2日少なかった
+      - create_design:
+          title: 次の予約者の待ち
+          analysis_intent: exploratory
+          exploration_question: 期限を2日延ばすと、次の予約者の待ちは何日延びるか
+          exploration_background: 待ちが大きく延びるなら、延長の試行は割に合わない
+      - link_design: {node_id: LIB-Q05, design_id: LIB-H04}
+      - transition_status: {design_id: LIB-H04, target: analyzing}
+      - ask_analyst:
+          design_id: LIB-H04
+          content: 予約の記録が2025年10月より前に無い。任せる前に読んだ対象（2025年度に予約した本）を、2025年10月以降の予約に変えてよいか
+      - create_design:
+          title: 待ちの延び方を予約の順番で見る
+          analysis_intent: exploratory
+          exploration_question: 予約の順番ごとに、待ちはどれだけ延びるか
+          exploration_background: 先頭の予約者だけが待ちの延びを負うかもしれない
+      - link_design: {node_id: LIB-Q05, design_id: LIB-H05}
+      - transition_status: {design_id: LIB-H05, target: analyzing}
+      - create_design:
+          title: 曜日ごとの通知時刻
+          analysis_intent: exploratory
+          exploration_question: 確保した曜日ごとに、通知を送った時刻はどう違うか
+          exploration_background: 金曜の夕方に確保した本は、月曜の朝にまとめて通知している
+      - link_design: {node_id: LIB-Q07, design_id: LIB-H06}
+      - stop_analysis:
+          design_id: LIB-H06
+          reason: 通知の時刻が記録されていなかった。分析を任せる前の確認で、任せないと決めた
+      - create_design:
+          title: 来館できる日を曜日で見る
+          analysis_intent: exploratory
+          exploration_question: 確保した曜日ごとに、期限までに来館できる日は何日あるか
+          exploration_background: 開館日が少ない期間に期限が来るなら、延長で救える
+      - link_design: {node_id: LIB-Q04, design_id: LIB-H07}

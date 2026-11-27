@@ -254,6 +254,8 @@ def summary(
     statement: str = "",
     comments_after_analysis: int = 0,
     stage: AnalysisStage | None = None,
+    stop_reason: str | None = None,
+    asks: tuple[str, ...] = (),
 ) -> DesignSummary:
     """A design as the page sees it. An explored design is an exploration unless told.
 
@@ -274,6 +276,8 @@ def summary(
         statement=statement,
         stage=stage_of_status(status) if stage is None else stage,
         comments_after_analysis=comments_after_analysis,
+        stop_reason=stop_reason,
+        asks=asks,
     )
 
 

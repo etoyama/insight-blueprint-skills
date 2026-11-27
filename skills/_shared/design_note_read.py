@@ -25,7 +25,11 @@ from typing import cast
 
 from ruamel.yaml import YAMLError
 
-from insight_blueprint.models.analysis_stage import AnalysisStage
+from insight_blueprint.models.analysis_stage import (
+    AnalysisStage,
+    open_confirmations,
+    stops,
+)
 from insight_blueprint.models.design import (
     TERMINAL_STATUSES,
     AnalysisDesign,
@@ -628,6 +632,8 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
         conclusion=_conclusion(design, raw, events),
         stage=AnalysisStage.of(design.status, raw, design.analysis_started_at),
         reviews=_read_reviews(base / "designs" / f"{design_id}_reviews.yaml"),
+        stop_reason=next((_note_event(e).content for e in raw if stops(e)), None),
+        asks=tuple(_note_event(e).content for e in open_confirmations(raw)),
     )
 
 

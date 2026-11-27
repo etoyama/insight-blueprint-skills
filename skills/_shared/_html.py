@@ -57,14 +57,20 @@ BASE_CSS = """
   --bg: #fbfaf7; --fg: #1f2328; --muted: #59636e; --line: #c9ced6;
   --panel: #ffffff; --accent: #0b5cad;
   --not-started: #6b7280; --investigating: #9a6700; --analyzed: #1a7f37;
-  --mark: #8250df;
+  --stopped: #4b5058; --mark: #8250df;
+  --stage-before-run: #59636e; --stage-running: #0b5cad;
+  --stage-awaiting-confirmation: #a3321f; --stage-stopped: #4b5058;
+  --stage-awaiting-reflection: #6b3fb0; --stage-finished: #1a7f37;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #14171a; --fg: #e6e8ea; --muted: #9aa4af; --line: #3a4048;
     --panel: #1c2024; --accent: #6cb2ff;
     --not-started: #9aa4af; --investigating: #e3b341; --analyzed: #56d364;
-    --mark: #c297ff;
+    --stopped: #b4b8c2; --mark: #c297ff;
+    --stage-before-run: #9aa4af; --stage-running: #6cb2ff;
+    --stage-awaiting-confirmation: #ff9a87; --stage-stopped: #b4b8c2;
+    --stage-awaiting-reflection: #c7a8ff; --stage-finished: #56d364;
   }
 }
 body {

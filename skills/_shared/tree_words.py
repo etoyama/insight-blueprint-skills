@@ -18,6 +18,7 @@ from collections import Counter
 from collections.abc import Iterable
 from enum import StrEnum
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import DesignForm, DesignStatus
 from insight_blueprint.models.tree import (
     AimKind,
@@ -149,6 +150,45 @@ PROGRESS_WORDS = {
         "結んだ分析設計が、止めたものを除いてすべて終わっている。",
     ),
 }
+
+
+# Where each analysis stands (ADR-0061 6), in the words the analyst read in the
+# sample of Epic 35. The words are first drafts: a person reads them on the real
+# page before 35.5 (FLOW-0019).
+STAGE_WORDS = {
+    AnalysisStage.before_run: (
+        "任せる前",
+        "分析をエージェントに任せる前で、まだデータに触っていない。",
+    ),
+    AnalysisStage.running: ("進行中", "エージェントが分析を進めている。"),
+    AnalysisStage.awaiting_confirmation: (
+        "あなたの確認待ち",
+        "エージェントが、あなたに確認したいことを書いて止まっている。"
+        "あなたが答えるまで、この分析は進まない。",
+    ),
+    AnalysisStage.stopped: (
+        "止めた",
+        "分析を止めた。再開はしない。やり直すときは、別の分析設計を作る。",
+    ),
+    AnalysisStage.awaiting_reflection: (
+        "計算が終わり、振り返りを待っている",
+        "notebook の計算が終わり、結果を振り返るのを待っている。",
+    ),
+    AnalysisStage.finished: ("終わった", "振り返りで、分析設計の結論を出した。"),
+}
+
+STAGE_LABEL = "分析の段階"
+STOP_REASON = "止めた理由: "
+WHAT_IS_ASKED = "確認したいこと: "
+ASKS_LEAD = (
+    "次の分析は、あなたの答えを待って止まっている。"
+    "答えは、チャットでエージェントに伝える。"
+)
+
+
+def asks_heading(count: int) -> str:
+    """The heading of the analyses that wait for the analyst, with how many."""
+    return f"{STAGE_WORDS[AnalysisStage.awaiting_confirmation][0]}（{count}件）"
 
 
 # The words shown to the analyst are not the glossary's terms (ADR-0055): the
@@ -298,7 +338,8 @@ def legend() -> Html:
         el(
             "p",
             f"ページの冒頭には、{SUBJECT}への{CURRENT_ANSWER_HEADING}、前の回から変わったこと、"
-            f"{NEXT_QUESTION_HEADING}を出す。その下に、論点ごとのカードを並べる。",
+            f"{NEXT_QUESTION_HEADING}を出す。あなたの確認を待つ分析があれば、"
+            "それらより前に抜き出す。その下に、論点ごとのカードを並べる。",
         ),
         el(
             "p",
@@ -341,6 +382,20 @@ def legend() -> Html:
             "結んでいる論点は、進捗の言葉を出さず、下に置いた論点の進捗を、言葉ごとの数で"
             f"出す。「{COUNTS_HEADING}」は、その論点を数えない。分析設計を結んだ論点の下に論点を"
             "置いたときは、進捗の言葉の後ろに、下に置いた論点の数を添える。",
+        ),
+        el(
+            "p",
+            f"{STAGE_LABEL}は、論点に結んだ分析設計ごとに、分析設計の状態と journal "
+            "から導いた言葉。進捗は論点ごとに、分析の段階は分析設計ごとに出す。"
+            "色は添えただけで、意味は言葉が持つ。",
+        ),
+        _word_list(STAGE_WORDS.values()),
+        el(
+            "p",
+            f"「{STAGE_WORDS[AnalysisStage.awaiting_confirmation][0]}」の分析は、"
+            "ページの冒頭にも抜き出す。止めた分析には止めた理由を、確認待ちの分析には"
+            "確認したいことを添える。分析設計の状態の言葉は、任せる前と終わった"
+            "分析設計にだけ添える。",
         ),
         el(
             "p",

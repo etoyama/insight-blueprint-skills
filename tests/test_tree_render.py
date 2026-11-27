@@ -12,6 +12,7 @@ from typing import get_args
 
 import pytest
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import (
     CONCLUSIONS_OF,
     TERMINAL_STATUSES,
@@ -32,7 +33,7 @@ from skills._shared.tree_check import CitedEvent, Violation, ViolationKind
 from skills._shared.tree_render import (
     CheckFailed,
 )
-from skills._shared.tree_words import SUBJECT, Mark, reflection
+from skills._shared.tree_words import STAGE_WORDS, SUBJECT, Mark, reflection
 from tests._tree_page import (
     BUSINESS_AIM,
     OLD_QUESTION,
@@ -793,10 +794,9 @@ class TestDesignsUnderTheirNode:
         [
             ("in_review", "レビュー中"),
             ("revision_requested", "修正待ち"),
-            ("analyzing", "分析中"),
         ],
     )
-    def test_a_design_before_its_conclusion_says_where_it_is(
+    def test_a_design_before_its_run_says_where_it_is(
         self, status: str, word: str
     ) -> None:
         designs = make_designs()
@@ -811,7 +811,10 @@ class TestDesignsUnderTheirNode:
         root = forms_page()
 
         (row,) = branch_cards(root, "LIB-Q05")
-        assert card_text(row) == "LIB-H03 仮説の判定: 棄却 LIB-Q03 の下に出ている"
+        finished = STAGE_WORDS[AnalysisStage.finished][0]
+        assert card_text(row) == (
+            f"LIB-H03 {finished} 仮説の判定: 棄却 LIB-Q03 の下に出ている"
+        )
         assert [e.attrs["href"] for e in row.walk() if e.tag == "a"] == ["#LIB-Q03"]
 
     def test_the_first_node_is_the_first_on_the_page_not_in_the_file(self) -> None:

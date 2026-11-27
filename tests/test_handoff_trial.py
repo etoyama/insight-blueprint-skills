@@ -21,6 +21,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import (
     TERMINAL_STATUSES,
     AnalysisDesign,
@@ -43,7 +44,7 @@ from scripts.handoff_trial import (
 from skills._shared import design_io, tree_io
 from skills._shared.tree_changes import ChangeKind
 from skills._shared.tree_check import check_theme
-from skills._shared.tree_words import CHANGE_WORDS
+from skills._shared.tree_words import CHANGE_WORDS, STAGE_WORDS
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = "lib"
@@ -883,3 +884,33 @@ class TestCli:
         done = _record_cli(reply, out)
         assert done.returncode == 1
         assert not out.exists()
+
+
+class TestTheStagesScenario:
+    """Epic 35, Story 35.4: one page that shows every analysis stage (FLOW-0019).
+
+    ``lib-stages`` adds a stage to ``lib``. It answers nothing, so it is no
+    reflection round and has no key: it is read by a person, not scored.
+    """
+
+    def test_it_starts_with_every_stage_of_its_base(self) -> None:
+        base, staged = load_scenario("lib"), load_scenario("lib-stages")
+
+        assert staged.theme_id == base.theme_id
+        assert staged.stages[: len(base.stages)] == base.stages
+        assert len(staged.stages) > len(base.stages)
+
+    def test_its_page_shows_every_stage_and_the_confirmation(
+        self, tmp_path: Path
+    ) -> None:
+        html = build(load_scenario("lib-stages"), tmp_path).read_text("utf-8")
+        position = tree_io.position("LIB", base_dir=tmp_path)
+        progress = tree_io.progress("LIB", base_dir=tmp_path)
+        stages = {d["stage"] for n in progress.values() for d in n["designs"]}
+
+        assert stages == {s.value for s in AnalysisStage}
+        for word, _ in STAGE_WORDS.values():
+            assert word in html
+        assert 'id="asks"' in html
+        assert len(position["node_ids"]) > 1
+        assert Progress.stopped in {n["progress"] for n in progress.values()}

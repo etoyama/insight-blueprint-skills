@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Mapping, Sequence
 
-from insight_blueprint.models.design import TERMINAL_STATUSES
+from insight_blueprint.models.analysis_stage import SETTLED, AnalysisStage
 from insight_blueprint.models.tree import (
     Aim,
     Answer,
@@ -63,6 +63,7 @@ from skills._shared.tree_render_parts import (
 )
 from skills._shared.tree_words import (
     AIM_LABELS,
+    ASKS_LEAD,
     BACK_TO_TREE,
     COUNTS_HEADING,
     CURRENT_ANSWER_HEADING,
@@ -79,9 +80,14 @@ from skills._shared.tree_words import (
     PROGRESS_WORDS,
     RESULT_WORD,
     SHARED_ID_WORDS,
+    STAGE_LABEL,
+    STAGE_WORDS,
+    STOP_REASON,
     SUBJECT,
     VIOLATION_WORDS,
+    WHAT_IS_ASKED,
     Mark,
+    asks_heading,
     before_revision,
     below_text,
     legend,
@@ -105,6 +111,22 @@ _TREE_CSS = """.legend { background: var(--panel); border: 1px solid var(--line)
 .progress-not_started { border-left-color: var(--not-started); }
 .progress-investigating { border-left-color: var(--investigating); }
 .progress-analyzed { border-left-color: var(--analyzed); }
+.progress-stopped { border-left-color: var(--stopped); }
+.stage {
+  font-weight: 700; border: 1px solid; border-radius: 3px; padding: 0 .4em;
+  white-space: nowrap;
+}
+.stage-before_run { color: var(--stage-before-run); border-style: dashed; }
+.stage-running { color: var(--stage-running); }
+.stage-awaiting_confirmation { color: var(--stage-awaiting-confirmation); }
+.stage-stopped { color: var(--stage-stopped); }
+.stage-awaiting_reflection { color: var(--stage-awaiting-reflection); }
+.stage-finished { color: var(--stage-finished); }
+.asks {
+  border: 2px solid var(--stage-awaiting-confirmation); padding: .2rem 1rem .6rem;
+  margin: 1rem 0;
+}
+.asks h2 { margin-top: .6rem; }
 .progress { font-weight: 700; }
 .mark { color: var(--mark); font-weight: 700; margin-right: .6rem; }
 .statements { margin: .3rem 0; padding-left: 1.2rem; }
@@ -169,6 +191,7 @@ def render_tree_html(
         [
             _header(tree),
             _check_notice(violations),
+            _asks(context),
             _subject_answer(context),
             _next_question(context),
             legend(),
@@ -246,10 +269,16 @@ def _newest_first(group: list[DesignSummary]) -> list[DesignSummary]:
 
 
 def _card_order(designs: list[DesignSummary]) -> list[DesignSummary]:
-    """Unfinished designs first, then finished ones; the newest first in each."""
-    finished = [d for d in designs if d.status in TERMINAL_STATUSES]
-    unfinished = [d for d in designs if d not in finished]
-    return _newest_first(unfinished) + _newest_first(finished)
+    """Unfinished designs, then finished ones, then stopped ones; the newest first in each.
+
+    A stopped analysis is never resumed (ADR-0064), so it is read last.
+    """
+    groups = (
+        [d for d in designs if d.stage not in SETTLED],
+        [d for d in designs if d.stage is AnalysisStage.finished],
+        [d for d in designs if d.stage is AnalysisStage.stopped],
+    )
+    return [d for group in groups for d in _newest_first(group)]
 
 
 def _note_link(design_id: str) -> Html:
@@ -272,17 +301,19 @@ def _counts(context: Context) -> Html:
     )
 
 
-def _decision_head(decision: TreeDecision) -> list[Html | str]:
-    """The kind of a decision, when it was taken, and the node it names."""
+def _decision_kind(decision: TreeDecision) -> str:
+    """The kind of a decision and when it was taken."""
     when = (
         ""
         if decision.kind is TreeDecisionKind.start
         else f"（{when_decided(decision.round)}）"
     )
-    return [
-        f"{DECISION_LABELS[decision.kind]}{when}: ",
-        link_to(decision.node_id, decision.node_id),
-    ]
+    return f"{DECISION_LABELS[decision.kind]}{when}: "
+
+
+def _decision_head(decision: TreeDecision) -> list[Html | str]:
+    """The kind of a decision, when it was taken, and every node it names (ADR-0061)."""
+    return [_decision_kind(decision), *join_links(decision.node_ids())]
 
 
 def _grounds(context: Context, decision: TreeDecision) -> Html | None:
@@ -339,13 +370,15 @@ def _next_question(context: Context) -> Html:
             if decision.round < latest
             else None
         )
+        named: list[Html | str] = []
+        for position, node_id in enumerate(decision.node_ids()):
+            named += [
+                "、" if position else "",
+                link_to(node_id, node_id),
+                f" {tree.node(node_id).question}",
+            ]
         lines = [
-            el(
-                "p",
-                waiting,
-                *_decision_head(decision),
-                f" {tree.node(decision.node_id).question}",
-            ),
+            el("p", waiting, _decision_kind(decision), *named),
             el("p", f"理由: {decision.reason}"),
         ]
         lines.append(_grounds(context, decision))
@@ -356,6 +389,75 @@ def _next_question(context: Context) -> Html:
     return el(
         "section", join([el("h2", NEXT_QUESTION_HEADING), *lines]), id="next-question"
     )
+
+
+def _asks(context: Context) -> Html | None:
+    """The analyses that wait for the analyst, ahead of the answer; none, no section."""
+    waiting = [
+        d
+        for d in sorted(context.designs.values(), key=lambda d: _id_key(d.id))
+        if d.stage is AnalysisStage.awaiting_confirmation
+    ]
+    if not waiting:
+        return None
+    items = []
+    for design in waiting:
+        nodes = context.linked_by.get(design.id, [])
+        items.append(
+            el(
+                "li",
+                join(
+                    [
+                        el(
+                            "p",
+                            el("strong", link_to(f"design-{design.id}", design.id)),
+                            f" {design.title}",
+                        ),
+                        el("p", "論点: ", *join_links(nodes), class_="meta")
+                        if nodes
+                        else None,
+                        *(el("p", f"{WHAT_IS_ASKED}{ask}") for ask in design.asks),
+                    ]
+                ),
+            )
+        )
+    return el(
+        "section",
+        join(
+            [
+                el("h2", asks_heading(len(waiting))),
+                el("p", ASKS_LEAD),
+                el("ul", join(items)),
+            ]
+        ),
+        class_="asks",
+        id="asks",
+    )
+
+
+def _stage(design: DesignSummary) -> list[Html | str]:
+    """The stage word, and the status word where it adds to it.
+
+    A design still analyzing keeps that status when it waits, stops or has its
+    results, so only a design before its run or finished says its status.
+    """
+    stage = el(
+        "span",
+        STAGE_WORDS[design.stage][0],
+        class_=f"stage stage-{design.stage.value}",
+    )
+    parts: list[Html | str] = [stage]
+    if design.stage in (AnalysisStage.before_run, AnalysisStage.finished):
+        parts.append(f"　{status_word(design.form, design.status)}")
+    return parts
+
+
+def _stage_notes(design: DesignSummary) -> list[Html]:
+    """Why a design was stopped, or what it asks the analyst."""
+    notes = [el("p", f"{WHAT_IS_ASKED}{ask}") for ask in design.asks]
+    if design.stop_reason is not None:
+        notes.append(el("p", f"{STOP_REASON}{design.stop_reason}"))
+    return notes
 
 
 def _checked_in_its_card(node: QuestionNode) -> Html:
@@ -473,7 +575,6 @@ def _comments_after_analysis(count: int) -> list[str]:
 
 def _design_card(context: Context, node: QuestionNode, design: DesignSummary) -> Html:
     """The full card under the first node on the page; a short row under the others."""
-    word = status_word(design.form, design.status)
     first = context.linked_by[design.id][0]
     if first != node.id:
         return el(
@@ -481,7 +582,9 @@ def _design_card(context: Context, node: QuestionNode, design: DesignSummary) ->
             el(
                 "p",
                 el("strong", design.id),
-                f"　{word}　",
+                "　",
+                *_stage(design),
+                "　",
                 link_to(first, f"{first} の下に出ている"),
                 class_="meta",
             ),
@@ -499,12 +602,14 @@ def _design_card(context: Context, node: QuestionNode, design: DesignSummary) ->
         el("p", f"{statement}: {design.statement}") if design.statement else None,
         el(
             "p",
-            word,
+            f"{STAGE_LABEL}: ",
+            *_stage(design),
             "　",
             *_comments_after_analysis(design.comments_after_analysis),
             _note_link(design.id),
             class_="meta",
         ),
+        join(_stage_notes(design)),
         class_=f"branch form-{design.form.value}",
     )
 
@@ -692,7 +797,8 @@ def _derivation(context: Context) -> Html:
         design = designs[design_id]
         nodes = context.linked_by.get(design_id, [])
         facts: list[Html | str] = [
-            f"{status_word(design.form, design.status)}　",
+            *_stage(design),
+            "　",
             # A linked design shows its count on its card; one linked to no node has
             # no card, so its count goes here. Each count is on the page once.
             *(

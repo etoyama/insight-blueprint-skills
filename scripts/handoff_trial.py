@@ -65,6 +65,8 @@ STEPS: dict[str, tuple[Callable[..., object], bool]] = {
     "create_design": (design_io.create_design, True),
     "append_journal_event": (design_io.append_journal_event, False),
     "transition_status": (design_io.transition_status, False),
+    "ask_analyst": (design_io.ask_analyst, False),
+    "stop_analysis": (design_io.stop_analysis, False),
 }
 
 
@@ -88,6 +90,8 @@ class Scenario(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     theme_id: str
+    # A scenario that goes on from another: its stages follow those of *base*.
+    base: str | None = None
     stages: list[Stage] = Field(min_length=1)
 
 
@@ -249,7 +253,17 @@ def _read_yaml(path: Path) -> Any:
 
 
 def load_scenario(name: str) -> Scenario:
-    return Scenario.model_validate(_read_yaml(FIXTURES / name / "stages.yaml"))
+    """The scenario *name*; one with a ``base`` starts with every stage of that base."""
+    scenario = Scenario.model_validate(_read_yaml(FIXTURES / name / "stages.yaml"))
+    if scenario.base is None:
+        return scenario
+    base = load_scenario(scenario.base)
+    if base.theme_id != scenario.theme_id:
+        raise ValueError(
+            f"scenario '{name}' is about {scenario.theme_id}, "
+            f"its base '{scenario.base}' about {base.theme_id}"
+        )
+    return Scenario(theme_id=scenario.theme_id, stages=base.stages + scenario.stages)
 
 
 def load_key(name: str) -> Key:

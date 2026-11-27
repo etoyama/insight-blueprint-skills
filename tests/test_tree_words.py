@@ -188,6 +188,14 @@ class TestEachPhrasingIsSpelledOnce:
             (tree_words.OPEN_EVIDENCE, "根拠を開く"),
             (tree_words.OPEN_NOTE, "分析ノートを開く"),
             (tree_words.BACK_TO_TREE, "論点ツリーへ戻る"),
+            (tree_words.asks_heading(2), "あなたの確認待ち（2件）"),
+            (
+                tree_words.ASKS_LEAD,
+                "次の分析は、あなたの答えを待って止まっている。"
+                "答えは、チャットでエージェントに伝える。",
+            ),
+            (tree_words.WHAT_IS_ASKED, "確認したいこと: "),
+            (tree_words.STOP_REASON, "止めた理由: "),
             (
                 # The furthest first, with all three words.
                 tree_words.below_text(
@@ -224,6 +232,17 @@ class TestEachPhrasingIsSpelledOnce:
         ("table", "words"),
         [
             (tree_words.PROGRESS_WORDS, ["未着手", "検証中", "止めた", "分析済み"]),
+            (
+                tree_words.STAGE_WORDS,
+                [
+                    "任せる前",
+                    "進行中",
+                    "あなたの確認待ち",
+                    "止めた",
+                    "計算が終わり、振り返りを待っている",
+                    "終わった",
+                ],
+            ),
             (
                 tree_words.KIND_WORDS,
                 ["これまでわかっていること", "まだ決められないこと", "注意すべきこと"],

@@ -60,6 +60,8 @@ class DesignSummary:
     statement: str  # the question of an exploration, else the hypothesis
     stage: AnalysisStage
     comments_after_analysis: int = 0  # review comments of the result review
+    stop_reason: str | None = None  # why it was stopped; None unless stopped
+    asks: tuple[str, ...] = ()  # what it waits for the analyst on; () unless waiting
 
     @classmethod
     def of(cls, note: DesignNote) -> DesignSummary:
@@ -76,6 +78,12 @@ class DesignSummary:
             statement=statement_of(design)[0],
             stage=note.stage,
             comments_after_analysis=comments_after_analysis(note.reviews),
+            # A finished analysis that once stopped or asked carries neither: the
+            # stage says which of the two the page has to add (ADR-0061 6).
+            stop_reason=note.stop_reason
+            if note.stage is AnalysisStage.stopped
+            else None,
+            asks=note.asks if note.stage is AnalysisStage.awaiting_confirmation else (),
         )
 
 
