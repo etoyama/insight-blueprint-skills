@@ -490,9 +490,12 @@ An execution agent knows nothing of this conversation. Write its brief from thes
   command that writes. Never `tree_io render` either: the dialogue agent rebuilds the page.
 - Where it stops: the analyst read this design before it was handed over. When the
   analysis cannot go on without changing something they read (its population, grain or
-  denominator, its extraction, a source, its primary metric, the criterion of its
-  verdict), it stops before it touches the data, records what it would have to change
-  with `design_io ask-analyst`, and returns. It never asks the analyst anything itself:
+  denominator, its extraction, a source, its primary metric, what a result is compared
+  against, the criterion of its verdict), it stops before it touches the data, records
+  what it would have to change with `design_io ask-analyst`, and returns. Adding a row, a
+  group or a period to compare with is such a change too: it adds or changes what a result
+  is compared against, so it stops and asks first. It never asks the analyst anything
+  itself:
 
 ```bash
 echo '{"content": "予約の記録が2025年10月より前に無い。対象を2025年10月以降の予約に変えてよいか"}' | design_io ask-analyst --id LIB-H05

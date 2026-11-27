@@ -123,9 +123,12 @@ class TestAnAnalysisAsksBeforeChangingWhatWasRead:
             "extraction",
             "source",
             "primary metric",
+            "what a result is compared against",
             "criterion",
         ):
             assert read in stops, read
+        # Real-data finding 8: an agent added a comparison the design did not have.
+        assert re.search(r"adds? or changes? what a result is compared against", stops)
         assert re.search(r"before it touches the data", stops)
         assert "`design_io ask-analyst`" in stops
         assert re.search(r"never asks the analyst[^.]*itself", stops)
