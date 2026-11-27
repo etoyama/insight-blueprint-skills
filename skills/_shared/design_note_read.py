@@ -25,12 +25,7 @@ from typing import cast
 
 from ruamel.yaml import YAMLError
 
-from insight_blueprint.models.analysis_stage import (
-    AnalysisStage,
-    answered_confirmation_ids,
-    open_confirmations,
-    stops,
-)
+from insight_blueprint.models.analysis_stage import answered_confirmation_ids
 from insight_blueprint.models.design import (
     TERMINAL_STATUSES,
     AnalysisDesign,
@@ -61,6 +56,7 @@ from skills._shared.design_note_reviews import (
     NoteReviewBatch,
     NoteReviewComment,
 )
+from skills._shared.stage_reading import StageReading
 from skills._shared.verdict_table import (
     CONFIDENCE,
     MetricGroup,
@@ -606,7 +602,7 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
         for s in describe(design.source_ids, base_dir)["sources"]
     )
     raw = journal_events(design_id, base_dir)
-    stage = AnalysisStage.of(design.status, raw, design.analysis_started_at)
+    reading = StageReading.of(design.status, raw, design.analysis_started_at)
     events = tuple(_note_event(e) for e in raw)
     base = Path(base_dir)
     notebooks = base / "notebooks"
@@ -633,16 +629,10 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
         lineage=lineage,
         local_files=local_files,
         conclusion=_conclusion(design, raw, events),
-        stage=stage,
+        stage=reading.stage,
         reviews=_read_reviews(base / "designs" / f"{design_id}_reviews.yaml"),
-        # A finished analysis that once stopped or asked carries neither: the
-        # stage says which of the two the page adds (ADR-0061 6).
-        stop_reason=next((_note_event(e).content for e in raw if stops(e)), None)
-        if stage is AnalysisStage.stopped
-        else None,
-        asks=tuple(_note_event(e).content for e in open_confirmations(raw))
-        if stage is AnalysisStage.awaiting_confirmation
-        else (),
+        stop_reason=reading.stop_reason,
+        asks=tuple(ask.content for ask in reading.asks),
     )
 
 

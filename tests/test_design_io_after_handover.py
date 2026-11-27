@@ -72,7 +72,7 @@ class TestAStoppedAnalysisKeepsItsStatus:
             design_io.transition_status(design_id, "explored", insight)
 
         assert _status(insight, design_id) == "analyzing"
-        assert design_io.stage_of(design_id, insight).value == "stopped"
+        assert design_io.stage_reading(design_id, insight).stage.value == "stopped"
 
     def test_a_design_stopped_before_its_run_is_not_moved_into_the_analysis(
         self, insight: Path
@@ -147,7 +147,10 @@ class TestAnAnalysisWaitingForTheAnalystIsNotEnded:
             design_io.transition_status(design_id, "explored", insight)
 
         assert _status(insight, design_id) == "analyzing"
-        assert design_io.stage_of(design_id, insight).value == "awaiting_confirmation"
+        assert (
+            design_io.stage_reading(design_id, insight).stage.value
+            == "awaiting_confirmation"
+        )
 
     def test_an_update_to_an_end_is_refused(self, insight: Path) -> None:
         design_id = _design(insight)
@@ -324,7 +327,25 @@ class TestStageCommand:
             "stage": "running",
             "result_on_record": False,
             "asks": [],
+            "stop_reason": None,
         }
+
+    def test_it_gives_the_reason_of_a_stop(self, insight: Path) -> None:
+        """A skill shows why an analysis was stopped without reading the journal."""
+        design_id = _design(insight)
+        design_io.stop_analysis(design_id, "先に別の論点を見る", insight)
+
+        report = design_io.stage_report(design_id, insight)
+
+        assert report["stage"] == "stopped"
+        assert report["stop_reason"] == "先に別の論点を見る"
+
+    def test_a_stopped_analysis_asks_nothing(self, insight: Path) -> None:
+        design_id = _design(insight)
+        design_io.ask_analyst(design_id, "分母を変えないと進めない", insight)
+        design_io.stop_analysis(design_id, "先に別の論点を見る", insight)
+
+        assert design_io.stage_report(design_id, insight)["asks"] == []
 
 
 class TestJournalAppend:

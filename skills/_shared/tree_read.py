@@ -42,7 +42,7 @@ from skills._shared.design_io import (
     journal_events,
     load_design,
     read_yaml,
-    stage_in,
+    stage_reading,
     theme_of,
 )
 from skills._shared.design_note import DesignNote, note_anchor, render_note
@@ -128,7 +128,7 @@ def _designs_and_stages(
     stages: dict[str, AnalysisStage] = {}
     for design_id in dict.fromkeys(design_ids):
         designs[design_id] = require_design(design_id, base_dir)
-        stages[design_id] = stage_in(design_id, designs[design_id], base_dir)
+        stages[design_id] = stage_reading(design_id, base_dir, designs[design_id]).stage
     return designs, stages
 
 

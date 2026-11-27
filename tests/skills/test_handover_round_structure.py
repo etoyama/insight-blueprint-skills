@@ -45,7 +45,7 @@ def staged(tmp_path: Path) -> Path:
 
 
 def _stage(insight: Path, design_id: str) -> str:
-    return design_io.stage_of(design_id, insight).value
+    return design_io.stage_reading(design_id, insight).stage.value
 
 
 def _brief_line(label: str) -> str:

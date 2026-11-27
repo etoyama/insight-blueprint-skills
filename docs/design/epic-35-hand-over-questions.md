@@ -707,6 +707,15 @@ sequenceDiagram
 - Alternatives considered: 結果のレビュー中を新しい段階にする（段階の値が増え、Domain Model と全部の読み手が変わる。振り返り待ちで、拒む書き込みも同じ）。印があれば結果が無くても振り返り待ちにする（結果の無い分析に振り返りを求め、`/analysis-reflection` が記録を先に勧めて止まる）。
 - Consequences: 結果のレビュー中の分析設計は、論点ツリーの HTML で振り返り待ちと出る。巡回は **endings** でその終え方を聞き、`/analysis-reflection` の Step 4 が結果のレビューを先に済ませる。
 
+### Decision: gate-the-stage-is-read-into-one-value
+
+- What: 分析の段階・結果が記録にあるか・答えの付いていない確認・止めた理由を、1つの値 `StageReading`（段階の読み取り）にまとめる。`design_io stage` はこれを返し、止めた理由（`stop_reason`）も返す。分析ノートもこれを読む。読む関数は `design_io.stage_reading` の1つにした。`StageReading` は `skills/_shared/stage_reading.py` に置き、`src/insight_blueprint/models/` には置かない。計画外の判断（2件目）。
+- Why: 段階に添える値の読み方が、`design_io.stage_report`・`design_note_read`・skill の文に割れていた。`/analysis-reflection` は止めた理由を journal から自分で読んでいた。`stage_report` は、実行前に止めた分析設計の推論を結果と数えていた。
+- Criteria: 段階の規則を1か所に置くこと（US-3 AC 1）。置き場所は、Domain Model 図を人間の承認なしに変えないこと（ゲートの brief）を決め手にした。`models/` の型は ARCHITECTURE の classDiagram に全部載る（`tests/docs/test_canonical_docs.py`）。
+- Affected modules: `skills/_shared/stage_reading.py`、`skills/_shared/design_io.py`（`stage_reading`・`stage_report`）、`skills/_shared/design_note_read.py`、`skills/_shared/tree_read.py`、`skills/_shared/tree_io.py`（`copy_hearing`）、`src/insight_blueprint/models/analysis_stage.py`（`result_on_record`）、`skills/analysis-reflection/SKILL.md`（Step T1）
+- Alternatives considered: `models/analysis_stage.py` に置く（classDiagram に `StageReading` と `Ask` を足すことになり、人間の承認が要る。承認されたら移す）。`DesignNote` が `StageReading` をそのまま持つ（描画の読み手が全部変わる。今は `stage`・`stop_reason`・`asks` に写す）。
+- Consequences: `design_io stage` の出力に `stop_reason` が増えた。止めた分析は `asks` を返さない（前は答えの付いていない確認を返した）。分析に入っていない分析設計は、止めても `result_on_record` が偽になった。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0061: 論点ツリーの決定は一緒に任せた論点を持てて、分析の段階は記録から導く](../adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md): 決定に `with_node_ids` を足す。分析の段階は保存しない。「ツリーの決定」を「論点ツリーの決定」に改名する。

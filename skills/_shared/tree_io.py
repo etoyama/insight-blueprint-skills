@@ -35,9 +35,8 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from ruamel.yaml import YAMLError
 
-from insight_blueprint.models.analysis_stage import AnalysisStage
+from insight_blueprint.models.analysis_stage import SETTLED, AnalysisStage
 from insight_blueprint.models.common import now_jst
-from insight_blueprint.models.design import TERMINAL_STATUSES
 from insight_blueprint.models.journal import HEARING, QUESTION
 from insight_blueprint.models.tree import (
     Answer,
@@ -58,7 +57,7 @@ from skills._shared.design_io import (
     append_journal_event,
     journal_events,
     resolve_base_dir,
-    stage_in,
+    stage_reading,
 )
 from skills._shared.tree_check import check_last_decision, check_tree, reported
 from skills._shared.tree_read import (
@@ -75,7 +74,6 @@ from skills._shared.tree_read import (
     render_design,
     report,
     require_design,
-    status_of,
     tree_path,
 )
 
@@ -445,18 +443,15 @@ def copy_hearing(
                 }
 
         design = require_design(design_id, base_dir)
-        status = status_of(design)
-        # A concluded analysis keeps the record it was concluded on, and a
-        # stopped one is not resumed (ADR-0064 7).
-        if stage_in(design_id, design, base_dir) is AnalysisStage.stopped:
-            ended = "stopped: a stopped analysis takes no new hearing"
-        elif status in TERMINAL_STATUSES:
-            ended = f"{status.value}: a finished design takes no new hearing"
-        else:
-            ended = None
-        if ended is not None:
+        # A finished analysis keeps the record it ended on, and a stopped one
+        # is not resumed (ADR-0064 7).
+        reading = stage_reading(design_id, base_dir, design)
+        if reading.stage in SETTLED:
+            # A finished design is named by its status, as the analyst knows it.
+            ended = reading.stage is AnalysisStage.finished
+            said = reading.status if ended else reading.stage
             raise ValueError(
-                f"{design_id} is {ended}. "
+                f"{design_id} is {said.value}: it takes no new hearing. "
                 f"The answer stays on {node_id}; copy it into the next design linked there"
             )
 

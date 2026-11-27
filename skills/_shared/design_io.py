@@ -30,13 +30,12 @@ from insight_blueprint.models.analysis_stage import (
     ASKS_FROM,
     MARKS,
     RECORDS_FROM,
+    SETTLED,
     STOPS_FROM,
     AnalysisStage,
     answer,
     asks_analyst,
     confirmation,
-    open_confirmations,
-    records_a_result,
     stop,
 )
 from insight_blueprint.models.common import THEME_ID_PATTERN, now_jst
@@ -59,6 +58,7 @@ from insight_blueprint.validate import (
 from skills._shared._atomic import atomic_write_yaml, write_lock
 from skills._shared._stdin import read_payload
 from skills._shared.ids import SAFE_ID_PATTERN
+from skills._shared.stage_reading import StageReading
 
 DEFAULT_BASE_DIR = Path(os.environ.get("INSIGHT_BASE_DIR", ".insight"))
 
@@ -375,7 +375,7 @@ def _refuse_the_move(
     that waits for the analyst does not end: its confirmation would drop out
     unanswered (ADR-0064 1). Every write that changes the status calls this first.
     """
-    stage = stage_in(design_id, current, base_dir)
+    stage = stage_reading(design_id, base_dir, current).stage
     if stage is AnalysisStage.stopped:
         raise ValueError(
             f"{design_id} is stopped: its status does not change. A stopped "
@@ -487,11 +487,16 @@ def append_journal_events(
         _required_text(event.get("content"), "the content of an event")
         _refuse_marks(event)
     with write_lock(base_dir):
-        refusal = "it takes no new result. Record nothing more and return"
-        _check_stage(design_id, RECORDS_FROM, refusal, base_dir)
-        status = load_design(design_id, base_dir).get("status")
-        if status != DesignStatus.analyzing:
-            raise ValueError(f"{design_id} is {status}: {refusal}")
+        reading = stage_reading(design_id, base_dir)
+        if not reading.takes_a_result:
+            # A design a review of its result holds is past its run: say its status.
+            held = (
+                reading.stage if reading.stage not in RECORDS_FROM else reading.status
+            )
+            raise ValueError(
+                f"{design_id} is {held.value}: it takes no new result. "
+                "Record nothing more and return"
+            )
         return _append_events(design_id, events, base_dir)
 
 
@@ -566,23 +571,18 @@ def _required_text(text: str | None, what: str) -> str:
     return text
 
 
-def _stage_and_events(
-    design_id: str, base_dir: Path
-) -> tuple[AnalysisStage, list[dict]]:
-    design = load_design(design_id, base_dir)
-    if not design:
-        raise ValueError(f"Design '{design_id}' not found")
-    return _stage_in(design_id, design, base_dir)
+def stage_reading(
+    design_id: str, base_dir: Path = DEFAULT_BASE_DIR, design: dict | None = None
+) -> StageReading:
+    """The stage of *design_id* and what goes with it, read from its design and journal.
 
-
-def stage_in(design_id: str, design: dict, base_dir: Path) -> AnalysisStage:
-    """The analysis stage of *design_id*, whose file the caller already read as *design*."""
-    return _stage_in(design_id, design, base_dir)[0]
-
-
-def _stage_in(
-    design_id: str, design: dict, base_dir: Path
-) -> tuple[AnalysisStage, list[dict]]:
+    *design* is the file of the design when the caller already read it.
+    Raises ValueError if the design does not exist or has no valid status.
+    """
+    if design is None:
+        design = load_design(design_id, base_dir)
+        if not design:
+            raise ValueError(f"Design '{design_id}' not found")
     try:
         status = DesignStatus(design.get("status"))
     except ValueError:
@@ -590,46 +590,23 @@ def _stage_in(
             f"Design '{design_id}' on disk has no valid status: repair it first"
         ) from None
     events = journal_events(design_id, base_dir)
-    stage = AnalysisStage.of(status, events, design.get("analysis_started_at"))
-    return stage, events
-
-
-def stage_of(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> AnalysisStage:
-    """The analysis stage of *design_id*, read from its design and journal.
-
-    Raises ValueError if the design does not exist.
-    """
-    return _stage_and_events(design_id, base_dir)[0]
+    return StageReading.of(status, events, design.get("analysis_started_at"))
 
 
 def stage_report(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
-    """The stage of *design_id*, whether a result is on record, and what it asks.
+    """The reading of *design_id* as ``design_io stage`` prints it.
 
     What a skill reads instead of working these out from the status and the
-    journal. ``result_on_record`` does not follow the status: it stays true
-    while a review of the result holds the design. ``asks`` lists the
-    confirmations no answer names yet, each with the id an answer names.
+    journal. ``asks`` lists the confirmations no answer names yet, each with
+    the id an answer names; ``stop_reason`` is the reason of a stop.
     """
-    design = load_design(design_id, base_dir)
-    if not design:
-        raise ValueError(f"Design '{design_id}' not found")
-    stage, events = _stage_in(design_id, design, base_dir)
-    # A design that never entered its analysis has no run to have a result of,
-    # whatever reasoning its journal holds. One a review of the result took
-    # back keeps the mark of its analysis (ADR-0054).
-    started = (
-        stage is not AnalysisStage.before_run
-        or design.get("analysis_started_at") is not None
-    )
+    reading = stage_reading(design_id, base_dir)
     return {
         "design_id": design_id,
-        "stage": stage.value,
-        "result_on_record": started
-        and records_a_result(events, design.get("analysis_started_at")),
-        "asks": [
-            {"id": e.get("id"), "content": e.get("content")}
-            for e in open_confirmations(events)
-        ],
+        "stage": reading.stage.value,
+        "result_on_record": reading.result_on_record,
+        "asks": [ask._asdict() for ask in reading.asks],
+        "stop_reason": reading.stop_reason,
     }
 
 
@@ -637,7 +614,7 @@ def _check_stage(
     design_id: str, allowed: frozenset[AnalysisStage], refusal: str, base_dir: Path
 ) -> None:
     """ValueError saying *refusal* unless the stage of *design_id* is in *allowed*."""
-    stage = stage_of(design_id, base_dir)
+    stage = stage_reading(design_id, base_dir).stage
     if stage not in allowed:
         raise ValueError(f"{design_id} is {stage.value}: {refusal}")
 
@@ -666,17 +643,19 @@ def answer_analyst(
     """Record the analyst's answer to the confirmation *question_id*."""
     content = _required_text(content, "the answer")
     with write_lock(base_dir):
-        stage, events = _stage_and_events(design_id, base_dir)
-        # An open confirmation keeps the stage at awaiting_confirmation, so the
-        # check that counts is the one below; this one names a stopped or
-        # finished analysis instead of saying its confirmation was answered.
-        if stage in (AnalysisStage.stopped, AnalysisStage.finished):
-            raise ValueError(f"{design_id} is {stage.value}: it takes no answer")
-        if not any(e.get("id") == question_id and asks_analyst(e) for e in events):
+        reading = stage_reading(design_id, base_dir)
+        # A stopped or finished analysis asks nothing, so it is named here
+        # instead of saying its confirmation was answered.
+        if reading.stage in SETTLED:
             raise ValueError(
-                f"{question_id} is not a confirmation in the journal of {design_id}"
+                f"{design_id} is {reading.stage.value}: it takes no answer"
             )
-        if not any(e.get("id") == question_id for e in open_confirmations(events)):
+        if not any(ask.id == question_id for ask in reading.asks):
+            events = journal_events(design_id, base_dir)
+            if not any(e.get("id") == question_id and asks_analyst(e) for e in events):
+                raise ValueError(
+                    f"{question_id} is not a confirmation in the journal of {design_id}"
+                )
             raise ValueError(f"{question_id} is already answered")
         return _append_event(design_id, answer(str(question_id), content), base_dir)
 

@@ -333,8 +333,8 @@ an answer only after the tree check has passed (ADR-0025).
 4. `tree_io position --theme {theme_id}` — where the walk stands. When its `state` is
    `concluded` and every design of its `design_ids` has the stage `stopped` in `nodes`, the
    round has no result to answer from. Tell the analyst "今回任せた分析はどれも止めたので、
-   新しい結果は無い。" and show each of those designs with its 止めた理由, the `decide` event
-   of its journal that `design_io stop` wrote. Then ask whether the current answers stay as
+   新しい結果は無い。" and show each of those designs with its 止めた理由, as
+   `design_io stage --id {design_id}` gives it in `stop_reason`. Then ask whether the current answers stay as
    they are. When they stay, write no answer for this round: skip Steps T2 to T5 and go to
    Step T6. When the analyst wants an answer changed by what a reason says, go on with
    Step T2 as usual.

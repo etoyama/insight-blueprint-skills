@@ -326,3 +326,14 @@ class TestProgressIsShownAsThePageShowsIt:
         present = _step("### Step T5: ")
         never = re.search(r"`null`[^.]*never[^.]*未着手[^.]*\.", present)
         assert never, "no sentence keeps a node without a word from reading 未着手"
+
+
+class TestTheReasonOfAStopIsReadByTheCommand:
+    """The reason of a stop is read where the stage is, never out of the journal."""
+
+    def test_each_stopped_design_shows_the_reason_design_io_stage_gives(self) -> None:
+        load = _step("### Step T1: ")
+        assert re.search(
+            r"止めた理由[^.]*`design_io stage --id[^`]*`[^.]*`stop_reason`", load
+        )
+        assert not re.search(r"止めた理由[^.]*journal", load)

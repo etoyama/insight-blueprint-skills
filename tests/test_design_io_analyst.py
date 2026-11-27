@@ -48,7 +48,7 @@ def _design(insight: Path, status: str = "analyzing") -> str:
 
 
 def _stage(insight: Path, design_id: str) -> AnalysisStage:
-    return design_io.stage_of(design_id, insight)
+    return design_io.stage_reading(design_id, insight).stage
 
 
 def _observe(insight: Path, design_id: str) -> None:

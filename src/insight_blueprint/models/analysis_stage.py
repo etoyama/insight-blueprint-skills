@@ -159,12 +159,28 @@ class AnalysisStage(StrEnum):
         # A review of the result takes the design back from analyzing, and the
         # result stays on record (ADR-0054); one taken back without a result is
         # read before its run, to be handed over again.
-        ran = status is DesignStatus.analyzing or started_at is not None
-        if ran and records_a_result(events, started_at):
+        if result_on_record(status, events, started_at):
             return cls.awaiting_reflection
         if status is DesignStatus.analyzing:
             return cls.running
         return cls.before_run
+
+
+def result_on_record(
+    status: DesignStatus, events: list[dict], started_at: datetime | str | None
+) -> bool:
+    """Whether a run of a design in *status* left a result among *events*.
+
+    A design that never entered its analysis has none, whatever reasoning its
+    journal holds. The stage is not read: a result stays on record while a
+    review of it holds the design (ADR-0054), and a stopped analysis may have one.
+    """
+    entered = (
+        status is DesignStatus.analyzing
+        or status in TERMINAL_STATUSES
+        or started_at is not None
+    )
+    return entered and records_a_result(events, started_at)
 
 
 # The stages a confirmation and a stop may be written from (the State Diagram
