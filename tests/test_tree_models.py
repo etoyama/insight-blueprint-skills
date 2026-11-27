@@ -21,6 +21,8 @@ from insight_blueprint.models.tree import (
     StatementKind,
 )
 from insight_blueprint.validate import validate_tree
+from tests._handover import handed_tree
+from tests._tree_page import build
 
 ROOT_QUESTION = "取り置き期限を延ばす試行をするか"
 
@@ -971,3 +973,26 @@ class TestValidateTree:
     def test_a_theme_id_that_differs_from_the_file_name_is_an_error(self) -> None:
         errors = validate_tree(tree_dict(), expected_theme_id="FP")
         assert errors == ["theme_id: 'LIB' does not match the file name (FP_tree.yaml)"]
+
+
+class TestDesignsNamedByADecision:
+    """The designs a decision hands over: one rule for the walk and the check before a hand-over."""
+
+    def test_they_are_those_on_every_question_it_names_in_its_order(self) -> None:
+        tree = build(handed_tree())
+
+        assert tree.designs_named_by(tree.decisions[-1]) == ["LIB-H05", "LIB-H06"]
+
+    def test_a_design_on_two_named_questions_is_named_once(self) -> None:
+        raw = handed_tree()
+        raw["nodes"][4]["design_ids"] = ["LIB-H05", "LIB-H06"]
+        tree = build(raw)
+
+        assert tree.designs_named_by(tree.decisions[-1]) == ["LIB-H05", "LIB-H06"]
+
+    def test_a_design_on_a_question_it_does_not_name_is_left_out(self) -> None:
+        raw = handed_tree()
+        raw["nodes"][1]["design_ids"] = ["LIB-H01"]
+        tree = build(raw)
+
+        assert "LIB-H01" not in tree.designs_named_by(tree.decisions[-1])

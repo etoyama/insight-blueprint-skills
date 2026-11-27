@@ -321,6 +321,14 @@ class QuestionTree(BaseModel):
         """Every design linked to some node of the tree."""
         return {design for node in self.nodes for design in node.design_ids}
 
+    def designs_named_by(self, decision: TreeDecision) -> list[str]:
+        """The designs linked to every question *decision* names, in its order.
+
+        A design linked to two of the questions is one analysis, named once.
+        """
+        named = (self.node(n) for n in decision.node_ids())
+        return list(dict.fromkeys(d for node in named for d in node.design_ids))
+
     def untouched_nodes(self) -> list[QuestionNode]:
         """The next candidates: no design is linked to the node or anything below it."""
         branch = self.designs_by_branch()

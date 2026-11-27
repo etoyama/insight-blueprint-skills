@@ -156,9 +156,8 @@ def to_hand_over(tree: QuestionTree, stages: Mapping[str, AnalysisStage]) -> lis
     """
     if not tree.decisions or tree.decisions[-1].kind is TreeDecisionKind.close:
         return []
-    named = (tree.node(n) for n in tree.decisions[-1].node_ids())
-    linked = dict.fromkeys(d for node in named for d in node.design_ids)
-    return [d for d in linked if stages.get(d) in READ_BEFORE_HANDOVER]
+    named = tree.designs_named_by(tree.decisions[-1])
+    return [d for d in named if stages.get(d) in READ_BEFORE_HANDOVER]
 
 
 def differing_rows(designs: Sequence[HandoverDesign]) -> tuple[HandoverRow, ...]:

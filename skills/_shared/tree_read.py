@@ -260,8 +260,7 @@ def position(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
     decision = tree.decisions[-1]
     closed = decision.kind is TreeDecisionKind.close
     named = [tree.node(node_id) for node_id in decision.node_ids()]
-    # A design linked to two of the nodes is one analysis.
-    linked = list(dict.fromkeys(d for node in named for d in node.design_ids))
+    linked = tree.designs_named_by(decision)
     designs, stages = _designs_and_stages(linked, base_dir)
 
     def later(design_ids: list[str]) -> list[str]:
