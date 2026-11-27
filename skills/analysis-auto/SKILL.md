@@ -412,7 +412,11 @@ echo '{"answers": "LIB-H04-E01", "content": "2025年10月以降の予約に絞�
 
    - When the answer changes the design, write the change with `design_io update` before
      anything runs, and tell the analyst each field you changed, with its value before and
-     after. A design that began its analysis keeps its hypothesis and the criterion of its
+     after. List every field the answer touches and change each of them: not only the
+     extraction in `methodology.steps`, but every field that writes the same definition,
+     such as the `description` of an `explanatory` variable, `data_scope` and `metrics`.
+     Check that every field is changed before you take the analysis back to
+     **premortem**. A design that began its analysis keeps its hypothesis and the criterion of its
      verdict: when `update` refuses the change, show stderr and offer to stop this analysis
      and derive a design from it (*Stopping an analysis*).
    - The answered analysis is `running` again, with no agent at work. Take it back to

@@ -717,3 +717,27 @@ class TestTheReviewOfTheResultIsExplained:
             r"guide to a review of the result[^.]*`/analysis-reflection`", item
         )
         assert "批評し、コメントを残す" not in auto()
+
+
+class TestAnAnswerChangesEveryFieldItTouches:
+    """Real-data finding 9 of Epic 35: an old definition stayed in an explanatory variable."""
+
+    def test_every_field_that_writes_the_same_definition_is_changed(self) -> None:
+        item = handover_item("confirmation")
+        assert re.search(r"[Ll]ist every field the answer touches", item)
+        for field in (
+            "`methodology.steps`",
+            "`explanatory`",
+            "`data_scope`",
+            "`metrics`",
+        ):
+            assert field in item, field
+
+    def test_the_fields_are_changed_before_premortem_runs_again(self) -> None:
+        item = handover_item("confirmation")
+        assert item.index("List every field the answer touches") < item.index(
+            "back to **premortem**"
+        )
+        assert re.search(
+            r"every field[^.]*changed[^.]*before[^.]*\*\*premortem\*\*", item
+        )
