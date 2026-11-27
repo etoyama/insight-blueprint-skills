@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`/analysis-auto` hands several questions over together, after one check.** When the analyst chooses
+  several questions that do not wait for each other, the decision names them all and the round designs
+  each, saves the designs `in_review`, links them and asks once, with the page of the tree and the rows
+  that differ. A comment pasted from the page becomes a review comment of its design, a design left out
+  is stopped with the analyst's reason, and each design then runs in an execution agent of its own that
+  writes only its notebook, verdict and journal. `tree_io handover` names the designs that state no data
+  scope, and such a design is not put to the check. A resumed run enters by the stage of each analysis
+  ([ADR-0063](docs/adr/0063-designs-to-hand-over-are-saved-then-read-side-by-side-on-the-page.md),
+  [ADR-0062](docs/adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md), #290).
 - **The question tree page lays out the designs to hand over side by side, before they run.** The designs
   not yet run on the questions the last decision names stand in columns, with their intent, what they
   answer, the criterion, population, grain, denominator, sources, method, primary metric, the full

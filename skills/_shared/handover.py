@@ -139,9 +139,13 @@ class HandoverDesign:
     title: str
     values: Mapping[HandoverRow, Value]
 
+    states_scope: bool
+
     @classmethod
     def of(cls, design: AnalysisDesign) -> HandoverDesign:
-        return cls(design.id, design.title, _values(design))
+        return cls(
+            design.id, design.title, _values(design), design.data_scope is not None
+        )
 
 
 def to_hand_over(tree: QuestionTree, stages: Mapping[str, AnalysisStage]) -> list[str]:

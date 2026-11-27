@@ -3,11 +3,12 @@ name: analysis-auto
 version: "1.1.0"
 description: |
   Guided autopilot and the analyst's single entry. Takes a theme, builds its question tree
-  (or resumes at the node the latest tree decision names) and walks the tree one node per round:
+  (or resumes at the node the latest tree decision names) and walks the tree one decision per round:
   design → review → premortem → notebook → journal → reflection → theme reflection →
-  tree decision. Progresses automatically through low-friction steps and
+  tree decision. A decision that names several nodes hands their designs over together, after
+  one check of all of them. Progresses automatically through low-friction steps and
   pauses only at genuine decision points (root question and aim, the node to investigate,
-  intent and the question to explore or the hypothesis, source registration, cost/risk, code with external effects, conclusion, the results
+  intent and the question to explore or the hypothesis, the designs to hand over together, source registration, cost/risk, code with external effects, conclusion, the results
   the theme's answers rest on, the tree decision, sending anything outside this machine).
   Triggers: "オートで進めて", "自動で分析を回して", "autopilot", "guided auto",
   "最後まで進めて", "analysis auto", "論点を順に調べて".
@@ -18,7 +19,7 @@ argument-hint: "[theme_id | design_id]"
 # /analysis-auto — Guided Autopilot (driver)
 
 The one entry for the analyst. It takes a theme, keeps the theme's question tree, and
-investigates the tree one node per round, so you type no `/command` between the steps. It
+investigates the tree one decision per round, so you type no `/command` between the steps. It
 **orchestrates the existing skills** (it does not reimplement them) and **stops only at
 genuine decisions**. Autonomy is scoped to this run — the individual skills stay
 explicit/interactive everywhere else.
@@ -53,6 +54,7 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | design ② methodology | **confirm the method + metrics + explanatory roles (treatment/confounder/…), and for a confirmation the criterion of the verdict in the primary metric's `comparison`**, after explaining the metrics as `/analysis-design` Step 2 "Metrics explained" does: one sentence for each metric, and the five parts for a metric built from two or more quantities that is new to the theme | auto-drafting these fields from the Framing Brief |
 | design ③ data-extraction | **confirm the data-acquisition plan** — the actual query text (`methodology.steps`, with each table as `{source:ID}`) for SQL sources, or the data source id + columns + filter for CSV/others, plus expected grain & rough row scale | auto-drafting the query / column selection from the catalog schema |
 | design ④ charts | **confirm the planned `chart[]` specs (intent / type / x / y)** | auto-drafting chart specs from the direction |
+| check before handing over | **the designs of a round of several nodes, read side by side on the page: hand them over as they are, comment on a design, or leave a design out** — asked once for all of them (Step 3H) | drafting the designs, saving them `in_review`, linking them, rebuilding the page |
 | review (optional) | **the verdict** (revision_requested vs approve) | running the critique itself |
 | premortem | **result is `HARD_BLOCK`/`HIGH`** → stop, surface the risk | running premortem; `LOW`/`MEDIUM` |
 | notebook | **non-allowlisted package / external comms beyond the declared source / other side-effects** | generate + run when premortem cleared AND it's declared-source read + allowlisted + local compute |
@@ -71,6 +73,9 @@ The four `design ①–④` beats are **ordered confirmation gates** run before 
 adjust it, rather than collapsing the whole design into a single "looks good?". Beat ③
 (data-extraction) is where the *actual data pull* — the SQL query or the CSV file+columns+filter —
 gets a seat, so premortem then estimates cost against the **confirmed** query.
+The four beats belong to a round of one node. In a round of several nodes they are not asked:
+the analyst reads every design once, at the check before handing over
+([ADR-0063](../../docs/adr/0063-designs-to-hand-over-are-saved-then-read-side-by-side-on-the-page.md)).
 
 Ask the analyst nothing outside the KEEP column. If in doubt whether something is a genuine
 decision, **stop and ask** — bias toward the KEEP column.
@@ -123,19 +128,34 @@ tree_io position --theme LIB
 |---|---|---|
 | `no_tree` | The theme has no question tree. stderr names the file it looked for: check that it is under this project's `.insight` | Step 2 |
 | `no_decision` | A tree without a first node to investigate: an earlier framing stopped halfway | Step 2, item 3 (`/analysis-framing` finishes it: 4c, "An unfinished tree") |
-| `not_started` | No design is unfinished, and `undesigned_node_ids` names the nodes of the latest decision with no design made on them since | Step 3, item 1 |
-| `in_progress` | `design_ids` are the unfinished designs on the nodes the decision names (`node_ids`); a stopped one is not unfinished | Step 3, at the item the first of them calls for |
+| `not_started` | No design is unfinished, and `undesigned_node_ids` names the nodes of the latest decision with no design made on them since | Step 3, item 1; Step 3H for several nodes |
+| `in_progress` | `design_ids` are the unfinished designs on the nodes the decision names (`node_ids`); a stopped one is not unfinished | By the `stage` of each of them (below) |
 | `concluded` | `design_ids` were made after the decision on its `node_ids`, and each is finished or stopped; the round lacks its theme reflection | Step 3, item 8 |
 | `closed` | The analyst closed the walk at `node_id`, and no design was made on it since | Step 3, item 1 |
 
-   For `in_progress`, read the design with `design_io get --id {design_id}`:
-   `in_review` / `revision_requested` → item 3 or 4. For `analyzing`, read the journal: no event
-   other than `hearing` → item 4; any other event → item 7. A `hearing` event is the answer
-   `/analysis-design` copied in before premortem, so it does not mean the analysis ran.
-   With more than one unfinished design, carry the first
-   and tell the analyst which ones wait.
+   A decision that names more than one node (`node_ids`) makes the round one of several nodes:
+   it runs Step 3H in place of items 1–6 of Step 3. A decision that names one node runs Step 3.
+
+   For `in_progress`, read the `stage` of each design of `design_ids` in `nodes`. Never work the
+   stage out yourself from the status of the design and its journal.
+
+| `stage` | What it means | One node: enter Step 3 at | Several nodes: enter Step 3H at |
+|---|---|---|---|
+| `before_run` | Saved, and not handed over yet | item 3 or 4 | item 3, once item 1 has left no node without a design |
+| `running` | Handed over, with no result on record | item 4 | item 4 |
+| `awaiting_confirmation` | It asked the analyst something and waits for the answer | — | Tell the analyst that it waits for their answer, and show the path of the tree's HTML, whose top says what it asks |
+| `awaiting_reflection` | Its result is on record | item 7 | item 7 of Step 3, once no design of the round is `before_run` or `running` |
+
+   With more than one unfinished design in a round of one node, carry the first and tell the
+   analyst which ones wait.
+
+   `running` does not say that anything is running the analysis now. An execution agent lives
+   inside one conversation, so a `running` design whose agent you did not start in this
+   conversation has none. Run its premortem and hand it over again, and tell the analyst in
+   the plan (item 4) which analyses are handed over again and why: the earlier run left no
+   result on record.
 3. A `design_id` of a theme that has a tree is never asked about: carry that design, entering
-   Step 3 at the item its status calls for. If no node of the tree holds it, say so and run
+   the round at the item its stage calls for. If no node of the tree holds it, say so and run
    `/analysis-framing {theme_id}` first (4c, "Designs no node holds").
 4. Tell the analyst the plan ("論点ツリーの {node_id} から、design→premortem→notebook→journal→
    reflection→テーマを横断した振り返り の順に進める。意図と探索の問いか検証仮説の確定・コスト判定・
@@ -162,11 +182,12 @@ tree_io position --theme LIB
 4. Then read `tree_io position` again and enter Step 3 by its `state`, as in Step 1: an
    unfinished design that 4b placed on the first node makes it `in_progress`, and that design is
    carried instead of a new one. When the run started from a `design_id`, the round carries
-   that design: enter Step 3 at the item its status calls for.
+   that design: enter the round at the item its stage calls for.
 
-### Step 3: Walk the tree, one node per round
+### Step 3: Walk the tree, one decision per round
 
-A round takes one node from its design to the tree decision. For each item, **follow that
+A round takes the node of one decision from its design to the tree decision. A decision that
+names several nodes takes them all in one round, through Step 3H. For each item, **follow that
 skill's SKILL.md** (do not duplicate its logic here) and apply the gate policy above. Repeat
 the round until the analyst closes the walk or says stop.
 
@@ -235,7 +256,8 @@ the round until the analyst closes the walk or says stop.
    decision open or says stop, go to Step 4 as well: the tree keeps its last decision, and the
    next run resumes from it.
 
-Two things happen only when the analyst asks for them, at any point of the walk:
+Two things happen only when the analyst asks for them, at any point of the walk, in Step 3H
+as well:
 
 - **The root question or the aim changes** → run `/analysis-framing {theme_id}`, whose KEEP
   gate is 4c, "The root question or the aim". Then read `tree_io position` again. Inside a
@@ -245,6 +267,114 @@ Two things happen only when the analyst asks for them, at any point of the walk:
   ask whether to send: the skill lists the file and waits at its own KEEP gate, the only
   question about it. Never answer it for them
   ([ADR-0016](../../docs/adr/0016-approval-before-external-send.md)). Never start it unasked.
+
+### Step 3H: Hand several nodes over together
+
+When the decision names several nodes, this step replaces items 1–6 of Step 3. The analyst
+reads the designs of all the nodes once, side by side, in place of four beats for each design
+([ADR-0063](../../docs/adr/0063-designs-to-hand-over-are-saved-then-read-side-by-side-on-the-page.md)).
+Then each design runs in an execution agent of its own: a subagent you start in this
+conversation and hand one design.
+
+You are the dialogue agent. The dialogue agent alone writes the question tree, the designs
+and the tree's HTML, one write after another. An execution agent writes only the notebook,
+the verdict and the journal of its own design
+([ADR-0062](../../docs/adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md)).
+
+Every item acts on the designs at one stage, so a run that resumes halfway enters at the
+item the stages call for (Step 1) and repeats nothing.
+
+1. **briefs**: every node of `undesigned_node_ids` needs a design. Run
+   `/analysis-framing {theme_id}` and hand it the output of `tree_io position`: its 4d takes
+   those nodes as the answer and outputs a Framing Brief for each. Skip this item when
+   `undesigned_node_ids` is empty.
+2. **designs**: for each Brief, in the order of `node_ids`, run `/analysis-design` through its
+   Step 3: create the design, link it to its node, copy what the analyst heard. Draft every
+   field from the Brief. The four beats are not asked here; what they confirm is read at
+   item 3. Each design states its `data_scope` (population, grain, denominator). The design
+   is saved `in_review`. No premortem and no data before the check: run no query, read no
+   file of a source, profile nothing. Write the designs one after another, never in parallel.
+3. **check before handing over**: a KEEP gate, asked once for all the designs.
+
+```bash
+tree_io render --theme LIB
+tree_io handover --theme LIB
+```
+
+   - `handover` lists in `design_ids` the designs the analyst reads, and in `no_data_scope`
+     those that state no `data_scope`. When `no_data_scope` is not empty, do not ask for
+     the check yet: write the `data_scope` of each with `design_io update`, then run both
+     commands again.
+   - Show the `path` that `render` printed and say that its section 「分析を任せる前の確認」
+     lays the designs side by side. Then sum up `differing`: for each row its `label`, and
+     the `values` of each design (`not_written` is 書いていない). Never compare the values
+     yourself: the page marks the same rows as 分析間の違い. When `differing` is empty, say
+     that the page marks no difference.
+   - Ask one question and wait: hand the designs over as they are, comment on a design, or
+     leave a design out. For comments, the analyst writes them on the page, presses
+     コメントをまとめる and pastes the text it makes.
+   - The pasted text has, under 分析を任せる前の確認へのコメント, one line `{design_id}: {comment}`
+     for each design. Record each comment on its design, in the analyst's words, change the
+     design as the comment asks, and take it back to `in_review`:
+
+```bash
+echo '{"comments": [{"comment": "粒度を本1冊にそろえてほしい"}], "reviewer": "analyst"}' | design_io review-batch --id LIB-H03 --status revision_requested
+echo '{"data_scope": {"population": "2025年度に取り置いた本", "grain": "本1冊", "denominator": "取り置いた本の全件"}}' | design_io update --id LIB-H03
+design_io transition --id LIB-H03 --target in_review
+```
+
+     `/analysis-design` Step 3b says how a field is changed. When a comment does not say what
+     to change, ask the analyst before you change anything. After the comments are recorded,
+     run both commands of this item again and ask the check again, saying what changed. This
+     repeats until the analyst hands the designs over.
+   - A design the analyst leaves out is stopped, with the reason in the analyst's words:
+
+```bash
+echo '{"content": "先に予約の数え方を確かめたいので、今回は任せない"}' | design_io stop --id LIB-H05
+```
+
+     Never delete the design or unlink it from its node: the page shows it as 止めた, with
+     the reason. A stopped analysis is not resumed.
+   - When every design of the round is stopped, nothing is handed over: go to item 8 of
+     Step 3.
+4. **premortem**: run `/premortem` for each design to hand over, in the order of
+   `design_ids`. On `HARD_BLOCK`/`HIGH`, stop and surface the risk as item 4 of Step 3 says,
+   and hand nothing over until the analyst has decided. Then move each design that is still
+   `in_review` into the analysis, one after another, and rebuild the page so that it shows
+   them as 進行中:
+
+```bash
+design_io transition --id LIB-H04 --target analyzing
+```
+
+5. **hand over**: start one execution agent for each design that is `running`, all of them
+   in the same message so that they run side by side. Give each the brief below.
+6. **return**: when the agents have returned, read `tree_io position` again. Run item 7 of
+   Step 3 for each design whose `stage` is `awaiting_reflection`, in the order of
+   `design_ids`, then go on to item 8. A design that is still `running` came back without a
+   result: tell the analyst what its agent reported, and do not hand it over again without
+   their word.
+
+#### The brief of an execution agent
+
+An execution agent knows nothing of this conversation. Write its brief from these lines:
+
+- The `design_id`, and the project directory: it runs every command from there and never
+  `cd`s before a `*_io` command.
+- What to do: Read `{plugin root}/skills/analysis-notebook/SKILL.md`, with the plugin root
+  written out as its path, and follow it for this design: build the notebook, run it, and
+  record its verdict in the journal (items 5 and 6 of Step 3). The design is already
+  `analyzing` and its premortem has cleared.
+- What it writes: only the notebook, the verdict and the journal of this design.
+- What it never runs: any `design_io` command that writes a design (`create`, `update`,
+  `transition`, `review-batch`, `stop`), and any `tree_io` command that writes. Never
+  `tree_io render` either, also where `/analysis-notebook` says to run it: the dialogue agent
+  rebuilds the page.
+- Where it stops: at whatever item 5 of Step 3 stops for (a package outside the allowlist,
+  a source the design does not declare, any other side effect). It does not do that thing.
+  It never asks the analyst anything: it returns and says what it needs.
+- What it returns: the `design_id`, and either that the verdict is in the journal, or why
+  it stopped.
 
 ### Step 4: Summarize
 
@@ -261,7 +391,8 @@ to Claude Docs. Never start it, and do not ask whether to export
 `/rq-problematization`, `/analysis-framing`, `/analysis-design`, `/analysis-review`, `/premortem`,
 `/analysis-notebook`, `/analysis-journal`, `/analysis-reflection`, `/tree-upload`, `/catalog-register` — each remains explicit-invocable on its own; `/analysis-auto` only
 sequences them and enforces the gate policy. It never writes the question tree itself: the skills do,
-through `tree_io`.
+through `tree_io`. In Step 3H it writes the designs' review comments, their changes and their
+stops through `design_io`, and rebuilds the page.
 
 ## Chaining
 

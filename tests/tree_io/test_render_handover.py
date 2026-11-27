@@ -105,7 +105,24 @@ def test_handover_names_the_designs_and_the_rows_that_differ(handed: Path) -> No
                 "values": {"LIB-H01": "予約1件", "LIB-H02": "本1冊"},
             }
         ],
+        "no_data_scope": [],
     }
+
+
+def test_handover_names_the_designs_that_state_no_data_scope(handed: Path) -> None:
+    """US-7 AC 2: such a design is not read before a hand-over until it states one."""
+    bare = design_io.create_design(
+        theme_id="LIB",
+        title="範囲を書いていない",
+        analysis_intent="exploratory",
+        exploration_question="通知は何曜日に多いか",
+        exploration_background="背景",
+        methodology={"method": "集計"},
+        base_dir=handed,
+    )["id"]
+    tree_io.link_design("LIB", "LIB-Q03", bare, base_dir=handed)
+
+    assert tree_io.handover("LIB", base_dir=handed)["no_data_scope"] == [bare]
 
 
 def test_handover_runs_from_the_command_line(handed: Path) -> None:
@@ -122,5 +139,6 @@ def test_once_handed_over_nothing_is_read_before_it(handed: Path) -> None:
     assert tree_io.handover("LIB", base_dir=handed) == {
         "design_ids": [],
         "differing": [],
+        "no_data_scope": [],
     }
     assert 'id="handover"' not in _rendered(handed)

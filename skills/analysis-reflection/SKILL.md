@@ -315,6 +315,14 @@ an answer only after the tree check has passed (ADR-0025).
 3. For every design id in the `design_ids` of any node, read
    `.insight/designs/{design_id}_journal.yaml` with the Read tool. A design without a
    journal has no events to cite.
+4. `tree_io position --theme {theme_id}` — where the walk stands. When its `state` is
+   `concluded` and every design of its `design_ids` has the stage `stopped` in `nodes`, the
+   round has no result to answer from. Tell the analyst "この巡回で任せた分析はどれも止めたので、
+   新しい結果は無い。" and show each of those designs with its 止めた理由, the `decide` event
+   of its journal that `design_io stop` wrote. Then ask whether the current answers stay as
+   they are. When they stay, write no answer for this round: skip Steps T2 to T5 and go to
+   Step T6. When the analyst wants an answer changed by what a reason says, go on with
+   Step T2 as usual.
 
 ### Step T2: Write the statements of each node
 
@@ -635,15 +643,18 @@ echo '{"answer": "金曜の夕方に確保した本は、月曜の朝にまと�
   a journal: when a design is made on that node, `/analysis-design` copies it into the
   design's journal as a `hearing` event.
 
-**2. The decision.** Show the node the investigation is at: the `node_id` of the last entry
-of `decisions` in `tree_io get --theme {theme_id}`. Then ask which of the four the analyst
-chooses. For the first three, ask which node comes next and why:
+**2. The decision.** Show the nodes the investigation is at: the `node_ids` of
+`tree_io position --theme {theme_id}`, every node the last decision names. They are the
+current nodes of the table below. Then ask which of the four the analyst
+chooses. For the first three, ask which node or nodes come next and why. The analyst may
+choose several nodes to hand over together: `/analysis-framing` 4d, "Several nodes in one
+decision", says which nodes go together and how the decision holds them:
 
 | `kind` | What the analyst chooses | `node_id` |
 |---|---|---|
-| `deepen` | 深める — keep investigating the current node or a node below it | the current node, or a node below it |
-| `return` | 親に戻る — leave the current node for its parent or another branch | a node that is neither the current node nor below it |
-| `close` | 区切る — stop here for now | the current node |
+| `deepen` | 深める — keep investigating a current node or a node below it | a current node, or a node below one |
+| `return` | 親に戻る — leave the current nodes for a parent or another branch | a node that is neither a current node nor below one |
+| `close` | 区切る — stop here for now | a current node |
 | — | 主題そのものを見直す — what was found shows that the root question itself, or its aim, asks the wrong thing | none |
 
 ```bash
@@ -730,6 +741,7 @@ Both are on PATH via the plugin. JSON on stdout.
 |---------|----------|
 | `tree_io get --theme T` | Load the question tree |
 | `tree_io progress --theme T` | Progress of each node (its word or `null`) and the counts below it, derived from its designs |
+| `tree_io position --theme T` | Where the walk stands: the nodes the last decision names, their designs and the stage of each analysis |
 | `tree_io answer --theme T` (stdin JSON) | Check and append the answers of one reflection round |
 | `tree_check --theme T` | Check the current answers after writing (read-only) |
 | `tree_io changes --theme T` | What each answer changed, and the results the answers above leave out (read-only) |

@@ -465,6 +465,7 @@ def handover(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]
             }
             for row in differing_rows(designs)
         ],
+        "no_data_scope": [d.id for d in designs if not d.states_scope],
     }
 
 

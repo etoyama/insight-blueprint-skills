@@ -23,6 +23,17 @@ def round_item(name: str) -> str:
     return unwrap(found.group(0))
 
 
+def handover_item(name: str) -> str:
+    """The numbered item ``N. **name**`` of Step 3H, up to the next item or heading."""
+    found = re.search(
+        rf"^\d+\. \*\*{re.escape(name)}\*\*.*?(?=^\d+\. \*\*|^#{{2,4}} |\Z)",
+        section(auto(), "### Step 3H:"),
+        re.MULTILINE | re.DOTALL,
+    )
+    assert found, f"Step 3H has no '{name}' item"
+    return unwrap(found.group(0))
+
+
 def design_beat(name: str) -> str:
     """The numbered design beat ``N. **name**`` of the round's design item."""
     found = re.search(
