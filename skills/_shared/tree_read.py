@@ -422,7 +422,7 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
         checked,
         {d: render_note(n) for d, n in design_notes.items()},
         shared=frozenset(duplicated),
-        handover={d: HandoverDesign.of(n.design) for d, n in design_notes.items()},
+        handover=_handover_designs(tree, design_notes),
     )
     path = tree_path(theme_id, base_dir).with_suffix(".html")
     atomic_write_text(path, html)
@@ -431,6 +431,14 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     for design_id in design_notes:
         (Path(base_dir) / "notes" / f"{design_id}.html").unlink(missing_ok=True)
     return {"path": str(path)}
+
+
+def _handover_designs(
+    tree: QuestionTree, notes: Mapping[str, DesignNote]
+) -> list[HandoverDesign]:
+    """The designs the check before a hand-over lays out: the page and the command read these."""
+    chosen = to_hand_over(tree, {d: note.stage for d, note in notes.items()})
+    return [HandoverDesign.of(notes[d].design) for d in chosen]
 
 
 def handover(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
@@ -443,11 +451,12 @@ def handover(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]
     design does not write it). The page marks the same rows (ADR-0063 4, 5).
     """
     tree = load_tree_model(theme_id, base_dir)
-    notes = _linked_notes(tree, base_dir)
-    design_ids = to_hand_over(tree, {d: note.stage for d, note in notes.items()})
-    designs = [HandoverDesign.of(notes[d].design) for d in design_ids]
+    # Read as render reads them, so the command and the page cannot disagree.
+    notes = _design_notes(theme_id, base_dir)
+    _require_linked_designs_exist(tree, notes)
+    designs = _handover_designs(tree, notes)
     return {
-        "design_ids": design_ids,
+        "design_ids": [d.id for d in designs],
         "differing": [
             {
                 "row": row.value,
@@ -660,7 +669,7 @@ def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
         # does not say how old the answer to the root is.
         "root_answer_round": root_answer.round,
         # By the stage, as position counts them: a stopped design has no
-        # conclusion to wait for, so the analyst reads it apart (35.5).
+        # conclusion to wait for, so the analyst reads it apart.
         "unfinished_designs": [
             d.id for d in theme_report.designs if d.stage not in SETTLED
         ],

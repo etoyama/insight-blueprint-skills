@@ -28,7 +28,7 @@ from skills._shared.tree_words import (
 )
 
 # Stopped is grey, near the grey of not started, so it also has a shape: a
-# dashed frame on its question and stripes on its stage (35.5, the real page).
+# dashed frame on its question and stripes on its stage (the analyst read the real page).
 STAGE_CSS = """.progress-stopped { border-left-color: var(--stopped); border-left-style: dashed; }
 .stage {
   font-weight: 700; border: 1px solid; border-radius: 3px; padding: 0 .4em;

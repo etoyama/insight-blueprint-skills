@@ -173,13 +173,13 @@ def render_tree_html(
     design_notes: Mapping[str, Html],
     *,
     shared: frozenset[str],
-    handover: Mapping[str, HandoverDesign],
+    handover: Sequence[HandoverDesign],
 ) -> str:
     """The page. *design_notes* maps a design id to the markup ``render_note`` returned.
 
     *shared* holds the cited ids two journal events share; a decision citing one
-    shows neither text. *handover* holds, at least, each design the check before
-    a hand-over lays out (ADR-0063).
+    shows neither text. *handover* holds the designs the check before a
+    hand-over lays out, in order (``handover.to_hand_over``; ADR-0063).
     """
     context = Context.of(tree, designs, events, violations, design_notes, shared)
     check = handover_section(context, handover)

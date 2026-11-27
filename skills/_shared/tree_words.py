@@ -38,7 +38,7 @@ from skills._shared.design_note import (
     intent_words_of,
     status_word,
 )
-from skills._shared.handover import COMPARED_ROWS, HandoverRow
+from skills._shared.handover import COMPARED_ROWS, Absent, ChartPlan, HandoverRow
 from skills._shared.tree_changes import ChangeKind
 
 # The words the page says of the subject (ADR-0055); YAML and code say root.
@@ -165,8 +165,7 @@ PROGRESS_WORDS = {
 
 
 # Where each analysis stands (ADR-0061 6), in the words the analyst read in the
-# sample of Epic 35. The words are first drafts: a person reads them on the real
-# page before 35.5 (FLOW-0019).
+# sample of Epic 35 and kept when a person read them on the real page (FLOW-0019).
 STAGE_WORDS = {
     AnalysisStage.before_run: (
         "任せる前",
@@ -227,6 +226,7 @@ HANDOVER_ROW_WORDS = {
 DIFFERS_WORD = "分析間の違い"
 NOT_WRITTEN = "書かれていない。"
 NO_CRITERION = "探索は判定しないので、判定の基準は無い。"
+ABSENT_WORDS = {Absent.not_written: NOT_WRITTEN, Absent.not_judged: NO_CRITERION}
 COMMENT_WORD = "コメント"
 GATHER_BUTTON = "コメントをまとめる"
 GATHERED_HEAD = f"{HANDOVER_HEADING}への{COMMENT_WORD}"
@@ -243,6 +243,15 @@ GATHERED_NOTE = (
     "まとめた文はこのページの中に出るだけで、どこにも送らない。"
     "コピーして、チャットに貼る。"
 )
+
+
+def chart_text(plan: ChartPlan) -> str:
+    """A planned chart in a line: what it shows, its kind and its axes."""
+    axes = "、".join(
+        f"{name}: {value}" for name, value in (("横", plan.x), ("縦", plan.y)) if value
+    )
+    detail = "。".join(part for part in (plan.kind, axes) if part)
+    return f"{plan.description}（{detail}）" if plan.description else detail
 
 
 def handover_heading(count: int) -> str:
@@ -462,6 +471,7 @@ def legend() -> Html:
             "p",
             f"「{HANDOVER_HEADING}」は、最新の論点ツリーの決定が指す論点に結んだ、"
             f"「{STAGE_WORDS[AnalysisStage.before_run][0]}」の分析設計を列に並べる。"
+            "最新の決定が区切るなら、並べない。"
             f"「{DIFFERS_WORD}」は、値の文字が分析設計の間で違えば付く。"
             "同じ意味を違う言葉で書いた行にも付く。"
             f"{COMMENT_WORD}欄に書いた文は、ボタンでこのページの中にまとめて出すだけで、"

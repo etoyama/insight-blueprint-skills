@@ -172,7 +172,7 @@ class ReportDesign:
     package: str
     method_reason: str
     status: DesignStatus
-    stage: AnalysisStage  # tells a stopped design from one still open (35.5)
+    stage: AnalysisStage  # tells a stopped design from one still open
     conclude_events: tuple[NoteEvent, ...]
     contradicting_evidence: tuple[NoteEvent, ...]
     metrics: tuple[VerdictMetric, ...]

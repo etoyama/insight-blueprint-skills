@@ -1,23 +1,26 @@
 """The check before a hand-over on a tree page: the designs side by side (ADR-0063).
 
 Pure, like ``tree_render``: every string is untrusted and goes through
-``_html``. Which designs are read and which rows differ is ``handover``'s rule;
+``_html``. Which designs are read is chosen by the caller with
+``handover.to_hand_over``, which rows differ by ``handover.differing_rows``;
 the words come from ``tree_words``.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Sequence
 
 from skills._shared._html import Html, el, join
 from skills._shared.handover import (
+    Absent,
+    ChartPlan,
     HandoverDesign,
     HandoverRow,
     differing_rows,
-    to_hand_over,
 )
 from skills._shared.tree_render_parts import Context, join_links, link_to
 from skills._shared.tree_words import (
+    ABSENT_WORDS,
     COMMENT_WORD,
     DIFFERS_WORD,
     GATHER_BUTTON,
@@ -27,8 +30,7 @@ from skills._shared.tree_words import (
     HANDOVER_ROW_WORDS,
     LINKED_NODES,
     NO_COMMENT,
-    NO_CRITERION,
-    NOT_WRITTEN,
+    chart_text,
     handover_heading,
 )
 
@@ -85,19 +87,18 @@ HANDOVER_SCRIPT = """(function () {
 
 def _value(design: HandoverDesign, row: HandoverRow) -> Html:
     value = design.values[row]
-    if value is None:
-        if row is HandoverRow.criterion and not design.form.judges:
-            return el("td", NO_CRITERION)
-        return el("td", NOT_WRITTEN)
+    if isinstance(value, Absent):
+        return el("td", ABSENT_WORDS[value])
+    if isinstance(value, str):
+        return el("td", value)
     if row is HandoverRow.extraction:
         # In full, each step as written: the analyst reads the query itself.
-        return el("td", join(el("pre", step) for step in value))
-    if isinstance(value, tuple):
-        return el("td", el("ul", join(el("li", v) for v in value)))
-    return el("td", value)
+        return el("td", join(el("pre", str(step)) for step in value))
+    lines = (chart_text(v) if isinstance(v, ChartPlan) else v for v in value)
+    return el("td", el("ul", join(el("li", line) for line in lines)))
 
 
-def _row(designs: list[HandoverDesign], row: HandoverRow, differs: bool) -> Html:
+def _row(designs: Sequence[HandoverDesign], row: HandoverRow, differs: bool) -> Html:
     head = el(
         "th",
         HANDOVER_ROW_WORDS[row],
@@ -126,7 +127,7 @@ def _column_head(context: Context, design: HandoverDesign) -> Html:
     )
 
 
-def _comment_row(designs: list[HandoverDesign]) -> Html:
+def _comment_row(designs: Sequence[HandoverDesign]) -> Html:
     return el(
         "tr",
         el("th", COMMENT_WORD, scope="row"),
@@ -147,17 +148,11 @@ def _comment_row(designs: list[HandoverDesign]) -> Html:
 
 
 def handover_section(
-    context: Context, handover: Mapping[str, HandoverDesign]
+    context: Context, designs: Sequence[HandoverDesign]
 ) -> Html | None:
-    """The designs to read before the hand-over, side by side; none, no section."""
-    stages = {d: s.stage for d, s in context.designs.items()}
-    design_ids = to_hand_over(context.tree, stages)
-    if not design_ids:
+    """*designs*, chosen by ``handover.to_hand_over``, side by side; none, no section."""
+    if not designs:
         return None
-    missing = [d for d in design_ids if d not in handover]
-    if missing:
-        raise ValueError(f"designs to hand over not given: {', '.join(missing)}")
-    designs = [handover[d] for d in design_ids]
     differs = set(differing_rows(designs))
     table = el(
         "table",
