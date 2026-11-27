@@ -532,4 +532,6 @@ stops and the analyst's answers through `design_io`, and rebuilds the page.
 ## Language Rules
 
 - Follow project CLAUDE.md language settings. Default to Japanese if no setting.
+- Write every sentence the analyst reads in the project's language, not only the
+  questions: the reports between the steps, the summaries, and the lead-in of a question.
 - Code, IDs, tool names, and YAML fields always stay in English.

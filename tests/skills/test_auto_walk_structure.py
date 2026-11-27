@@ -445,3 +445,15 @@ class TestTheDesignStatesItsDataScope:
     def test_a_round_of_several_nodes_drafts_without_the_beats(self) -> None:
         design = unwrap(_read_skill("analysis-design"))
         assert re.search(r"Step 3H[^.]*`data_scope`", design)
+
+
+class TestEverySentenceTheAnalystReadsIsInTheProjectLanguage:
+    """Real-data finding 5 of Epic 35: the reports between the steps came out in English."""
+
+    def test_the_language_rules_cover_the_prose_around_the_questions(self) -> None:
+        rules = unwrap(split_sections(_auto())["Language Rules"])
+        assert re.search(
+            r"[Ee]very sentence the analyst reads[^.]*project's language", rules
+        )
+        for prose in ("between the steps", "summar", "lead-in of a question"):
+            assert prose in rules, prose
