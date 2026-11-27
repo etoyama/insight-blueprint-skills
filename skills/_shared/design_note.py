@@ -131,6 +131,10 @@ class DesignNote:
     stop_reason: str | None = None
     # What each confirmation no answer names yet asks; () unless the stage waits for it.
     asks: tuple[str, ...] = ()
+    # The line under the status that says a design stopped (None for any other).
+    # tree_words says it, and tree_words reads this module's words, so the reader
+    # of the files hands the line over instead of this module importing it.
+    stage_line: str | None = None
 
 
 NOTE_CSS = """
@@ -361,11 +365,7 @@ def _section(anchor: str, name: str, heading: str, *content: Html | None) -> Htm
 
 
 def _status(note: DesignNote, anchor: str) -> Html:
-    # tree_words imports this module for the words the note owns, so the
-    # stage words it owns are read when the note is drawn, not at import.
-    from skills._shared.tree_words import note_stage_line
-
-    stage_line = note_stage_line(note.stage, note.stop_reason)
+    stage_line = note.stage_line
     last = note.events[-1] if note.events else None
     if last is None:
         journal = "journal にまだ出来事が無い。"

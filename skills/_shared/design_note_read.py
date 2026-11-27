@@ -57,6 +57,7 @@ from skills._shared.design_note_reviews import (
     NoteReviewComment,
 )
 from skills._shared.stage_reading import StageReading
+from skills._shared.tree_words import note_stage_line
 from skills._shared.verdict_table import (
     CONFIDENCE,
     MetricGroup,
@@ -632,6 +633,7 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
         stage=reading.stage,
         reviews=_read_reviews(base / "designs" / f"{design_id}_reviews.yaml"),
         stop_reason=reading.stop_reason,
+        stage_line=note_stage_line(reading.stage, reading.stop_reason),
         asks=tuple(ask.content for ask in reading.asks),
     )
 
