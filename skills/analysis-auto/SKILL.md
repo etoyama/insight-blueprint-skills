@@ -155,9 +155,20 @@ tree_io position --theme LIB
 3. A `design_id` of a theme that has a tree is never asked about: carry that design, entering
    the round at the item its stage calls for. If no node of the tree holds it, say so and run
    `/analysis-framing {theme_id}` first (4c, "Designs no node holds").
-4. Tell the analyst the plan, naming every node of `node_ids` ("論点ツリーの {node_id} から、design→premortem→notebook→journal→
-   reflection→テーマを横断した振り返り の順に進める。意図と探索の問いか検証仮説の確定・コスト判定・
-   結論・論点ツリーの決定では止まる").
+4. Tell the analyst the plan, naming every node of `node_ids`, so they know what each
+   question of the round is for.
+   - A round of one node: "論点ツリーの {node_id} から、design→premortem→notebook→journal→
+     reflection→テーマを横断した振り返り の順に進める。意図と探索の問いか検証仮説の確定・コスト判定・
+     結論・論点ツリーの決定では止まる".
+   - A round of several nodes: "論点 {node_ids} の分析設計をまとめて書く。書いた分析設計は論点ツリーの
+     HTML の「分析を任せる前の確認」に横に並ぶので、1回読んで、任せるか、コメントするか、外すかを答えてほしい。
+     任せた分析は並べて走らせる。走っている分析から確認が来たら、そのつど答えてほしい。戻った分析の終わり方は
+     最後に1回でまとめて聞く。その後、テーマを横断した振り返りと論点ツリーの決定に進む".
+   - For `closed` the analyst has not chosen the next nodes yet, so whether the round hands
+     several of them over is not known: tell the plan of one node, and say that choosing
+     several nodes hands them over together. Right after the analyst chooses several nodes
+     (at 4d, or at 4b of a new tree), tell the plan of a round of several nodes once, before
+     any design is written.
 
 ### Step 2: Build the tree (the theme has none)
 
@@ -191,7 +202,9 @@ the round until the analyst closes the walk or says stop.
 1. **framing brief**: a design is made from the Framing Brief of its node. When the position
    is `not_started` or `closed` and that Brief is not in the conversation yet, run
    `/analysis-framing {theme_id}` and hand it the output of `tree_io position`, which its 4d
-   reads. Skip this item when Step 2 has just output the Brief of that node.
+   reads. Skip this item when Step 2 has just output the Brief of that node. When the
+   analyst chooses several nodes at 4d, tell the plan of a round of several nodes
+   (Step 1, item 4) once, and go on at Step 3H.
 2. **design**: run `/analysis-design`, auto-drafting fields from the agreed Framing Brief. Then **walk
    the four ordered confirmation beats — one AskUserQuestion each — before `design_io create`**, letting
    the user adjust at every beat. Do not collapse them into a single "looks good?"; don't silently commit
@@ -304,13 +317,17 @@ tree_io handover --theme LIB
      those that state no `data_scope`. When `no_data_scope` is not empty, do not ask for
      the check yet: write the `data_scope` of each with `design_io update`, then run both
      commands again.
-   - Show the `path` that `render` printed and say that its section 「分析を任せる前の確認」
-     lays the designs side by side. Then sum up `differing`: for each row its `label`, and
-     the `values` of each design (say `not_written` as the page does, 書かれていない). Never
-     compare the values yourself: the page marks the same rows as 分析間の違い. When
-     `differing` is empty, say that the page marks no difference.
+   - Show the `path` that `render` printed on a line of its own, right before the question,
+     in a form the host opens: a code block `open {path}`, with the full path. A path inside
+     a sentence is missed.
    - Ask one question and wait: hand the designs over as they are, comment on a design, or
-     leave a design out. For comments, the analyst writes them on the page, presses
+     leave a design out. The question starts with
+     「先にページの「分析を任せる前の確認」を開いて読んでから答える」.
+     Write the summary of `differing` in the question itself, not only in the lines before
+     it: for each row its `label`, and the `values` of each design (say `not_written` as
+     the page does, 書かれていない). Never compare the values yourself: the page marks the
+     same rows as 分析間の違い. When `differing` is empty, say that the page marks no
+     difference. For comments, the analyst writes them on the page, presses
      コメントをまとめる and pastes the text it makes.
    - The pasted text has, under 分析を任せる前の確認へのコメント, one line `{design_id}: {comment}`
      for each design; a line without an id goes on with the comment above it. Record each
@@ -406,13 +423,18 @@ echo '{"answers": "LIB-H04-E01", "content": "2025年10月以降の予約に絞�
    when no execution agent is at work and no analysis waits for a confirmation.
    - For each design, in the order of `design_ids`, run `/analysis-reflection {design_id}`
      through its Step 2: the summary and 読むもの. Ask nothing yet.
+   - Show the path of the page on a line of its own, as **check before handing over** does,
+     and say which analysis notes to read there: those the page marks
+     「計算が終わり、振り返りを待っている」. The page lists finished designs with them.
    - Then ask one question for all of them and wait. Under a heading for each design, with
      its id and title, put the three questions of `/analysis-reflection` Step 3 as that step
      words them for the form of the design; the third is この分析設計をどう終えるか, with
      its choices. Add no question of your own, and leave none out. Say in the same question
      what Step 4 would ask of a design that ends (a review of its result first, the
      tentative answer of an exploration, the change of its status), so that Step 4 asks
-     nothing again. The analyst answers for all the designs in one reply.
+     nothing again. For the review, say what it does and give the suggestion for each
+     design, as the guide to a review of the result in `/analysis-reflection` Step 4 says;
+     never write the guide here. The analyst answers for all the designs in one reply.
    - Never end a design on an answer the analyst did not give: ask again about each design
      the reply does not cover.
    - Then do what each answer chose, as `/analysis-reflection` says. A design that ends goes

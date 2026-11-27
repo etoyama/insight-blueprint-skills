@@ -17,6 +17,7 @@ import pytest
 from insight_blueprint.models.analysis_stage import SETTLED, AnalysisStage
 from scripts.handoff_trial import build, load_scenario
 from skills._shared import design_io, tree_io
+from skills._shared.tree_words import HANDOVER_HEADING, STAGE_WORDS
 from tests.skills._auto import (
     auto,
     auto_gates,
@@ -49,6 +50,7 @@ HANDOVER = [
 ]
 
 WAITING, RUNNING = "LIB-H04", "LIB-H05"
+AWAITING_MARK = STAGE_WORDS[AnalysisStage.awaiting_reflection][0]
 STOPPING = "#### Stopping an analysis"
 BRIEF = "#### The brief of an execution agent"
 
@@ -626,3 +628,92 @@ class TestARoundWithoutAResult:
         assert re.search(r"write no answer", load)
         assert "止めた理由" in load
         assert re.search(r"Step T6", load)
+
+
+def _plan() -> str:
+    """Item 4 of Step 1, where the analyst is told the plan of the round."""
+    locate = auto_step("### Step 1:")
+    return unwrap(locate[locate.index("4. Tell the analyst the plan") :])
+
+
+def _in_order(text: str, words: list[str]) -> list[int]:
+    at, found = 0, []
+    for word in words:
+        at = text.find(word, at)
+        found.append(at)
+    return found
+
+
+class TestTheAnalystIsShownTheWay:
+    """Real-data findings 4, 6, 7, 11 and 12 of Epic 35: the analyst lost the way."""
+
+    def test_the_plan_of_a_round_of_several_nodes_names_its_steps_in_order(
+        self,
+    ) -> None:
+        plan = _plan()
+        several = plan[plan.index("A round of several nodes") :]
+        steps = ["まとめて書", HANDOVER_HEADING, "並べて走らせ", "確認", "終わり方"]
+        assert -1 not in _in_order(several, steps), steps
+
+    def test_the_plan_of_several_nodes_is_told_once_the_nodes_are_chosen(
+        self,
+    ) -> None:
+        plan = _plan()
+        assert re.search(r"`closed`[^.]*not chosen", plan)
+        assert re.search(
+            r"[Rr]ight after the analyst chooses several nodes[^.]*4d", plan
+        )
+        assert re.search(r"Step 1, item 4", round_item("framing brief"))
+
+    def test_the_page_stands_on_a_line_of_its_own_right_before_the_question(
+        self,
+    ) -> None:
+        item = handover_item("check before handing over")
+        assert re.search(
+            r"`path`[^.]*line of its own[^.]*right before the question", item
+        )
+        assert "`open {path}`" in item
+
+    def test_the_question_says_to_read_the_page_first(self) -> None:
+        item = handover_item("check before handing over")
+        assert f"先にページの「{HANDOVER_HEADING}」を開いて読んでから答える" in item
+
+    def test_the_summary_of_differing_is_written_in_the_question(self) -> None:
+        item = handover_item("check before handing over")
+        assert re.search(r"summary of `differing`[^.]*in the question itself", item)
+
+    def test_the_endings_name_the_notes_by_the_mark_on_the_page(self) -> None:
+        item = handover_item("endings")
+        assert f"「{AWAITING_MARK}」" in item
+        assert re.search(r"page[^.]*as \*\*check before handing over\*\* does", item)
+
+
+class TestTheReviewOfTheResultIsExplained:
+    """Real-data finding 12 of Epic 35: what a review of the result does, and a suggestion."""
+
+    def _ask(self) -> str:
+        return unwrap(section(_read_skill("analysis-reflection"), "### Step 4:"))
+
+    def test_the_reflection_says_what_the_review_does_before_asking(self) -> None:
+        step = self._ask()
+        assert (
+            "Claude が notebook・verdict・図・分析設計を批評し、コメントを残す" in step
+        )
+        assert "結論の記録はレビューの後になる" in step
+        assert "以後はレビューできない" in step
+
+    def test_the_guide_suggests_by_the_form_and_the_analyst_decides(self) -> None:
+        step = self._ask()
+        guide = step[step.index("**The guide to a review of the result.**") :]
+        assert re.search(r"confirmation[^.]*verdict[^.]*suggest taking", guide)
+        assert re.search(r"exploration[^.]*usually[^.]*not", guide)
+        assert re.search(r"added[^.]*the design does not have", guide)
+        assert re.search(r"adds up[^.]*within the data", guide)
+        assert re.search(r"[Tt]he analyst decides", guide)
+
+    def test_the_endings_read_the_guide_and_do_not_copy_it(self) -> None:
+        item = handover_item("endings")
+        assert re.search(
+            r"guide to a review of the result[^.]*`/analysis-reflection`", item
+        )
+        assert "批評し、コメントを残す" not in auto()
