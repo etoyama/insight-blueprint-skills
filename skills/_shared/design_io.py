@@ -476,12 +476,11 @@ def append_journal_events(
         _required_text(event.get("content"), "the content of an event")
         _refuse_marks(event)
     with write_lock(base_dir):
-        _check_stage(
-            design_id,
-            RECORDS_FROM,
-            "it takes no new result. Record nothing more and return",
-            base_dir,
-        )
+        refusal = "it takes no new result. Record nothing more and return"
+        _check_stage(design_id, RECORDS_FROM, refusal, base_dir)
+        status = load_design(design_id, base_dir).get("status")
+        if status != DesignStatus.analyzing:
+            raise ValueError(f"{design_id} is {status}: {refusal}")
         return _append_events(design_id, events, base_dir)
 
 

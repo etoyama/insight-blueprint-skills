@@ -387,7 +387,7 @@ stateDiagram-v2
 1. 分析設計が terminal status なら、終わった。
 2. journal に止めた印があれば、止めた。
 3. journal に、答えの付いていない分析者への確認があれば、確認待ち。
-4. 分析設計が `analyzing` で、journal に `hearing`・分析者への確認・その答え以外の出来事が、分析の印（`analysis_started_at`）より後にあれば、振り返り待ち。印の無い保存済みの記録は、時刻を問わず数える（ADR-0061 の追記、Story 35.2）。
+4. 分析設計が `analyzing` か、分析の印（`analysis_started_at`）を持ち、journal に `hearing`・分析者への確認・その答え・止めた理由以外の出来事が、分析の印より後にあれば、振り返り待ち。結果のレビューが分析設計を `in_review` か `revision_requested` に戻している間も、振り返り待ちのままである（ADR-0054）。印の無い保存済みの記録は、時刻を問わず数える（ADR-0061 の追記、Story 35.2）。
 5. 分析設計が `analyzing` なら、進行中。
 6. それ以外は実行前。
 
@@ -697,6 +697,15 @@ sequenceDiagram
 - Affected modules: `skills/_shared/design_io.py`（`stage_report`、CLI の `stage`）、`src/insight_blueprint/models/analysis_stage.py`（`records_a_result`。止めた理由は結果に数えない）
 - Alternatives considered: `design_io list` の返り値に段階を足す（分析設計の dict に、保存しない値が混ざる）。skill の文で journal の読み方を書く（規則が2か所になる）。
 - Consequences: 走る前に `/analysis-journal` で書いた推論しか無い分析設計は、分析に入っていてもいなくても `result_on_record` が false になり、`/analysis-reflection` は記録を先に勧める（前は振り返りに進んだ）。
+
+### Decision: gate-a-result-under-review-waits-for-its-reflection
+
+- What: 分析の印を持ち、その後の結果が記録にある分析設計は、状態が `in_review` か `revision_requested` でも、分析の段階を振り返り待ちと読む。印はあるが結果の無い分析設計は、今までどおり実行前と読み、任せる前の確認にもう一度並ぶ。振り返り待ちでも、`analyzing` でない分析設計には `design_io journal-append` が結果を書かせない。`/analysis-auto` Step 3H の **premortem** は、結果のレビュー中の分析設計を `analyzing` へ遷移しない。計画外の判断（1件目）。
+- Why: 結果のレビューのために `analyzing` から `in_review` に戻すと、段階が実行前になっていた（ゲートのレビューと PM が再現した）。そのため `design_io stop` が通って二度と結論を出せなくなり、任せる前の確認と `tree_io handover` に任せていない分析として並び、Step 3H がレビューを飛ばして `analyzing` に戻しえた。
+- Criteria: ADR-0054（結果はレビューの間も記録に残る）と ADR-0064 の 7（結果のある分析は止めず、終え方を聞く）。結果の無い分析設計を実行前と読むのは、走り直す前に任せる前の確認を通すため。結果を書くのは走っている分析だけ（ADR-0062 の 2）。
+- Affected modules: `src/insight_blueprint/models/analysis_stage.py`（`AnalysisStage.of`）、`skills/_shared/design_io.py`（`append_journal_events`）、`skills/analysis-auto/SKILL.md`（Step 3H の **premortem**）
+- Alternatives considered: 結果のレビュー中を新しい段階にする（段階の値が増え、Domain Model と全部の読み手が変わる。振り返り待ちで、拒む書き込みも同じ）。印があれば結果が無くても振り返り待ちにする（結果の無い分析に振り返りを求め、`/analysis-reflection` が記録を先に勧めて止まる）。
+- Consequences: 結果のレビュー中の分析設計は、論点ツリーの HTML で振り返り待ちと出る。巡回は **endings** でその終え方を聞き、`/analysis-reflection` の Step 4 が結果のレビューを先に済ませる。
 
 ### Cross-epic decisions (links to ADR)
 

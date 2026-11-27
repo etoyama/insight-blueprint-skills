@@ -191,6 +191,18 @@ class TestAnAnalysisAsksBeforeChangingWhatWasRead:
         assert re.search(r"`design_io stage[^.]*`stopped`[^.]*leave it out", skill)
 
 
+class TestAResultUnderReviewIsNotRunAgain:
+    """A review of the result holds the design in_review, with its result on record (ADR-0054)."""
+
+    def test_only_a_design_before_its_run_is_moved_into_the_analysis(self) -> None:
+        item = handover_item("premortem")
+        assert re.search(
+            r"`awaiting_reflection`[^.]*review of its result[^.]*never moved into the analysis",
+            item,
+        )
+        assert re.search(r"never moved into the analysis[^.]*\*\*endings\*\*", item)
+
+
 class TestOneAnalysisIsStopped:
     """US-4 AC 4 (ADR-0064 6, 7)."""
 

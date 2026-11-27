@@ -334,6 +334,9 @@ design_io transition --id LIB-H03 --target in_review
 4. **premortem** (`before_run` after the check, and `running`): run `/premortem` for each of
    these designs, in the order of `design_ids`. On `HARD_BLOCK`/`HIGH`, stop and surface the
    risk as **premortem** of Step 3 says, and hand nothing over until the analyst has decided.
+   A design `in_review` or `revision_requested` whose result is on record is
+   `awaiting_reflection`, held by a review of its result: it is never moved into the analysis
+   here, and its ending is asked at **endings**.
    Then move each `before_run` design into the analysis, one after another, and rebuild the
    page so that it shows them as 進行中:
 

@@ -172,8 +172,36 @@ class TestStageCommand:
 
         report = design_io.stage_report(design_id, insight)
 
-        assert report["stage"] == "before_run"
+        assert report["stage"] == "awaiting_reflection"
         assert report["result_on_record"] is True
+
+    def test_an_analysis_whose_result_is_under_review_is_not_stopped(
+        self, insight: Path
+    ) -> None:
+        """Its ending is asked at the reflection, as for one still analyzing."""
+        design_id = _design(insight)
+        design_io.append_journal_events(
+            design_id, [{"type": "observe", "content": "seen"}], insight
+        )
+        design_io.transition_status(design_id, "in_review", insight)
+
+        with pytest.raises(ValueError, match="awaiting_reflection"):
+            design_io.stop_analysis(design_id, "やめる", insight)
+
+    def test_an_analysis_whose_result_is_under_review_takes_no_new_result(
+        self, insight: Path
+    ) -> None:
+        """The run is over while the review holds the design: nothing is recorded into it."""
+        design_id = _design(insight)
+        design_io.append_journal_events(
+            design_id, [{"type": "observe", "content": "seen"}], insight
+        )
+        design_io.transition_status(design_id, "in_review", insight)
+
+        with pytest.raises(ValueError, match="takes no new result"):
+            design_io.append_journal_events(
+                design_id, [{"type": "observe", "content": "more"}], insight
+            )
 
     def test_a_hearing_and_a_confirmation_are_not_results(self, insight: Path) -> None:
         design_id = _design(insight)

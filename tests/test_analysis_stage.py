@@ -216,3 +216,26 @@ class TestOnlyEventsAfterTheMarkAreResults:
     def test_a_mark_that_cannot_be_read_reads_every_event(self) -> None:
         events = [_at("hypothesize", "2026-11-27T09:00:00+09:00")]
         assert _of(ANALYZING, events, "soon") is AnalysisStage.awaiting_reflection
+
+
+class TestAResultUnderReview:
+    """ADR-0054: a review of the result holds the design, and the result stays on record."""
+
+    @pytest.mark.parametrize(
+        "status", [DesignStatus.in_review, DesignStatus.revision_requested]
+    )
+    def test_a_design_whose_result_is_under_review_waits_for_its_reflection(
+        self, status: DesignStatus
+    ) -> None:
+        events = [_at("observe", "2026-11-27T11:00:00+09:00")]
+        assert _of(status, events, MARK) is AnalysisStage.awaiting_reflection
+
+    def test_a_design_taken_back_without_a_result_is_before_run(self) -> None:
+        events = [_at("hearing", "2026-11-27T11:00:00+09:00")]
+        assert _of(DesignStatus.in_review, events, MARK) is AnalysisStage.before_run
+
+    def test_reasoning_written_before_the_run_is_no_result_under_review(
+        self,
+    ) -> None:
+        events = [_at("hypothesize", "2026-11-27T09:00:00+09:00")]
+        assert _of(DesignStatus.in_review, events, MARK) is AnalysisStage.before_run

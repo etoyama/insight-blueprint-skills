@@ -156,11 +156,15 @@ class AnalysisStage(StrEnum):
             return cls.stopped
         if open_confirmations(events):
             return cls.awaiting_confirmation
-        if status is not DesignStatus.analyzing:
-            return cls.before_run
-        if records_a_result(events, started_at):
+        # A review of the result takes the design back from analyzing, and the
+        # result stays on record (ADR-0054); one taken back without a result is
+        # read before its run, to be handed over again.
+        ran = status is DesignStatus.analyzing or started_at is not None
+        if ran and records_a_result(events, started_at):
             return cls.awaiting_reflection
-        return cls.running
+        if status is DesignStatus.analyzing:
+            return cls.running
+        return cls.before_run
 
 
 # The stages a confirmation and a stop may be written from (the State Diagram
@@ -180,7 +184,9 @@ STOPS_FROM = frozenset(
 # The stages a result is recorded from: a run writes its results while the
 # analysis is under way, and a second run adds to those of the first. One that
 # waits for the analyst asked before it touched the data, so it has none to
-# record; a stopped or a finished one keeps the record it ended on.
+# record; a stopped or a finished one keeps the record it ended on. A design a
+# review of its result holds is awaiting_reflection but not analyzing: its run
+# is over, so a writer checks the status as well.
 RECORDS_FROM = frozenset({AnalysisStage.running, AnalysisStage.awaiting_reflection})
 
 # The stages that are over: a finished analysis has its end, and a stopped one is
