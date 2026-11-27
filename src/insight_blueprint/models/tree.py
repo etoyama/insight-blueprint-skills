@@ -16,8 +16,8 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.common import THEME_ID_PATTERN
-from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 
 
 def design_id_of(event_id: str) -> str:
@@ -35,17 +35,25 @@ class AimKind(StrEnum):
 class Progress(StrEnum):
     """How far the analysis of a node has come. Derived, never stored."""
 
+    # Ordered from the nearest to the furthest: the page counts the furthest first.
     not_started = "not_started"
     investigating = "investigating"
+    stopped = "stopped"
     analyzed = "analyzed"
 
     @classmethod
-    def of(cls, statuses: Iterable[DesignStatus]) -> Progress:
-        """Derive the progress of a node from the statuses of its linked designs."""
-        found = set(statuses)
+    def of(cls, stages: Iterable[AnalysisStage]) -> Progress:
+        """Fold the analysis stages of the designs linked to a node (ADR-0061 7).
+
+        A stopped analysis is not counted beside any other: a node is stopped
+        only when every analysis on it was stopped.
+        """
+        found = set(stages)
         if not found:
             return cls.not_started
-        if found <= TERMINAL_STATUSES:
+        if found == {AnalysisStage.stopped}:
+            return cls.stopped
+        if found - {AnalysisStage.stopped} == {AnalysisStage.finished}:
             return cls.analyzed
         return cls.investigating
 
@@ -196,7 +204,9 @@ class TreeDecisionKind(StrEnum):
     """What a tree decision decided.
 
     ``node_id`` is the node to investigate next, and for ``close`` the node
-    where the investigation stopped.
+    where the investigation stopped. The kind says how ``node_id`` stands to
+    the nodes of the decision before; the nodes handed over with it
+    (``with_node_ids``) take no kind (ADR-0061 3).
     """
 
     start = "start"
@@ -221,6 +231,9 @@ class TreeDecision(BaseModel):
     round: int = Field(ge=0)
     kind: TreeDecisionKind
     node_id: str
+    # The questions handed over together with node_id (ADR-0061 1). Empty for a
+    # decision saved before, which is written back without the key.
+    with_node_ids: list[str] = Field(default_factory=list)
     reason: str = Field(min_length=1)
     # The journal events the reason rests on; a reason may rest on none (ADR-0058).
     # The form of each cite is checked by QuestionTree, which knows the theme.
@@ -233,7 +246,22 @@ class TreeDecision(BaseModel):
             raise ValueError("round: a start decision is taken at round 0")
         if len(set(self.cites)) != len(self.cites):
             raise ValueError("cites: a decision cites the same event twice")
+        if self.kind is TreeDecisionKind.close and self.with_node_ids:
+            raise ValueError(
+                "with_node_ids: a close decision hands over no other question"
+            )
+        for node_id, count in Counter(self.with_node_ids).items():
+            if count > 1:
+                raise ValueError(f"with_node_ids: {node_id} is named twice")
+        if self.node_id in self.with_node_ids:
+            raise ValueError(
+                f"with_node_ids: {self.node_id} is the node_id of the decision"
+            )
         return self
+
+    def node_ids(self) -> list[str]:
+        """Every node the decision names: its own first, then those handed over."""
+        return [self.node_id, *self.with_node_ids]
 
 
 class QuestionTree(BaseModel):
@@ -298,8 +326,8 @@ class QuestionTree(BaseModel):
         branch = self.designs_by_branch()
         return [n for n in self.nodes if not n.is_root and not branch[n.id]]
 
-    def progress(self, statuses: Mapping[str, DesignStatus]) -> dict[str, Progress]:
-        """The progress word of each node that has one, from the status of each linked design.
+    def progress(self, stages: Mapping[str, AnalysisStage]) -> dict[str, Progress]:
+        """The progress word of each node that has one, from the stage of each linked design.
 
         A node with no design of its own but one somewhere below it has no word:
         the page, ``tree_io progress`` and the report show the progress below it
@@ -307,7 +335,7 @@ class QuestionTree(BaseModel):
         """
         branch = self.designs_by_branch()
         return {
-            n.id: Progress.of(statuses[d] for d in n.design_ids)
+            n.id: Progress.of(stages[d] for d in n.design_ids)
             for n in self.nodes
             if n.design_ids or not branch[n.id]
         }
@@ -408,10 +436,9 @@ class QuestionTree(BaseModel):
     def _check_decisions(self) -> None:
         node_ids = {n.id for n in self.nodes}
         for decision in self.decisions:
-            if decision.node_id not in node_ids:
-                raise ValueError(
-                    f"decisions: node '{decision.node_id}' is not in the tree"
-                )
+            for node_id in decision.node_ids():
+                if node_id not in node_ids:
+                    raise ValueError(f"decisions: node '{node_id}' is not in the tree")
         starts = sum(d.kind is TreeDecisionKind.start for d in self.decisions)
         if starts > 1:
             raise ValueError("decisions: a tree has at most one start decision")
@@ -438,20 +465,21 @@ class QuestionTree(BaseModel):
                 f"decisions: round {decision.round} is past the last reflection "
                 f"round {self.current_round()}"
             )
-        inside = self._is_within(decision.node_id, previous.node_id)
+        # The kind stands to every node the decision before named (ADR-0061 3).
+        named = previous.node_ids()
+        where = ", ".join(named)
+        inside = any(self._is_within(decision.node_id, n) for n in named)
         if kind is TreeDecisionKind.deepen and not inside:
             raise ValueError(
-                f"decisions: deepen goes to {previous.node_id} or below it, "
-                f"not {decision.node_id}"
+                f"decisions: deepen goes to {where} or below, not {decision.node_id}"
             )
         if kind is TreeDecisionKind.return_ and inside:
             raise ValueError(
-                f"decisions: return leaves {previous.node_id}, "
-                f"but {decision.node_id} is inside it"
+                f"decisions: return leaves {where}, but {decision.node_id} is inside it"
             )
-        if kind is TreeDecisionKind.close and decision.node_id != previous.node_id:
+        if kind is TreeDecisionKind.close and decision.node_id not in named:
             raise ValueError(
-                f"decisions: close stops at {previous.node_id}, not {decision.node_id}"
+                f"decisions: close stops at {where}, not {decision.node_id}"
             )
 
     def _check_parents(self) -> None:

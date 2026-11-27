@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A handed-over analysis can ask the analyst, take the answer and be stopped, and two writers no
   longer lose a record.** `design_io ask-analyst`, `answer-analyst` and `stop` write the marks of a
   confirmation, its answer and a stop into the journal, and are the only writers of them. The stage of an
-  analysis is derived, never stored, by `skills/_shared/analysis_stage.py`. `design_io` holds one lock from
+  analysis is derived, never stored, by `insight_blueprint.models.analysis_stage`. `design_io` holds one lock from
   reading to writing back, so two processes creating designs at once get different ids. A design may hold
   its population, grain and denominator (`data_scope`), shown in the method section of its note; saved
   designs read as before. An event counts as a result only after the analysis mark, so reasoning journaled

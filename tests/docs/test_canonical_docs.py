@@ -848,7 +848,7 @@ class TestQuestionTreeDocs:
             "進捗",
             "現時点の答え",
             "振り返りの回",
-            "ツリーの決定",
+            "論点ツリーの決定",
             "次の候補",
             "ツリーの検査",
             "Artifact",
@@ -914,7 +914,7 @@ class TestQuestionTreeDocs:
             "寄与": "contribution",
             "発見元": "origin_event_id",
             "進捗": "Progress",
-            "ツリーの決定": "TreeDecision",
+            "論点ツリーの決定": "TreeDecision",
         }
         for term, name in expected.items():
             assert f"`{name}`" in rows[term], term
@@ -976,7 +976,7 @@ class TestQuestionTreeDocs:
             "ツリーを作って巡回に入るか",
             "主題",
             "最初に調べる論点",
-            "ツリーの決定",
+            "論点ツリーの決定",
             "主題の版",
         ):
             assert any(gate in line for line in keeps), gate

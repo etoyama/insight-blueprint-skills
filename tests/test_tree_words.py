@@ -223,7 +223,7 @@ class TestEachPhrasingIsSpelledOnce:
     @pytest.mark.parametrize(
         ("table", "words"),
         [
-            (tree_words.PROGRESS_WORDS, ["未着手", "検証中", "分析済み"]),
+            (tree_words.PROGRESS_WORDS, ["未着手", "検証中", "止めた", "分析済み"]),
             (
                 tree_words.KIND_WORDS,
                 ["これまでわかっていること", "まだ決められないこと", "注意すべきこと"],

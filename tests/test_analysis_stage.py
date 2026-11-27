@@ -7,8 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
-from skills._shared.analysis_stage import (
+from insight_blueprint.models.analysis_stage import (
     MARKS,
     AnalysisStage,
     answer,
@@ -18,6 +17,7 @@ from skills._shared.analysis_stage import (
     stop,
     stops,
 )
+from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 
 ASKS_ANALYST, ANSWERS, STOPPED = MARKS
 

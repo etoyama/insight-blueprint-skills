@@ -120,6 +120,15 @@ class TestTheThemeIsTheEntry:
         ):
             assert f"`{state}`" in rows, state
 
+    def test_the_unfinished_designs_are_read_on_every_node_the_decision_names(
+        self,
+    ) -> None:
+        """Epic 35 US-1 AC 3: a decision may hand over several nodes (ADR-0061 5)."""
+        rows = {cells[0]: cells[1] for cells in table_rows(_step("### Step 1:"))}
+        for state in ("in_progress", "concluded"):
+            assert "`node_ids`" in rows[f"`{state}`"], state
+        assert "stopped" in rows["`in_progress`"]
+
     def test_an_analyzing_design_resumes_by_its_events_not_by_its_journal_file(
         self,
     ) -> None:

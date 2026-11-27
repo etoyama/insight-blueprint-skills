@@ -13,7 +13,7 @@ import pytest
 from pydantic import ValidationError
 from ruamel.yaml import YAML
 
-from insight_blueprint.models.design import DesignStatus
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.tree import (
     NextCandidate,
     Progress,
@@ -271,6 +271,106 @@ class TestDecisionKinds:
             decision("deepen", "LIB-Q02", round=0),
         )
         assert "rounds must not decrease" in errors_of(data)
+
+
+def handed_over(kind: str, node_id: str, *with_node_ids: str) -> dict:
+    return decision(kind, node_id) | {"with_node_ids": list(with_node_ids)}
+
+
+class TestDecisionHandsOverSeveralQuestions:
+    """US-1 AC 1, AC 4: a decision may name questions handed over with its own."""
+
+    def test_a_decision_hands_over_no_other_question_by_default(self) -> None:
+        tree = QuestionTree.model_validate(branching_tree())
+        assert tree.decisions[0].with_node_ids == []
+        assert tree.decisions[0].node_ids() == ["LIB-Q02"]
+
+    def test_the_questions_of_a_decision_start_with_its_own(self) -> None:
+        tree = QuestionTree.model_validate(
+            branching_tree(handed_over("deepen", "LIB-Q03", "LIB-Q04"))
+        )
+        assert tree.decisions[-1].node_ids() == ["LIB-Q03", "LIB-Q04"]
+
+    def test_a_question_handed_over_twice_is_rejected(self) -> None:
+        data = branching_tree(handed_over("deepen", "LIB-Q03", "LIB-Q04", "LIB-Q04"))
+        assert "with_node_ids: LIB-Q04 is named twice" in errors_of(data)
+
+    def test_the_own_question_cannot_be_handed_over_again(self) -> None:
+        data = branching_tree(handed_over("deepen", "LIB-Q03", "LIB-Q03"))
+        assert "with_node_ids: LIB-Q03 is the node_id of the decision" in errors_of(
+            data
+        )
+
+    def test_a_close_hands_over_nothing(self) -> None:
+        data = branching_tree(handed_over("close", "LIB-Q02", "LIB-Q04"))
+        assert "a close decision hands over no other question" in errors_of(data)
+
+    def test_a_question_handed_over_must_be_in_the_tree(self) -> None:
+        data = branching_tree(handed_over("deepen", "LIB-Q03", "LIB-Q09"))
+        assert "decisions: node 'LIB-Q09' is not in the tree" in errors_of(data)
+
+    def test_deepen_may_go_into_any_question_the_last_decision_named(self) -> None:
+        tree = QuestionTree.model_validate(
+            branching_tree(
+                handed_over("deepen", "LIB-Q02", "LIB-Q04"),
+                decision("deepen", "LIB-Q04"),
+            )
+        )
+        assert tree.decisions[-1].node_id == "LIB-Q04"
+
+    def test_deepen_outside_every_question_the_last_decision_named_is_rejected(
+        self,
+    ) -> None:
+        data = branching_tree(
+            handed_over("deepen", "LIB-Q03", "LIB-Q04"),
+            decision("deepen", "LIB-Q02"),
+        )
+        assert "deepen goes to LIB-Q03, LIB-Q04 or below" in errors_of(data)
+
+    def test_return_into_a_question_handed_over_is_rejected(self) -> None:
+        data = branching_tree(
+            handed_over("deepen", "LIB-Q02", "LIB-Q04"),
+            decision("return", "LIB-Q04"),
+        )
+        assert "return leaves LIB-Q02, LIB-Q04" in errors_of(data)
+
+    def test_return_outside_every_question_the_last_decision_named_passes(
+        self,
+    ) -> None:
+        tree = QuestionTree.model_validate(
+            branching_tree(
+                handed_over("deepen", "LIB-Q03", "LIB-Q04"),
+                decision("return", "LIB-Q01"),
+            )
+        )
+        assert tree.decisions[-1].node_id == "LIB-Q01"
+
+    def test_close_may_stop_at_any_question_the_last_decision_named(self) -> None:
+        tree = QuestionTree.model_validate(
+            branching_tree(
+                handed_over("deepen", "LIB-Q02", "LIB-Q04"),
+                decision("close", "LIB-Q04"),
+            )
+        )
+        assert tree.decisions[-1].node_id == "LIB-Q04"
+
+    def test_close_on_a_question_the_last_decision_did_not_name_is_rejected(
+        self,
+    ) -> None:
+        data = branching_tree(
+            handed_over("deepen", "LIB-Q03", "LIB-Q04"),
+            decision("close", "LIB-Q02"),
+        )
+        assert "close stops at LIB-Q03, LIB-Q04" in errors_of(data)
+
+    def test_a_saved_decision_without_questions_handed_over_dumps_as_it_was(
+        self,
+    ) -> None:
+        data = tree_dict()
+        dumped = QuestionTree.model_validate(data).model_dump(
+            mode="json", exclude_none=True, exclude_defaults=True
+        )
+        assert dumped["decisions"] == data["decisions"]
 
 
 class TestDecisionCites:
@@ -670,29 +770,40 @@ class TestQuestionNode:
 
 
 class TestProgress:
-    """US-2 AC 1: progress is derived from the linked designs, never stored."""
+    """US-3 AC 4: progress is folded from the stages of the linked designs, never stored."""
 
     def test_no_design_means_not_started(self) -> None:
         assert Progress.of([]) is Progress.not_started
 
     @pytest.mark.parametrize(
-        "status",
+        "stage",
         [
-            DesignStatus.in_review,
-            DesignStatus.revision_requested,
-            DesignStatus.analyzing,
+            AnalysisStage.before_run,
+            AnalysisStage.running,
+            AnalysisStage.awaiting_confirmation,
+            AnalysisStage.awaiting_reflection,
         ],
     )
-    def test_one_open_design_means_investigating(self, status: DesignStatus) -> None:
-        assert Progress.of([DesignStatus.supported, status]) is Progress.investigating
+    def test_one_unfinished_analysis_means_investigating(
+        self, stage: AnalysisStage
+    ) -> None:
+        assert Progress.of([AnalysisStage.finished, stage]) is Progress.investigating
 
-    def test_only_terminal_designs_mean_analyzed(self) -> None:
-        statuses = [
-            DesignStatus.supported,
-            DesignStatus.rejected,
-            DesignStatus.inconclusive,
-        ]
-        assert Progress.of(statuses) is Progress.analyzed
+    def test_only_finished_analyses_mean_analyzed(self) -> None:
+        stages = [AnalysisStage.finished, AnalysisStage.finished]
+        assert Progress.of(stages) is Progress.analyzed
+
+    def test_only_stopped_analyses_mean_stopped(self) -> None:
+        stages = [AnalysisStage.stopped, AnalysisStage.stopped]
+        assert Progress.of(stages) is Progress.stopped
+
+    def test_a_stopped_analysis_is_not_counted_beside_a_finished_one(self) -> None:
+        stages = [AnalysisStage.stopped, AnalysisStage.finished]
+        assert Progress.of(stages) is Progress.analyzed
+
+    def test_a_stopped_analysis_is_not_counted_beside_a_running_one(self) -> None:
+        stages = [AnalysisStage.stopped, AnalysisStage.running]
+        assert Progress.of(stages) is Progress.investigating
 
     def test_a_question_with_no_design_on_it_or_below_it_is_not_started(
         self,
@@ -710,7 +821,7 @@ class TestProgress:
         data = branching_tree()
         data["nodes"][2]["design_ids"] = ["LIB-H01"]
         tree = QuestionTree.model_validate(data)
-        progress = tree.progress({"LIB-H01": DesignStatus.analyzing})
+        progress = tree.progress({"LIB-H01": AnalysisStage.running})
         assert progress == {
             "LIB-Q03": Progress.investigating,
             "LIB-Q04": Progress.not_started,
@@ -722,7 +833,7 @@ class TestProgress:
         data["nodes"][2]["design_ids"] = ["LIB-H02"]
         tree = QuestionTree.model_validate(data)
         progress = tree.progress(
-            {"LIB-H01": DesignStatus.supported, "LIB-H02": DesignStatus.analyzing}
+            {"LIB-H01": AnalysisStage.finished, "LIB-H02": AnalysisStage.running}
         )
         assert progress["LIB-Q02"] is Progress.analyzed
 
@@ -732,7 +843,7 @@ class TestProgress:
         data = branching_tree()
         data["nodes"][2]["design_ids"] = ["LIB-H01"]
         tree = QuestionTree.model_validate(data)
-        below = tree.progress_below(tree.progress({"LIB-H01": DesignStatus.analyzing}))
+        below = tree.progress_below(tree.progress({"LIB-H01": AnalysisStage.running}))
         assert below["LIB-Q01"] == {
             Progress.investigating: 1,
             Progress.not_started: 1,

@@ -88,9 +88,8 @@ def write_lock(base_dir: Path) -> Iterator[None]:
 
     The lock of ``atomic_write_yaml`` covers only the moment of the write: two
     processes that read the same highest id both write it. Every writer of
-    ``design_io`` takes this one lock per ``.insight``, so no two writers
-    interleave and no order of locks can deadlock. The writers of ``tree_io``
-    take it from Story 35.3; until then they hold only the lock of the write.
+    ``design_io`` and ``tree_io`` takes this one lock per ``.insight``, so no
+    two writers interleave and no order of locks can deadlock.
     """
     path = Path(base_dir).resolve() / WRITE_LOCK_NAME
     with _WRITE_LOCKS_GUARD:

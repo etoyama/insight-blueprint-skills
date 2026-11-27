@@ -113,8 +113,9 @@ is run from.
 tree_io position --theme LIB
 ```
 
-   It prints a `state`, and with a decision the `node_id` it names and the `design_ids` in
-   play. Never work the position out yourself from the tree file, the dates or the journals.
+   It prints a `state`, and with a decision the `node_id` it names, every node it names
+   (`node_ids`), the `design_ids` in play, and in `nodes` each design on those nodes with its
+   analysis `stage`. Never work the position out yourself from the tree file, the dates or the journals.
    If it exits non-zero, show stderr and stop: a linked design is missing or unreadable, and
    the analyst has to fix it before the walk can go on.
 
@@ -123,8 +124,8 @@ tree_io position --theme LIB
 | `no_tree` | The theme has no question tree. stderr names the file it looked for: check that it is under this project's `.insight` | Step 2 |
 | `no_decision` | A tree without a first node to investigate: an earlier framing stopped halfway | Step 2, item 3 (`/analysis-framing` finishes it: 4c, "An unfinished tree") |
 | `not_started` | The latest decision names `node_id`, and no design was made on it since | Step 3, item 1 |
-| `in_progress` | `design_ids` are the unfinished designs on `node_id` | Step 3, at the item the first of them calls for |
-| `concluded` | `design_ids` were made after the decision and are all finished; the round lacks its theme reflection | Step 3, item 8 |
+| `in_progress` | `design_ids` are the unfinished designs on the nodes the decision names (`node_ids`); a stopped one is not unfinished | Step 3, at the item the first of them calls for |
+| `concluded` | `design_ids` were made after the decision on its `node_ids`, and each is finished or stopped; the round lacks its theme reflection | Step 3, item 8 |
 | `closed` | The analyst closed the walk at `node_id`, and no design was made on it since | Step 3, item 1 |
 
    For `in_progress`, read the design with `design_io get --id {design_id}`:
@@ -138,7 +139,7 @@ tree_io position --theme LIB
    `/analysis-framing {theme_id}` first (4c, "Designs no node holds").
 4. Tell the analyst the plan ("論点ツリーの {node_id} から、design→premortem→notebook→journal→
    reflection→テーマを横断した振り返り の順に進める。意図と探索の問いか検証仮説の確定・コスト判定・
-   結論・ツリーの決定では止まる").
+   結論・論点ツリーの決定では止まる").
 
 ### Step 2: Build the tree (the theme has none)
 

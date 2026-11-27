@@ -23,6 +23,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.common import THEME_ID_PATTERN
 from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
 from insight_blueprint.models.tree import (
@@ -41,6 +42,7 @@ from skills._shared.design_io import (
     journal_events,
     load_design,
     read_yaml,
+    stage_of,
     theme_of,
 )
 from skills._shared.design_note import DesignNote, note_anchor, render_note
@@ -113,25 +115,42 @@ def status_of(design: dict) -> DesignStatus:
     return DesignStatus(design["status"])
 
 
-def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, dict]:
-    """The progress of every node, derived from the status of its linked designs.
+def _stages(tree: QuestionTree, base_dir: Path) -> dict[str, AnalysisStage]:
+    """The analysis stage of every linked design, each read once, in tree order.
 
-    Each node gets ``progress``, its word or ``None``, and ``below``, how many
-    nodes under it have each word (furthest first, words with none left out).
-    The rule is ``QuestionTree.progress``, the one the page shows (ADR-0057).
+    One design at a time, so the first broken design is the one reported.
+    """
+    stages: dict[str, AnalysisStage] = {}
+    for node in tree.nodes:
+        for design_id in node.design_ids:
+            if design_id not in stages:
+                require_design(design_id, base_dir)
+                stages[design_id] = stage_of(design_id, base_dir)
+    return stages
+
+
+def _staged(design_ids: Iterable[str], stages: Mapping[str, AnalysisStage]) -> list:
+    """*design_ids* with the stage of each, as ``position`` and ``progress`` return them."""
+    return [{"design_id": d, "stage": stages[d].value} for d in design_ids]
+
+
+def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, dict]:
+    """The progress of every node, folded from the stages of its linked designs.
+
+    Each node gets ``progress``, its word or ``None``; ``below``, how many
+    nodes under it have each word (furthest first, words with none left out);
+    and ``designs``, each design linked to the node itself with its stage.
+    The rule is ``QuestionTree.progress``, the one the page shows (ADR-0057,
+    ADR-0061 7).
     """
     tree = load_tree_model(theme_id, base_dir)
-    words = tree.progress(
-        {
-            design_id: status_of(require_design(design_id, base_dir))
-            for node in tree.nodes
-            for design_id in node.design_ids
-        }
-    )
+    stages = _stages(tree, base_dir)
+    words = tree.progress(stages)
     below = tree.progress_below(words)
     return {
         node.id: {
             "progress": None if node.id not in words else words[node.id].value,
+            "designs": _staged(node.design_ids, stages),
             "below": {
                 p.value: below[node.id][p]
                 for p in reversed(Progress)
@@ -199,20 +218,32 @@ def _made_after(design_id: str, design: dict, decision_time: datetime | None) ->
         ) from None
 
 
+# The stages that no longer hold the walk: a stopped analysis is not resumed
+# (ADR-0064), so waiting for it would hold the walk for ever.
+_DONE_FOR_THE_WALK = frozenset({AnalysisStage.finished, AnalysisStage.stopped})
+
+
 def position(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
     """Where the walk of the theme stands, derived from the last decision. Writes nothing.
 
-    ``state`` is a ``WalkState``:
+    The walk reads every node the last decision names: its ``node_id`` and the
+    nodes handed over with it (ADR-0061 5). An analysis is unfinished until it
+    is finished or stopped; a stopped one is never resumed, so it does not hold
+    the walk. ``state`` is a ``WalkState``:
 
     - ``no_tree`` / ``no_decision``: nothing names a node yet.
-    - ``in_progress``: ``design_ids`` are the unfinished designs on the node.
+    - ``in_progress``: ``design_ids`` are the unfinished designs on the nodes.
       After a ``close`` only designs made since the close count: what the
       analyst left unfinished when closing stays closed.
-    - ``concluded``: ``design_ids`` were made after the decision and are all
-      finished; the round still lacks its theme reflection and its decision.
-    - ``not_started``: no design was made on the node since the decision.
+    - ``concluded``: ``design_ids`` were made after the decision and none is
+      unfinished; the round still lacks its theme reflection and its decision.
+    - ``not_started``: no design was made on the nodes since the decision.
     - ``closed``: the last decision closed the walk at ``node_id``, and no
       design was made on it since.
+
+    Beside the state: ``node_id`` and ``decision``, the last decision;
+    ``node_ids``, every node it names, its own first; ``nodes``, for each of
+    them in that order, every design linked there with its analysis stage.
     """
     if not load_tree(theme_id, base_dir):
         return {"state": WalkState.no_tree}
@@ -221,27 +252,23 @@ def position(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
         return {"state": WalkState.no_decision}
     decision = tree.decisions[-1]
     closed = decision.kind is TreeDecisionKind.close
-    node = tree.node(decision.node_id)
-    designs: dict[str, dict] = {}
-    statuses: dict[str, DesignStatus] = {}
-    # One design at a time, so the first broken design is the one reported.
-    for design_id in node.design_ids:
-        designs[design_id] = require_design(design_id, base_dir)
-        statuses[design_id] = status_of(designs[design_id])
+    named = [tree.node(node_id) for node_id in decision.node_ids()]
+    # A design linked to two of the nodes is one analysis.
+    linked = list(dict.fromkeys(d for node in named for d in node.design_ids))
+    designs = {d: require_design(d, base_dir) for d in linked}
+    stages = {d: stage_of(d, base_dir) for d in linked}
 
     def later(design_ids: list[str]) -> list[str]:
         return [
             d for d in design_ids if _made_after(d, designs[d], decision.created_at)
         ]
 
-    unfinished = [
-        d for d, status in statuses.items() if status not in TERMINAL_STATUSES
-    ]
+    unfinished = [d for d in linked if stages[d] not in _DONE_FOR_THE_WALK]
     if closed:
         unfinished = later(unfinished)
     if unfinished:
         state, design_ids = WalkState.in_progress, unfinished
-    elif made_since := later(node.design_ids):
+    elif made_since := later(linked):
         state, design_ids = WalkState.concluded, made_since
     else:
         state = WalkState.closed if closed else WalkState.not_started
@@ -249,8 +276,13 @@ def position(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
     return {
         "state": state,
         "node_id": decision.node_id,
+        "node_ids": decision.node_ids(),
         "decision": decision.model_dump(mode="json"),
         "design_ids": design_ids,
+        "nodes": [
+            {"node_id": node.id, "designs": _staged(node.design_ids, stages)}
+            for node in named
+        ],
     }
 
 
@@ -498,7 +530,7 @@ def _theme_report(
     notes = _linked_notes(tree, base_dir)
     root = tree.root()
     # The rule the page shows (ADR-0057), so the two cannot disagree.
-    progress = tree.progress({d: note.design.status for d, note in notes.items()})
+    progress = tree.progress({d: note.stage for d, note in notes.items()})
     below = tree.progress_below(progress)
     nodes = tuple(_report_node(n, progress, below) for n in tree.nodes if n is not root)
     designs = tuple(ReportDesign.of(note) for note in notes.values())

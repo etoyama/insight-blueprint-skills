@@ -14,8 +14,8 @@ from pathlib import Path
 
 import pytest
 
+from insight_blueprint.models.analysis_stage import MARKS, AnalysisStage
 from skills._shared import design_io
-from skills._shared.analysis_stage import MARKS, AnalysisStage
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 

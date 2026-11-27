@@ -4,6 +4,8 @@ The canonical file is ``.insight/themes/{theme_id}_tree.yaml``. Skills call this
 instead of writing the file themselves. Every write is checked against the
 ``QuestionTree`` schema first (``insight_blueprint.validate.validate_tree_schema``):
 the pre-write hook only guards the Write/Edit tool path, not direct python writes.
+Each writer holds ``write_lock`` from reading the tree to writing it back
+(ADR-0062), so two writers at once never lose each other's change.
 
 Progress is never written. What is derived from the tree (``progress``,
 ``position``, ``changes``, the generated view ``render`` writes) lives in
@@ -47,7 +49,7 @@ from insight_blueprint.models.tree import (
     design_id_of,
 )
 from insight_blueprint.validate import validate_tree_schema
-from skills._shared._atomic import atomic_write_yaml
+from skills._shared._atomic import atomic_write_yaml, write_lock
 from skills._shared._stdin import read_payload
 from skills._shared.design_io import (
     DEFAULT_BASE_DIR,
@@ -108,21 +110,22 @@ def create_tree(
     *, theme_id: str, question: str, aim: dict, base_dir: Path = DEFAULT_BASE_DIR
 ) -> dict:
     """Create the tree of a theme with its root question and first root revision."""
-    if tree_path(theme_id, base_dir).exists():
-        raise ValueError(f"The question tree of theme '{theme_id}' already exists")
-    revision = {
-        "revision": 1,
-        "question": question,
-        "aim": aim,
-        "created_at": now_jst(),
-    }
-    tree = {
-        "theme_id": theme_id,
-        "root_revisions": [revision],
-        "nodes": [{"id": f"{theme_id}-Q01", "question": question}],
-    }
-    checked = named_like_its_file(validate_tree_schema(tree), theme_id)
-    return _dump(_save(checked, theme_id, base_dir))
+    with write_lock(base_dir):
+        if tree_path(theme_id, base_dir).exists():
+            raise ValueError(f"The question tree of theme '{theme_id}' already exists")
+        revision = {
+            "revision": 1,
+            "question": question,
+            "aim": aim,
+            "created_at": now_jst(),
+        }
+        tree = {
+            "theme_id": theme_id,
+            "root_revisions": [revision],
+            "nodes": [{"id": f"{theme_id}-Q01", "question": question}],
+        }
+        checked = named_like_its_file(validate_tree_schema(tree), theme_id)
+        return _dump(_save(checked, theme_id, base_dir))
 
 
 def _next_node_id(tree: QuestionTree) -> str:
@@ -156,41 +159,43 @@ def add_node(
     With *origin_event_id* this promotes a journal ``question``: the event must
     exist and be a question.
     """
-    tree = load_tree_model(theme_id, base_dir)
-    node_id = _next_node_id(tree)
-    tree.nodes.append(
-        QuestionNode.model_validate(
-            {
-                "id": node_id,
-                "question": question,
-                "parent_question_id": parent_question_id,
-                "contribution": contribution,
-                "origin_event_id": origin_event_id,
-            }
+    with write_lock(base_dir):
+        tree = load_tree_model(theme_id, base_dir)
+        node_id = _next_node_id(tree)
+        tree.nodes.append(
+            QuestionNode.model_validate(
+                {
+                    "id": node_id,
+                    "question": question,
+                    "parent_question_id": parent_question_id,
+                    "contribution": contribution,
+                    "origin_event_id": origin_event_id,
+                }
+            )
         )
-    )
-    # The shape is checked before the journal is read, so a malformed event id
-    # never reaches a path.
-    checked = _checked(tree, theme_id)
-    if origin_event_id is not None:
-        _require_question_event(origin_event_id, base_dir)
-    return _dump(_save(checked, theme_id, base_dir).node(node_id))
+        # The shape is checked before the journal is read, so a malformed event id
+        # never reaches a path.
+        checked = _checked(tree, theme_id)
+        if origin_event_id is not None:
+            _require_question_event(origin_event_id, base_dir)
+        return _dump(_save(checked, theme_id, base_dir).node(node_id))
 
 
 def link_design(
     theme_id: str, node_id: str, design_id: str, base_dir: Path = DEFAULT_BASE_DIR
 ) -> dict:
     """Link a design of the same theme to a node and return the node. Idempotent."""
-    tree = load_tree_model(theme_id, base_dir)
-    node = tree.node(node_id)
-    design_theme = require_design(design_id, base_dir).get("theme_id")
-    if design_theme != theme_id:
-        raise ValueError(
-            f"design '{design_id}' belongs to theme '{design_theme}', not '{theme_id}'"
-        )
-    if design_id not in node.design_ids:
-        node.design_ids.append(design_id)
-    return _dump(_write_tree(tree, theme_id, base_dir).node(node_id))
+    with write_lock(base_dir):
+        tree = load_tree_model(theme_id, base_dir)
+        node = tree.node(node_id)
+        design_theme = require_design(design_id, base_dir).get("theme_id")
+        if design_theme != theme_id:
+            raise ValueError(
+                f"design '{design_id}' belongs to theme '{design_theme}', not '{theme_id}'"
+            )
+        if design_id not in node.design_ids:
+            node.design_ids.append(design_id)
+        return _dump(_write_tree(tree, theme_id, base_dir).node(node_id))
 
 
 def link_derived_design(
@@ -202,26 +207,27 @@ def link_derived_design(
     so nobody is asked for the node. ``node_ids`` is empty when the parent is
     on no node or the theme has no tree: nothing is written then.
     """
-    design = require_design(design_id, base_dir)
-    parent_id = design.get("parent_id")
-    if not parent_id:
-        raise ValueError(f"design '{design_id}' has no parent_id")
-    design_theme = design.get("theme_id")
-    if design_theme != theme_id:
-        raise ValueError(
-            f"design '{design_id}' belongs to theme '{design_theme}', not '{theme_id}'"
-        )
-    result = {"design_id": design_id, "parent_id": parent_id, "node_ids": []}
-    if not load_tree(theme_id, base_dir):
-        return result
-    tree = load_tree_model(theme_id, base_dir)
-    shared = [n for n in tree.nodes if parent_id in n.design_ids]
-    missing = [node for node in shared if design_id not in node.design_ids]
-    for node in missing:
-        node.design_ids.append(design_id)
-    if missing:
-        _write_tree(tree, theme_id, base_dir)
-    return {**result, "node_ids": [node.id for node in shared]}
+    with write_lock(base_dir):
+        design = require_design(design_id, base_dir)
+        parent_id = design.get("parent_id")
+        if not parent_id:
+            raise ValueError(f"design '{design_id}' has no parent_id")
+        design_theme = design.get("theme_id")
+        if design_theme != theme_id:
+            raise ValueError(
+                f"design '{design_id}' belongs to theme '{design_theme}', not '{theme_id}'"
+            )
+        result = {"design_id": design_id, "parent_id": parent_id, "node_ids": []}
+        if not load_tree(theme_id, base_dir):
+            return result
+        tree = load_tree_model(theme_id, base_dir)
+        shared = [n for n in tree.nodes if parent_id in n.design_ids]
+        missing = [node for node in shared if design_id not in node.design_ids]
+        for node in missing:
+            node.design_ids.append(design_id)
+        if missing:
+            _write_tree(tree, theme_id, base_dir)
+        return {**result, "node_ids": [node.id for node in shared]}
 
 
 def revise_root(
@@ -238,31 +244,34 @@ def revise_root(
     *bump* appends a new root revision, which needs *reason*. Without it the
     current revision is reworded in place and answers keep their revision.
     """
-    # The payload is JSON a model wrote; "false" as a string would bump.
-    if not isinstance(bump, bool):
-        raise ValueError("bump must be true or false")
-    if question is None and aim is None:
-        raise ValueError("revise-root needs a new question or aim")
-    if reason and not bump:
-        raise ValueError("a reason is kept only with a bump; without one it is lost")
-    tree = load_tree_model(theme_id, base_dir)
-    current = tree.current_revision()
-    revised = current.model_dump()
-    if question is not None:
-        revised["question"] = question
-    if aim is not None:
-        revised["aim"] = aim
-    if bump:
-        revised |= {
-            "revision": current.revision + 1,
-            "reason": reason,
-            "created_at": now_jst(),
-        }
-        tree.root_revisions.append(RootRevision.model_validate(revised))
-    else:
-        tree.root_revisions[-1] = RootRevision.model_validate(revised)
-    tree.root().question = tree.current_revision().question
-    return _dump(_write_tree(tree, theme_id, base_dir))
+    with write_lock(base_dir):
+        # The payload is JSON a model wrote; "false" as a string would bump.
+        if not isinstance(bump, bool):
+            raise ValueError("bump must be true or false")
+        if question is None and aim is None:
+            raise ValueError("revise-root needs a new question or aim")
+        if reason and not bump:
+            raise ValueError(
+                "a reason is kept only with a bump; without one it is lost"
+            )
+        tree = load_tree_model(theme_id, base_dir)
+        current = tree.current_revision()
+        revised = current.model_dump()
+        if question is not None:
+            revised["question"] = question
+        if aim is not None:
+            revised["aim"] = aim
+        if bump:
+            revised |= {
+                "revision": current.revision + 1,
+                "reason": reason,
+                "created_at": now_jst(),
+            }
+            tree.root_revisions.append(RootRevision.model_validate(revised))
+        else:
+            tree.root_revisions[-1] = RootRevision.model_validate(revised)
+        tree.root().question = tree.current_revision().question
+        return _dump(_write_tree(tree, theme_id, base_dir))
 
 
 def decide(
@@ -272,9 +281,14 @@ def decide(
     node_id: str,
     reason: str,
     cites: Sequence[str] = (),
+    with_node_ids: Sequence[str] = (),
     base_dir: Path = DEFAULT_BASE_DIR,
 ) -> dict:
     """Append a decision to the tree and return it, if its cites pass the check.
+
+    *with_node_ids* names the questions handed over together with *node_id*
+    (ADR-0061 1). They take no kind: the kind says how *node_id* stands to the
+    questions the decision before named.
 
     The round is never passed: a ``start`` is taken at round 0, any other kind
     at the last reflection round, which is the one whose answers it was made on.
@@ -284,26 +298,30 @@ def decide(
     saved: the result is then ``{"violations": [...]}`` instead of the decision.
     A reason without cites is not checked.
     """
-    is_start = TreeDecisionKind(kind) is TreeDecisionKind.start
-    tree = load_tree_model(theme_id, base_dir)
-    tree.decisions.append(
-        TreeDecision.model_validate(
-            {
-                "round": 0 if is_start else tree.current_round(),
-                "kind": kind,
-                "node_id": node_id,
-                "reason": reason,
-                "cites": cites,
-                "created_at": now_jst(),
-            }
+    with write_lock(base_dir):
+        is_start = TreeDecisionKind(kind) is TreeDecisionKind.start
+        tree = load_tree_model(theme_id, base_dir)
+        tree.decisions.append(
+            TreeDecision.model_validate(
+                {
+                    "round": 0 if is_start else tree.current_round(),
+                    "kind": kind,
+                    "node_id": node_id,
+                    "with_node_ids": with_node_ids,
+                    "reason": reason,
+                    "cites": cites,
+                    "created_at": now_jst(),
+                }
+            )
         )
-    )
-    # Checked before the journals are read, so a malformed cite never reaches a path.
-    candidate_tree = _checked(tree, theme_id)
-    violations = [reported(v) for v in check_last_decision(candidate_tree, base_dir)]
-    if violations:
-        return {"violations": violations}
-    return _dump(_save(candidate_tree, theme_id, base_dir).decisions[-1])
+        # Checked before the journals are read, so a malformed cite never reaches a path.
+        candidate_tree = _checked(tree, theme_id)
+        violations = [
+            reported(v) for v in check_last_decision(candidate_tree, base_dir)
+        ]
+        if violations:
+            return {"violations": violations}
+        return _dump(_save(candidate_tree, theme_id, base_dir).decisions[-1])
 
 
 def candidates(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> list[dict]:
@@ -338,19 +356,20 @@ def candidate(
     The answer answers the old question, so *ask* cannot change while one is
     recorded.
     """
-    tree = load_tree_model(theme_id, base_dir)
-    node = tree.node(node_id)
-    note = node.next_candidate
-    recorded = note if note is not None and note.answer else None
-    if recorded is not None and ask != recorded.ask:
-        raise ValueError(
-            f"{node_id} already has an answer to its ask; the ask cannot change"
+    with write_lock(base_dir):
+        tree = load_tree_model(theme_id, base_dir)
+        node = tree.node(node_id)
+        note = node.next_candidate
+        recorded = note if note is not None and note.answer else None
+        if recorded is not None and ask != recorded.ask:
+            raise ValueError(
+                f"{node_id} already has an answer to its ask; the ask cannot change"
+            )
+        node.next_candidate = NextCandidate.model_validate(
+            (recorded.model_dump() if recorded is not None else {})
+            | {"ask": ask, "changes_if": changes_if, "known": known}
         )
-    node.next_candidate = NextCandidate.model_validate(
-        (recorded.model_dump() if recorded is not None else {})
-        | {"ask": ask, "changes_if": changes_if, "known": known}
-    )
-    return _dump(_write_tree(tree, theme_id, base_dir).node(node_id))
+        return _dump(_write_tree(tree, theme_id, base_dir).node(node_id))
 
 
 def hear(
@@ -366,16 +385,17 @@ def hear(
 
     Recording again replaces the answer.
     """
-    tree = load_tree_model(theme_id, base_dir)
-    node = tree.node(node_id)
-    note = node.next_candidate
-    if note is None or not note.ask:
-        raise ValueError(f"{node_id} has no ask to answer")
-    node.next_candidate = NextCandidate.model_validate(
-        note.model_dump()
-        | {"answer": answer, "answered_by": answered_by, "answered_at": answered_at}
-    )
-    return _dump(_write_tree(tree, theme_id, base_dir).node(node_id))
+    with write_lock(base_dir):
+        tree = load_tree_model(theme_id, base_dir)
+        node = tree.node(node_id)
+        note = node.next_candidate
+        if note is None or not note.ask:
+            raise ValueError(f"{node_id} has no ask to answer")
+        node.next_candidate = NextCandidate.model_validate(
+            note.model_dump()
+            | {"answer": answer, "answered_by": answered_by, "answered_at": answered_at}
+        )
+        return _dump(_write_tree(tree, theme_id, base_dir).node(node_id))
 
 
 def copy_hearing(
@@ -390,46 +410,50 @@ def copy_hearing(
     written once: the same answer already in the journal is not written again.
     A design in a terminal status is refused: nothing is added to its journal.
     """
-    node = load_tree_model(theme_id, base_dir).node(node_id)
-    if design_id not in node.design_ids:
-        raise ValueError(f"design '{design_id}' is not linked to {node_id}")
-    note = node.next_candidate
-    if note is None or not note.answer:
-        return {"copied": False, "reason": f"{node_id} has no answer to copy"}
+    with write_lock(base_dir):
+        node = load_tree_model(theme_id, base_dir).node(node_id)
+        if design_id not in node.design_ids:
+            raise ValueError(f"design '{design_id}' is not linked to {node_id}")
+        note = node.next_candidate
+        if note is None or not note.answer:
+            return {"copied": False, "reason": f"{node_id} has no answer to copy"}
 
-    assert note.answered_at is not None  # the model requires it with an answer
-    metadata = {
-        "node_id": node_id,
-        "ask": note.ask,
-        "answered_by": note.answered_by,
-        "answered_at": note.answered_at.isoformat(),
-    }
-    same = {k: metadata[k] for k in ("node_id", "answered_by", "answered_at")}
-    for existing in journal_events(design_id, base_dir):
-        old = existing.get("metadata")
-        old = old if isinstance(old, dict) else {}
-        # YAML reads an unquoted date back as a date, not the string we wrote.
-        if (
-            existing.get("type") == "hearing"
-            and existing.get("content") == note.answer
-            and {k: str(old.get(k)) for k in same} == same
-        ):
-            return {"copied": False, "reason": "the answer is already in the journal"}
+        assert note.answered_at is not None  # the model requires it with an answer
+        metadata = {
+            "node_id": node_id,
+            "ask": note.ask,
+            "answered_by": note.answered_by,
+            "answered_at": note.answered_at.isoformat(),
+        }
+        same = {k: metadata[k] for k in ("node_id", "answered_by", "answered_at")}
+        for existing in journal_events(design_id, base_dir):
+            old = existing.get("metadata")
+            old = old if isinstance(old, dict) else {}
+            # YAML reads an unquoted date back as a date, not the string we wrote.
+            if (
+                existing.get("type") == "hearing"
+                and existing.get("content") == note.answer
+                and {k: str(old.get(k)) for k in same} == same
+            ):
+                return {
+                    "copied": False,
+                    "reason": "the answer is already in the journal",
+                }
 
-    status = status_of(require_design(design_id, base_dir))
-    if status in TERMINAL_STATUSES:
-        # A concluded analysis keeps the record it was concluded on.
-        raise ValueError(
-            f"{design_id} is {status.value}: a finished design takes no new hearing. "
-            f"The answer stays on {node_id}; copy it into the next design linked there"
+        status = status_of(require_design(design_id, base_dir))
+        if status in TERMINAL_STATUSES:
+            # A concluded analysis keeps the record it was concluded on.
+            raise ValueError(
+                f"{design_id} is {status.value}: a finished design takes no new hearing. "
+                f"The answer stays on {node_id}; copy it into the next design linked there"
+            )
+
+        event = append_journal_event(
+            design_id,
+            {"type": "hearing", "content": note.answer, "metadata": metadata},
+            base_dir,
         )
-
-    event = append_journal_event(
-        design_id,
-        {"type": "hearing", "content": note.answer, "metadata": metadata},
-        base_dir,
-    )
-    return {"copied": True, "event": event}
+        return {"copied": True, "event": event}
 
 
 class _AnswerEntry(BaseModel):
@@ -458,32 +482,33 @@ def answer(
     new round when answers were written, the earlier one when none were. A
     violation carries the round its answer would have had.
     """
-    # The payload is JSON a model wrote, so it is parsed before anything reads it.
-    entries = TypeAdapter(list[_AnswerEntry]).validate_python(answers)
-    tree = load_tree_model(theme_id, base_dir)
-    result: dict[str, Any] = {
-        "round": tree.current_round(),
-        "root_revision": tree.current_revision().revision,
-        "written": [],
-        "unchanged": [],
-        "violations": [],
-    }
-    written, result["unchanged"] = _append_round(tree, entries)
-    if not written:
-        return result
+    with write_lock(base_dir):
+        # The payload is JSON a model wrote, so it is parsed before anything reads it.
+        entries = TypeAdapter(list[_AnswerEntry]).validate_python(answers)
+        tree = load_tree_model(theme_id, base_dir)
+        result: dict[str, Any] = {
+            "round": tree.current_round(),
+            "root_revision": tree.current_revision().revision,
+            "written": [],
+            "unchanged": [],
+            "violations": [],
+        }
+        written, result["unchanged"] = _append_round(tree, entries)
+        if not written:
+            return result
 
-    # Checked before the journals are read, so a malformed cite never reaches a path.
-    candidate_tree = _checked(tree, theme_id)
-    being_written = {w["node_id"] for w in written}
-    result["violations"] = [
-        reported(v)
-        for v in check_tree(candidate_tree, base_dir)
-        if v.node_id in being_written
-    ]
-    if not result["violations"]:
-        _save(candidate_tree, theme_id, base_dir)
-        result |= {"round": result["round"] + 1, "written": written}
-    return result
+        # Checked before the journals are read, so a malformed cite never reaches a path.
+        candidate_tree = _checked(tree, theme_id)
+        being_written = {w["node_id"] for w in written}
+        result["violations"] = [
+            reported(v)
+            for v in check_tree(candidate_tree, base_dir)
+            if v.node_id in being_written
+        ]
+        if not result["violations"]:
+            _save(candidate_tree, theme_id, base_dir)
+            result |= {"round": result["round"] + 1, "written": written}
+        return result
 
 
 def _append_round(

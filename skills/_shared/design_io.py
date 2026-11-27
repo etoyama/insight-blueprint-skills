@@ -26,6 +26,17 @@ from typing import Any
 from pydantic import ValidationError
 from ruamel.yaml import YAML
 
+from insight_blueprint.models.analysis_stage import (
+    ASKS_FROM,
+    MARKS,
+    STOPS_FROM,
+    AnalysisStage,
+    answer,
+    asks_analyst,
+    confirmation,
+    open_confirmations,
+    stop,
+)
 from insight_blueprint.models.common import THEME_ID_PATTERN, now_jst
 from insight_blueprint.models.design import AnalysisDesign, DesignStatus
 from insight_blueprint.models.review import BatchComment, ReviewBatch
@@ -41,17 +52,6 @@ from insight_blueprint.validate import (
 )
 from skills._shared._atomic import atomic_write_yaml, write_lock
 from skills._shared._stdin import read_payload
-from skills._shared.analysis_stage import (
-    ASKS_FROM,
-    MARKS,
-    STOPS_FROM,
-    AnalysisStage,
-    answer,
-    asks_analyst,
-    confirmation,
-    open_confirmations,
-    stop,
-)
 from skills._shared.ids import SAFE_ID_PATTERN
 
 DEFAULT_BASE_DIR = Path(os.environ.get("INSIGHT_BASE_DIR", ".insight"))

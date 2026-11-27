@@ -321,7 +321,7 @@ def _decisions(context: Context) -> Html:
         for d in context.tree.decisions
     ]
     body = el("ul", join(rows)) if rows else el("p", "まだ決めていない。")
-    return el("section", el("h2", "ツリーの決定"), body, id="decisions")
+    return el("section", el("h2", "論点ツリーの決定"), body, id="decisions")
 
 
 def _next_question(context: Context) -> Html:

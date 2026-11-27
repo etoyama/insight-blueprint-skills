@@ -18,6 +18,7 @@ import base64
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import (
     AnalysisDesign,
     AnalysisIntent,
@@ -124,6 +125,7 @@ class DesignNote:
     lineage: str | None  # the Mermaid text of lineage/{id}.mmd
     local_files: tuple[str, ...]  # paths under .insight/ that exist, LOCAL_FILES order
     conclusion: Conclusion | None  # None: the design is not in a terminal status
+    stage: AnalysisStage  # AnalysisStage.of the design and its journal (ADR-0061 6)
     reviews: tuple[NoteReviewBatch, ...] = ()  # newest first
 
 

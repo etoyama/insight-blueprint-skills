@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import AnalysisDesign, DesignForm, DesignStatus
 from insight_blueprint.models.tree import (
     Aim,
@@ -731,6 +732,26 @@ class TestFutureDirections:
         assert "- 次に調べる論点: LIB-Q06 LIB-Q06 の問い" in lines
         assert "- 理由: 開館日を先に確かめる" in lines
 
+    def test_a_decision_names_every_question_it_hands_over(self) -> None:
+        """Epic 35 US-3 AC 4: the report reads the decision as the page and position do."""
+        future = _discussion(
+            _report(
+                nodes=(_node("LIB-Q06"), _node("LIB-Q07")),
+                decision=TreeDecision(
+                    round=2,
+                    kind="deepen",
+                    node_id="LIB-Q06",
+                    with_node_ids=["LIB-Q07"],
+                    reason="互いの結果を待たない",
+                ),
+            ),
+            "### Future Directions",
+        )
+
+        lines = future.splitlines()
+        assert "- 次に調べる論点: LIB-Q06 LIB-Q06 の問い" in lines
+        assert "- 次に調べる論点: LIB-Q07 LIB-Q07 の問い" in lines
+
     def test_a_decision_on_the_root_names_the_root_question(self) -> None:
         future = _discussion(
             _report(
@@ -1338,6 +1359,7 @@ def _from_note(
             lineage=None,
             local_files=(),
             conclusion=conclusion,
+            stage=AnalysisStage.of(design.status, (), None),
         )
     )
 

@@ -13,6 +13,7 @@ from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import DesignForm, DesignStatus
 from insight_blueprint.models.tree import QuestionTree
 from insight_blueprint.validate import validate_tree_schema
@@ -251,8 +252,12 @@ def summary(
     intent: str | None = None,
     statement: str = "",
     comments_after_analysis: int = 0,
+    stage: AnalysisStage | None = None,
 ) -> DesignSummary:
-    """A design as the page sees it. An explored design is an exploration unless told."""
+    """A design as the page sees it. An explored design is an exploration unless told.
+
+    The stage is the one its status gives with an empty journal unless told.
+    """
     if form is None:
         form = (
             DesignForm.exploration if status == "explored" else DesignForm.confirmation
@@ -266,6 +271,7 @@ def summary(
         form=form,
         intent=intent_words_of(form)[0] if intent is None else intent,
         statement=statement,
+        stage=AnalysisStage.of(status, (), None) if stage is None else stage,
         comments_after_analysis=comments_after_analysis,
     )
 

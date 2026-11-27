@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import DesignForm, DesignStatus
 from insight_blueprint.models.tree import (
     Answer,
@@ -57,6 +58,7 @@ class DesignSummary:
     form: DesignForm
     intent: str  # intent_word: a saved mixed design has its own word
     statement: str  # the question of an exploration, else the hypothesis
+    stage: AnalysisStage
     comments_after_analysis: int = 0  # review comments of the result review
 
     @classmethod
@@ -72,6 +74,7 @@ class DesignSummary:
             form=design.form(),
             intent=intent_word(design),
             statement=statement_of(design)[0],
+            stage=note.stage,
             comments_after_analysis=comments_after_analysis(note.reviews),
         )
 
@@ -134,7 +137,7 @@ class Context:
         for design_id in designs:
             if design_id not in design_notes:
                 raise ValueError(f"design '{design_id}' has no analysis note")
-        progress = tree.progress({d: s.status for d, s in designs.items()})
+        progress = tree.progress({d: s.stage for d, s in designs.items()})
         violations: dict[str, list[Violation]] = {}
         for violation in () if isinstance(checked, CheckFailed) else checked:
             violations.setdefault(violation.node_id, []).append(violation)

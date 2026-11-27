@@ -303,7 +303,7 @@ def _below_words(whose: str) -> str:
     """The counts below a node as the page says them, with placeholders for the numbers."""
     counts = "、".join(
         f"{PROGRESS_WORDS[p][0]} {n}"
-        for p, n in zip(reversed(Progress), "abc", strict=True)
+        for p, n in zip(reversed(Progress), "abcd", strict=True)
     )
     return BELOW_WORDS.format(whose=whose, count="{N}") + counts
 

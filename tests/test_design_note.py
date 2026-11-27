@@ -7,6 +7,7 @@ import re
 
 import pytest
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import AnalysisDesign, DesignStatus
 from skills._shared.design_note import (
     CodeCell,
@@ -76,6 +77,8 @@ def _note(**over: object) -> DesignNote:
             conclusion=over.pop("verdict_conclusion", None),  # type: ignore[arg-type]
         )
     fields.update(over)
+    # The stage its status gives with an empty journal, unless told.
+    fields.setdefault("stage", AnalysisStage.of(fields["design"].status, (), None))
     return DesignNote(**fields)
 
 

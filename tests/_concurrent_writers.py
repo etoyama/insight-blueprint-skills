@@ -43,3 +43,27 @@ def append_events(
         )["id"]
         for _ in range(count)
     ]
+
+
+def link_designs(
+    base_dir: str, node_id: str, design_ids: list[str], start_at: float
+) -> None:
+    from skills._shared import tree_io
+
+    _wait_until(start_at)
+    for design_id in design_ids:
+        tree_io.link_design("LIB", node_id, design_id, base_dir=Path(base_dir))
+
+
+def copy_hearings(
+    base_dir: str, node_id: str, design_id: str, count: int, start_at: float
+) -> list[bool]:
+    from skills._shared import tree_io
+
+    _wait_until(start_at)
+    return [
+        tree_io.copy_hearing("LIB", node_id, design_id, base_dir=Path(base_dir))[
+            "copied"
+        ]
+        for _ in range(count)
+    ]

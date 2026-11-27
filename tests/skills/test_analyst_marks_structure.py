@@ -11,8 +11,8 @@ import re
 
 import pytest
 
+from insight_blueprint.models.analysis_stage import MARKS
 from skills._shared import design_io
-from skills._shared.analysis_stage import MARKS
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills.test_skill_structure import _read_skill
 

@@ -521,14 +521,15 @@ def _future_directions(report: ThemeReport) -> list[str]:
     lines: list[str] = []
     decision = report.decision
     if decision is None:
-        lines.append("- ツリーの決定はまだ無い。")
+        lines.append("- 論点ツリーの決定はまだ無い。")
     else:
-        question = report.question_of(decision.node_id)
         label = _DECISION_WORDS.get(decision.kind, NEXT_QUESTION_HEADING)
+        # Every question the decision hands over is one to look into next (ADR-0061).
         lines += [
-            f"- {label}: {decision.node_id} {_e(question)}",
-            f"- 理由: {_e(decision.reason)}",
+            f"- {label}: {node_id} {_e(report.question_of(node_id))}"
+            for node_id in decision.node_ids()
         ]
+        lines.append(f"- 理由: {_e(decision.reason)}")
     lines += [line for n in report.nodes if (line := _heard(n)) is not None]
     return ["### Future Directions", "\n".join(lines)]
 
