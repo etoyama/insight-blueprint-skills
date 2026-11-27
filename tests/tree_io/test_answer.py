@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from skills._shared import design_io, tree_io
+from skills._shared import design_io, tree_check, tree_io
 from skills._shared._atomic import atomic_write_yaml
 from tests.tree_io._support import _add, _design, _entry
 
@@ -176,8 +176,28 @@ class TestAnswer:
                 "statement": 1,
                 "kind": "number-not-cited",
                 "text": "999",
+                "fix": tree_check.NUMBER_FIX,
             }
         ]
+
+    def test_a_number_not_cited_says_how_to_fix_it(self, world: Path) -> None:
+        # Epic 35, US-6 AC 4: cite the event that records it, or take it out.
+        result = tree_io.answer(
+            "LIB", answers=[_entry("LIB-Q02", "期限切れは999件")], base_dir=world
+        )
+
+        fix = result["violations"][0]["fix"]
+        assert "cite the event that records it" in fix
+        assert "take the number out" in fix
+
+    def test_an_answer_may_name_its_node_and_the_round(self, world: Path) -> None:
+        # Epic 35, US-6 AC 1, AC 2: the answer being written is round 1.
+        text = "1回目の振り返りで、LIB-Q02 の期限切れは152件"
+        result = tree_io.answer(
+            "LIB", answers=[_entry("LIB-Q02", text)], base_dir=world
+        )
+
+        assert (result["violations"], result["round"]) == ([], 1)
 
     def test_the_statement_position_in_a_violation_is_one_based(
         self, world: Path

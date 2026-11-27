@@ -387,6 +387,106 @@ class TestTheNumberThatWasNeverRecorded:
         assert checked(claim(text, *cites), events) == []
 
 
+class TestIdsAndReflectionRoundsAreNotNumbers:
+    """Epic 35, US-6 (ADR-0065): what names a part of the tree is not a result."""
+
+    EVENTS = {"LIB-H01-E01": "期限切れは152件、率比は1.34だった"}
+
+    def found(self, text: str, round: int = 1) -> list[tuple[str, str]]:
+        tree = tree_with(
+            node(
+                "LIB-Q02",
+                "LIB-Q01",
+                design_ids=["LIB-H01"],
+                answers=[answer_of(claim(text, "LIB-H01-E01"), round=round)],
+            ),
+            node("LIB-Q03", "LIB-Q01", design_ids=["LIB-H02"]),
+        )
+        return [(v.kind, v.text) for v in find_violations(tree, self.EVENTS)]
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "LIB-Q03 と LIB-Q02 は互いを待たない。期限切れは152件だった",
+            "LIB-H01 と LIB-H02 の記録では、期限切れは152件だった",
+            "LIB-H01-E01 のとおり、期限切れは152件だった",
+            "ＬＩＢ－Ｑ０３ のとおり、期限切れは152件だった",
+        ],
+    )
+    def test_an_id_of_a_node_or_a_linked_design_or_its_event_is_not_counted(
+        self, text: str
+    ) -> None:
+        # AC 1: a design linked anywhere in the tree, not only on this branch.
+        assert self.found(text) == []
+
+    @pytest.mark.parametrize(
+        ("text", "token"),
+        [
+            ("LIB-Q99 の結果から、期限切れは152件", "99"),
+            ("LIB-H07 の結果から、期限切れは152件", "07"),
+            ("FRN-Q05 の結果から、期限切れは152件", "05"),
+            ("LIB-Q020 の結果から、期限切れは152件", "020"),
+        ],
+    )
+    def test_an_id_the_tree_does_not_hold_is_still_counted(
+        self, text: str, token: str
+    ) -> None:
+        # AC 3: a node not on the tree, a design on no node, another theme.
+        assert self.found(text) == [("number-not-cited", token)]
+
+    def test_an_event_id_of_a_design_on_no_node_is_still_counted(self) -> None:
+        assert self.found("LIB-H07-E02 では期限切れは152件") == [
+            ("number-not-cited", "07"),
+            ("number-not-cited", "02"),
+        ]
+
+    def test_a_number_beside_an_id_is_still_counted(self) -> None:
+        assert self.found("LIB-Q03 では期限切れが30%増えた") == [
+            ("number-not-cited", "30")
+        ]
+
+    @pytest.mark.parametrize("n", [1, 2])
+    def test_a_reflection_round_up_to_the_current_one_is_not_counted(
+        self, n: int
+    ) -> None:
+        # AC 2: the answer being written is round 2.
+        assert self.found(f"{n}回目の振り返りで、期限切れは152件", round=2) == []
+
+    @pytest.mark.parametrize(
+        ("text", "token"),
+        [
+            ("3回目の振り返りで、期限切れは152件", "3"),
+            ("0回目の振り返りで、期限切れは152件", "0"),
+            ("振り返りの2回目で、期限切れは152件", "2"),
+            ("2回目の通知で来館した人は40人だった", "2"),
+        ],
+    )
+    def test_any_other_round_is_still_counted(self, text: str, token: str) -> None:
+        # AC 3: a round not yet taken, another wording, another thing counted.
+        assert self.found(text, round=2)[0] == ("number-not-cited", token)
+
+    def test_a_value_to_compare_with_is_still_counted(self) -> None:
+        # AC 3: the 1 of "exceeds 1" is a claim the cited event must hold.
+        assert self.found("率比は1.34で、1を超える") == [("number-not-cited", "1")]
+
+    def test_a_decision_may_name_nodes_and_the_round(self, tmp_path: Path) -> None:
+        write_journal(tmp_path, "LIB-H01", (1, "期限切れは152件"))
+        reason = "LIB-Q03 と LIB-Q02 は互いを待たない。1回目の振り返りで152件と分かった"
+        tree = decided_tree(go_to_q03(reason, "LIB-H01-E01"))
+
+        assert tree_check.check_last_decision(tree, tmp_path) == []
+
+    def test_a_decision_naming_a_round_not_yet_taken_is_refused(
+        self, tmp_path: Path
+    ) -> None:
+        write_journal(tmp_path, "LIB-H01", (1, "期限切れは152件"))
+        tree = decided_tree(go_to_q03("5回目の振り返りで決めた", "LIB-H01-E01"))
+
+        found = tree_check.check_last_decision(tree, tmp_path)
+
+        assert [(v.kind, v.text) for v in found] == [("number-not-cited", "5")]
+
+
 def write_tree(base: Path, tree: QuestionTree) -> Path:
     path = base / "themes" / "LIB_tree.yaml"
     atomic_write_yaml(

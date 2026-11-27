@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The tree check no longer counts an id of the tree or a past reflection round as a number.** An answer or a
+  decision reason may name a node, a linked design or its event, and "N回目の振り返り" up to the current round;
+  any other number still needs a cited event that records it, and `tree_io` now says how to fix it in `fix`
+  ([ADR-0065](docs/adr/0065-ids-and-reflection-rounds-are-not-counted-as-numbers.md), #285).
 - **A handoff trial record names the model that read.** `scripts.handoff_trial record` takes `--reader-model`
   and stops without it when the reader is Claude; the id comes from `modelUsage` in the reply of
   `claude -p --output-format json`. The records kept through 2026-11-26 have no model and are not rewritten

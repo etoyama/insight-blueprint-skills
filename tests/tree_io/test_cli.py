@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from skills._shared import tree_io
+from skills._shared import tree_check, tree_io
 from tests.tree_io._support import AIM, ROOT_QUESTION, _add, _design, _entry, _run_cli
 
 
@@ -281,7 +281,13 @@ class TestCli:
         assert done.returncode == 3, done.stderr
         assert json.loads(done.stdout) == {
             "violations": [
-                {"position": 2, "round": 0, "kind": "number-not-cited", "text": "999"}
+                {
+                    "position": 2,
+                    "round": 0,
+                    "kind": "number-not-cited",
+                    "text": "999",
+                    "fix": tree_check.NUMBER_FIX,
+                }
             ]
         }
         assert path.read_bytes() == before

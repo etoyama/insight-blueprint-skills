@@ -212,10 +212,22 @@ class TestViolationsAreFixedBeforeTheAnalystSeesThem:
         row = table_row(section(_skill(), "### Step T3: "), f"`{kind}`")
         assert row[1], f"no fix for {kind}"
 
-    def test_ids_and_dates_stay_out_of_the_text(self) -> None:
+    def test_dates_stay_out_of_the_text_and_event_ids_go_in_cites(self) -> None:
         write = _step("### Step T2: ")
-        assert "No id and no date in `text`" in write
-        assert "`cites`" in write
+        assert "No date in `text`" in write
+        assert re.search(r"[Ee]vent ids go in `cites`", write)
+
+    def test_the_writer_knows_ids_and_the_round_are_not_counted(self) -> None:
+        # Epic 35, US-6 (ADR-0065): naming the tree does not trip the check.
+        write = _step("### Step T2: ")
+        assert re.search(r"id of a node[^.]*not read as numbers", write)
+        assert "回目の振り返り" in write
+
+    def test_a_number_not_cited_is_fixed_by_citing_or_taking_it_out(self) -> None:
+        # Epic 35, US-6 AC 4: the row says what the `fix` of tree_io says.
+        row = table_row(section(_skill(), "### Step T3: "), "`number-not-cited`")
+        assert "`fix`" in row[1]
+        assert "take it out" in row[1]
 
     def test_a_number_is_written_the_way_the_record_wrote_it(self) -> None:
         row = table_row(section(_skill(), "### Step T3: "), "`number-not-cited`")

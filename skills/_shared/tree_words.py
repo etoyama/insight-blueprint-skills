@@ -13,6 +13,7 @@ is built here from the same names, so it cannot drift from the page.
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 from collections.abc import Iterable
 from enum import StrEnum
@@ -57,6 +58,17 @@ BACK_TO_TREE = "論点ツリーへ戻る"
 def reflection(round: int) -> str:
     """A reflection round as the analyst counts it."""
     return _REFLECTION.format(round=round)
+
+
+def _reflection_named() -> re.Pattern[str]:
+    head, tail = _REFLECTION.split("{round}")
+    return re.compile(rf"(?<![0-9]){re.escape(head)}(?P<n>\d+){re.escape(tail)}")
+
+
+# A reflection round named in a sentence in the words of ``reflection``, its N
+# as ``n``: the tree check does not count that N as a number (ADR-0065).
+REFLECTION_NAMED = _reflection_named()
+REFLECTION_OF_N = _REFLECTION.format(round="N")
 
 
 def changes_title(before: int, now: int) -> str:

@@ -25,6 +25,7 @@ from typing import Literal
 
 from insight_blueprint.models.tree import QuestionTree, design_id_of
 from skills._shared.design_io import DEFAULT_BASE_DIR, resolve_base_dir
+from skills._shared.tree_words import REFLECTION_NAMED, REFLECTION_OF_N
 
 # The dashes and triangles writers use for "down" all read as one minus: a
 # glyph left out passes as an unsigned number. The wave dash is left out
@@ -66,6 +67,35 @@ def numbers_in(text: str) -> list[Number]:
     ]
 
 
+def _without_names(text: str, tree: QuestionTree) -> str:
+    """*text* with what names a part of *tree* blanked out, so it is not counted.
+
+    An id of a node, of a design linked to a node or of an event of such a
+    design, and the N of "N回目の振り返り" up to the current round, name the
+    tree, not a result. An id the tree does not hold and a round not yet taken
+    are left in: their digits are a claim like any other number (ADR-0065).
+    """
+    text = unicodedata.normalize("NFKC", text)
+    linked = tree.linked_designs()
+    named = {node.id for node in tree.nodes} | linked
+    ids = re.compile(
+        rf"(?<![0-9A-Za-z]){re.escape(tree.theme_id)}-(?:Q\d+|H\d+(?:-E\d+)?)(?![0-9])"
+    )
+    spans = [
+        m.span()
+        for m in ids.finditer(text)
+        if m.group() in named or design_id_of(m.group()) in linked
+    ]
+    spans += [
+        m.span("n")
+        for m in REFLECTION_NAMED.finditer(text)
+        if 1 <= int(m.group("n")) <= tree.current_round()
+    ]
+    for start, end in spans:
+        text = text[:start] + " " * (end - start) + text[end:]
+    return text
+
+
 def _sign_of(written: str | None) -> Sign:
     if written is None:
         return ""
@@ -73,6 +103,16 @@ def _sign_of(written: str | None) -> Sign:
 
 
 ViolationKind = Literal["missing-event", "unlinked-design", "number-not-cited"]
+
+# What a writer refused for a number does next (ADR-0065). The exempt names are
+# spelled out so that a writer does not take an id or a round out for nothing.
+NUMBER_FIX = (
+    "The number is in none of the cited events. If another event records it, "
+    "cite the event that records it as well; if no event records it, take the "
+    "number out of the text. An id of a node, of a linked design or of its "
+    f"event, and the N of '{REFLECTION_OF_N}' up to the current round, are not "
+    "counted as numbers."
+)
 
 
 @dataclass(frozen=True)
@@ -108,7 +148,7 @@ def find_violations(tree: QuestionTree, events: Mapping[str, str]) -> list[Viola
             continue
         for position, statement in enumerate(answer.statements, start=1):
             found = _cite_problems(
-                statement.text, statement.cites, events, designs[node.id]
+                tree, statement.text, statement.cites, events, designs[node.id]
             )
             violations += [
                 Violation(node.id, answer.round, position, kind, text)
@@ -138,15 +178,23 @@ def _decision_violations(
     return [
         DecisionViolation(position, decision.round, kind, text)
         for kind, text in _cite_problems(
-            decision.reason, decision.cites, events, linked
+            tree, decision.reason, decision.cites, events, linked
         )
     ]
 
 
 def _cite_problems(
-    text: str, cites: Sequence[str], events: Mapping[str, str], linked: set[str]
+    tree: QuestionTree,
+    text: str,
+    cites: Sequence[str],
+    events: Mapping[str, str],
+    linked: set[str],
 ) -> list[tuple[ViolationKind, str]]:
-    """What is wrong with *text* resting on *cites*, cites first, then numbers."""
+    """What is wrong with *text* resting on *cites*, cites first, then numbers.
+
+    *linked* is where the cites may come from; what *text* may name is the whole
+    of *tree*.
+    """
     problems: list[tuple[ViolationKind, str]] = []
     for cite in cites:
         if cite not in events:
@@ -159,7 +207,7 @@ def _cite_problems(
         if cite in events
         for number in numbers_in(events[cite])
     }
-    for number in numbers_in(text):
+    for number in numbers_in(_without_names(text, tree)):
         if number not in seen:
             seen.add(number)
             problems.append(("number-not-cited", number.token))

@@ -342,8 +342,10 @@ Rules for every statement:
   number: no ratio, difference, sum, average, rounding or unit conversion of recorded
   numbers. When the answer needs such a value, say that it is not recorded; the notebook
   computes it and the journal records it before an answer may state it.
-- No id and no date in `text`. The digits of `LIB-H01-E02` or `11月21日` are read as
-  numbers and reported as violations. Event ids go in `cites`; nothing else needs them.
+- No date in `text`. The digits of `11月21日` are read as numbers and reported as
+  violations. An id of a node, of a design linked to a node or of its event, and the N of
+  "N回目の振り返り" up to the current round, are not read as numbers; any other id is.
+  Event ids go in `cites`, so an answer rarely needs one in `text`.
 - An event of kind `evidence` with `direction: contradicts` that bears on the node is
   cited in a `weakening` statement, not left out.
 
@@ -451,7 +453,7 @@ rejects a rewritten answer, and only `tree_io answer` checks the answer before i
 
 | Violation `kind` | How to fix it |
 |---|---|
-| `number-not-cited` | The number in `text` is in none of the cited events. Rewrite it the way the record wrote it: the same digits and the same sign. When the record states the direction in words ("3.2ポイント減った"), use those words instead of a sign ("−3.2"). If another event of the branch records the number, cite it. If no event records it, the number was computed or remembered: take it out |
+| `number-not-cited` | The number in `text` is in none of the cited events; the violation's `fix` says so. Rewrite it the way the record wrote it: the same digits and the same sign. When the record states the direction in words ("3.2ポイント減った"), use those words instead of a sign ("−3.2"). If another event of the branch records the number, cite it, a value to compare with ("1を超える") included. If no event records it, the number was computed or remembered: take it out |
 | `missing-event` | The cited id is not in the journal of its design. Cite the event you actually read, or take the cite out |
 | `unlinked-design` | The cited event belongs to a design that is linked neither to the node nor to a node below it. Cite an event from the node's own branch, or take the cite out |
 
@@ -673,7 +675,7 @@ echo '{"kind": "return", "node_id": "LIB-Q03",
 
   | Violation `kind` | What to ask the analyst |
   |---|---|
-  | `number-not-cited` | A number in the reason is in none of the cited events. Ask whether another event records it (then cite that one too), or whether they say the reason again the way the record wrote the number, or without it. An id or a date in the reason is read as a number as well: ask for the reason without it |
+  | `number-not-cited` | A number in the reason is in none of the cited events; the violation's `fix` says so. Ask whether another event records it (then cite that one too, a value to compare with such as "1を超える" included), or whether they say the reason again the way the record wrote the number, or without it. An id of a node, of a linked design or of its event, and the N of "N回目の振り返り" up to the current round, are not counted; a date and any other id are: ask for the reason without it |
   | `missing-event` | The cited id is not in the journal of its design. Cite the event you actually read, and read it back again |
   | `unlinked-design` | The cited event belongs to a design that is linked to no node of the tree. Ask whether the design belongs on a node (`/analysis-framing {theme_id}` links it), or take the cite out with the analyst's word |
 
