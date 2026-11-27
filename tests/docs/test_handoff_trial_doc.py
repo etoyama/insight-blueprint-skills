@@ -168,8 +168,9 @@ class TestTheKeyIsCheckedByAPerson:
     def test_a_person_answers_every_question_of_every_scenario(self) -> None:
         body = unwrap(section(_doc(), self.HEADING))
         assert f"{len(handoff_trial.QUESTIONS)}つの問い" in body
+        # A scenario with no key is read by a person and never scored (lib-stages).
         for path in sorted(handoff_trial.FIXTURES.iterdir()):
-            if path.is_dir():
+            if (path / "key.yaml").is_file():
                 assert f"`{path.name}`" in body
 
     def test_the_answers_are_scored_with_the_same_command(self) -> None:

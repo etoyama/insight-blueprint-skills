@@ -25,11 +25,16 @@ from typing import cast
 
 from ruamel.yaml import YAMLError
 
+from insight_blueprint.models.analysis_stage import (
+    StageReading,
+    answered_confirmation_ids,
+)
 from insight_blueprint.models.design import (
     TERMINAL_STATUSES,
     AnalysisDesign,
     DesignStatus,
 )
+from insight_blueprint.models.journal import CONCLUDE, QUESTION
 from skills._shared._atomic import atomic_write_text
 from skills._shared.catalog_io import describe
 from skills._shared.design_io import (
@@ -54,6 +59,7 @@ from skills._shared.design_note_reviews import (
     NoteReviewBatch,
     NoteReviewComment,
 )
+from skills._shared.tree_words import note_stage_line
 from skills._shared.verdict_table import (
     CONFIDENCE,
     MetricGroup,
@@ -95,8 +101,6 @@ NEXT_ACTION_BRANCHES = {
 
 # A question event is open until a conclude event names it in
 # metadata.resolves (analysis-journal/SKILL.md, Open Questions).
-QUESTION = "question"
-CONCLUDE = "conclude"
 RESOLVES = "resolves"
 
 
@@ -334,7 +338,9 @@ def _conclusion(
     """The records of a terminal design, copied; None before it concludes."""
     if design.status not in TERMINAL_STATUSES:
         return None
-    resolved = _resolved_ids(raw)
+    # A confirmation the analyst answered is settled by that answer, as a
+    # question a conclusion resolves is (ADR-0064 9).
+    settled = _resolved_ids(raw) | answered_confirmation_ids(raw)
 
     def of(kind: str) -> tuple[NoteEvent, ...]:
         return tuple(e for e in events if e.type == kind)
@@ -349,7 +355,7 @@ def _conclusion(
         ),
         contradicting_evidence=contradicting_evidence(events, design.form()),
         reflect_events=of("reflect"),
-        open_questions=tuple(e for e in of(QUESTION) if e.id not in resolved),
+        open_questions=tuple(e for e in of(QUESTION) if e.id not in settled),
     )
 
 
@@ -599,6 +605,7 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
         for s in describe(design.source_ids, base_dir)["sources"]
     )
     raw = journal_events(design_id, base_dir)
+    reading = StageReading.of(design.status, raw, design.analysis_started_at)
     events = tuple(_note_event(e) for e in raw)
     base = Path(base_dir)
     notebooks = base / "notebooks"
@@ -625,7 +632,11 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
         lineage=lineage,
         local_files=local_files,
         conclusion=_conclusion(design, raw, events),
+        stage=reading.stage,
         reviews=_read_reviews(base / "designs" / f"{design_id}_reviews.yaml"),
+        stop_reason=reading.stop_reason,
+        stage_line=note_stage_line(reading.stage, reading.stop_reason),
+        asks=tuple(ask.content for ask in reading.asks),
     )
 
 

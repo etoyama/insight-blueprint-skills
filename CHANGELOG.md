@@ -7,8 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **After the hand-over, an analysis asks before it changes what the analyst read, one analysis can be
+  stopped, and the endings are asked together.** An execution agent that cannot go on without changing
+  the population, grain, denominator, extraction, a source, the primary metric, what a result is
+  compared against or the criterion stops
+  before it touches the data and records a confirmation with `design_io ask-analyst`; the other analyses
+  go on. `/analysis-auto` asks the analyst, records the answer with `design_io answer-analyst`, runs
+  premortem again and hands the analysis over again, or stops it. The analyst may stop one analysis at
+  any point; a stopped design keeps its status in every write (`transition`, `update`, `review-batch`),
+  takes no result and no hearing, and its analysis note says 段階: 止めた with the reason. The page is
+  rebuilt by `/analysis-auto` each time an agent returns, and `/analysis-notebook` skips its own render
+  when it runs as an execution agent. When the analyses are back, the three questions of
+  `/analysis-reflection` are asked for all of them in one question. `design_io stage` gives the stage,
+  whether a result is on record and the open confirmations; `design_io journal-append` writes the events
+  of a run under the write lock. An answered confirmation is no longer an open question
+  ([ADR-0064](docs/adr/0064-a-handed-over-analysis-asks-before-changing-what-was-read-and-can-be-stopped.md),
+  [ADR-0062](docs/adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md), #291).
+- **`/analysis-auto` hands several questions over together, after one check.** When the analyst chooses
+  several questions that do not wait for each other, the decision names them all and the round designs
+  each, saves the designs `in_review`, links them and asks once, with the page of the tree and the rows
+  that differ. A comment pasted from the page becomes a review comment of its design, a design left out
+  is stopped with the analyst's reason, and each design then runs in an execution agent of its own that
+  writes only its notebook, verdict and journal. `tree_io handover` names the designs that state no data
+  scope, and such a design is not put to the check. A resumed run enters by the stage of each analysis
+  ([ADR-0063](docs/adr/0063-designs-to-hand-over-are-saved-then-read-side-by-side-on-the-page.md),
+  [ADR-0062](docs/adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md), #290).
+- **The question tree page lays out the designs to hand over side by side, before they run.** The designs
+  not yet run on the questions the last decision names stand in columns, with their intent, what they
+  answer, the criterion, population, grain, denominator, sources, method, primary metric, the full
+  extraction and the charts. The code marks the population, grain, denominator and source rows whose
+  values differ between them, and `tree_io handover` gives the same rows to the chat. Each design has a
+  comment box; a button gathers the comments, each after its design id, into one text on the page,
+  which sends nothing out. The progress word 検証中 becomes 調べている, the counts read from the furthest,
+  stopped takes a dashed frame and stripes, and `tree_io report` names stopped designs apart in
+  `stopped_designs`. The synthetic scenario `lib-handover` builds such a page
+  ([ADR-0063](docs/adr/0063-designs-to-hand-over-are-saved-then-read-side-by-side-on-the-page.md), #289).
+- **The question tree page shows where each analysis stands and what waits for the analyst.** Each linked
+  design says its analysis stage in words and a colour, with the reason a stopped one was stopped and what one
+  waiting for the analyst asks. The analyses that wait for the analyst lead the page, and no such section is
+  shown when none waits. A question whose designs were all stopped reads as stopped in its own colour, and
+  stopped designs come after the finished ones. The next question and the list of decisions name every
+  question a decision hands over. The synthetic scenario `lib-stages` builds a page with every stage
+  ([ADR-0061](docs/adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md), #288).
+- **A handed-over analysis can ask the analyst, take the answer and be stopped, and two writers no
+  longer lose a record.** `design_io ask-analyst`, `answer-analyst` and `stop` write the marks of a
+  confirmation, its answer and a stop into the journal, and are the only writers of them. The stage of an
+  analysis is derived, never stored, by `insight_blueprint.models.analysis_stage`. `design_io` holds one lock from
+  reading to writing back, so two processes creating designs at once get different ids. A design may hold
+  its population, grain and denominator (`data_scope`), shown in the method section of its note; saved
+  designs read as before. An event counts as a result only after the analysis mark, so reasoning journaled
+  before the run leaves the analysis running. The pre-write hook now refuses a Write or Edit of a journal that
+  adds, removes or changes an event with one of the marks
+  ([ADR-0067](docs/adr/0067-the-hook-keeps-the-journal-marks-of-design-io.md), [ADR-0061](docs/adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md),
+  [ADR-0062](docs/adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md),
+  [ADR-0064](docs/adr/0064-a-handed-over-analysis-asks-before-changing-what-was-read-and-can-be-stopped.md),
+  [ADR-0066](docs/adr/0066-a-design-may-state-its-population-grain-and-denominator.md), #286).
+
 ### Changed
 
+- **A tree decision may hand over several questions, and the walk reads every one of them.** A decision holds the
+  questions handed over with its own (`with_node_ids`); saved trees read and write back as before. `tree_io position`
+  returns every node of the last decision with each linked design and its analysis stage, never says the walk is
+  concluded while an analysis is unfinished or a handed-over question has no design, and lets a stopped analysis
+  go. Progress is folded from the analysis stage and gains 止めた. Every `tree_io` writer holds the write lock, so two
+  processes linking at once keep both links. 「ツリーの決定」 is now 「論点ツリーの決定」
+  ([ADR-0061](docs/adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md),
+  [ADR-0062](docs/adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md), #287).
+- **The tree check no longer counts an id of the tree or a past reflection round as a number.** An answer or a
+  decision reason may name a node, a linked design or its event, and "N回目の振り返り" up to the current round;
+  any other number still needs a cited event that records it, and `tree_io` now says how to fix it in `fix`
+  ([ADR-0065](docs/adr/0065-ids-and-reflection-rounds-are-not-counted-as-numbers.md), #285).
 - **A handoff trial record names the model that read.** `scripts.handoff_trial record` takes `--reader-model`
   and stops without it when the reader is Claude; the id comes from `modelUsage` in the reply of
   `claude -p --output-format json`. The records kept through 2026-11-26 have no model and are not rewritten

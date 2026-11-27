@@ -14,10 +14,18 @@ from pathlib import Path
 
 import pytest
 
+from insight_blueprint.models.analysis_stage import SETTLED, AnalysisStage
 from skills._shared import design_io, tree_io
+from tests.skills._auto import auto as _auto
+from tests.skills._auto import auto_gates as _gates
+from tests.skills._auto import auto_step as _step
+from tests.skills._auto import framing_section as _framing
 from tests.skills._auto import round_item as _round_item
 from tests.skills._markdown import section, table_row, table_rows, unwrap
-from tests.skills._shown import run_shown_commands, run_shown_line
+from tests.skills._shown import (
+    run_shown_commands,
+    run_shown_line,
+)
 from tests.skills.test_skill_structure import (
     _extract_chaining_edges,
     _read_skill,
@@ -57,18 +65,6 @@ ROUND = [
 ]
 
 
-def _auto() -> str:
-    return _read_skill("analysis-auto")
-
-
-def _gates() -> str:
-    return split_sections(_auto())["Gate policy"]
-
-
-def _step(heading: str) -> str:
-    return section(_auto(), heading)
-
-
 def _on_request(about: str) -> str:
     """The bullet under the round that the driver acts on only when the analyst asks."""
     walk = _step("### Step 3:")
@@ -77,10 +73,6 @@ def _on_request(about: str) -> str:
         if about in bullet:
             return unwrap(bullet)
     raise AssertionError(f"no on-request bullet about {about!r}")
-
-
-def _framing(heading: str) -> str:
-    return section(_read_skill("analysis-framing"), heading)
 
 
 class TestTheThemeIsTheEntry:
@@ -120,14 +112,33 @@ class TestTheThemeIsTheEntry:
         ):
             assert f"`{state}`" in rows, state
 
-    def test_an_analyzing_design_resumes_by_its_events_not_by_its_journal_file(
+    def test_the_unfinished_designs_are_read_on_every_node_the_decision_names(
         self,
     ) -> None:
-        # /analysis-design copies a heard answer into the journal before premortem,
-        # so a journal file alone does not mean the analysis ran.
-        resume = unwrap(_step("### Step 1:"))
-        assert "other than `hearing`" in resume
-        assert "`analyzing` with a journal" not in resume
+        """Epic 35 US-1 AC 3: a decision may hand over several nodes (ADR-0061 5)."""
+        rows = {cells[0]: cells[1] for cells in table_rows(_step("### Step 1:"))}
+        for state in ("in_progress", "concluded"):
+            assert "`node_ids`" in rows[f"`{state}`"], state
+        assert "stopped" in rows["`in_progress`"]
+        assert "`undesigned_node_ids`" in rows["`not_started`"]
+
+    def test_an_unfinished_design_is_entered_by_its_stage(self) -> None:
+        """The stage is derived in one place (ADR-0061 6): the driver reads it, never its inputs."""
+        locate = _step("### Step 1:")
+        enter = {cells[0]: cells[-1] for cells in table_rows(locate)}
+        for stage in set(AnalysisStage) - SETTLED:
+            assert enter[f"`{stage.value}`"] not in ("", "—"), stage
+        # A design moved into the analysis with no result yet goes through premortem again.
+        assert enter["`running`"] == "**premortem**"
+        assert "**premortem**" in enter["`before_run`"]
+        assert enter["`awaiting_reflection`"] == "**reflection**"
+        assert re.search(
+            r"[Nn]ever work the stage out[^.]*status[^.]*journal", unwrap(locate)
+        )
+
+    def test_a_design_of_a_theme_with_a_tree_is_entered_by_its_stage(self) -> None:
+        assert "its stage calls for" in unwrap(_step("### Step 1:"))
+        assert "its stage calls for" in unwrap(_step("### Step 2:"))
 
     def test_no_tree_goes_to_framing(self) -> None:
         build = unwrap(_step("### Step 2:"))
@@ -420,3 +431,29 @@ class TestFramingTakesTheDecisionAsTheAnswerInsideAuto:
         gate = self._gate()
         assert re.search(r"any other state[^.]*ask", gate)
         assert re.search(r"not handed the position[^.]*ask", gate)
+
+
+class TestTheDesignStatesItsDataScope:
+    """US-7 AC 2: /analysis-design can write the scope the check reads."""
+
+    def test_the_field_is_listed_with_its_three_parts(self) -> None:
+        fields = section(_read_skill("analysis-design"), "#### Fields of the design")
+        row = " ".join(table_row(fields, "`data_scope`"))
+        for part in ("population", "grain", "denominator"):
+            assert part in row, part
+
+    def test_a_round_of_several_nodes_drafts_without_the_beats(self) -> None:
+        design = unwrap(_read_skill("analysis-design"))
+        assert re.search(r"Step 3H[^.]*`data_scope`", design)
+
+
+class TestEverySentenceTheAnalystReadsIsInTheProjectLanguage:
+    """Real-data finding 5 of Epic 35: the reports between the steps came out in English."""
+
+    def test_the_language_rules_cover_the_prose_around_the_questions(self) -> None:
+        rules = unwrap(split_sections(_auto())["Language Rules"])
+        assert re.search(
+            r"[Ee]very sentence the analyst reads[^.]*project's language", rules
+        )
+        for prose in ("between the steps", "summar", "lead-in of a question"):
+            assert prose in rules, prose

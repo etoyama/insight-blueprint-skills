@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import AnalysisDesign, DesignForm, DesignStatus
 from insight_blueprint.models.tree import (
     Aim,
@@ -20,6 +21,7 @@ from insight_blueprint.models.tree import (
     Progress,
     TreeDecision,
 )
+from skills._shared import tree_words
 from skills._shared.design_note import (
     FORM_WORDS,
     Conclusion,
@@ -47,6 +49,7 @@ from skills._shared.verdict_table import (
     VerdictMetric,
 )
 from tests._saved_verdicts import SAVED_VERDICTS, save_design_with_verdict
+from tests._stages import stage_of_status
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 # The glossary's own reader, as the documents' tests use it.
@@ -120,6 +123,7 @@ def _design(design_id: str = "LIB-H01", **over: object) -> ReportDesign:
         "package": "scipy",
         "method_reason": "2群の期限切れ率を比べるため",
         "status": DesignStatus.supported,
+        "stage": AnalysisStage.finished,
         "conclude_events": (),
         "contradicting_evidence": (),
         "metrics": (),
@@ -359,7 +363,7 @@ class TestIntroduction:
         rows = [line for line in lines if line.startswith("| LIB-Q")]
         assert rows == [
             "| LIB-Q02 | LIB-Q02 の問い | LIB-Q01 | LIB-Q02 に答えると分かること | 分析済み |",
-            "| LIB-Q03 | LIB-Q03 の問い | LIB-Q01 | LIB-Q03 に答えると分かること | 検証中 |",
+            "| LIB-Q03 | LIB-Q03 の問い | LIB-Q01 | LIB-Q03 に答えると分かること | 調べている |",
             "| LIB-Q04 | LIB-Q04 の問い | LIB-Q03 | LIB-Q04 に答えると分かること | 未着手 |",
         ]
 
@@ -731,6 +735,26 @@ class TestFutureDirections:
         assert "- 次に調べる論点: LIB-Q06 LIB-Q06 の問い" in lines
         assert "- 理由: 開館日を先に確かめる" in lines
 
+    def test_a_decision_names_every_question_it_hands_over(self) -> None:
+        """Epic 35 US-3 AC 4: the report reads the decision as the page and position do."""
+        future = _discussion(
+            _report(
+                nodes=(_node("LIB-Q06"), _node("LIB-Q07")),
+                decision=TreeDecision(
+                    round=2,
+                    kind="deepen",
+                    node_id="LIB-Q06",
+                    with_node_ids=["LIB-Q07"],
+                    reason="互いの結果を待たない",
+                ),
+            ),
+            "### Future Directions",
+        )
+
+        lines = future.splitlines()
+        assert "- 次に調べる論点: LIB-Q06 LIB-Q06 の問い" in lines
+        assert "- 次に調べる論点: LIB-Q07 LIB-Q07 の問い" in lines
+
     def test_a_decision_on_the_root_names_the_root_question(self) -> None:
         future = _discussion(
             _report(
@@ -769,7 +793,7 @@ class TestFutureDirections:
         )
 
         assert "- 調べるのを止めた論点: LIB-Q02 LIB-Q02 の問い" in future
-        assert "次に調べる論点" not in future
+        assert tree_words.NEXT_QUESTION_HEADING not in future
 
     def test_an_answer_heard_about_a_next_candidate_is_given_with_who_and_when(
         self,
@@ -1338,6 +1362,7 @@ def _from_note(
             lineage=None,
             local_files=(),
             conclusion=conclusion,
+            stage=stage_of_status(design.status),
         )
     )
 

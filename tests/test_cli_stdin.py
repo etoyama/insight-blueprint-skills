@@ -22,6 +22,7 @@ NO_PAYLOAD = [
     ("design_io", "get", "--id", "FP-H01"),
     ("design_io", "list"),
     ("design_io", "list-reviews", "--id", "FP-H01"),
+    ("design_io", "stage", "--id", "FP-H01"),
     ("catalog_io", "get", "--id", "src"),
     ("catalog_io", "list"),
     ("catalog_io", "describe", "--ids", "src"),
@@ -35,6 +36,7 @@ NO_PAYLOAD = [
     + ("--design", "LIB-H01"),
     ("tree_io", "get", "--theme", "LIB"),
     ("tree_io", "position", "--theme", "LIB"),
+    ("tree_io", "handover", "--theme", "LIB"),
     ("tree_io", "progress", "--theme", "LIB"),
     ("tree_io", "changes", "--theme", "LIB"),
     ("tree_io", "render", "--theme", "LIB"),
@@ -74,8 +76,12 @@ def test_a_command_without_payload_returns_while_stdin_stays_open(
 
 
 WITH_PAYLOAD = [
+    (design_io, "answer-analyst"),
+    (design_io, "ask-analyst"),
     (design_io, "create"),
+    (design_io, "journal-append"),
     (design_io, "review-batch"),
+    (design_io, "stop"),
     (design_io, "update"),
     (catalog_io, "add-knowledge"),
     (catalog_io, "create"),

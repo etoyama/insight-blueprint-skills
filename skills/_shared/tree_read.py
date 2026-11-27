@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping
-from dataclasses import asdict
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
@@ -24,8 +23,9 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from insight_blueprint.models.analysis_stage import SETTLED, AnalysisStage
 from insight_blueprint.models.common import THEME_ID_PATTERN
-from insight_blueprint.models.design import TERMINAL_STATUSES, DesignStatus
+from insight_blueprint.models.design import DesignStatus
 from insight_blueprint.models.tree import (
     Answer,
     Progress,
@@ -42,10 +42,12 @@ from skills._shared.design_io import (
     journal_events,
     load_design,
     read_yaml,
+    stage_reading,
     theme_of,
 )
 from skills._shared.design_note import DesignNote, note_anchor, render_note
 from skills._shared.design_note_read import load_design_note, render_design_note
+from skills._shared.handover import HandoverDesign, differing_rows, to_hand_over
 from skills._shared.theme_report import (
     ReportDesign,
     ReportNode,
@@ -53,12 +55,19 @@ from skills._shared.theme_report import (
     render_report,
 )
 from skills._shared.tree_changes import answer_changes, cited_above, uncited_below
-from skills._shared.tree_check import CitedEvent, Violation, check_cited, current_cites
+from skills._shared.tree_check import (
+    CitedEvent,
+    Violation,
+    check_cited,
+    current_cites,
+    reported,
+)
 from skills._shared.tree_render import (
     CheckFailed,
     DesignSummary,
     render_tree_html,
 )
+from skills._shared.tree_words import HANDOVER_ROW_WORDS
 
 
 def tree_path(theme_id: str, base_dir: Path) -> Path:
@@ -108,25 +117,47 @@ def status_of(design: dict) -> DesignStatus:
     return DesignStatus(design["status"])
 
 
-def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, dict]:
-    """The progress of every node, derived from the status of its linked designs.
+def _designs_and_stages(
+    design_ids: Iterable[str], base_dir: Path
+) -> tuple[dict[str, dict], dict[str, AnalysisStage]]:
+    """Each design of *design_ids* and its analysis stage, each read once, in order.
 
-    Each node gets ``progress``, its word or ``None``, and ``below``, how many
-    nodes under it have each word (furthest first, words with none left out).
-    The rule is ``QuestionTree.progress``, the one the page shows (ADR-0057).
+    One design at a time, so the first broken design is the one reported.
+    """
+    designs: dict[str, dict] = {}
+    stages: dict[str, AnalysisStage] = {}
+    for design_id in dict.fromkeys(design_ids):
+        designs[design_id] = require_design(design_id, base_dir)
+        stages[design_id] = stage_reading(design_id, base_dir, designs[design_id]).stage
+    return designs, stages
+
+
+def _with_stages(
+    design_ids: Iterable[str], stages: Mapping[str, AnalysisStage]
+) -> list[dict[str, str]]:
+    """*design_ids* with the stage of each, as ``position`` and ``progress`` return them."""
+    return [{"design_id": d, "stage": stages[d].value} for d in design_ids]
+
+
+def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, dict]:
+    """The progress of every node, folded from the stages of its linked designs.
+
+    Each node gets ``progress``, its word or ``None``; ``below``, how many
+    nodes under it have each word (furthest first, words with none left out);
+    and ``designs``, each design linked to the node itself with its stage.
+    The rule is ``QuestionTree.progress``, the one the page shows (ADR-0057,
+    ADR-0061 7).
     """
     tree = load_tree_model(theme_id, base_dir)
-    words = tree.progress(
-        {
-            design_id: status_of(require_design(design_id, base_dir))
-            for node in tree.nodes
-            for design_id in node.design_ids
-        }
+    _, stages = _designs_and_stages(
+        (d for node in tree.nodes for d in node.design_ids), base_dir
     )
+    words = tree.progress(stages)
     below = tree.progress_below(words)
     return {
         node.id: {
             "progress": None if node.id not in words else words[node.id].value,
+            "designs": _with_stages(node.design_ids, stages),
             "below": {
                 p.value: below[node.id][p]
                 for p in reversed(Progress)
@@ -197,17 +228,29 @@ def _made_after(design_id: str, design: dict, decision_time: datetime | None) ->
 def position(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
     """Where the walk of the theme stands, derived from the last decision. Writes nothing.
 
-    ``state`` is a ``WalkState``:
+    The walk reads every node the last decision names: its ``node_id`` and the
+    nodes handed over with it (ADR-0061 5). An analysis is unfinished until it
+    is finished or stopped; a stopped one is never resumed, so it does not hold
+    the walk. ``state`` is a ``WalkState``:
 
     - ``no_tree`` / ``no_decision``: nothing names a node yet.
-    - ``in_progress``: ``design_ids`` are the unfinished designs on the node.
+    - ``in_progress``: ``design_ids`` are the unfinished designs on the nodes.
       After a ``close`` only designs made since the close count: what the
       analyst left unfinished when closing stays closed.
-    - ``concluded``: ``design_ids`` were made after the decision and are all
-      finished; the round still lacks its theme reflection and its decision.
-    - ``not_started``: no design was made on the node since the decision.
+    - ``concluded``: ``design_ids`` were made after the decision, every node
+      has one of them, and none is unfinished; the round still lacks its theme
+      reflection and its decision.
+    - ``not_started``: none is unfinished, and ``undesigned_node_ids`` names
+      the nodes with no design made on them since the decision. A finished
+      analysis on another node waits: the round is reflected on as one.
     - ``closed``: the last decision closed the walk at ``node_id``, and no
       design was made on it since.
+
+    Beside the state: ``node_id`` and ``decision``, the last decision;
+    ``node_ids``, every node it names, its own first; ``undesigned_node_ids``,
+    those with no design made since the decision (none after a ``close``);
+    ``nodes``, for each of
+    them in that order, every design linked there with its analysis stage.
     """
     if not load_tree(theme_id, base_dir):
         return {"state": WalkState.no_tree}
@@ -216,27 +259,26 @@ def position(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
         return {"state": WalkState.no_decision}
     decision = tree.decisions[-1]
     closed = decision.kind is TreeDecisionKind.close
-    node = tree.node(decision.node_id)
-    designs: dict[str, dict] = {}
-    statuses: dict[str, DesignStatus] = {}
-    # One design at a time, so the first broken design is the one reported.
-    for design_id in node.design_ids:
-        designs[design_id] = require_design(design_id, base_dir)
-        statuses[design_id] = status_of(designs[design_id])
+    named = [tree.node(node_id) for node_id in decision.node_ids()]
+    linked = tree.designs_named_by(decision)
+    designs, stages = _designs_and_stages(linked, base_dir)
 
     def later(design_ids: list[str]) -> list[str]:
         return [
             d for d in design_ids if _made_after(d, designs[d], decision.created_at)
         ]
 
-    unfinished = [
-        d for d, status in statuses.items() if status not in TERMINAL_STATUSES
-    ]
+    unfinished = [d for d in linked if stages[d] not in SETTLED]
     if closed:
         unfinished = later(unfinished)
+    # A node handed over is not dropped for want of a design: the walk waits for
+    # one on it. A close names where the walk stopped, so it waits for none.
+    undesigned = [] if closed else [n.id for n in named if not later(n.design_ids)]
     if unfinished:
         state, design_ids = WalkState.in_progress, unfinished
-    elif made_since := later(node.design_ids):
+    elif undesigned:
+        state, design_ids = WalkState.not_started, []
+    elif made_since := later(linked):
         state, design_ids = WalkState.concluded, made_since
     else:
         state = WalkState.closed if closed else WalkState.not_started
@@ -244,8 +286,14 @@ def position(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
     return {
         "state": state,
         "node_id": decision.node_id,
+        "node_ids": decision.node_ids(),
         "decision": decision.model_dump(mode="json"),
         "design_ids": design_ids,
+        "undesigned_node_ids": undesigned,
+        "nodes": [
+            {"node_id": node.id, "designs": _with_stages(node.design_ids, stages)}
+            for node in named
+        ],
     }
 
 
@@ -373,6 +421,7 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
         checked,
         {d: render_note(n) for d, n in design_notes.items()},
         shared=frozenset(duplicated),
+        handover=_handover_designs(tree, design_notes),
     )
     path = tree_path(theme_id, base_dir).with_suffix(".html")
     atomic_write_text(path, html)
@@ -381,6 +430,45 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
     for design_id in design_notes:
         (Path(base_dir) / "notes" / f"{design_id}.html").unlink(missing_ok=True)
     return {"path": str(path)}
+
+
+def _handover_designs(
+    tree: QuestionTree, notes: Mapping[str, DesignNote]
+) -> list[HandoverDesign]:
+    """The designs the check before a hand-over lays out: the page and the command read these."""
+    chosen = to_hand_over(tree, {d: note.stage for d, note in notes.items()})
+    return [HandoverDesign.of(notes[d].design) for d in chosen]
+
+
+def handover(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
+    """The check before a hand-over, as the page lays it out. Writes nothing.
+
+    ``design_ids`` are the designs to read before they are handed over, in the
+    order of the last decision; ``differing`` holds each compared row whose
+    values differ between them: its ``row`` (a ``HandoverRow``), the ``label``
+    the page names it by, and the ``values`` of each design (``not_written``
+    where the design does not write it). The page marks the same rows
+    (ADR-0063 4, 5). ``no_data_scope`` are the designs among them that state no
+    data scope: a design handed over with others states one (ADR-0066 3), so
+    the driver has it written before it asks for the check.
+    """
+    tree = load_tree_model(theme_id, base_dir)
+    # Read as render reads them, so the command and the page cannot disagree.
+    notes = _design_notes(theme_id, base_dir)
+    _require_linked_designs_exist(tree, notes)
+    designs = _handover_designs(tree, notes)
+    return {
+        "design_ids": [d.id for d in designs],
+        "differing": [
+            {
+                "row": row.value,
+                "label": HANDOVER_ROW_WORDS[row],
+                "values": {d.id: d.values[row] for d in designs},
+            }
+            for row in differing_rows(designs)
+        ],
+        "no_data_scope": [d.id for d in designs if not d.states_scope],
+    }
 
 
 def render_design(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
@@ -493,7 +581,7 @@ def _theme_report(
     notes = _linked_notes(tree, base_dir)
     root = tree.root()
     # The rule the page shows (ADR-0057), so the two cannot disagree.
-    progress = tree.progress({d: note.design.status for d, note in notes.items()})
+    progress = tree.progress({d: note.stage for d, note in notes.items()})
     below = tree.progress_below(progress)
     nodes = tuple(_report_node(n, progress, below) for n in tree.nodes if n is not root)
     designs = tuple(ReportDesign.of(note) for note in notes.values())
@@ -529,7 +617,8 @@ def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
     A tree that fails its schema, a journal that cannot be read and a cited id
     that two events share stay errors. So does a linked design that no longer
     exists, as in ``progress``. A linked design that is not finished does not
-    stop the report: ``unfinished_designs`` names it. ``round`` is the last
+    stop the report: ``unfinished_designs`` names it, and ``stopped_designs``
+    names a stopped one, which is not counted as unfinished. ``round`` is the last
     reflection round of the tree, ``root_answer_round`` the one that wrote the
     answer to the root.
     """
@@ -565,7 +654,7 @@ def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
                 "kind": ReportStop.violations,
                 "message": f"The answers of theme '{theme_id}' have "
                 f"{len(violations)} violation(s) of the cited-answer check",
-                "violations": [asdict(v) for v in violations],
+                "violations": [reported(v) for v in violations],
             }
         )
     if reasons or root_answer is None:
@@ -582,7 +671,12 @@ def report(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
         # A later round may have answered other nodes only, so the last round
         # does not say how old the answer to the root is.
         "root_answer_round": root_answer.round,
+        # By the stage, as position counts them: a stopped design has no
+        # conclusion to wait for, so the analyst reads it apart.
         "unfinished_designs": [
-            d.id for d in theme_report.designs if d.status not in TERMINAL_STATUSES
+            d.id for d in theme_report.designs if d.stage not in SETTLED
+        ],
+        "stopped_designs": [
+            d.id for d in theme_report.designs if d.stage is AnalysisStage.stopped
         ],
     }

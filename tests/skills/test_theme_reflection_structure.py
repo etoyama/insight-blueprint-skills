@@ -101,8 +101,9 @@ class TestReflectionTakesAThemeOrADesign:
 
     def test_a_journal_with_only_a_heard_answer_is_not_reflected_on(self) -> None:
         # The heard answer is copied in before the analysis runs (/analysis-design).
+        # Whether a result is on record is read from design_io (Epic 35, Story 35.7).
         load = _step("### Step 1: ")
-        assert "other than `hearing`" in load
+        assert re.search(r"`result_on_record` is false[^.]*`hearing`", load)
 
     def test_a_theme_without_a_tree_is_sent_to_framing(self) -> None:
         load = _step("### Step T1: ")
@@ -212,10 +213,22 @@ class TestViolationsAreFixedBeforeTheAnalystSeesThem:
         row = table_row(section(_skill(), "### Step T3: "), f"`{kind}`")
         assert row[1], f"no fix for {kind}"
 
-    def test_ids_and_dates_stay_out_of_the_text(self) -> None:
+    def test_dates_stay_out_of_the_text_and_event_ids_go_in_cites(self) -> None:
         write = _step("### Step T2: ")
-        assert "No id and no date in `text`" in write
-        assert "`cites`" in write
+        assert "No date in `text`" in write
+        assert re.search(r"[Ee]vent ids go in `cites`", write)
+
+    def test_the_writer_knows_ids_and_the_round_are_not_counted(self) -> None:
+        # Epic 35, US-6 (ADR-0065): naming the tree does not trip the check.
+        write = _step("### Step T2: ")
+        assert re.search(r"id of a node[^.]*not read as numbers", write)
+        assert "回目の振り返り" in write
+
+    def test_a_number_not_cited_is_fixed_by_citing_or_taking_it_out(self) -> None:
+        # Epic 35, US-6 AC 4: the row says what the `fix` of tree_io says.
+        row = table_row(section(_skill(), "### Step T3: "), "`number-not-cited`")
+        assert "`fix`" in row[1]
+        assert "take it out" in row[1]
 
     def test_a_number_is_written_the_way_the_record_wrote_it(self) -> None:
         row = table_row(section(_skill(), "### Step T3: "), "`number-not-cited`")
@@ -291,7 +304,7 @@ def _below_words(whose: str) -> str:
     """The counts below a node as the page says them, with placeholders for the numbers."""
     counts = "、".join(
         f"{PROGRESS_WORDS[p][0]} {n}"
-        for p, n in zip(reversed(Progress), "abc", strict=True)
+        for p, n in zip(reversed(Progress), "abcd", strict=True)
     )
     return BELOW_WORDS.format(whose=whose, count="{N}") + counts
 
@@ -313,3 +326,14 @@ class TestProgressIsShownAsThePageShowsIt:
         present = _step("### Step T5: ")
         never = re.search(r"`null`[^.]*never[^.]*未着手[^.]*\.", present)
         assert never, "no sentence keeps a node without a word from reading 未着手"
+
+
+class TestTheReasonOfAStopIsReadByTheCommand:
+    """The reason of a stop is read where the stage is, never out of the journal."""
+
+    def test_each_stopped_design_shows_the_reason_design_io_stage_gives(self) -> None:
+        load = _step("### Step T1: ")
+        assert re.search(
+            r"止めた理由[^.]*`design_io stage --id[^`]*`[^.]*`stop_reason`", load
+        )
+        assert not re.search(r"止めた理由[^.]*journal", load)

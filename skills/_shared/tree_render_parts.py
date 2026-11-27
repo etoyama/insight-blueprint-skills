@@ -7,12 +7,14 @@ untrusted and goes through ``_html``.
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import DesignForm, DesignStatus
+from insight_blueprint.models.journal import HEARING
 from insight_blueprint.models.tree import (
     Answer,
     AnswerStatement,
@@ -24,6 +26,7 @@ from insight_blueprint.models.tree import (
     design_id_of,
 )
 from skills._shared._html import Html, el, join
+from skills._shared.design_io import design_number
 from skills._shared.design_note import DesignNote, intent_word, statement_of
 from skills._shared.design_note_reviews import comments_after_analysis
 from skills._shared.tree_changes import (
@@ -57,7 +60,10 @@ class DesignSummary:
     form: DesignForm
     intent: str  # intent_word: a saved mixed design has its own word
     statement: str  # the question of an exploration, else the hypothesis
+    stage: AnalysisStage
     comments_after_analysis: int = 0  # review comments of the result review
+    stop_reason: str | None = None  # as DesignNote.stop_reason
+    asks: tuple[str, ...] = ()  # as DesignNote.asks
 
     @classmethod
     def of(cls, note: DesignNote) -> DesignSummary:
@@ -72,7 +78,10 @@ class DesignSummary:
             form=design.form(),
             intent=intent_word(design),
             statement=statement_of(design)[0],
+            stage=note.stage,
             comments_after_analysis=comments_after_analysis(note.reviews),
+            stop_reason=note.stop_reason,
+            asks=note.asks,
         )
 
 
@@ -134,7 +143,7 @@ class Context:
         for design_id in designs:
             if design_id not in design_notes:
                 raise ValueError(f"design '{design_id}' has no analysis note")
-        progress = tree.progress({d: s.status for d, s in designs.items()})
+        progress = tree.progress({d: s.stage for d, s in designs.items()})
         violations: dict[str, list[Violation]] = {}
         for violation in () if isinstance(checked, CheckFailed) else checked:
             violations.setdefault(violation.node_id, []).append(violation)
@@ -166,7 +175,7 @@ class Context:
 
     def closed_by(self, node: QuestionNode) -> TreeDecision | None:
         """The latest decision naming *node*, when it closed the node."""
-        naming = [d for d in self.tree.decisions if d.node_id == node.id]
+        naming = [d for d in self.tree.decisions if node.id in d.node_ids()]
         if naming and naming[-1].kind is TreeDecisionKind.close:
             return naming[-1]
         return None
@@ -214,7 +223,7 @@ def answer_lines(
 
 def is_heard(context: Context, event_id: str) -> bool:
     event = context.events.get(event_id)
-    return event is not None and event.type == "hearing"
+    return event is not None and event.type == HEARING
 
 
 def result_lines(context: Context, event_id: str) -> list[Html | str]:
@@ -268,13 +277,24 @@ def current_round_meta(context: Context, answer: Answer) -> Html:
     return el("p", el("span", reflection(answer.round), class_="meta"), untouched)
 
 
-def join_links(node_ids: list[str]) -> list[Html | str]:
+def join_parts(groups: Iterable[list[Html | str]]) -> list[Html | str]:
+    """The parts of each group, with 、 between one group and the next."""
     parts: list[Html | str] = []
-    for position, node_id in enumerate(node_ids):
+    for position, group in enumerate(groups):
         if position:
             parts.append("、")
-        parts.append(link_to(node_id, node_id))
+        parts += group
     return parts
+
+
+def join_links(node_ids: list[str]) -> list[Html | str]:
+    return join_parts([link_to(n, n)] for n in node_ids)
+
+
+def id_key(design_id: str) -> tuple[int, str]:
+    """Order by the number after ``-H``: ``H10`` follows ``H9``."""
+    number = design_number(design_id)
+    return (-1 if number is None else number, design_id)
 
 
 def statement_list(context: Context, statements: Sequence[AnswerStatement]) -> Html:

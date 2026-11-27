@@ -8,10 +8,11 @@ inputs give the same bytes. Interaction is ``<details>`` only.
 Every string that reaches the page comes from analysts or models, so none of it
 is trusted: see ``_html`` for how markup is told from text.
 
-The page is built in four modules: this one lays out the sections,
+The page is built in five modules: this one lays out the sections,
 ``tree_render_parts`` holds the context of a page and the parts the sections
-share, ``tree_render_derived`` shows what ``tree_changes`` derives, and
-``tree_words`` holds the words and the legend.
+share, ``tree_render_derived`` shows what ``tree_changes`` derives,
+``tree_render_stage`` shows where each analysis stands, and ``tree_words``
+holds the words and the legend.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Mapping, Sequence
 
-from insight_blueprint.models.design import TERMINAL_STATUSES
+from insight_blueprint.models.analysis_stage import SETTLED, AnalysisStage
 from insight_blueprint.models.tree import (
     Aim,
     Answer,
@@ -31,21 +32,25 @@ from insight_blueprint.models.tree import (
     design_id_of,
 )
 from skills._shared._html import BASE_CSS, Html, el, join, page
-from skills._shared.design_io import design_number
 from skills._shared.design_note import (
     FORM_WORDS,
     NOTE_CSS,
     direction_gloss,
     note_anchor,
-    status_word,
 )
 from skills._shared.design_note_reviews import AFTER_ANALYSIS
+from skills._shared.handover import HandoverDesign
 from skills._shared.tree_check import CitedEvent, Violation
 from skills._shared.tree_render_derived import (
     changes_section,
     left_out_sections,
     pointers_to_the_top,
     used_above_section,
+)
+from skills._shared.tree_render_handover import (
+    HANDOVER_CSS,
+    HANDOVER_SCRIPT,
+    handover_section,
 )
 from skills._shared.tree_render_parts import (
     CheckFailed,
@@ -54,12 +59,20 @@ from skills._shared.tree_render_parts import (
     Shown,
     answer_lines,
     current_round_meta,
+    id_key,
     join_links,
+    join_parts,
     link_to,
     mark_line,
     result_lines,
     statement_item,
     word_of,
+)
+from skills._shared.tree_render_stage import (
+    STAGE_CSS,
+    asks_section,
+    stage_notes,
+    stage_parts,
 )
 from skills._shared.tree_words import (
     AIM_LABELS,
@@ -69,6 +82,7 @@ from skills._shared.tree_words import (
     DECISION_LABELS,
     DESIGN_TAG,
     GROUNDS_WORDS,
+    LINKED_NODES,
     MARK_WORDS,
     NEXT_CANDIDATES_HEADING,
     NEXT_QUESTION_HEADING,
@@ -79,6 +93,7 @@ from skills._shared.tree_words import (
     PROGRESS_WORDS,
     RESULT_WORD,
     SHARED_ID_WORDS,
+    STAGE_LABEL,
     SUBJECT,
     VIOLATION_WORDS,
     Mark,
@@ -158,17 +173,24 @@ def render_tree_html(
     design_notes: Mapping[str, Html],
     *,
     shared: frozenset[str],
+    handover: Sequence[HandoverDesign],
 ) -> str:
     """The page. *design_notes* maps a design id to the markup ``render_note`` returned.
 
     *shared* holds the cited ids two journal events share; a decision citing one
-    shows neither text.
+    shows neither text. *handover* holds the designs the check before a
+    hand-over lays out, in order (``handover.to_hand_over``; ADR-0063).
     """
     context = Context.of(tree, designs, events, violations, design_notes, shared)
+    check = handover_section(context, handover)
     body = join(
         [
             _header(tree),
             _check_notice(violations),
+            # Both are the analyst's to do now: an analysis already running
+            # waits on its answer, so it comes first.
+            asks_section(context),
+            check,
             _subject_answer(context),
             _next_question(context),
             legend(),
@@ -180,7 +202,13 @@ def render_tree_html(
             _design_notes(context),
         ]
     )
-    return page(f"論点ツリー {tree.theme_id}", BASE_CSS + _TREE_CSS + NOTE_CSS, body)
+    return page(
+        f"論点ツリー {tree.theme_id}",
+        BASE_CSS + _TREE_CSS + STAGE_CSS + HANDOVER_CSS + NOTE_CSS,
+        body,
+        # The page has a script only for the comments of the check (ADR-0063 7).
+        None if check is None else HANDOVER_SCRIPT,
+    )
 
 
 def _header(tree: QuestionTree) -> Html:
@@ -227,12 +255,6 @@ def _root_history(tree: QuestionTree) -> Html:
     )
 
 
-def _id_key(design_id: str) -> tuple[int, str]:
-    """Order by the number after ``-H``: ``H10`` follows ``H9``."""
-    number = design_number(design_id)
-    return (-1 if number is None else number, design_id)
-
-
 def _newest_first(group: list[DesignSummary]) -> list[DesignSummary]:
     naive = [d for d in group if d.created_at.tzinfo is None]
     if naive and len(naive) != len(group):
@@ -242,14 +264,20 @@ def _newest_first(group: list[DesignSummary]) -> list[DesignSummary]:
             f"created_at of '{naive[0].id}' has no time zone but that of "
             f"'{aware.id}' has one: they cannot be ordered"
         )
-    return sorted(group, key=lambda d: (d.created_at, _id_key(d.id)), reverse=True)
+    return sorted(group, key=lambda d: (d.created_at, id_key(d.id)), reverse=True)
 
 
 def _card_order(designs: list[DesignSummary]) -> list[DesignSummary]:
-    """Unfinished designs first, then finished ones; the newest first in each."""
-    finished = [d for d in designs if d.status in TERMINAL_STATUSES]
-    unfinished = [d for d in designs if d not in finished]
-    return _newest_first(unfinished) + _newest_first(finished)
+    """Unfinished designs, then finished ones, then stopped ones; the newest first in each.
+
+    A stopped analysis is never resumed (ADR-0064), so it is read last.
+    """
+    groups = (
+        [d for d in designs if d.stage not in SETTLED],
+        [d for d in designs if d.stage is AnalysisStage.finished],
+        [d for d in designs if d.stage is AnalysisStage.stopped],
+    )
+    return [d for group in groups for d in _newest_first(group)]
 
 
 def _note_link(design_id: str) -> Html:
@@ -265,24 +293,27 @@ def _counts(context: Context) -> Html:
             "p",
             join(
                 el("span", f"{PROGRESS_WORDS[p][0]} {found[p]}", class_="count")
-                for p in Progress
+                # The furthest first, as below_text says the counts under a card.
+                for p in reversed(Progress)
             ),
         ),
         id="counts",
     )
 
 
-def _decision_head(decision: TreeDecision) -> list[Html | str]:
-    """The kind of a decision, when it was taken, and the node it names."""
+def _decision_kind(decision: TreeDecision) -> str:
+    """The kind of a decision and when it was taken."""
     when = (
         ""
         if decision.kind is TreeDecisionKind.start
         else f"（{when_decided(decision.round)}）"
     )
-    return [
-        f"{DECISION_LABELS[decision.kind]}{when}: ",
-        link_to(decision.node_id, decision.node_id),
-    ]
+    return f"{DECISION_LABELS[decision.kind]}{when}: "
+
+
+def _decision_head(decision: TreeDecision) -> list[Html | str]:
+    """The kind of a decision, when it was taken, and every node it names (ADR-0061)."""
+    return [_decision_kind(decision), *join_links(decision.node_ids())]
 
 
 def _grounds(context: Context, decision: TreeDecision) -> Html | None:
@@ -321,7 +352,7 @@ def _decisions(context: Context) -> Html:
         for d in context.tree.decisions
     ]
     body = el("ul", join(rows)) if rows else el("p", "まだ決めていない。")
-    return el("section", el("h2", "ツリーの決定"), body, id="decisions")
+    return el("section", el("h2", "論点ツリーの決定"), body, id="decisions")
 
 
 def _next_question(context: Context) -> Html:
@@ -339,13 +370,11 @@ def _next_question(context: Context) -> Html:
             if decision.round < latest
             else None
         )
+        named = join_parts(
+            [link_to(n, n), f" {tree.node(n).question}"] for n in decision.node_ids()
+        )
         lines = [
-            el(
-                "p",
-                waiting,
-                *_decision_head(decision),
-                f" {tree.node(decision.node_id).question}",
-            ),
+            el("p", waiting, _decision_kind(decision), *named),
             el("p", f"理由: {decision.reason}"),
         ]
         lines.append(_grounds(context, decision))
@@ -473,7 +502,6 @@ def _comments_after_analysis(count: int) -> list[str]:
 
 def _design_card(context: Context, node: QuestionNode, design: DesignSummary) -> Html:
     """The full card under the first node on the page; a short row under the others."""
-    word = status_word(design.form, design.status)
     first = context.linked_by[design.id][0]
     if first != node.id:
         return el(
@@ -481,7 +509,9 @@ def _design_card(context: Context, node: QuestionNode, design: DesignSummary) ->
             el(
                 "p",
                 el("strong", design.id),
-                f"　{word}　",
+                "　",
+                *stage_parts(design),
+                "　",
                 link_to(first, f"{first} の下に出ている"),
                 class_="meta",
             ),
@@ -499,12 +529,14 @@ def _design_card(context: Context, node: QuestionNode, design: DesignSummary) ->
         el("p", f"{statement}: {design.statement}") if design.statement else None,
         el(
             "p",
-            word,
+            f"{STAGE_LABEL}: ",
+            *stage_parts(design),
             "　",
             *_comments_after_analysis(design.comments_after_analysis),
             _note_link(design.id),
             class_="meta",
         ),
+        join(stage_notes(design)),
         class_=f"branch form-{design.form.value}",
     )
 
@@ -692,7 +724,8 @@ def _derivation(context: Context) -> Html:
         design = designs[design_id]
         nodes = context.linked_by.get(design_id, [])
         facts: list[Html | str] = [
-            f"{status_word(design.form, design.status)}　",
+            *stage_parts(design),
+            "　",
             # A linked design shows its count on its card; one linked to no node has
             # no card, so its count goes here. Each count is on the page once.
             *(
@@ -704,14 +737,14 @@ def _derivation(context: Context) -> Html:
             "　",
         ]
         facts += (
-            ["結んだ論点: ", *(join_links(nodes))] if nodes else ["論点に結んでいない"]
+            [f"{LINKED_NODES}: ", *(join_links(nodes))]
+            if nodes
+            else ["論点に結んでいない"]
         )
         if design.parent_id is not None and design.parent_id not in designs:
             facts.append(f"　派生元: {design.parent_id}")
         below = [
-            c
-            for c in sorted(children.get(design_id, []), key=_id_key)
-            if c not in shown
+            c for c in sorted(children.get(design_id, []), key=id_key) if c not in shown
         ]
         return el(
             "li",
@@ -726,11 +759,11 @@ def _derivation(context: Context) -> Html:
         )
 
     top = [
-        d for d in sorted(designs, key=_id_key) if designs[d].parent_id not in designs
+        d for d in sorted(designs, key=id_key) if designs[d].parent_id not in designs
     ]
     items = [branch(d) for d in top]
     # A cycle of parents has no top-level design; show its members anyway.
-    items += [branch(d) for d in sorted(designs, key=_id_key) if d not in shown]
+    items += [branch(d) for d in sorted(designs, key=id_key) if d not in shown]
     body = (
         el("ul", join(items), class_="derivation")
         if items
@@ -753,7 +786,7 @@ def _back_links(context: Context, design_id: str) -> Html:
     nodes = context.linked_by.get(design_id, [])
     parts: list[Html | str] = [link_to("question-tree", BACK_TO_TREE)]
     if nodes:
-        parts += ["　結んだ論点: ", *join_links(nodes)]
+        parts += [f"　{LINKED_NODES}: ", *join_links(nodes)]
     return el("p", *parts, class_="meta")
 
 
@@ -768,7 +801,7 @@ def _design_notes(context: Context) -> Html:
                 _back_links(context, design_id),
             ]
         )
-        for design_id in sorted(context.designs, key=_id_key)
+        for design_id in sorted(context.designs, key=id_key)
     ]
     return el(
         "section",

@@ -187,6 +187,14 @@ class TestApprovalGate:
         assert "結論の出ていない分析設計" in step
         assert "length of `unfinished_designs`" in step
 
+    def test_shows_the_stopped_designs_on_a_line_of_their_own(self) -> None:
+        # The analyst asked on the real page (35.5) that a stopped design is not
+        # read as one still waiting for its conclusion.
+        step = _step(3)
+        assert "止めた分析設計: {stopped_count} 件（{stopped_designs の id" in step
+        assert "{stopped_count}` is the length of `stopped_designs`" in step
+        assert "`stopped_designs`" in _step(1)
+
     def test_shows_the_round_that_wrote_the_root_answer(self) -> None:
         # `round` is the last reflection; the root's answer can be older (29.1 review).
         step = _step(3)

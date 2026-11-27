@@ -18,6 +18,7 @@ import base64
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import (
     AnalysisDesign,
     AnalysisIntent,
@@ -124,7 +125,16 @@ class DesignNote:
     lineage: str | None  # the Mermaid text of lineage/{id}.mmd
     local_files: tuple[str, ...]  # paths under .insight/ that exist, LOCAL_FILES order
     conclusion: Conclusion | None  # None: the design is not in a terminal status
+    stage: AnalysisStage  # AnalysisStage.of the design and its journal (ADR-0061 6)
     reviews: tuple[NoteReviewBatch, ...] = ()  # newest first
+    # The first stop event's text; None unless the stage is stopped.
+    stop_reason: str | None = None
+    # What each confirmation no answer names yet asks; () unless the stage waits for it.
+    asks: tuple[str, ...] = ()
+    # The line under the status that says a design stopped (None for any other).
+    # tree_words says it, and tree_words reads this module's words, so the reader
+    # of the files hands the line over instead of this module importing it.
+    stage_line: str | None = None
 
 
 NOTE_CSS = """
@@ -188,6 +198,16 @@ _SECTIONS = (
     ("progress", "分析の経過"),
     ("files", "手元のファイル"),
 )
+# The headings of the note by anchor: the check before a hand-over names its
+# rows of the method and the sources in them, so the two read alike.
+SECTION_WORDS = dict(_SECTIONS)
+
+# The words of the note that the check before a hand-over also names its rows
+# by (ADR-0063 2): what the design means to do, what it counts (ADR-0066 5),
+# and its figures.
+INTENT_LABEL = "意図"
+SCOPE_WORDS = {"population": "対象", "grain": "粒度", "denominator": "分母"}
+FIGURES_HEADING = "図"
 
 
 @dataclass(frozen=True)
@@ -345,6 +365,7 @@ def _section(anchor: str, name: str, heading: str, *content: Html | None) -> Htm
 
 
 def _status(note: DesignNote, anchor: str) -> Html:
+    stage_line = note.stage_line
     last = note.events[-1] if note.events else None
     if last is None:
         journal = "journal にまだ出来事が無い。"
@@ -356,9 +377,10 @@ def _status(note: DesignNote, anchor: str) -> Html:
     form = design.form()
     return el(
         "div",
-        el("p", f"意図: {intent_word(design)}"),
+        el("p", f"{INTENT_LABEL}: {intent_word(design)}"),
         el("p", LEGACY_NOTE) if form is DesignForm.legacy_exploration else None,
         el("p", f"状態: {status_word(form, design.status)}（{design.status.value}）"),
+        None if stage_line is None else el("p", stage_line),
         el("p", journal),
         el("p", f"notebook の結果（verdict）: {verdict}"),
         None
@@ -410,15 +432,30 @@ def _decision(design: AnalysisDesign, anchor: str) -> Html:
     return _section(anchor, "decision", "決定の文脈", body)
 
 
+def _data_scope(design: AnalysisDesign) -> list[Html]:
+    """What the analysis counts, next to how it counts it (ADR-0066 5)."""
+    scope = design.data_scope
+    if scope is None:
+        return []
+    return [
+        el("p", f"{SCOPE_WORDS[field]}: {getattr(scope, field)}")
+        for field in SCOPE_WORDS
+    ]
+
+
 def _method(design: AnalysisDesign, anchor: str) -> Html:
+    scope = _data_scope(design)
     methodology = design.methodology
     if methodology is None:
-        return _section(anchor, "method", "手法", el("p", "手法は書かれていない。"))
+        return _section(
+            anchor, "method", "手法", *scope, el("p", "手法は書かれていない。")
+        )
     steps = (methodology.model_extra or {}).get("steps")
     return _section(
         anchor,
         "method",
         "手法",
+        *scope,
         el("p", f"手法: {methodology.method}"),
         el("p", f"パッケージ: {methodology.package}") if methodology.package else None,
         el("p", f"理由: {methodology.reason}") if methodology.reason else None,
@@ -564,7 +601,7 @@ def _figures(note: DesignNote, anchor: str) -> Html:
         if note.figures
         else el("p", "図はまだ無い。")
     )
-    return el("div", el("h4", "図"), body, id=f"{anchor}-figures")
+    return el("div", el("h4", FIGURES_HEADING), body, id=f"{anchor}-figures")
 
 
 def _results(note: DesignNote, anchor: str) -> Html:

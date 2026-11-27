@@ -12,15 +12,43 @@ def auto() -> str:
     return _read_skill("analysis-auto")
 
 
-def round_item(name: str) -> str:
-    """The numbered item ``N. **name**`` of the round, up to the next item or heading."""
+def step_item_text(step: str, name: str) -> str:
+    """The numbered item ``N. **name**`` under the heading *step*, as written.
+
+    It ends at the next item or heading, so its commands keep their lines.
+    """
     found = re.search(
         rf"^\d+\. \*\*{re.escape(name)}\*\*.*?(?=^\d+\. \*\*|^#{{2,4}} |\Z)",
-        section(auto(), "### Step 3:"),
+        section(auto(), step),
         re.MULTILINE | re.DOTALL,
     )
-    assert found, f"the round has no '{name}' item"
-    return unwrap(found.group(0))
+    assert found, f"{step} has no '{name}' item"
+    return found.group(0)
+
+
+def step_item(step: str, name: str) -> str:
+    """The item of ``step_item_text`` with its wrapped lines joined."""
+    return unwrap(step_item_text(step, name))
+
+
+def round_item(name: str) -> str:
+    """An item of the round of one node (Step 3)."""
+    return step_item("### Step 3:", name)
+
+
+def handover_item(name: str) -> str:
+    """An item of the round of several nodes (Step 3H)."""
+    return step_item("### Step 3H:", name)
+
+
+def handover_item_text(name: str) -> str:
+    """An item of the round of several nodes (Step 3H), as written."""
+    return step_item_text("### Step 3H:", name)
+
+
+def handover_part(heading: str) -> str:
+    """The body under a ``####`` heading of Step 3H, as written."""
+    return section(section(auto(), "### Step 3H:"), heading)
 
 
 def design_beat(name: str) -> str:
@@ -37,3 +65,18 @@ def design_beat(name: str) -> str:
 def gate_row(step: str) -> list[str]:
     """The cells of the Gate policy row whose first cell is ``step``."""
     return table_row(split_sections(auto())["Gate policy"], step)
+
+
+def auto_gates() -> str:
+    """The Gate policy section of /analysis-auto."""
+    return split_sections(auto())["Gate policy"]
+
+
+def auto_step(heading: str) -> str:
+    """The body under a heading of /analysis-auto."""
+    return section(auto(), heading)
+
+
+def framing_section(heading: str) -> str:
+    """The body under a heading of /analysis-framing."""
+    return section(_read_skill("analysis-framing"), heading)

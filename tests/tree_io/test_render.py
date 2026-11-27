@@ -10,8 +10,10 @@ from pathlib import Path
 
 import pytest
 
-from skills._shared import design_io, tree_io
+from insight_blueprint.models.tree import StatementKind
+from skills._shared import design_io, tree_io, tree_words
 from skills._shared._atomic import atomic_write_yaml
+from skills._shared.tree_changes import ChangeKind
 from skills._shared.tree_words import SUBJECT, Mark, changes_title, reflection
 from tests._tree_page import by_id, mark_word, parse
 from tests.tree_io._support import (
@@ -89,7 +91,7 @@ class TestRender:
         page = (tree / "themes" / "LIB_tree.html").read_text(encoding="utf-8")
         shown = by_id(parse(page), "header").text() + _tree_text(tree)
         assert f"{SUBJECT}: " in shown
-        assert "これまでわかっていること" in shown
+        assert tree_words.KIND_WORDS[StatementKind.claim][0] in shown
         after = (tree / "themes" / "LIB_tree.yaml").read_text(encoding="utf-8")
         assert after == saved
         assert "root_revisions:" in after
@@ -304,7 +306,7 @@ class TestRender:
             tree_io.progress("LIB", base_dir=tree)["LIB-Q02"]["progress"]
             == "investigating"
         )
-        assert "検証中 1" in page
+        assert "調べている 1" in page
         assert "分析済み 0" in page
         assert "写した分析設計" in page
 
@@ -398,7 +400,7 @@ class TestRenderShowsWhatAnAnswerChanged:
 
         (row,) = [r for r in top.walk() if r.tag == "tr" and "LIB-H02-E01" in r.text()]
         cells = [" ".join(c.text().split()) for c in row.children]
-        assert cells[0] == "新しく根拠にした"
+        assert cells[0] == tree_words.CHANGE_WORDS[ChangeKind.newly_cited][0]
         assert "LIB-H02 は期限切れ152件、取消除外後34.6%" in cells[1]
         assert cells[2:] == ["根拠にしていなかった", "注意すべきこと 取消除外後は34.6%"]
 
@@ -550,7 +552,7 @@ class TestTheChangeThroughTheCommandLine:
         ]
         top = " ".join(by_id(parse(page), "subject-answer").text().split())
         assert changes_title(1, 2) in top
-        assert "言っていることが変わった" in top
+        assert tree_words.CHANGE_WORDS[ChangeKind.reworded][0] in top
         assert "これまでわかっていること 期限切れは152件で、延長の余地がある" in top
 
 
@@ -596,7 +598,7 @@ class TestLeftOutAndUsedAboveThroughTheCommandLine:
         assert "LIB-H02 は期限切れ152件、取消除外後34.6%" in top
         assert f"論点 LIB-Q03 の{reflection(1)}の答えが" in top
         card = " ".join(by_id(page, "LIB-Q02").text().split())
-        assert "この論点の分析結果を根拠にしている答え" in card
+        assert tree_words.USED_ABOVE_WORDS in card
         assert (
             f"論点 LIB-Q01（{SUBJECT}）の{reflection(2)}の答えが根拠にしている" in card
         )

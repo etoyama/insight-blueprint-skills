@@ -22,8 +22,9 @@ def el(tag: str, *children: str | None, **attrs: str | None) -> Html:
 
     A ``None`` child or attribute is left out.
     """
+    # class_ is class, data_row is data-row.
     rendered = "".join(
-        f' {name.rstrip("_")}="{escape(value, quote=True)}"'
+        f' {name.rstrip("_").replace("_", "-")}="{escape(value, quote=True)}"'
         for name, value in attrs.items()
         if value is not None
     )
@@ -57,14 +58,16 @@ BASE_CSS = """
   --bg: #fbfaf7; --fg: #1f2328; --muted: #59636e; --line: #c9ced6;
   --panel: #ffffff; --accent: #0b5cad;
   --not-started: #6b7280; --investigating: #9a6700; --analyzed: #1a7f37;
-  --mark: #8250df;
+  --stopped: #4b5058; --mark: #8250df;
+  --awaiting-confirmation: #a3321f; --awaiting-reflection: #6b3fb0;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #14171a; --fg: #e6e8ea; --muted: #9aa4af; --line: #3a4048;
     --panel: #1c2024; --accent: #6cb2ff;
     --not-started: #9aa4af; --investigating: #e3b341; --analyzed: #56d364;
-    --mark: #c297ff;
+    --stopped: #b4b8c2; --mark: #c297ff;
+    --awaiting-confirmation: #ff9a87; --awaiting-reflection: #c7a8ff;
   }
 }
 body {
@@ -81,8 +84,13 @@ summary { cursor: pointer; color: var(--accent); }
 """
 
 
-def page(title: str, css: str, body: Html) -> str:
-    """A standalone page: no script, no external resource, no timestamp."""
+def page(title: str, css: str, body: Html, script: str | None = None) -> str:
+    """A standalone page: no external resource, no timestamp.
+
+    *script*, a constant of a renderer and never a value of the records, runs
+    inside the page and sends nothing out (ADR-0063 7). Without one the page
+    has no script.
+    """
     head = el(
         "head",
         Html('<meta charset="utf-8">'),
@@ -90,4 +98,7 @@ def page(title: str, css: str, body: Html) -> str:
         el("title", title),
         el("style", Html(css)),
     )
-    return "<!doctype html>\n" + el("html", head, el("body", body), lang="ja") + "\n"
+    ran = None if script is None else el("script", Html(script))
+    return (
+        "<!doctype html>\n" + el("html", head, el("body", body, ran), lang="ja") + "\n"
+    )

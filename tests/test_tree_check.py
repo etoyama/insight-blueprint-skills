@@ -387,6 +387,140 @@ class TestTheNumberThatWasNeverRecorded:
         assert checked(claim(text, *cites), events) == []
 
 
+class TestIdsAndReflectionRoundsAreNotNumbers:
+    """Epic 35, US-6 (ADR-0065): what names a part of the tree is not a result."""
+
+    EVENTS = {"LIB-H01-E01": "期限切れは152件、率比は1.34だった"}
+
+    def found(self, text: str, round: int = 1) -> list[tuple[str, str]]:
+        tree = tree_with(
+            node(
+                "LIB-Q02",
+                "LIB-Q01",
+                design_ids=["LIB-H01"],
+                answers=[answer_of(claim(text, "LIB-H01-E01"), round=round)],
+            ),
+            node("LIB-Q03", "LIB-Q01", design_ids=["LIB-H02"]),
+        )
+        return [(v.kind, v.text) for v in find_violations(tree, self.EVENTS)]
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "LIB-Q03 と LIB-Q02 は互いを待たない。期限切れは152件だった",
+            "LIB-H01 と LIB-H02 の記録では、期限切れは152件だった",
+            "LIB-H01-E01 のとおり、期限切れは152件だった",
+            "ＬＩＢ－Ｑ０３ のとおり、期限切れは152件だった",
+        ],
+    )
+    def test_an_id_of_a_node_or_a_linked_design_or_its_event_is_not_counted(
+        self, text: str
+    ) -> None:
+        # AC 1: a design linked anywhere in the tree, not only on this branch.
+        assert self.found(text) == []
+
+    @pytest.mark.parametrize(
+        ("text", "token"),
+        [
+            ("LIB-Q99 の結果から、期限切れは152件", "99"),
+            ("LIB-H07 の結果から、期限切れは152件", "07"),
+            ("FRN-Q05 の結果から、期限切れは152件", "05"),
+            ("LIB-Q020 の結果から、期限切れは152件", "020"),
+        ],
+    )
+    def test_an_id_the_tree_does_not_hold_is_still_counted(
+        self, text: str, token: str
+    ) -> None:
+        # AC 3: a node not on the tree, a design on no node, another theme.
+        assert self.found(text) == [("number-not-cited", token)]
+
+    def test_an_event_id_of_a_design_on_no_node_is_still_counted(self) -> None:
+        assert self.found("LIB-H07-E02 では期限切れは152件") == [
+            ("number-not-cited", "07"),
+            ("number-not-cited", "02"),
+        ]
+
+    def test_an_event_id_of_a_linked_design_is_a_name_even_if_not_recorded(
+        self,
+    ) -> None:
+        # The cite, not the text, is what must exist: missing-event checks it.
+        assert self.found("LIB-H01-E99 と並べると、期限切れは152件") == []
+
+    def test_a_dash_right_after_an_id_is_a_hyphen_as_before(self) -> None:
+        # The id is blanked out with letters, so the rule of _NUMBER still
+        # reads a dash right after it as a hyphen, not as a minus.
+        assert self.found("LIB-Q03−1.34 を見ると、期限切れは152件") == []
+
+    @pytest.mark.parametrize(
+        ("text", "token"),
+        [
+            ("率比は1.2回目の振り返りで1を超えた", "1.2"),
+            ("差は1,002回目の振り返りで", "1,002"),
+            ("LIB-Q02.7 倍だった", "02.7"),
+            ("LIB-H01-E01.5倍だった", "01.5"),
+        ],
+    )
+    def test_a_number_that_only_ends_in_a_name_is_counted_whole(
+        self, text: str, token: str
+    ) -> None:
+        # A name is left out only when the whole number is the name: the tail
+        # of 1.2 is not a round, and the head of 02.7 is not an id.
+        assert ("number-not-cited", token) in self.found(text, round=2)
+
+    def test_a_sign_before_an_id_is_not_moved_onto_the_next_number(self) -> None:
+        assert self.found("▲LIB-Q02 5%") == [("number-not-cited", "5")]
+
+    def test_a_round_too_long_to_be_an_int_is_still_checked(self) -> None:
+        found = self.found("9" * 5000 + "回目の振り返りで")
+        assert [kind for kind, _ in found] == ["number-not-cited"]
+
+    def test_a_number_beside_an_id_is_still_counted(self) -> None:
+        assert self.found("LIB-Q03 では期限切れが30%増えた") == [
+            ("number-not-cited", "30")
+        ]
+
+    @pytest.mark.parametrize("n", [1, 2])
+    def test_a_reflection_round_up_to_the_current_one_is_not_counted(
+        self, n: int
+    ) -> None:
+        # AC 2: the answer being written is round 2.
+        assert self.found(f"{n}回目の振り返りで、期限切れは152件", round=2) == []
+
+    @pytest.mark.parametrize(
+        ("text", "token"),
+        [
+            ("3回目の振り返りで、期限切れは152件", "3"),
+            ("0回目の振り返りで、期限切れは152件", "0"),
+            ("振り返りの2回目で、期限切れは152件", "2"),
+            ("2回目の通知で来館した人は40人だった", "2"),
+        ],
+    )
+    def test_any_other_round_is_still_counted(self, text: str, token: str) -> None:
+        # AC 3: a round not yet taken, another wording, another thing counted.
+        assert self.found(text, round=2)[0] == ("number-not-cited", token)
+
+    def test_a_value_to_compare_with_is_still_counted(self) -> None:
+        # AC 3: the 1 of "exceeds 1" is a claim the cited event must hold.
+        assert self.found("率比は1.34で、1を超える") == [("number-not-cited", "1")]
+
+    def test_a_decision_may_name_nodes_and_the_round(self, tmp_path: Path) -> None:
+        write_journal(tmp_path, "LIB-H01", (1, "期限切れは152件"))
+        reason = "LIB-Q03 と LIB-Q02 は互いを待たない。1回目の振り返りで152件と分かった"
+        tree = decided_tree(go_to_q03(reason, "LIB-H01-E01"))
+
+        assert tree_check.check_last_decision(tree, tmp_path) == []
+
+    def test_a_decision_naming_a_round_not_yet_taken_is_refused(
+        self, tmp_path: Path
+    ) -> None:
+        write_journal(tmp_path, "LIB-H01", (1, "期限切れは152件"))
+        tree = decided_tree(go_to_q03("5回目の振り返りで決めた", "LIB-H01-E01"))
+
+        found = tree_check.check_last_decision(tree, tmp_path)
+
+        assert [(v.kind, v.text) for v in found] == [("number-not-cited", "5")]
+
+
 def write_tree(base: Path, tree: QuestionTree) -> Path:
     path = base / "themes" / "LIB_tree.yaml"
     atomic_write_yaml(
@@ -781,6 +915,7 @@ class TestMain:
                 "statement": 1,
                 "kind": "number-not-cited",
                 "text": "153",
+                "fix": tree_check.NUMBER_FIX,
             }
         ]
 

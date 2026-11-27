@@ -9,6 +9,7 @@ from pydantic import (
     ConfigDict,
     Field,
     SerializerFunctionWrapHandler,
+    field_validator,
     model_serializer,
     model_validator,
 )
@@ -194,6 +195,30 @@ class DecisionContext(BaseModel):
     decision: str = Field(min_length=1)
 
 
+class DataScope(BaseModel):
+    """What one analysis counts: its population, grain and denominator (ADR-0066).
+
+    All three are written as sentences and none is blank, so a design never
+    names a population without the unit it counts it in. An analysis that
+    measures no share says in its denominator that it has none.
+    """
+
+    # Like the other parts of a design, a field this plugin does not know yet
+    # is kept rather than refused, so a newer plugin's record still reads.
+    model_config = ConfigDict(extra="allow")
+
+    population: str
+    grain: str
+    denominator: str
+
+    @field_validator("population", "grain", "denominator")
+    @classmethod
+    def _written(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("a data scope needs it written")
+        return value
+
+
 class AnalysisDesign(BaseModel):
     """Analysis design document for hypothesis-driven EDA."""
 
@@ -219,6 +244,9 @@ class AnalysisDesign(BaseModel):
     referenced_knowledge: dict[str, list[str]] = Field(default_factory=dict)
     methodology: Methodology | None = None
     decision_context: DecisionContext | None = None
+    # Optional; a design saved before Epic 35 has none and is written back
+    # without the field (ADR-0066).
+    data_scope: DataScope | None = None
     # Written once, when the design first enters analyzing or a conclusion, and
     # kept through a review of the result. A design saved before Epic 33 has
     # none and is read by its status (ADR-0053).
@@ -303,7 +331,7 @@ class AnalysisDesign(BaseModel):
         self, handler: SerializerFunctionWrapHandler
     ) -> dict[str, Any]:
         data = handler(self)
-        for name in (*_FORM_FIELDS, "analysis_started_at"):
+        for name in _LEFT_OUT_WHEN_NONE:
             if data.get(name, "") is None:
                 del data[name]
         return data
@@ -323,3 +351,6 @@ _FORM_FIELDS = (
     "hypothesis_statement",
     "hypothesis_background",
 )
+# Fields a design without them is written back without, so a saved design
+# keeps its shape (ADR-0048, ADR-0053, ADR-0066).
+_LEFT_OUT_WHEN_NONE = (*_FORM_FIELDS, "analysis_started_at", "data_scope")

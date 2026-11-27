@@ -85,8 +85,24 @@ clone をそのまま marketplace として local の範囲に入れる。
    `insight-blueprint@insight-blueprint-marketplace` を `false` にする。
 5. 新しいセッションを `<project>` で立てる。
 
-local の範囲の install は、`<project>` のパスに結び付く。ワークツリーの `.claude/settings.local.json` は
-git に入らないので、本体とワークツリーの両方で試すなら、3 と 4 をそれぞれの場所で行う。
+#### Trying in a worktree
+
+`<project>` がワークツリーのときは、その git の本体のフォルダを `<main>` と書く。
+ワークツリーで 3 を走らせても、`--scope local` が書く先は `<main>/.claude/settings.local.json` だった
+（2026-11-28、Claude Code 2.1.332）。一方、ワークツリーで立てたセッションは
+`<project>/.claude/settings.local.json` を読む。そこで、次のように準備する。
+
+1. Prepare の 1 で、`<main>` の設定の写しも取っておく。
+
+   ```bash
+   cp <main>/.claude/settings.local.json <clone>/main.settings.local.json.bak
+   ```
+
+2. Prepare の 4 は `<main>/.claude/settings.local.json` で行う。その後、`<main>` の設定の
+   `enabledPlugins` と `extraKnownMarketplaces` を、`<project>/.claude/settings.local.json` にそのまま写す。
+   ファイルが無ければ、この2つのキーだけのファイルを作る。
+3. `<project>` で `claude plugin list` を走らせ、`insight-blueprint@insight-blueprint-epic<N>` が
+   enabled、リリース版が disabled と出ることを確かめる。
 
 #### Check
 
@@ -99,6 +115,10 @@ which design_io   # <clone>/bin か、~/.claude/plugins/cache/insight-blueprint-
 
 人間が確かめるなら、`/` の候補に `/analysis-design` が出るかを見る。
 
+試すセッションに渡す指示（PM のブリーフなど）にも、skill の一覧で確かめない、と書く。
+確かめ方はこの節から写す。skill はどれも Claude からは起動できないので、
+`/insight-blueprint:analysis-auto` などは人間がセッションに打つ。
+
 #### Undo
 
 ```bash
@@ -110,7 +130,13 @@ cp <clone>/settings.local.json.bak <project>/.claude/settings.local.json
 rm -rf <clone>
 ```
 
-ワークツリーでも試したなら、そのワークツリーでも uninstall と `settings.local.json` の復元を行う。
+ワークツリーで試したなら、uninstall と marketplace の remove は `<main>` で走らせる。
+`rm -rf <clone>` の前に、`<main>` の設定を写しから戻す。`<project>` の設定は Prepare の 1 の写しから戻す。
+
+```bash
+cp <clone>/main.settings.local.json.bak <main>/.claude/settings.local.json
+```
+
 アプリで、他のセッションのワークツリーを cwd にして立てたセッションは、アーカイブしない。
 アーカイブはセッションのワークツリーを片付けることがあり、試した分析のワークツリーまで消えうる。
 サイドバーから人間が消す。

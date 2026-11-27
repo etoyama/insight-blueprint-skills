@@ -13,10 +13,12 @@ is built here from the same names, so it cannot drift from the page.
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 from collections.abc import Iterable
 from enum import StrEnum
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import DesignForm, DesignStatus
 from insight_blueprint.models.tree import (
     AimKind,
@@ -27,7 +29,16 @@ from insight_blueprint.models.tree import (
     TreeDecisionKind,
 )
 from skills._shared._html import Html, el, join
-from skills._shared.design_note import EVENT_WORDS, intent_words_of, status_word
+from skills._shared.design_note import (
+    EVENT_WORDS,
+    FIGURES_HEADING,
+    INTENT_LABEL,
+    SCOPE_WORDS,
+    SECTION_WORDS,
+    intent_words_of,
+    status_word,
+)
+from skills._shared.handover import COMPARED_ROWS, Absent, ChartPlan, HandoverRow
 from skills._shared.tree_changes import ChangeKind
 
 # The words the page says of the subject (ADR-0055); YAML and code say root.
@@ -57,6 +68,17 @@ BACK_TO_TREE = "論点ツリーへ戻る"
 def reflection(round: int) -> str:
     """A reflection round as the analyst counts it."""
     return _REFLECTION.format(round=round)
+
+
+def _reflection_named() -> re.Pattern[str]:
+    head, tail = _REFLECTION.split("{round}")
+    return re.compile(rf"{re.escape(head)}(?<![0-9])(?P<n>\d+){re.escape(tail)}")
+
+
+# A reflection round named in a sentence in the words of ``reflection``, its N
+# as ``n``: the tree check does not count that N as a number (ADR-0065).
+REFLECTION_NAMED = _reflection_named()
+REFLECTION_OF_N = _REFLECTION.format(round="N")
 
 
 def changes_title(before: int, now: int) -> str:
@@ -130,9 +152,125 @@ class Mark(StrEnum):
 # so the legend cannot drift from the page.
 PROGRESS_WORDS = {
     Progress.not_started: ("未着手", "分析設計を結んでいない。"),
-    Progress.investigating: ("検証中", "結んだ分析設計に、終わっていないものがある。"),
-    Progress.analyzed: ("分析済み", "結んだ分析設計がすべて終わっている。"),
+    Progress.investigating: (
+        "調べている",
+        "結んだ分析設計に、終わっていないものがある。",
+    ),
+    Progress.stopped: ("止めた", "結んだ分析設計をすべて止めた。"),
+    Progress.analyzed: (
+        "分析済み",
+        "結んだ分析設計が、止めたものを除いてすべて終わっている。",
+    ),
 }
+
+
+# Where each analysis stands (ADR-0061 6), in the words the analyst read in the
+# sample of Epic 35 and kept when a person read them on the real page (FLOW-0019).
+STAGE_WORDS = {
+    AnalysisStage.before_run: (
+        "任せる前",
+        "分析をエージェントに任せる前で、まだデータに触っていない。",
+    ),
+    AnalysisStage.running: ("進行中", "エージェントが分析を進めている。"),
+    AnalysisStage.awaiting_confirmation: (
+        "あなたの確認待ち",
+        "エージェントが、あなたに確認したいことを書いて止まっている。"
+        "あなたが答えるまで、この分析は進まない。",
+    ),
+    AnalysisStage.stopped: (
+        "止めた",
+        "分析を止めた。再開はしない。やり直すときは、別の分析設計を作る。",
+    ),
+    AnalysisStage.awaiting_reflection: (
+        "計算が終わり、振り返りを待っている",
+        "notebook の計算が終わり、結果を振り返るのを待っている。",
+    ),
+    AnalysisStage.finished: ("終わった", "振り返りで、分析設計の結論を出した。"),
+}
+
+STAGE_LABEL = "分析の段階"
+
+
+def note_stage_line(stage: AnalysisStage, stop_reason: str | None) -> str | None:
+    """The line the note of a stopped design adds under its status; None for any other.
+
+    The status line copies the YAML, and a stopped design keeps its status
+    (ADR-0064 7): read alone, "分析中" would say the analysis still runs.
+    """
+    if stage is not AnalysisStage.stopped:
+        return None
+    word = STAGE_WORDS[stage][0]
+    return f"段階: {word}" if stop_reason is None else f"段階: {word}（{stop_reason}）"
+
+
+STOP_REASON = "止めた理由"
+WHAT_IS_ASKED = "確認したいこと"
+LINKED_NODES = "結んだ論点"
+# A design keeps its status while it waits, stops or has its results, so the
+# status word goes with these stages only: there it says what the stage does not.
+STAGES_WITH_STATUS = (AnalysisStage.before_run, AnalysisStage.finished)
+ASKS_LEAD = (
+    "次の分析は、あなたの答えを待って止まっている。"
+    "この確認には、チャットでエージェントに答える。"
+)
+
+
+def asks_heading(count: int) -> str:
+    """The heading of the analyses that wait for the analyst, with how many."""
+    return f"{STAGE_WORDS[AnalysisStage.awaiting_confirmation][0]}（{count}件）"
+
+
+# The check before a hand-over (ADR-0063): the page and tree_io handover name
+# the rows in these words, so the chat sums up a row as the page shows it.
+HANDOVER_HEADING = "分析を任せる前の確認"
+# A row the analysis note also names is named as the note names it.
+HANDOVER_ROW_WORDS = {
+    HandoverRow.intent: INTENT_LABEL,
+    HandoverRow.statement: "何に答えるか",
+    HandoverRow.criterion: "判定の基準",
+    HandoverRow.population: SCOPE_WORDS["population"],
+    HandoverRow.grain: SCOPE_WORDS["grain"],
+    HandoverRow.denominator: SCOPE_WORDS["denominator"],
+    HandoverRow.sources: SECTION_WORDS["sources"],
+    HandoverRow.method: SECTION_WORDS["method"],
+    HandoverRow.metric: "主指標",
+    HandoverRow.extraction: "抽出・加工条件",
+    HandoverRow.chart: FIGURES_HEADING,
+}
+DIFFERS_WORD = "分析間の違い"
+NOT_WRITTEN = "書かれていない。"
+NO_CRITERION = "探索は判定しないので、判定の基準は無い。"
+ABSENT_WORDS = {Absent.not_written: NOT_WRITTEN, Absent.not_judged: NO_CRITERION}
+COMMENT_WORD = "コメント"
+GATHER_BUTTON = "コメントをまとめる"
+GATHERED_HEAD = f"{HANDOVER_HEADING}への{COMMENT_WORD}"
+NO_COMMENT = f"{COMMENT_WORD}は書かれていない。"
+HANDOVER_LEAD = (
+    "次の分析設計を、エージェントに任せる前に読む。"
+    + "・".join(HANDOVER_ROW_WORDS[r] for r in COMPARED_ROWS)
+    + f"の値が分析設計の間で違う行には「{DIFFERS_WORD}」と付く。"
+    f"直してほしいことは分析設計ごとの{COMMENT_WORD}欄に書き、"
+    f"「{GATHER_BUTTON}」を押して、下に出た文をチャットに貼る。"
+    "直すことが無ければ、チャットでエージェントに、このまま任せると答える。"
+)
+GATHERED_NOTE = (
+    "まとめた文はこのページの中に出るだけで、どこにも送らない。"
+    "コピーして、チャットに貼る。"
+)
+
+
+def chart_text(plan: ChartPlan) -> str:
+    """A planned chart in a line: what it shows, its kind and its axes."""
+    axes = "、".join(
+        f"{name}: {value}" for name, value in (("横", plan.x), ("縦", plan.y)) if value
+    )
+    detail = "。".join(part for part in (plan.kind, axes) if part)
+    return f"{plan.description}（{detail}）" if plan.description else detail
+
+
+def handover_heading(count: int) -> str:
+    """The heading of the check before a hand-over, with how many designs it lays out."""
+    return f"{HANDOVER_HEADING}（{count}件）"
 
 
 # The words shown to the analyst are not the glossary's terms (ADR-0055): the
@@ -282,12 +420,14 @@ def legend() -> Html:
         el(
             "p",
             f"ページの冒頭には、{SUBJECT}への{CURRENT_ANSWER_HEADING}、前の回から変わったこと、"
-            f"{NEXT_QUESTION_HEADING}を出す。その下に、論点ごとのカードを並べる。",
+            f"{NEXT_QUESTION_HEADING}を出す。あなたの確認を待つ分析があれば、"
+            f"それらより前に抜き出す。その次に、任せる前に読む分析設計があれば、"
+            f"「{HANDOVER_HEADING}」を出す。その下に、論点ごとのカードを並べる。",
         ),
         el(
             "p",
             f"「{CHANGES_HEADING}」は、答えと、その1つ前の答えを比べて、根拠にした"
-            "分析結果ごとに1行で出す。分け方は、根拠にしたかどうかと、文が同じか"
+            f"{RESULT_WORD}ごとに1行で出す。分け方は、根拠にしたかどうかと、文が同じか"
             "どうかだけで決まる。なぜ変えたかは記録に無いので、出さない。",
         ),
         el(
@@ -299,21 +439,21 @@ def legend() -> Html:
         el(
             "p",
             f"「{NOT_YET_WORDS.format(whose='')}」は、論点の答えが一度も根拠にして"
-            "いない分析結果を、その分析結果を根拠にした論点の答えと並べて出す。"
+            f"いない{RESULT_WORD}を、その{RESULT_WORD}を根拠にした論点の答えと並べて出す。"
             "差が出なかった分析の結果も、ここに出る。"
             f"「{NO_LONGER_WORDS.format(whose='')}」は、最後に根拠にした振り返りと、"
-            "その次の答えで新しく根拠にした分析結果を添えて、畳んで出す。"
+            f"その次の答えで新しく根拠にした{RESULT_WORD}を添えて、畳んで出す。"
             "外した理由は記録に無いので、出さない。",
         ),
         el(
             "p",
-            f"「{USED_ABOVE_WORDS}」は、論点の分析結果を、上の論点の答えが"
+            f"「{USED_ABOVE_WORDS}」は、論点の{RESULT_WORD}を、上の論点の答えが"
             "どう使っているかを出す。上の論点が、この論点の答えより後の振り返りで、"
-            "その分析結果について言っていることを変えていれば、変えた振り返りを書く。",
+            f"その{RESULT_WORD}について言っていることを変えていれば、変えた振り返りを書く。",
         ),
         el(
             "p",
-            "進捗は、論点に結んだ分析設計の状態から導いた言葉。色は添えただけで、"
+            "進捗は、論点に結んだ分析設計がどこまで進んだかから導いた言葉。色は添えただけで、"
             "意味は言葉が持つ。",
         ),
         _word_list(PROGRESS_WORDS.values()),
@@ -328,7 +468,32 @@ def legend() -> Html:
         ),
         el(
             "p",
-            "ツリーの決定の理由の下には、理由の根拠にした分析結果を出す。"
+            f"{STAGE_LABEL}は、論点に結んだ分析設計ごとに、分析設計の状態と journal "
+            "から導いた言葉。進捗は論点ごとに、分析の段階は分析設計ごとに出す。"
+            "色は添えただけで、意味は言葉が持つ。",
+        ),
+        _word_list(STAGE_WORDS.values()),
+        el(
+            "p",
+            f"「{STAGE_WORDS[AnalysisStage.awaiting_confirmation][0]}」の分析は、"
+            f"ページの冒頭にも抜き出す。止めた分析には{STOP_REASON}を、確認待ちの分析には"
+            f"{WHAT_IS_ASKED}を添える。分析設計の状態の言葉は、"
+            + "と".join(f"「{STAGE_WORDS[s][0]}」" for s in STAGES_WITH_STATUS)
+            + "の分析設計にだけ添える。",
+        ),
+        el(
+            "p",
+            f"「{HANDOVER_HEADING}」は、最新の論点ツリーの決定が指す論点に結んだ、"
+            f"「{STAGE_WORDS[AnalysisStage.before_run][0]}」の分析設計を列に並べる。"
+            "最新の決定が区切るなら、並べない。"
+            f"「{DIFFERS_WORD}」は、値の文字が分析設計の間で違えば付く。"
+            "同じ意味を違う言葉で書いた行にも付く。"
+            f"{COMMENT_WORD}欄に書いた文は、ボタンでこのページの中にまとめて出すだけで、"
+            "どこにも送らない。",
+        ),
+        el(
+            "p",
+            f"論点ツリーの決定の理由の下には、理由の根拠にした{RESULT_WORD}を出す。"
             "根拠を挙げていない理由は、そのことを書く。区切った論点のカードには、"
             "区切った回と理由を出す。",
         ),
@@ -395,7 +560,9 @@ def _status_rows() -> list[tuple[str, DesignStatus, list[str]]]:
 
 
 def _status_table() -> Html:
-    head = el("tr", join(el("th", h) for h in ("表示の言葉", "YAML の status", "意図")))
+    head = el(
+        "tr", join(el("th", h) for h in ("表示の言葉", "YAML の status", INTENT_LABEL))
+    )
     body = join(
         el("tr", el("td", word), el("td", status.value), el("td", "、".join(intents)))
         for word, status, intents in _status_rows()

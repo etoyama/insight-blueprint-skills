@@ -82,6 +82,13 @@ class TestTheDecisionCitesWhatItsReasonRestsOn:
     def test_each_violation_has_a_way_out(self, kind: str) -> None:
         assert table_row(_gate(), f"`{kind}`")[1]
 
+    def test_an_id_or_the_round_in_the_reason_is_not_asked_away(self) -> None:
+        # Epic 35, US-6 (ADR-0065): only a date is read as a number among names.
+        row = table_row(_gate(), "`number-not-cited`")[1]
+        assert re.search(r"id of a node[^.]*not counted", row)
+        assert "回目の振り返り" in row
+        assert "`fix`" in row
+
     def test_the_cites_are_never_dropped_to_get_past_the_check(self) -> None:
         assert re.search(
             r"(?i)never drop[^.]*`cites`[^.]*pass the check", unwrap(_gate())

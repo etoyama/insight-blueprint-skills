@@ -168,8 +168,8 @@ Next: /analysis-reflection {design_id} で振り返りと結論導出
 | `hypothesize` | Hypothesis formed or refined | `{forked_from?: design_id}` |
 | `evidence` | Evidence found from data analysis | `{direction?: "supports" \| "contradicts"}` — the lean against `hypothesis_statement`; an exploration's evidence has no `direction` |
 | `hearing` | What a person answered when asked | `{answered_by: str, answered_at: "YYYY-MM-DD", ask?: str, node_id?: str}` |
-| `question` | New question or uncertainty raised | `{priority?: "high" \| "medium" \| "low"}` |
-| `decide` | Method, tool, or approach chosen | `{method: str, package?: str, reason?: str}` |
+| `question` | New question or uncertainty raised | `{priority?: "high" \| "medium" \| "low"}`; a confirmation a handed-over analysis asks of the analyst holds `asks_analyst: true`, written by `design_io ask-analyst` |
+| `decide` | Method, tool, or approach chosen | `{method: str, package?: str, reason?: str}`; the analyst's answer to a confirmation holds `answers: event_id`, written by `design_io answer-analyst`; the reason an analysis was stopped holds `stopped: true`, written by `design_io stop` |
 
 > **methodology への昇格**: decide イベントで記録した method/package は、analysis-design の methodology フィールドに昇格できる。`design_io update --id {design_id}` に `{"methodology": {method, package, reason}}` を渡す。
 
@@ -178,6 +178,8 @@ Next: /analysis-reflection {design_id} で振り返りと結論導出
 | `branch` | Fork to alternative hypothesis | `{new_design_id: str, reason?: str}` |
 
 > **direction**: `direction` says whether the evidence supports or contradicts the design's hypothesis (`hypothesis_statement`), so it exists only for a design of the confirmation form. An exploration answers its question without an expectation, so leave `direction` out of its evidence, an exploration saved with a hypothesis included ([ADR-0050](../../docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md)). A guess formed during an exploration is a `hypothesize` event, not a `direction`: record the guess in its own words, and test it with a confirmation later.
+
+> **marks of a handed-over analysis**: never write `asks_analyst`, `answers` or `stopped` by hand, in this skill or any other. They decide the stage of the analysis (waiting for the analyst, running again, stopped), so only `design_io ask-analyst`, `design_io answer-analyst` and `design_io stop` write them, after checking the stage allows it. The pre-write hook refuses a Write or Edit of a journal that adds, removes or changes an event holding one of them; events without them are free ([ADR-0067](../../docs/adr/0067-the-hook-keeps-the-journal-marks-of-design-io.md), [ADR-0064](../../docs/adr/0064-a-handed-over-analysis-asks-before-changing-what-was-read-and-can-be-stopped.md)). A stopped analysis is not resumed: derive another design (Step 4).
 
 > **hearing**: a `hearing` event is what a person said, not an `observe` of the data and not `evidence` from an analysis. Ask who answered and when, and keep the answer in their words. `tree_io copy-hearing` writes one when a design is made on a question node whose next candidate holds a heard answer; it adds `ask` and `node_id` ([ADR-0028](../../docs/adr/0028-hearing-is-its-own-journal-event.md)).
 
@@ -214,7 +216,9 @@ roots = [d for d in designs if d["parent_id"] is None]
 
 A `question` event is considered **open** if no `conclude` event references it via
 `metadata.resolves`. `metadata.resolves` holds one event id or a list of event ids
-(/analysis-reflection writes a list). To list open questions:
+(/analysis-reflection writes a list). A confirmation a handed-over analysis asked
+(`asks_analyst`) that a `decide` event names in `answers` is not open either: the analyst's
+answer settled it. To list open questions:
 
 ```
 questions = [e for e in events if e.type == "question"]
@@ -223,7 +227,13 @@ for e in events:
     if e.type == "conclude" and e.metadata.get("resolves"):
         r = e.metadata["resolves"]
         resolved_ids |= set(r) if isinstance(r, list) else {r}
-open_questions = [q for q in questions if q.id not in resolved_ids]
+answered_ids = {e.metadata["answers"] for e in events
+                if e.type == "decide" and e.metadata.get("answers")}
+open_questions = [
+    q for q in questions
+    if q.id not in resolved_ids
+    and not (q.metadata.get("asks_analyst") and q.id in answered_ids)
+]
 ```
 
 ## design_io Reference

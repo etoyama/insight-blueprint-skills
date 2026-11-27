@@ -199,6 +199,8 @@ Ground the draft in the Data Map: say for each node which sources could answer i
 the gaps. Present the nodes with a recommended order and the reason for it. This is a KEEP
 gate, so ask the analyst two things and wait: whether the nodes are right (add, drop, reword), and which node
 to investigate first, with their reason. Keep the reason in the analyst's words.
+The analyst may choose several nodes to investigate first: 4d, "Several nodes in one decision",
+says which nodes go together and how the decision holds them.
 
 If the Data Map lists designs of this theme that no node of the tree holds, ask a third
 thing at the same gate: which node each of them belongs to. Show each design with its title
@@ -252,23 +254,25 @@ names a node the analyst has not just chosen. The one exception is a run handed 
 the theme (at the end of this step).
 
 1. Run `tree_io progress --theme {theme_id}` and `tree_io candidates --theme {theme_id}`.
-2. Show the node the latest decision names (the last entry of `decisions`), with its
+2. Show every node the latest decision names (the last entry of `decisions`: its `node_id`
+   and its `with_node_ids`, the `node_ids` of `tree_io position`), each with its
    progress and the designs linked to it. Say the progress the way the page does: the word
-   of `progress` (`not_started` 未着手, `investigating` 検証中, `analyzed` 分析済み), then,
-   when `below` is not empty, `この論点の下に置いた論点 {N} つ: 分析済み a、検証中 b、未着手 c`
+   of `progress` (`not_started` 未着手, `investigating` 調べている, `stopped` 止めた,
+   `analyzed` 分析済み), then,
+   when `below` is not empty, `この論点の下に置いた論点 {N} つ: 分析済み a、止めた b、調べている c、未着手 d`
    (`主題` in place of `この論点` for the root question; `{N}` is their sum, and a word with
    no count is left out). A node whose `progress` is `null` shows the counts alone and is
    never shown as 未着手: it has no design of its own, but one below it (ADR-0057). Show the
    next candidates that `candidates` printed, with their notes.
-3. Ask which node to design next, and wait. Do not output the Framing Brief, and do not
+3. Ask which node or nodes to design next, and wait. Do not output the Framing Brief, and do not
    suggest `/analysis-design`, until the analyst has answered.
 4. If the chosen node already has a design linked to it, say which designs and their
    status, and ask whether the analyst wants another design on the same node. Go on only
    after an explicit yes.
-5. If the analyst chose the same node the latest decision names, write no decision: the
+5. If the analyst chose the same node, or the same nodes, the latest decision names, write no decision: the
    tree already says so. This holds after a `close` too; designing on that node resumes it.
-6. If the analyst chose another node, ask for the reason and record the change, in the
-   analyst's words:
+6. If the analyst chose another node, or another set of nodes, ask for the reason and record
+   the change, in the analyst's words:
 
 ```bash
 echo '{"kind": "return", "node_id": "LIB-Q03",
@@ -281,11 +285,28 @@ echo '{"kind": "return", "node_id": "LIB-Q03",
 `tree_io` sets the round. If `decide` exits non-zero, show stderr and ask again; do not
 output the Framing Brief for a node the tree does not name.
 
+**Several nodes in one decision.** The analyst may choose several nodes that are handed
+over together. The first goes into `node_id` and the rest into `"with_node_ids"`, a list of
+node ids in the same payload (`"with_node_ids": ["LIB-Q04", "LIB-Q06"]`). `kind` is read from
+`node_id` alone. A `close` takes none.
+
+Only nodes that do not wait for each other go together. A node waits for another when its
+design cannot be written before the other's result is known: what it counts, what it
+extracts or the line it judges by is to be chosen from what the other finds. Before you write
+the decision, say for each chosen node in one line whether it needs a result of another chosen
+node. If it does, leave it out of the decision and tell the analyst which result it waits for,
+and that it can be chosen in the round after that result. No field records it: say it,
+write it nowhere. If the analyst says
+the node does not need that result, their word stands.
+
 **When handed the position.** A run may be handed the output of
-`tree_io position --theme {theme_id}`. When its `state` is `not_started`, the latest decision
-names a node the analyst chose, and nothing has been designed on it since: take its `node_id`
-as the answer, do not ask again and write no decision, and skip the question of 4c about what
-this run changes. Designs no node holds are still placed (4c). Go to 5b with that node. In any other state the gate stands: ask. A run
+`tree_io position --theme {theme_id}`. When its `state` is `not_started`, or `in_progress`
+with `undesigned_node_ids` not empty, the latest decision
+names nodes the analyst chose, and `undesigned_node_ids` holds those with nothing designed on
+them since: take `undesigned_node_ids` as the answer, do not ask again and write no decision,
+and skip the question of 4c about what
+this run changes. Designs no node holds are still placed (4c). Go to 5b and output a Framing
+Brief for each of them, in that order. In any other state the gate stands: ask. A run
 that was not handed the position always asks, whatever the tree says.
 
 ### Step 5: Output Framing Brief
@@ -348,7 +369,8 @@ and leave the other out:
   `exploratory`.
 
 Never suggest `mixed`: a new design cannot be `mixed`. `/analysis-design` asks the intent again
-whatever the Brief suggests.
+whatever the Brief suggests, except in a round of several nodes, where the analyst reads it on
+the page.
 
 ````markdown
 ## Framing Brief

@@ -638,11 +638,23 @@ class TestProgress:
             # The subject has designs only below it: no word, the counts below it.
             "LIB-Q01": {
                 "progress": None,
+                "designs": [],
                 "below": {"analyzed": 1, "investigating": 1, "not_started": 1},
             },
-            untouched: {"progress": "not_started", "below": {}},
-            open_node: {"progress": "investigating", "below": {}},
-            done_node: {"progress": "analyzed", "below": {}},
+            untouched: {"progress": "not_started", "designs": [], "below": {}},
+            open_node: {
+                "progress": "investigating",
+                "designs": [
+                    {"design_id": open_design, "stage": "before_run"},
+                    {"design_id": done_design, "stage": "finished"},
+                ],
+                "below": {},
+            },
+            done_node: {
+                "progress": "analyzed",
+                "designs": [{"design_id": done_design, "stage": "finished"}],
+                "below": {},
+            },
         }
 
     def test_a_question_with_no_design_on_it_or_below_it_is_not_started(
@@ -655,11 +667,17 @@ class TestProgress:
 
         assert progress[parent] == {
             "progress": "not_started",
+            "designs": [],
             "below": {"not_started": 1},
         }
-        assert progress[child] == {"progress": "not_started", "below": {}}
+        assert progress[child] == {
+            "progress": "not_started",
+            "designs": [],
+            "below": {},
+        }
         assert progress["LIB-Q01"] == {
             "progress": "not_started",
+            "designs": [],
             "below": {"not_started": 2},
         }
 

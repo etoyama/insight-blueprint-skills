@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections import Counter
 
 from insight_blueprint.models.tree import Progress
+from skills._shared import tree_words
 from skills._shared.tree_check import CitedEvent
 from skills._shared.tree_words import below_text, reflection
 from tests._tree_page import (
@@ -121,7 +122,7 @@ class TestProgressOfAQuestionWithoutADesign:
 
         meta = _meta(root, "LIB-Q05")
         assert "進捗:" not in meta
-        assert "この論点の下に置いた論点 1 つ: 検証中 1" in meta
+        assert "この論点の下に置いた論点 1 つ: 調べている 1" in meta
 
     def test_the_counts_of_the_page_leave_out_a_question_shown_by_its_counts(
         self,
@@ -129,7 +130,7 @@ class TestProgressOfAQuestionWithoutADesign:
         counts = squash(by_id(page(), "counts").text())
 
         assert "未着手 2" in counts
-        assert "検証中 1" in counts
+        assert "調べている 1" in counts
         assert "分析済み 1" in counts
 
     def test_the_legend_says_how_such_a_question_shows_its_progress(self) -> None:
@@ -168,6 +169,14 @@ class TestAClosedQuestion:
         self,
     ) -> None:
         tree = _closed(_decision("deepen", "LIB-Q03"))
+
+        assert "区切った" not in node_text(page(tree=tree), "LIB-Q03")
+
+    def test_a_question_handed_over_after_it_was_closed_no_longer_says_so(
+        self,
+    ) -> None:
+        """Epic 35 US-1 AC 1: a decision names its questions handed over too."""
+        tree = _closed(_decision("return", "LIB-Q02", with_node_ids=["LIB-Q03"]))
 
         assert "区切った" not in node_text(page(tree=tree), "LIB-Q03")
 
@@ -243,7 +252,7 @@ class TestWhatADecisionRestsOn:
 
         shown = squash(by_id(page(tree=tree), "next-question").text())
 
-        assert "この理由は、根拠にした分析結果を挙げていない。" in shown
+        assert tree_words.NO_GROUNDS_WORDS in shown
 
     def test_what_a_person_said_is_not_called_an_analysis_result(self) -> None:
         events = make_events()
@@ -302,4 +311,4 @@ class TestWhatADecisionRestsOn:
         )
 
         assert "この理由の根拠にした分析結果" in shown
-        assert "人に聞いた答え" not in shown
+        assert tree_words.HEARD_RESULT_WORD not in shown

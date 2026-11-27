@@ -13,14 +13,17 @@ from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import DesignForm, DesignStatus
 from insight_blueprint.models.tree import QuestionTree
 from insight_blueprint.validate import validate_tree_schema
 from skills._shared._html import Html
 from skills._shared.design_note import intent_words_of
+from skills._shared.handover import HandoverDesign
 from skills._shared.tree_check import CitedEvent, Violation
 from skills._shared.tree_render import CheckFailed, DesignSummary, render_tree_html
 from skills._shared.tree_words import MARK_WORDS, Mark
+from tests._stages import stage_of_status
 
 BUSINESS_AIM = {
     "kind": "business",
@@ -251,8 +254,14 @@ def summary(
     intent: str | None = None,
     statement: str = "",
     comments_after_analysis: int = 0,
+    stage: AnalysisStage | None = None,
+    stop_reason: str | None = None,
+    asks: tuple[str, ...] = (),
 ) -> DesignSummary:
-    """A design as the page sees it. An explored design is an exploration unless told."""
+    """A design as the page sees it. An explored design is an exploration unless told.
+
+    The stage is the one its status gives with an empty journal unless told.
+    """
     if form is None:
         form = (
             DesignForm.exploration if status == "explored" else DesignForm.confirmation
@@ -266,7 +275,10 @@ def summary(
         form=form,
         intent=intent_words_of(form)[0] if intent is None else intent,
         statement=statement,
+        stage=stage_of_status(status) if stage is None else stage,
         comments_after_analysis=comments_after_analysis,
+        stop_reason=stop_reason,
+        asks=asks,
     )
 
 
@@ -306,6 +318,7 @@ def render(
     violations: list[Violation] | CheckFailed | None = None,
     design_notes: dict[str, Html] | None = None,
     shared: list[str] | None = None,
+    handover: list[HandoverDesign] | None = None,
 ) -> str:
     shown = make_designs() if designs is None else designs
     return render_tree_html(
@@ -315,6 +328,7 @@ def render(
         [] if violations is None else violations,
         stub_design_notes(shown) if design_notes is None else design_notes,
         shared=frozenset(shared or ()),
+        handover=handover or [],
     )
 
 
@@ -325,8 +339,11 @@ def page(
     violations: list[Violation] | CheckFailed | None = None,
     design_notes: dict[str, Html] | None = None,
     shared: list[str] | None = None,
+    handover: list[HandoverDesign] | None = None,
 ) -> Element:
-    return parse(render(tree, designs, events, violations, design_notes, shared))
+    return parse(
+        render(tree, designs, events, violations, design_notes, shared, handover)
+    )
 
 
 def has_class(element: Element, name: str) -> bool:

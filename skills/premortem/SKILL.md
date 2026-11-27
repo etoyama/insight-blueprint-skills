@@ -47,6 +47,12 @@ It does **not** issue tokens, gate execution, or write to disk — it advises.
      An empty `methodology.package` is `true`. A missing file adds nothing and is never `null`: use
      `null` only when the file exists but cannot be read (invalid YAML, no `allowed_packages`), even
      when every package is in the default allowlist.
+   - A design already `analyzing` is evaluated again like any other: only a terminal status
+     is skipped. Run premortem again whenever the extraction of a design changed after its
+     last premortem, as after the analyst answered what a handed-over analysis asked
+     (`/analysis-auto` Step 3H).
+   - A design whose analysis was stopped is not run again, so it is not evaluated: when
+     `design_io stage --id <id>` says `stopped`, leave it out of `designs` and say so.
    - Pipe `{ "designs": [...], "source_checks_map": {...} }` as JSON to cli.py stdin. Put each
      design in `designs` as `design_io get` returned it: a design without `source_ids` is
      `HARD_BLOCK` with the reason `no data source declared`.

@@ -188,6 +188,20 @@ class TestEachPhrasingIsSpelledOnce:
             (tree_words.OPEN_EVIDENCE, "根拠を開く"),
             (tree_words.OPEN_NOTE, "分析ノートを開く"),
             (tree_words.BACK_TO_TREE, "論点ツリーへ戻る"),
+            (tree_words.asks_heading(2), "あなたの確認待ち（2件）"),
+            (
+                tree_words.ASKS_LEAD,
+                "次の分析は、あなたの答えを待って止まっている。"
+                "この確認には、チャットでエージェントに答える。",
+            ),
+            (tree_words.handover_heading(3), "分析を任せる前の確認（3件）"),
+            (tree_words.DIFFERS_WORD, "分析間の違い"),
+            (tree_words.GATHER_BUTTON, "コメントをまとめる"),
+            (tree_words.GATHERED_HEAD, "分析を任せる前の確認へのコメント"),
+            (tree_words.NO_CRITERION, "探索は判定しないので、判定の基準は無い。"),
+            (tree_words.WHAT_IS_ASKED, "確認したいこと"),
+            (tree_words.STOP_REASON, "止めた理由"),
+            (tree_words.LINKED_NODES, "結んだ論点"),
             (
                 # The furthest first, with all three words.
                 tree_words.below_text(
@@ -200,7 +214,7 @@ class TestEachPhrasingIsSpelledOnce:
                         }
                     ),
                 ),
-                "主題の下に置いた論点 4 つ: 分析済み 1、検証中 1、未着手 2",
+                "主題の下に置いた論点 4 つ: 分析済み 1、調べている 1、未着手 2",
             ),
             (
                 tree_words.below_text(
@@ -211,7 +225,7 @@ class TestEachPhrasingIsSpelledOnce:
             ),
             (
                 tree_words.below_text(False, Counter({Progress.investigating: 1})),
-                "この論点の下に置いた論点 1 つ: 検証中 1",
+                "この論点の下に置いた論点 1 つ: 調べている 1",
             ),
         ],
     )
@@ -223,7 +237,34 @@ class TestEachPhrasingIsSpelledOnce:
     @pytest.mark.parametrize(
         ("table", "words"),
         [
-            (tree_words.PROGRESS_WORDS, ["未着手", "検証中", "分析済み"]),
+            (tree_words.PROGRESS_WORDS, ["未着手", "調べている", "止めた", "分析済み"]),
+            (
+                {r: (w, "") for r, w in tree_words.HANDOVER_ROW_WORDS.items()},
+                [
+                    "意図",
+                    "何に答えるか",
+                    "判定の基準",
+                    "対象",
+                    "粒度",
+                    "分母",
+                    "データソース",
+                    "手法",
+                    "主指標",
+                    "抽出・加工条件",
+                    "図",
+                ],
+            ),
+            (
+                tree_words.STAGE_WORDS,
+                [
+                    "任せる前",
+                    "進行中",
+                    "あなたの確認待ち",
+                    "止めた",
+                    "計算が終わり、振り返りを待っている",
+                    "終わった",
+                ],
+            ),
             (
                 tree_words.KIND_WORDS,
                 ["これまでわかっていること", "まだ決められないこと", "注意すべきこと"],

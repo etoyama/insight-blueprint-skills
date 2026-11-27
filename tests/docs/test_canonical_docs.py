@@ -207,6 +207,32 @@ class TestEpicBranchTrial:
         assert "claude plugin marketplace remove insight-blueprint-epic<N>" in undo
         assert "~/.claude/plugins/cache/insight-blueprint-epic<N>" in undo
 
+    def _part(self, heading: str) -> str:
+        return unwrap(section(section(_read("CONTRIBUTING.md"), self.HEADING), heading))
+
+    def test_the_brief_of_a_trying_session_says_how_to_check(self) -> None:
+        """Epic 35 real-data finding 3: a brief checked the skill list and stopped twice."""
+        check = self._part("#### Check")
+        assert re.search(
+            r"試すセッションに渡す指示[^。]*skill の一覧で確かめない", check
+        )
+        assert "`/insight-blueprint:analysis-auto`" in check
+        assert re.search(r"人間が[^。]*打つ", check)
+
+    def test_a_worktree_copies_the_settings_from_the_main_checkout(self) -> None:
+        """Epic 35 real-data finding 2: --scope local wrote to the main checkout."""
+        worktree = self._part("#### Trying in a worktree")
+        assert "<main>/.claude/settings.local.json" in worktree
+        assert re.search(r"Claude Code \d+\.\d+\.\d+", worktree)
+        for key in ("`enabledPlugins`", "`extraKnownMarketplaces`"):
+            assert key in worktree, key
+        assert "claude plugin list" in worktree
+
+    def test_the_undo_of_a_worktree_restores_the_main_checkout(self) -> None:
+        undo = self._part("#### Undo")
+        assert "<main>" in undo
+        assert "main.settings.local.json.bak" in undo
+
 
 class TestRoadmap:
     """US-2 AC 1, AC 2: the PRD roadmap is the one list of Epics; ARCHITECTURE has a context map."""
@@ -848,7 +874,7 @@ class TestQuestionTreeDocs:
             "進捗",
             "現時点の答え",
             "振り返りの回",
-            "ツリーの決定",
+            "論点ツリーの決定",
             "次の候補",
             "ツリーの検査",
             "Artifact",
@@ -914,7 +940,7 @@ class TestQuestionTreeDocs:
             "寄与": "contribution",
             "発見元": "origin_event_id",
             "進捗": "Progress",
-            "ツリーの決定": "TreeDecision",
+            "論点ツリーの決定": "TreeDecision",
         }
         for term, name in expected.items():
             assert f"`{name}`" in rows[term], term
@@ -976,10 +1002,32 @@ class TestQuestionTreeDocs:
             "ツリーを作って巡回に入るか",
             "主題",
             "最初に調べる論点",
-            "ツリーの決定",
+            "論点ツリーの決定",
             "主題の版",
         ):
             assert any(gate in line for line in keeps), gate
+
+    def test_architecture_autopilot_hands_several_questions_over_together(
+        self,
+    ) -> None:
+        """Epic 35, Story 35.7 (US-4, US-5 AC 3): the round of a decision of several questions."""
+        sequence = section(_read("docs/ARCHITECTURE.md"), self.AUTOPILOT)
+        assert "participant W as 実行エージェント" in sequence
+        for call in (
+            "tree_io handover",
+            "design_io journal-append",
+            "design_io ask-analyst",
+            "design_io answer-analyst",
+            "design_io stop",
+        ):
+            assert call in sequence, call
+        keeps = [line for line in sequence.splitlines() if "【KEEP" in line]
+        for gate in ("分析を任せる前の確認", "任せた分析の確認", "終え方"):
+            assert any(gate in line for line in keeps), gate
+        # Only the dialogue agent rebuilds the page, each time an agent returns.
+        renders = [line for line in sequence.splitlines() if "tree_io render" in line]
+        assert renders and all(line.strip().startswith("D->>") for line in renders)
+        assert "戻りのたび" in sequence
 
     def test_architecture_autopilot_writes_no_report(self) -> None:
         """Epic 29 US-5 AC 2: the walk writes no report; the decision shows the tree's HTML."""

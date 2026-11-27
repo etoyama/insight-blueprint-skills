@@ -17,7 +17,7 @@ import json
 import re
 import sys
 import unicodedata
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 from pathlib import Path
@@ -25,6 +25,7 @@ from typing import Literal
 
 from insight_blueprint.models.tree import QuestionTree, design_id_of
 from skills._shared.design_io import DEFAULT_BASE_DIR, resolve_base_dir
+from skills._shared.tree_words import REFLECTION_NAMED, REFLECTION_OF_N
 
 # The dashes and triangles writers use for "down" all read as one minus: a
 # glyph left out passes as an unsigned number. The wave dash is left out
@@ -57,13 +58,57 @@ def numbers_in(text: str) -> list[Number]:
     change is a claim, so "-3.2" passes only when a record wrote it with a minus.
     """
     return [
-        Number(
-            m.group(),
-            _sign_of(m.group("sign")),
-            Decimal(m.group("digits").replace(",", "")),
-        )
-        for m in _NUMBER.finditer(unicodedata.normalize("NFKC", text))
+        _number_of(m) for m in _NUMBER.finditer(unicodedata.normalize("NFKC", text))
     ]
+
+
+def _number_of(match: re.Match[str]) -> Number:
+    return Number(
+        match.group(),
+        _sign_of(match.group("sign")),
+        Decimal(match.group("digits").replace(",", "")),
+    )
+
+
+def _counted_in(tree: QuestionTree) -> Callable[[str], list[Number]]:
+    """What reads the numbers of a text the way ``numbers_in`` does, less the names of *tree*.
+
+    An id of a node, of a design linked to a node or of an event of such a
+    design, and the N of "N回目の振り返り" up to the current round, name the
+    tree, not a result. An id the tree does not hold and a round not yet taken
+    are left in: their digits are a claim like any other number (ADR-0065).
+    An event id is a name even when no such event is recorded: the cites, not
+    the text, are what must exist.
+
+    A number is left out only when the whole of it is a name. Its digits must
+    lie inside an id, or be exactly the N of a round: the 1.2 of "1.2回目" and
+    the 02.7 of "LIB-Q02.7" are numbers that only touch a name.
+    """
+    named = [re.escape(n.id) for n in tree.nodes]
+    named += [rf"{re.escape(d)}(?:-E\d+)?" for d in sorted(tree.linked_designs())]
+    ids = re.compile(rf"(?<![0-9A-Za-z])(?:{'|'.join(named)})(?![0-9])")
+    current = tree.current_round()
+
+    def counted(text: str) -> list[Number]:
+        text = unicodedata.normalize("NFKC", text)
+        id_spans = [m.span() for m in ids.finditer(text)]
+        round_spans = {m.span("n") for m in REFLECTION_NAMED.finditer(text)}
+        numbers = []
+        for match in _NUMBER.finditer(text):
+            start, end = digits = match.span("digits")
+            number = _number_of(match)
+            if any(s <= start and end <= e for s, e in id_spans):
+                continue
+            if (
+                digits in round_spans
+                and not number.sign
+                and 1 <= number.value <= current
+            ):
+                continue
+            numbers.append(number)
+        return numbers
+
+    return counted
 
 
 def _sign_of(written: str | None) -> Sign:
@@ -101,6 +146,7 @@ def find_violations(tree: QuestionTree, events: Mapping[str, str]) -> list[Viola
     Earlier rounds are history that cannot be rewritten, so they are not checked.
     """
     designs = tree.designs_by_branch()
+    counted = _counted_in(tree)
     violations: list[Violation] = []
     for node in tree.nodes:
         answer = node.current_answer()
@@ -108,7 +154,7 @@ def find_violations(tree: QuestionTree, events: Mapping[str, str]) -> list[Viola
             continue
         for position, statement in enumerate(answer.statements, start=1):
             found = _cite_problems(
-                statement.text, statement.cites, events, designs[node.id]
+                counted(statement.text), statement.cites, events, designs[node.id]
             )
             violations += [
                 Violation(node.id, answer.round, position, kind, text)
@@ -125,6 +171,29 @@ class DecisionViolation:
     text: str
 
 
+# What a writer refused for a number does next (ADR-0065). The exempt names are
+# spelled out so that a writer does not take an id or a round out for nothing.
+NUMBER_FIX = (
+    "The number is in none of the cited events. If another event records it, "
+    "cite the event that records it as well; if no event records it, take the "
+    "number out of the text. An id of a node, of a linked design or of its "
+    f"event, and the N of '{REFLECTION_OF_N}' up to the current round, are not "
+    "counted as numbers."
+)
+
+
+def reported(violation: Violation | DecisionViolation) -> dict:
+    """A violation as a caller reads it: a number not cited carries its ``fix``.
+
+    Every command that prints violations goes through here, so the same
+    violation never says how to fix it in one place and not in another.
+    """
+    shown = asdict(violation)
+    if violation.kind == "number-not-cited":
+        shown["fix"] = NUMBER_FIX
+    return shown
+
+
 def _decision_violations(
     tree: QuestionTree, position: int, events: Mapping[str, str]
 ) -> list[DecisionViolation]:
@@ -138,15 +207,21 @@ def _decision_violations(
     return [
         DecisionViolation(position, decision.round, kind, text)
         for kind, text in _cite_problems(
-            decision.reason, decision.cites, events, linked
+            _counted_in(tree)(decision.reason), decision.cites, events, linked
         )
     ]
 
 
 def _cite_problems(
-    text: str, cites: Sequence[str], events: Mapping[str, str], linked: set[str]
+    numbers: Sequence[Number],
+    cites: Sequence[str],
+    events: Mapping[str, str],
+    linked: set[str],
 ) -> list[tuple[ViolationKind, str]]:
-    """What is wrong with *text* resting on *cites*, cites first, then numbers."""
+    """What is wrong with a text whose *numbers* rest on *cites*, cites first.
+
+    *numbers* are those the text claims, its names left out (``_counted_in``).
+    """
     problems: list[tuple[ViolationKind, str]] = []
     for cite in cites:
         if cite not in events:
@@ -159,7 +234,7 @@ def _cite_problems(
         if cite in events
         for number in numbers_in(events[cite])
     }
-    for number in numbers_in(text):
+    for number in numbers:
         if number not in seen:
             seen.add(number)
             problems.append(("number-not-cited", number.token))
@@ -255,7 +330,7 @@ def _main(argv: list[str] | None = None) -> int:
         return 2
 
     json.dump(
-        {"tree": str(path), "violations": [asdict(v) for v in violations]},
+        {"tree": str(path), "violations": [reported(v) for v in violations]},
         sys.stdout,
         ensure_ascii=False,
     )

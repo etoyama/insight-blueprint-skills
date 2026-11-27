@@ -128,6 +128,7 @@ Before any other field of the design, ask one question:
 | `theme_id` | No | Uppercase identifier — defaults to "DEFAULT" | "FP", "TX", "ECON" |
 | `parent_id` | No | Parent design ID if this is derived | "FP-H01" |
 | `source_ids` | No (always asked) | Ids of the registered catalog data sources the analysis uses — see "Data sources" below | `["crime_stats", "population"]` |
+| `data_scope` | No; yes for a design handed over with others | What the analysis counts, as three sentences: `population` (what is in), `grain` (what one row is) and `denominator` (what a rate divides by; when no rate is measured, say that there is none). All three or none | `{population: "2025年度に取り置いた予約", grain: "予約1件", denominator: "取り置いた予約の全件"}` |
 | `metrics` | No | List of verification metric dicts (tier: "primary" / "secondary" / "guardrail") | `[{target: "crime_rate_per_100k", tier: "primary", data_source: {column: "crime_count"}, grouping: [...], filter: "...", aggregation: "mean", comparison: "..."}]` |
 | `explanatory` | No | List of explanatory variable dicts (role: "treatment" / "confounder" / "covariate" / "instrumental" / "mediator") | `[{name: "foreign_ratio", description: "外国人比率", role: "treatment", data_source: "population の foreign_count 列", time_points: "2012-2022"}]` |
 | `chart` | No | List of visualization definition dicts (intent: "distribution" / "correlation" / "trend" / "comparison") | `[{intent: "correlation", type: "scatter", description: "FP ratio vs crime rate", x: "foreign_ratio", y: "crime_rate"}]` |
@@ -284,6 +285,13 @@ methodology = {
 > as the *data-extraction* confirmation beat (`/analysis-auto` gate policy, design beat ③) — the actual
 > query text (or, for a non-SQL source, the data source id + columns/filter) is presented to the user **before**
 > `design_io create` and before premortem. Standalone `/analysis-design` invocation is unchanged.
+
+> **Under `/analysis-auto`, in a round of several nodes** (its Step 3H): draft every field from
+> the Framing Brief and write the `data_scope`, then create the design (Step 3) without asking.
+> The analyst reads the design on the page, beside the others, before anything runs, and a
+> design without a `data_scope` is not put to that check until it states one
+> ([ADR-0066](../../docs/adr/0066-a-design-may-state-its-population-grain-and-denominator.md)).
+> Take the intent the Brief suggests; the analyst changes it by a comment at the check.
 
 ### Step 3: Create the Design
 

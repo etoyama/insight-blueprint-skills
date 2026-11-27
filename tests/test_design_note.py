@@ -33,6 +33,7 @@ from skills._shared.verdict_table import (
     VerdictMetric,
 )
 from tests._saved_verdicts import table_rows
+from tests._stages import stage_of_status
 
 PNG = b"\x89PNG\r\n\x1a\nnot-really-a-png"
 EVIL = '<script>alert(1)</script>"'
@@ -76,6 +77,8 @@ def _note(**over: object) -> DesignNote:
             conclusion=over.pop("verdict_conclusion", None),  # type: ignore[arg-type]
         )
     fields.update(over)
+    # The stage its status gives with an empty journal, unless told.
+    fields.setdefault("stage", stage_of_status(fields["design"].status))
     return DesignNote(**fields)
 
 
@@ -512,6 +515,42 @@ def test_a_metric_without_effect_size_or_interval_shows_no_label_for_them() -> N
 
     assert "（" not in html.split("指標の値")[1]
     assert "水準" not in html
+
+
+class TestDataScope:
+    """US-7 AC 3: the note shows the population, grain and denominator by the method."""
+
+    SCOPE = {
+        "population": "2026年4月に取り置きされた本",
+        "grain": "取り置き1件",
+        "denominator": "取り置きの件数",
+    }
+
+    def test_the_method_section_shows_the_three_parts(self) -> None:
+        design = _design(data_scope=self.SCOPE)
+        method = _section_of(str(render_note(_note(design=design))), "method")
+
+        assert "対象: 2026年4月に取り置きされた本" in method
+        assert "粒度: 取り置き1件" in method
+        assert "分母: 取り置きの件数" in method
+
+    def test_the_scope_shows_without_a_method_too(self) -> None:
+        design = _design(data_scope=self.SCOPE, methodology=None)
+        method = _section_of(str(render_note(_note(design=design))), "method")
+
+        assert "分母: 取り置きの件数" in method
+
+    def test_a_design_without_a_scope_shows_none_of_the_three(self) -> None:
+        method = _section_of(str(render_note(_note())), "method")
+
+        for label in ("対象: ", "粒度: ", "分母: "):
+            assert label not in method
+
+    def test_the_scope_is_escaped(self) -> None:
+        scope = {**self.SCOPE, "population": "<b>本</b>"}
+        html = str(render_note(_note(design=_design(data_scope=scope))))
+
+        assert "<b>本</b>" not in html
 
 
 def _section_of(html: str, name: str) -> str:

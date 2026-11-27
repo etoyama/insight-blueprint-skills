@@ -44,8 +44,20 @@ identify remaining gaps, or decide to branch.
 
 1. `design_io get --id {design_id}` — load design (JSON)
 2. Read `.insight/designs/{design_id}_journal.yaml` using Read tool — load journal
-3. If no journal exists, or it holds no event other than `hearing` (the answer `/analysis-design`
-   copied in before the analysis ran): "ジャーナルがない。まず /analysis-journal {id} で推論過程を記録してから振り返ろう" → exit
+3. Read whether the analysis left a result. Never work it out from the status and the
+   journal yourself:
+
+```bash
+design_io stage --id {design_id}
+```
+
+   - `stage` is `stopped`: the analysis was stopped, so there is no result to reflect on.
+     Say so, and suggest deriving a new design with /analysis-design (`parent_id`) → exit
+   - `stage` is `awaiting_confirmation`: the analysis waits for the analyst's answer to what
+     `asks` holds. Say so → exit
+   - `result_on_record` is false: the journal is missing, or holds only what was written
+     before the analysis ran (the answer `/analysis-design` copied in as a `hearing`, say):
+     "ジャーナルがない。まず /analysis-journal {id} で推論過程を記録してから振り返ろう" → exit
 
 ### Step 2: Present Analysis Summary
 
@@ -87,6 +99,9 @@ Without a direction: {count} items
 論点: {node_ids}
 気づいたことはこのチャットで返せば、journal に残す。
 ```
+
+Open Questions lists the questions that are open as /analysis-journal defines it (Open
+Questions): a confirmation the analyst already answered is not one of them.
 
 An exploration's evidence carries no `direction` (ADR-0050): show it all under
 `Without a direction` and leave out the other two lines. A legacy exploration may hold both:
@@ -218,6 +233,18 @@ When the analyst ends the design:
    is optional, and the analyst decides whether to ask for one. It comes before the conclusion
    is recorded: it moves the design back to `in_review`, and approving it returns the design to
    `analyzing`. Once the design has ended it can no longer be reviewed.
+   Before you ask, say what the review does, in these words:
+   「結果のレビューでは、Claude が notebook・verdict・図・分析設計を批評し、コメントを残す。
+   受けると、結論の記録はレビューの後になる。受けないと、この場で結論を記録し、以後はレビューできない」.
+   Then give one line of suggestion for this design, by the guide below.
+
+   **The guide to a review of the result.** For a confirmation, which ends on a verdict,
+   suggest taking the review. For an exploration, say it usually does not need one. Still
+   offer it as a choice worth taking when the analysis added something the design does not
+   have (a comparison, say), or when the only check of the numbers adds up figures within
+   the data, against no total from outside it. The analyst decides: the line is a
+   suggestion, and either answer goes on.
+
    - The analyst takes the review → record no `conclude` yet, and send them to
      `/analysis-review {design_id}`. After the review, `/analysis-reflection {design_id}` comes
      back to this step and records one `conclude` for the design. Do not ask about a review
@@ -309,12 +336,20 @@ an answer only after the tree check has passed (ADR-0025).
    reads the `.insight` of the directory it is run from.
 2. `tree_io progress --theme {theme_id}` — the progress of each node, derived from its
    linked designs. Each node has `progress`, its word (`not_started` 未着手,
-   `investigating` 検証中, `analyzed` 分析済み), and `below`, how many nodes under it have
+   `investigating` 調べている, `stopped` 止めた, `analyzed` 分析済み), and `below`, how many nodes under it have
    each word. A node with no design of its own but one below it has `progress` `null` and
    is shown by its `below`, as the page shows it (Step T5).
 3. For every design id in the `design_ids` of any node, read
    `.insight/designs/{design_id}_journal.yaml` with the Read tool. A design without a
    journal has no events to cite.
+4. `tree_io position --theme {theme_id}` — where the walk stands. When its `state` is
+   `concluded` and every design of its `design_ids` has the stage `stopped` in `nodes`, the
+   round has no result to answer from. Tell the analyst "今回任せた分析はどれも止めたので、
+   新しい結果は無い。" and show each of those designs with its 止めた理由, as
+   `design_io stage --id {design_id}` gives it in `stop_reason`. Then ask whether the current answers stay as
+   they are. When they stay, write no answer for this round: skip Steps T2 to T5 and go to
+   Step T6. When the analyst wants an answer changed by what a reason says, go on with
+   Step T2 as usual.
 
 ### Step T2: Write the statements of each node
 
@@ -342,8 +377,10 @@ Rules for every statement:
   number: no ratio, difference, sum, average, rounding or unit conversion of recorded
   numbers. When the answer needs such a value, say that it is not recorded; the notebook
   computes it and the journal records it before an answer may state it.
-- No id and no date in `text`. The digits of `LIB-H01-E02` or `11月21日` are read as
-  numbers and reported as violations. Event ids go in `cites`; nothing else needs them.
+- No date in `text`. The digits of `11月21日` are read as numbers and reported as
+  violations. An id of a node, of a design linked to a node or of its event, and the N of
+  "N回目の振り返り" up to the current round, are not read as numbers; any other id is.
+  Event ids go in `cites`, so an answer rarely needs one in `text`.
 - An event of kind `evidence` with `direction: contradicts` that bears on the node is
   cited in a `weakening` statement, not left out.
 
@@ -451,7 +488,7 @@ rejects a rewritten answer, and only `tree_io answer` checks the answer before i
 
 | Violation `kind` | How to fix it |
 |---|---|
-| `number-not-cited` | The number in `text` is in none of the cited events. Rewrite it the way the record wrote it: the same digits and the same sign. When the record states the direction in words ("3.2ポイント減った"), use those words instead of a sign ("−3.2"). If another event of the branch records the number, cite it. If no event records it, the number was computed or remembered: take it out |
+| `number-not-cited` | The number in `text` is in none of the cited events; the violation's `fix` says so. Rewrite it the way the record wrote it: the same digits and the same sign. When the record states the direction in words ("3.2ポイント減った"), use those words instead of a sign ("−3.2"). If another event of the branch records the number, cite it, a value to compare with ("1を超える") included. If no event records it, the number was computed or remembered: take it out |
 | `missing-event` | The cited id is not in the journal of its design. Cite the event you actually read, or take the cite out |
 | `unlinked-design` | The cited event belongs to a design that is linked neither to the node nor to a node below it. Cite an event from the node's own branch, or take the cite out |
 
@@ -487,7 +524,7 @@ Show no answer to the analyst before `tree_check` has run, and never show an ans
 主題: {root question}
 
 {node_id}  {question}
-  Progress: {未着手 | 検証中 | 分析済み}{　この論点の下に置いた論点 {N} つ: 分析済み a、検証中 b、未着手 c}
+  Progress: {未着手 | 調べている | 止めた | 分析済み}{　この論点の下に置いた論点 {N} つ: 分析済み a、止めた b、調べている c、未着手 d}
   Answer（{round}回目の振り返り{、見直す前の主題への答え}）:
     [これまでわかっていること] {text}  ← {cites}
     [まだ決められないこと] {text}  ← {cites}
@@ -539,8 +576,8 @@ the drafts.
   decision. When a statement that rests on a result the analyst chose was removed in Step
   T3, say so next to it under Removed statements.
 - Say the progress the way the page does. The word comes from `progress`. When `below`
-  is not empty, add its counts after the word: `この論点の下に置いた論点 {N} つ: 分析済み a、検証中 b、未着手 c`,
-  and `主題の下に置いた論点 {N} つ: 分析済み a、検証中 b、未着手 c` for the root question.
+  is not empty, add its counts after the word: `この論点の下に置いた論点 {N} つ: 分析済み a、止めた b、調べている c、未着手 d`,
+  and `主題の下に置いた論点 {N} つ: 分析済み a、止めた b、調べている c、未着手 d` for the root question.
   `{N}` is their sum, and a word with no count is left out. A node whose `progress` is
   `null` shows the counts alone and is never shown as 未着手: it has no design of its own,
   but one below it (ADR-0057).
@@ -633,15 +670,18 @@ echo '{"answer": "金曜の夕方に確保した本は、月曜の朝にまと�
   a journal: when a design is made on that node, `/analysis-design` copies it into the
   design's journal as a `hearing` event.
 
-**2. The decision.** Show the node the investigation is at: the `node_id` of the last entry
-of `decisions` in `tree_io get --theme {theme_id}`. Then ask which of the four the analyst
-chooses. For the first three, ask which node comes next and why:
+**2. The decision.** Show the nodes the investigation is at: the `node_ids` of
+`tree_io position --theme {theme_id}`, every node the last decision names. They are the
+current nodes of the table below. Then ask which of the four the analyst
+chooses. For the first three, ask which node or nodes come next and why. The analyst may
+choose several nodes to hand over together: `/analysis-framing` 4d, "Several nodes in one
+decision", says which nodes go together and how the decision holds them:
 
 | `kind` | What the analyst chooses | `node_id` |
 |---|---|---|
-| `deepen` | 深める — keep investigating the current node or a node below it | the current node, or a node below it |
-| `return` | 親に戻る — leave the current node for its parent or another branch | a node that is neither the current node nor below it |
-| `close` | 区切る — stop here for now | the current node |
+| `deepen` | 深める — keep investigating a current node or a node below it | a current node, or a node below one |
+| `return` | 親に戻る — leave the current nodes for a parent or another branch | a node that is neither a current node nor below one |
+| `close` | 区切る — stop here for now | a current node |
 | — | 主題そのものを見直す — what was found shows that the root question itself, or its aim, asks the wrong thing | none |
 
 ```bash
@@ -673,7 +713,7 @@ echo '{"kind": "return", "node_id": "LIB-Q03",
 
   | Violation `kind` | What to ask the analyst |
   |---|---|
-  | `number-not-cited` | A number in the reason is in none of the cited events. Ask whether another event records it (then cite that one too), or whether they say the reason again the way the record wrote the number, or without it. An id or a date in the reason is read as a number as well: ask for the reason without it |
+  | `number-not-cited` | A number in the reason is in none of the cited events; the violation's `fix` says so. Ask whether another event records it (then cite that one too, a value to compare with such as "1を超える" included), or whether they say the reason again the way the record wrote the number, or without it. An id of a node, of a linked design or of its event, and the N of "N回目の振り返り" up to the current round, are not counted; a date and any other id are: ask for the reason without it |
   | `missing-event` | The cited id is not in the journal of its design. Cite the event you actually read, and read it back again |
   | `unlinked-design` | The cited event belongs to a design that is linked to no node of the tree. Ask whether the design belongs on a node (`/analysis-framing {theme_id}` links it), or take the cite out with the analyst's word |
 
@@ -728,6 +768,7 @@ Both are on PATH via the plugin. JSON on stdout.
 |---------|----------|
 | `tree_io get --theme T` | Load the question tree |
 | `tree_io progress --theme T` | Progress of each node (its word or `null`) and the counts below it, derived from its designs |
+| `tree_io position --theme T` | Where the walk stands: the nodes the last decision names, their designs and the stage of each analysis |
 | `tree_io answer --theme T` (stdin JSON) | Check and append the answers of one reflection round |
 | `tree_check --theme T` | Check the current answers after writing (read-only) |
 | `tree_io changes --theme T` | What each answer changed, and the results the answers above leave out (read-only) |

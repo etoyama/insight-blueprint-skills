@@ -400,4 +400,5 @@ Map the verdict into `observe` / `evidence` / `question` events appended to
 - `question` — each item of `open_questions`. When `inconclusive`/`ambiguous` above already routed the
   evidence to a question, do not duplicate it — emit one question per distinct point.
 
-New event ids continue from the existing max in the journal (`{id}-E{nn}`).
+Append them with `design_io journal-append --id {id}` (SKILL.md, Step 6): it continues the
+event ids from the existing max in the journal (`{id}-E{nn}`) and sets each `created_at`.

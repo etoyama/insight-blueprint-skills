@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted（結論の出た分析設計ごとにレポートを書いてアップロードを始める段は、[ADR-0040](0040-report-export-sends-the-report-to-claude-docs.md) が消した）
+Accepted（結論の出た分析設計ごとにレポートを書いてアップロードを始める段は、[ADR-0040](0040-report-export-sends-the-report-to-claude-docs.md) が消した。1回の巡回が論点を1つ調べることと、巡回の現在地を最新の決定の論点から導くことは、[ADR-0061](0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md) が置き換えた）
 
 ## Context
 

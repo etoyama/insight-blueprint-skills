@@ -17,6 +17,7 @@ from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 
+from insight_blueprint.models.analysis_stage import AnalysisStage
 from insight_blueprint.models.design import DesignForm, DesignStatus
 from insight_blueprint.models.tree import (
     Aim,
@@ -171,6 +172,7 @@ class ReportDesign:
     package: str
     method_reason: str
     status: DesignStatus
+    stage: AnalysisStage  # tells a stopped design from one still open
     conclude_events: tuple[NoteEvent, ...]
     contradicting_evidence: tuple[NoteEvent, ...]
     metrics: tuple[VerdictMetric, ...]
@@ -198,6 +200,7 @@ class ReportDesign:
             package="" if methodology is None else methodology.package,
             method_reason="" if methodology is None else methodology.reason,
             status=design.status,
+            stage=note.stage,
             conclude_events=() if conclusion is None else conclusion.conclude_events,
             # Evidence against the hypothesis counts before the design concludes too.
             contradicting_evidence=contradicting_evidence(note.events, form),
@@ -521,14 +524,15 @@ def _future_directions(report: ThemeReport) -> list[str]:
     lines: list[str] = []
     decision = report.decision
     if decision is None:
-        lines.append("- ツリーの決定はまだ無い。")
+        lines.append("- 論点ツリーの決定はまだ無い。")
     else:
-        question = report.question_of(decision.node_id)
         label = _DECISION_WORDS.get(decision.kind, NEXT_QUESTION_HEADING)
+        # Every question the decision hands over is one to look into next (ADR-0061).
         lines += [
-            f"- {label}: {decision.node_id} {_e(question)}",
-            f"- 理由: {_e(decision.reason)}",
+            f"- {label}: {node_id} {_e(report.question_of(node_id))}"
+            for node_id in decision.node_ids()
         ]
+        lines.append(f"- 理由: {_e(decision.reason)}")
     lines += [line for n in report.nodes if (line := _heard(n)) is not None]
     return ["### Future Directions", "\n".join(lines)]
 
