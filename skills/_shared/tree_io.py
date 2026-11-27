@@ -446,17 +446,17 @@ def copy_hearing(
 
         design = require_design(design_id, base_dir)
         status = status_of(design)
-        stopped = stage_in(design_id, design, base_dir) is AnalysisStage.stopped
-        if status in TERMINAL_STATUSES or stopped:
-            # A concluded analysis keeps the record it was concluded on, and a
-            # stopped one is not resumed (ADR-0064 7).
-            ended = (
-                "stopped: a stopped analysis"
-                if stopped
-                else f"{status.value}: a finished design"
-            )
+        # A concluded analysis keeps the record it was concluded on, and a
+        # stopped one is not resumed (ADR-0064 7).
+        if stage_in(design_id, design, base_dir) is AnalysisStage.stopped:
+            ended = "stopped: a stopped analysis takes no new hearing"
+        elif status in TERMINAL_STATUSES:
+            ended = f"{status.value}: a finished design takes no new hearing"
+        else:
+            ended = None
+        if ended is not None:
             raise ValueError(
-                f"{design_id} is {ended} takes no new hearing. "
+                f"{design_id} is {ended}. "
                 f"The answer stays on {node_id}; copy it into the next design linked there"
             )
 

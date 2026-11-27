@@ -360,7 +360,12 @@ def _section(anchor: str, name: str, heading: str, *content: Html | None) -> Htm
     )
 
 
-def _status(note: DesignNote, anchor: str, stage_line: str | None) -> Html:
+def _status(note: DesignNote, anchor: str) -> Html:
+    # tree_words imports this module for the words the note owns, so the
+    # stage words it owns are read when the note is drawn, not at import.
+    from skills._shared.tree_words import note_stage_line
+
+    stage_line = note_stage_line(note.stage, note.stop_reason)
     last = note.events[-1] if note.events else None
     if last is None:
         journal = "journal にまだ出来事が無い。"
@@ -814,19 +819,14 @@ def _local_files(note: DesignNote, anchor: str) -> Html:
     return _section(anchor, "files", "手元のファイル", body)
 
 
-def render_note(note: DesignNote, stage_line: str | None = None) -> Html:
-    """The note as one ``<section>``, ready to sit inside a page.
-
-    *stage_line* goes under the status line. Its words belong to the tree page
-    (``tree_words.note_stage_line``), which this module cannot import, so the
-    caller hands the line in.
-    """
+def render_note(note: DesignNote) -> Html:
+    """The note as one ``<section>``, ready to sit inside a page."""
     design = note.design
     anchor = note_anchor(design.id)
     return el(
         "section",
         el("h2", f"分析ノート {design.id} {design.title}"),
-        _status(note, anchor, stage_line),
+        _status(note, anchor),
         _opening(design, anchor),
         _decision(design, anchor),
         _method(design, anchor),
@@ -845,9 +845,5 @@ def render_note(note: DesignNote, stage_line: str | None = None) -> Html:
     )
 
 
-def render_note_page(note: DesignNote, stage_line: str | None = None) -> str:
-    return page(
-        f"分析ノート {note.design.id}",
-        BASE_CSS + NOTE_CSS,
-        render_note(note, stage_line),
-    )
+def render_note_page(note: DesignNote) -> str:
+    return page(f"分析ノート {note.design.id}", BASE_CSS + NOTE_CSS, render_note(note))

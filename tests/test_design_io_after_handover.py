@@ -193,6 +193,19 @@ class TestStageCommand:
         assert report["stage"] == "stopped"
         assert report["result_on_record"] is False
 
+    def test_reasoning_journaled_on_a_design_never_run_is_not_a_result(
+        self, insight: Path
+    ) -> None:
+        design_id = _design(insight, "in_review")
+        design_io.append_journal_event(
+            design_id, {"type": "hypothesize", "content": "分館で多いはず"}, insight
+        )
+
+        report = design_io.stage_report(design_id, insight)
+
+        assert report["stage"] == "before_run"
+        assert report["result_on_record"] is False
+
     def test_it_lists_what_the_analysis_asks_with_the_id_to_answer(
         self, insight: Path
     ) -> None:
@@ -325,6 +338,72 @@ class TestJournalAppend:
             )
 
         assert design_io.journal_events(design_id, insight) == []
+
+    def test_an_analysis_waiting_for_the_analyst_takes_no_result(
+        self, insight: Path
+    ) -> None:
+        """It asked before touching the data, so what it would record is not what was read."""
+        design_id = _design(insight)
+        asked = design_io.ask_analyst(design_id, "分母を変えないと進めない", insight)
+
+        with pytest.raises(ValueError, match="awaiting_confirmation"):
+            design_io.append_journal_events(
+                design_id, [{"type": "observe", "content": "seen"}], insight
+            )
+
+        assert design_io.journal_events(design_id, insight) == [asked]
+
+    @pytest.mark.parametrize("status", ["in_review", "explored"])
+    def test_only_an_analysis_that_is_under_way_takes_a_result(
+        self, insight: Path, status: str
+    ) -> None:
+        design_id = _design(insight)
+        if status == "explored":
+            design_io.transition_status(design_id, "explored", insight)
+        else:
+            design_id = _design(insight, "in_review")
+
+        with pytest.raises(ValueError, match="takes no new result"):
+            design_io.append_journal_events(
+                design_id, [{"type": "observe", "content": "seen"}], insight
+            )
+
+    def test_a_second_run_adds_to_the_results_of_the_first(self, insight: Path) -> None:
+        design_id = _design(insight)
+        design_io.append_journal_events(
+            design_id, [{"type": "observe", "content": "seen"}], insight
+        )
+
+        design_io.append_journal_events(
+            design_id, [{"type": "evidence", "content": "measured"}], insight
+        )
+
+        kinds = [e["type"] for e in design_io.journal_events(design_id, insight)]
+        assert kinds == ["observe", "evidence"]
+
+    def test_the_command_gives_the_id_and_the_time_whatever_the_event_says(
+        self, insight: Path
+    ) -> None:
+        design_id = _design(insight)
+        first = design_io.append_journal_events(
+            design_id, [{"type": "observe", "content": "seen"}], insight
+        )
+
+        (second,) = design_io.append_journal_events(
+            design_id,
+            [
+                {
+                    "type": "observe",
+                    "content": "again",
+                    "id": first[0]["id"],
+                    "created_at": "2001-01-01T00:00:00+09:00",
+                }
+            ],
+            insight,
+        )
+
+        assert second["id"] == f"{design_id}-E02"
+        assert second["created_at"] != "2001-01-01T00:00:00+09:00"
 
     def test_a_missing_design_is_refused(self, insight: Path) -> None:
         with pytest.raises(ValueError, match="not found"):

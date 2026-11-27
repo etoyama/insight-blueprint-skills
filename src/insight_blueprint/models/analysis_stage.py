@@ -61,10 +61,20 @@ def stops(event: dict) -> bool:
     return event.get("type") == DECIDE and _metadata(event).get(_STOPPED) is True
 
 
+def answered_confirmation_ids(events: Iterable[dict]) -> set[str]:
+    """The ids of the confirmations among *events* that an answer names.
+
+    An answer that names an event which is not a confirmation settles nothing.
+    """
+    events = list(events)
+    named = {answers_of(e) for e in events} - {None}
+    return {str(e.get("id")) for e in events if asks_analyst(e)} & named
+
+
 def open_confirmations(events: Iterable[dict]) -> list[dict]:
     """The confirmations among *events* that no answer names yet, in order."""
     events = list(events)
-    answered = {answers_of(e) for e in events} - {None}
+    answered = answered_confirmation_ids(events)
     return [e for e in events if asks_analyst(e) and e.get("id") not in answered]
 
 
@@ -72,8 +82,7 @@ def _records_a_result(event: dict, started_at: datetime | None) -> bool:
     """Whether *event* is a result of the run that began at *started_at*.
 
     A hearing, a confirmation, its answer and the reason of a stop are not
-    results. Nor is an event
-    written before the analysis mark: /analysis-journal may record reasoning
+    results. Nor is an event written before the analysis mark: /analysis-journal may record reasoning
     before the run (ADR-0061 6.4 as amended). An event whose time cannot be
     compared with the mark counts, as every event did before the amendment.
     """
@@ -167,6 +176,12 @@ STOPS_FROM = frozenset(
         AnalysisStage.awaiting_confirmation,
     }
 )
+
+# The stages a result is recorded from: a run writes its results while the
+# analysis is under way, and a second run adds to those of the first. One that
+# waits for the analyst asked before it touched the data, so it has none to
+# record; a stopped or a finished one keeps the record it ended on.
+RECORDS_FROM = frozenset({AnalysisStage.running, AnalysisStage.awaiting_reflection})
 
 # The stages that are over: a finished analysis has its end, and a stopped one is
 # never resumed (ADR-0064). Neither holds the walk, and a node whose analyses are

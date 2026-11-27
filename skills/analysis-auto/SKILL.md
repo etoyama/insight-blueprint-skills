@@ -368,7 +368,8 @@ tree_io position --theme LIB
    - `awaiting_confirmation` → **confirmation**, right away.
    - `awaiting_reflection` → it waits for **endings**. Ask nothing about it yet.
    - `running` → it came back without a result. Tell the analyst what its agent reported,
-     and hand it over again only if they ask.
+     and hand it over again only if they ask. Say as well that the round stays open until
+     this analysis is handed over again or stopped (*Stopping an analysis*).
 
    This item and **confirmation** repeat until no execution agent is at work.
 7. **confirmation** (`awaiting_confirmation`): a KEEP gate, asked as soon as an analysis
@@ -468,8 +469,10 @@ An execution agent knows nothing of this conversation. Write its brief from thes
 echo '{"content": "予約の記録が2025年10月より前に無い。対象を2025年10月以降の予約に変えてよいか"}' | design_io ask-analyst --id LIB-H05
 ```
 
-  Before a package outside the allowlist or any other side effect, it does not do that
-  thing either: it returns and says what it needs, with no confirmation in the journal.
+  After the confirmation it records nothing more: `design_io journal-append` refuses an
+  analysis that waits for the analyst. Before a package outside the allowlist or any other
+  side effect, it does not do that thing either: it returns and says what it needs, with no
+  confirmation in the journal.
 - What it returns: the `design_id`, and one of three: that the verdict is in the journal,
   the `id` of the confirmation it recorded, or why it stopped.
 

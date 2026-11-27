@@ -27,7 +27,7 @@ from ruamel.yaml import YAMLError
 
 from insight_blueprint.models.analysis_stage import (
     AnalysisStage,
-    asks_analyst,
+    answered_confirmation_ids,
     open_confirmations,
     stops,
 )
@@ -38,7 +38,6 @@ from insight_blueprint.models.design import (
 )
 from insight_blueprint.models.journal import CONCLUDE, QUESTION
 from skills._shared._atomic import atomic_write_text
-from skills._shared._html import Html
 from skills._shared.catalog_io import describe
 from skills._shared.design_io import (
     DEFAULT_BASE_DIR,
@@ -56,14 +55,12 @@ from skills._shared.design_note import (
     NoteVerdict,
     contradicting_evidence,
     local_file_paths,
-    render_note,
     render_note_page,
 )
 from skills._shared.design_note_reviews import (
     NoteReviewBatch,
     NoteReviewComment,
 )
-from skills._shared.tree_words import note_stage_line
 from skills._shared.verdict_table import (
     CONFIDENCE,
     MetricGroup,
@@ -344,9 +341,7 @@ def _conclusion(
         return None
     # A confirmation the analyst answered is settled by that answer, as a
     # question a conclusion resolves is (ADR-0064 9).
-    still_asked = {e.get("id") for e in open_confirmations(raw)}
-    answered = {e.get("id") for e in raw if asks_analyst(e)} - still_asked
-    settled = _resolved_ids(raw) | answered
+    settled = _resolved_ids(raw) | answered_confirmation_ids(raw)
 
     def of(kind: str) -> tuple[NoteEvent, ...]:
         return tuple(e for e in events if e.type == kind)
@@ -651,15 +646,6 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
     )
 
 
-def _stage_line(note: DesignNote) -> str | None:
-    return note_stage_line(note.stage, note.stop_reason)
-
-
-def note_section(note: DesignNote) -> Html:
-    """The note as the section a page holds, a stopped design's stage line included."""
-    return render_note(note, _stage_line(note))
-
-
 def render_design_note(
     design_id: str, base_dir: Path = DEFAULT_BASE_DIR
 ) -> dict[str, str]:
@@ -668,8 +654,7 @@ def render_design_note(
     The page is generated, never edited: the same design, journal and notebook
     output give the same bytes. When loading fails, nothing is written.
     """
-    note = load_design_note(design_id, base_dir)
-    html = render_note_page(note, _stage_line(note))
+    html = render_note_page(load_design_note(design_id, base_dir))
     path = Path(base_dir) / "notes" / f"{design_id}.html"
     atomic_write_text(path, html)
     return {"path": str(path)}

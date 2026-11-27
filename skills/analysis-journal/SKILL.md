@@ -227,9 +227,13 @@ for e in events:
     if e.type == "conclude" and e.metadata.get("resolves"):
         r = e.metadata["resolves"]
         resolved_ids |= set(r) if isinstance(r, list) else {r}
-    if e.type == "decide" and e.metadata.get("answers"):
-        resolved_ids.add(e.metadata["answers"])
-open_questions = [q for q in questions if q.id not in resolved_ids]
+answered_ids = {e.metadata["answers"] for e in events
+                if e.type == "decide" and e.metadata.get("answers")}
+open_questions = [
+    q for q in questions
+    if q.id not in resolved_ids
+    and not (q.metadata.get("asks_analyst") and q.id in answered_ids)
+]
 ```
 
 ## design_io Reference

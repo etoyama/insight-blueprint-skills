@@ -194,8 +194,8 @@ The command gives each event its id and time and keeps the events already there.
 write the journal file yourself here: another session may be writing the same journal, and
 the command holds the lock of `.insight` from its read to its write
 ([ADR-0062](../../docs/adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md)).
-If it refuses because the analysis was stopped, record nothing more and return: a stopped
-analysis takes no result.
+The command takes a result only while the analysis is under way. If it refuses because
+the analysis was stopped or waits for the analyst's answer, record nothing more and return.
 
 ### Step 7: Hand off
 

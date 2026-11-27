@@ -29,6 +29,7 @@ from ruamel.yaml import YAML
 from insight_blueprint.models.analysis_stage import (
     ASKS_FROM,
     MARKS,
+    RECORDS_FROM,
     STOPS_FROM,
     AnalysisStage,
     answer,
@@ -315,10 +316,11 @@ def update_design(
         merged = {**current, **changes, "updated_at": now_jst().isoformat()}
 
         model = validate_schema(merged)  # raises ValidationError if invalid
-        if model.status.value != current.get("status"):
-            _keep_a_stopped_status(design_id, current, base_dir)
+        moves = model.status.value != current.get("status")
+        if moves:
+            _refuse_a_move_of_a_stopped_design(design_id, current, base_dir)
         on_disk = _parsed_or_none(current)
-        if on_disk is None and model.status.value != current.get("status"):
+        if on_disk is None and moves:
             # Without a readable design there is no form to check the move against.
             raise ValueError(
                 f"Design '{design_id}' on disk is invalid: repair it without "
@@ -353,18 +355,20 @@ def transition_status(
         current = load_design(design_id, base_dir)
         if not current:
             raise ValueError(f"Design '{design_id}' not found")
-        _keep_a_stopped_status(design_id, current, base_dir)
+        _refuse_a_move_of_a_stopped_design(design_id, current, base_dir)
         data = _moved(current, validate_schema(current), target)
         atomic_write_yaml(_designs_dir(base_dir) / f"{design_id}_hypothesis.yaml", data)
         return data
 
 
-def _keep_a_stopped_status(design_id: str, current: dict, base_dir: Path) -> None:
+def _refuse_a_move_of_a_stopped_design(
+    design_id: str, current: dict, base_dir: Path
+) -> None:
     """ValueError if *design_id*, read as *current*, was stopped: its status stays.
 
     Moving it would end an analysis that has no result, and the stop would
-    drop out of the stage (ADR-0064 7). Called before any write that changes
-    the status.
+    drop out of the stage (ADR-0064 7). Every write that changes the status
+    calls this first.
     """
     if stage_in(design_id, current, base_dir) is AnalysisStage.stopped:
         raise ValueError(
@@ -459,8 +463,9 @@ def append_journal_events(
     in one lock, so a stop the dialogue agent writes meanwhile is not lost, and
     neither are these (ADR-0062 2). All of them are written or none. Each event
     holds a ``type`` and a ``content``; a mark is refused as in
-    ``append_journal_event``. A stopped analysis takes no new result: its agent
-    learns here that it was stopped (ADR-0064 7).
+    ``append_journal_event``. Only an analysis under way takes a result
+    (``RECORDS_FROM``): the agent of a stopped one learns here that it was
+    stopped (ADR-0064 7).
     """
     if not isinstance(events, list) or not events:
         raise ValueError("events is empty: give a list of events to append")
@@ -471,16 +476,23 @@ def append_journal_events(
         _required_text(event.get("content"), "the content of an event")
         _refuse_marks(event)
     with write_lock(base_dir):
-        stage = stage_of(design_id, base_dir)
-        if stage is AnalysisStage.stopped:
-            raise ValueError(
-                f"{design_id} is stopped: it takes no new result. Record nothing "
-                "more and return"
-            )
-        return [_append_event(design_id, event, base_dir) for event in events]
+        _check_stage(
+            design_id,
+            RECORDS_FROM,
+            "it takes no new result. Record nothing more and return",
+            base_dir,
+        )
+        return _append_events(design_id, events, base_dir)
 
 
 def _append_event(design_id: str, event_fields: dict, base_dir: Path) -> dict:
+    return _append_events(design_id, [event_fields], base_dir)[0]
+
+
+def _append_events(
+    design_id: str, events_fields: list[dict], base_dir: Path
+) -> list[dict]:
+    """Append the events in one read and one write, so all of them land or none."""
     with write_lock(base_dir):
         _validate_id(design_id)
         path = _designs_dir(base_dir) / f"{design_id}_journal.yaml"
@@ -500,18 +512,24 @@ def _append_event(design_id: str, event_fields: dict, base_dir: Path) -> dict:
             if isinstance(e, dict)
             and (m := re.fullmatch(rf"{re.escape(design_id)}-E(\d+)", str(e.get("id"))))
         ]
-        event = {
-            "id": f"{design_id}-E{max(taken, default=0) + 1:02d}",
-            **event_fields,
-            "created_at": now,
-        }
-        journal["events"] = [*events, event]
+        first = max(taken, default=0) + 1
+        added = [
+            # The id and the time are given here, whatever the caller passed:
+            # a second event with an id in use would make an answer ambiguous.
+            {
+                "id": f"{design_id}-E{number:02d}",
+                **{k: v for k, v in fields.items() if k not in ("id", "created_at")},
+                "created_at": now,
+            }
+            for number, fields in enumerate(events_fields, start=first)
+        ]
+        journal["events"] = [*events, *added]
         metadata = journal.get("metadata")
         if not isinstance(metadata, dict):
             metadata = journal["metadata"] = {}
         metadata["updated_at"] = now
         write_journal(design_id, journal, base_dir)
-        return event
+        return added
 
 
 def _read_journal(path: Path) -> dict:
@@ -586,10 +604,18 @@ def stage_report(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict:
     if not design:
         raise ValueError(f"Design '{design_id}' not found")
     stage, events = _stage_in(design_id, design, base_dir)
+    # A design that never entered its analysis has no run to have a result of,
+    # whatever reasoning its journal holds. One a review of the result took
+    # back keeps the mark of its analysis (ADR-0054).
+    started = (
+        stage is not AnalysisStage.before_run
+        or design.get("analysis_started_at") is not None
+    )
     return {
         "design_id": design_id,
         "stage": stage.value,
-        "result_on_record": records_a_result(events, design.get("analysis_started_at")),
+        "result_on_record": started
+        and records_a_result(events, design.get("analysis_started_at")),
         "asks": [
             {"id": e.get("id"), "content": e.get("content")}
             for e in open_confirmations(events)
@@ -703,7 +729,7 @@ def append_review_batch(
                 f"Design must be reviewable to save a review batch, "
                 f"current status: '{current['status']}'"
             )
-        _keep_a_stopped_status(design_id, current, base_dir)
+        _refuse_a_move_of_a_stopped_design(design_id, current, base_dir)
         on_disk = validate_schema(current)
         # Moved before the batch is written: a move the design cannot make must
         # not leave a batch behind with the status unchanged.

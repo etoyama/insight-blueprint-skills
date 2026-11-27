@@ -88,13 +88,9 @@ class TestThePageIsRebuiltOnEveryReturn:
         step = unwrap(_notebook("### Step 7"))
         assert re.search(r"[Oo]therwise[^.]*`tree_io render --design", step)
 
-    def test_the_brief_keeps_the_agent_from_the_page_without_naming_the_step(
-        self,
-    ) -> None:
-        """The notebook skill now says it itself, so the brief does not cancel a step."""
+    def test_the_brief_keeps_the_agent_from_the_page(self) -> None:
         never = _brief_line("What it never runs")
-        assert "`tree_io render`" in never
-        assert "/analysis-notebook" not in never
+        assert re.search(r"Never `tree_io render`[^.]*dialogue agent rebuilds", never)
 
 
 class TestAnAnalysisAsksBeforeChangingWhatWasRead:
@@ -228,7 +224,7 @@ class TestOneAnalysisIsStopped:
         part = unwrap(handover_part(STOPPING))
         assert re.search(r"not resumed", part)
         assert re.search(r"derive[^.]*`parent_id`", part)
-        assert re.search(r"[Nn]ever delete[^.]*unlink", part)
+        assert re.search(r"[Nn]ever delete the design or unlink it", part)
         assert re.search(r"`design_io transition`[^.]*refuses", part)
 
     def test_an_analysis_with_its_result_on_record_is_ended_and_not_stopped(

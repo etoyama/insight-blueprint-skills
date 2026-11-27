@@ -45,12 +45,8 @@ from skills._shared.design_io import (
     stage_in,
     theme_of,
 )
-from skills._shared.design_note import DesignNote, note_anchor
-from skills._shared.design_note_read import (
-    load_design_note,
-    note_section,
-    render_design_note,
-)
+from skills._shared.design_note import DesignNote, note_anchor, render_note
+from skills._shared.design_note_read import load_design_note, render_design_note
 from skills._shared.handover import HandoverDesign, differing_rows, to_hand_over
 from skills._shared.theme_report import (
     ReportDesign,
@@ -424,7 +420,7 @@ def render(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, str]:
         designs,
         events,
         checked,
-        {d: note_section(n) for d, n in design_notes.items()},
+        {d: render_note(n) for d, n in design_notes.items()},
         shared=frozenset(duplicated),
         handover=_handover_designs(tree, design_notes),
     )
