@@ -329,16 +329,23 @@ When the analyst ends the design:
    is recorded: it moves the design back to `in_review`, and approving it returns the design to
    `analyzing`. Once the design has ended it can no longer be reviewed.
    Before you ask, say what the review does, in these words:
-   「結果のレビューでは、Claude が notebook・verdict・図・分析設計を批評し、コメントを残す。
+   「結果のレビューでは、Claude が分析結果を批評し、コメントを残す。見るのは、分析設計と、判定と合わない値、図、
+   guardrail の指標、結果の解釈（ほかの説明がつかないか、どこまで言えるか）。
+   分析設計どおりに計算したかは、レビューでなく点検が見る。
    受けると、結論の記録はレビューの後になる。受けないと、この場で結論を記録し、以後はレビューできない」.
    Then give one line of suggestion for this design, by the guide below.
 
-   **The guide to a review of the result.** For a confirmation, which ends on a verdict,
-   suggest taking the review. For an exploration, say it usually does not need one. Still
-   offer it as a choice worth taking when the analysis added something the design does not
-   have (a comparison, say), or when the only check of the numbers adds up figures within
-   the data, against no total from outside it. The analyst decides: the line is a
-   suggestion, and either answer goes on.
+   **The guide to a review of the result.** Suggest taking the review on either of these two
+   grounds, and on no other:
+
+   - the design ends on a verdict (a confirmation, or a legacy exploration);
+   - the only check of the numbers adds up figures within the data, against no total from
+     outside it.
+
+   For an exploration without the second ground, say it usually does not need one. A
+   difference the check of the computation found is not a ground: the analyst answered it
+   in Step 3, and a review does not read the computation against the design (ADR-0071 7).
+   The analyst decides: the line is a suggestion, and either answer goes on.
 
    - The analyst takes the review → record no `conclude` yet, and send them to
      `/analysis-review {design_id}`. After the review, `/analysis-reflection {design_id}` comes

@@ -699,18 +699,15 @@ class TestTheReviewOfTheResultIsExplained:
 
     def test_the_reflection_says_what_the_review_does_before_asking(self) -> None:
         step = self._ask()
-        assert (
-            "Claude が notebook・verdict・図・分析設計を批評し、コメントを残す" in step
-        )
+        assert "Claude が分析結果を批評し、コメントを残す" in step
         assert "結論の記録はレビューの後になる" in step
         assert "以後はレビューできない" in step
 
     def test_the_guide_suggests_by_the_form_and_the_analyst_decides(self) -> None:
         step = self._ask()
         guide = step[step.index("**The guide to a review of the result.**") :]
-        assert re.search(r"confirmation[^.]*verdict[^.]*suggest taking", guide)
+        assert re.search(r"[Ss]uggest taking the review on[^.]*two grounds", guide)
         assert re.search(r"exploration[^.]*usually[^.]*not", guide)
-        assert re.search(r"added[^.]*the design does not have", guide)
         assert re.search(r"adds up[^.]*within the data", guide)
         assert re.search(r"[Tt]he analyst decides", guide)
 

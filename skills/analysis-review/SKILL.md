@@ -47,6 +47,11 @@ A review of the result after the analysis is optional and goes the same way: the
 design moves back to `in_review` (Step 2), and approving it returns it to `analyzing`. The
 analyst then concludes it with `/analysis-reflection`, not by analyzing again.
 
+A review of the result reads what the check of the computation does not (ADR-0071): the
+value against its judgment, the figures, the guardrails, and the interpretation with its
+confounders (Step 3b). Whether the notebook computed what the design says is the check's to
+read, and `/analysis-reflection` Step 2 runs it before the analyst reads.
+
 ## Workflow
 
 ### Step 1: Load the design
@@ -130,21 +135,33 @@ Before the critique, tell the analyst what you read, in one short list:
 
 Then read the result with these lenses, one comment per issue:
 
-- **The criterion** — do the `support_line` and the `reject_line` of each `primary` metric
-  carry the numbers its `comparison` states, and does the `judgment` follow from them? A
-  notebook that copied a line wrong still runs, so this is where it is caught.
-- **The value and the judgment** — is there a value that contradicts the judgment it sits next to
-  (a value above the support line with `judgment: reject`, an interval that crosses a line
-  with a firm judgment)? Point out the contradiction; never compute a new judgment.
+- **The value and the judgment** — is there a value that contradicts the `judgment` it sits
+  next to? A line keeps only its number and points the way the `comparison` says, so read
+  the value against the lines that way: a value past the `support_line` with
+  `judgment: rejected`, one past the `reject_line` with `judgment: supported`, an interval
+  that crosses a line with a firm judgment. Point out the contradiction; never compute a new
+  judgment.
 - **The figures** — does each figure state what each axis shows and how to read it, and does it
   show what the verdict says?
 - **The guardrails** — did each guardrail metric `pass` its `threshold`? A failed guardrail
   next to `supported` must be said.
-- **The cells** — does each cell keep one job per cell (the 7-cell contract of
-  `/analysis-notebook`), so the criterion, the computation and the verdict can be read apart?
+- **The interpretation and its confounders** — is there another explanation of the result
+  than the one the verdict gives (a confounder the design names or misses, a difference
+  between the groups other than the one compared, a change in the period), and how far does
+  the result reach (the population, the period, an association said as a cause)? Name the
+  explanation or the limit; never test it with the data.
+
+Whether the line a notebook copied matches the `comparison` and whether the order of its cells
+is the 7-cell contract of `/analysis-notebook` are what the check of the computation reads,
+before the analyst reads, in `/analysis-reflection` Step 2 (ADR-0071 6). Leave both to it: a
+comment on them here would say again what the check says. Read
+`design_io checked --id {design_id}` first: while it does not say `checked: true` (the check
+has not run, or could not be recorded), read the line the notebook copied against the
+`comparison` as well, and tell the analyst the check of the computation is not done, since
+nothing else reads the line until it is.
 
 An exploration has no criterion: it carries no line, no judgment, no threshold and no pass
-(ADR-0050). Read its verdict with the figures and the cells lenses only.
+(ADR-0050). Read its verdict with the figures and the interpretation lenses only.
 
 A design with a verdict but no `analysis_started_at` was saved before the analysis mark
 existed and reads as not started (ADR-0053). Tell the analyst so: the batch is recorded as

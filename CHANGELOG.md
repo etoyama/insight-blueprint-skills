@@ -78,6 +78,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the reply, and a sentence the reply says nothing of is kept. A sentence of the analyst's view can be
   listed, but only the analyst writes its weakened words
   ([ADR-0069](docs/adr/0069-evidence-is-recommended-and-results-shown-before-are-folded.md), #308, #271).
+- **A review of the result reads what the check of the computation does not.** `/analysis-review`
+  Step 3b reads the value against its judgment, the figures, the guardrails, and the interpretation with
+  its confounders (another explanation, how far the result reaches). The line a notebook copied and the
+  order of its cells are left to the check, and the review reads the line itself while the check is
+  not done. `/analysis-reflection` Step 4 says so to the analyst, and suggests the
+  review on two grounds only: the design ends on a verdict, or the numbers are checked only by adding up
+  figures within the data. An analysis that added something the design does not have is no longer a
+  ground, since the check finds it
+  ([ADR-0071](docs/adr/0071-a-difference-is-shown-before-reading-and-the-review-of-a-result-is-narrowed.md), #310).
 - **`/analysis-auto` and `/analysis-reflection` keep their long parts in reference files.** The hand-over of
   several nodes and the brief of an execution agent are in `skills/analysis-auto/references/`, and the theme
   reflection is in `skills/analysis-reflection/references/`. The body says when to read each. The steps do

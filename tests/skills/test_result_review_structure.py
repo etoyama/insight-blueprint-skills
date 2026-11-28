@@ -41,17 +41,17 @@ class TestReviewReadsTheResult:
         ):
             assert read in step
 
-    def test_the_lines_and_the_judgment_are_read_against_the_comparison(self) -> None:
+    def test_the_judgment_is_read_against_the_lines_the_verdict_carries(self) -> None:
         step = _review("### Step 3b: ")
         for name in ("`support_line`", "`reject_line`", "`judgment`", "`comparison`"):
             assert name in step
 
-    def test_it_names_the_other_four_lenses(self) -> None:
+    def test_it_names_what_the_other_lenses_read(self) -> None:
+        """ADR-0071 6: the cells are left to the check of the computation (Story 36.8)."""
         step = _review("### Step 3b: ")
-        assert "contradicts the judgment" in step
+        assert "contradicts the `judgment`" in step
         assert "axis" in step and "how to read" in step
         assert "guardrail" in step and "`pass`" in step
-        assert "one job per cell" in step
 
     def test_result_comments_target_the_result(self) -> None:
         step = _review("### Step 3b: ")
@@ -62,7 +62,7 @@ class TestReviewReadsTheResult:
         """ADR-0050 3: an exploration carries no line and no judgment."""
         step = _review("### Step 3b: ")
         assert "An exploration has no criterion" in step
-        assert "the figures and the cells lenses only" in step
+        assert "the figures and the interpretation lenses only" in step
 
     def test_a_verdict_without_the_mark_is_said_before_the_batch(self) -> None:
         """ADR-0053 Negative: a design saved without the mark reads as not started."""
