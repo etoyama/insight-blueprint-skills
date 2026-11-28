@@ -150,8 +150,17 @@ class TestWhatAnAnswerChanged:
 
         assert (
             "新しく根拠にした 1、根拠から外した 1、言っていることが変わった 1、"
-            "分析者の見立てにした・外した 0、変わっていない 1" in section
+            "変わっていない 1" in section
         )
+
+    def test_the_count_leaves_out_a_change_of_the_view_that_did_not_happen(
+        self,
+    ) -> None:
+        # The view rarely changes: a 0 in every answer is only more to read.
+        root = page(tree=changed_root())
+        section = squash(changes_of(by_id(root, "subject-answer")).text())
+
+        assert "分析者の見立てにした・外した 0" not in section
 
     def test_an_event_names_the_question_and_the_design_it_comes_from(self) -> None:
         section = self.section()

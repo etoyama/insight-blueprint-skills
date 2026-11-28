@@ -80,7 +80,12 @@ def changes_section(
     body.append(
         el(
             "p",
-            "、".join(f"{CHANGE_WORDS[k][0]} {found[k]}" for k in ChangeKind),
+            "、".join(
+                f"{CHANGE_WORDS[k][0]} {found[k]}"
+                for k in ChangeKind
+                # The view rarely changes: a 0 in every answer is only more to read.
+                if found[k] or k is not ChangeKind.view_changed
+            ),
             class_="meta",
         )
     )

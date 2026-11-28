@@ -831,7 +831,7 @@ Story の実装に合わせて書く。
   `skills/analysis-reflection/references/theme-reflection.md` の Step T5（種類の言葉の一覧）。
 - Alternatives considered: `reworded` に含める（「言っていることが変わった」と出るが、言葉は変わっていないので読み違える）。
   印の変化を拒む（分析者が見立てを取り下げられない）。
-- Consequences: 変わったことの表の件数の行に「分析者の見立てにした・外した N」が足される（0 のときも出る）。上の論点での引用（`reworded_in`）の比べ方は変えていない。
+- Consequences: 変わったことの表の件数の行に「分析者の見立てにした・外した N」が足される（0 のときは出さない。印の変化はめったに起きず、毎回 0 が並ぶと読む量が増えるだけなので、人間が決めた）。上の論点での引用（`reworded_in`）の比べ方は変えていない。
   Decision `story-36-7-the-mark-of-a-change-reads-the-table-of-changes` の「印だけを足した答えには印が付かない」は、この決定で改めた。
 
 ### Decision: story-36-7-the-words-of-the-check-live-beside-the-note
@@ -913,3 +913,4 @@ Story の実装に合わせて書く。
 - 2026-11-28 — Story 36.8 completed: 結果のレビューの観点を、値と判定の矛盾・図・guardrail・解釈と交絡（別の説明、言える範囲）の4つにした。notebook が写した判定の線と cell の並びは計算の点検に任せる。`/analysis-reflection` Step 4 は、レビューが見ることを分析者に言い、勧める目安を、判定で終わることと、数の照合がデータの中の足し上げだけであることの2つにした（36.5 の申し送りの「設計に無いものを足したとき」を外した）。点検の食い違いはレビューを勧める理由にしない（Decision 1件）。review の値と判定の観点の例は、verdict の `judgment` の値（`supported`・`rejected`）で書き直した。Domain Model は変えていない。
 - 2026-11-28 — ゲート: レビュー2観点と AC の照合の指摘を直した（迷わない8件、人間が決めた A〜D）。US-7 の長さは #313
 - 2026-11-29 — 人間が見本の画面を読んだ: `view_changed` の言葉を、仮の語「見立ての印が変わった」から「分析者の見立てにした・外した」に決めた（「印」が分析者に通じない）。
+- 2026-11-29 — 人間が決めた: 変わったことの表の件数の行で、「分析者の見立てにした・外した」は 0 件なら出さない。
