@@ -242,7 +242,7 @@ HANDOVER_ROW_WORDS = {
     HandoverRow.sources: SECTION_WORDS["sources"],
     HandoverRow.method: SECTION_WORDS["method"],
     HandoverRow.metric: "主指標",
-    HandoverRow.extraction: "抽出・加工条件",
+    HandoverRow.extraction: CHECK_SUBJECT_WORDS[CheckSubject.extraction],
     HandoverRow.chart: FIGURES_HEADING,
 }
 DIFFERS_WORD = "分析間の違い"

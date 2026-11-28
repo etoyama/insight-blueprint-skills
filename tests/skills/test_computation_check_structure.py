@@ -384,7 +384,7 @@ class TestTheAnalystReadsTheResultOfTheCheck:
         assert re.search(r"`checked_by` is `same_session`[^.]*say", _before())
 
     def test_what_could_not_be_checked_is_named_in_the_line(self) -> None:
-        assert re.search(r"`not_checkable`[^.]*「確かめられなかった", _before())
+        assert re.search(r"`not_checkable`[^.]*「見比べるものが無かった", _before())
 
 
 class TestADifferenceIsAskedAboutBeforeTheEndings:

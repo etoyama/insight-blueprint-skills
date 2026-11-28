@@ -32,7 +32,7 @@ CHECK_SUBJECT_WORDS: Mapping[CheckSubject, str] = {
     CheckSubject.population: "対象",
     CheckSubject.grain: "粒度",
     CheckSubject.denominator: "分母",
-    CheckSubject.extraction: "抽出",
+    CheckSubject.extraction: "抽出・加工条件",
     CheckSubject.metrics: "指標",
     CheckSubject.compared_against: "比べ先",
     CheckSubject.figures: "図",
@@ -43,7 +43,8 @@ CHECK_SUBJECT_WORDS: Mapping[CheckSubject, str] = {
 CHECK_RESULT_WORDS: Mapping[CheckResult, str] = {
     CheckResult.agrees: "分析設計どおり",
     CheckResult.differs: "分析設計と違う",
-    CheckResult.not_checkable: "確かめられなかった",
+    # Not "確かめられなかった": after 済んだ it read as a check left half done.
+    CheckResult.not_checkable: "見比べるものが無かった",
 }
 
 # What the check is, said the first time the analyst meets it (DesignDoc of Epic 36).
@@ -126,7 +127,7 @@ def _standing(check: NoteCheck) -> str:
     )
     if unknown:
         labels = "、".join(CHECK_SUBJECT_WORDS[i.subject] for i in unknown)
-        said += f"確かめられなかった: {labels}。"
+        said += f"{CHECK_RESULT_WORDS[CheckResult.not_checkable]}: {labels}。"
     return said
 
 

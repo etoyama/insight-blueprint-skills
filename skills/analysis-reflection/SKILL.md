@@ -148,7 +148,7 @@ Fill `{check_line}` of the 点検 block from that JSON, in one line for each des
 - `differences` is empty: one line, 「分析設計と違う所は無い」.
 - `differences` is not empty: 「分析設計と違う所が {n} つある。下の問いの前に並べる」. The
   differences themselves are shown in Step 3, and not here.
-- Some `items` are `not_checkable`: add 「確かめられなかった: {labels}」 to the line, with
+- Some `items` are `not_checkable`: add 「見比べるものが無かった: {labels}」 to the line, with
   the words of the table below.
 - `checked_by` is `same_session`: say so in the line, 「読み比べたのはこのセッション自身」.
   For a check agent say nothing: the first sentence below names it.
@@ -166,7 +166,7 @@ JSON:
 | `population` | 対象 |
 | `grain` | 粒度 |
 | `denominator` | 分母 |
-| `extraction` | 抽出 |
+| `extraction` | 抽出・加工条件 |
 | `metrics` | 指標 |
 | `compared_against` | 比べ先 |
 | `figures` | 図 |
@@ -174,7 +174,7 @@ JSON:
 | `cells` | 分析コードの区切り |
 | `agrees` | 分析設計どおり |
 | `differs` | 分析設計と違う |
-| `not_checkable` | 確かめられなかった |
+| `not_checkable` | 見比べるものが無かった |
 
 #### 読むもの
 

@@ -34,7 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   design is checked
   ([ADR-0070](docs/adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md), #306).
 - **The analysis note, the tree page and the report show the check of the computation and the
-  analyst's view.** The analysis note has a section on the check before its results: what was compared
+  analyst's view.** The status at the top of the analysis note says in one line how the check stands
+  and links its section, which sits with the appendix, just before the code: what was compared
   with what, who compared them, and what the check does not look at (whether the numbers are right,
   whether the design holds, how to read the results), then every subject, the differences first, each
   linked to the cell of the code it was read in. The card of a design on the tree page says how its

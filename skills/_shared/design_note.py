@@ -32,6 +32,7 @@ from skills._shared.design_note_check import (
     CHECK_SUBJECT_WORDS,
     NoteCheck,
     cell_anchor,
+    check_anchor,
     check_section,
     check_summary,
 )
@@ -202,11 +203,12 @@ _SECTIONS = (
     ("metrics", "指標の定義"),
     ("explanatory", "説明変数"),
     ("sources", "データソース"),
-    # The check comes before the values it speaks of (US-5 AC 4).
-    ("check", CHECK_HEADING),
     ("results", "結果"),
     ("reviews", "レビュー"),
     ("conclusion", "結論"),
+    # The note keeps the order of a paper (method, results), so the check sits
+    # on the side of the appendix; its line in the status comes first (US-5 AC 4).
+    ("check", CHECK_HEADING),
     ("code", "分析コード"),
     ("lineage", "データ加工の履歴"),
     ("progress", "分析の経過"),
@@ -427,7 +429,9 @@ def _status(note: DesignNote, anchor: str) -> Html:
 
 def _check_line(note: DesignNote) -> Html | None:
     said = check_summary(note.verdict is not None, note.check)
-    return None if said is None else el("p", said)
+    if said is None:
+        return None
+    return el("p", el("a", said, href=f"#{check_anchor(note_anchor(note.design.id))}"))
 
 
 def _check(note: DesignNote, anchor: str) -> Html:
@@ -863,10 +867,10 @@ def render_note(note: DesignNote) -> Html:
         _metric_definitions(design, anchor),
         _explanatory(design, anchor),
         _sources(note, anchor),
-        _check(note, anchor),
         _results(note, anchor),
         _reviews(note, anchor),
         _conclusion(note, anchor),
+        _check(note, anchor),
         _code(note, anchor),
         _lineage(note, anchor),
         _progress(note, anchor),

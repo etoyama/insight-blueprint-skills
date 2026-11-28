@@ -1,7 +1,8 @@
 """The check of the computation in the analysis note (Epic 36, Story 36.7).
 
-US-5 AC 4: the note shows the result of the check before the values of the
-results. Its section says, before its table, what was compared with what, who
+US-5 AC 4: the note shows one line of the check in its status, and the section
+of the check on the side of its appendix, just before the code (the analyst
+read the real page: the note keeps the order of an APA paper). The section says, before its table, what was compared with what, who
 compared them, and what the check did not look at. The note reads the check
 from ``design_check.check_reading`` only (ADR-0070). Synthetic data only.
 """
@@ -145,10 +146,13 @@ def _rows(section: Element) -> list[list[str]]:
 
 
 class TestTheSectionOfTheCheck:
-    def test_it_comes_before_the_results(self) -> None:
+    def test_it_sits_after_the_reviews_just_before_the_code(self) -> None:
         ids = [e.attrs.get("id") for e in _root(_note(_check())).walk()]
+        check = ids.index("note-LIB-H01-check")
 
-        assert ids.index("note-LIB-H01-check") < ids.index("note-LIB-H01-results")
+        assert ids.index("note-LIB-H01-results") < check
+        assert ids.index("note-LIB-H01-reviews") < check
+        assert check < ids.index("note-LIB-H01-code")
 
     def test_its_heading_names_the_check_in_the_words_of_the_analyst(self) -> None:
         (heading,) = [e for e in _section(_note(_check())).walk() if e.tag == "h3"]
@@ -196,7 +200,7 @@ class TestTheSectionOfTheCheck:
         lead = " ".join(_paragraphs_before_the_table(_section(_note(TWO_DIFFERENCES))))
 
         assert "分析設計と違う所が 2 つある" in lead
-        assert "確かめられなかった: 抽出" in lead
+        assert "見比べるものが無かった: 抽出・加工条件" in lead
 
     def test_a_check_with_no_difference_says_so(self) -> None:
         lead = " ".join(_paragraphs_before_the_table(_section(_note(_check()))))
@@ -334,11 +338,15 @@ class TestTheStatusOfTheNote:
 
         assert check_summary(True, TWO_DIFFERENCES) in status
 
-    def test_the_status_links_the_section_of_the_check(self) -> None:
-        status = by_id(_root(_note(_check())), "note-LIB-H01-status")
-        hrefs = [e.attrs.get("href") for e in status.walk() if e.tag == "a"]
+    def test_the_line_of_the_status_links_the_section_of_the_check(self) -> None:
+        status = by_id(_root(_note(TWO_DIFFERENCES)), "note-LIB-H01-status")
+        (line,) = [
+            e
+            for e in status.walk()
+            if e.tag == "a" and squash(e.text()) == check_summary(True, TWO_DIFFERENCES)
+        ]
 
-        assert "#note-LIB-H01-check" in hrefs
+        assert line.attrs["href"] == "#note-LIB-H01-check"
 
     @pytest.mark.parametrize(
         ("has_verdict", "check", "said"),
@@ -354,7 +362,7 @@ class TestTheStatusOfTheNote:
                 True,
                 TWO_DIFFERENCES,
                 "分析設計どおりに計算したかの点検: 済んだ。分析設計と違う所が 2 つある。"
-                "確かめられなかった: 抽出。",
+                "見比べるものが無かった: 抽出・加工条件。",
             ),
         ],
     )
@@ -500,7 +508,7 @@ def _shown_words_table() -> str:
         "点検するものが無い",
         "分析設計と違う所が N つある",
         "分析設計と違う所は無い",
-        "確かめられなかった: （項目の言葉）",
+        "見比べるものが無かった: （項目の言葉）",
         "点検の結果を開く",
         "（分析者の見立て）",
     ],
@@ -522,3 +530,9 @@ def test_the_screens_name_the_subjects_and_the_results_as_the_chat_does() -> Non
 
     for name, word in shown.items():
         assert f"| `{name}` | {word} |" in skill, name
+
+
+def test_the_words_are_the_ones_the_human_read_on_the_real_page() -> None:
+    """The analyst read the screens (FLOW-0019) and chose these two words."""
+    assert CHECK_SUBJECT_WORDS[CheckSubject.extraction] == "抽出・加工条件"
+    assert CHECK_RESULT_WORDS[CheckResult.not_checkable] == "見比べるものが無かった"
