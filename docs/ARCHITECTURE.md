@@ -87,7 +87,7 @@ flowchart TD
   進捗は項目に無いので、保存できない。結んだ分析設計の状態から進捗を導く規則は `QuestionTree.progress` にあり、ページ・`tree_io progress`・レポートがこれを呼ぶ。ファイルを読んで渡すのは `tree_read` で、CLI は `tree_io progress` である。
   答えの変化、上の論点での引用、引用していない下の結果も項目に無く、保存しない。`tree_changes` が論点ツリーだけから導き、`tree_io render` の表示に出す。同じ値を `tree_io changes` が JSON で返す（[ADR-0056](adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md)）。
   引用していない下の結果は前の回の一覧にもあったか（`shown_before`）も持つ。`tree_io changes --with-answers` は、標準入力の答えを書いた後の論点ツリーとして同じ値を導き、何も書かない（[ADR-0069](adr/0069-evidence-is-recommended-and-results-shown-before-are-folded.md)）。
-  計算の点検の記録（`.insight/designs/{id}_check.yaml`）は `design_io check` だけが書く。指標・図・cell の並びは、命令が書くときに分析設計・verdict・notebook を照らして決め、標準入力ではほかの項目と、それを読んだ verdict の名前（`verdict_digest`）を受け取り、書くときの verdict と違えば断る。点検が済んでいるかは項目に無く、保存しない。`design_check.check_reading` が、記録が覚えた verdict・分析設計と、いまのものを比べて導き、`design_io checked` が同じ値を JSON で返す。分析設計の状態も journal も書かない（[ADR-0070](adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md)）。
+  計算の点検の記録（`.insight/designs/{id}_check.yaml`）は `design_io check` だけが書く。指標・図・cell の並びは、命令が書くときに分析設計・verdict・notebook を照らして決める。標準入力では、ほかの項目と、それを読んだ verdict の名前（`verdict_digest`）を受け取り、書くときの verdict と違えば断る。点検が済んでいるかは項目に無く、保存しない。`design_check.check_reading` が、記録が覚えた verdict・分析設計と、いまのものを比べて導き、`design_io checked` が同じ値を JSON で返す。分析設計の状態も journal も書かない（[ADR-0070](adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md)）。
 - **pre-write hook（`hooks/validate-design.py`, plugin 同梱 `hooks/hooks.json`）** —
   `.insight/designs/*_hypothesis.yaml` と `.insight/themes/*_tree.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
   にかけ、違反を `exit 2` でブロックする I/O 殻。論点ツリーでは、ファイル名のテーマと中身の `theme_id` が同じことも確かめる。

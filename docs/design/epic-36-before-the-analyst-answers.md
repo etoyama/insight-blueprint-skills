@@ -15,7 +15,7 @@ Epic issue（[#302](https://github.com/etoyama/insight-blueprint-skills/issues/3
     前の回に見せて選ばなかった結果も毎回並ぶ（[#298](https://github.com/etoyama/insight-blueprint-skills/issues/298)）。
   - 課題4: 分析者が言いたいのは、分析設計をまたいだ見立て（主題の答えを支える、変える、まだ言えない）である。それを書く場所が無い。
     引用を越える見立てを claim に書くと、次の回のエージェントが決まりに従って直す。
-  - 課題5: 前の答えの、根拠より強く言って見える文が残る。黙って書き換えるのはやめたので、分析者に見せて聞く場面が要る
+  - 課題5: 前の答えの、根拠より強く言って見える文が残る。知らせずに書き換えるのはやめたので、分析者に見せて聞く場面が要る
     （[#271](https://github.com/etoyama/insight-blueprint-skills/issues/271)）。
   - 課題6: `analysis-auto`（544 行）と `analysis-reflection`（801 行）の SKILL.md が長い。対話エージェントが毎回全部を読む
     （[#294](https://github.com/etoyama/insight-blueprint-skills/issues/294)）。この Epic は両方に段を足すので、先に分ける。
@@ -26,7 +26,7 @@ Epic issue（[#302](https://github.com/etoyama/insight-blueprint-skills/issues/3
     対象・粒度・分母・抽出は見ない。しかも受けるかは任意で、終え方に答えるときに選ぶ。
   - [ADR-0025](../adr/0025-cited-answers-checked-after-writing.md) は「答えは人が書く」案を落とし、答えの文をすべてエージェントに書かせた。
     分析者の言葉が残るのは、分析設計ごとの `conclude` と、論点ツリーの決定の理由だけである。
-  - [ADR-0056](../adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md) は、答えに入れないと決めた結果と、
+  - [ADR-0056](../adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md) は答えに入れないと決めた結果と、
     まだ見ていない結果を区別しない。「巡回のたびに聞かれて煩わしいと分かったら別の決定で足す」と書いている。それが起きた。
 
 ### 起票の経緯
@@ -188,9 +188,9 @@ Story は PM のセッションが起票した。「触る所」が重なる Sto
 | 人間が実物の画面と言い回しの一覧を読む（FLOW-0019） | 4 の後 | — | — | 合成シナリオで作った論点ツリーの HTML と分析ノート、`tree_words.py` から抜き出した言い回しの一覧 | 36.7 |
 
 - 波 1 は 36.1 と 36.2 で、並行で進められる。36.1 は SKILL.md だけ、36.2 はコードと用語集だけを触る。
-- 36.3 と 36.6 は、同じ参照ファイル（テーマの振り返り）を触るので、順に進める。36.5 が触るのは `analysis-reflection` の本文と
+- 36.3 と 36.6 は同じ参照ファイル（テーマの振り返り）を触るので、順に進める。36.5 が触るのは `analysis-reflection` の本文と
   `analysis-auto` の参照ファイルで、36.6 と重ならない。この分け方は 36.1 の分割が前提である。
-- 36.5 と 36.8 は、どちらも `skills/analysis-reflection/SKILL.md` の本文を触るので、順に進める。
+- 36.5 と 36.8 はどちらも `skills/analysis-reflection/SKILL.md` の本文を触るので、順に進める。
 - 画面を変えるのは 36.7 だけである。人間が実物の画面を読む段は 36.7 の後に置く。チャットの問いの文（36.3・36.5・36.6）は、
   初版の見本で人間が読んだ。
 - 見立てのモデル: 36.2・36.3・36.4・36.5 は未決の設計判断が残るので上位のモデル、36.1・36.6・36.7・36.8 は手順がはっきりしているので標準のモデル。
@@ -328,7 +328,7 @@ flowchart TD
   （[ADR-0062](../adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md)）。
 - 単独の経路では、`/analysis-notebook` か `/analysis-reflection` を起動したセッションが、対話エージェントの役をする。
 - 点検が済んだかは、点検の記録と、いまの verdict から導く。どこにも保存しない。
-- 推奨と、その理由は、チャットに出るだけである。正本に残るのは、分析者が確かめた後の答えだけである。
+- 推奨とその理由は、チャットに出るだけである。正本に残るのは、分析者が確かめた後の答えだけである。
 - daemon・MCP サーバ・SQLite を足さない。
 
 ## Domain Model
@@ -655,6 +655,7 @@ Story の実装に合わせて書く。
 - レビューの後に足した判断（計画外 2件、PM に報告）: (1) 分析者が残すと選んだ文も、言い過ぎに見える間は後の回にまた並ぶ。選んだことは記録に残らず、導けない（ADR-0069 の推奨の理由と同じ）。
   そのため、この文がある間は問いを飛ばせない。人間が受け入れた。直すかは #312。(2) 分析者が言葉を言って弱めた文は `analyst_view` を持つ。分析者の言葉なので、検査に反したときも見立てと同じく分析者に聞く（ADR-0068）。
   そのほか、新しい結果が関わる claim は新しい結果の規則で書き直し、並べない。論点の最後の1文は落とせない（答えは1文以上で、取り下げられない）ので、残すか弱めるかを聞く。
+
 ### Decision: story-36-4-one-command-takes-the-readers-items-and-decides-the-rest
 
 - What: 点検を書く命令は `design_io check --id <分析設計>` の1つにする。標準入力は `{"checked_by": "check_agent" か "same_session", "verdict_digest": 読んだ verdict の名前, "items": [{"subject", "result", "note", "cell"}]}` で、
@@ -772,6 +773,7 @@ Story の実装に合わせて書く。
 - Affected modules: `skills/analysis-auto/references/handover.md`、`tests/skills/test_skill_references_structure.py`。
 - Alternatives considered: `tree_io render --theme` だけを見る（別の命令の同じ穴を通す）。値を取るフラグの全部に広げる（フラグごとに、名前だけを説明する文との見分けが要る。穴は見つかっていない）。
 - Consequences: `--theme` を取る命令を足すと、同じテストが見る。
+
 ### Decision: story-36-7-the-card-shows-every-difference-and-the-note-shows-every-subject
 
 - What: (1) 分析ノートは、点検の節を付録の側（「レビュー」「結論」の後、「分析コード」の直前）に置き、冒頭の状態の欄の1行の要約を、
