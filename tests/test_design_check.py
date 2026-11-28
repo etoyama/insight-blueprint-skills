@@ -8,6 +8,7 @@ check remembers its verdict, and reads as not done once the verdict changed.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -17,6 +18,7 @@ import pytest
 from insight_blueprint.models.check import CheckResult, CheckSubject, verdict_digest
 from insight_blueprint.validate import validate_schema
 from skills._shared import design_check, design_io
+from skills._shared._atomic import atomic_write_yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 NOTEBOOK = (
@@ -511,6 +513,20 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         design.write_text("key: [unclosed\n", "utf-8")
         assert design_check.check_reading(design_id, insight).checked is False
 
+    @pytest.mark.skipif(os.geteuid() == 0, reason="root reads a file of mode 000")
+    def test_a_verdict_that_cannot_be_read_is_not_checked(self, insight: Path) -> None:
+        """It does not stop the reading, as a record or a design that does not read."""
+        design_id = _confirmation(insight)
+        path = _save_result(insight, design_id)
+        design_check.record_check(design_id, _payload(), insight)
+        path.chmod(0)
+        try:
+            reading = design_check.check_reading(design_id, insight)
+        finally:
+            path.chmod(0o644)
+        assert reading.checked is False
+        assert reading.has_verdict is True and reading.verdict_digest is None
+
     def test_a_design_changed_after_the_check_reads_as_not_checked(
         self, insight: Path
     ) -> None:
@@ -556,6 +572,22 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
             design_id,
             {"title": "Another title", "referenced_knowledge": {"src": ["K1"]}},
             insight,
+        )
+        assert design_check.check_reading(design_id, insight).checked is True
+
+    def test_a_write_that_fills_a_default_the_file_left_out_keeps_the_check(
+        self, insight: Path
+    ) -> None:
+        """The design is named as it validates, not as the file spells it."""
+        design_id = _confirmation(insight)
+        path = insight / "designs" / f"{design_id}_hypothesis.yaml"
+        data = design_io.read_yaml(path)
+        del data["metrics"][0]["tier"]
+        atomic_write_yaml(path, data)
+        _save_result(insight, design_id)
+        assert design_check.record_check(design_id, _payload(), insight).checked
+        design_io.update_design(
+            design_id, {"referenced_knowledge": {"src": ["K1"]}}, insight
         )
         assert design_check.check_reading(design_id, insight).checked is True
 

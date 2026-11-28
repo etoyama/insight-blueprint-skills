@@ -287,8 +287,8 @@ def check_reading(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> CheckRea
 
     The reading holds the check only when a record exists and remembers this
     very verdict and the design as it reads now. A design without a verdict has
-    nothing to check (``has_verdict`` false). A record that does not read is no
-    check.
+    nothing to check (``has_verdict`` false). A record, a design or a verdict
+    that does not read is no check.
     """
     if not SAFE_ID_PATTERN.fullmatch(design_id):
         raise ValueError(f"Invalid design_id '{design_id}': must match [a-zA-Z0-9_-]+")
@@ -304,5 +304,9 @@ def check_reading(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> CheckRea
         design = load_design(design_id, base_dir)
     except (ValueError, YAMLError, OSError):
         design = None
-    verdict = read_own_bytes(verdict_path(design_id, base_dir))
+    try:
+        verdict = read_own_bytes(verdict_path(design_id, base_dir))
+    # The verdict is there and does not read: there is one, and no check of it is known.
+    except OSError:
+        return CheckReading(design_id=design_id, has_verdict=True, verdict_digest=None)
     return _reading(design_id, verdict, design, check)

@@ -17,6 +17,8 @@ from typing import Self
 
 from pydantic import BaseModel, model_validator
 
+from insight_blueprint.models.design import AnalysisDesign
+
 
 class CheckSubject(StrEnum):
     """What a check compares between the design and the notebook."""
@@ -108,10 +110,20 @@ COMPARED_FIELDS = (
 def design_digest(design: Mapping[str, object]) -> str:
     """The name a check remembers its design by: its ``COMPARED_FIELDS``, hashed.
 
-    *design* is the file as read. The order of its keys does not count, and a
-    field that is absent reads as one that is null.
+    *design* is the file as read. It is named as it validates, so a write that
+    spells out a default the file left out (``design_io update`` writes the
+    whole design) keeps the name. A file that does not validate is named as it
+    is. The order of its keys does not count, and a field that is absent reads
+    as one that is null.
     """
-    said = {field: design.get(field) for field in COMPARED_FIELDS}
+    try:
+        # The same validation as validate_schema, which models cannot import.
+        read: Mapping[str, object] = AnalysisDesign.model_validate(design).model_dump(
+            mode="json"
+        )
+    except ValueError:  # a pydantic ValidationError is a ValueError
+        read = design
+    said = {field: read.get(field) for field in COMPARED_FIELDS}
     text = json.dumps(said, sort_keys=True, ensure_ascii=False, default=str)
     return f"sha256:{hashlib.sha256(text.encode()).hexdigest()}"
 
