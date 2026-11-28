@@ -254,7 +254,6 @@ class TestTheResultsAreSplitByTheCodeAndRecommendedByTheAgent:
         )
 
     def test_the_parts_of_the_question_are_listed_in_order(self) -> None:
-        # Story 36.6 adds a part: the order is a numbered list it can extend.
         offer = _offer()
         parts = re.findall(r"^(\d)\. \*\*([^*]+)\*\*", offer, re.MULTILINE)
         assert [name for _, name in parts] == [
@@ -263,6 +262,7 @@ class TestTheResultsAreSplitByTheCodeAndRecommendedByTheAgent:
             "Not recommended",
             "Shown before",
             "Dropped",
+            "Overstated",
             "The question",
         ]
 
@@ -270,8 +270,8 @@ class TestTheResultsAreSplitByTheCodeAndRecommendedByTheAgent:
         shown = _shown(_offer())
         assert "件を根拠に入れて、答えを書いてよいですか。" in shown
         assert (
-            "外す番号、足す番号、見立ての言い直しがあれば、あわせて書いてください。"
-            in (shown)
+            "外す番号、足す番号、見立ての言い直し、前の答えの文の扱いがあれば、"
+            "あわせて書いてください。" in shown.replace(" ", "")
         )
 
     def test_the_block_never_says_cite_event_or_node_below(self) -> None:

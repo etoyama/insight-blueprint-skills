@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   can open. An answer above rests on a result from below only after the analyst confirmed it
   ([ADR-0068](docs/adr/0068-an-answer-statement-may-be-the-analysts-view.md),
   [ADR-0069](docs/adr/0069-evidence-is-recommended-and-results-shown-before-are-folded.md), #305).
+- **The theme reflection asks about a sentence of an earlier answer that seems to say more than its
+  cites, instead of fixing it.** The question before the answers are written lists each such claim with
+  what its cited events say, and asks whether to keep, weaken or drop it. The agent changes none before
+  the reply, and a sentence the reply says nothing of is kept. A sentence of the analyst's view can be
+  listed, but only the analyst writes its weakened words
+  ([ADR-0069](docs/adr/0069-evidence-is-recommended-and-results-shown-before-are-folded.md), #308, #271).
 - **`/analysis-auto` and `/analysis-reflection` keep their long parts in reference files.** The hand-over of
   several nodes and the brief of an execution agent are in `skills/analysis-auto/references/`, and the theme
   reflection is in `skills/analysis-reflection/references/`. The body says when to read each. The steps do

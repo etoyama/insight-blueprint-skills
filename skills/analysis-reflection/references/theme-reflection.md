@@ -92,10 +92,13 @@ rewording the reader cannot tell from a change buries the change that matters.
   changes (a claim that a new result leaves open becomes `undetermined`) or a rule of this
   step requires it.
 - A statement no new result bears on is changed only where it breaks a rule of this step
-  (a `contradicts` event cited outside a `weakening`, a claim that says more than its cited
-  events) or where `tree_io answer` or `tree_check` reports a violation of it. Change only
-  that part, and name the rule or the violation in Step T5. Reading old results again in
-  other words is not a reason to change a statement.
+  (a `contradicts` event cited outside a `weakening`) or where `tree_io answer` or
+  `tree_check` reports a violation of it. Change only that part, and name the rule or the
+  violation in Step T5. Reading old results again in other words is not a reason to change
+  a statement.
+- A claim of the current answer that seems to say more than the events it cites is sent as
+  it was in the draft, and asked about in Step T3: the analyst decides whether to keep,
+  weaken or drop it (ADR-0069). Never weaken or drop it on your own.
 - When the 主題の版 has gone up since a node's answer (`root_revision` is lower than the
   current one), rewrite that answer for the new 主題 where its question asks something new,
   and say so in Step T5. A statement the new 主題 does not change still keeps its words.
@@ -216,10 +219,11 @@ left open. Its reason names the result of this round that changes it, and its li
 with （前の回にも見せた）. Every other result shown before stays in the count.
 
 **The question.** Skip the question and send the answers only when no node leaves an event
-out, the analyst wrote no view and no statement with `analyst_view` needs asking about
-(Step T2). Otherwise show one block for each node that leaves an event
-out, the root first, and ask once for all of them. A block holds these parts in this order,
-and a part with nothing in it is left out:
+out, the analyst wrote no view, no statement with `analyst_view` needs asking about
+(Step T2) and no statement seems to say more than its cites. Otherwise show one block for
+each node that leaves an event out or has a statement that seems to say more than its
+cites, the root first, and ask once for all of them. A block holds these parts in this
+order, and a part with nothing in it is left out:
 
 1. **The view** — in the block of the root only, when the analyst wrote one: the view as
    written, the `kind` you place it in, and the numbers of the results it will rest on.
@@ -230,7 +234,13 @@ and a part with nothing in it is left out:
 3. **Not recommended** — the other results new to the list in this round, each with why not.
 4. **Shown before** — the count of the results shown before that you did not raise.
 5. **Dropped** — the results an earlier answer rested on and the draft does not.
-6. **The question** — one sentence for all blocks, after the last block.
+6. **Overstated** — every claim of the node's current answer that seems to say more than
+   the events it cites, as Step T2 keeps it: the sentence as written, what its cited events
+   say, and, when a result of this round bears on it, that result by its number. Only a
+   statement of the current answer is listed, never the view of this round. A statement
+   with `analyst_view` that seems to say more is listed here with （あなたの見立て）, not
+   again under **The view**, and its line asks for the analyst's words.
+7. **The question** — one sentence for all blocks, after the last block.
 
 ```
 ── 主題「{question}」の答え ──
@@ -257,11 +267,20 @@ and a part with nothing in it is left out:
 前は答えの根拠にしていて、今は外している分析結果
   5. {content}（{round}回目の振り返りの答えまで根拠にしていた）
 
+根拠より強く言っているように見える、前の答えの文（{N}件）
+  文1. 「{text}」 ← 根拠は{what its cited events say}
+     {この回の結果（{numbers}）で{what they do to it}。}残す・弱める・落とす、のどれにしますか。
+  文2. 「{text}」（あなたの見立て） ← 根拠は{what its cited events say}
+     残す・弱める・落とす、のどれにしますか。弱めるときは、文をあなたの言葉で書いてください。
+
 ── 論点「{question}」の答え ──
 根拠に入れることを勧める分析結果: 2、4
+根拠より強く言っているように見える、前の答えの文（{N}件）
+  文3. 「{text}」 ← 根拠は{what its cited events say}
+     残す・弱める・落とす、のどれにしますか。
 
 「勧めた{N}件を根拠に入れて、答えを書いてよいですか。
- 外す番号、足す番号、見立ての言い直しがあれば、あわせて書いてください。」
+ 外す番号、足す番号、見立ての言い直し、前の答えの文の扱いがあれば、あわせて書いてください。」
 ```
 
 - Number the results through the whole question, each once: a result written out under the
@@ -272,6 +291,10 @@ and a part with nothing in it is left out:
 - `{N}` in the question is the number of results recommended in all blocks. When you
   recommend none, ask 「どの分析結果も根拠に入れずに、答えを書いてよいですか。」 instead of its
   first line.
+- Say what the cited events say in a few words of their content (「冬の3か月の集計1つ」),
+  never by their ids. When two or more statements are listed, mark them 文1, 文2, … through
+  the whole question, so the analyst can name each; a single one takes no mark. Leave out
+  、前の答えの文の扱い when no block has the part.
 
 **After the reply.** The analyst decides. Wait for the answer, and send nothing before it:
 once the answers are written, taking in another result needs another round.
@@ -291,6 +314,22 @@ once the answers are written, taking in another result needs another round.
 - The view may also rest on an event the root's current answer already cites; the line
   根拠 of the view says how many. When the view would rest on no confirmed result and on
   no such event, it cannot be written: say so and ask which result it rests on.
+
+For each statement of the part **Overstated**, the reply decides (ADR-0069):
+
+- 残す: the statement is sent character for character, as Step T2 says.
+- 落とす: the statement is left out of the draft.
+- 弱める: the statement takes the analyst's words, exactly, when they give them. When they
+  do not, rewrite only that statement to say no more than its cited events, under the rules
+  of Step T2, with the same `kind` and the same `cites`.
+- A listed statement the reply says nothing of is kept: never weaken or drop it on your
+  own.
+- Never write a weakened sentence for a statement with `analyst_view` (ADR-0068). When the
+  analyst chooses 弱める for a view without saying how it reads, ask for the words: it is
+  the same question going on. The view then reads exactly as they say, with the mark.
+
+A statement weakened or dropped here changes the answer. In Step T5, say so in `{reason}`
+as 「前の答えの文を、あなたが選んだとおり弱めた」 or 「前の答えの文を、あなたが選んだとおり落とした」.
 
 #### Send the answers
 
