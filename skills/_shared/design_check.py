@@ -30,6 +30,11 @@ from insight_blueprint.models.design import AnalysisDesign
 from insight_blueprint.validate import validate_schema
 from skills._shared._atomic import atomic_write_yaml, write_lock
 from skills._shared.design_io import DEFAULT_BASE_DIR, load_design, read_yaml
+from skills._shared.design_note_check import (
+    CHECK_SUBJECT_WORDS,
+    NoteCheck,
+    check_summary,
+)
 from skills._shared.ids import SAFE_ID_PATTERN
 from skills._shared.notebook_files import (
     CONTRACT_CELLS,
@@ -270,10 +275,21 @@ def _item(item: CheckItem) -> dict[str, Any]:
     return item.model_dump(mode="json", exclude_defaults=True)
 
 
+def _shown(item: CheckItem) -> dict[str, Any]:
+    # The word of the subject the analysis note shows: the chat shows the same one.
+    return _item(item) | {"label": CHECK_SUBJECT_WORDS[item.subject]}
+
+
 def reading_json(reading: CheckReading) -> dict[str, Any]:
-    """*reading* as ``design_io checked`` and ``design_io check`` print it."""
+    """*reading* as ``design_io checked`` and ``design_io check`` print it.
+
+    ``line`` is the line of the status of the analysis note, and each item
+    names its subject in the word of the note (``label``): the chat shows them
+    as they are, so the chat and the screens say one check in one way.
+    """
     check = reading.check
     return {
+        "line": check_summary(NoteCheck.of(reading)),
         "design_id": reading.design_id,
         "has_verdict": reading.has_verdict,
         "verdict_digest": reading.verdict_digest,
@@ -281,8 +297,8 @@ def reading_json(reading: CheckReading) -> dict[str, Any]:
         "notebook_digest": reading.notebook_digest,
         "checked": reading.checked,
         "checked_by": check.checked_by.value if check else None,
-        "items": [_item(i) for i in check.items] if check else [],
-        "differences": [_item(i) for i in check.differences()] if check else [],
+        "items": [_shown(i) for i in check.items] if check else [],
+        "differences": [_shown(i) for i in check.differences()] if check else [],
     }
 
 

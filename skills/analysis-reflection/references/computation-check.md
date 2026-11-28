@@ -107,8 +107,8 @@ echo '{"checked_by": "check_agent", "verdict_digest": "sha256:…", "design_dige
   `notebook_digest` that is null there is sent as null. `items` is the reply as it came: change no result
   and no `note`. Leave `criterion` out for an exploration, as the brief told the agent.
 - The command adds the subjects the code decides and prints what `design_io checked`
-  prints: `checked`, `checked_by`, every item in `items`, and those that differ in
-  `differences`.
+  prints: `line`, `checked`, `checked_by`, every item in `items`, and those that differ
+  in `differences`, each with the `label` of its subject.
 - When it refuses because what was read changed since (the verdict, the design or the
   notebook was written meanwhile): read `design_io checked` again and run the check again
   from item 1.

@@ -23,6 +23,11 @@ from insight_blueprint.models.check import (
 from insight_blueprint.validate import validate_schema
 from skills._shared import design_check, design_io
 from skills._shared._atomic import atomic_write_yaml
+from skills._shared.design_note_check import (
+    CHECK_SUBJECT_WORDS,
+    NoteCheck,
+    check_summary,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 NOTEBOOK = (
@@ -315,7 +320,14 @@ class TestCheckWritesTheRecord:
             "grain",
             "metrics",
         ]
-        assert _json(reading)["differences"][0] == {"subject": "grain"} | grain
+        assert (
+            _json(reading)["differences"][0]
+            == {
+                "subject": "grain",
+                "label": "粒度",
+            }
+            | grain
+        )
 
     def test_checking_again_replaces_the_record(self, insight: Path) -> None:
         design_id = _confirmation(insight)
@@ -471,6 +483,7 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         design_id = _confirmation(insight)
         design = design_io.load_design(design_id, insight)
         assert _json(design_check.check_reading(design_id, insight)) == {
+            "line": None,
             "design_id": design_id,
             "has_verdict": False,
             "verdict_digest": None,
@@ -703,6 +716,44 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         elsewhere.write_text(json.dumps(VERDICT), "utf-8")
         (insight / "notebooks" / f"{design_id}_verdict.json").symlink_to(elsewhere)
         assert design_check.check_reading(design_id, insight).has_verdict is False
+
+
+class TestTheReadingSaysTheCheckInTheWordsOfTheScreens:
+    """The chat shows the line and the words the analysis note shows (gate review)."""
+
+    def test_the_line_is_the_one_of_the_status_of_the_note(self, insight: Path) -> None:
+        design_id = _confirmation(insight)
+        _save_result(insight, design_id)
+        grain = {"result": "differs", "note": "per visit", "cell": "data_prep"}
+        reading = design_check.record_check(
+            design_id, _payload(insight, design_id, grain=grain), insight
+        )
+        assert _json(reading)["line"] == check_summary(NoteCheck.of(reading))
+
+    def test_without_a_verdict_there_is_no_line(self, insight: Path) -> None:
+        design_id = _confirmation(insight)
+        assert _json(design_check.check_reading(design_id, insight))["line"] is None
+
+    def test_each_item_and_difference_names_its_subject_in_the_word_of_the_note(
+        self, insight: Path
+    ) -> None:
+        design_id = _confirmation(insight)
+        _save_result(insight, design_id)
+        grain = {"result": "differs", "note": "per visit", "cell": "data_prep"}
+        shown = _json(
+            design_check.record_check(
+                design_id, _payload(insight, design_id, grain=grain), insight
+            )
+        )
+        for item in [*shown["items"], *shown["differences"]]:
+            assert item["label"] == CHECK_SUBJECT_WORDS[CheckSubject(item["subject"])]
+
+    def test_the_record_holds_no_label(self, insight: Path) -> None:
+        design_id = _confirmation(insight)
+        _save_result(insight, design_id)
+        design_check.record_check(design_id, _payload(insight, design_id), insight)
+        record = design_io.read_yaml(_record_path(insight, design_id))
+        assert all("label" not in item for item in record["items"])
 
 
 def _cli(insight: Path, *argv: str, stdin: str = "") -> subprocess.CompletedProcess:

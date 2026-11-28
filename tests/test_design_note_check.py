@@ -517,20 +517,6 @@ def test_the_designdoc_lists_each_word_the_screens_show(word: str) -> None:
     assert word in _shown_words_table()
 
 
-def test_the_screens_name_the_subjects_and_the_results_as_the_chat_does() -> None:
-    """The chat (reflection Step 2) and the screens say one check in the same words."""
-    skill = (REPO_ROOT / "skills" / "analysis-reflection" / "SKILL.md").read_text(
-        "utf-8"
-    )
-    shown = {
-        **{s.value: w for s, w in CHECK_SUBJECT_WORDS.items()},
-        **{r.value: w for r, w in CHECK_RESULT_WORDS.items()},
-    }
-
-    for name, word in shown.items():
-        assert f"| `{name}` | {word} |" in skill, name
-
-
 def test_the_words_are_the_ones_the_human_read_on_the_real_page() -> None:
     """The analyst read the screens (FLOW-0019) and chose these two words."""
     assert CHECK_SUBJECT_WORDS[CheckSubject.extraction] == "抽出・加工条件"

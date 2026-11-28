@@ -24,9 +24,10 @@ from insight_blueprint.models.check import (
     CheckSubject,
 )
 from skills._shared import design_check
+from skills._shared.design_note_check import CHECK_LEAVES, CHECK_WHAT
 from skills._shared.notebook_files import CONTRACT_CELLS
 from tests.skills._auto import gate_row, handover_item, handover_part
-from tests.skills._markdown import section, table_row, unwrap
+from tests.skills._markdown import section, unwrap
 from tests.skills._reflection import reflection, reflection_section
 from tests.skills.test_skill_structure import _read_skill
 from tests.test_design_check import _confirmation, _exploration, _save_result
@@ -308,8 +309,8 @@ class TestTheCheckIsDoneBeforeTheAnalystReads:
         )
         named = set(re.findall(r"`(\w+)` is (?:true|false)", _before()))
         assert named == {"has_verdict", "checked"}
-        assert named | {"differences", "items", "checked_by"} <= set(reading)
-        for key in ("differences", "items", "checked_by"):
+        assert named | {"line", "differences"} <= set(reading)
+        for key in ("line", "differences"):
             assert f"`{key}`" in _before(), key
 
     def test_a_result_without_a_check_of_it_is_checked_before_the_block(self) -> None:
@@ -370,37 +371,45 @@ class TestTheAnalystReadsTheResultOfTheCheck:
         step = section(reflection(), "### Step 2")
         assert step.index("── 点検 ──") < step.index("── 読むもの ──")
 
-    def test_a_check_without_a_difference_is_one_line(self) -> None:
-        assert re.search(
-            r"`differences` is empty[^.]*one line[^.]*「分析設計と違う所は無い」",
-            _before(),
+    def test_the_line_is_shown_as_the_command_gives_it(self, insight: Path) -> None:
+        """The chat shows the line of the note's status, so the two cannot drift."""
+        assert re.search(r"show its `line` as it is", _before())
+        design_id = _confirmation(insight)
+        _save_result(insight, design_id)
+        reading = _record(
+            design_id,
+            {
+                "checked_by": "check_agent",
+                **_digests(insight, design_id),
+                "items": _reply()["items"],
+            },
+            insight,
         )
+        assert reading["line"]
 
-    def test_what_the_check_does_not_tell_is_said_before_the_first_result(
+    def test_the_differences_are_listed_by_the_label_the_command_gives(
         self,
     ) -> None:
+        assert "- {label}: {note}" in reflection_section(DIFFERENCES)
+        assert re.search(
+            r"`label` and `note` as the JSON of Step 2 gives them", _differences()
+        )
+
+    def test_the_skill_holds_no_words_of_its_own_for_a_subject(self) -> None:
+        text = reflection_section(BEFORE)
+        assert not [s for s in CheckSubject if f"| `{s.value}` |" in text]
+
+    def test_what_the_check_is_is_said_in_the_words_of_the_note(self) -> None:
         before = _before()
         assert re.search(r"before the first 点検 line", before)
-        assert (
-            "分析設計に書いたことと、分析コードがしている計算が同じかを、"
-            "エージェントが読み比べること" in before
+        assert CHECK_WHAT in before
+        assert CHECK_LEAVES in before
+
+    def test_the_notebook_shows_the_line_the_command_printed(self) -> None:
+        assert re.search(
+            r"[Ss]how the `line` that `design_io check` printed, as it is",
+            unwrap(section(_read_skill("analysis-notebook"), "### Step 7")),
         )
-        assert (
-            "数が正しいか、分析設計が妥当か、結果の解釈が妥当かは確かめていない"
-            in before
-        )
-
-    def test_every_subject_has_the_word_the_analyst_reads(self) -> None:
-        text = reflection_section(BEFORE)
-        for subject in CheckSubject:
-            row = table_row(text, f"`{subject.value}`")
-            assert row[1], subject
-
-    def test_the_line_says_who_read_when_no_check_agent_did(self) -> None:
-        assert re.search(r"`checked_by` is `same_session`[^.]*say", _before())
-
-    def test_what_could_not_be_checked_is_named_in_the_line(self) -> None:
-        assert re.search(r"`not_checkable`[^.]*「見比べるものが無かった", _before())
 
 
 class TestADifferenceIsAskedAboutBeforeTheEndings:
@@ -413,7 +422,9 @@ class TestADifferenceIsAskedAboutBeforeTheEndings:
 
     def test_each_difference_is_its_subject_and_its_note_as_written(self) -> None:
         differences = _differences()
-        assert re.search(r"`note` as written\. Never reword a `note`", differences)
+        assert re.search(
+            r"`note` as the JSON[^.]*gives them\. Never reword a `note`", differences
+        )
         assert "{label}: {note}" in reflection_section(DIFFERENCES)
 
     def test_the_analyst_chooses_to_read_as_it_is_or_to_compute_again(self) -> None:

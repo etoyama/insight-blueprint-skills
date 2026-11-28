@@ -216,8 +216,8 @@ start a check agent, a subagent that did not write the notebook, as
 [Run the check of the computation](../analysis-reflection/references/computation-check.md)
 says, and record its reply with `design_io check`. When the host cannot start a subagent, do
 not read the notebook as its check yourself, since you wrote it: `/analysis-reflection`
-makes sure of the check in its Step 2. Show the 点検 line as that Step 2 words it, or say
-「点検は /analysis-reflection で走る」 when no check ran. The differences a check found are
+makes sure of the check in its Step 2. Show the `line` that `design_io check` printed, as it
+is, or say 「点検は /analysis-reflection で走る」 when no check ran. The differences a check found are
 asked about in `/analysis-reflection`, and not here: fix none of them now.
 
 Then run the render, and tell the analyst where the note is: read the JSON it prints as the

@@ -143,38 +143,15 @@ design_io checked --id {design_id}
 
 So the render comes after the check, and the design note shows the same result.
 
-Fill `{check_line}` of the 点検 block from that JSON, in one line for each design:
-
-- `differences` is empty: one line, 「分析設計と違う所は無い」.
-- `differences` is not empty: 「分析設計と違う所が {n} つある。下の問いの前に並べる」. The
-  differences themselves are shown in Step 3, and not here.
-- Some `items` are `not_checkable`: add 「見比べるものが無かった: {labels}」 to the line, with
-  the words of the table below.
-- `checked_by` is `same_session`: say so in the line, 「読み比べたのはこのセッション自身」.
-  For a check agent say nothing: the first sentence below names it.
+Fill `{check_line}` of the 点検 block from that JSON: show its `line` as it is, the line the
+design note shows in its status. When `differences` is not empty, add 「下の問いの前に並べる」
+after it: the differences themselves are shown in Step 3, and not here. Never show the
+names of the JSON.
 
 Once in a conversation, before the first 点検 line, say what the check is and what it does
 not tell, in these words:
-「点検（分析設計どおりに計算したかの点検）とは、分析設計に書いたことと、分析コードがしている計算が同じかを、エージェントが読み比べること。
-数が正しいか、分析設計が妥当か、結果の解釈が妥当かは確かめていない。」
-
-The words the analyst reads for a subject and for a result. Never show the names of the
-JSON:
-
-| In the JSON | Shown to the analyst |
-|---|---|
-| `population` | 対象 |
-| `grain` | 粒度 |
-| `denominator` | 分母 |
-| `extraction` | 抽出・加工条件 |
-| `metrics` | 指標 |
-| `compared_against` | 比べ先 |
-| `figures` | 図 |
-| `criterion` | 判定の基準 |
-| `cells` | 分析コードの区切り |
-| `agrees` | 分析設計どおり |
-| `differs` | 分析設計と違う |
-| `not_checkable` | 見比べるものが無かった |
+「分析設計どおりに計算したかの点検は、分析設計に書いたことと、分析コードがしている計算が同じかを、エージェントが読み比べることである。
+この点検は、数が正しいか（計算し直していない）、分析設計そのものが妥当か、結果の解釈が妥当かは確かめていない。」
 
 #### 読むもの
 
@@ -228,9 +205,8 @@ first question, above its heading, so that the analyst knows them before answeri
 このまま読むか、分析設計どおりに計算し直させるか。
 ```
 
-- One line for each item of `differences`: `label` is the word of the table of Step 2 for
-  its `subject`, and the `note` as written. Never reword a `note`, and leave its `cell`
-  out: the design note shows it.
+- One line for each item of `differences`, with its `label` and `note` as the JSON of Step 2
+  gives them. Never reword a `note`, and leave its `cell` out: the design note shows it.
 - The choice is 「このまま読む」 or 「分析設計どおりに計算し直させる」. It is asked in the same
   question as 結果から何が言えるか, and adds no question of its own: an answer to the first
   question takes 「このまま読む」.
