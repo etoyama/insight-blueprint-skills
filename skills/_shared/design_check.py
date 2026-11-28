@@ -24,7 +24,7 @@ from insight_blueprint.models.check import (
     CheckSubject,
     DesignCheck,
     design_digest,
-    verdict_digest,
+    file_digest,
 )
 from insight_blueprint.models.design import AnalysisDesign
 from insight_blueprint.validate import validate_schema
@@ -38,7 +38,7 @@ from skills._shared.notebook_files import (
     notebooks_dir,
     parse_verdict,
     read_own_bytes,
-    read_own_text,
+    text_of,
     verdict_figures,
     verdict_metrics,
     verdict_path,
@@ -132,17 +132,20 @@ def code_items(
 
 @dataclass(frozen=True)
 class CheckReading:
-    """Whether the check of one design is done for its verdict as it is now.
+    """Whether the check of one design is done for the files as they are now.
 
-    ``check_reading`` and ``record_check`` are its only makers. *check* is the
-    record only when it remembers this very verdict and the design as it reads
-    now; a check of another verdict or design says nothing of these, so it is
-    not held.
+    ``check_reading`` and ``record_check`` are its only makers. The digests
+    name the verdict, the design and the notebook there now; a reader sends
+    them back with its items. *check* is the record only when it remembers
+    these very files; a check of others says nothing of these, so it is not
+    held.
     """
 
     design_id: str
     has_verdict: bool
-    verdict_digest: str | None  # the name of the verdict there now; None without one
+    verdict_digest: str | None  # None without a verdict that reads
+    design_digest: str | None = None  # None without a design that reads
+    notebook_digest: str | None = None  # None without a notebook
     check: DesignCheck | None = None
 
     @property
@@ -172,13 +175,47 @@ def _reader_items(payload: dict) -> list[CheckItem]:
     return items
 
 
+# What a reader names the files it read by, as ``design_io checked`` gave them.
+_READ_AS = ("verdict_digest", "design_digest", "notebook_digest")
+
+
+def _digests(
+    verdict: bytes, design: dict, notebook: bytes | None
+) -> dict[str, str | None]:
+    return {
+        "verdict_digest": file_digest(verdict),
+        "design_digest": design_digest(design),
+        "notebook_digest": None if notebook is None else file_digest(notebook),
+    }
+
+
+def _refuse_what_was_not_read(
+    design_id: str, payload: dict, now: dict[str, str | None]
+) -> None:
+    """Refuse a reading of other files than these; ``notebook_digest`` is null without one."""
+    for key in _READ_AS:
+        # A notebook that is not there is named null; the other two always exist.
+        if key not in payload or (key != "notebook_digest" and not payload[key]):
+            raise ValueError(
+                f"{key}: name what the reader read, as design_io checked gave it "
+                "before the reading"
+            )
+        if payload[key] != now[key]:
+            raise ValueError(
+                f"what the reader read of {design_id} changed since it was read "
+                f"({key} differs): read it again, then check"
+            )
+
+
 def record_check(
     design_id: str, payload: dict, base_dir: Path = DEFAULT_BASE_DIR
 ) -> CheckReading:
     """Write the check of *design_id* for its verdict as it is now; return its reading.
 
-    *payload* holds ``checked_by`` and the ``items`` a reader answered. The
-    subjects of the code are decided here, at the moment of the write. The
+    *payload* holds ``checked_by``, the ``items`` a reader answered and the
+    digests of the files it read, as ``check_reading`` gave them. The subjects
+    of the code are decided here, at the moment of the write, from the notebook
+    the reader read. The
     record replaces an earlier one. Neither the design nor its journal is
     written. Raises ValueError, and writes nothing, when the design or its
     verdict is missing or the items are not the ones a reader answers.
@@ -197,26 +234,18 @@ def record_check(
                 f"{design_id} has no verdict: there is no computation to check yet"
             )
         verdict = parse_verdict(verdict_bytes, where.name)
-        digest = verdict_digest(verdict_bytes)
-        # The notebook writes its verdict outside this lock, so the reader may
-        # have read an earlier one: its answers are taken only for this verdict.
-        read = payload.get("verdict_digest")
-        if not read:
-            raise ValueError(
-                "verdict_digest: name the verdict the reader read, as "
-                "design_io checked gave it before the reading"
-            )
-        if read != digest:
-            raise ValueError(
-                f"the verdict of {design_id} changed since it was read "
-                "(verdict_digest differs): read it again, then check"
-            )
+        notebook_bytes = read_own_bytes(notebook_path(design_id, base_dir))
+        now = _digests(verdict_bytes, data, notebook_bytes)
+        # The notebook writes its verdict outside this lock, and the design and
+        # the notebook may be written meanwhile too, so the reader may have read
+        # earlier ones: its answers are taken only for the files as they are now.
+        _refuse_what_was_not_read(design_id, payload, now)
         items = [
             *_reader_items(payload),
             *code_items(
                 design,
                 verdict,
-                read_own_text(notebook_path(design_id, base_dir)),
+                None if notebook_bytes is None else text_of(notebook_bytes),
                 notebooks_dir(base_dir),
             ),
         ]
@@ -224,8 +253,7 @@ def record_check(
         check = DesignCheck.model_validate(
             {
                 "design_id": design_id,
-                "verdict_digest": digest,
-                "design_digest": design_digest(data),
+                **now,
                 "checked_by": payload.get("checked_by"),
                 "items": sorted(items, key=lambda item: order.index(item.subject)),
                 "judges": design.form().judges,
@@ -235,7 +263,7 @@ def record_check(
             "items": [_item(item) for item in check.items]
         }
         atomic_write_yaml(_record_path(design_id, base_dir), record)
-        return _reading(design_id, verdict_bytes, data, check)
+        return _reading(design_id, verdict_bytes, data, notebook_bytes, check)
 
 
 def _item(item: CheckItem) -> dict[str, Any]:
@@ -249,6 +277,8 @@ def reading_json(reading: CheckReading) -> dict[str, Any]:
         "design_id": reading.design_id,
         "has_verdict": reading.has_verdict,
         "verdict_digest": reading.verdict_digest,
+        "design_digest": reading.design_digest,
+        "notebook_digest": reading.notebook_digest,
         "checked": reading.checked,
         "checked_by": check.checked_by.value if check else None,
         "items": [_item(i) for i in check.items] if check else [],
@@ -260,6 +290,7 @@ def _reading(
     design_id: str,
     verdict: bytes | None,
     design: dict | None,
+    notebook: bytes | None,
     check: DesignCheck | None,
 ) -> CheckReading:
     """*design* is the file of the design as read; None when it does not read."""
@@ -267,13 +298,15 @@ def _reading(
         check is not None
         and verdict is not None
         and design is not None
-        and check.is_current(verdict, design)
+        and check.is_current(verdict, design, notebook)
     )
     return CheckReading(
         design_id=design_id,
         has_verdict=verdict is not None,
-        verdict_digest=None if verdict is None else verdict_digest(verdict),
-        # A check of another verdict or design says nothing of these, so none of it is shown.
+        verdict_digest=None if verdict is None else file_digest(verdict),
+        design_digest=None if design is None else design_digest(design),
+        notebook_digest=None if notebook is None else file_digest(notebook),
+        # A check of other files says nothing of these, so none of it is shown.
         check=check if done else None,
     )
 
@@ -282,7 +315,7 @@ def check_reading(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> CheckRea
     """Whether the check of *design_id* is done for its verdict as it is now.
 
     The reading holds the check only when a record exists and remembers this
-    very verdict and the design as it reads now. A design without a verdict has
+    very verdict, the design as it reads now and the notebook as it is now. A design without a verdict has
     nothing to check (``has_verdict`` false). A record, a design or a verdict
     that does not read is no check.
     """
@@ -305,4 +338,9 @@ def check_reading(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> CheckRea
     # The verdict is there and does not read: there is one, and no check of it is known.
     except OSError:
         return CheckReading(design_id=design_id, has_verdict=True, verdict_digest=None)
-    return _reading(design_id, verdict, design, check)
+    try:
+        notebook = read_own_bytes(notebook_path(design_id, base_dir))
+    # A notebook that does not read cannot be told from the one checked.
+    except OSError:
+        notebook, check = None, None
+    return _reading(design_id, verdict, design, notebook, check)

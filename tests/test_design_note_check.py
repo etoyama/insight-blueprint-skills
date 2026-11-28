@@ -20,7 +20,6 @@ from insight_blueprint.models.check import (
     CheckItem,
     CheckResult,
     CheckSubject,
-    verdict_digest,
 )
 from insight_blueprint.models.design import AnalysisDesign
 from skills._shared import design_check, design_io
@@ -393,6 +392,13 @@ def insight(tmp_path: Path) -> Path:
     return base
 
 
+def _digests_of(design_id: str, insight: Path) -> dict:
+    json_of = design_check.reading_json(design_check.check_reading(design_id, insight))
+    return {
+        k: json_of[k] for k in ("verdict_digest", "design_digest", "notebook_digest")
+    }
+
+
 def _checked_design(insight: Path) -> str:
     design_id = design_io.create_design(
         theme_id="LIB",
@@ -411,7 +417,7 @@ def _checked_design(insight: Path) -> str:
         design_id,
         {
             "checked_by": "same_session",
-            "verdict_digest": verdict_digest(verdict.encode()),
+            **_digests_of(design_id, insight),
             "items": [
                 {"subject": s, "result": "agrees"}
                 | (
@@ -476,9 +482,7 @@ def test_the_screen_reads_the_check_only_through_check_reading() -> None:
     for name in screens:
         text = (shared / name).read_text(encoding="utf-8")
         assert "_check.yaml" not in text, name
-        assert not re.search(r"\b(verdict_digest|design_digest|is_current)\(", text), (
-            name
-        )
+        assert not re.search(r"\b(file_digest|design_digest|is_current)\(", text), name
 
 
 def _shown_words_table() -> str:

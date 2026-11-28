@@ -92,13 +92,13 @@ class CheckItem(BaseModel):
         return self
 
 
-def verdict_digest(verdict: bytes) -> str:
-    """The name a check remembers its verdict by: the bytes of the file, hashed.
+def file_digest(content: bytes) -> str:
+    """The name a check remembers a verdict or a notebook by: its bytes, hashed.
 
     The time of the file would change on a copy or a checkout, and the check
-    would read as not done for a verdict it did check.
+    would read as not done for a file it did check.
     """
-    return f"sha256:{hashlib.sha256(verdict).hexdigest()}"
+    return f"sha256:{hashlib.sha256(content).hexdigest()}"
 
 
 # The fields of a design the subjects of a check are written in. Any other may
@@ -144,6 +144,9 @@ class DesignCheck(BaseModel):
     design_id: str
     verdict_digest: str
     design_digest: str
+    # None: there was no notebook to read. Required, so a record written before
+    # the notebook was remembered reads as no check.
+    notebook_digest: str | None
     checked_by: CheckedBy
     items: list[CheckItem]
     # Whether the design judges a hypothesis, as the writer read it. The record
@@ -167,15 +170,23 @@ class DesignCheck(BaseModel):
             raise ValueError(f"items: not checked: {', '.join(missing)}")
         return self
 
-    def is_current(self, verdict: bytes, design: Mapping[str, object]) -> bool:
-        """Whether *verdict* and *design*, the files as they are now, are the ones checked.
+    def is_current(
+        self, verdict: bytes, design: Mapping[str, object], notebook: bytes | None
+    ) -> bool:
+        """Whether the files as they are now are the ones checked.
 
-        A design changed after the check would leave a difference that is no
-        longer one, or hide one that now is (ADR-0070 7).
+        *notebook* is None when there is no notebook to read; a check made
+        without one stays current only while there is none. A design changed
+        after the check would leave a difference that is no longer one, or hide
+        one that now is; a change of the code may leave the verdict as it was
+        (ADR-0070 7).
         """
-        return self.verdict_digest == verdict_digest(
-            verdict
-        ) and self.design_digest == design_digest(design)
+        return (
+            self.verdict_digest == file_digest(verdict)
+            and self.design_digest == design_digest(design)
+            and self.notebook_digest
+            == (None if notebook is None else file_digest(notebook))
+        )
 
     def differences(self) -> list[CheckItem]:
         return [item for item in self.items if item.result is CheckResult.differs]

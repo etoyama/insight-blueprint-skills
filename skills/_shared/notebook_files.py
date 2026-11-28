@@ -80,6 +80,14 @@ def read_own_text(path: Path) -> str | None:
         return None
 
 
+def text_of(raw: bytes) -> str | None:
+    """The text of the bytes of an own file; None when they are not UTF-8."""
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return None
+
+
 class Number(str):
     """A JSON number or constant of the verdict, kept as the text the notebook wrote."""
 

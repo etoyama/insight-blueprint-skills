@@ -87,7 +87,7 @@ flowchart TD
   進捗は項目に無いので、保存できない。結んだ分析設計の状態から進捗を導く規則は `QuestionTree.progress` にあり、ページ・`tree_io progress`・レポートがこれを呼ぶ。ファイルを読んで渡すのは `tree_read` で、CLI は `tree_io progress` である。
   答えの変化、上の論点での引用、引用していない下の結果も項目に無く、保存しない。`tree_changes` が論点ツリーだけから導き、`tree_io render` の表示に出す。同じ値を `tree_io changes` が JSON で返す（[ADR-0056](adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md)）。
   引用していない下の結果は前の回の一覧にもあったか（`shown_before`）も持つ。`tree_io changes --with-answers` は、標準入力の答えを書いた後の論点ツリーとして同じ値を導き、何も書かない（[ADR-0069](adr/0069-evidence-is-recommended-and-results-shown-before-are-folded.md)）。
-  計算の点検の記録（`.insight/designs/{id}_check.yaml`）は `design_io check` だけが書く。指標・図・cell の並びは、命令が書くときに分析設計・verdict・notebook を照らして決める。標準入力では、ほかの項目と、それを読んだ verdict の名前（`verdict_digest`）を受け取り、書くときの verdict と違えば断る。点検が済んでいるかは項目に無く、保存しない。`design_check.check_reading` が、記録が覚えた verdict・分析設計と、いまのものを比べて導き、`design_io checked` が同じ値を JSON で返す。分析設計の状態も journal も書かない（[ADR-0070](adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md)）。
+  計算の点検の記録（`.insight/designs/{id}_check.yaml`）は `design_io check` だけが書く。指標・図・cell の並びは、命令が書くときに分析設計・verdict・notebook を照らして決める。標準入力では、ほかの項目と、読み手が読んだ verdict・分析設計・notebook の名前（`verdict_digest`・`design_digest`・`notebook_digest`）を受け取り、書くときのものと違えば断る。点検が済んでいるかは項目に無く、保存しない。`design_check.check_reading` が、記録が覚えた verdict・分析設計・notebook と、いまのものを比べて導き、`design_io checked` が同じ値を JSON で返す。分析設計の状態も journal も書かない（[ADR-0070](adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md)）。
 - **pre-write hook（`hooks/validate-design.py`, plugin 同梱 `hooks/hooks.json`）** —
   `.insight/designs/*_hypothesis.yaml` と `.insight/themes/*_tree.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
   にかけ、違反を `exit 2` でブロックする I/O 殻。論点ツリーでは、ファイル名のテーマと中身の `theme_id` が同じことも確かめる。
@@ -615,8 +615,9 @@ classDiagram
         design_id
         verdict_digest
         design_digest
+        notebook_digest
         checked_by
-        is_current(verdict, design)
+        is_current(verdict, design, notebook)
         differences()
     }
     class CheckItem {
@@ -893,7 +894,7 @@ classDiagram
 |---|---|---|
 | `AnalysisDesign` | 集約ルート | `status` は `VALID_TRANSITIONS` の遷移でだけ変わる。`methodology` があれば `method` は空でない。`decision_context` があれば `decision_maker` と `decision` はどちらも空でない（[ADR-0014](adr/0014-analysis-design-decision-context.md)）。探索の問いと検証仮説のどちらか一方だけを持ち、形が1つに決まる。探索は `explored` でだけ終わり、検証と旧形式の探索は判定の3つでだけ終わる（[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md)、[ADR-0049](adr/0049-legacy-exploration-stays-readable-and-is-marked.md)） |
 | `ReviewBatch` | 集約ルート | `comments` は1件以上。1つのバッチは `status_after` への遷移を1回だけ起こす |
-| `DesignCheck` | エンティティ | 分析設計ごとに0か1つ。`design_io check` だけが書き、書き直すと前の記録を置き換える。点検の項目は、判定の基準を除く8つをちょうど1つずつ持ち、判定の基準は検証の分析設計のときだけ持つ。点検した verdict をファイルの中身のハッシュ（`verdict_digest`）で、点検した分析設計を、点検の項目が読む欄のハッシュ（`design_digest`）で覚え、どちらかがいまのものと違えば済んでいないと読む。分析設計の状態を変えない（[ADR-0070](adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md)） |
+| `DesignCheck` | エンティティ | 分析設計ごとに0か1つ。`design_io check` だけが書き、書き直すと前の記録を置き換える。点検の項目は、判定の基準を除く8つをちょうど1つずつ持ち、判定の基準は検証の分析設計のときだけ持つ。点検した verdict をファイルの中身のハッシュ（`verdict_digest`）で、点検した分析設計を、点検の項目が読む欄のハッシュ（`design_digest`）で、点検した notebook を `{id}.py` の中身のハッシュ（`notebook_digest`）で覚え、どれかがいまのものと違えば済んでいないと読む。分析設計の状態を変えない（[ADR-0070](adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md)） |
 | `CheckItem` | 値オブジェクト | 合っている以外の結果は、文（`note`）を持つ。食い違う項目は、根拠にした cell の名前も持つ（cell の並びの項目は除く）。指標・図・cell の並びの項目はコードが決め、標準入力では受け取らない |
 | `DataSource` | 集約ルート | `type` は空でない open string（[ADR-0004](adr/0004-open-string-catalog-taxonomy.md)） |
 | `DomainKnowledge` | 集約ルート | 1つの `source_id` に属する。`category` は空でない open string |

@@ -239,8 +239,8 @@ first question, above its heading, so that the analyst knows them before answeri
 - 「分析設計どおりに計算し直させる」 → run `/analysis-notebook {design_id}` in this session, with
   the differences as what to put right: the notebook is changed to compute as the design
   says, run, and its verdict recorded again, and no premortem runs again, since the
-  extraction does not change. Then come back to Step 2 of this skill, which checks the new verdict whatever `checked`
-  says before it shows 読むもの again, and ask the three questions after that. Differences that remain
+  extraction does not change. Then come back to Step 2 of this skill, which checks the new verdict before it shows
+  読むもの again, and ask the three questions after that. Differences that remain
   are shown and asked about in the same way.
 - A design that a review of its result holds (`in_review` or `revision_requested`) takes
   no new result, so it cannot be computed again until the review returns it to

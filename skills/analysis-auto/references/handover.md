@@ -118,8 +118,8 @@ tree_io position --theme LIB
      a check. When its reply arrives, record it. You alone record it with
      `design_io check`: neither a check agent nor an execution agent does.
    - A design handed over again at **endings** stays `awaiting_reflection` whatever its
-     agent did, so go by what the agent returned. When it computed again, check it again
-     whatever `checked` says: the code changed even if the verdict did not. When it
+     agent did, so go by what the agent returned. When it computed again, start its check as
+     for any result that came back. When it
      returned without computing again, start no check, tell the analyst what its agent
      reported, and ask at **endings** how that analysis ends, with its differences as
      they were.

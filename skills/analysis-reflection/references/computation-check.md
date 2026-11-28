@@ -12,16 +12,17 @@ subject, `agrees`, `differs` or `not_checkable`
 It asks the analyst nothing, touches no data and changes neither the design nor its status.
 What a difference leads to is asked later, where the design's ending is asked.
 
-1. Read the verdict the check is for, and keep its `verdict_digest`:
+1. Read the files the check is for, and keep their `verdict_digest`, `design_digest` and
+   `notebook_digest`:
 
 ```bash
 design_io checked --id {design_id}
 ```
 
-   When `checked` is true, stop here: the check is done. The one exception is a notebook
-   that was computed again after a check found differences: check it again whatever
-   `checked` says, since a change of the code may leave the verdict as it was, and the old
-   check would then read as done.
+   When `checked` is true, stop here: the check is done. The record remembers the verdict,
+   the design and the notebook it checked, so when any of them changed since, `checked` is
+   false, and a notebook computed again is checked again even when its verdict stayed as it
+   was.
 2. Have the subjects of the brief below read. Start a check agent: a subagent of this
    conversation that did not write the notebook. Give it the brief below, and start it in
    the background when the host lets you. Then `checked_by` is `check_agent`.
@@ -98,17 +99,19 @@ A check agent knows nothing of this conversation. Write its brief from these lin
 Send the reply on with who read and the verdict that was read:
 
 ```bash
-echo '{"checked_by": "check_agent", "verdict_digest": "sha256:…", "items": [{"subject": "population", "result": "agrees"}, {"subject": "grain", "result": "agrees"}, {"subject": "denominator", "result": "agrees"}, {"subject": "extraction", "result": "agrees"}, {"subject": "compared_against", "result": "agrees"}, {"subject": "criterion", "result": "agrees"}]}' | design_io check --id {design_id}
+echo '{"checked_by": "check_agent", "verdict_digest": "sha256:…", "design_digest": "sha256:…", "notebook_digest": "sha256:…", "items": [{"subject": "population", "result": "agrees"}, {"subject": "grain", "result": "agrees"}, {"subject": "denominator", "result": "agrees"}, {"subject": "extraction", "result": "agrees"}, {"subject": "compared_against", "result": "agrees"}, {"subject": "criterion", "result": "agrees"}]}' | design_io check --id {design_id}
 ```
 
-- `verdict_digest` is the value of item 1, as `design_io checked` gave it before the
-  reading: the `sha256:…` stands for it. `items` is the reply as it came: change no result
+- `verdict_digest`, `design_digest` and `notebook_digest` are the values of item 1, as
+  `design_io checked` gave them before the reading: each `sha256:…` stands for one. A
+  `notebook_digest` that is null there is sent as null. `items` is the reply as it came: change no result
   and no `note`. Leave `criterion` out for an exploration, as the brief told the agent.
 - The command adds the subjects the code decides and prints what `design_io checked`
   prints: `checked`, `checked_by`, every item in `items`, and those that differ in
   `differences`.
-- When it refuses because the verdict changed since it was read, the notebook wrote a
-  new verdict meanwhile: read `design_io checked` again and run the check again from item 1.
+- When it refuses because what was read changed since (the verdict, the design or the
+  notebook was written meanwhile): read `design_io checked` again and run the check again
+  from item 1.
 - When it refuses the items (a subject missing, a `differs` without its `cell`), show the
   check agent the stderr and ask it for the reply again, once. If the second reply is
   refused too, read the files yourself and record as `same_session`.

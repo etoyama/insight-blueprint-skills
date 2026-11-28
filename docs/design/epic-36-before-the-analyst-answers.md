@@ -104,7 +104,7 @@ AC の正本はここ。
 - [ ] AC 3: 対象・粒度・分母・抽出・比べ先・判定の基準は、その notebook を書いていない点検エージェントが読む。
   点検エージェントを立てられないホストでは同じセッションが読み、誰が点検したかを記録に残す。
 - [ ] AC 4: 計算の点検は、分析者に何も聞かずに終わる。記録は `design_io` の命令だけが書き、まとめて任せた実行では対話エージェントだけが書く。
-- [ ] AC 5: 計算の点検は、点検した verdict と分析設計を覚える。verdict か分析設計の中身が変わったら、点検は済んでいないと読む。
+- [ ] AC 5: 計算の点検は、点検した verdict・分析設計・notebook のコードを覚える。verdict・分析設計・notebook のどれかの中身が変わったら、点検は済んでいないと読む。
   分析設計の状態や、点検が読まない欄（題など）が変わっただけでは、済んだままである。
 
 ### US-5: 分析者が、どの経路でも、食い違いを読む前に知って決められる
@@ -374,8 +374,9 @@ classDiagram
         +design_id
         +verdict_digest
         +design_digest
+        +notebook_digest
         +checked_by
-        +is_current(verdict, design)
+        +is_current(verdict, design, notebook)
         +differences()
     }
     class CheckItem {
@@ -426,7 +427,7 @@ classDiagram
 |---|---|---|
 | `AnswerStatement` | 値オブジェクト | 分析者の見立ての印を持つ文も、引用を1つ以上持ち、ツリーの検査を受ける。印は既定で無しで、印の無い保存済みの文はそのまま読める。答えは追記だけなので、書いた文の印は変わらない |
 | `UncitedBelow` | 値オブジェクト（導く） | 前の回の一覧にもあったかは、論点ツリーの最後の振り返りの回より前の答えだけで同じ一覧を作り、そこにもあったかで導く。保存しない。その回より前に答えを持たない論点では、どの結果も前の回に見せていない（Decision `story-36-2-shown-before-is-told-against-the-tree-before-its-last-round`） |
-| `DesignCheck` | エンティティ（分析設計ごとに0か1つ） | `design_io check` だけが書く。点検した verdict を、ファイルの中身のハッシュ（`verdict_digest`）で覚える。点検した分析設計も、点検の項目が読む欄のハッシュ（`design_digest`）で覚える。どちらかがいまのものと違えば、済んでいないと読む。書き直すと前の点検を置き換える。分析設計の状態を変えない。判定の基準を除く8つの項目を、ちょうど1つずつ持つ |
+| `DesignCheck` | エンティティ（分析設計ごとに0か1つ） | `design_io check` だけが書く。点検した verdict を、ファイルの中身のハッシュ（`verdict_digest`）で覚える。点検した分析設計も、点検の項目が読む欄のハッシュ（`design_digest`）で覚える。点検した notebook も、`{id}.py` の中身のハッシュ（`notebook_digest`。notebook が無ければ無いと覚える）で覚える。どれかがいまのものと違えば、済んでいないと読む。書き直すと前の点検を置き換える。分析設計の状態を変えない。判定の基準を除く8つの項目を、ちょうど1つずつ持つ |
 | `CheckItem` | 値オブジェクト | 食い違う項目は、何が違うかの文と、根拠にした cell の名前を持つ。cell の並びの食い違いだけは cell を持たない（並びは、どれか1つの cell で読むものではない）。確かめられない項目も、理由の文を持つ。指標・図・cell の並びの項目はコードが決め、標準入力で渡すと命令が断る。検証でない分析設計は、判定の基準の項目を持たない |
 
 ### State Diagram
@@ -523,11 +524,11 @@ Story の実装に合わせて書く。
 | `skills/_shared/tree_changes.py::uncited_below` | 引用していない下の結果ごとに、前の回の一覧にもあったか（`shown_before`）を、論点ツリーだけから導く | 推奨しない。たたんで見せない → 問いは 36.3、ページは 36.7。答えの変化の比べ方は変えない（文の種類と本文だけ） |
 | `skills/_shared/tree_io.py::changes`（`tree_io changes --with-answers`） | 書く前の答えを受け取り、それを書いた後の論点ツリーとして、答えの変化と、上と下の論点での引用を返す。何も書かない | ツリーの検査をしない → `tree_io answer`。標準入力を読むのはフラグがあるときだけで、`answers` 以外のキーは断る |
 | `skills/_shared/tree_read.py::changes_of` | 渡された論点ツリーから、`tree_io changes` の JSON を作る。文は正本と同じ形で出す（印は、ある文にだけ出る） | ファイルを読まない → `tree_io.changes` |
-| `src/insight_blueprint/models/check.py::DesignCheck`・`CheckItem` | 点検の記録の形と、その不変条件を持つ。記録がいまの verdict と分析設計のものか（`is_current`）と、食い違う項目（`differences`）を返す。分析設計の名前（`design_digest`）は、点検の項目が読む欄（`COMPARED_FIELDS`）だけで作る | 分析設計を知らない。判定の基準の項目を持つべきかは、書き手が渡す `judges`（`required_subjects`）で決める。`judges` は記録に書かない → `design_check.record_check` が `design.form().judges` を渡す。ファイルを読まない |
+| `src/insight_blueprint/models/check.py::DesignCheck`・`CheckItem` | 点検の記録の形と、その不変条件を持つ。記録がいまの verdict・分析設計・notebook のものか（`is_current`）と、食い違う項目（`differences`）を返す。分析設計の名前（`design_digest`）は、点検の項目が読む欄（`COMPARED_FIELDS`）だけで作る | 分析設計を知らない。判定の基準の項目を持つべきかは、書き手が渡す `judges`（`required_subjects`）で決める。`judges` は記録に書かない → `design_check.record_check` が `design.form().judges` を渡す。ファイルを読まない |
 | `skills/_shared/design_check.py::code_items` | 分析設計・verdict・notebook から、指標・図・cell の並びの項目を決める。指標は `target` と verdict の指標の名前を照らし、図は数を比べ、cell の並びは分析ノートと同じ切り方（`notebook_cells`）で読む。比べる指標と図は、分析ノートが見せるものと同じ（`notebook_files`） | 対象・粒度・分母・抽出・比べ先・判定の基準は読まない → 点検エージェント（36.5）。数を計算し直さない |
 | `skills/_shared/notebook_files.py` | `.insight/notebooks/` の notebook・verdict・図のファイルを読む、ただ1つの読み手。リンクを読まない。verdict の指標（中身がオブジェクトのものだけ）と図（名前が正しく、PNG のファイルがあるものだけ）、cell の切り方を持つ。分析ノートと計算の点検が、同じものを読む | 他の `skills/_shared` のモジュールを import しない。画面に出さない → `design_note_read.py`。分析設計と比べない → `design_check.py` |
-| `skills/_shared/design_check.py::record_check`（`design_io check`） | 標準入力の項目（点検エージェントが読んだもの）と、自分で決めた3つの項目を合わせ、点検した verdict のハッシュと一緒に `{id}_check.yaml` に書く。読んでから書くまでロックを持つ。標準入力の `verdict_digest`（読み手が読んだ verdict）が、書くときの verdict と違えば断る。コードが決める項目を渡されたとき、項目が足りないとき、verdict が無いときは断り、何も書かない | 分析設計も journal も書かない。点検エージェントを立てない → `/analysis-reflection`・`/analysis-auto`・`/analysis-notebook`（36.5）。終えた分析設計かは見ない → 呼ぶ skill |
-| `skills/_shared/design_check.py::check_reading`（`design_io checked`） | 点検が済んでいるかを返す、ただ1つの読み手。記録が覚えた verdict と分析設計が、いまのものと同じときだけ `checked` が真で、項目と食い違いを返す。verdict が無い、記録が無い、記録か分析設計が読めない、verdict か分析設計が変わった、のどれでも偽 | 画面に出さない → `design_note.py`・`tree_render_stage.py`（36.7）。分析者に聞かない → reflection の Step 2 と endings（36.5） |
+| `skills/_shared/design_check.py::record_check`（`design_io check`） | 標準入力の項目（点検エージェントが読んだもの）と、自分で決めた3つの項目を合わせ、点検した verdict のハッシュと一緒に `{id}_check.yaml` に書く。読んでから書くまでロックを持つ。標準入力の `verdict_digest`・`design_digest`・`notebook_digest`（読み手が読んだもの）が、書くときのものと違えば断る。コードが決める項目は、書くときの notebook から取る。コードが決める項目を渡されたとき、項目が足りないとき、verdict が無いときは断り、何も書かない | 分析設計も journal も書かない。点検エージェントを立てない → `/analysis-reflection`・`/analysis-auto`・`/analysis-notebook`（36.5）。終えた分析設計かは見ない → 呼ぶ skill |
+| `skills/_shared/design_check.py::check_reading`（`design_io checked`） | 点検が済んでいるかを返す、ただ1つの読み手。記録が覚えた verdict・分析設計・notebook が、いまのものと同じときだけ `checked` が真で、項目と食い違いを返す。読み手が返す3つの名前（`verdict_digest`・`design_digest`・`notebook_digest`）も返す。verdict が無い、記録が無い、記録か分析設計が読めない、verdict・分析設計・notebook のどれかが変わった、のどれでも偽 | 画面に出さない → `design_note.py`・`tree_render_stage.py`（36.7）。分析者に聞かない → reflection の Step 2 と endings（36.5） |
 | `src/insight_blueprint/validate.py::validate_check_write`、`hooks/validate-design.py` | `.insight/designs/*_check.yaml` への Write・Edit・MultiEdit を、中身を読まずに全部止める | Python からの書き込みは見えない → `design_io check` だけが書くという約束と、skill の文 |
 | `skills/analysis-reflection/references/computation-check.md` | 計算の点検を走らせる手順を1か所に持つ: `design_io checked` を読む、点検エージェントを立てる（立てられなければ同じセッションが読む）、点検エージェントのブリーフ、返事を `design_io check` で記録する。`/analysis-reflection` の Step 2 と、まとめて任せる流れの return が読む | 分析者に何も聞かない。食い違いをどうするかは決めない → `/analysis-reflection` の Step 3。項目の結果の形は決めない → `design_check.record_check` |
 | `skills/analysis-reflection/SKILL.md` の Step 2（Before 読むもの） | 読むものを出す前に `design_io checked` を読み、verdict があって点検が済んでいなければ走らせる。点検の結果を1行で言い、初めて言う前に点検の範囲を言う。項目と結果の、分析者に見せる言葉の表を持つ | 済んだ点検は走らせ直さない。食い違いの中身はここで並べない → Step 3。画面には出さない → `design_note.py`（36.7） |

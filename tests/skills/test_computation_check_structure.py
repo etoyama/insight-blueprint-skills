@@ -98,8 +98,14 @@ def _record(design_id: str, payload: dict, insight: Path) -> dict:
     )
 
 
-def _digest(insight: Path, design_id: str) -> str:
-    return design_check.check_reading(design_id, insight).verdict_digest
+def _digests(insight: Path, design_id: str) -> dict:
+    """What ``design_io checked`` names the files by, as a reader sends them back."""
+    reading = design_check.check_reading(design_id, insight)
+    return {
+        "verdict_digest": reading.verdict_digest,
+        "design_digest": reading.design_digest,
+        "notebook_digest": reading.notebook_digest,
+    }
 
 
 class TestACheckAgentReadsWhatTheCodeCannot:
@@ -143,7 +149,7 @@ class TestACheckAgentReadsWhatTheCodeCannot:
             design_id,
             {
                 "checked_by": "check_agent",
-                "verdict_digest": _digest(insight, design_id),
+                **_digests(insight, design_id),
                 **reply,
             },
             insight,
@@ -163,7 +169,7 @@ class TestACheckAgentReadsWhatTheCodeCannot:
             design_id,
             {
                 "checked_by": "same_session",
-                "verdict_digest": _digest(insight, design_id),
+                **_digests(insight, design_id),
                 "items": items,
             },
             insight,
@@ -239,20 +245,21 @@ class TestTheCheckAsksNothingAndOnlyTheDialogueAgentRecordsIt:
         design_id = _confirmation(insight)
         _save_result(insight, design_id)
         sent = _recorded()
-        assert set(sent) == {"checked_by", "verdict_digest", "items"}
-        reading = _record(
-            design_id, sent | {"verdict_digest": _digest(insight, design_id)}, insight
-        )
+        assert set(sent) == {
+            "checked_by",
+            "verdict_digest",
+            "design_digest",
+            "notebook_digest",
+            "items",
+        }
+        reading = _record(design_id, sent | _digests(insight, design_id), insight)
         assert reading["checked"] is True
         assert reading["checked_by"] == sent["checked_by"]
 
     def test_the_digest_is_the_one_read_before_the_reading(self) -> None:
         record = unwrap(_record_text())
         assert re.search(
-            r"`verdict_digest`[^.]*as `design_io checked` gave it before", record
-        )
-        assert re.search(
-            r"refuses because the verdict changed[^.]*read `design_io checked` again"
+            r"refuses because what was read changed[^.]*read `design_io checked` again"
             r"[^.]*run the check again",
             record,
         )
@@ -560,20 +567,28 @@ class TestAnAnalysisComputedAgainIsNeverLeftWithItsOldCheck:
             handover_item("return"),
         )
 
-    def test_a_second_run_is_checked_again_whatever_checked_says(self) -> None:
+    def test_a_second_run_is_checked_as_any_result_whose_check_is_not_done(
+        self,
+    ) -> None:
+        """The record remembers the code, so a run that computed again reads as not checked."""
         assert re.search(
-            r"When it computed again, check it again whatever `checked` says",
+            r"When it computed again, start its check as for any result",
             handover_item("return"),
         )
         assert re.search(
-            r"computed again[^.]*whatever `checked` says[^.]*leaves? the verdict "
-            r"as it was",
+            r"remembers the verdict, the design and the notebook[^.]*any of them "
+            r"changed[^.]*`checked` is false",
             _run(),
         )
+
+    def test_the_reader_sends_back_the_names_of_the_three_files_it_read(
+        self,
+    ) -> None:
+        record = unwrap(_record_text())
         assert re.search(
-            r"come back to Step 2[^.]*checks? the new verdict[^.]*whatever `checked`"
-            r" says",
-            _differences(),
+            r"`verdict_digest`, `design_digest` and `notebook_digest` are the values "
+            r"of item 1, as `design_io checked` gave them before the reading",
+            record,
         )
 
     def test_a_design_that_ended_is_ruled_out_before_anything_is_run(self) -> None:
