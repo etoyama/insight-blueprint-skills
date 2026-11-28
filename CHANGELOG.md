@@ -33,6 +33,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdict saved before keeps reading; a metric it names otherwise shows as a difference when its
   design is checked
   ([ADR-0070](docs/adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md), #306).
+- **The analysis note, the tree page and the report show the check of the computation and the
+  analyst's view.** The analysis note has a section on the check before its results: what was compared
+  with what, who compared them, and what the check does not look at (whether the numbers are right,
+  whether the design holds, how to read the results), then every subject, the differences first, each
+  linked to the cell of the code it was read in. The card of a design on the tree page says how its
+  check stands and lists each difference as the check wrote it. A statement that is the analyst's view
+  carries （分析者の見立て） on the page and in the report. The mark of a change on a card now follows
+  the table of changes, so an answer that only gained the mark of the view no longer reads as changed
+  ([ADR-0068](docs/adr/0068-an-answer-statement-may-be-the-analysts-view.md),
+  [ADR-0070](docs/adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md), #309).
 
 ### Changed
 

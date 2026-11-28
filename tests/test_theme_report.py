@@ -1590,3 +1590,22 @@ class TestGroupsInTheReport:
                 "| 北分館 | 7.0 | — | 310 |",
             ]
         ]
+
+
+class TestTheAnalystsView:
+    """Epic 36, Story 36.7 (US-1 AC 5): the report marks the analyst's view."""
+
+    VIEW = "取消を除いた数え方なら、延長を試す価値はあると見る"
+
+    def test_a_statement_of_the_analysts_view_carries_its_mark(self) -> None:
+        view = AnswerStatement(
+            kind="claim", text=self.VIEW, cites=["LIB-H01-E01"], analyst_view=True
+        )
+        lines = render_report(
+            _report(view, _statement("claim", "期限切れは152件"))
+        ).splitlines()
+        (marked,) = [line for line in lines if self.VIEW in line]
+        (other,) = [line for line in lines if line.startswith("- 期限切れは152件")]
+
+        assert marked.startswith(f"- （{tree_words.VIEW_WORD}）{self.VIEW}")
+        assert tree_words.VIEW_WORD not in other

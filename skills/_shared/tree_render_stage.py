@@ -9,7 +9,12 @@ from __future__ import annotations
 
 from insight_blueprint.models.analysis_stage import AnalysisStage
 from skills._shared._html import Html, el, join
-from skills._shared.design_note import status_word
+from skills._shared.design_note import note_anchor, status_word
+from skills._shared.design_note_check import (
+    check_anchor,
+    check_summary,
+    difference_lines,
+)
 from skills._shared.tree_render_parts import (
     Context,
     DesignSummary,
@@ -19,6 +24,7 @@ from skills._shared.tree_render_parts import (
 )
 from skills._shared.tree_words import (
     ASKS_LEAD,
+    CHECK_OPEN,
     LINKED_NODES,
     STAGE_WORDS,
     STAGES_WITH_STATUS,
@@ -50,6 +56,8 @@ STAGE_CSS = """.progress-stopped { border-left-color: var(--stopped); border-lef
   margin: 1rem 0;
 }
 .asks h2 { margin-top: .6rem; }
+.view { font-weight: 700; color: var(--mark); }
+.differences { margin: .2rem 0; padding-left: 1.2rem; }
 """
 
 
@@ -77,6 +85,27 @@ def stage_notes(design: DesignSummary) -> list[Html]:
     if design.stop_reason is not None:
         notes.append(el("p", f"{STOP_REASON}: {design.stop_reason}"))
     return notes
+
+
+def check_lines(design: DesignSummary) -> list[Html]:
+    """How the check of a design stands, and each difference it found (ADR-0070).
+
+    Nothing before the notebook ran: there is no computation to check.
+    """
+    said = check_summary(design.has_verdict, design.check)
+    if said is None:
+        return []
+    # A check not done has no result to open.
+    opened = (
+        ["　", link_to(check_anchor(note_anchor(design.id)), CHECK_OPEN)]
+        if design.check.checked
+        else []
+    )
+    differences = difference_lines(design.check)
+    return [
+        el("p", said, *opened, class_="check"),
+        *([el("ul", *differences, class_="differences")] if differences else []),
+    ]
 
 
 def _ask_item(context: Context, design: DesignSummary) -> Html:

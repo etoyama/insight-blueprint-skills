@@ -16,9 +16,10 @@ from __future__ import annotations
 
 import base64
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from insight_blueprint.models.analysis_stage import AnalysisStage
+from insight_blueprint.models.check import CheckSubject
 from insight_blueprint.models.design import (
     AnalysisDesign,
     AnalysisIntent,
@@ -26,6 +27,14 @@ from insight_blueprint.models.design import (
     DesignStatus,
 )
 from skills._shared._html import BASE_CSS, Html, el, join, page, table
+from skills._shared.design_note_check import (
+    CHECK_HEADING,
+    CHECK_SUBJECT_WORDS,
+    NoteCheck,
+    cell_anchor,
+    check_section,
+    check_summary,
+)
 from skills._shared.design_note_reviews import NoteReviewBatch, review_batch
 from skills._shared.verdict_table import (
     Fixed,
@@ -135,6 +144,9 @@ class DesignNote:
     # tree_words says it, and tree_words reads this module's words, so the reader
     # of the files hands the line over instead of this module importing it.
     stage_line: str | None = None
+    # design_check.check_reading as read for this note; a note built by hand reads
+    # as one whose check is not done.
+    check: NoteCheck = field(default_factory=NoteCheck)
 
 
 NOTE_CSS = """
@@ -190,6 +202,8 @@ _SECTIONS = (
     ("metrics", "指標の定義"),
     ("explanatory", "説明変数"),
     ("sources", "データソース"),
+    # The check comes before the values it speaks of (US-5 AC 4).
+    ("check", CHECK_HEADING),
     ("results", "結果"),
     ("reviews", "レビュー"),
     ("conclusion", "結論"),
@@ -206,8 +220,12 @@ SECTION_WORDS = dict(_SECTIONS)
 # by (ADR-0063 2): what the design means to do, what it counts (ADR-0066 5),
 # and its figures.
 INTENT_LABEL = "意図"
-SCOPE_WORDS = {"population": "対象", "grain": "粒度", "denominator": "分母"}
-FIGURES_HEADING = "図"
+# The check of the computation names these subjects in the same words.
+SCOPE_WORDS = {
+    name: CHECK_SUBJECT_WORDS[CheckSubject(name)]
+    for name in ("population", "grain", "denominator")
+}
+FIGURES_HEADING = CHECK_SUBJECT_WORDS[CheckSubject.figures]
 
 
 @dataclass(frozen=True)
@@ -383,6 +401,7 @@ def _status(note: DesignNote, anchor: str) -> Html:
         None if stage_line is None else el("p", stage_line),
         el("p", journal),
         el("p", f"notebook の結果（verdict）: {verdict}"),
+        _check_line(note),
         None
         if concluded
         else el("p", "結論はまだ出ていない（分析設計が terminal status でない）。"),
@@ -404,6 +423,16 @@ def _status(note: DesignNote, anchor: str) -> Html:
         class_="status",
         id=f"{anchor}-status",
     )
+
+
+def _check_line(note: DesignNote) -> Html | None:
+    said = check_summary(note.verdict is not None, note.check)
+    return None if said is None else el("p", said)
+
+
+def _check(note: DesignNote, anchor: str) -> Html:
+    shown = None if note.cells is None else {c.name for c in note.cells}
+    return check_section(note.check, note.verdict is not None, anchor, shown)
 
 
 def _opening(design: AnalysisDesign, anchor: str) -> Html:
@@ -719,6 +748,7 @@ def _code(note: DesignNote, anchor: str) -> Html:
                         "details",
                         el("summary", _cell_heading(c)),
                         el("pre", el("code", c.source)),
+                        id=cell_anchor(anchor, c.name),
                     )
                     for c in note.cells
                 ),
@@ -833,6 +863,7 @@ def render_note(note: DesignNote) -> Html:
         _metric_definitions(design, anchor),
         _explanatory(design, anchor),
         _sources(note, anchor),
+        _check(note, anchor),
         _results(note, anchor),
         _reviews(note, anchor),
         _conclusion(note, anchor),

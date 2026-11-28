@@ -19,6 +19,7 @@ from collections.abc import Iterable
 from enum import StrEnum
 
 from insight_blueprint.models.analysis_stage import AnalysisStage
+from insight_blueprint.models.check import CheckSubject
 from insight_blueprint.models.design import DesignForm, DesignStatus
 from insight_blueprint.models.tree import (
     AimKind,
@@ -37,6 +38,12 @@ from skills._shared.design_note import (
     SECTION_WORDS,
     intent_words_of,
     status_word,
+)
+from skills._shared.design_note_check import (
+    CHECK_HEADING,
+    CHECK_LEAVES,
+    CHECK_SUBJECT_WORDS,
+    CHECK_WHAT,
 )
 from skills._shared.handover import COMPARED_ROWS, Absent, ChartPlan, HandoverRow
 from skills._shared.tree_changes import ChangeKind
@@ -204,6 +211,7 @@ def note_stage_line(stage: AnalysisStage, stop_reason: str | None) -> str | None
 
 
 STOP_REASON = "止めた理由"
+CHECK_OPEN = "点検の結果を開く"
 WHAT_IS_ASKED = "確認したいこと"
 LINKED_NODES = "結んだ論点"
 # A design keeps its status while it waits, stops or has its results, so the
@@ -227,14 +235,14 @@ HANDOVER_HEADING = "分析を任せる前の確認"
 HANDOVER_ROW_WORDS = {
     HandoverRow.intent: INTENT_LABEL,
     HandoverRow.statement: "何に答えるか",
-    HandoverRow.criterion: "判定の基準",
+    HandoverRow.criterion: CHECK_SUBJECT_WORDS[CheckSubject.criterion],
     HandoverRow.population: SCOPE_WORDS["population"],
     HandoverRow.grain: SCOPE_WORDS["grain"],
     HandoverRow.denominator: SCOPE_WORDS["denominator"],
     HandoverRow.sources: SECTION_WORDS["sources"],
     HandoverRow.method: SECTION_WORDS["method"],
     HandoverRow.metric: "主指標",
-    HandoverRow.extraction: "抽出・加工条件",
+    HandoverRow.extraction: CHECK_SUBJECT_WORDS[CheckSubject.extraction],
     HandoverRow.chart: FIGURES_HEADING,
 }
 DIFFERS_WORD = "分析間の違い"
@@ -289,6 +297,16 @@ KIND_WORDS = {
         "これまでわかっていることを弱める分析結果や、言える範囲を狭める条件。",
     ),
 }
+
+
+# The mark of a statement the analyst said in their own words (ADR-0068). The
+# chat says あなたの見立て to the analyst; the page and the report say whose it is.
+VIEW_WORD = "分析者の見立て"
+VIEW_MEANING = (
+    f"種類の言葉の後ろの「（{VIEW_WORD}）」は、分析者が自分の言葉で言った文に付ける。"
+    "エージェントは言い換えていない。ほかの文と同じく journal の出来事を引用し、"
+    "記録と照らして確かめる。"
+)
 
 
 MARK_WORDS = {
@@ -499,6 +517,7 @@ def legend() -> Html:
         ),
         el("p", f"{CURRENT_ANSWER_HEADING}は、文ごとに種類の言葉を付けて並べる。"),
         _word_list(KIND_WORDS.values()),
+        el("p", VIEW_MEANING),
         el("p", "答えの上に出す印。"),
         _word_list(
             (word.format(round="N"), meaning) for word, meaning in MARK_WORDS.values()
@@ -534,6 +553,12 @@ def legend() -> Html:
             "p",
             f"各論点の「{OPEN_EVIDENCE}」を押すと、引用した journal の出来事と、"
             "前の振り返りの答えが開く。",
+        ),
+        el(
+            "p",
+            f"分析設計のカードには、「{CHECK_HEADING}」がどうなったかを1行で出す。"
+            f"{CHECK_WHAT}{CHECK_LEAVES}分析設計と違う点があれば、点検が書いた文のまま"
+            "その下に並べる。notebook をまだ実行していない分析設計には出さない。",
         ),
         el("p", "論点の親子と分析設計の派生は別の構造なので、2つの節に分けて並べる。"),
         el(

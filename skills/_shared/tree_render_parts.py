@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 
@@ -28,9 +28,11 @@ from insight_blueprint.models.tree import (
 from skills._shared._html import Html, el, join
 from skills._shared.design_io import design_number
 from skills._shared.design_note import DesignNote, intent_word, statement_of
+from skills._shared.design_note_check import NoteCheck
 from skills._shared.design_note_reviews import comments_after_analysis
 from skills._shared.tree_changes import (
     AnswerChange,
+    ChangeKind,
     CitedAbove,
     UncitedBelow,
     answer_changes,
@@ -43,6 +45,7 @@ from skills._shared.tree_words import (
     HEARD_WORD,
     KIND_WORDS,
     RESULT_WORD,
+    VIEW_WORD,
     Mark,
     left_as_written,
     mark_text,
@@ -64,6 +67,8 @@ class DesignSummary:
     comments_after_analysis: int = 0  # review comments of the result review
     stop_reason: str | None = None  # as DesignNote.stop_reason
     asks: tuple[str, ...] = ()  # as DesignNote.asks
+    has_verdict: bool = False
+    check: NoteCheck = field(default_factory=NoteCheck)  # as DesignNote.check
 
     @classmethod
     def of(cls, note: DesignNote) -> DesignSummary:
@@ -82,6 +87,8 @@ class DesignSummary:
             comments_after_analysis=comments_after_analysis(note.reviews),
             stop_reason=note.stop_reason,
             asks=note.asks,
+            has_verdict=note.verdict is not None,
+            check=note.check,
         )
 
 
@@ -190,11 +197,21 @@ class Context:
         elif answer.round == self.tree.current_round():
             if len(node.answers) == 1:
                 marks.append(Mark.first)
-            elif answer.statements != node.answers[-2].statements:
+            elif self._changed(node):
                 marks.append(Mark.changed)
         if answer.root_revision < self.tree.current_revision().revision:
             marks.append(Mark.before_root_change)
         return marks
+
+    def _changed(self, node: QuestionNode) -> bool:
+        """Whether the table of changes has a row that changed (ADR-0056).
+
+        The mark reads the same derived value as the table: a statement that only
+        gained the mark of the analyst's view says the same, so it did not change.
+        """
+        return any(
+            e.kind is not ChangeKind.unchanged for e in self.changes[node.id].evidence
+        )
 
 
 def link_to(target: str, label: str) -> Html:
@@ -248,6 +265,9 @@ def statement_item(statement: AnswerStatement, *tail: str) -> Html:
     return el(
         "li",
         el("span", KIND_WORDS[statement.kind][0], class_="kind"),
+        el("span", f"（{VIEW_WORD}）", class_="view")
+        if statement.analyst_view
+        else None,
         f" {statement.text}",
         *tail,
     )

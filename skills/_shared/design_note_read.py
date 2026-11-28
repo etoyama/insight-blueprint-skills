@@ -55,6 +55,7 @@ from skills._shared.design_note import (
     local_file_paths,
     render_note_page,
 )
+from skills._shared.design_note_check import NoteCheck
 from skills._shared.design_note_reviews import (
     NoteReviewBatch,
     NoteReviewComment,
@@ -582,6 +583,17 @@ def _read_reviews(path: Path) -> tuple[NoteReviewBatch, ...]:
     return tuple(sorted(batches, key=lambda b: b.created_at, reverse=True))
 
 
+def _check_reading(design_id: str, base_dir: Path) -> dict:
+    """The one reading of the check (ADR-0070).
+
+    Imported here, not at the top: design_check reads the cells of a notebook
+    the way this module cuts them, so it imports this module.
+    """
+    from skills._shared.design_check import check_reading
+
+    return check_reading(design_id, base_dir)
+
+
 def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> DesignNote:
     """The note of *design_id*, read from the files of the design.
 
@@ -637,6 +649,7 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
         stop_reason=reading.stop_reason,
         stage_line=note_stage_line(reading.stage, reading.stop_reason),
         asks=tuple(ask.content for ask in reading.asks),
+        check=NoteCheck.of(_check_reading(design_id, base_dir)),
     )
 
 

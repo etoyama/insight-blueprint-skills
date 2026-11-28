@@ -71,6 +71,7 @@ from skills._shared.tree_render_parts import (
 from skills._shared.tree_render_stage import (
     STAGE_CSS,
     asks_section,
+    check_lines,
     stage_notes,
     stage_parts,
 )
@@ -537,6 +538,7 @@ def _design_card(context: Context, node: QuestionNode, design: DesignSummary) ->
             class_="meta",
         ),
         join(stage_notes(design)),
+        join(check_lines(design)),
         class_=f"branch form-{design.form.value}",
     )
 
