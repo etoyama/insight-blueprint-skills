@@ -111,7 +111,7 @@ class TestTheCheckOnTheCardOfADesign:
         text = _card_of_h01(NO_DIFFERENCE)
 
         assert check_summary(True, NO_DIFFERENCE) in text
-        assert "分析設計と違う点は無い" in text
+        assert "分析設計と違う所は無い" in text
 
     def test_a_check_not_done_says_so(self) -> None:
         assert "まだ済んでいない" in _card_of_h01(NoteCheck())

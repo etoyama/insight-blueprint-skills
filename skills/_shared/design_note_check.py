@@ -26,12 +26,13 @@ from skills._shared._html import Html, el, join, table
 
 CHECK_HEADING = "分析設計どおりに計算したかの点検"
 
-# The order of the words is the order of the subjects of a check.
+# The order of the words is the order of the subjects of a check. The chat of
+# /analysis-reflection Step 2 names them in the same words (a test holds the two).
 CHECK_SUBJECT_WORDS: Mapping[CheckSubject, str] = {
     CheckSubject.population: "対象",
     CheckSubject.grain: "粒度",
     CheckSubject.denominator: "分母",
-    CheckSubject.extraction: "抽出・加工条件",
+    CheckSubject.extraction: "抽出",
     CheckSubject.metrics: "指標",
     CheckSubject.compared_against: "比べ先",
     CheckSubject.figures: "図",
@@ -114,16 +115,18 @@ def check_summary(has_verdict: bool, check: NoteCheck) -> str | None:
 def _standing(check: NoteCheck) -> str:
     if not check.checked:
         return "まだ済んでいない。"
+    # In the words of the chat's line of the check (/analysis-reflection Step 2).
     differ = len(check.of_result(CheckResult.differs))
-    unknown = len(check.of_result(CheckResult.not_checkable))
+    unknown = check.of_result(CheckResult.not_checkable)
     said = "済んだ。"
     said += (
-        f"分析設計と違う点が {differ} つある。"
+        f"分析設計と違う所が {differ} つある。"
         if differ
-        else "分析設計と違う点は無い。"
+        else "分析設計と違う所は無い。"
     )
     if unknown:
-        said += f"確かめられなかった点が {unknown} つある。"
+        labels = "、".join(CHECK_SUBJECT_WORDS[i.subject] for i in unknown)
+        said += f"確かめられなかった: {labels}。"
     return said
 
 
