@@ -67,7 +67,6 @@ class DesignSummary:
     comments_after_analysis: int = 0  # review comments of the result review
     stop_reason: str | None = None  # as DesignNote.stop_reason
     asks: tuple[str, ...] = ()  # as DesignNote.asks
-    has_verdict: bool = False
     check: NoteCheck = field(default_factory=NoteCheck)  # as DesignNote.check
 
     @classmethod
@@ -87,7 +86,6 @@ class DesignSummary:
             comments_after_analysis=comments_after_analysis(note.reviews),
             stop_reason=note.stop_reason,
             asks=note.asks,
-            has_verdict=note.verdict is not None,
             check=note.check,
         )
 

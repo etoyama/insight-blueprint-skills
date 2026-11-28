@@ -24,6 +24,7 @@ from insight_blueprint.models.check import (
 )
 from insight_blueprint.models.design import AnalysisDesign
 from skills._shared import design_check, design_io
+from skills._shared.design_check import CheckReading
 from skills._shared.design_note import CodeCell, DesignNote, NoteVerdict, render_note
 from skills._shared.design_note_check import (
     CHECK_HEADING,
@@ -305,7 +306,9 @@ class TestACheckNotDone:
         assert "分析設計に書いたこと" in text
 
     def test_a_design_without_a_verdict_has_nothing_to_check(self) -> None:
-        text = squash(_section(_note(NoteCheck(), verdict=False)).text())
+        text = squash(
+            _section(_note(NoteCheck(has_verdict=False), verdict=False)).text()
+        )
 
         assert "点検するものが無い" in text
         assert "まだ済んでいない" not in text
@@ -314,20 +317,15 @@ class TestACheckNotDone:
         assert "まだ済んでいない" in squash(_section(_note()).text())
 
 
-class TestAReadingThatDoesNotRead:
-    """A reading that says done but names no reader is no check, as a record that does not read."""
+class TestTheReadingOfTheCheck:
+    """The screens take whether there is a verdict from the reading, as the check does."""
 
-    @pytest.mark.parametrize(
-        "reading",
-        [
-            {"checked": True, "items": []},
-            {"checked": True, "checked_by": "someone", "items": []},
-            {"checked": True, "checked_by": "check_agent", "items": [{"subject": "x"}]},
-            {"checked": True, "checked_by": "check_agent", "items": "not a list"},
-        ],
-    )
-    def test_it_reads_as_a_check_not_done(self, reading: dict) -> None:
-        assert NoteCheck.of(reading) == NoteCheck()
+    @pytest.mark.parametrize("has_verdict", [True, False])
+    def test_a_reading_without_a_check_is_a_check_not_done(
+        self, has_verdict: bool
+    ) -> None:
+        reading = CheckReading("LIB-H01", has_verdict, None)
+        assert NoteCheck.of(reading) == NoteCheck(has_verdict=has_verdict)
 
 
 class TestTheStatusOfTheNote:
@@ -336,30 +334,28 @@ class TestTheStatusOfTheNote:
             by_id(_root(_note(TWO_DIFFERENCES)), "note-LIB-H01-status").text()
         )
 
-        assert check_summary(True, TWO_DIFFERENCES) in status
+        assert check_summary(TWO_DIFFERENCES) in status
 
     def test_the_line_of_the_status_links_the_section_of_the_check(self) -> None:
         status = by_id(_root(_note(TWO_DIFFERENCES)), "note-LIB-H01-status")
         (line,) = [
             e
             for e in status.walk()
-            if e.tag == "a" and squash(e.text()) == check_summary(True, TWO_DIFFERENCES)
+            if e.tag == "a" and squash(e.text()) == check_summary(TWO_DIFFERENCES)
         ]
 
         assert line.attrs["href"] == "#note-LIB-H01-check"
 
     @pytest.mark.parametrize(
-        ("has_verdict", "check", "said"),
+        ("check", "said"),
         [
-            (False, NoteCheck(), None),
-            (True, NoteCheck(), "分析設計どおりに計算したかの点検: まだ済んでいない。"),
+            (NoteCheck(has_verdict=False), None),
+            (NoteCheck(), "分析設計どおりに計算したかの点検: まだ済んでいない。"),
             (
-                True,
                 _check(),
                 "分析設計どおりに計算したかの点検: 済んだ。分析設計と違う所は無い。",
             ),
             (
-                True,
                 TWO_DIFFERENCES,
                 "分析設計どおりに計算したかの点検: 済んだ。分析設計と違う所が 2 つある。"
                 "見比べるものが無かった: 抽出・加工条件。",
@@ -367,9 +363,9 @@ class TestTheStatusOfTheNote:
         ],
     )
     def test_the_summary_of_the_check_is_one_line(
-        self, has_verdict: bool, check: NoteCheck, said: str | None
+        self, check: NoteCheck, said: str | None
     ) -> None:
-        assert check_summary(has_verdict, check) == said
+        assert check_summary(check) == said
 
 
 # The note reads the check from check_reading, and from nowhere else (ADR-0070).
@@ -440,9 +436,8 @@ class TestTheNoteReadsTheCheck:
 
         assert check.checked is True
         assert check.checked_by is CheckedBy.same_session
-        assert [
-            i.model_dump(mode="json", exclude_defaults=True) for i in check.items
-        ] == (reading["items"])
+        assert reading.check is not None
+        assert check.items == tuple(reading.check.items)
 
     def test_a_verdict_written_again_reads_as_a_check_not_done(
         self, insight: Path

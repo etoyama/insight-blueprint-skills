@@ -71,16 +71,14 @@ NO_DIFFERENCE = NoteCheck(
 )
 
 
-def _designs(check: NoteCheck, *, has_verdict: bool = True) -> dict:
+def _designs(check: NoteCheck) -> dict:
     designs = make_designs()
-    designs["LIB-H01"] = replace(
-        designs["LIB-H01"], check=check, has_verdict=has_verdict
-    )
+    designs["LIB-H01"] = replace(designs["LIB-H01"], check=check)
     return designs
 
 
-def _card_of_h01(check: NoteCheck, *, has_verdict: bool = True) -> str:
-    root = page(designs=_designs(check, has_verdict=has_verdict))
+def _card_of_h01(check: NoteCheck) -> str:
+    root = page(designs=_designs(check))
     (card,) = branch_cards(root, "LIB-Q02")
     return card_text(card)
 
@@ -89,7 +87,7 @@ class TestTheCheckOnTheCardOfADesign:
     def test_the_card_says_how_the_check_stands(self) -> None:
         text = _card_of_h01(TWO_DIFFERENCES)
 
-        assert check_summary(True, TWO_DIFFERENCES) in text
+        assert check_summary(TWO_DIFFERENCES) in text
 
     def test_the_card_shows_each_difference_in_the_sentence_the_check_wrote(
         self,
@@ -110,7 +108,7 @@ class TestTheCheckOnTheCardOfADesign:
     def test_a_check_with_no_difference_is_one_line(self) -> None:
         text = _card_of_h01(NO_DIFFERENCE)
 
-        assert check_summary(True, NO_DIFFERENCE) in text
+        assert check_summary(NO_DIFFERENCE) in text
         assert "分析設計と違う所は無い" in text
 
     def test_a_check_not_done_says_so(self) -> None:
@@ -124,7 +122,7 @@ class TestTheCheckOnTheCardOfADesign:
         assert "#note-LIB-H01-check" not in hrefs
 
     def test_a_design_without_a_verdict_says_nothing_of_a_check(self) -> None:
-        assert "点検" not in _card_of_h01(NoteCheck(), has_verdict=False)
+        assert "点検" not in _card_of_h01(NoteCheck(has_verdict=False))
 
     def test_the_short_row_under_a_second_node_does_not_repeat_the_check(
         self,

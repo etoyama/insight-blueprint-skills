@@ -782,13 +782,15 @@ def _review_batch(args: argparse.Namespace, base: Path, payload: dict) -> Any:
 
 
 def _check(args: argparse.Namespace, base: Path, payload: dict) -> Any:
-    # Imported here: design_check reads the notebook through design_note_read,
-    # which imports this module.
+    # Imported here: design_check reads the design and the record through this
+    # module (load_design, read_yaml).
     from skills._shared import design_check
 
     if args.command == "checked":
-        return design_check.check_reading(args.id, base)
-    return design_check.record_check(args.id, payload, base)
+        reading = design_check.check_reading(args.id, base)
+    else:
+        reading = design_check.record_check(args.id, payload, base)
+    return design_check.reading_json(reading)
 
 
 _Handler = Callable[[argparse.Namespace, Path, dict], Any]

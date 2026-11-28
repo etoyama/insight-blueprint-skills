@@ -12,14 +12,8 @@ changes the tree page do not edit one file.
 
 from __future__ import annotations
 
-import ast
-import codecs
-import io
 import json
-import re
-import tokenize
 from datetime import datetime
-from itertools import pairwise
 from pathlib import Path
 from typing import cast
 
@@ -37,6 +31,7 @@ from insight_blueprint.models.design import (
 from insight_blueprint.models.journal import CONCLUDE, QUESTION
 from skills._shared._atomic import atomic_write_text
 from skills._shared.catalog_io import describe
+from skills._shared.design_check import check_reading
 from skills._shared.design_io import (
     DEFAULT_BASE_DIR,
     journal_events,
@@ -44,7 +39,6 @@ from skills._shared.design_io import (
     read_yaml,
 )
 from skills._shared.design_note import (
-    CodeCell,
     Conclusion,
     DesignNote,
     NoteEvent,
@@ -60,6 +54,19 @@ from skills._shared.design_note_reviews import (
     NoteReviewBatch,
     NoteReviewComment,
 )
+from skills._shared.notebook_files import (
+    Number,
+    is_own_file,
+    notebook_cells,
+    notebook_path,
+    notebooks_dir,
+    parse_verdict,
+    read_own_bytes,
+    read_own_text,
+    verdict_figures,
+    verdict_metrics,
+    verdict_path,
+)
 from skills._shared.tree_words import note_stage_line
 from skills._shared.verdict_table import (
     CONFIDENCE,
@@ -67,27 +74,6 @@ from skills._shared.verdict_table import (
     MetricJudgment,
     ValueInterval,
     VerdictMetric,
-)
-
-# A figure is a bare file name: it becomes a path under notebooks/.
-_FIGURE_FILE = re.compile(r"[A-Za-z0-9_.-]+")
-_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-# The line ends of the tokenizer, which ast line numbers count.
-_LINE_BREAK = re.compile(r"\r\n|\r|\n")
-# A comment at column 0 that starts with this opens a cell; the rest is its name.
-_SEPARATOR = "# %%"
-# The encoding declaration of PEP 263, read on the first two lines.
-_CODING = re.compile(r"[ \t\f]*#.*?coding[:=][ \t]*([-\w.]+)")
-DATA_LOAD_CELL = "data_load"
-# The cells of the notebook contract, in order (notebook-contract.md, ADR-0045).
-CONTRACT_CELLS = (
-    "imports",
-    DATA_LOAD_CELL,
-    "data_prep",
-    "analysis",
-    "viz",
-    "verdict",
-    "lineage",
 )
 
 # The next_action fields the note's recommendation takes for each terminal
@@ -110,12 +96,8 @@ def _text(value: object) -> str | None:
     return None if value is None else str(value)
 
 
-class _Number(str):
-    """A JSON number or constant of the verdict, kept as the text the notebook wrote."""
-
-
 def _json_text(value: object) -> str:
-    if isinstance(value, _Number):
+    if isinstance(value, Number):
         return str(value)
     if isinstance(value, dict):
         items = cast(dict[str, object], value).items()
@@ -259,50 +241,20 @@ def _metric(name: object, entry: dict) -> VerdictMetric:
 
 
 def _verdict_metrics(verdict: dict) -> tuple[VerdictMetric, ...]:
-    metrics = verdict.get("metrics")
-    if not isinstance(metrics, dict):
-        return ()
-    return tuple(
-        _metric(name, entry)
-        for name, entry in metrics.items()
-        if isinstance(entry, dict)
-    )
+    return tuple(_metric(name, entry) for name, entry in verdict_metrics(verdict))
 
 
 def _verdict_figures(verdict: dict, notebooks: Path) -> tuple[NoteFigure, ...]:
-    entries = verdict.get("figures")
-    if not isinstance(entries, list):
-        return ()
-    figures: list[NoteFigure] = []
-    for entry in entries:
-        if not isinstance(entry, dict):
-            continue
-        file = entry.get("file")
-        # The name is checked before it touches a path: a manifest is data from
-        # a notebook, and a traversal value would read a file outside notebooks/.
-        if (
-            not isinstance(file, str)
-            or not _FIGURE_FILE.fullmatch(file)
-            or ".." in file
-        ):
-            continue
-        path = notebooks / file
-        # Only an image goes in: a manifest that names the notebook embeds nothing.
-        if not _is_own_file(path):
-            continue
-        png = path.read_bytes()
-        if not png.startswith(_PNG_SIGNATURE):
-            continue
-        figures.append(
-            NoteFigure(
-                file=file,
-                title=str(entry.get("title") or ""),
-                axes=str(entry.get("axes") or ""),
-                how_to_read=str(entry.get("how_to_read") or ""),
-                png=png,
-            )
+    return tuple(
+        NoteFigure(
+            file=figure.file,
+            title=str(figure.entry.get("title") or ""),
+            axes=str(figure.entry.get("axes") or ""),
+            how_to_read=str(figure.entry.get("how_to_read") or ""),
+            png=figure.png,
         )
-    return tuple(figures)
+        for figure in verdict_figures(verdict, notebooks)
+    )
 
 
 def _verdict_conclusion(verdict: dict) -> str | None:
@@ -358,152 +310,6 @@ def _conclusion(
         reflect_events=of("reflect"),
         open_questions=tuple(e for e in of(QUESTION) if e.id not in settled),
     )
-
-
-def _separators(source: str) -> dict[int, str]:
-    """The cell name of each separator line, by its 1-based line number.
-
-    A separator is a comment that starts at column 0 with ``# %%``. The
-    tokenizer tells a comment from the same characters in a string.
-    """
-    return {
-        token.start[0]: token.string.removeprefix(_SEPARATOR).strip()
-        for token in tokenize.generate_tokens(io.StringIO(source).readline)
-        if token.type == tokenize.COMMENT
-        and token.start[1] == 0
-        and token.string.startswith(_SEPARATOR)
-    }
-
-
-def _declares_another_encoding(lines: list[str]) -> bool:
-    """Whether the file declares an encoding that is not UTF-8 (PEP 263).
-
-    Python decodes the file by the declaration and the note reads it as
-    UTF-8, so the two could see different separator lines.
-    """
-    for line in lines[:2]:
-        declared = _CODING.match(line)
-        if declared:
-            try:
-                return codecs.lookup(declared[1]).name != "utf-8"
-            except LookupError:
-                return True
-    return False
-
-
-def _is_docstring(statement: ast.stmt) -> bool:
-    return (
-        isinstance(statement, ast.Expr)
-        and isinstance(statement.value, ast.Constant)
-        and isinstance(statement.value.value, str)
-    )
-
-
-def _binds_raw_df(statement: ast.stmt) -> bool:
-    return any(
-        isinstance(node, ast.Name)
-        and node.id == "raw_df"
-        and isinstance(node.ctx, ast.Store)
-        for node in ast.walk(statement)
-    )
-
-
-def _cell_source(lines: list[str]) -> str:
-    """The lines of a cell as written, without the blank lines after them."""
-    while lines and not lines[-1].strip():
-        lines = lines[:-1]
-    return "\n".join(lines)
-
-
-def _body(lines: list[str]) -> list[ast.stmt]:
-    return ast.parse("\n".join(lines)).body
-
-
-def _dumps(statements: list[ast.stmt]) -> list[str]:
-    return [ast.dump(statement) for statement in statements]
-
-
-def notebook_cells(text: str) -> tuple[CodeCell, ...] | None:
-    """The cells of a notebook, without its data-load cell (ADR-0045).
-
-    A cell runs from a ``# %% <name>`` line to the line before the next one.
-    The cells must be the contract's seven, in order; the data-load cell is the
-    one named ``data_load``. It holds the connection values (ADR-0022), so a
-    notebook where it cannot be told apart gives no code at all: any cell could
-    hold them.
-    """
-    # ast, the tokenizer and the slices all read these lines, so a line number
-    # means the same line in each. str.splitlines() also breaks on \x0c, \x85,
-    # U+2028 and others, which would shift a slice onto the data-load cell.
-    lines = _LINE_BREAK.split(text)
-    if _declares_another_encoding(lines):
-        return None
-    try:
-        names = _separators("\n".join(lines))
-        starts = sorted(names)
-        # Any other cell could be a piece of data_load cut off by a stray # %% line.
-        if tuple(names[start] for start in starts) != CONTRACT_CELLS:
-            return None
-        slices = [
-            lines[a - 1 : b - 1] for a, b in pairwise([1, *starts, len(lines) + 1])
-        ]
-        head, *cells = map(_body, slices)
-        # A separator inside a statement leaves a slice that does not parse, or
-        # one that parses to other statements than the file's.
-        if _dumps(_body(lines)) != _dumps([s for body in [head, *cells] for s in body]):
-            return None
-    # A deeply nested expression ends the parse with RecursionError, or with
-    # MemoryError ("Parser stack overflowed", CPython 3.14).
-    except (SyntaxError, ValueError, tokenize.TokenError, RecursionError, MemoryError):
-        return None
-    if head and (len(head) > 1 or not _is_docstring(head[0])):
-        return None
-    binders = {i for i, body in enumerate(cells) if any(map(_binds_raw_df, body))}
-    if binders != {CONTRACT_CELLS.index(DATA_LOAD_CELL)}:
-        return None
-    return tuple(
-        CodeCell(position=index + 1, name=name, source=_cell_source(cell))
-        for index, (name, cell) in enumerate(
-            zip(CONTRACT_CELLS, slices[1:], strict=True)
-        )
-        if name != DATA_LOAD_CELL
-    )
-
-
-def _is_own_file(path: Path) -> bool:
-    """Whether *path* is a regular file and not a link.
-
-    The note may leave the machine, so a link out of .insight/ is never read,
-    embedded or listed.
-    """
-    return not path.is_symlink() and path.is_file()
-
-
-def _read_own_text(path: Path) -> str | None:
-    """The text of *path*; None when it is not an own file or not UTF-8."""
-    if not _is_own_file(path):
-        return None
-    try:
-        # Python runs a .py that opens with a byte order mark; so does the note.
-        return path.read_text("utf-8-sig")
-    except UnicodeDecodeError:
-        return None
-
-
-def _read_verdict(path: Path) -> dict:
-    # Each number, NaN and Infinity included, keeps the text the notebook wrote.
-    try:
-        verdict = json.loads(
-            path.read_text("utf-8"),
-            parse_float=_Number,
-            parse_int=_Number,
-            parse_constant=_Number,
-        )
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"{path.name} is not valid JSON: {exc}") from None
-    if not isinstance(verdict, dict):
-        raise ValueError(f"{path.name} must hold a JSON object")
-    return verdict
 
 
 def _review_text(value: object) -> str:
@@ -570,7 +376,7 @@ def _read_reviews(path: Path) -> tuple[NoteReviewBatch, ...]:
     as a date taken as its ISO text; batches of the same time keep the file's
     order.
     """
-    if not _is_own_file(path):
+    if not is_own_file(path):
         return ()
     try:
         entries = read_yaml(path).get("batches")
@@ -581,17 +387,6 @@ def _read_reviews(path: Path) -> tuple[NoteReviewBatch, ...]:
         return ()
     batches = [b for b in map(_review_batch, entries) if b is not None]
     return tuple(sorted(batches, key=lambda b: b.created_at, reverse=True))
-
-
-def _check_reading(design_id: str, base_dir: Path) -> dict:
-    """The one reading of the check (ADR-0070).
-
-    Imported here, not at the top: design_check reads the cells of a notebook
-    the way this module cuts them, so it imports this module.
-    """
-    from skills._shared.design_check import check_reading
-
-    return check_reading(design_id, base_dir)
 
 
 def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> DesignNote:
@@ -620,15 +415,15 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
     reading = StageReading.of(design.status, raw, design.analysis_started_at)
     events = tuple(_note_event(e) for e in raw)
     base = Path(base_dir)
-    notebooks = base / "notebooks"
-    notebook = _read_own_text(notebooks / f"{design_id}.py")
+    notebook = read_own_text(notebook_path(design_id, base))
     cells = None if notebook is None else notebook_cells(notebook)
-    lineage = _read_own_text(base / "lineage" / f"{design_id}.mmd")
+    lineage = read_own_text(base / "lineage" / f"{design_id}.mmd")
     local_files = tuple(
-        path for path in local_file_paths(design_id) if _is_own_file(base / path)
+        path for path in local_file_paths(design_id) if is_own_file(base / path)
     )
-    verdict_path = notebooks / f"{design_id}_verdict.json"
-    verdict = _read_verdict(verdict_path) if _is_own_file(verdict_path) else None
+    where = verdict_path(design_id, base)
+    saved = read_own_bytes(where)
+    verdict = None if saved is None else parse_verdict(saved, where.name)
     return DesignNote(
         design,
         sources,
@@ -639,7 +434,9 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
             metrics=_verdict_metrics(verdict),
             conclusion=_verdict_conclusion(verdict),
         ),
-        figures=() if verdict is None else _verdict_figures(verdict, notebooks),
+        figures=()
+        if verdict is None
+        else _verdict_figures(verdict, notebooks_dir(base)),
         cells=cells,
         lineage=lineage,
         local_files=local_files,
@@ -649,7 +446,7 @@ def load_design_note(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> Desig
         stop_reason=reading.stop_reason,
         stage_line=note_stage_line(reading.stage, reading.stop_reason),
         asks=tuple(ask.content for ask in reading.asks),
-        check=NoteCheck.of(_check_reading(design_id, base_dir)),
+        check=NoteCheck.of(check_reading(design_id, base_dir)),
     )
 
 

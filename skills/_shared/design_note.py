@@ -37,6 +37,7 @@ from skills._shared.design_note_check import (
     check_summary,
 )
 from skills._shared.design_note_reviews import NoteReviewBatch, review_batch
+from skills._shared.notebook_files import CodeCell
 from skills._shared.verdict_table import (
     Fixed,
     Text,
@@ -99,15 +100,6 @@ class NoteFigure:
 
 
 @dataclass(frozen=True)
-class CodeCell:
-    """One cell of the notebook ``.py``; never the data-load cell."""
-
-    position: int  # 1-based place among the cells of the file
-    name: str  # the text after "# %%" on the cell's first line; may be empty
-    source: str  # as written, from the "# %%" line on
-
-
-@dataclass(frozen=True)
 class Conclusion:
     """What the records hold once a design reaches a terminal status.
 
@@ -146,7 +138,7 @@ class DesignNote:
     # of the files hands the line over instead of this module importing it.
     stage_line: str | None = None
     # design_check.check_reading as read for this note; a note built by hand reads
-    # as one whose check is not done.
+    # as one with no verdict, unless it is given one.
     check: NoteCheck = field(default_factory=NoteCheck)
 
 
@@ -428,7 +420,7 @@ def _status(note: DesignNote, anchor: str) -> Html:
 
 
 def _check_line(note: DesignNote) -> Html | None:
-    said = check_summary(note.verdict is not None, note.check)
+    said = check_summary(note.check)
     if said is None:
         return None
     return el("p", el("a", said, href=f"#{check_anchor(note_anchor(note.design.id))}"))
@@ -436,7 +428,7 @@ def _check_line(note: DesignNote) -> Html | None:
 
 def _check(note: DesignNote, anchor: str) -> Html:
     shown = None if note.cells is None else {c.name for c in note.cells}
-    return check_section(note.check, note.verdict is not None, anchor, shown)
+    return check_section(note.check, anchor, shown)
 
 
 def _opening(design: AnalysisDesign, anchor: str) -> Html:

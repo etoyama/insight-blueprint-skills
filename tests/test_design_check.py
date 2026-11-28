@@ -82,12 +82,26 @@ def _exploration(insight: Path) -> str:
     return design_id
 
 
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
+
+
 def _save_result(
-    insight: Path, design_id: str, verdict: dict | None = None, notebook: str = NOTEBOOK
+    insight: Path,
+    design_id: str,
+    verdict: dict | None = None,
+    notebook: str = NOTEBOOK,
+    *,
+    not_saved: tuple[str, ...] = (),
 ) -> Path:
-    (insight / "notebooks" / f"{design_id}.py").write_text(notebook, encoding="utf-8")
-    path = insight / "notebooks" / f"{design_id}_verdict.json"
-    path.write_text(json.dumps(VERDICT if verdict is None else verdict), "utf-8")
+    """Write the notebook, the verdict and each figure it lists but *not_saved*."""
+    notebooks = insight / "notebooks"
+    (notebooks / f"{design_id}.py").write_text(notebook, encoding="utf-8")
+    verdict = VERDICT if verdict is None else verdict
+    for figure in verdict.get("figures", []):
+        if figure.get("file") and figure["file"] not in not_saved:
+            (notebooks / figure["file"]).write_bytes(PNG)
+    path = notebooks / f"{design_id}_verdict.json"
+    path.write_text(json.dumps(verdict), "utf-8")
     return path
 
 
@@ -113,9 +127,18 @@ def _payload_for(
 def _code_items(
     insight: Path, verdict: dict, notebook: str | None = NOTEBOOK
 ) -> dict[CheckSubject, design_check.CheckItem]:
-    design = validate_schema(design_io.load_design(_confirmation(insight), insight))
-    items = design_check.code_items(design, verdict, notebook)
+    design_id = _confirmation(insight)
+    design = validate_schema(design_io.load_design(design_id, insight))
+    # The figures the verdict lists are on file, as a notebook that ran leaves them.
+    _save_result(insight, design_id, verdict)
+    notebooks = insight / "notebooks"
+    items = design_check.code_items(design, verdict, notebook, notebooks)
     return {item.subject: item for item in items}
+
+
+def _json(reading: design_check.CheckReading) -> dict:
+    """The reading as ``design_io checked`` prints it."""
+    return design_check.reading_json(reading)
 
 
 def _record_path(insight: Path, design_id: str) -> Path:
@@ -220,6 +243,30 @@ class TestTheCodeLooksAtTheOrderOfTheCells:
         }
 
 
+class TestTheCodeReadsTheResultAsTheNoteShowsIt:
+    """The check compares the figures and the metrics the analysis note shows."""
+
+    def test_a_figure_whose_file_is_missing_is_not_counted(self, insight: Path) -> None:
+        design_id = _confirmation(insight)
+        charts = [{"intent": "comparison"}, {"intent": "trend"}]
+        design_io.update_design(design_id, {"chart": charts}, insight)
+        figures = [{"file": "LIB-H01_fig01.png"}, {"file": "LIB-H01_fig02.png"}]
+        verdict = VERDICT | {"figures": figures}
+        _save_result(insight, design_id, verdict, not_saved=("LIB-H01_fig02.png",))
+        reading = design_check.record_check(design_id, _payload_for(verdict), insight)
+        assert [d["subject"] for d in _json(reading)["differences"]] == ["figures"]
+        assert "1 枚" in _json(reading)["differences"][0]["note"]
+
+    def test_a_metric_that_is_not_an_object_is_not_counted(self, insight: Path) -> None:
+        design_id = _confirmation(insight)
+        metrics = VERDICT["metrics"] | {"missing_rate": 0.01}
+        verdict = VERDICT | {"metrics": metrics}
+        _save_result(insight, design_id, verdict)
+        reading = design_check.record_check(design_id, _payload_for(verdict), insight)
+        assert [d["subject"] for d in _json(reading)["differences"]] == ["metrics"]
+        assert "missing_rate" in _json(reading)["differences"][0]["note"]
+
+
 class TestCheckWritesTheRecord:
     """US-4 AC 1: one record per design, one result per subject."""
 
@@ -254,9 +301,12 @@ class TestCheckWritesTheRecord:
         reading = design_check.record_check(
             design_id, _payload_for(verdict, grain=grain), insight
         )
-        assert reading["checked"] is True
-        assert [d["subject"] for d in reading["differences"]] == ["grain", "metrics"]
-        assert reading["differences"][0] == {"subject": "grain"} | grain
+        assert _json(reading)["checked"] is True
+        assert [d["subject"] for d in _json(reading)["differences"]] == [
+            "grain",
+            "metrics",
+        ]
+        assert _json(reading)["differences"][0] == {"subject": "grain"} | grain
 
     def test_checking_again_replaces_the_record(self, insight: Path) -> None:
         design_id = _confirmation(insight)
@@ -266,8 +316,8 @@ class TestCheckWritesTheRecord:
         reading = design_check.record_check(
             design_id, _payload() | {"checked_by": "same_session"}, insight
         )
-        assert reading["differences"] == []
-        assert reading["checked_by"] == "same_session"
+        assert _json(reading)["differences"] == []
+        assert _json(reading)["checked_by"] == "same_session"
 
     def test_the_status_and_the_journal_stay_as_they_were(self, insight: Path) -> None:
         design_id = _confirmation(insight)
@@ -360,7 +410,7 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
 
     def test_without_a_verdict_there_is_nothing_to_check(self, insight: Path) -> None:
         design_id = _confirmation(insight)
-        assert design_check.check_reading(design_id, insight) == {
+        assert _json(design_check.check_reading(design_id, insight)) == {
             "design_id": design_id,
             "has_verdict": False,
             "verdict_digest": None,
@@ -374,9 +424,11 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         design_id = _confirmation(insight)
         _save_result(insight, design_id)
         reading = design_check.check_reading(design_id, insight)
-        assert reading["has_verdict"] is True and reading["checked"] is False
+        assert (
+            _json(reading)["has_verdict"] is True and _json(reading)["checked"] is False
+        )
         # The name of the verdict a reader is about to read, to send back with its items.
-        assert reading["verdict_digest"] == _payload()["verdict_digest"]
+        assert _json(reading)["verdict_digest"] == _payload()["verdict_digest"]
 
     def test_a_checked_verdict_reads_as_the_command_returned(
         self, insight: Path
@@ -387,8 +439,8 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         written = design_check.record_check(design_id, _payload(grain=grain), insight)
         reading = design_check.check_reading(design_id, insight)
         assert reading == written
-        assert reading["checked"] is True
-        assert len(reading["items"]) == 9
+        assert _json(reading)["checked"] is True
+        assert len(_json(reading)["items"]) == 9
 
     def test_a_changed_verdict_reads_as_not_checked(self, insight: Path) -> None:
         design_id = _confirmation(insight)
@@ -398,10 +450,10 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         metrics = VERDICT["metrics"] | {"wait_days_gap": {"value": 0.4}}
         path.write_text(json.dumps(VERDICT | {"metrics": metrics}), "utf-8")
         reading = design_check.check_reading(design_id, insight)
-        assert reading["checked"] is False
+        assert _json(reading)["checked"] is False
         # What was read against another verdict is not shown for this one.
-        assert reading["items"] == [] and reading["differences"] == []
-        assert reading["checked_by"] is None
+        assert _json(reading)["items"] == [] and _json(reading)["differences"] == []
+        assert _json(reading)["checked_by"] is None
 
     def test_a_verdict_written_again_with_the_same_text_stays_checked(
         self, insight: Path
@@ -410,7 +462,7 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         path = _save_result(insight, design_id)
         design_check.record_check(design_id, _payload(), insight)
         path.write_text(path.read_text("utf-8"), "utf-8")
-        assert design_check.check_reading(design_id, insight)["checked"] is True
+        assert design_check.check_reading(design_id, insight).checked is True
 
     def test_checking_the_new_verdict_makes_it_done_again(self, insight: Path) -> None:
         design_id = _confirmation(insight)
@@ -419,7 +471,7 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         again = VERDICT | {"conclusion": "again"}
         path.write_text(json.dumps(again), "utf-8")
         design_check.record_check(design_id, _payload_for(again), insight)
-        assert design_check.check_reading(design_id, insight)["checked"] is True
+        assert design_check.check_reading(design_id, insight).checked is True
 
     @pytest.mark.parametrize(
         "record",
@@ -432,13 +484,13 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         design_id = _confirmation(insight)
         _save_result(insight, design_id)
         _record_path(insight, design_id).write_bytes(record)
-        assert design_check.check_reading(design_id, insight)["checked"] is False
+        assert design_check.check_reading(design_id, insight).checked is False
 
     def test_a_record_that_is_a_folder_is_not_a_check(self, insight: Path) -> None:
         design_id = _confirmation(insight)
         _save_result(insight, design_id)
         _record_path(insight, design_id).mkdir()
-        assert design_check.check_reading(design_id, insight)["checked"] is False
+        assert design_check.check_reading(design_id, insight).checked is False
 
     def test_the_record_of_another_design_is_not_a_check(self, insight: Path) -> None:
         design_id, other = _confirmation(insight), _confirmation(insight)
@@ -448,7 +500,7 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         _record_path(insight, other).write_bytes(
             _record_path(insight, design_id).read_bytes()
         )
-        assert design_check.check_reading(other, insight)["checked"] is False
+        assert design_check.check_reading(other, insight).checked is False
 
     def test_a_design_that_does_not_read_is_not_checked(self, insight: Path) -> None:
         """It does not stop the reading either: a page reads many designs."""
@@ -457,7 +509,7 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         design_check.record_check(design_id, _payload(), insight)
         design = insight / "designs" / f"{design_id}_hypothesis.yaml"
         design.write_text("key: [unclosed\n", "utf-8")
-        assert design_check.check_reading(design_id, insight)["checked"] is False
+        assert design_check.check_reading(design_id, insight).checked is False
 
     def test_a_design_changed_after_the_check_reads_as_not_checked(
         self, insight: Path
@@ -480,9 +532,11 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
             insight,
         )
         reading = design_check.check_reading(design_id, insight)
-        assert reading["checked"] is False and reading["differences"] == []
+        assert (
+            _json(reading)["checked"] is False and _json(reading)["differences"] == []
+        )
         again = design_check.record_check(design_id, _payload_for(verdict), insight)
-        assert again["checked"] is True and again["differences"] == []
+        assert _json(again)["checked"] is True and _json(again)["differences"] == []
 
     def test_another_chart_reads_as_not_checked(self, insight: Path) -> None:
         design_id = _confirmation(insight)
@@ -490,7 +544,7 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         design_check.record_check(design_id, _payload(), insight)
         charts = [{"intent": "comparison"}, {"intent": "trend"}]
         design_io.update_design(design_id, {"chart": charts}, insight)
-        assert design_check.check_reading(design_id, insight)["checked"] is False
+        assert design_check.check_reading(design_id, insight).checked is False
 
     def test_a_field_the_check_does_not_read_keeps_the_check(
         self, insight: Path
@@ -503,7 +557,7 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
             {"title": "Another title", "referenced_knowledge": {"src": ["K1"]}},
             insight,
         )
-        assert design_check.check_reading(design_id, insight)["checked"] is True
+        assert design_check.check_reading(design_id, insight).checked is True
 
     def test_a_move_of_the_status_keeps_the_check(self, insight: Path) -> None:
         """A review of the result sends the design to in_review and back."""
@@ -511,7 +565,7 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         _save_result(insight, design_id)
         design_check.record_check(design_id, _payload(), insight)
         design_io.transition_status(design_id, "in_review", insight)
-        assert design_check.check_reading(design_id, insight)["checked"] is True
+        assert design_check.check_reading(design_id, insight).checked is True
 
     def test_an_id_that_is_not_one_is_refused(self, insight: Path) -> None:
         with pytest.raises(ValueError, match="design_id"):
@@ -522,7 +576,7 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         elsewhere = tmp_path / "verdict.json"
         elsewhere.write_text(json.dumps(VERDICT), "utf-8")
         (insight / "notebooks" / f"{design_id}_verdict.json").symlink_to(elsewhere)
-        assert design_check.check_reading(design_id, insight)["has_verdict"] is False
+        assert design_check.check_reading(design_id, insight).has_verdict is False
 
 
 def _cli(insight: Path, *argv: str, stdin: str = "") -> subprocess.CompletedProcess:
@@ -553,7 +607,9 @@ class TestTheCommandsOfDesignIo:
         design_check.record_check(design_id, _payload(), insight)
         run = _cli(insight, "checked", "--id", design_id)
         assert run.returncode == 0, run.stderr
-        assert json.loads(run.stdout) == design_check.check_reading(design_id, insight)
+        assert json.loads(run.stdout) == _json(
+            design_check.check_reading(design_id, insight)
+        )
 
     def test_a_refused_check_writes_nothing(self, insight: Path) -> None:
         design_id = _confirmation(insight)

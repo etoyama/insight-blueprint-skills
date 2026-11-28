@@ -92,7 +92,7 @@ def check_lines(design: DesignSummary) -> list[Html]:
 
     Nothing before the notebook ran: there is no computation to check.
     """
-    said = check_summary(design.has_verdict, design.check)
+    said = check_summary(design.check)
     if said is None:
         return []
     # A check not done has no result to open.

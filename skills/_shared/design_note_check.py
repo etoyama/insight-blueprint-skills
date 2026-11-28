@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from insight_blueprint.models.check import (
     CheckedBy,
@@ -23,6 +24,10 @@ from insight_blueprint.models.check import (
     CheckSubject,
 )
 from skills._shared._html import Html, el, join, table
+from skills._shared.notebook_files import DATA_LOAD_CELL
+
+if TYPE_CHECKING:  # only the type: this module reads no file
+    from skills._shared.design_check import CheckReading
 
 CHECK_HEADING = "分析設計どおりに計算したかの点検"
 
@@ -72,43 +77,36 @@ NOTHING_TO_CHECK = "notebook をまだ実行していないので、点検する
 _DASH = "—"
 # What the note says of a cell it cannot link: the code is read in the file then.
 _IN_THE_FILE = "手元の notebook の .py で読む"
-_DATA_LOAD = "data_load"
 
 
 @dataclass(frozen=True)
 class NoteCheck:
     """``check_reading`` as the screens show it. The default is a check not done."""
 
+    has_verdict: bool = True
     checked: bool = False
     checked_by: CheckedBy | None = None
     items: tuple[CheckItem, ...] = ()  # in the order of the subjects
 
     @classmethod
-    def of(cls, reading: Mapping[str, object]) -> NoteCheck:
-        """A reading that does not read is no check, as a record that does not read.
-
-        ``check_reading`` always fills these when the check is done; a page is
-        not stopped for a reading built otherwise.
-        """
-        items = reading.get("items")
-        if not reading.get("checked") or not isinstance(items, list):
-            return cls()
-        try:
-            return cls(
-                checked=True,
-                checked_by=CheckedBy(reading.get("checked_by")),
-                items=tuple(CheckItem.model_validate(item) for item in items),
-            )
-        except ValueError:  # a pydantic ValidationError is a ValueError
-            return cls()
+    def of(cls, reading: CheckReading) -> NoteCheck:
+        check = reading.check
+        if check is None:
+            return cls(has_verdict=reading.has_verdict)
+        return cls(
+            has_verdict=reading.has_verdict,
+            checked=True,
+            checked_by=check.checked_by,
+            items=tuple(check.items),
+        )
 
     def of_result(self, result: CheckResult) -> tuple[CheckItem, ...]:
         return tuple(i for i in self.items if i.result is result)
 
 
-def check_summary(has_verdict: bool, check: NoteCheck) -> str | None:
+def check_summary(check: NoteCheck) -> str | None:
     """How the check of a design stands, in one line; None when there is nothing to check."""
-    if not has_verdict:
+    if not check.has_verdict:
         return None
     return f"{CHECK_HEADING}: {_standing(check)}"
 
@@ -150,7 +148,7 @@ def _cell(
         return el("a", cell, href=f"#{cell_anchor(note_anchor, cell)}")
     if shown is None:
         why = "分析コードをこの分析ノートに載せていない"
-    elif cell == _DATA_LOAD:
+    elif cell == DATA_LOAD_CELL:
         why = "接続情報が入るので、この分析ノートには載せていない"
     else:
         why = "この名前の区切りは、この分析ノートの分析コードに無い"
@@ -162,7 +160,6 @@ _ROW_ORDER = (CheckResult.differs, CheckResult.not_checkable, CheckResult.agrees
 
 def check_section(
     check: NoteCheck,
-    has_verdict: bool,
     note_anchor: str,
     shown_cells: Collection[str] | None,
 ) -> Html:
@@ -170,7 +167,7 @@ def check_section(
 
     *shown_cells* names the cells the note shows; None when it shows no code.
     """
-    if not has_verdict:
+    if not check.has_verdict:
         body = [el("p", NOTHING_TO_CHECK)]
     elif not check.checked:
         body = [el("p", CHECK_WHAT), el("p", CHECK_NOT_DONE)]

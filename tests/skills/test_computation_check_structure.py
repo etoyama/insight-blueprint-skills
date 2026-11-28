@@ -24,7 +24,7 @@ from insight_blueprint.models.check import (
     CheckSubject,
 )
 from skills._shared import design_check
-from skills._shared.design_note_read import CONTRACT_CELLS
+from skills._shared.notebook_files import CONTRACT_CELLS
 from tests.skills._auto import gate_row, handover_item, handover_part
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills._reflection import reflection, reflection_section
@@ -91,8 +91,15 @@ def _recorded() -> dict:
     return json.loads(found.group(1))
 
 
+def _record(design_id: str, payload: dict, insight: Path) -> dict:
+    """``design_io check``: the reading it prints."""
+    return design_check.reading_json(
+        design_check.record_check(design_id, payload, insight)
+    )
+
+
 def _digest(insight: Path, design_id: str) -> str:
-    return design_check.check_reading(design_id, insight)["verdict_digest"]
+    return design_check.check_reading(design_id, insight).verdict_digest
 
 
 class TestACheckAgentReadsWhatTheCodeCannot:
@@ -132,7 +139,7 @@ class TestACheckAgentReadsWhatTheCodeCannot:
         _save_result(insight, design_id)
         reply = _reply()
         assert [item["subject"] for item in reply["items"]] == READ_BY_A_READER
-        reading = design_check.record_check(
+        reading = _record(
             design_id,
             {
                 "checked_by": "check_agent",
@@ -152,7 +159,7 @@ class TestACheckAgentReadsWhatTheCodeCannot:
         design_id = _exploration(insight)
         _save_result(insight, design_id)
         items = [i for i in _reply()["items"] if i["subject"] != "criterion"]
-        reading = design_check.record_check(
+        reading = _record(
             design_id,
             {
                 "checked_by": "same_session",
@@ -233,7 +240,7 @@ class TestTheCheckAsksNothingAndOnlyTheDialogueAgentRecordsIt:
         _save_result(insight, design_id)
         sent = _recorded()
         assert set(sent) == {"checked_by", "verdict_digest", "items"}
-        reading = design_check.record_check(
+        reading = _record(
             design_id, sent | {"verdict_digest": _digest(insight, design_id)}, insight
         )
         assert reading["checked"] is True
@@ -289,7 +296,9 @@ class TestTheCheckIsDoneBeforeTheAnalystReads:
         self, insight: Path
     ) -> None:
         design_id = _confirmation(insight)
-        reading = design_check.check_reading(design_id, insight)
+        reading = design_check.reading_json(
+            design_check.check_reading(design_id, insight)
+        )
         named = set(re.findall(r"`(\w+)` is (?:true|false)", _before()))
         assert named == {"has_verdict", "checked"}
         assert named | {"differences", "items", "checked_by"} <= set(reading)

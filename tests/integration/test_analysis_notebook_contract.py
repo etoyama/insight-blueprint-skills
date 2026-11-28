@@ -24,10 +24,10 @@ from skills._shared.design_note import (
     CodeCell,
     render_note,
 )
-from skills._shared.design_note_read import (
+from skills._shared.design_note_read import load_design_note
+from skills._shared.notebook_files import (
     CONTRACT_CELLS,
     DATA_LOAD_CELL,
-    load_design_note,
     notebook_cells,
 )
 from skills._shared.verdict_table import (
