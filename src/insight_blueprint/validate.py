@@ -518,6 +518,19 @@ def validate_journal_change(new: dict, current: dict | None) -> list[str]:
     ]
 
 
+def validate_check_write() -> list[str]:
+    """The error for a hand write of the record of a check (ADR-0070 6).
+
+    There is always one: the record holds what the code compared at the moment
+    of the write and the verdict it compared, so no hand write can be right.
+    ``design_io check`` writes from Python, which the hook does not see.
+    """
+    return [
+        "the record of a check is written only by design_io check, never by "
+        "hand: run the check again to replace it"
+    ]
+
+
 def validate_tree_schema(data: dict) -> QuestionTree:
     """Validate a raw question tree dict against the QuestionTree schema.
 

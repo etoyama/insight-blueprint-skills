@@ -323,7 +323,15 @@ class TestUbiquitousLanguage:
 
     @pytest.mark.parametrize(
         ("term", "code_name"),
-        [("分析者の見立て", "analyst_view"), ("前の回に見せた結果", "shown_before")],
+        [
+            ("分析者の見立て", "analyst_view"),
+            ("前の回に見せた結果", "shown_before"),
+            ("計算の点検", "DesignCheck"),
+            ("計算の点検", "design_io check"),
+            ("点検の項目", "CheckItem"),
+            ("食い違い", "differs"),
+            ("点検エージェント", "check_agent"),
+        ],
     )
     def test_a_term_of_epic_36_names_the_field_that_holds_it(
         self, term: str, code_name: str
@@ -338,6 +346,20 @@ class TestUbiquitousLanguage:
         model = words.section(_read("docs/ARCHITECTURE.md"), "Domain Model")
         statement = model[model.index("class AnswerStatement {") :]
         assert "analyst_view" in statement[: statement.index("}")]
+
+    def test_architecture_names_the_record_of_a_check_and_who_writes_it(self) -> None:
+        """Epic 36, Story 36.4 (ADR-0070 6): one record per design, kept by the hook."""
+        architecture = _read("docs/ARCHITECTURE.md")
+        layout = next(
+            line for line in architecture.splitlines() if "{id}_check.yaml" in line
+        )
+        assert "design_io check" in layout
+        hook = next(
+            line
+            for line in architecture.splitlines()
+            if "`.insight/designs/*_check.yaml`" in line
+        )
+        assert "ADR-0070" in hook
 
     def test_has_no_removed_feature_terms(self) -> None:
         for row in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md")):

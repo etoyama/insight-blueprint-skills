@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   be written from stdin and gives the values of the tree as `tree_io answer` would leave it, writing
   nothing ([ADR-0068](docs/adr/0068-an-answer-statement-may-be-the-analysts-view.md),
   [ADR-0069](docs/adr/0069-evidence-is-recommended-and-results-shown-before-are-folded.md), #304).
+- **A check of the computation has a record, and the code looks at the metrics, the figures and the
+  cells.** `design_io check --id <design>` writes `.insight/designs/{id}_check.yaml`: one result per
+  subject (`agrees`, `differs` or `not_checkable`), who read the subjects a reader answers, and the
+  verdict it checked. The command decides `metrics`, `figures` and `cells` itself from the design, the
+  verdict and the notebook, and takes the other subjects from stdin; a difference holds what differs
+  and the notebook cell it was read in. `design_io checked --id <design>` tells whether the check is
+  done for the verdict as it is now: a verdict written again with other content reads as not checked.
+  The pre-write hook refuses a hand write of the record. A notebook now writes each metric of the
+  design under its `target` as its name, and asks before adding a metric the design does not hold. A
+  verdict saved before keeps reading; a metric it names otherwise shows as a difference when its
+  design is checked. No skill runs the check yet
+  ([ADR-0070](docs/adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md), #306).
 
 ### Changed
 

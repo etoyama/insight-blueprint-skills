@@ -158,6 +158,15 @@ results = {
   line or a threshold
   ([ADR-0050](../../../docs/adr/0050-exploration-keeps-values-and-confirmation-fixes-its-criterion.md),
   [ADR-0052](../../../docs/adr/0052-verdict-holds-two-lines-a-judgment-an-interval-kind-and-groups.md)).
+- In both forms, write each metric of the design's `metrics` under its `target` as its name.
+  `design_io check` reads the names: it ties a metric of the verdict to one of the design by its
+  name, and reports a metric of the design it does not find, and a metric the design does not
+  hold, as a difference the analyst sees before reading the result
+  ([ADR-0070](../../../docs/adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md)).
+  A metric the design does not hold is a change like a comparison it does not hold: ask the user
+  before touching the data, and add it only once the design holds it (an execution agent of
+  `/analysis-auto` records it with `design_io ask-analyst` and returns). A verdict saved before
+  this rule may name a metric otherwise; the check then lists it as a difference.
 - The primary metric (`tier: primary`) carries the criterion of the judgment. The primary metric
   holds the criterion as `support_line` and `reject_line`, both numbers, and its `judgment`. Write
   at least one of the two lines; a criterion of one line writes only `support_line`.

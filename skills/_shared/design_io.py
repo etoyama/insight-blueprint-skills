@@ -781,6 +781,16 @@ def _review_batch(args: argparse.Namespace, base: Path, payload: dict) -> Any:
     )
 
 
+def _check(args: argparse.Namespace, base: Path, payload: dict) -> Any:
+    # Imported here: design_check reads the notebook through design_note_read,
+    # which imports this module.
+    from skills._shared import design_check
+
+    if args.command == "checked":
+        return design_check.check_reading(args.id, base)
+    return design_check.record_check(args.id, payload, base)
+
+
 _Handler = Callable[[argparse.Namespace, Path, dict], Any]
 
 # name -> (handler, whether the command reads a JSON payload from stdin)
@@ -809,6 +819,10 @@ _COMMANDS: dict[str, tuple[_Handler, bool]] = {
         True,
     ),
     "stage": (lambda a, base, p: stage_report(a.id, base_dir=base), False),
+    # The check of the computation (ADR-0070): the only writer of its record,
+    # and the reader of whether it is done for the verdict as it is now.
+    "check": (_check, True),
+    "checked": (_check, False),
     "journal-append": (
         lambda a, base, p: append_journal_events(a.id, p.get("events"), base_dir=base),
         True,

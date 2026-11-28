@@ -562,6 +562,45 @@ class TestAMetricPerGroupHoldsRows:
         ) in _skill_analysis_step()
 
 
+class TestAMetricOfTheDesignKeepsItsTargetAsItsName:
+    """Epic 36 US-4 AC 2 (Story 36.4, ADR-0070 4): the check of the computation ties a
+    metric of the verdict to one of the design by its name."""
+
+    TEXTS = [
+        lambda: section(_contract(), "## `results` shape"),
+        lambda: section(_read_skill("analysis-notebook"), "### Step 3: "),
+    ]
+
+    @pytest.mark.parametrize("text", TEXTS, ids=["contract", "skill"])
+    def test_a_metric_of_the_design_is_written_under_its_target(self, text) -> None:
+        rule = unwrap(text())
+        assert (
+            "write each metric of the design's `metrics` under its `target` as its name"
+        ) in rule
+
+    @pytest.mark.parametrize("text", TEXTS, ids=["contract", "skill"])
+    def test_a_metric_the_design_lacks_waits_for_the_analyst(self, text) -> None:
+        rule = unwrap(text())
+        assert (
+            "A metric the design does not hold is a change like a comparison it does "
+            "not hold: ask the user before touching the data"
+        ) in rule
+        assert "`design_io ask-analyst`" in rule
+
+    def test_the_contract_says_who_reads_the_names(self) -> None:
+        rule = unwrap(section(_contract(), "## `results` shape"))
+        assert "`design_io check`" in rule
+        assert "ADR-0070" in rule
+
+    def test_the_changelog_tells_what_a_notebook_writes_now(self) -> None:
+        changelog = (SKILLS_DIR.parent / "CHANGELOG.md").read_text(encoding="utf-8")
+        entry = unwrap(
+            changelog_entry(changelog, "A check of the computation has a record")
+        )
+        assert "under its `target`" in entry
+        assert "A verdict saved before" in entry
+
+
 class TestTheChangelogTellsWhatANotebookWritesNow:
     """Story 33.1: a notebook generated before keeps reading; a new one writes the new items."""
 

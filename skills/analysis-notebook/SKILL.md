@@ -145,7 +145,12 @@ A notebook with any other cell shows no code in the analysis note. Drive the con
   threshold. In a confirmation the primary metric holds `support_line` and `reject_line` (at least
   one) and its `judgment`, never a `threshold` or a `pass`; a secondary or guardrail metric holds a
   `threshold` and a `pass`, never a line or a `judgment`. In both forms a metric measured per group
-  holds `by` and `groups`, never a group in its name. For each metric, add the optional
+  holds `by` and `groups`, never a group in its name. In both forms, write each metric of the
+  design's `metrics` under its `target` as its name, so the check of the computation finds it
+  in the verdict. A metric the design does not hold is a change like a comparison it does not
+  hold: ask the user before touching the data, and add it only once the design holds it (an
+  execution agent of `/analysis-auto` records it with `design_io ask-analyst` and returns).
+  For each metric, add the optional
   `effect_size`, `interval` (with its `kind`) and `sample_size` when the method defines them — see
   the contract's "Optional metric items" (leave a key out rather than writing a placeholder)
 - `# %% viz`: from `chart[]` (type/description); **save each figure** to

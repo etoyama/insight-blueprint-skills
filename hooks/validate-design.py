@@ -10,9 +10,10 @@ pure functions in ``insight_blueprint.validate``.
 Contract:
 - Reads a PreToolUse JSON payload on stdin (``tool_name`` + ``tool_input``).
 - Only acts on writes to ``.insight/designs/*_hypothesis.yaml``,
-  ``.insight/themes/*_tree.yaml`` (ADR-0024) and
+  ``.insight/themes/*_tree.yaml`` (ADR-0024),
   ``.insight/designs/*_journal.yaml`` (ADR-0067: only the marks of design_io
-  are checked); anything else exits 0 (allow).
+  are checked) and ``.insight/designs/*_check.yaml`` (ADR-0070: every write is
+  refused); anything else exits 0 (allow).
 - On a schema or state-transition violation: prints details to stderr and exits
   2 (block the write).
 - On an unexpected internal error: if the target is one of the guarded files,
@@ -43,6 +44,7 @@ EXIT_BLOCK = 2
 DESIGN_SUFFIX = "_hypothesis.yaml"
 TREE_SUFFIX = "_tree.yaml"
 JOURNAL_SUFFIX = "_journal.yaml"
+CHECK_SUFFIX = "_check.yaml"
 
 
 def _yaml():  # returns a ruamel YAML instance
@@ -53,42 +55,38 @@ def _yaml():  # returns a ruamel YAML instance
     return yaml
 
 
-def is_design_file(file_path: str | None) -> bool:
-    """True if *file_path* is a ``.insight/designs/*_hypothesis.yaml`` document."""
+def _is_insight_file(file_path: str | None, folder: str, suffix: str) -> bool:
+    """True if *file_path* is a ``.insight/{folder}/*{suffix}`` document."""
     if not file_path:
         return False
     path = Path(file_path)
     return (
-        path.name.endswith(DESIGN_SUFFIX)
-        and path.parent.name == "designs"
+        path.name.endswith(suffix)
+        and path.parent.name == folder
         and path.parent.parent.name == ".insight"
     )
 
 
+def is_design_file(file_path: str | None) -> bool:
+    """True if *file_path* is a ``.insight/designs/*_hypothesis.yaml`` document."""
+    return _is_insight_file(file_path, "designs", DESIGN_SUFFIX)
+
+
 def tree_theme_id(file_path: str | None) -> str | None:
     """The theme a ``.insight/themes/{theme_id}_tree.yaml`` path names, else None."""
-    if not file_path:
-        return None
-    path = Path(file_path)
-    if (
-        path.name.endswith(TREE_SUFFIX)
-        and path.parent.name == "themes"
-        and path.parent.parent.name == ".insight"
-    ):
-        return path.name.removesuffix(TREE_SUFFIX)
+    if file_path and _is_insight_file(file_path, "themes", TREE_SUFFIX):
+        return Path(file_path).name.removesuffix(TREE_SUFFIX)
     return None
 
 
 def is_journal_file(file_path: str | None) -> bool:
     """True if *file_path* is a ``.insight/designs/*_journal.yaml`` journal."""
-    if not file_path:
-        return False
-    path = Path(file_path)
-    return (
-        path.name.endswith(JOURNAL_SUFFIX)
-        and path.parent.name == "designs"
-        and path.parent.parent.name == ".insight"
-    )
+    return _is_insight_file(file_path, "designs", JOURNAL_SUFFIX)
+
+
+def is_check_file(file_path: str | None) -> bool:
+    """True if *file_path* is a ``.insight/designs/*_check.yaml`` record of a check."""
+    return _is_insight_file(file_path, "designs", CHECK_SUFFIX)
 
 
 def is_guarded_file(file_path: str | None) -> bool:
@@ -96,6 +94,7 @@ def is_guarded_file(file_path: str | None) -> bool:
         is_design_file(file_path)
         or tree_theme_id(file_path) is not None
         or is_journal_file(file_path)
+        or is_check_file(file_path)
     )
 
 
@@ -161,6 +160,7 @@ def evaluate(tool_name: str, tool_input: dict) -> list[str]:
     Performs the file I/O, then delegates to the pure validation library.
     """
     from insight_blueprint.validate import (
+        validate_check_write,
         validate_design_change,
         validate_journal_change,
         validate_tree,
@@ -169,6 +169,9 @@ def evaluate(tool_name: str, tool_input: dict) -> list[str]:
     file_path = extract_target_path(tool_input)
     if not is_guarded_file(file_path):
         return []
+    if is_check_file(file_path):
+        # Refused whatever it holds, so nothing is read or parsed.
+        return validate_check_write()
 
     path = Path(file_path)  # type: ignore[arg-type]
     current_text = path.read_text(encoding="utf-8") if path.exists() else None

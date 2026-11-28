@@ -61,7 +61,7 @@ flowchart TD
     skills -->|read/write| yaml
     cc -->|Write/Edit/MultiEdit| hook
     hook -->|検証| validate
-    hook -->|"対象: *_hypothesis.yaml、*_tree.yaml、*_journal.yaml の印"| yaml
+    hook -->|"対象: *_hypothesis.yaml、*_tree.yaml、*_journal.yaml の印、*_check.yaml"| yaml
     skills --> notebook
 ```
 
@@ -87,10 +87,12 @@ flowchart TD
   進捗は項目に無いので、保存できない。結んだ分析設計の状態から進捗を導く規則は `QuestionTree.progress` にあり、ページ・`tree_io progress`・レポートがこれを呼ぶ。ファイルを読んで渡すのは `tree_read` で、CLI は `tree_io progress` である。
   答えの変化、上の論点での引用、引用していない下の結果も項目に無く、保存しない。`tree_changes` が論点ツリーだけから導き、`tree_io render` の表示に出す。同じ値を `tree_io changes` が JSON で返す（[ADR-0056](adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md)）。
   引用していない下の結果は前の回の一覧にもあったか（`shown_before`）も持つ。`tree_io changes --with-answers` は、標準入力の答えを書いた後の論点ツリーとして同じ値を導き、何も書かない（[ADR-0069](adr/0069-evidence-is-recommended-and-results-shown-before-are-folded.md)）。
+  計算の点検の記録（`.insight/designs/{id}_check.yaml`）は `design_io check` だけが書く。指標・図・cell の並びは、命令が書くときに分析設計・verdict・notebook を照らして決め、標準入力ではほかの項目だけを受け取る。点検が済んでいるかは項目に無く、保存しない。`design_check.check_reading` が、記録が覚えた verdict といまの verdict を比べて導き、`design_io checked` が同じ値を JSON で返す。分析設計の状態も journal も書かない（[ADR-0070](adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md)）。
 - **pre-write hook（`hooks/validate-design.py`, plugin 同梱 `hooks/hooks.json`）** —
   `.insight/designs/*_hypothesis.yaml` と `.insight/themes/*_tree.yaml` への Write/Edit/MultiEdit を plugin の uv 環境で `validate.py`
   にかけ、違反を `exit 2` でブロックする I/O 殻。論点ツリーでは、ファイル名のテーマと中身の `theme_id` が同じことも確かめる。
-  `.insight/designs/*_journal.yaml` では、分析者への確認・答え・止めた理由の印を持つ出来事が変わらないことだけを確かめる。印は `design_io` の命令が Python から書き、hook を通らない（[ADR-0067](adr/0067-the-hook-keeps-the-journal-marks-of-design-io.md)）。利用者の install 先プロジェクトでも効く
+  `.insight/designs/*_journal.yaml` では、分析者への確認・答え・止めた理由の印を持つ出来事が変わらないことだけを確かめる。印は `design_io` の命令が Python から書き、hook を通らない（[ADR-0067](adr/0067-the-hook-keeps-the-journal-marks-of-design-io.md)）。
+  `.insight/designs/*_check.yaml`（計算の点検の記録）への Write/Edit/MultiEdit は、中身を読まずにすべて止める。記録は `design_io check` だけが Python から書く（[ADR-0070](adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md)）。利用者の install 先プロジェクトでも効く
   （この repo の `.claude/settings.json` は dev 用に同スクリプトを配線）。
 - **Skill-managed YAML（`.insight/`）** — designs / journals / themes / catalog / knowledge。skill が直接管理する。
   論点ツリー（`themes/{theme_id}_tree.yaml`）は `tree_io` を通して書く。
@@ -150,7 +152,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 ├── bin/                           # plugin 有効時に PATH に載る: design_io / catalog_io / tree_io / premortem / tree_check ラッパー
 │                                  #   + _prelude.sh（5本が読み込む共通部分。実行ビットを付けないので、コマンドにはならない）
 ├── hooks/                         # plugin 同梱 hook: hooks.json + validate-design.py
-├── skills/                        # 全 skill + _shared/（design_io.py / catalog_io.py / tree_io.py / tree_read.py / tree_changes.py / tree_render.py / tree_render_parts.py / tree_render_derived.py / tree_render_stage.py / tree_render_handover.py / handover.py / tree_words.py / theme_report.py / tree_check.py / ids.py / config_loader.py / models.py）+ premortem/
+├── skills/                        # 全 skill + _shared/（design_io.py / catalog_io.py / tree_io.py / tree_read.py / tree_changes.py / tree_render.py / tree_render_parts.py / tree_render_derived.py / tree_render_stage.py / tree_render_handover.py / handover.py / tree_words.py / theme_report.py / tree_check.py / design_check.py / ids.py / config_loader.py / models.py）+ premortem/
 ├── src/insight_blueprint/         # plugin の env の中でだけ使うライブラリ（配布名 insight-blueprint-lineage）: models/（analysis_stage.py を含む） · validate.py · lineage/
 ├── tests/  docs/  scripts/
 ├── pyproject.toml · uv.lock       # ← この uv プロジェクトが「plugin の実行環境」を供給する
@@ -184,6 +186,7 @@ insight-blueprint-skills/          ← リポジトリルート（＝ plugin 配
 │   ├── {id}_hypothesis.yaml        # design_io create/update（pre-write hook が検証）
 │   ├── {id}_journal.yaml           # journal イベント（pre-write hook が印だけ検証）
 │   ├── {id}_reviews.yaml           # review バッチ
+│   ├── {id}_check.yaml             # 計算の点検の記録。design_io check だけが書く（pre-write hook が手の書き込みを止める）
 │   └── {id}_revision.yaml          # /analysis-revision の修正追跡
 ├── themes/
 │   ├── {theme_id}_tree.yaml        # 論点ツリーの正本。tree_io が書く（pre-write hook が検証）
@@ -607,6 +610,44 @@ classDiagram
         target_section
         target_content
     }
+    class DesignCheck {
+        <<Entity>>
+        design_id
+        verdict_digest
+        checked_by
+        is_current(verdict)
+        differences()
+    }
+    class CheckItem {
+        <<Value Object>>
+        subject
+        result
+        note
+        cell
+    }
+    class CheckSubject {
+        <<enumeration>>
+        population
+        grain
+        denominator
+        extraction
+        metrics
+        compared_against
+        figures
+        criterion
+        cells
+    }
+    class CheckResult {
+        <<enumeration>>
+        agrees
+        differs
+        not_checkable
+    }
+    class CheckedBy {
+        <<enumeration>>
+        check_agent
+        same_session
+    }
     class ReviewComment {
         <<Entity>>
         id
@@ -805,6 +846,11 @@ classDiagram
     ReviewBatch ..> AnalysisDesign : design_id
     ReviewBatch --> DesignStatus : status_after
     ReviewComment ..> AnalysisDesign : design_id
+    DesignCheck "1" *-- "8..9" CheckItem
+    DesignCheck ..> AnalysisDesign : design_id（分析設計ごとに0か1つ）
+    DesignCheck --> CheckedBy
+    CheckItem --> CheckSubject
+    CheckItem --> CheckResult
     ReviewComment --> DesignStatus : status_after
     DataSource ..> ColumnSchema : schema_info.columns
     DomainKnowledge "1" *-- "*" DomainKnowledgeEntry
@@ -846,6 +892,8 @@ classDiagram
 |---|---|---|
 | `AnalysisDesign` | 集約ルート | `status` は `VALID_TRANSITIONS` の遷移でだけ変わる。`methodology` があれば `method` は空でない。`decision_context` があれば `decision_maker` と `decision` はどちらも空でない（[ADR-0014](adr/0014-analysis-design-decision-context.md)）。探索の問いと検証仮説のどちらか一方だけを持ち、形が1つに決まる。探索は `explored` でだけ終わり、検証と旧形式の探索は判定の3つでだけ終わる（[ADR-0048](adr/0048-intent-decides-the-form-and-the-end-of-a-design.md)、[ADR-0049](adr/0049-legacy-exploration-stays-readable-and-is-marked.md)） |
 | `ReviewBatch` | 集約ルート | `comments` は1件以上。1つのバッチは `status_after` への遷移を1回だけ起こす |
+| `DesignCheck` | エンティティ | 分析設計ごとに0か1つ。`design_io check` だけが書き、書き直すと前の記録を置き換える。点検の項目は、判定の基準を除く8つをちょうど1つずつ持ち、判定の基準は検証の分析設計のときだけ持つ。点検した verdict をファイルの中身のハッシュ（`verdict_digest`）で覚え、いまの verdict と違えば済んでいないと読む。分析設計の状態を変えない（[ADR-0070](adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md)） |
+| `CheckItem` | 値オブジェクト | 合っている以外の結果は、文（`note`）を持つ。食い違う項目は、根拠にした cell の名前も持つ（cell の並びの項目は除く）。指標・図・cell の並びの項目はコードが決め、標準入力では受け取らない |
 | `DataSource` | 集約ルート | `type` は空でない open string（[ADR-0004](adr/0004-open-string-catalog-taxonomy.md)） |
 | `DomainKnowledge` | 集約ルート | 1つの `source_id` に属する。`category` は空でない open string |
 | `QuestionTree` | 集約ルート | 1テーマに1つ。主題（親を持たない論点）はちょうど1つで、その文は今の主題の版の問いと同じ。論点の親は同じツリーにあり、循環しない。主題の版は1から1ずつ増え、今の版より前の版は書き換えも削除もできない。結ぶ分析設計と発見元は同じテーマのもの。論点ツリーの決定は追記だけで、最初の決定は `start`。決定は次に調べる論点（`node_id`）に加えて、一緒に任せた論点（`with_node_ids`）を持てる。一緒に任せた論点はツリーにあり、互いにも `node_id` とも重ならず、`close` は持てない。種類は直前の決定が指した全部の論点を基準にし、`deepen` はそのどれかの中、`return` はそのどれの外、`close` はそのどれかを指す（[ADR-0061](adr/0061-a-tree-decision-may-hand-over-several-questions-and-the-stage-is-derived.md)）。論点ツリーの決定の引用（`cites`）は0個以上で、id の形は `{theme}-H{nn}-E{nn}`。引用を持たない保存済みの決定は空として読む（[ADR-0058](adr/0058-a-tree-decision-may-cite-the-events-behind-its-reason.md)）。モデルに無い項目を持てない（[epic-18](design/epic-18-question-tree.md)） |

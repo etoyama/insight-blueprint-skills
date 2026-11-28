@@ -404,15 +404,15 @@ classDiagram
     DesignCheck --> CheckedBy
 ```
 
-図のクラス名のうち、`DesignCheck`・`CheckItem`・`CheckSubject`・`CheckResult`・`CheckedBy` と、項目の `analyst_view`・`shown_before` は初版の案である。
+図のクラス名と項目の名前は初版の案だった。36.2 が `analyst_view`・`shown_before` を、36.4 が `DesignCheck`・`CheckItem`・`CheckSubject`・`CheckResult`・`CheckedBy` を、案のまま入れた。
 名前を入れる Story（36.2・36.4）が決め、用語集に書く。変えたら PR 説明に書いて人間の承認を得る。
 
 | 型 | 種類 | 不変条件 |
 |---|---|---|
 | `AnswerStatement` | 値オブジェクト | 分析者の見立ての印を持つ文も、引用を1つ以上持ち、ツリーの検査を受ける。印は既定で無しで、印の無い保存済みの文はそのまま読める。答えは追記だけなので、書いた文の印は変わらない |
 | `UncitedBelow` | 値オブジェクト（導く） | 前の回の一覧にもあったかは、論点ツリーの最後の振り返りの回より前の答えだけで同じ一覧を作り、そこにもあったかで導く。保存しない。その回より前に答えを持たない論点では、どの結果も前の回に見せていない（Decision `story-36-2-shown-before-is-told-against-the-tree-before-its-last-round`） |
-| `DesignCheck` | エンティティ（分析設計ごとに0か1つ） | `design_io check` だけが書く。点検した verdict を覚え、いまの verdict と違えば済んでいないと読む。書き直すと前の点検を置き換える。分析設計の状態を変えない |
-| `CheckItem` | 値オブジェクト | 食い違う項目は、何が違うかの文と、根拠にした cell を持つ。指標・図・cell の並びの項目はコードが決め、点検エージェントの返事では上書きできない。検証でない分析設計は、判定の基準の項目を持たない |
+| `DesignCheck` | エンティティ（分析設計ごとに0か1つ） | `design_io check` だけが書く。点検した verdict を、ファイルの中身のハッシュ（`verdict_digest`）で覚え、いまの verdict と違えば済んでいないと読む。書き直すと前の点検を置き換える。分析設計の状態を変えない。判定の基準を除く8つの項目を、ちょうど1つずつ持つ |
+| `CheckItem` | 値オブジェクト | 食い違う項目は、何が違うかの文と、根拠にした cell の名前を持つ。cell の並びの食い違いだけは cell を持たない（並びは、どれか1つの cell で読むものではない）。確かめられない項目も、理由の文を持つ。指標・図・cell の並びの項目はコードが決め、標準入力で渡すと命令が断る。検証でない分析設計は、判定の基準の項目を持たない |
 
 ### State Diagram
 
@@ -508,6 +508,11 @@ Story の実装に合わせて書く。
 | `skills/_shared/tree_changes.py::uncited_below` | 引用していない下の結果ごとに、前の回の一覧にもあったか（`shown_before`）を、論点ツリーだけから導く | 推奨しない。たたんで見せない → 問いは 36.3、ページは 36.7。答えの変化の比べ方は変えない（文の種類と本文だけ） |
 | `skills/_shared/tree_io.py::changes`（`tree_io changes --with-answers`） | 書く前の答えを受け取り、それを書いた後の論点ツリーとして、答えの変化と、上と下の論点での引用を返す。何も書かない | ツリーの検査をしない → `tree_io answer`。標準入力を読むのはフラグがあるときだけ |
 | `skills/_shared/tree_read.py::changes_of` | 渡された論点ツリーから、`tree_io changes` の JSON を作る。文は正本と同じ形で出す（印は、ある文にだけ出る） | ファイルを読まない → `tree_read.changes`・`tree_io.changes` |
+| `src/insight_blueprint/models/check.py::DesignCheck`・`CheckItem` | 点検の記録の形と、その不変条件を持つ。記録がいまの verdict のものか（`is_current`）と、食い違う項目（`differences`）を返す | 分析設計を知らない。判定の基準の項目を持つべきかは見ない → `design_check.record_check`。ファイルを読まない |
+| `skills/_shared/design_check.py::code_items` | 分析設計・verdict・notebook から、指標・図・cell の並びの項目を決める。指標は `target` と verdict の指標の名前を照らし、図は数を比べ、cell の並びは分析ノートと同じ切り方（`notebook_cells`）で読む | 対象・粒度・分母・抽出・比べ先・判定の基準は読まない → 点検エージェント（36.5）。数を計算し直さない |
+| `skills/_shared/design_check.py::record_check`（`design_io check`） | 標準入力の項目（点検エージェントが読んだもの）と、自分で決めた3つの項目を合わせ、点検した verdict のハッシュと一緒に `{id}_check.yaml` に書く。読んでから書くまでロックを持つ。コードが決める項目を渡されたとき、項目が足りないとき、verdict が無いときは断り、何も書かない | 分析設計も journal も書かない。点検エージェントを立てない → `/analysis-reflection`・`/analysis-auto`・`/analysis-notebook`（36.5）。終えた分析設計かは見ない → 呼ぶ skill |
+| `skills/_shared/design_check.py::check_reading`（`design_io checked`） | 点検が済んでいるかを返す、ただ1つの読み手。記録が覚えた verdict といまの verdict が同じときだけ `checked` が真で、項目と食い違いを返す。verdict が無い、記録が無い、記録が読めない、verdict が変わった、のどれでも偽 | 画面に出さない → `design_note.py`・`tree_render_stage.py`（36.7）。分析者に聞かない → reflection の Step 2 と endings（36.5） |
+| `src/insight_blueprint/validate.py::validate_check_write`、`hooks/validate-design.py` | `.insight/designs/*_check.yaml` への Write・Edit・MultiEdit を、中身を読まずに全部止める | Python からの書き込みは見えない → `design_io check` だけが書くという約束と、skill の文 |
 | `tests/_wide_tree.py` | 実データと同じ大きさの合成の論点ツリー（論点7つ、分析設計6つ、2回の振り返り。主題の一覧は書く前に41件、うち17件が前の回に見せた結果）を作る | 実データの値を持たない。HTML の中身は確かめない → 36.7 のテスト |
 
 ## Decisions
@@ -625,6 +630,47 @@ Story の実装に合わせて書く。
 - レビューの後に足した判断（計画外 2件、PM に報告）: (1) 分析者が残すと選んだ文も、言い過ぎに見える間は後の回にまた並ぶ。選んだことは記録に残らず、導けない（ADR-0069 の推奨の理由と同じ）。
   そのため、この文がある間は問いを飛ばせない。(2) 分析者が言葉を言って弱めた文は `analyst_view` を持つ。分析者の言葉なので、検査に反したときも見立てと同じく分析者に聞く（ADR-0068）。
   そのほか、新しい結果が関わる claim は新しい結果の規則で書き直し、並べない。論点の最後の1文は落とせない（答えは1文以上で、取り下げられない）ので、残すか弱めるかを聞く。
+### Decision: story-36-4-one-command-takes-the-readers-items-and-decides-the-rest
+
+- What: 点検を書く命令は `design_io check --id <分析設計>` の1つにする。標準入力は `{"checked_by": "check_agent" か "same_session", "items": [{"subject", "result", "note", "cell"}]}` で、
+  渡すのは点検エージェントが読んだ項目（対象・粒度・分母・抽出・比べ先と、検証なら判定の基準）だけである。指標・図・cell の並びは、命令が書くときに自分で照らして足す。
+  コードが決める項目を渡すと断る。受け取って捨てることはしない。点検が済んでいるかは、別の命令 `design_io checked --id <分析設計>` が返す（書かない。標準入力を読まない）。
+  どちらも同じ形を返す: `design_id`・`has_verdict`・`checked`・`checked_by`・`items`・`differences`。
+- Why: ADR-0070 の6は「コードが見る項目は、命令がその場で照らして書く。点検エージェントの返事では上書きできない」と決めた。
+  コードの項目だけを先に書く命令と、読み手の項目を後から足す命令に分けると、半分だけ書かれた記録が残り、「済んでいるか」の規則に場合分けが要る。
+- Criteria: 記録が半端な状態を持たないこと（出典: ADR-0070 の6・7）。後の Story が1つの形だけを読めばよいこと（出典: ブリーフの「読み手を1か所に置く」）。決め手は前者。
+- Affected modules: `skills/_shared/design_check.py`、`skills/_shared/design_io.py`。
+- Alternatives considered: 命令を2つに分ける（半端な記録が残る）。コードが決める項目を渡されたら、知らせずに上書きする（点検エージェントは、自分の答えが使われなかったと分からない）。
+  `check` に `--read` のフラグを付けて読む（書く命令と読む命令が、打ち間違い1つで入れ替わる）。
+- Consequences: 点検エージェントが返す形は、この標準入力の `items` と同じにできる（36.5）。古い記録を読み直すだけの道は無く、点検し直すと、コードの項目もその時の verdict で決め直す。
+  済んでいない点検（verdict が変わった後の記録）の項目は返さない。前の verdict の食い違いを、いまの verdict のものとして見せないためである。
+
+### Decision: story-36-4-the-check-remembers-its-verdict-by-the-hash-of-the-file
+
+- What: 点検の記録は、点検した verdict を、ファイルの中身の SHA-256（`verdict_digest`）で覚える。いまの `{id}_verdict.json` の中身のハッシュと違えば、点検は済んでいないと読む。
+  記録が無い、読めない、別の分析設計の記録である、のどれでも、済んでいないと読む。
+- Why: 更新時刻は、コピーやチェックアウトで変わる。点検した verdict を、済んでいないと読んでしまう。中身が同じなら、書き直されても点検は済んだままでよい。
+- Criteria: 点検した verdict を、済んでいないと読まないこと。変わった verdict を、済んだと読まないこと（出典: US-4 AC 5）。決め手は両方を満たすこと。
+- Affected modules: `src/insight_blueprint/models/check.py`（`verdict_digest`、`DesignCheck.is_current`）、`skills/_shared/design_check.py`。
+- Alternatives considered: 更新時刻（上のとおり）。verdict を JSON として読んで比べる（空白や順序だけの違いを同じと読めるが、読めない verdict で規則が要る。得るものが小さい）。
+- Consequences: notebook のコードだけを直して、verdict が1字も変わらなかったときは、点検は済んだままと読む。分析設計を点検の後に書き換えたときも同じである。
+  ADR-0070 の7は verdict だけを覚えると決めているので、広げていない。実データで使う段で起きたら issue にする。
+
+### Decision: story-36-4-the-code-writes-its-findings-as-sentences-and-the-hook-refuses-every-hand-write
+
+- What: (1) コードが決める項目の食い違いも、点検エージェントの項目と同じ `note`（文）と `cell` に書く。文は分析者に見せる言葉で書く
+  （「分析設計の指標「…」が、分析コードの出した結果に同じ名前で無い。」「分析コードの出した結果の指標「…」が、分析設計に無い。」
+  「分析コードの出した図は N 枚、分析設計の図の仕様は M 枚。」「分析コードの区切りが、決まりの7つ（…）の並びになっていない。」）。
+  根拠の cell は、指標が `analysis`、図が `viz` である。cell の並びの食い違いは cell を持たない。
+  (2) 確かめられない項目も、理由の文を持つ。(3) 検証 hook は、`*_check.yaml` への手の書き込みを、中身が変わらないものも含めて全部止める。
+- Why: (1) 画面（36.7）とチャット（36.5）が、誰が決めた項目かで出し方を分けずに済む。(2) 理由の無い「確かめられなかった」は、分析者が次に何をすればよいか分からない。
+  (3) 記録は、書いた時点の verdict と分析設計を、コードが照らした結果を持つ。手で直した記録が正しいことは無いので、journal の印のように前後を比べる必要が無い。
+- Criteria: 同じ値を出す所が1つの規則で済むこと（出典: Stories の節の「同じ値を出す所」）。AC 1 の「食い違いは根拠にした cell を持つ」（出典: US-4 AC 1）。決め手は前者。
+- Affected modules: `skills/_shared/design_check.py`、`src/insight_blueprint/models/check.py`、`src/insight_blueprint/validate.py`、`hooks/validate-design.py`。
+- Alternatives considered: コードの項目は、足りない名前や図の数を項目として持ち、文は画面が組む（型が項目ごとに分かれ、点検エージェントの文と出し方が2通りになる）。
+  cell の並びの食い違いにも、最初にずれた cell を持たせる（並びが崩れた notebook では、cell の切れ目そのものが当てにならない）。
+- Consequences: AC 1 の「食い違いは根拠にした cell を持つ」に、cell の並びだけ例外ができる。分析者に見せる文が3つ、`tree_words.py` の外（`design_check.py`）にある。
+  人間が実物の画面を読む段（36.7 の後）では、この文も読む。文を変えても、書いた後の記録の文は変わらない（点検し直すと新しい文になる）。
 
 ### Cross-epic decisions (links to ADR)
 
@@ -644,7 +690,7 @@ Story の実装に合わせて書く。
 | Story 36.1 | ✓ | —（SKILL.md と参照ファイルの文だけを動かし、コードは変えていない） | —（振る舞いは変えていない。分ける前の1373件のテストが期待値を変えずに緑のまま、移した文が元の文と一字ずつ同じこと（リンクの深さと、ブリーフを指す1か所を除く）を `diff` で、配布物に `references/` が入ることを手元のプラグインのキャッシュで確かめた。Claude Code のセッションに読み込んで辿ることはしていない） |
 | Story 36.2 | ✓ | ✓ | —（画面とチャットの文を変えない。印を画面に出すのは 36.7、問いは 36.3。合成シナリオ `lib` と、実データと同じ大きさの合成の論点ツリーで、印の付いた答えを `tree_io answer` で書き、`changes`・`changes --with-answers`・`render --theme`・`report`・`tree_check` を通して確かめた） |
 | Story 36.3 | ✓ | ✓ | —（チャットの問いの文だけを変えた。対話エージェントに通しては回していない。実データと同じ大きさの合成の論点ツリーで `tree_io changes --with-answers` を CLI から回し、Step T3 の手順どおりに問いを組むと、内容で出るのが24件、件数だけになるのが17件であることを確かめた。推奨の当たり方は実データで使う段で確かめる） |
-| Story 36.4 | ☐ | ☐ | ☐ |
+| Story 36.4 | ✓ | ✓ | —（画面とチャットの文を変えない。点検を走らせる skill は 36.5、画面は 36.7。配布物の `bin/design_io` から、参照の notebook を実行して得た verdict と、その指標に合わせた分析設計で `check` と `checked` を回した。設計の指標を verdict から消す、verdict に設計に無い指標を足す、図の数を変える、cell を1つ消す、の4つがそれぞれ食い違いに出ること、verdict を書き換えると済んでいないと読むこと、hook が手の書き込みを止めることを確かめた。点検エージェントが読む項目の当たり方は確かめていない） |
 | Story 36.5 | ☐ | ☐ | ☐ |
 | Story 36.6 | ✓ | —（チャットの問いの文だけを変え、コードは変えていない） | —（チャットの問いの文だけを変えた。対話エージェントに通しては回していない。実データと同じ大きさの合成の論点ツリーで、並ぶ文が2回目は0件、3回目は見立ての文の1件までであることを数えた。言い過ぎに見えるかの当たり方は実データで使う段で確かめる） |
 | Story 36.7 | ☐ | ☐ | ☐ |
@@ -666,3 +712,4 @@ Story の実装に合わせて書く。
 - 2026-11-28 — Story 36.3 completed: テーマの振り返りが主題の答えを書く前に分析者の見立てを聞き（下書きからも始められる）、この回に初めて一覧に入った結果を理由つきで勧めるものと勧めないものに分け、前の回に見せた結果を件数だけにした。見立ての文はエージェントが言い換えず、検査の違反は分析者に聞く。上の論点の答えは、分析者が確かめた結果だけを引用する。下書きから始めても止まるのは2回になる（Decision 2件）。Domain Model は変えていない。
 - 2026-11-28 — 人間が ADR-0068 の Negative の1文を直すと決めた: 下書きから始めても、止まる回数は見立てを言う1回ぶん増える（36.3 の報告）。決定は変えていない。
 - 2026-11-28 — Story 36.6 completed: 答えを書く前の問いに、根拠より強く言っているように見える前の答えの文を並べ、残す・弱める・落とすを聞く部品を足した。Step T2 はこの文を自分では直さない。見立ての文はエージェントが弱めない（Decision 1件）。Domain Model は変えていない。
+- 2026-11-28 — Story 36.4 completed: 計算の点検の記録（`.insight/designs/{id}_check.yaml`）と、それを書くただ1つの命令 `design_io check`、点検が済んでいるかを返す `design_io checked` を足した。指標・図・cell の並びは命令が決め、ほかの項目は標準入力で受ける。記録は点検した verdict を中身のハッシュで覚える。検証 hook は記録への手の書き込みを止める。notebook の契約に、設計の指標を `target` の名前で書くことと、設計に無い指標は足す前に聞くことを足した。型の名前は初版の案のまま。Domain Model の図は変えず、表の `DesignCheck`・`CheckItem` の不変条件の文を直した（cell の並びの食い違いは cell を持たない。確かめられない項目も文を持つ）。Decision 3件。参照の notebook（`tests/integration/fixtures/sample_notebook.py`）は群ごとの指標を1つ書くので、それを持たない分析設計と照らすと食い違いが1件出る。

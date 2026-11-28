@@ -803,3 +803,57 @@ class TestHookSubprocessTree:
     ) -> None:
         run = TestFailClosed()._run_main_with_broken_evaluate
         assert run(monkeypatch, str(tree_path(tmp_path))) == 2
+
+
+class TestHookKeepsTheRecordOfACheck:
+    """ADR-0070 6: the record of a check is written only by ``design_io check``."""
+
+    @staticmethod
+    def _path(tmp_path: Path) -> Path:
+        designs = tmp_path / ".insight" / "designs"
+        designs.mkdir(parents=True, exist_ok=True)
+        return designs / "FP-H01_check.yaml"
+
+    def test_the_record_is_a_guarded_file(self) -> None:
+        assert hook.is_guarded_file("/p/.insight/designs/FP-H01_check.yaml")
+        assert not hook.is_guarded_file("/p/.insight/notes/FP-H01_check.yaml")
+        assert not hook.is_guarded_file("/p/designs/FP-H01_check.yaml")
+
+    def test_writing_a_record_by_hand_is_blocked(self, tmp_path: Path) -> None:
+        result = run_hook(
+            {
+                "tool_name": "Write",
+                "tool_input": {
+                    "file_path": str(self._path(tmp_path)),
+                    "content": "design_id: FP-H01\nitems: []\n",
+                },
+            }
+        )
+        assert result.returncode == 2
+        assert "design_io check" in result.stderr
+
+    def test_editing_a_record_is_blocked(self, tmp_path: Path) -> None:
+        path = self._path(tmp_path)
+        path.write_text("design_id: FP-H01\nresult: differs\n", encoding="utf-8")
+        result = edit(path, "differs", "agrees")
+        assert result.returncode == 2
+        assert "design_io check" in result.stderr
+
+    def test_an_edit_that_changes_nothing_is_blocked_too(self, tmp_path: Path) -> None:
+        path = self._path(tmp_path)
+        path.write_text("design_id: FP-H01\n", encoding="utf-8")
+        assert edit(path, "FP-H01", "FP-H01").returncode == 2
+
+    def test_a_multi_edit_is_blocked(self, tmp_path: Path) -> None:
+        path = self._path(tmp_path)
+        path.write_text("design_id: FP-H01\nresult: differs\n", encoding="utf-8")
+        result = run_hook(
+            {
+                "tool_name": "MultiEdit",
+                "tool_input": {
+                    "file_path": str(path),
+                    "edits": [{"old_string": "differs", "new_string": "agrees"}],
+                },
+            }
+        )
+        assert result.returncode == 2

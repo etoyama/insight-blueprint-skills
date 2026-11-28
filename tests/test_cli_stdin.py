@@ -23,6 +23,7 @@ NO_PAYLOAD = [
     ("design_io", "list"),
     ("design_io", "list-reviews", "--id", "FP-H01"),
     ("design_io", "stage", "--id", "FP-H01"),
+    ("design_io", "checked", "--id", "FP-H01"),
     ("catalog_io", "get", "--id", "src"),
     ("catalog_io", "list"),
     ("catalog_io", "describe", "--ids", "src"),
@@ -78,6 +79,7 @@ def test_a_command_without_payload_returns_while_stdin_stays_open(
 WITH_PAYLOAD = [
     (design_io, "answer-analyst"),
     (design_io, "ask-analyst"),
+    (design_io, "check"),
     (design_io, "create"),
     (design_io, "journal-append"),
     (design_io, "review-batch"),
