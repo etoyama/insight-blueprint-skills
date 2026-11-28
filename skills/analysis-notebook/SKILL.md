@@ -207,8 +207,20 @@ the analysis was stopped or waits for the analyst's answer, record nothing more 
 When you run as an execution agent of `/analysis-auto` (its brief says so), skip this step
 and return what the brief asks for: the dialogue agent rebuilds the page on your return.
 
-Otherwise, run `tree_io render --design {design_id}` so that the design note shows the results you
-recorded, and tell the analyst where the note is: read the JSON it prints as the
+Otherwise, run `tree_io render --design {design_id}` after the check of the computation
+below, so that the design note shows the results you recorded and what the check found.
+
+Have the computation checked first
+([ADR-0070](../../docs/adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md)):
+start a check agent, a subagent that did not write the notebook, as
+[Run the check of the computation](../analysis-reflection/references/computation-check.md)
+says, and record its reply with `design_io check`. When the host cannot start a subagent, do
+not read the notebook as its check yourself, since you wrote it: `/analysis-reflection`
+makes sure of the check in its Step 2. Show the 点検 line as that Step 2 words it, or say
+「点検は /analysis-reflection で走る」 when no check ran. The differences a check found are
+asked about in `/analysis-reflection`, and not here: fix none of them now.
+
+Then run the render, and tell the analyst where the note is: read the JSON it prints as the
 `#### 読むもの` of /analysis-reflection says, and show its `分析ノート:` line. This step is
 not a gate: ask nothing. If the render exits non-zero, show its stderr; the journal keeps
 the events of Step 6.
@@ -225,6 +237,7 @@ the events of Step 6.
 | `design_io stage --id ID` | The stage of the analysis: a stopped one is not run |
 | `design_io transition --id ID --target analyzing` | Move an in_review design into analysis |
 | `design_io journal-append --id ID` | Append the events of the verdict to the journal |
+| `design_io checked --id ID` / `design_io check --id ID` | Read and record the check of the computation (Step 7) |
 | `catalog_io get --id SOURCE --with-connection` | Full source incl. `connection` (drives data_load) |
 | `catalog_io get-schema --id SOURCE` | Column schema (+ PK, row-count) only — no connection |
 
@@ -239,7 +252,7 @@ through `design_io journal-append`.
 | /analysis-design | -> /analysis-notebook | Design ready to analyze: "分析を実行するなら /analysis-notebook {id}" |
 | /analysis-review | -> /analysis-notebook | Design approved (analyzing): "分析を実行するなら /analysis-notebook {id}" |
 | /analysis-notebook | -> /analysis-journal | Add manual reasoning beyond the auto-recorded events |
-| /analysis-notebook | -> /analysis-reflection | Results in: "結論づけは /analysis-reflection {id}" |
+| /analysis-notebook | -> /analysis-reflection | Results in: "結論づけは /analysis-reflection {id}". It checks the computation first when Step 7 could not |
 
 ## Language Rules
 

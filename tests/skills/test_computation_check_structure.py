@@ -28,6 +28,7 @@ from skills._shared.design_note_read import CONTRACT_CELLS
 from tests.skills._auto import gate_row, handover_item, handover_part
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills._reflection import reflection, reflection_section
+from tests.skills.test_skill_structure import _read_skill
 from tests.test_design_check import _confirmation, _exploration, _save_result
 
 READ_BY_A_READER = [s.value for s in CheckSubject if s not in CODE_SUBJECTS]
@@ -482,4 +483,44 @@ class TestAnExecutionAgentAsksBeforeAddingAMetric:
             r"handed over again[^.]*the differences the check found[^.]*as written"
             r"[^.]*compute as the design says",
             brief,
+        )
+
+
+class TestTheNotebookHasItsResultCheckedByAnotherAgent:
+    """ADR-0070 8: run on its own, the notebook skill has the check run after the verdict."""
+
+    def _step(self) -> str:
+        return unwrap(section(_read_skill("analysis-notebook"), "### Step 7"))
+
+    def test_it_starts_a_check_agent_once_the_verdict_is_in_the_journal(self) -> None:
+        step = self._step()
+        assert re.search(
+            r"start a check agent[^.]*"
+            r"\(\.\./analysis-reflection/references/computation-check\.md\)",
+            step,
+        )
+        assert re.search(r"record its reply with `design_io check`", step)
+
+    def test_the_check_is_recorded_before_the_note_is_built(self) -> None:
+        assert re.search(
+            r"`tree_io render --design \{design_id\}` after the check of the computation",
+            self._step(),
+        )
+
+    def test_the_session_that_wrote_the_notebook_never_reads_it_as_the_check(
+        self,
+    ) -> None:
+        assert re.search(
+            r"host cannot start a subagent[^.]*do not read the notebook as its check "
+            r"yourself[^.]*`/analysis-reflection`[^.]*Step 2",
+            self._step(),
+        )
+
+    def test_an_execution_agent_still_skips_the_step(self) -> None:
+        assert re.search(r"execution agent[^.]*skip this step", self._step())
+
+    def test_what_differs_is_asked_about_in_the_reflection_and_not_here(self) -> None:
+        assert re.search(
+            r"differences[^.]*asked about in `/analysis-reflection`[^.]*not here",
+            self._step(),
         )

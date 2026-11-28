@@ -98,3 +98,18 @@ def test_a_round_of_one_node_reads_how_to_stop_an_analysis() -> None:
         r"the analyst asks to stop an analysis",
         pointer,
     ), pointer
+
+
+@pytest.mark.parametrize("path", _prose(), ids=lambda p: f"{p.parent.name}/{p.name}")
+def test_a_command_written_with_theme_names_the_theme(path: Path) -> None:
+    """#311: `tree_io render --theme` alone exits 2, so a step written that way fails once.
+
+    Every command that takes `--theme` is held to it, whatever the command. A flag
+    named on its own (`--theme` is the source's `theme_id`) is not a command.
+    """
+    text = path.read_text(encoding="utf-8")
+    bare = [
+        found.group(0)
+        for found in re.finditer(r"[\w/{}.-]+ [^`\n]*?--theme(?![ =][\w{<\"$])", text)
+    ]
+    assert bare == []

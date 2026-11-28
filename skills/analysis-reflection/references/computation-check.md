@@ -24,7 +24,8 @@ design_io checked --id {design_id}
    the background when the host lets you. Then `checked_by` is `check_agent`.
    When the host cannot start a subagent, read the three files yourself as the brief says
    and answer in the same form: then `checked_by` is `same_session`, whoever wrote the
-   notebook, and the record says that no other agent read it.
+   notebook, and the record says that no other agent read it. (`/analysis-notebook` Step 7
+   does not read in the agent's place: it leaves the check to Step 2 of this skill.)
 3. Record the reply as *Record the check* says.
 
 #### The brief of a check agent

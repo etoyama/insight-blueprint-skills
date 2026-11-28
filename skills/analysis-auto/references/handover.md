@@ -191,8 +191,9 @@ echo '{"answers": "LIB-H04-E01", "content": "2025年10月以降の予約に絞�
      derive from, keeps the round open: carry on with it as its answer says and come back
      to this item. A derived design is a new design on its node, and goes through
      **check before handing over**.
-   - When every design of the round has ended or is stopped, run `tree_io render --theme`
-     once more and go on to **theme reflection** of Step 3.
+   - When every design of the round has ended or is stopped, run
+     `tree_io render --theme {theme_id}` once more and go on to **theme reflection** of
+     Step 3.
 
 #### Stopping an analysis
 
@@ -214,4 +215,4 @@ echo '{"content": "先に予約の数え方を確かめたいので、今回は�
 - A stopped analysis is not resumed. To try again, derive a design from it with
   `/analysis-design` (`parent_id`): a new design on the same node, which goes through
   **check before handing over** before it runs.
-- Rebuild the page after a stop (`tree_io render --theme`).
+- Rebuild the page after a stop (`tree_io render --theme {theme_id}`).

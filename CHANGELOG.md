@@ -46,7 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   back and holds nothing else for it. With no difference the summary says so in one line. With
   differences, the first question on how the design ends opens with them, each as the record words
   it, and asks whether to read as it is or to have it computed again as the design says; a recomputed
-  analysis is checked again before its ending is asked. Nothing is fixed unasked. An execution agent
+  analysis is checked again before its ending is asked. Nothing is fixed unasked. Run on its own,
+  `/analysis-notebook` starts the check agent once the verdict is in the journal, and leaves the check
+  to `/analysis-reflection` on a host that cannot start one. An execution agent
   now stops and asks before it adds a metric the design does not hold
   ([ADR-0070](docs/adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md),
   [ADR-0071](docs/adr/0071-a-difference-is-shown-before-reading-and-the-review-of-a-result-is-narrowed.md), #307).
@@ -70,6 +72,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   several nodes and the brief of an execution agent are in `skills/analysis-auto/references/`, and the theme
   reflection is in `skills/analysis-reflection/references/`. The body says when to read each. The steps do
   not change. (#303)
+
+### Fixed
+
+- **The hand-over steps of `/analysis-auto` name the theme when they rebuild the page.** Two steps
+  wrote `tree_io render --theme` with no theme id, which the command refuses (#311).
+
 
 ## [0.22.0] - 2026-11-28
 

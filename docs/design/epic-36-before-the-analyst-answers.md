@@ -737,6 +737,28 @@ Story の実装に合わせて書く。
 - Consequences: 分析設計が3つで、どれにも食い違いがあると、終え方の問いは長くなる（ADR-0071 の Negative のまま）。計算し直した分析の journal には、前の実行の出来事が残る（同じ）。
   実行エージェントが分析設計どおりに計算できないときは、止まる条件のとおり、データに触る前に聞いて戻る。
 
+### Decision: story-36-5-the-notebook-skill-starts-a-check-agent-and-never-reads-in-its-place
+
+- What: 単独で走った `/analysis-notebook` の Step 7 は、verdict を journal に記録した後、分析ノートを作り直す前に、点検エージェントを立てて `design_io check` で記録する（ADR-0070 の8）。
+  点検エージェントを立てられないホストでは、Step 7 では読まず、`/analysis-reflection` の Step 2 に任せる。実行エージェントとして走るときは、今までどおり Step 7 を飛ばす。
+- Why: Story のブリーフは「Step 7 では走らせない」と書いていたが、ADR-0070 の8と食い違っていた。PM に確かめ、ADR を正とした（ブリーフの誤り）。
+  立てられないホストで Step 7 が読むと、notebook を書いた本人の確認を先に作ることになる。Step 2 に任せても、行き着く先は ADR-0070 の9（同じセッションが読み、`same_session` を記録する）と同じである。
+- Criteria: Accepted の ADR の文を変えないこと（出典: PM の返事、2026-11-28）。書いた本人の確認を、要らない所で作らないこと（出典: ADR-0070 の Negative）。
+- Affected modules: `skills/analysis-notebook/SKILL.md` の Step 7、`skills/analysis-reflection/references/computation-check.md`。
+- Alternatives considered: Step 7 では走らせない（ADR-0070 の8の改訂が要る）。立てられないホストでも Step 7 が読む（書いた本人が、書いた直後に読む）。
+- Consequences: 単独の経路で点検エージェントを立てられるホストでは、分析者が `/analysis-reflection` を呼ぶ前に点検が済み、分析ノートが結果を出す。食い違いを聞くのは `/analysis-reflection` だけである。
+
+### Decision: story-36-5-every-command-written-with-theme-names-the-theme
+
+- What: #311 をこの Story で直した（人間の判断、2026-11-28）。`handover.md` の2か所を `tree_io render --theme {theme_id}` にした。
+  構造テストは、SKILL.md と参照ファイルに書いた命令のうち `--theme` を取るものの全部（`tree_io`・`tree_check` のどの命令でも）で、`--theme` の後に値が続くことを確かめる。
+  フラグの名前だけを説明する文（「`--theme` is the source's `theme_id`」）は命令ではないので、対象にしない。`--id`・`--design`・`--node` には広げない。
+- Why: 値なしの `--theme` は argparse が終了コード 2 で断る。エージェントが字のとおりに打つと1回失敗する。`render` だけを見るテストでは、同じ穴が別の命令で開いても気づけない（FLOW-0013）。
+- Criteria: 守りたい規則で書くこと（出典: FLOW-0013）。今ある穴の形に合わせること（出典: YAGNI。ほかのフラグでは見つかっていない）。
+- Affected modules: `skills/analysis-auto/references/handover.md`、`tests/skills/test_skill_references_structure.py`。
+- Alternatives considered: `tree_io render --theme` だけを見る（別の命令の同じ穴を通す）。値を取るフラグの全部に広げる（フラグごとに、名前だけを説明する文との見分けが要る。穴は見つかっていない）。
+- Consequences: `--theme` を取る命令を足すと、同じテストが見る。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0068: 現時点の答えの文は、分析者の見立てとして書ける](../adr/0068-an-answer-statement-may-be-the-analysts-view.md):
@@ -779,3 +801,5 @@ Story の実装に合わせて書く。
 - 2026-11-28 — Story 36.6 completed: 答えを書く前の問いに、根拠より強く言っているように見える前の答えの文を並べ、残す・弱める・落とすを聞く部品を足した。Step T2 はこの文を自分では直さない。見立ての文はエージェントが弱めない（Decision 1件）。Domain Model は変えていない。
 - 2026-11-28 — Story 36.4 completed: 計算の点検の記録（`.insight/designs/{id}_check.yaml`）と、それを書くただ1つの命令 `design_io check`、点検が済んでいるかを返す `design_io checked` を足した。指標・図・cell の並びは命令が決め、ほかの項目は標準入力で受ける。記録は点検した verdict を中身のハッシュで覚える。検証 hook は記録への手の書き込みを止める。notebook の契約に、設計の指標を `target` の名前で書くことと、設計に無い指標は足す前に聞くことを足した。型の名前は初版の案のまま。Domain Model の図は変えず、表の `DesignCheck`・`CheckItem` の不変条件の文を直した（cell の並びの食い違いは cell を持たない。確かめられない項目も文を持つ）。Decision 3件。参照の notebook（`tests/integration/fixtures/sample_notebook.py`）は群ごとの指標を1つ書くので、それを持たない分析設計と照らすと食い違いが1件出る。
 - 2026-11-28 — 人間が ADR-0070 の7を直すと決めた（36.4 のレビューの指摘）: 点検の記録は分析設計も覚え、点検の後に分析設計の中身を書き換えると、点検は済んでいないと読む。状態が動いただけでは済んだままである。US-4 AC 5 と Domain Model の図（`DesignCheck` に `design_digest`、`is_current(verdict, design)`）を直した。
+- 2026-11-28 — Story 36.5 completed: skill が計算の点検を走らせる。`/analysis-reflection` の Step 2 は、読むものの前に `design_io checked` を読み、済んでいなければ点検エージェントに読ませて `design_io check` で記録する。まとめて任せる流れは、実行エージェントが戻るたびに点検を始める。食い違いは終え方の1つ目の問いの冒頭に並べ、このまま読むか計算し直させるかを聞く。点検を走らせる手順と点検エージェントのブリーフは `skills/analysis-reflection/references/computation-check.md` に置いた（初版の見込みは `analysis-auto` の `references/`）。実行エージェントは、設計に無い指標を足す前に止まって聞く。Decision 5件。Domain Model は変えていない。分析者に見せる言葉の表に、チャットの点検の文を足した。
+- 2026-11-28 — 人間が #311 を 36.5 で直すと決めた: `handover.md` の値なしの `tree_io render --theme` を2か所直し、`--theme` を取る命令には必ず値が続くことを構造テストで確かめる。
