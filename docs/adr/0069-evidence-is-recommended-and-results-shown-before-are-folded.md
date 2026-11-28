@@ -63,7 +63,7 @@ Epic 36（[#302](https://github.com/etoyama/insight-blueprint-skills/issues/302)
 |---|---|---|
 | 案1 | 要る結果を、種類で落とす | 無い（種類では分けられないと分かった） |
 | 案2 | 件数が減らず、読む負担が残る | 無い |
-| 案3 | たたんだ中に、この回の結果で読み方が変わった古い結果が埋もれる | エージェントは、理由を添えて、たたんだ中から推奨に上げられる。分析者は言えば全部を開ける |
+| 案3 | たたんだ中に、この回の結果で意味が変わった古い結果が埋もれる | エージェントは、理由を添えて、たたんだ中から推奨に上げられる。分析者は言えば全部を開ける |
 | 案3 | 推奨が外れる | 推奨しなかった結果も並べる。答えを書くのは分析者が確かめた後である |
 | 何もしない | 課題1〜3 が残る | 無い |
 
@@ -76,11 +76,11 @@ Epic 36（[#302](https://github.com/etoyama/insight-blueprint-skills/issues/302)
 2. 答えを書く前の問いは、この回に初めて一覧に入った結果を、推奨するものとしないものに分ける。推奨には理由を1行添える。
    推奨と理由はエージェントが出す。記録には残さない。
 3. 前の回に見せた結果は件数だけを出す。分析者が言えば全部を出す。
-   エージェントは、この回の結果で読み方が変わるものを、理由を添えて推奨に上げられる。
+   エージェントは、この回の結果で意味が変わるものを、理由を添えて推奨に上げられる。
 4. 答えの根拠になるのは、分析者が確かめた結果だけである。推奨をそのまま受けることも、確かめることに当たる。
 5. 同じ問いの中に、前の答えの文のうち、引用した出来事より多くを言って見える文を並べ、残す・弱める・落とすを聞く。
    エージェントは、分析者が答える前に、その文を変えない。Step T2 の「引用した出来事より多くを言う claim を直す」は、この問いに置き換える。
-6. 分析者の読みの印がある文（[ADR-0068](0068-an-answer-statement-may-be-the-analysts-reading.md)）は、並べることはできるが、
+6. 分析者の見立ての印がある文（[ADR-0068](0068-an-answer-statement-may-be-the-analysts-view.md)）は、並べることはできるが、
    弱めた文をエージェントが作らない。
 
 ADR-0056 の Decision 4（引用していない下の結果を2つに分けて出す）と 8（分析者が決める）は保つ。足すのは、前の回に見せたかの区別と、推奨である。
@@ -110,4 +110,4 @@ ADR-0056 の Decision 4（引用していない下の結果を2つに分けて�
 
 - Epic: [#302](https://github.com/etoyama/insight-blueprint-skills/issues/302)、[docs/design/epic-36-before-the-analyst-answers.md](../design/epic-36-before-the-analyst-answers.md)
 - Issue: [#298](https://github.com/etoyama/insight-blueprint-skills/issues/298)、[#271](https://github.com/etoyama/insight-blueprint-skills/issues/271)
-- 関係する ADR: [ADR-0025](0025-cited-answers-checked-after-writing.md)、[ADR-0056](0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md)、[ADR-0068](0068-an-answer-statement-may-be-the-analysts-reading.md)
+- 関係する ADR: [ADR-0025](0025-cited-answers-checked-after-writing.md)、[ADR-0056](0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md)、[ADR-0068](0068-an-answer-statement-may-be-the-analysts-view.md)

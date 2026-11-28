@@ -13,8 +13,8 @@ Epic issue（[#302](https://github.com/etoyama/insight-blueprint-skills/issues/3
   - 課題2: 実行エージェントが分析設計に無い指標や比べ先を足しても、分析者は読むまで気づけない。
   - 課題3: テーマの振り返りで、主題の答えの根拠にする分析結果を選ぶ問いが重い。実データのテーマでは41件が平らに並び、推奨が無い。
     前の回に見せて選ばなかった結果も毎回並ぶ（[#298](https://github.com/etoyama/insight-blueprint-skills/issues/298)）。
-  - 課題4: 分析者が言いたいのは、分析設計をまたいだ読み（主題を支える、反証する、まだ言えない）である。それを書く場所が無い。
-    引用を越える読みを claim に書くと、次の回のエージェントが決まりに従って直す。
+  - 課題4: 分析者が言いたいのは、分析設計をまたいだ見立て（主題の答えを支える、変える、まだ言えない）である。それを書く場所が無い。
+    引用を越える見立てを claim に書くと、次の回のエージェントが決まりに従って直す。
   - 課題5: 前の答えの、根拠より強く言って見える文が残る。黙って書き換えるのはやめたので、分析者に見せて聞く場面が要る
     （[#271](https://github.com/etoyama/insight-blueprint-skills/issues/271)）。
   - 課題6: `analysis-auto`（544 行）と `analysis-reflection`（801 行）の SKILL.md が長い。対話エージェントが毎回全部を読む
@@ -61,18 +61,18 @@ v0.22.0 のコードと SKILL.md を読み、実データのテーマ（Epic 35 
 
 AC の正本はここ。
 
-### US-1: 分析者が、主題の答えを自分の読みから始められる
+### US-1: 分析者が、主題の答えを自分の見立てから始められる
 
-分析者として、分析設計をまたいだ読みを主題に結び付けるために、主題の答えを書く前に、自分の言葉で読みを言いたい。
+分析者として、分析設計をまたいだ見立てを主題に結び付けるために、主題の答えを書く前に、自分の言葉で見立てを言いたい。
 
 - [ ] AC 1: テーマの振り返りは、主題の答えを書く前に、この回の結果が主題にどう効くかを、分析者の言葉で聞く。
   分析者はエージェントの下書きから始めることも選べる。聞くのは主題についてだけである。
-- [ ] AC 2: 分析者の読みは、主題の現時点の答えの文として、分析者の言葉のまま残り、分析者の読みの印を持つ。
+- [ ] AC 2: 分析者の見立ては、主題の現時点の答えの文として、分析者の言葉のまま残り、分析者の見立ての印を持つ。
   印を持たない保存済みの答えは、そのまま読める。
-- [ ] AC 3: 分析者の読みの文も、journal の出来事を1つ以上引用し、ツリーの検査を同じ規則で受ける。
-- [ ] AC 4: エージェントは、分析者の読みの文を言い換えない。後の回の振り返りは一字一句そのまま送り、検査の違反は分析者に聞く。
+- [ ] AC 3: 分析者の見立ての文も、journal の出来事を1つ以上引用し、ツリーの検査を同じ規則で受ける。
+- [ ] AC 4: エージェントは、分析者の見立ての文を言い換えない。後の回の振り返りは一字一句そのまま送り、検査の違反は分析者に聞く。
   変えるのは、分析者が変えると言ったときだけである。
-- [ ] AC 5: 論点ツリーの HTML とレポートは、分析者の読みの文に、それと分かる印を出す。
+- [ ] AC 5: 論点ツリーの HTML とレポートは、分析者の見立ての文に、それと分かる印を出す。
 
 ### US-2: 分析者が、根拠を選ぶ代わりに、推奨を確かめるだけで済む
 
@@ -81,7 +81,7 @@ AC の正本はここ。
 - [ ] AC 1: 引用していない下の結果は、前の回の一覧にもあったかを持つ。保存せず、論点ツリーだけから導く。
 - [ ] AC 2: 答えを書く前の問いは、この回に初めて一覧に入った結果を、推奨するものとしないものに分け、推奨には理由を1行添える。
   前の回に見せた結果は件数だけを出し、分析者が言えば全部を出す。
-- [ ] AC 3: エージェントは、前の回に見せた結果のうち、この回の結果で読み方が変わるものを、理由を添えて推奨に上げられる。
+- [ ] AC 3: エージェントは、前の回に見せた結果のうち、この回の結果で意味が変わるものを、理由を添えて推奨に上げられる。
 - [ ] AC 4: 答えの根拠になるのは、分析者が確かめた結果だけである。推奨をそのまま受けることも、確かめることに当たる。
 
 ### US-3: 分析者が、言い過ぎに見える前の答えの文を、書く前に見て決められる
@@ -90,7 +90,7 @@ AC の正本はここ。
 
 - [ ] AC 1: 答えを書く前の問いは、前の答えの文のうち、引用した出来事より多くを言って見える文を並べ、残す・弱める・落とすを聞く。
 - [ ] AC 2: エージェントは、分析者が答える前に、その文を変えない。
-- [ ] AC 3: 分析者の読みの文は、並べることはできるが、弱めた文をエージェントが作らない。変える文は分析者が言う。
+- [ ] AC 3: 分析者の見立ての文は、並べることはできるが、弱めた文をエージェントが作らない。変える文は分析者が言う。
 
 ### US-4: 分析者が分析ノートを読む前に、計算の点検が済んでいる
 
@@ -115,13 +115,14 @@ AC の正本はここ。
 - [ ] AC 2: まとめて任せる流れは、実行エージェントが戻るたびに、その分析の点検を始める。ほかの分析を待たせない。
 - [ ] AC 3: 食い違いが無い分析は、点検が済んだことを1行で言う。食い違いがある分析は、終え方の問いの冒頭に食い違いを並べ、
   このまま読むか、計算し直させるかを聞く。分析者が止まる回数は増やさない。計算し直した分析は、もう一度点検してから終え方を聞く。
-- [ ] AC 4: 分析ノートは、計算の点検の結果を結果の値より前に出す。
+- [ ] AC 4: 分析ノートは、計算の点検の結果を結果の値より前に出す。その節は、何と何を見比べたか、誰が見比べたか、
+  何を確かめていないか（数の正しさ、分析設計の妥当さ、結果の解釈）を、結果の表より前に文で言う。
 
-### US-6: 結果のレビューが、読みと交絡の批評に絞られる
+### US-6: 結果のレビューが、解釈と交絡の批評に絞られる
 
 分析者として、同じ指摘を2か所で読まないために、結果のレビューには、計算の点検が見ないことだけを批評してほしい。
 
-- [ ] AC 1: 結果のレビューの観点は、値と判定の矛盾、図、guardrail、読みと交絡（別の説明、言える範囲）である。
+- [ ] AC 1: 結果のレビューの観点は、値と判定の矛盾、図、guardrail、解釈と交絡（別の説明、言える範囲）である。
   判定の線の写しと cell の並びは、計算の点検が見る。
 - [ ] AC 2: 結果のレビューを勧める目安は、判定で終わること（検証）と、数の照合がデータの中の足し上げだけであることの2つである。
 
@@ -142,13 +143,13 @@ AC の正本はここ。
 
 | 内側の用語（文書・コード） | 分析者に見せる言葉 |
 |---|---|
-| 分析者の読み | あなたの読み（チャット）、分析者の読み（ページとレポート） |
-| 読みの向き | いまの答えを支える・いまの答えを変える・まだ言えない |
+| 分析者の見立て | あなたの見立て（チャット）、分析者の見立て（ページとレポート） |
+| 見立ての向き | いまの答えを支える・いまの答えを変える・まだ言えない |
 | 根拠の推奨 | 根拠に入れることを勧める分析結果 |
 | 推奨しない結果 | 勧めなかった、この回の分析結果 |
 | 前の回に見せた結果 | 前の回までに見せて、答えに入れなかった分析結果 |
 | 言い過ぎに見える文 | 根拠より強く言っているように見える、前の答えの文 |
-| 計算の点検 | 分析設計どおりに計算したかの点検 |
+| 計算の点検 | 分析設計どおりに計算したかの点検。初めて出す所で、「分析設計に書いたことと、分析コードがしている計算が同じかを、エージェントが読み比べること」と言う |
 | 点検の結果: 合っている（`agrees`） | 分析設計どおり |
 | 点検の結果: 食い違う（`differs`） | 分析設計と違う |
 | 点検の結果: 確かめられない（`not_checkable`） | 確かめられなかった |
@@ -163,12 +164,12 @@ Story は仮の分割で、起票は PM のセッションが行う。「触る�
 | Story | 波 | User Story | 扱う AC | 触る所 | 前提 |
 |---|---|---|---|---|---|
 | 36.1 SKILL を参照ファイルに分ける | 1 | US-7 | AC 1, AC 2, AC 3 | `skills/analysis-auto/SKILL.md` と `references/`（新規）、`skills/analysis-reflection/SKILL.md` と `references/`（新規）、`tests/skills/` の構造テスト | — |
-| 36.2 分析者の読みの印と、前の回に見せた結果 | 1 | US-1、US-2 | US-1 AC 2, AC 3、US-2 AC 1 | `src/insight_blueprint/models/tree.py`（`AnswerStatement`）、`skills/_shared/tree_io.py`（`answer`）、`skills/_shared/tree_changes.py`（`UncitedBelow`）、`skills/_shared/tree_read.py`（`changes`）、`tests/test_tree_changes.py`、`tests/tree_io/`、`docs/UBIQUITOUS_LANGUAGE.md`、`docs/ARCHITECTURE.md` の Domain Model | — |
-| 36.3 読みを先に聞き、根拠を推奨する | 2 | US-1、US-2 | US-1 AC 1, AC 4、US-2 AC 2, AC 3, AC 4 | `skills/analysis-reflection/references/`（テーマの振り返りの Step T2・T3・T5）、`skills/analysis-auto/SKILL.md` の Gate policy の theme reflection の行、`tests/skills/` | 36.1、36.2 |
+| 36.2 分析者の見立ての印と、前の回に見せた結果 | 1 | US-1、US-2 | US-1 AC 2, AC 3、US-2 AC 1 | `src/insight_blueprint/models/tree.py`（`AnswerStatement`）、`skills/_shared/tree_io.py`（`answer`）、`skills/_shared/tree_changes.py`（`UncitedBelow`）、`skills/_shared/tree_read.py`（`changes`）、`tests/test_tree_changes.py`、`tests/tree_io/`、`docs/UBIQUITOUS_LANGUAGE.md`、`docs/ARCHITECTURE.md` の Domain Model | — |
+| 36.3 見立てを先に聞き、根拠を推奨する | 2 | US-1、US-2 | US-1 AC 1, AC 4、US-2 AC 2, AC 3, AC 4 | `skills/analysis-reflection/references/`（テーマの振り返りの Step T2・T3・T5）、`skills/analysis-auto/SKILL.md` の Gate policy の theme reflection の行、`tests/skills/` | 36.1、36.2 |
 | 36.4 計算の点検の記録と、コードが見る項目 | 2 | US-4 | AC 1, AC 2, AC 5 | `skills/_shared/design_check.py`（新規）、`skills/_shared/design_io.py`（`check` の命令）、`src/insight_blueprint/models/`（点検の記録の型）、`src/insight_blueprint/validate.py`（手で書かせない）、`skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-notebook/SKILL.md` の Step 3、`tests/`、`docs/UBIQUITOUS_LANGUAGE.md` | — |
 | 36.5 読む前の点検の段 | 3 | US-4、US-5 | US-4 AC 3, AC 4、US-5 AC 1, AC 2, AC 3 | `skills/analysis-reflection/SKILL.md` の Step 1・2・3、`skills/analysis-auto/SKILL.md` の Gate policy と `references/`（まとめて任せる流れの return と endings、点検エージェントのブリーフ、実行エージェントのブリーフの止まる条件）、`skills/analysis-notebook/SKILL.md` の Step 7、`tests/skills/` | 36.1、36.4 |
 | 36.6 言い過ぎに見える文を見せて聞く | 3 | US-3 | AC 1, AC 2, AC 3 | `skills/analysis-reflection/references/`（テーマの振り返りの Step T2・T3）、`tests/skills/test_answer_keeps_its_words_structure.py` | 36.3 |
-| 36.7 点検の結果と分析者の読みを画面に出す | 4 | US-1、US-5 | US-1 AC 5、US-5 AC 4 | `skills/_shared/design_note.py`・`design_note_read.py`、`skills/_shared/tree_render_parts.py`・`tree_render_stage.py`・`tree_render_derived.py`、`skills/_shared/tree_words.py`、`skills/_shared/theme_report.py`、`tests/test_tree_render*.py`、`tests/test_design_note*.py` | 36.2、36.4 |
+| 36.7 点検の結果と分析者の見立てを画面に出す | 4 | US-1、US-5 | US-1 AC 5、US-5 AC 4 | `skills/_shared/design_note.py`・`design_note_read.py`、`skills/_shared/tree_render_parts.py`・`tree_render_stage.py`・`tree_render_derived.py`、`skills/_shared/tree_words.py`、`skills/_shared/theme_report.py`、`tests/test_tree_render*.py`、`tests/test_design_note*.py` | 36.2、36.4 |
 | 36.8 結果のレビューを絞る | 4 | US-6 | AC 1, AC 2 | `skills/analysis-review/SKILL.md` の Step 3b、`skills/analysis-reflection/SKILL.md` の Step 4、`docs/UBIQUITOUS_LANGUAGE.md`（結果のレビュー）、`tests/skills/` | 36.5 |
 | 人間が実物の画面と言い回しの一覧を読む（FLOW-0019） | 4 の後 | — | — | 合成シナリオで作った論点ツリーの HTML と分析ノート、`tree_words.py` から抜き出した言い回しの一覧 | 36.7 |
 
@@ -210,13 +211,13 @@ Story が使う既存の helper（作り直さない）。
 
 この Epic で追加・変更する語。定義の正本は [docs/UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) で、表は名前を入れた Story が直す。
 
-- 追加: 分析者の読み、根拠の推奨、前の回に見せた結果、計算の点検、点検の項目、食い違い、点検エージェント
-- 変更: 現時点の答え（文が分析者の読みの印を持てる。[ADR-0068](../adr/0068-an-answer-statement-may-be-the-analysts-reading.md)）、
+- 追加: 分析者の見立て、根拠の推奨、前の回に見せた結果、計算の点検、点検の項目、食い違い、点検エージェント
+- 変更: 現時点の答え（文が分析者の見立ての印を持てる。[ADR-0068](../adr/0068-an-answer-statement-may-be-the-analysts-view.md)）、
   引用していない下の結果（前の回の一覧にもあったかを持つ。[ADR-0069](../adr/0069-evidence-is-recommended-and-results-shown-before-are-folded.md)）、
   verdict（設計の指標を `target` の名前で持つ。[ADR-0070](../adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md)）、
-  結果のレビュー（読みと交絡の批評に絞る。[ADR-0071](../adr/0071-a-difference-is-shown-before-reading-and-the-review-of-a-result-is-narrowed.md)）、
-  AUTO と KEEP ゲート（計算の点検は AUTO。主題への読みと根拠の確認は KEEP ゲート）
-- 使わない: 検査・照合（計算の点検を指すとき。検査はツリーの検査、照合は数の足し上げの確認を指す）、反証する（分析者の読みの向きを指すとき。主題は問いで、検証仮説ではない）
+  結果のレビュー（解釈と交絡の批評に絞る。[ADR-0071](../adr/0071-a-difference-is-shown-before-reading-and-the-review-of-a-result-is-narrowed.md)）、
+  AUTO と KEEP ゲート（計算の点検は AUTO。主題への見立てと根拠の確認は KEEP ゲート）
+- 使わない: 検査・照合（計算の点検を指すとき。検査はツリーの検査、照合は数の足し上げの確認を指す）、反証する（見立ての向きを指すとき。主題は問いで、検証仮説ではない）、読み（分析者の見立てを指すとき。「読む」は分析ノートを読む意味にだけ使う）
 
 ## Scope
 
@@ -225,15 +226,17 @@ Story が使う既存の helper（作り直さない）。
 YAML I/O（`design_io` の点検の命令と、点検の記録）、Skill layer（`/analysis-reflection`・`/analysis-auto`・`/analysis-notebook`・`/analysis-review`）を直す。
 
 - Epic 範囲内:
-  - 主題の答えの文が、分析者の読みの印を持てること（[ADR-0068](../adr/0068-an-answer-statement-may-be-the-analysts-reading.md)）。
+  - 主題の答えの文が、分析者の見立ての印を持てること（[ADR-0068](../adr/0068-an-answer-statement-may-be-the-analysts-view.md)）。
   - 根拠の推奨と、前の回に見せた結果をたたむこと。言い過ぎに見える文を見せて聞くこと
     （[ADR-0069](../adr/0069-evidence-is-recommended-and-results-shown-before-are-folded.md)）。
   - 計算の点検と、その記録（[ADR-0070](../adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md)）。
   - 食い違いを読む前に見せて聞くことと、結果のレビューを絞ること
     （[ADR-0071](../adr/0071-a-difference-is-shown-before-reading-and-the-review-of-a-result-is-narrowed.md)）。
   - `analysis-auto` と `analysis-reflection` の SKILL.md を参照ファイルに分けること（振る舞いは変えない）。
+- 計算の点検が確かめること: 分析設計に書いた対象・粒度・分母・抽出・指標・比べ先・図・判定の基準と、notebook のコードがしている計算が同じか。
+  確かめないこと: 数が正しいか（計算し直さない）、分析設計そのものが妥当か、結果の解釈が妥当か。後の2つは、結果のレビューと分析者が見る。
 - Epic 範囲外:
-  - 途中の論点（主題でも葉でもない論点）への読みを聞くこと。型は持てるが、聞かない。実データで要ると分かってから決める。
+  - 途中の論点（主題でも葉でもない論点）への見立てを聞くこと。型は持てるが、聞かない。実データで要ると分かってから決める。
   - 推奨の理由を記録に残すこと。理由はチャットで言うだけで、答えにも論点ツリーにも書かない。
   - 答えに入れないと決めたことを記録すること。前の回に見せたかは導けるので、足さない。
   - 数を含まない言い過ぎを機械で止めること（ADR-0025 の Negative のまま）。
@@ -242,7 +245,7 @@ YAML I/O（`design_io` の点検の命令と、点検の記録）、Skill layer�
   - 計算し直した分析の journal から、前の実行の出来事を除くこと。実データで使う段で起きたら issue にする。
   - #272・#279・#280・#292・#293・#295・#296・#299 と、#273 の残り。
 - 触らない所:
-  - `tree_check` の規則（理由: 分析者の読みの文も同じ守りを受ける。緩めると、数が検査を通る抜け道になる。ADR-0068）。
+  - `tree_check` の規則（理由: 分析者の見立ての文も同じ守りを受ける。緩めると、数が検査を通る抜け道になる。ADR-0068）。
   - `tree_changes` の、答えの変化を比べる規則（理由: 比べるのは文の種類と本文だけのままにし、
     [ADR-0056](../adr/0056-answer-changes-are-derived-from-cites-and-shown-on-both-cards.md) の表示を変えない）。
   - `DesignStatus`・`VALID_TRANSITIONS`・`AnalysisStage`（理由: 点検が済んだかは点検の記録と verdict から導く。段階の値を足すと、
@@ -264,8 +267,8 @@ flowchart TD
         checker["点検エージェント<br/>分析設計と notebook を読み比べる<br/>何も書かない"]
     end
     subgraph skills["Skill layer"]
-        reflection["/analysis-reflection<br/>Step 2: 読むものの前に点検を確かめる<br/>テーマの振り返り: 読みを聞き、根拠を推奨する"]
-        review["/analysis-review Step 3b<br/>読みと交絡の批評"]
+        reflection["/analysis-reflection<br/>Step 2: 読むものの前に点検を確かめる<br/>テーマの振り返り: 見立てを聞き、根拠を推奨する"]
+        review["/analysis-review Step 3b<br/>解釈と交絡の批評"]
     end
     subgraph cli["skills/_shared"]
         design_io["design_io<br/>check（新規）"]
@@ -279,10 +282,10 @@ flowchart TD
         designs[("designs/{id}_hypothesis.yaml")]
         checks[("designs/{id}_check.yaml（新規）")]
         nb["notebooks/{id}.py・{id}_verdict.json"]
-        tree[("themes/{theme}_tree.yaml<br/>答えの文に分析者の読みの印")]
+        tree[("themes/{theme}_tree.yaml<br/>答えの文に分析者の見立ての印")]
         html["themes/{theme}_tree.html<br/>分析ノート"]
     end
-    analyst <-->|読みを言う・推奨を確かめる<br/>このまま読むか計算し直させるかを選ぶ| driver
+    analyst <-->|見立てを言う・推奨を確かめる<br/>このまま読むか計算し直させるかを選ぶ| driver
     analyst -->|開いて読む| html
     driver -->|分析設計を1つ渡す| runner
     driver -->|戻った分析を1つ渡す| checker
@@ -337,7 +340,7 @@ classDiagram
         +kind
         +text
         +cites
-        +analyst_reading
+        +analyst_view
     }
     class UncitedBelow {
         <<Value Object, derived>>
@@ -401,12 +404,12 @@ classDiagram
     DesignCheck --> CheckedBy
 ```
 
-図のクラス名のうち、`DesignCheck`・`CheckItem`・`CheckSubject`・`CheckResult`・`CheckedBy` と、項目の `analyst_reading`・`shown_before` は初版の案である。
+図のクラス名のうち、`DesignCheck`・`CheckItem`・`CheckSubject`・`CheckResult`・`CheckedBy` と、項目の `analyst_view`・`shown_before` は初版の案である。
 名前を入れる Story（36.2・36.4）が決め、用語集に書く。変えたら PR 説明に書いて人間の承認を得る。
 
 | 型 | 種類 | 不変条件 |
 |---|---|---|
-| `AnswerStatement` | 値オブジェクト | 分析者の読みの印を持つ文も、引用を1つ以上持ち、ツリーの検査を受ける。印は既定で無しで、印の無い保存済みの文はそのまま読める。答えは追記だけなので、書いた文の印は変わらない |
+| `AnswerStatement` | 値オブジェクト | 分析者の見立ての印を持つ文も、引用を1つ以上持ち、ツリーの検査を受ける。印は既定で無しで、印の無い保存済みの文はそのまま読める。答えは追記だけなので、書いた文の印は変わらない |
 | `UncitedBelow` | 値オブジェクト（導く） | 前の回の一覧にもあったかは、その論点の前の回の答えと、その時点の下の論点の答えから導く。保存しない。答えが1つの論点では、どの結果も前の回に見せていない |
 | `DesignCheck` | エンティティ（分析設計ごとに0か1つ） | `design_io check` だけが書く。点検した verdict を覚え、いまの verdict と違えば済んでいないと読む。書き直すと前の点検を置き換える。分析設計の状態を変えない |
 | `CheckItem` | 値オブジェクト | 食い違う項目は、何が違うかの文と、根拠にした cell を持つ。指標・図・cell の並びの項目はコードが決め、点検エージェントの返事では上書きできない。検証でない分析設計は、判定の基準の項目を持たない |
@@ -462,7 +465,7 @@ sequenceDiagram
     end
 ```
 
-テーマの振り返りで、読みを先に聞き、根拠を推奨する。
+テーマの振り返りで、見立てを先に聞き、根拠を推奨する。
 
 ```mermaid
 sequenceDiagram
@@ -474,14 +477,14 @@ sequenceDiagram
     D->>FS: journal を読む
     Note over D: 葉から主題へ、下書きを書く（Step T2）
     D->>A: この回の結果は主題にどう効くか（下書きから始めることも選べる）
-    A-->>D: 読みを自分の言葉で言う
+    A-->>D: 見立てを自分の言葉で言う
     D->>T: changes（引用していない下の結果と、前の回に見せたか）
-    D->>A: 読みを読み上げ、勧める根拠と理由、勧めなかった結果、たたんだ件数、言い過ぎに見える文を並べて聞く
+    D->>A: 見立てを読み上げ、勧める根拠と理由、勧めなかった結果、たたんだ件数、言い過ぎに見える文を並べて聞く
     A-->>D: 推奨を受ける、直す、文を残す・弱める・落とす
-    D->>T: answer（分析者の読みの印を付けた文を含む）
+    D->>T: answer（分析者の見立ての印を付けた文を含む）
     alt 違反がある
         T-->>D: 終了コード 3 と違反
-        D->>A: 分析者の読みの文の違反は、言い換えずに聞く
+        D->>A: 分析者の見立ての文の違反は、言い換えずに聞く
     else 違反が無い
         T->>FS: 答えを追記する
         D->>T: tree_check・render・changes
@@ -489,9 +492,9 @@ sequenceDiagram
     end
 ```
 
-- 分析者が止まるのは、読みを言う所と、根拠を確かめる所の2回である。今は1回（一覧から選ぶ）なので1回増えるが、
+- 分析者が止まるのは、見立てを言う所と、根拠を確かめる所の2回である。今は1回（一覧から選ぶ）なので1回増えるが、
   2回目は推奨を確かめるだけで済む。下書きから始めると選んだときは、1回のままである。
-- 下書きの文は、検査の前に分析者に見せない（ADR-0025）。見せるのは、分析者自身の読みと、journal の出来事の本文と、前の回の答えの文である。
+- 下書きの文は、検査の前に分析者に見せない（ADR-0025）。見せるのは、分析者自身の見立てと、journal の出来事の本文と、前の回の答えの文である。
 
 ## Module Responsibilities
 
@@ -501,13 +504,13 @@ Story の実装に合わせて書く。
 
 ### Cross-epic decisions (links to ADR)
 
-- [ADR-0068: 現時点の答えの文は、分析者の読みとして書ける](../adr/0068-an-answer-statement-may-be-the-analysts-reading.md):
-  主題の答えを分析者の読みから始め、文に印を持たせる。ADR-0025 の一部を改訂する。
+- [ADR-0068: 現時点の答えの文は、分析者の見立てとして書ける](../adr/0068-an-answer-statement-may-be-the-analysts-view.md):
+  主題の答えを分析者の見立てから始め、文に印を持たせる。ADR-0025 の一部を改訂する。
 - [ADR-0069: 根拠はエージェントが理由を添えて推奨し、前の回に見せた結果はたたむ](../adr/0069-evidence-is-recommended-and-results-shown-before-are-folded.md):
   たたむ所はコードが導き、推奨はモデルが出す。言い過ぎに見える文は同じ問いで見せる。
 - [ADR-0070: 計算の点検を、分析者が読む前に済ませる](../adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md):
   形はコード、意味は点検エージェントが見る。保証は `/analysis-reflection` の Step 2 に置く。
-- [ADR-0071: 食い違いは読む前に見せて聞き、結果のレビューは読みと交絡に絞る](../adr/0071-a-difference-is-shown-before-reading-and-the-review-of-a-result-is-narrowed.md):
+- [ADR-0071: 食い違いは読む前に見せて聞き、結果のレビューは解釈と交絡に絞る](../adr/0071-a-difference-is-shown-before-reading-and-the-review-of-a-result-is-narrowed.md):
   自動では直さない。review Step 3b と reflection Step 4 の目安を変える。
 
 ## Test Design Matrix
@@ -527,4 +530,7 @@ Story の実装に合わせて書く。
 
 ## Story Timeline
 
-- 2026-11-28 — 初版: 人間が d1〜d5 を推奨どおりに決めた（分析者の読みは文の印、推奨はコードがたたんでモデルが勧める、点検はコードと点検エージェント、食い違いは見せて聞きレビューを絞る、保証は reflection の Step 2）。
+- 2026-11-28 — 初版: 人間が d1〜d5 を推奨どおりに決めた（分析者の見立ては文の印、推奨はコードがたたんでモデルが勧める、点検はコードと点検エージェント、食い違いは見せて聞きレビューを絞る、保証は reflection の Step 2）。
+- 2026-11-28 — 全体の整合: 食い違いへの答えから「止める」を外した（結果が記録にある分析は止められない）。見立ての向きの言葉を「支える・変える・まだ言えない」にした。
+- 2026-11-28 — 人間が見本を読んだ: 指摘 2 件、どちらも今直した。「読み」が分析ノートを読む意味と紛れるので、用語を「分析者の見立て」に変えた。分析ノートの点検の節は、点検が何を確かめ、何を確かめていないかを先に文で言う。
+- 2026-11-28 — 見本の後の整合: 用語を変えた所（AC、分析者に見せる言葉、Stories、Ubiquitous Language、Scope、図、ADR-0068〜0071、ADR の索引、ARCHITECTURE の対応表）と、点検の範囲を書き足した所（US-5 AC 4、Scope、ADR-0070 の Decision 1）を1つずつ見た。
