@@ -9,7 +9,9 @@ only writer, and the record lives in ``.insight/designs/{id}_check.yaml``.
 from __future__ import annotations
 
 import hashlib
+import json
 from collections import Counter
+from collections.abc import Mapping
 from enum import StrEnum
 from typing import Self
 
@@ -87,11 +89,27 @@ def verdict_digest(verdict: bytes) -> str:
     return f"sha256:{hashlib.sha256(verdict).hexdigest()}"
 
 
+# What a design holds beside what it says: a review of the result moves the
+# status and the time, and the check stays the check of the same design.
+_NOT_WHAT_A_DESIGN_SAYS = frozenset({"status", "updated_at", "analysis_started_at"})
+
+
+def design_digest(design: Mapping[str, object]) -> str:
+    """The name a check remembers its design by: what the file says, hashed.
+
+    *design* is the file as read. The order of its keys does not count.
+    """
+    said = {k: v for k, v in design.items() if k not in _NOT_WHAT_A_DESIGN_SAYS}
+    text = json.dumps(said, sort_keys=True, ensure_ascii=False, default=str)
+    return f"sha256:{hashlib.sha256(text.encode()).hexdigest()}"
+
+
 class DesignCheck(BaseModel):
     """The check of one design, for one verdict. A later check replaces it."""
 
     design_id: str
     verdict_digest: str
+    design_digest: str
     checked_by: CheckedBy
     items: list[CheckItem]
 
@@ -112,9 +130,15 @@ class DesignCheck(BaseModel):
             raise ValueError(f"items: not checked: {', '.join(missing)}")
         return self
 
-    def is_current(self, verdict: bytes) -> bool:
-        """Whether *verdict*, the file as it is now, is the one this check read."""
-        return self.verdict_digest == verdict_digest(verdict)
+    def is_current(self, verdict: bytes, design: Mapping[str, object]) -> bool:
+        """Whether *verdict* and *design*, the files as they are now, are the ones checked.
+
+        A design changed after the check would leave a difference that is no
+        longer one, or hide one that now is (ADR-0070 7).
+        """
+        return self.verdict_digest == verdict_digest(
+            verdict
+        ) and self.design_digest == design_digest(design)
 
     def differences(self) -> list[CheckItem]:
         return [item for item in self.items if item.result is CheckResult.differs]

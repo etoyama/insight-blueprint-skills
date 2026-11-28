@@ -23,6 +23,7 @@ from insight_blueprint.models.check import (
     CheckResult,
     CheckSubject,
     DesignCheck,
+    design_digest,
     verdict_digest,
 )
 from insight_blueprint.models.design import AnalysisDesign
@@ -215,6 +216,7 @@ def record_check(
             {
                 "design_id": design_id,
                 "verdict_digest": digest,
+                "design_digest": design_digest(data),
                 "checked_by": payload.get("checked_by"),
                 "items": sorted(items, key=lambda item: order.index(item.subject)),
             }
@@ -223,7 +225,7 @@ def record_check(
             "items": [_item(item) for item in check.items]
         }
         atomic_write_yaml(_record_path(design_id, base_dir), record)
-        return _reading(design_id, verdict_bytes, check)
+        return _reading(design_id, verdict_bytes, data, check)
 
 
 def _item(item: CheckItem) -> dict[str, Any]:
@@ -231,10 +233,19 @@ def _item(item: CheckItem) -> dict[str, Any]:
 
 
 def _reading(
-    design_id: str, verdict: bytes | None, check: DesignCheck | None
+    design_id: str,
+    verdict: bytes | None,
+    design: dict | None,
+    check: DesignCheck | None,
 ) -> dict[str, Any]:
-    done = check is not None and verdict is not None and check.is_current(verdict)
-    # A check of another verdict says nothing of this one, so none of it is shown.
+    """*design* is the file of the design as read; None when it does not read."""
+    done = (
+        check is not None
+        and verdict is not None
+        and design is not None
+        and check.is_current(verdict, design)
+    )
+    # A check of another verdict or design says nothing of these, so none of it is shown.
     shown = check if done else None
     return {
         "design_id": design_id,
@@ -251,8 +262,8 @@ def check_reading(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str
     """Whether the check of *design_id* is done for its verdict as it is now.
 
     ``checked`` is true only when a record exists and remembers this very
-    verdict; then ``items`` holds every subject and ``differences`` the ones
-    that differ. A design without a verdict has nothing to check
+    verdict and the design as it reads now; then ``items`` holds every subject
+    and ``differences`` the ones that differ. A design without a verdict has nothing to check
     (``has_verdict`` false). A record that does not read is no check.
     """
     if not SAFE_ID_PATTERN.fullmatch(design_id):
@@ -265,4 +276,8 @@ def check_reading(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str
     # A record copied from another design is not the check of this one.
     if check is not None and check.design_id != design_id:
         check = None
-    return _reading(design_id, _verdict_bytes(design_id, base_dir), check)
+    try:
+        design = load_design(design_id, base_dir)
+    except (ValueError, YAMLError, OSError):
+        design = None
+    return _reading(design_id, _verdict_bytes(design_id, base_dir), design, check)

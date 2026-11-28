@@ -16,8 +16,18 @@ from insight_blueprint.models.check import (
     CheckResult,
     CheckSubject,
     DesignCheck,
+    design_digest,
     verdict_digest,
 )
+
+DESIGN = {
+    "id": "LIB-H01",
+    "title": "Holding books longer",
+    "status": "analyzing",
+    "metrics": [{"target": "wait_days_gap"}],
+    "updated_at": "2026-11-28T10:00:00+09:00",
+    "analysis_started_at": "2026-11-28T10:00:00+09:00",
+}
 
 EVERY_SUBJECT = [
     "population",
@@ -45,6 +55,7 @@ def _check(items: list[dict] | None = None, **fields: object) -> DesignCheck:
         {
             "design_id": "LIB-H01",
             "verdict_digest": verdict_digest(b"{}"),
+            "design_digest": design_digest(DESIGN),
             "checked_by": "check_agent",
             "items": _items() if items is None else items,
         }
@@ -132,6 +143,7 @@ class TestACheckHoldsEachSubjectOnce:
                 {
                     "design_id": "LIB-H01",
                     "verdict_digest": verdict_digest(b"{}"),
+                    "design_digest": design_digest(DESIGN),
                     "items": _items(),
                 }
             )
@@ -151,14 +163,49 @@ class TestTheDifferencesAreTheItemsThatDiffer:
         assert [d.subject for d in check.differences()] == [CheckSubject.grain]
 
 
-class TestACheckRemembersTheVerdictItChecked:
+class TestACheckRemembersTheVerdictAndTheDesignItChecked:
     def test_the_digest_names_the_bytes_of_the_verdict(self) -> None:
         assert verdict_digest(b'{"a": 1}') == verdict_digest(b'{"a": 1}')
         assert verdict_digest(b'{"a": 1}') != verdict_digest(b'{"a": 2}')
         assert verdict_digest(b"{}").startswith("sha256:")
 
-    def test_it_is_current_for_the_verdict_it_checked(self) -> None:
-        assert _check().is_current(b"{}")
+    def test_the_digest_of_a_design_names_what_it_says(self) -> None:
+        assert design_digest(DESIGN) == design_digest(dict(reversed(DESIGN.items())))
+        changed = DESIGN | {"metrics": [{"target": "wait_days_gap"}, {"target": "n"}]}
+        assert design_digest(DESIGN) != design_digest(changed)
+        assert design_digest(DESIGN).startswith("sha256:")
+
+    @pytest.mark.parametrize(
+        "moved",
+        [
+            {"status": "in_review"},
+            {"updated_at": "2026-11-29T09:00:00+09:00"},
+            {"analysis_started_at": None},
+        ],
+        ids=["status", "updated_at", "analysis_started_at"],
+    )
+    def test_a_move_of_the_status_leaves_the_digest_of_a_design(
+        self, moved: dict
+    ) -> None:
+        """A review of the result moves the status: the design says what it said."""
+        assert design_digest(DESIGN) == design_digest(DESIGN | moved)
+
+    def test_it_is_current_for_the_verdict_and_the_design_it_checked(self) -> None:
+        assert _check().is_current(b"{}", DESIGN)
 
     def test_it_is_not_current_once_the_verdict_changed(self) -> None:
-        assert not _check().is_current(b'{"metrics": {}}')
+        assert not _check().is_current(b'{"metrics": {}}', DESIGN)
+
+    def test_it_is_not_current_once_the_design_changed(self) -> None:
+        assert not _check().is_current(b"{}", DESIGN | {"title": "Another"})
+
+    def test_a_record_without_the_digest_of_its_design_is_refused(self) -> None:
+        with pytest.raises(ValidationError, match="design_digest"):
+            DesignCheck.model_validate(
+                {
+                    "design_id": "LIB-H01",
+                    "verdict_digest": verdict_digest(b"{}"),
+                    "checked_by": "check_agent",
+                    "items": _items(),
+                }
+            )

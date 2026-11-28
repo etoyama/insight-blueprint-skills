@@ -450,12 +450,46 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         )
         assert design_check.check_reading(other, insight)["checked"] is False
 
-    def test_a_broken_design_does_not_stop_the_reading(self, insight: Path) -> None:
+    def test_a_design_that_does_not_read_is_not_checked(self, insight: Path) -> None:
+        """It does not stop the reading either: a page reads many designs."""
         design_id = _confirmation(insight)
         _save_result(insight, design_id)
         design_check.record_check(design_id, _payload(), insight)
         design = insight / "designs" / f"{design_id}_hypothesis.yaml"
         design.write_text("key: [unclosed\n", "utf-8")
+        assert design_check.check_reading(design_id, insight)["checked"] is False
+
+    def test_a_design_changed_after_the_check_reads_as_not_checked(
+        self, insight: Path
+    ) -> None:
+        """ADR-0070 7: a difference of the design before the change is not shown."""
+        design_id = _confirmation(insight)
+        metrics = VERDICT["metrics"] | {"gap_against_last_year": {"value": 0.3}}
+        verdict = VERDICT | {"metrics": metrics}
+        _save_result(insight, design_id, verdict)
+        design_check.record_check(design_id, _payload_for(verdict), insight)
+        held = design_io.load_design(design_id, insight)["metrics"]
+        design_io.update_design(
+            design_id,
+            {
+                "metrics": [
+                    *held,
+                    {"target": "gap_against_last_year", "tier": "secondary"},
+                ]
+            },
+            insight,
+        )
+        reading = design_check.check_reading(design_id, insight)
+        assert reading["checked"] is False and reading["differences"] == []
+        again = design_check.record_check(design_id, _payload_for(verdict), insight)
+        assert again["checked"] is True and again["differences"] == []
+
+    def test_a_move_of_the_status_keeps_the_check(self, insight: Path) -> None:
+        """A review of the result sends the design to in_review and back."""
+        design_id = _confirmation(insight)
+        _save_result(insight, design_id)
+        design_check.record_check(design_id, _payload(), insight)
+        design_io.transition_status(design_id, "in_review", insight)
         assert design_check.check_reading(design_id, insight)["checked"] is True
 
     def test_an_id_that_is_not_one_is_refused(self, insight: Path) -> None:
