@@ -24,6 +24,7 @@ MOVED = [
     ("analysis-auto", "handover.md", "### Step 3H:"),
     ("analysis-auto", "execution-brief.md", "### Step 3H:"),
     ("analysis-reflection", "theme-reflection.md", "## Theme Reflection"),
+    ("analysis-reflection", "computation-check.md", "### Step 2:"),
 ]
 
 

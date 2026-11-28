@@ -157,6 +157,13 @@ AC の正本はここ。
 | 食い違いへの答え | このまま読む・分析設計どおりに計算し直させる |
 | cell の並び | 分析コードの区切り |
 | 点検エージェント | エージェント |
+| 点検の項目（`population`・`grain`・`denominator`・`extraction`・`metrics`・`compared_against`・`figures`・`criterion`） | 対象・粒度・分母・抽出・指標・比べ先・図・判定の基準 |
+| 食い違いが無い点検の1行（チャット） | 分析設計と違う所は無い |
+| 食い違いがある点検の1行（チャット） | 分析設計と違う所が N つある。下の問いの前に並べる |
+| 確かめられない項目がある点検の1行（チャット） | 確かめられなかった: （項目の言葉） |
+| 同じセッションが読んだ点検の1行（チャット） | 読み比べたのはこのセッション自身 |
+| 点検の範囲（チャットで、最初の点検の1行の前に1回） | 点検（分析設計どおりに計算したかの点検）とは、分析設計に書いたことと、分析コードがしている計算が同じかを、エージェントが読み比べること。数が正しいか、分析設計が妥当か、結果の解釈が妥当かは確かめていない。 |
+| 食い違いの一覧の見出し（チャットの問いの冒頭） | 分析設計と違う所 |
 
 ## Stories
 
@@ -515,6 +522,11 @@ Story の実装に合わせて書く。
 | `skills/_shared/design_check.py::record_check`（`design_io check`） | 標準入力の項目（点検エージェントが読んだもの）と、自分で決めた3つの項目を合わせ、点検した verdict のハッシュと一緒に `{id}_check.yaml` に書く。読んでから書くまでロックを持つ。標準入力の `verdict_digest`（読み手が読んだ verdict）が、書くときの verdict と違えば断る。コードが決める項目を渡されたとき、項目が足りないとき、verdict が無いときは断り、何も書かない | 分析設計も journal も書かない。点検エージェントを立てない → `/analysis-reflection`・`/analysis-auto`・`/analysis-notebook`（36.5）。終えた分析設計かは見ない → 呼ぶ skill |
 | `skills/_shared/design_check.py::check_reading`（`design_io checked`） | 点検が済んでいるかを返す、ただ1つの読み手。記録が覚えた verdict と分析設計が、いまのものと同じときだけ `checked` が真で、項目と食い違いを返す。verdict が無い、記録が無い、記録か分析設計が読めない、verdict か分析設計が変わった、のどれでも偽 | 画面に出さない → `design_note.py`・`tree_render_stage.py`（36.7）。分析者に聞かない → reflection の Step 2 と endings（36.5） |
 | `src/insight_blueprint/validate.py::validate_check_write`、`hooks/validate-design.py` | `.insight/designs/*_check.yaml` への Write・Edit・MultiEdit を、中身を読まずに全部止める | Python からの書き込みは見えない → `design_io check` だけが書くという約束と、skill の文 |
+| `skills/analysis-reflection/references/computation-check.md` | 計算の点検を走らせる手順を1か所に持つ: `design_io checked` を読む、点検エージェントを立てる（立てられなければ同じセッションが読む）、点検エージェントのブリーフ、返事を `design_io check` で記録する。`/analysis-reflection` の Step 2 と、まとめて任せる流れの return が読む | 分析者に何も聞かない。食い違いをどうするかは決めない → `/analysis-reflection` の Step 3。項目の結果の形は決めない → `design_check.record_check` |
+| `skills/analysis-reflection/SKILL.md` の Step 2（Before 読むもの） | 読むものを出す前に `design_io checked` を読み、verdict があって点検が済んでいなければ走らせる。点検の結果を1行で言い、初めて言う前に点検の範囲を言う。項目と結果の、分析者に見せる言葉の表を持つ | 済んだ点検は走らせ直さない。食い違いの中身はここで並べない → Step 3。画面には出さない → `design_note.py`（36.7） |
+| `skills/analysis-reflection/SKILL.md` の Step 3（Before the questions） | 食い違いを、1つ目の問いの冒頭に、項目の言葉と `note` のまま並べ、このまま読むか計算し直させるかを聞く。計算し直すなら `/analysis-notebook` を同じセッションで走らせ、Step 2 に戻る | 3つの問いの文は変えない。食い違いを自分で直さない。まとめて任せた分析の渡し直し → `handover.md` の endings |
+| `skills/analysis-auto/references/handover.md` の return・endings | 実行エージェントが戻るたびに、結果のある分析の点検を始め、返事を記録する。終え方の問いは、点検が1つも動いていないときに聞く。計算し直させると答えた分析は、食い違いを添えて新しい実行エージェントに渡し直し、戻ったら点検し直してから終え方を聞く | 点検の手順と食い違いの文は写さない → `computation-check.md` と reflection の Step 3 |
+| `skills/analysis-auto/references/execution-brief.md` | 実行エージェントは、設計に無い指標を足す前に止まって聞く。`design_io check` を呼ばない。渡し直しのブリーフは食い違いの `note` をそのまま持つ | 点検しない → 点検エージェント |
 | `tests/_wide_tree.py` | 実データと同じ大きさの合成の論点ツリー（論点7つ、分析設計6つ、2回の振り返り。主題の一覧は書く前に41件、うち17件が前の回に見せた結果）を作る | 実データの値を持たない。HTML の中身は確かめない → 36.7 のテスト |
 
 ## Decisions
@@ -681,6 +693,50 @@ Story の実装に合わせて書く。
 - Consequences: AC 1 の「食い違いは根拠にした cell を持つ」に、cell の並びだけ例外ができる。分析者に見せる文が3つ、`tree_words.py` の外（`design_check.py`）にある。
   人間が実物の画面を読む段（36.7 の後）では、この文も読む。文を変えても、書いた後の記録の文は変わらない（点検し直すと新しい文になる）。
 
+### Decision: story-36-5-the-way-to-run-a-check-lives-in-one-reference-of-the-reflection
+
+- What: 点検を走らせる手順（`design_io checked` を読む、誰が読むか、点検エージェントのブリーフ、`design_io check` で記録する）は、
+  `skills/analysis-reflection/references/computation-check.md` の1つに置く。`/analysis-reflection` の Step 2 は、点検が済んでいないときだけこれを読む。
+  まとめて任せる流れの return は、同じファイルを相対リンクで指し、手順を写さない。初版の Stories の表は点検エージェントのブリーフを
+  `analysis-auto` の `references/` に置くと見込んでいたが、置き場を変えた。
+- Why: 点検を始める所は2つ（return と Step 2）ある。保証を持つのは Step 2 なので（ADR-0070 の8）、手順はその skill に置く。
+  `analysis-auto` に置くと、単独の経路が、使っていない skill の参照ファイルを読むことになる。
+- Criteria: 手順が1か所にあること（出典: Scope の「同じ値を出す所」）。単独の経路が要るものだけを読むこと（出典: US-7）。決め手は前者。
+- Affected modules: `skills/analysis-reflection/references/computation-check.md`（新規）、`skills/analysis-reflection/SKILL.md`、`skills/analysis-auto/references/handover.md`。
+- Alternatives considered: `analysis-auto` の `execution-brief.md` の隣に置く（単独の経路から遠い）。reflection の本文に書く（点検が済んでいる回にも毎回読むことになる）。
+  ブリーフを2つの skill に写す（片方だけ直る）。
+- Consequences: 点検エージェントのブリーフを直すときは、このファイルだけを直す。ブリーフが示す返事の JSON は、構造テストが `record_check` に実際に渡して確かめる。
+  ブリーフが挙げる項目は、テストが `CheckSubject` から `CODE_SUBJECTS` を除いたものと照らす。項目を足すと、テストが落ちて気づける。
+
+### Decision: story-36-5-the-check-starts-at-the-return-and-step-2-only-fills-what-is-missing
+
+- What: まとめて任せる流れは、実行エージェントが戻って結果が記録にある分析ごとに、点検エージェントを1つ、その場で立てる（return）。
+  ほかの実行エージェントも、確認待ちも、ほかの点検も待たせない。終え方の問い（endings）は実行エージェントも点検も動いておらず、確認待ちも無いときに聞く。
+  endings が呼ぶ `/analysis-reflection` の Step 2 は、`design_io checked` が偽の分析だけを点検する。return で済んだ点検は走らせ直さない。
+  済んだかを決めるのは `design_io checked` だけで、skill は「さっき走らせたか」を覚えない。
+- Why: US-5 AC 2 は戻るたびに始めることを、AC 1 は Step 2 の保証を求める。両方に書くと二重に走る恐れがあるので、走らせる条件を1つの読み手に寄せた。
+- Criteria: 二重に走らないこと（出典: ブリーフ）。点検の待ちがほかの分析の計算と重なること（出典: US-5 AC 2）。
+- Affected modules: `skills/analysis-auto/references/handover.md`、`skills/analysis-reflection/SKILL.md`、`skills/analysis-auto/SKILL.md` の Gate policy。
+- Alternatives considered: Step 2 だけで走らせる（全部の分析が戻ってから順に点検するので、分析者が待つ）。return だけで走らせる（単独の経路と、手で走らせ直した notebook を取りこぼす。ADR-0070 の案3B）。
+- Consequences: 点検の途中でセッションが切れても、再開した回の Step 2 が拾う。終えた分析設計は点検しない。点検を記録できなかったときは、
+  理由を点検の1行に書いて先へ進む（分析者を止めたままにしない）。このとき M3（終え方を聞く前に点検が済んでいる）は満たさないが、分析者はそれを読んでから答える。
+
+### Decision: story-36-5-a-difference-heads-the-first-question-and-computing-again-reuses-the-way-in
+
+- What: 食い違いは `/analysis-reflection` の Step 3 の1つ目の問い（結果から何が言えるか）の冒頭に、項目の言葉と `note` のまま並べる。根拠の cell はチャットに出さない（分析ノートが出す）。
+  選ぶのは「このまま読む」「分析設計どおりに計算し直させる」で、同じ問いの中で聞く。1つ目の問いに答えたら、このまま読むと答えたものと読む。
+  計算し直すとき、単独の経路では同じセッションが `/analysis-notebook` を走らせて Step 2 に戻る。まとめて任せる流れでは、食い違いをブリーフに添えて新しい実行エージェントに渡し、
+  戻ったら return が点検し直し、その分析の終え方を聞き直す。どちらも premortem はやり直さない。結果のレビューが持っている分析設計（`in_review`・`revision_requested`）は
+  結果を受け取らないので、計算し直せないと言い、このまま読むだけを出す。計算し直しても食い違いが残れば、同じ形でもう一度聞く。
+- Why: ADR-0071 の2は止まる回数を増やさずに、終え方の問いの冒頭で聞くと決めた。単独の経路は3つの問いを1つずつ聞くので、冒頭は1つ目の問いになる。
+  3つの問いの文は触らない所なので（Scope）、問いの前に置く小節にした。
+- Criteria: 止まる回数が増えないこと（出典: ADR-0071 W2）。読む前に知ること（出典: ADR-0071 W1）。3つの問いの文を変えないこと（出典: Scope）。
+- Affected modules: `skills/analysis-reflection/SKILL.md` の Step 3、`skills/analysis-auto/references/handover.md` の endings、`skills/analysis-auto/references/execution-brief.md`。
+- Alternatives considered: 3つ目の問い（どう終えるか）の冒頭に置く（単独の経路では、2つの問いに答えた後で食い違いを知る）。Step 2 の読むものの所で聞く（止まる回数が1回増える）。
+  食い違いの文を言い換えて短くする（画面とチャットで文が変わる。ブリーフの「同じ値を出す所」に反する）。
+- Consequences: 分析設計が3つで、どれにも食い違いがあると、終え方の問いは長くなる（ADR-0071 の Negative のまま）。計算し直した分析の journal には、前の実行の出来事が残る（同じ）。
+  実行エージェントが分析設計どおりに計算できないときは、止まる条件のとおり、データに触る前に聞いて戻る。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0068: 現時点の答えの文は、分析者の見立てとして書ける](../adr/0068-an-answer-statement-may-be-the-analysts-view.md):
@@ -700,7 +756,7 @@ Story の実装に合わせて書く。
 | Story 36.2 | ✓ | ✓ | —（画面とチャットの文を変えない。印を画面に出すのは 36.7、問いは 36.3。合成シナリオ `lib` と、実データと同じ大きさの合成の論点ツリーで、印の付いた答えを `tree_io answer` で書き、`changes`・`changes --with-answers`・`render --theme`・`report`・`tree_check` を通して確かめた） |
 | Story 36.3 | ✓ | ✓ | —（チャットの問いの文だけを変えた。対話エージェントに通しては回していない。実データと同じ大きさの合成の論点ツリーで `tree_io changes --with-answers` を CLI から回し、Step T3 の手順どおりに問いを組むと、内容で出るのが24件、件数だけになるのが17件であることを確かめた。推奨の当たり方は実データで使う段で確かめる） |
 | Story 36.4 | ✓ | ✓ | —（画面とチャットの文を変えない。点検を走らせる skill は 36.5、画面は 36.7。配布物の `bin/design_io` から、参照の notebook を実行して得た verdict と、その指標に合わせた分析設計で `check` と `checked` を回した。設計の指標を verdict から消す、verdict に設計に無い指標を足す、図の数を変える、cell を1つ消す、の4つがそれぞれ食い違いに出ること、verdict を書き換えると済んでいないと読むこと、hook が手の書き込みを止めることを確かめた。点検エージェントが読む項目の当たり方は確かめていない） |
-| Story 36.5 | ☐ | ☐ | ☐ |
+| Story 36.5 | ✓ | ✓ | —（チャットの問いと skill の手順の文だけを変えた。対話エージェントに通しては回していない。参照の notebook を実行して得た verdict と、その指標に合わせた分析設計で、Step 2 の手順どおりに `design_io checked` を読み、点検エージェントのブリーフを subagent 1つに渡した。返事は手を入れずに `design_io check` に通り、`data_scope` の無い分析設計の対象・粒度・分母は理由つきの「確かめられない」で返った。設計の指標を verdict から消すと点検は済んでいないと読み、前に読んだ verdict の名前での記録は断られ、点検し直すと指標の食い違いが1件出た。notebook を走らせ直すと、点検はまた済んでいないと読んだ。点検エージェントが食い違いを見落とす割合は確かめていない） |
 | Story 36.6 | ✓ | —（チャットの問いの文だけを変え、コードは変えていない） | —（チャットの問いの文だけを変えた。対話エージェントに通しては回していない。実データと同じ大きさの合成の論点ツリーで、並ぶ文が2回目は0件、3回目は見立ての文の1件までであることを数えた。言い過ぎに見えるかの当たり方は実データで使う段で確かめる） |
 | Story 36.7 | ☐ | ☐ | ☐ |
 | Story 36.8 | ☐ | ☐ | ☐ |

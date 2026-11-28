@@ -109,12 +109,20 @@ tree_io position --theme LIB
    ([ADR-0062](../../../docs/adr/0062-only-the-dialogue-agent-writes-shared-records-and-read-to-write-is-locked.md)).
    Then go by the `stage` of each design that came back:
    - `awaiting_confirmation` → **confirmation**, right away.
-   - `awaiting_reflection` → it waits for **endings**. Ask nothing about it yet.
+   - `awaiting_reflection` → start its check right away, and the design then waits for
+     **endings**. Ask nothing about it yet: the check asks the analyst nothing, and what it
+     found is shown at **endings**. Run the check as
+     [Run the check of the computation](../../analysis-reflection/references/computation-check.md)
+     says, with one check agent for each design, started in the background when the host
+     lets you, and never hold back an execution agent, a confirmation or another check for
+     a check. When its reply arrives, record it. You alone record it with
+     `design_io check`: neither a check agent nor an execution agent does.
    - `running` → it came back without a result. Tell the analyst what its agent reported,
      and hand it over again only if they ask. Say as well that the round stays open until
      this analysis is handed over again or stopped (*Stopping an analysis*).
 
-   This item and **confirmation** repeat until no execution agent is at work.
+   This item and **confirmation** repeat until no execution agent is at work and no check
+   is at work.
 7. **confirmation** (`awaiting_confirmation`): a KEEP gate, asked as soon as an analysis
    waits, for one analysis at a time. Only that analysis waits: never stop or hold back
    another execution agent for it.
@@ -147,16 +155,22 @@ echo '{"answers": "LIB-H04-E01", "content": "2025年10月以降の予約に絞�
      add what it asked and the analyst's answer to the brief of its new agent.
    - The analyst stops it → *Stopping an analysis*.
 8. **endings** (`awaiting_reflection`): a KEEP gate, asked once for all of these designs,
-   when no execution agent is at work and no analysis waits for a confirmation.
+   when no execution agent is at work, no check is at work and no analysis waits for a
+   confirmation.
    - For each design, in the order of `design_ids`, run `/analysis-reflection {design_id}`
-     through its Step 2: the summary and 読むもの. Ask nothing yet.
+     through its Step 2: the summary, the 点検 line and 読むもの. Ask nothing yet. That
+     Step 2 runs a check only for a design whose check is not done, so a design checked at
+     **return** is not checked twice.
    - Show the path of the page on a line of its own, as **check before handing over** does,
      and say which analysis notes to read there: those the page marks
      「計算が終わり、振り返りを待っている」. The page lists finished designs with them.
    - Then ask one question for all of them and wait. Under a heading for each design, with
      its id and title, put the three questions of `/analysis-reflection` Step 3 as that step
      words them for the form of the design; the third is この分析設計をどう終えるか, with
-     its choices. Add no question of your own, and leave none out. Say in the same question
+     its choices. Add no question of your own, and leave none out. For a design whose
+     check found differences, put the differences and their choice above the three
+     questions, under the heading of that design, as `/analysis-reflection` Step 3 puts
+     them before its questions: never write its words here. Say in the same question
      what Step 4 would ask of a design that ends (a review of its result first, the
      tentative answer of an exploration, the change of its status), so that Step 4 asks
      nothing again. For the review, say what it does and give the suggestion for each
@@ -164,6 +178,13 @@ echo '{"answers": "LIB-H04-E01", "content": "2025年10月以降の予約に絞�
      never write the guide here. The analyst answers for all the designs in one reply.
    - Never end a design on an answer the analyst did not give: ask again about each design
      the reply does not cover.
+   - A design the analyst answers 「分析設計どおりに計算し直させる」 for goes to a new execution
+     agent, with the differences in its brief, each as written
+     ([execution-brief.md](execution-brief.md)), and is not ended on this reply, whatever
+     else the reply says of it. No premortem runs again: the extraction does not change. A design that a review of its result holds cannot be computed again:
+     say so. When it returns, go through **return**, which starts its check again, and come
+     back to this item to ask how that analysis ends. The other designs go on with their
+     answers meanwhile.
    - Then do what each answer chose, as `/analysis-reflection` says. A design that ends goes
      through its Step 4, one design after another, never in parallel: the `conclude` event,
      then the terminal transition. A design the analyst wants to look into further, or to

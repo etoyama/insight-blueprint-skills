@@ -31,11 +31,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The pre-write hook refuses a hand write of the record. A notebook now writes each metric of the
   design under its `target` as its name, and asks before adding a metric the design does not hold. A
   verdict saved before keeps reading; a metric it names otherwise shows as a difference when its
-  design is checked. No skill runs the check yet
+  design is checked
   ([ADR-0070](docs/adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md), #306).
 
 ### Changed
 
+- **The check of the computation is done before the analyst reads, and a difference is asked about
+  first.** `/analysis-reflection {design_id}` reads `design_io checked` before it shows 読むもの, and
+  when a verdict has no check of it, has the computation checked first: a check agent that did not
+  write the notebook reads the population, grain, denominator, extraction, what a result is compared
+  against and the criterion, and the session records the reply with `design_io check`. A host that
+  cannot start a subagent reads in the same session and the record says so. The check asks the analyst
+  nothing. A round of several nodes of `/analysis-auto` starts the check of each analysis as it comes
+  back and holds nothing else for it. With no difference the summary says so in one line. With
+  differences, the first question on how the design ends opens with them, each as the record words
+  it, and asks whether to read as it is or to have it computed again as the design says; a recomputed
+  analysis is checked again before its ending is asked. Nothing is fixed unasked. An execution agent
+  now stops and asks before it adds a metric the design does not hold
+  ([ADR-0070](docs/adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md),
+  [ADR-0071](docs/adr/0071-a-difference-is-shown-before-reading-and-the-review-of-a-result-is-narrowed.md), #307).
 - **The theme reflection asks the analyst's view of the 主題 first and recommends the evidence.** Before
   the answer of the 主題 is written, `/analysis-reflection {theme_id}` asks how the results of the round
   bear on it, in the analyst's words; the analyst may start from the agent's draft instead. The view is

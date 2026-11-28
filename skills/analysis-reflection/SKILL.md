@@ -93,6 +93,9 @@ Without a direction: {count} items
 ── Branches ──
   - {child_design_id}: {child_title} ({child_status})
 
+── 点検 ──
+{check_line}
+
 ── 読むもの ──
 開くファイル: {path}
 分析ノート: {path}#{anchor}
@@ -113,6 +116,65 @@ To find branches, list designs and filter by parent_id:
 designs = json(`design_io list`)
 children = [d for d in designs if d["parent_id"] == design_id]
 ```
+
+#### Before 読むもの: the check of the computation
+
+The check of the computation tells whether the notebook computed what the design says
+([ADR-0070](../../docs/adr/0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md)).
+It is done before the analyst reads, on every way into this step: called on its own, or
+from the endings of `/analysis-auto`. It asks the analyst nothing. Before the render of
+読むもの, read whether it is done:
+
+```bash
+design_io checked --id {design_id}
+```
+
+- `checked` is true: the check is done for the verdict and the design as they are now, so
+  never run it again.
+- `has_verdict` is true and `checked` is false: run the check now, before the block. Read
+  [references/computation-check.md](references/computation-check.md) when this happens, and
+  follow it: it says who reads, what the brief of a check agent holds and how the check is
+  recorded. Then go on with what `design_io check` printed.
+- `has_verdict` is false: no notebook left a verdict, so there is no computation to check.
+  Leave the 点検 block out.
+- A design that has ended is not checked. Show its 点検 line only when `checked` is true.
+- If the check cannot be recorded, show the stderr and write 「点検できなかった」 with the
+  reason as the 点検 line. Step 3 still goes on.
+
+So the render comes after the check, and the design note shows the same result.
+
+Fill `{check_line}` of the 点検 block from that JSON, in one line for each design:
+
+- `differences` is empty: one line, 「分析設計と違う所は無い」.
+- `differences` is not empty: 「分析設計と違う所が {n} つある。下の問いの前に並べる」. The
+  differences themselves are shown in Step 3, and not here.
+- Some `items` are `not_checkable`: add 「確かめられなかった: {labels}」 to the line, with
+  the words of the table below.
+- `checked_by` is `same_session`: say so in the line, 「読み比べたのはこのセッション自身」.
+  For a check agent say nothing: the first sentence below names it.
+
+Once in a conversation, before the first 点検 line, say what the check is and what it does
+not tell, in these words:
+「点検（分析設計どおりに計算したかの点検）とは、分析設計に書いたことと、分析コードがしている計算が同じかを、エージェントが読み比べること。
+数が正しいか、分析設計が妥当か、結果の解釈が妥当かは確かめていない。」
+
+The words the analyst reads for a subject and for a result. Never show the names of the
+JSON:
+
+| In the JSON | Shown to the analyst |
+|---|---|
+| `population` | 対象 |
+| `grain` | 粒度 |
+| `denominator` | 分母 |
+| `extraction` | 抽出 |
+| `metrics` | 指標 |
+| `compared_against` | 比べ先 |
+| `figures` | 図 |
+| `criterion` | 判定の基準 |
+| `cells` | 分析コードの区切り |
+| `agrees` | 分析設計どおり |
+| `differs` | 分析設計と違う |
+| `not_checkable` | 確かめられなかった |
 
 #### 読むもの
 
@@ -153,6 +215,39 @@ the question itself. Show the heading to the analyst as written for the form of 
 never call the questions by a letter and a number, which reads like the id of a node. Record each answer as a `reflect`
 event in the journal. Say what you ask in plain words, with no metaphor: write "答えが出ると
 判定が変わる", not a figure of speech for it.
+
+#### Before the questions: what differs from the design
+
+Only when `differences` of Step 2 is not empty. Show the differences at the head of the
+first question, above its heading, so that the analyst knows them before answering
+([ADR-0071](../../docs/adr/0071-a-difference-is-shown-before-reading-and-the-review-of-a-result-is-narrowed.md)):
+
+```
+── 分析設計と違う所 ──
+- {label}: {note}
+このまま読むか、分析設計どおりに計算し直させるか。
+```
+
+- One line for each item of `differences`: `label` is the word of the table of Step 2 for
+  its `subject`, and the `note` as written. Never reword a `note`, and leave its `cell`
+  out: the design note shows it.
+- The choice is 「このまま読む」 or 「分析設計どおりに計算し直させる」. It is asked in the same
+  question as 結果から何が言えるか, and adds no question of its own: an answer to the first
+  question takes 「このまま読む」.
+- 「このまま読む」 → go on with the three questions; the record of the check stays, and the
+  design note goes on showing the differences.
+- 「分析設計どおりに計算し直させる」 → run `/analysis-notebook {design_id}` in this session, with
+  the differences as what to put right: the notebook is changed to compute as the design
+  says, run, and its verdict recorded again, and no premortem runs again, since the
+  extraction does not change. Then come back to Step 2 of this skill, which checks the new verdict before
+  it shows 読むもの again, and ask the three questions after that. Differences that remain
+  are shown and asked about in the same way.
+- A design that a review of its result holds (`in_review` or `revision_requested`) takes
+  no new result, so it cannot be computed again until the review returns it to
+  `analyzing`: say so, and offer 「このまま読む」 alone.
+- Never fix a difference on your own, and never choose for the analyst (ADR-0071). When
+  the notebook cannot compute as the design says without changing something the design
+  writes, say what and ask the analyst before any data is touched.
 
 #### 結果から何が言えるか
 
@@ -332,6 +427,8 @@ references below hold for it as well.
 | Command | Used for |
 |---------|----------|
 | `get --id ID` | Load design details |
+| `checked --id ID` | Whether the check of the computation is done for the verdict as it is now, and what differs (read-only) |
+| `check --id ID` (stdin JSON) | Record the check of the computation: the reader's items, and the subjects the code decides |
 | `transition --id ID --target S` | Terminal status transition (validated against the form) |
 | `list` | Find child/sibling designs (filter the JSON by parent_id/theme_id) |
 

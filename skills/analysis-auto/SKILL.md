@@ -57,12 +57,12 @@ The whole point is *reduce friction, keep judgment*. The driver enforces:
 | design ④ charts | **confirm the planned `chart[]` specs (intent / type / x / y)** | auto-drafting chart specs from the direction |
 | check before handing over | **the designs of a round of several nodes, read side by side on the page: hand them over as they are, comment on a design, or leave a design out** — asked once for all of them (Step 3H) | drafting the designs, saving them `in_review`, linking them, rebuilding the page |
 | confirmation after handing over | **what a handed-over analysis cannot go on without changing: answer it, or stop that analysis** — asked for one analysis at a time, while the others go on (Step 3H) | rebuilding the page on every return, recording the answer, running premortem again |
-| endings | **how the analyses that came back end: the three questions of `/analysis-reflection` Step 3 for each design** — asked once for all of them (Step 3H) | the summary and 読むもの of each design, and after the reply the conclusions and the terminal transitions |
+| endings | **how the analyses that came back end: the three questions of `/analysis-reflection` Step 3 for each design, and for a design whose computation differs from its design, whether it is read as it is or computed again** — asked once for all of them (Step 3H) | the check of the computation of each analysis as it comes back, the summary and 読むもの of each design, and after the reply the conclusions and the terminal transitions |
 | review (optional) | **the verdict** (revision_requested vs approve) | running the critique itself |
 | premortem | **result is `HARD_BLOCK`/`HIGH`** → stop, surface the risk | running premortem; `LOW`/`MEDIUM` |
 | notebook | **non-allowlisted package / external comms beyond the declared source / other side-effects** | generate + run when premortem cleared AND it's declared-source read + allowlisted + local compute |
 | journal | — | auto-record the notebook verdict (observe/evidence/question) |
-| reflection | **この分析設計をどう終えるか (`/analysis-reflection` Step 3) + the terminal transition** — for a confirmation a verdict, more investigation or a derived design; for an exploration `explored` or more investigation, never a verdict | presenting the evidence summary and the place of the design note (`/analysis-reflection` Step 2) |
+| reflection | **この分析設計をどう終えるか (`/analysis-reflection` Step 3) + the terminal transition** — for a confirmation a verdict, more investigation or a derived design; for an exploration `explored` or more investigation, never a verdict | the check of the computation, presenting the evidence summary and the place of the design note (`/analysis-reflection` Step 2) |
 | theme reflection | **`/analysis-reflection {theme_id}` T3 + T7** | — |
 | tree-upload | **the file to send as an Artifact** — asked by `/tree-upload` itself, at its approval gate; the driver adds no question of its own | starting `/tree-upload` when the analyst asks to hand the tree over |
 | catalog-register | **registering a data source** (external-data side-effect); unregistered source → stop | — |
@@ -308,7 +308,8 @@ to Claude Docs. Never start it, and do not ask whether to export
 `/analysis-notebook`, `/analysis-journal`, `/analysis-reflection`, `/tree-upload`, `/catalog-register` — each remains explicit-invocable on its own; `/analysis-auto` only
 sequences them and enforces the gate policy. It never writes the question tree itself: the skills do,
 through `tree_io`. In Step 3H it writes the designs' review comments, their changes, their
-stops and the analyst's answers through `design_io`, and rebuilds the page.
+stops, the analyst's answers and the checks of the computation through `design_io`, and
+rebuilds the page.
 
 ## Chaining
 

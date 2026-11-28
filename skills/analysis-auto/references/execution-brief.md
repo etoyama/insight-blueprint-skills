@@ -18,13 +18,17 @@ An execution agent knows nothing of this conversation. Write its brief from thes
 - What it never runs: any `design_io` command that writes a design (`create`, `update`,
   `transition`, `review-batch`, `stop`), `design_io answer-analyst`, and any `tree_io`
   command that writes. Never `tree_io render` either: the dialogue agent rebuilds the page.
+  Never `design_io check`: the dialogue agent has the computation checked by an agent that
+  did not write the notebook, and records it.
 - Where it stops: the analyst read this design before it was handed over. When the
   analysis cannot go on without changing something they read (its population, grain or
   denominator, its extraction, a source, its primary metric, what a result is compared
   against, the criterion of its verdict), it stops before it touches the data, records
   what it would have to change with `design_io ask-analyst`, and returns. Adding a row, a
   group or a period to compare with is such a change too: it adds or changes what a result
-  is compared against, so it stops and asks first. It never asks the analyst anything
+  is compared against, so it stops and asks first. Adding a metric the design does not
+  have is such a change too: the verdict holds the metrics of the design under their
+  `target`, and for one more it stops and asks first. It never asks the analyst anything
   itself:
 
 ```bash
@@ -35,5 +39,9 @@ echo '{"content": "予約の記録が2025年10月より前に無い。対象を2
   analysis that waits for the analyst. Before a package outside the allowlist or any other
   side effect, it does not do that thing either: it returns and says what it needs, with no
   confirmation in the journal.
+- For an analysis handed over again after its check: the differences the check found,
+  each `note` as written, and that it is to compute as the design says and change nothing
+  else. The stops above hold: when it cannot compute as the design says without changing
+  what the analyst read, it asks first.
 - What it returns: the `design_id`, and one of three: that the verdict is in the journal,
   the `id` of the confirmation it recorded, or why it stopped.
