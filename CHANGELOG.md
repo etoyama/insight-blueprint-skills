@@ -22,7 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cells.** `design_io check --id <design>` writes `.insight/designs/{id}_check.yaml`: one result per
   subject (`agrees`, `differs` or `not_checkable`), who read the subjects a reader answers, and the
   verdict it checked. The command decides `metrics`, `figures` and `cells` itself from the design, the
-  verdict and the notebook, and takes the other subjects from stdin; a difference holds what differs
+  verdict and the notebook, and takes the other subjects from stdin, with the `verdict_digest` of the verdict they were read against
+  (`design_io checked` gives it): a verdict written again in between is refused. A difference holds what differs
   and the notebook cell it was read in. `design_io checked --id <design>` tells whether the check is
   done for the verdict as it is now: a verdict written again with other content reads as not checked.
   The pre-write hook refuses a hand write of the record. A notebook now writes each metric of the

@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from insight_blueprint.models.check import CheckResult, CheckSubject
+from insight_blueprint.models.check import CheckResult, CheckSubject, verdict_digest
 from insight_blueprint.validate import validate_schema
 from skills._shared import design_check, design_io
 
@@ -92,8 +92,16 @@ def _save_result(
 
 
 def _payload(*, without: tuple[str, ...] = (), **items: dict) -> dict:
+    """What a reader sends after reading ``VERDICT``, the verdict ``_save_result`` writes."""
+    return _payload_for(VERDICT, without=without, **items)
+
+
+def _payload_for(
+    verdict: dict, *, without: tuple[str, ...] = (), **items: dict
+) -> dict:
     return {
         "checked_by": "check_agent",
+        "verdict_digest": verdict_digest(json.dumps(verdict).encode()),
         "items": [
             {"subject": subject, "result": "agrees"} | items.get(subject, {})
             for subject in READ_BY_THE_AGENT
@@ -231,7 +239,8 @@ class TestCheckWritesTheRecord:
         design_id = _exploration(insight)
         verdict = {"metrics": {"wait_days_gap": {"value": 1.8}}, "figures": []}
         _save_result(insight, design_id, verdict)
-        design_check.record_check(design_id, _payload(without=("criterion",)), insight)
+        payload = _payload_for(verdict, without=("criterion",))
+        design_check.record_check(design_id, payload, insight)
         record = design_io.read_yaml(_record_path(insight, design_id))
         assert "criterion" not in [i["subject"] for i in record["items"]]
         assert len(record["items"]) == 8
@@ -239,9 +248,12 @@ class TestCheckWritesTheRecord:
     def test_the_differences_come_back(self, insight: Path) -> None:
         design_id = _confirmation(insight)
         metrics = VERDICT["metrics"] | {"gap_against_last_year": {"value": 0.3}}
-        _save_result(insight, design_id, VERDICT | {"metrics": metrics})
+        verdict = VERDICT | {"metrics": metrics}
+        _save_result(insight, design_id, verdict)
         grain = {"result": "differs", "note": "per visit", "cell": "data_prep"}
-        reading = design_check.record_check(design_id, _payload(grain=grain), insight)
+        reading = design_check.record_check(
+            design_id, _payload_for(verdict, grain=grain), insight
+        )
         assert reading["checked"] is True
         assert [d["subject"] for d in reading["differences"]] == ["grain", "metrics"]
         assert reading["differences"][0] == {"subject": "grain"} | grain
@@ -294,8 +306,9 @@ class TestCheckRefusesWhatItCannotRecord:
 
     def test_an_exploration_with_a_criterion(self, insight: Path) -> None:
         design_id = _exploration(insight)
-        _save_result(insight, design_id, {"metrics": {"wait_days_gap": {}}})
-        self._refused(insight, design_id, _payload(), "criterion")
+        verdict = {"metrics": {"wait_days_gap": {}}}
+        _save_result(insight, design_id, verdict)
+        self._refused(insight, design_id, _payload_for(verdict), "criterion")
 
     def test_a_difference_without_its_cell(self, insight: Path) -> None:
         design_id = _confirmation(insight)
@@ -306,7 +319,27 @@ class TestCheckRefusesWhatItCannotRecord:
     def test_no_word_on_who_checked(self, insight: Path) -> None:
         design_id = _confirmation(insight)
         _save_result(insight, design_id)
-        self._refused(insight, design_id, {"items": _payload()["items"]}, "checked_by")
+        payload = {k: v for k, v in _payload().items() if k != "checked_by"}
+        self._refused(insight, design_id, payload, "checked_by")
+
+    def test_no_word_on_which_verdict_was_read(self, insight: Path) -> None:
+        design_id = _confirmation(insight)
+        _save_result(insight, design_id)
+        payload = {k: v for k, v in _payload().items() if k != "verdict_digest"}
+        self._refused(insight, design_id, payload, "verdict_digest")
+
+    def test_a_verdict_written_again_while_the_reader_read(self, insight: Path) -> None:
+        """What the reader read of one verdict is not recorded for another."""
+        design_id = _confirmation(insight)
+        path = _save_result(insight, design_id)
+        payload = _payload()
+        path.write_text(json.dumps(VERDICT | {"conclusion": "rerun"}), "utf-8")
+        self._refused(insight, design_id, payload, "changed")
+
+    def test_a_payload_that_is_not_an_object(self, insight: Path) -> None:
+        design_id = _confirmation(insight)
+        _save_result(insight, design_id)
+        self._refused(insight, design_id, [], "payload")  # type: ignore[arg-type]
 
     def test_a_design_without_a_verdict(self, insight: Path) -> None:
         design_id = _confirmation(insight)
@@ -330,6 +363,7 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         assert design_check.check_reading(design_id, insight) == {
             "design_id": design_id,
             "has_verdict": False,
+            "verdict_digest": None,
             "checked": False,
             "checked_by": None,
             "items": [],
@@ -341,6 +375,8 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         _save_result(insight, design_id)
         reading = design_check.check_reading(design_id, insight)
         assert reading["has_verdict"] is True and reading["checked"] is False
+        # The name of the verdict a reader is about to read, to send back with its items.
+        assert reading["verdict_digest"] == _payload()["verdict_digest"]
 
     def test_a_checked_verdict_reads_as_the_command_returned(
         self, insight: Path
@@ -380,15 +416,58 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         design_id = _confirmation(insight)
         path = _save_result(insight, design_id)
         design_check.record_check(design_id, _payload(), insight)
-        path.write_text(json.dumps(VERDICT | {"conclusion": "again"}), "utf-8")
-        design_check.record_check(design_id, _payload(), insight)
+        again = VERDICT | {"conclusion": "again"}
+        path.write_text(json.dumps(again), "utf-8")
+        design_check.record_check(design_id, _payload_for(again), insight)
         assert design_check.check_reading(design_id, insight)["checked"] is True
 
-    def test_a_record_that_does_not_read_is_not_a_check(self, insight: Path) -> None:
+    @pytest.mark.parametrize(
+        "record",
+        [b"items: nothing\n", b"- a list\n", b"key: [unclosed\n", b"\xff\xfe\x00"],
+        ids=["another shape", "not a mapping", "broken YAML", "not UTF-8"],
+    )
+    def test_a_record_that_does_not_read_is_not_a_check(
+        self, insight: Path, record: bytes
+    ) -> None:
         design_id = _confirmation(insight)
         _save_result(insight, design_id)
-        _record_path(insight, design_id).write_text("items: nothing\n", "utf-8")
+        _record_path(insight, design_id).write_bytes(record)
         assert design_check.check_reading(design_id, insight)["checked"] is False
+
+    def test_a_record_that_is_a_folder_is_not_a_check(self, insight: Path) -> None:
+        design_id = _confirmation(insight)
+        _save_result(insight, design_id)
+        _record_path(insight, design_id).mkdir()
+        assert design_check.check_reading(design_id, insight)["checked"] is False
+
+    def test_the_record_of_another_design_is_not_a_check(self, insight: Path) -> None:
+        design_id, other = _confirmation(insight), _confirmation(insight)
+        _save_result(insight, design_id)
+        _save_result(insight, other)
+        design_check.record_check(design_id, _payload(), insight)
+        _record_path(insight, other).write_bytes(
+            _record_path(insight, design_id).read_bytes()
+        )
+        assert design_check.check_reading(other, insight)["checked"] is False
+
+    def test_a_broken_design_does_not_stop_the_reading(self, insight: Path) -> None:
+        design_id = _confirmation(insight)
+        _save_result(insight, design_id)
+        design_check.record_check(design_id, _payload(), insight)
+        design = insight / "designs" / f"{design_id}_hypothesis.yaml"
+        design.write_text("key: [unclosed\n", "utf-8")
+        assert design_check.check_reading(design_id, insight)["checked"] is True
+
+    def test_an_id_that_is_not_one_is_refused(self, insight: Path) -> None:
+        with pytest.raises(ValueError, match="design_id"):
+            design_check.check_reading("../LIB-H01", insight)
+
+    def test_a_linked_verdict_is_not_read(self, insight: Path, tmp_path: Path) -> None:
+        design_id = _confirmation(insight)
+        elsewhere = tmp_path / "verdict.json"
+        elsewhere.write_text(json.dumps(VERDICT), "utf-8")
+        (insight / "notebooks" / f"{design_id}_verdict.json").symlink_to(elsewhere)
+        assert design_check.check_reading(design_id, insight)["has_verdict"] is False
 
 
 def _cli(insight: Path, *argv: str, stdin: str = "") -> subprocess.CompletedProcess:

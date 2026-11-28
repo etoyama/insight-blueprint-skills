@@ -15,7 +15,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from pydantic import ValidationError
 from ruamel.yaml import YAMLError
 
 from insight_blueprint.models.check import (
@@ -31,6 +30,7 @@ from insight_blueprint.validate import validate_schema
 from skills._shared._atomic import atomic_write_yaml, write_lock
 from skills._shared.design_io import DEFAULT_BASE_DIR, load_design, read_yaml
 from skills._shared.design_note_read import CONTRACT_CELLS, notebook_cells
+from skills._shared.ids import SAFE_ID_PATTERN
 
 # The cells a difference the code finds is read in: the metrics are named where
 # ``results`` is built, the figures where they are saved.
@@ -172,6 +172,8 @@ def record_check(
     written. Raises ValueError, and writes nothing, when the design or its
     verdict is missing or the items are not the ones a reader answers.
     """
+    if not isinstance(payload, dict):
+        raise ValueError("payload: give a JSON object with checked_by and items")
     with write_lock(base_dir):
         data = load_design(design_id, base_dir)
         if not data:
@@ -190,6 +192,20 @@ def record_check(
             ) from None
         if not isinstance(verdict, dict):
             raise ValueError(f"{design_id}_verdict.json must hold a JSON object")
+        digest = verdict_digest(verdict_bytes)
+        # The notebook writes its verdict outside this lock, so the reader may
+        # have read an earlier one: its answers are taken only for this verdict.
+        read = payload.get("verdict_digest")
+        if not read:
+            raise ValueError(
+                "verdict_digest: name the verdict the reader read, as "
+                "design_io checked gave it before the reading"
+            )
+        if read != digest:
+            raise ValueError(
+                f"the verdict of {design_id} changed since it was read "
+                "(verdict_digest differs): read it again, then check"
+            )
         items = [
             *_reader_items(payload, design),
             *code_items(design, verdict, _notebook_text(design_id, base_dir)),
@@ -198,7 +214,7 @@ def record_check(
         check = DesignCheck.model_validate(
             {
                 "design_id": design_id,
-                "verdict_digest": verdict_digest(verdict_bytes),
+                "verdict_digest": digest,
                 "checked_by": payload.get("checked_by"),
                 "items": sorted(items, key=lambda item: order.index(item.subject)),
             }
@@ -223,6 +239,7 @@ def _reading(
     return {
         "design_id": design_id,
         "has_verdict": verdict is not None,
+        "verdict_digest": None if verdict is None else verdict_digest(verdict),
         "checked": done,
         "checked_by": shown.checked_by.value if shown else None,
         "items": [_item(i) for i in shown.items] if shown else [],
@@ -238,11 +255,12 @@ def check_reading(design_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str
     that differ. A design without a verdict has nothing to check
     (``has_verdict`` false). A record that does not read is no check.
     """
-    # Validates the id before it reaches a path.
-    load_design(design_id, base_dir)
+    if not SAFE_ID_PATTERN.fullmatch(design_id):
+        raise ValueError(f"Invalid design_id '{design_id}': must match [a-zA-Z0-9_-]+")
     try:
         check = DesignCheck.model_validate(read_yaml(_record_path(design_id, base_dir)))
-    except (ValidationError, YAMLError):
+    # Not UTF-8 and a wrong shape are ValueErrors; a folder in its place is an OSError.
+    except (ValueError, YAMLError, OSError):
         check = None
     # A record copied from another design is not the check of this one.
     if check is not None and check.design_id != design_id:

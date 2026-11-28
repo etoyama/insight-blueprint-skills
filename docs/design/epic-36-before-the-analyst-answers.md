@@ -510,7 +510,7 @@ Story の実装に合わせて書く。
 | `skills/_shared/tree_read.py::changes_of` | 渡された論点ツリーから、`tree_io changes` の JSON を作る。文は正本と同じ形で出す（印は、ある文にだけ出る） | ファイルを読まない → `tree_read.changes`・`tree_io.changes` |
 | `src/insight_blueprint/models/check.py::DesignCheck`・`CheckItem` | 点検の記録の形と、その不変条件を持つ。記録がいまの verdict のものか（`is_current`）と、食い違う項目（`differences`）を返す | 分析設計を知らない。判定の基準の項目を持つべきかは見ない → `design_check.record_check`。ファイルを読まない |
 | `skills/_shared/design_check.py::code_items` | 分析設計・verdict・notebook から、指標・図・cell の並びの項目を決める。指標は `target` と verdict の指標の名前を照らし、図は数を比べ、cell の並びは分析ノートと同じ切り方（`notebook_cells`）で読む | 対象・粒度・分母・抽出・比べ先・判定の基準は読まない → 点検エージェント（36.5）。数を計算し直さない |
-| `skills/_shared/design_check.py::record_check`（`design_io check`） | 標準入力の項目（点検エージェントが読んだもの）と、自分で決めた3つの項目を合わせ、点検した verdict のハッシュと一緒に `{id}_check.yaml` に書く。読んでから書くまでロックを持つ。コードが決める項目を渡されたとき、項目が足りないとき、verdict が無いときは断り、何も書かない | 分析設計も journal も書かない。点検エージェントを立てない → `/analysis-reflection`・`/analysis-auto`・`/analysis-notebook`（36.5）。終えた分析設計かは見ない → 呼ぶ skill |
+| `skills/_shared/design_check.py::record_check`（`design_io check`） | 標準入力の項目（点検エージェントが読んだもの）と、自分で決めた3つの項目を合わせ、点検した verdict のハッシュと一緒に `{id}_check.yaml` に書く。読んでから書くまでロックを持つ。標準入力の `verdict_digest`（読み手が読んだ verdict）が、書くときの verdict と違えば断る。コードが決める項目を渡されたとき、項目が足りないとき、verdict が無いときは断り、何も書かない | 分析設計も journal も書かない。点検エージェントを立てない → `/analysis-reflection`・`/analysis-auto`・`/analysis-notebook`（36.5）。終えた分析設計かは見ない → 呼ぶ skill |
 | `skills/_shared/design_check.py::check_reading`（`design_io checked`） | 点検が済んでいるかを返す、ただ1つの読み手。記録が覚えた verdict といまの verdict が同じときだけ `checked` が真で、項目と食い違いを返す。verdict が無い、記録が無い、記録が読めない、verdict が変わった、のどれでも偽 | 画面に出さない → `design_note.py`・`tree_render_stage.py`（36.7）。分析者に聞かない → reflection の Step 2 と endings（36.5） |
 | `src/insight_blueprint/validate.py::validate_check_write`、`hooks/validate-design.py` | `.insight/designs/*_check.yaml` への Write・Edit・MultiEdit を、中身を読まずに全部止める | Python からの書き込みは見えない → `design_io check` だけが書くという約束と、skill の文 |
 | `tests/_wide_tree.py` | 実データと同じ大きさの合成の論点ツリー（論点7つ、分析設計6つ、2回の振り返り。主題の一覧は書く前に41件、うち17件が前の回に見せた結果）を作る | 実データの値を持たない。HTML の中身は確かめない → 36.7 のテスト |
@@ -632,10 +632,13 @@ Story の実装に合わせて書く。
   そのほか、新しい結果が関わる claim は新しい結果の規則で書き直し、並べない。論点の最後の1文は落とせない（答えは1文以上で、取り下げられない）ので、残すか弱めるかを聞く。
 ### Decision: story-36-4-one-command-takes-the-readers-items-and-decides-the-rest
 
-- What: 点検を書く命令は `design_io check --id <分析設計>` の1つにする。標準入力は `{"checked_by": "check_agent" か "same_session", "items": [{"subject", "result", "note", "cell"}]}` で、
+- What: 点検を書く命令は `design_io check --id <分析設計>` の1つにする。標準入力は `{"checked_by": "check_agent" か "same_session", "verdict_digest": 読んだ verdict の名前, "items": [{"subject", "result", "note", "cell"}]}` で、
   渡すのは点検エージェントが読んだ項目（対象・粒度・分母・抽出・比べ先と、検証なら判定の基準）だけである。指標・図・cell の並びは、命令が書くときに自分で照らして足す。
   コードが決める項目を渡すと断る。受け取って捨てることはしない。点検が済んでいるかは、別の命令 `design_io checked --id <分析設計>` が返す（書かない。標準入力を読まない）。
-  どちらも同じ形を返す: `design_id`・`has_verdict`・`checked`・`checked_by`・`items`・`differences`。
+  どちらも同じ形を返す: `design_id`・`has_verdict`・`verdict_digest`・`checked`・`checked_by`・`items`・`differences`。
+  `verdict_digest` は、いまの verdict の名前である。読み手は、読む前に `design_io checked` でこれを受け取り、項目と一緒に返す。
+  命令は、書くときの verdict の名前と違えば断る。notebook は verdict をロックの外で書くので、読み手が読んだ後に verdict が書き直されうる。
+  読み手が読んでいない verdict に、読み手の答えを結ばないためである（レビューの指摘）。
 - Why: ADR-0070 の6は「コードが見る項目は、命令がその場で照らして書く。点検エージェントの返事では上書きできない」と決めた。
   コードの項目だけを先に書く命令と、読み手の項目を後から足す命令に分けると、半分だけ書かれた記録が残り、「済んでいるか」の規則に場合分けが要る。
 - Criteria: 記録が半端な状態を持たないこと（出典: ADR-0070 の6・7）。後の Story が1つの形だけを読めばよいこと（出典: ブリーフの「読み手を1か所に置く」）。決め手は前者。
