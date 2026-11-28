@@ -8,7 +8,8 @@ The reflection across the designs of a theme, from Step 0 of
 Writes the current answer of each node of the theme's question tree, then shows the next
 candidates and records the decision the analyst takes. An answer is a list
 of statements, and each statement cites the journal events it rests on. The analyst sees
-an answer only after the tree check has passed (ADR-0025).
+an answer only after the tree check has passed (ADR-0025). A statement of the root's answer
+may be the analyst's view, in the analyst's own words (ADR-0068).
 
 ### Step T1: Load the tree, its designs and their journals
 
@@ -40,6 +41,11 @@ an answer only after the tree check has passed (ADR-0025).
 Work from the leaves up to the root question. For each node, the source is the journal
 events of the designs linked to the node and to the nodes below it. A node whose branch
 holds no journal event gets no answer in this round: say so in Step T5 instead.
+
+The draft of the root and of a node with nodes below it does not yet cite an event of a
+design linked only to a node below it, other than a `contradicts` event the rules below
+make it cite. Such a result enters an answer above only after the analyst confirmed it in
+Step T3 (ADR-0069). The root's draft is finished there, after the analyst's view.
 
 Each statement has a `kind`, a `text` and `cites`:
 
@@ -91,49 +97,181 @@ rewording the reader cannot tell from a change buries the change that matters.
 - When the 主題の版 has gone up since a node's answer (`root_revision` is lower than the
   current one), rewrite that answer for the new 主題 where its question asks something new,
   and say so in Step T5. A statement the new 主題 does not change still keeps its words.
+- A statement with `analyst_view` is sent character for character in every later round,
+  with the mark, as the analyst wrote it (ADR-0068). Where a rule of this step, a new
+  result or a new 主題 would change it, ask the analyst in Step T3, next to the view: show
+  the sentence and say what would change it. It changes only when the analyst says how it
+  now reads, and then it reads exactly as they say.
 
 ### Step T3: Write the answers through tree_io
 
+#### Before writing: the analyst's view of the subject
+
+The answer of the root starts from how the analyst sees the results (ADR-0068). Ask it
+once, after the drafts of the nodes below the root and before the question of the next
+section. Ask only about the root: never ask it about another node. When you come back to
+this step from a violation or from Step T4, do not ask again. When no journal event of the
+tree was recorded since the current answer of the root, do not ask: the round has no
+result to see, and the root's draft is its kept statements.
+
+```
+この回に結果が出た分析（{N}つ）
+  {design_id} {title}　あなたの結論: 「{content}」
+
+主題「{question}」
+いまの答え（{round}回目の振り返り）
+  [これまでわかっていること] {text}
+  [注意すべきこと] {text}
+  [まだ決められないこと] {text}
+
+「この回の結果は、主題の答えにどう効きますか。
+ いまの答えを支える・いまの答えを変える・まだ言えない、のどれに近いかと、そう見る理由を、あなたの言葉で書いてください。
+ 分析をまたいだ見立てで構いません。根拠にする分析結果は、あなたの見立てを聞いた後に、こちらで探して勧めます。
+ 見立てを書かずに、エージェントの下書きから始めることもできます。」
+```
+
+- この回に結果が出た分析 lists every design whose journal got an event since the current
+  answer of the root. あなたの結論 is the content of its `conclude` event; leave it out for
+  a design that has none.
+- いまの答え is the current answer of the root in `tree_io get`, as an earlier round wrote
+  it. The analyst sees no statement of a draft here (ADR-0025).
+- When the root has no answer yet, leave out いまの答え and the line that names the three
+  directions, and open the question with 「この回の結果から、主題についていま何が言えますか。
+  あなたの言葉で書いてください。」 instead of its first two lines.
+
+Wait for the reply. What happens next depends on it:
+
+- When the analyst writes a view, the view becomes one statement of the root's draft with
+  `"analyst_view": true` and a `text` exactly as the analyst wrote it, line breaks included.
+  Never reword, shorten, split or merge it, and never correct a number in it. You choose its
+  `kind` and the analyst confirms the place in the next section. Its `cites` are the
+  results the analyst confirms there.
+
+  ```json
+  {"kind": "claim", "text": "期限切れは分館より曜日で決まると見る", "cites": ["LIB-H04-E02", "LIB-H05-E03"], "analyst_view": true}
+  ```
+
+  Then draft the other statements of the root under the rules of Step T2, for what the
+  view does not say: a limit on it, a question it leaves open.
+- When the analyst starts from the draft, you write the draft of the root under the rules
+  of Step T2 and no statement carries `analyst_view`.
+- What the analyst writes beside the view (a question to you, an instruction) is not part
+  of it. When you cannot tell where the view ends, ask.
+
 #### Before writing: results no answer above rests on
 
-Ask it once, before the first `tree_io answer` of this reflection. When you come back to
-this step from a violation or from Step T4, do not ask again.
+Ask it once, after the reply to the view and before the first `tree_io answer` of this
+reflection. When you come back to this step from a violation or from Step T4, do not ask
+again.
 
-First apply the rules of Step T2 to the drafts: a `contradicts` event that bears on a node
-is cited in its `weakening`, not offered. Then, for the root and every node with nodes below
-it, take every event cited by the answer of a node below it (its draft, or its current
-answer when it gets none in this round) but not by its own draft. Split them in two:
+**The list.** First apply the rules of Step T2 to the drafts: a `contradicts` event that
+bears on a node is cited in its `weakening`, not offered. Write the drafts to a temporary
+JSON file in the shape `tree_io answer` takes (below), without the statement of the view,
+which has no `cites` yet, and run:
 
-- An event that no answer of this node has cited: 「まだ答えに入れていない分析結果」.
-- An event that an earlier answer of this node cited and the draft does not:
-  「前は答えの根拠にしていて、今は外している分析結果」. Name the last round that cited it.
-
-When no node leaves an event out, skip the question and send the answers. Otherwise show
-one block for each node that leaves an event out, each event by its content, and ask once
-for all of them:
-
-```
-主題「{question}」の答えに、まだ入れていない分析結果:
-  - {content}（「{question of the node whose answer rests on it}」の答えが根拠にしている）
-  - 人に聞いた答え: {content}（「{question of the node whose answer rests on it}」の答えが根拠にしている）
-前は答えの根拠にしていて、今は外している分析結果:
-  - {content}（{round}回目の振り返りの答えまで根拠にしていた）
-
-「この中から、答えの根拠にする分析結果を選んでください。選ばなくても答えは書けます。」
+```bash
+tree_io changes --theme {theme_id} --with-answers < {file}
 ```
 
-Use 「論点「{question}」の答えに」 instead of 「主題「{question}」の答えに」 for a node that is not
-the root. A `hearing` event is listed as 人に聞いた答え, never as 分析結果. The analyst sees the
-contents of journal events here, not the statements of a draft: no answer reaches them
-before the tree check (ADR-0025).
+It writes nothing. For the root and every node with nodes below it, `uncited_below` holds
+every event cited by the answer of a node below it (its draft, or its current answer when
+it gets none in this round) but not by its own draft. Never build the list by hand: the
+command splits it the way `tree_io changes` and the page split it after writing. The
+`statements` in its output are drafts that are not checked yet: never show them to the
+analyst, who sees each event by its content (ADR-0025).
 
-The analyst decides. Wait for the answer, and send nothing before it: once the answers are
-written, taking in a result the analyst chooses needs another round. For each result they
-choose, add or rewrite the statements of the draft that rest on it, under the rules of Step
-T2, and do not ask again for the nodes this changes. When they choose none, the answers are
-written without them. Never cite a result the analyst did not choose from this list. The
-list holds only what the drafts leave out: a new result that a draft already cites under the
-rules of Step T2 is not on it.
+Each entry falls in one of three groups:
+
+- `shown_before` is `false` and `last_cited_round` is `null`: a result new to the list in
+  this round, which you recommend for the answer of that node or not.
+- `shown_before` is `true`: a result shown in an earlier round that no answer took, which
+  the question gives as a count, not by its content.
+- `shown_before` is `false` and `last_cited_round` is a round: a result an earlier answer
+  of the node rested on and the draft does not, shown with that round.
+
+**What you recommend.** Recommend a new result when the answer of the node needs it: for
+the root, when it bears out, limits or leaves open what the view says (what your draft
+says, when the analyst started from the draft). A detail of a result you already
+recommend, a result that speaks of something the node's question does not ask, and a
+candidate for the next analysis are not recommended. Give each recommended result one line
+of reason: the part of the view or of the answer it bears on, and whether it goes in as
+これまでわかっていること, 注意すべきこと or まだ決められないこと. For each result you do not
+recommend, say why not in a few words. The reason is said here only: never write it into a
+statement, and the record keeps none (ADR-0069).
+
+Raise a result shown before to the recommended ones only when a result of this round
+changes what it means: a new result bears it out, speaks against it, or answers what it
+left open. Its reason names the result of this round that changes it, and its line ends
+with （前の回にも見せた）. Every other result shown before stays in the count.
+
+**The question.** When no node leaves an event out and the analyst wrote no view, skip the
+question and send the answers. Otherwise show one block for each node that leaves an event
+out, the root first, and ask once for all of them. A block holds these parts in this order,
+and a part with nothing in it is left out:
+
+1. **The view** — in the block of the root only, when the analyst wrote one: the view as
+   written, and the `kind` you place it in. A statement with `analyst_view` of an earlier
+   round that Step T2 says to ask about is shown here too, with what would change it.
+2. **Recommended** — the results you recommend, each with its reason on the next line.
+3. **Not recommended** — the other results new to the list in this round, each with why not.
+4. **Shown before** — the count of the results shown before that you did not raise.
+5. **Dropped** — the results an earlier answer rested on and the draft does not.
+6. **The question** — one sentence for all blocks, after the last block.
+
+```
+── 主題「{question}」の答え ──
+あなたの見立て（主題の答えに、あなたの言葉のまま書く）
+  「{the view as written}」
+  置く所: {これまでわかっていること | 注意すべきこと | まだ決められないこと}
+
+根拠に入れることを勧める分析結果（{N}件）
+  1. {content}（{design_id}）
+     — {reason}
+  2. 人に聞いた答え: {content}（{design_id}）
+     — {reason}
+  3. {content}（{design_id}）（前の回にも見せた）
+     — {reason}
+
+勧めなかった、この回の分析結果（{N}件）
+  4. {content}（{design_id}）— {why not}
+
+前の回までに見せて、答えに入れなかった分析結果: {N}件（言ってもらえれば全部出す）
+
+前は答えの根拠にしていて、今は外している分析結果
+  5. {content}（{round}回目の振り返りの答えまで根拠にしていた）
+
+── 論点「{question}」の答え ──
+根拠に入れることを勧める分析結果: 2、4
+
+「勧めた{N}件を根拠に入れて、答えを書いてよいですか。
+ 外す番号、足す番号、見立ての言い直しがあれば、あわせて書いてください。」
+```
+
+- Number the results through the whole question, each once: a result written out under the
+  root is not written out again, and the block of another node names it by that number.
+- A `hearing` event is listed as 人に聞いた答え, a `conclude` event as あなたの結論 and a
+  `question` event as 問い, each before its content; any other event is 分析結果 and takes no
+  word before it.
+- `{N}` in the question is the number of results recommended in all blocks. When you
+  recommend none, ask 「どの分析結果も根拠に入れずに、答えを書いてよいですか。」 instead of its
+  first line.
+
+**After the reply.** The analyst decides. Wait for the answer, and send nothing before it:
+once the answers are written, taking in another result needs another round.
+
+- Taking the recommendation as it stands confirms it. The analyst may also take numbers
+  out, add numbers from the results you did not recommend, and say the view again.
+- When the analyst asks for them, list every one by its content, the results shown before
+  included, under the numbers that follow, and wait again. It is the same question going
+  on: add no second closing question of your own.
+- Never cite a result from below that the analyst did not confirm, in any statement of any
+  node. When they confirm none, the answers are written without them.
+- When the analyst says the view again, the statement takes the new words exactly.
+- The statement of the view cites the confirmed results it rests on. For every other
+  confirmed result, add or rewrite the statements of the draft that rest on it, under the
+  rules of Step T2. Do not ask again for the nodes this changes.
+- When the view would rest on no confirmed result and on no event the root's answer
+  already cites, it cannot be written: say so and ask which result it rests on.
 
 #### Send the answers
 
@@ -164,7 +302,7 @@ rejects a rewritten answer, and only `tree_io answer` checks the answer before i
   current root revision; nothing is written for them. `round` is the last round the tree
   now holds.
 - Exit code 3: `violations` is not empty and `tree_io` wrote nothing, for any node. Fix
-  each violation in your draft and send the whole call again.
+  each violation of a statement you wrote and send the whole call again.
 - Exit code 1: nothing was written, and the reason is on stderr. When it names the
   payload (unknown node, a missing field, JSON that does not parse), fix the payload and
   send it again. When a tree, design or journal file cannot be read or holds the same
@@ -177,9 +315,16 @@ rejects a rewritten answer, and only `tree_io answer` checks the answer before i
 | `unlinked-design` | The cited event belongs to a design that is linked neither to the node nor to a node below it. Cite an event from the node's own branch, or take the cite out |
 
 Never edit a journal to make an answer pass, and never add a number to a journal that the
-analysis did not produce. When a statement still violates after one rewrite, remove the
-statement from the draft and keep a note of its text and the violation for Step T5. When
-every statement of a node is removed, send no answer for that node in this round.
+analysis did not produce. When a statement you wrote still violates after one rewrite,
+remove the statement from the draft and keep a note of its text and the violation for
+Step T5. When every statement of a node is removed, send no answer for that node in this round.
+
+A statement with `analyst_view` that violates is never rewritten and never removed by you
+(ADR-0068). Show the analyst the violation and the sentence as they wrote it, and ask how
+it should read: 「あなたの見立ての「{the number or the result}」が、根拠にした分析結果の
+どれにも書かれていません。文をどう直しますか。根拠にする分析結果を足すこともできます。」
+Send what the analyst says, exactly as they say it, with the mark. When they take the
+sentence back, leave it out and list it under Removed statements in Step T5.
 
 ### Step T4: Check the tree after writing
 
@@ -211,6 +356,7 @@ Show no answer to the analyst before `tree_check` has run, and never show an ans
   Progress: {未着手 | 調べている | 止めた | 分析済み}{　この論点の下に置いた論点 {N} つ: 分析済み a、止めた b、調べている c、未着手 d}
   Answer（{round}回目の振り返り{、見直す前の主題への答え}）:
     [これまでわかっていること] {text}  ← {cites}
+    [これまでわかっていること]（あなたの見立て）{text}  ← {cites}
     [まだ決められないこと] {text}  ← {cites}
     [注意すべきこと] {text}  ← {cites}
 
@@ -232,6 +378,9 @@ Show no answer to the analyst before `tree_check` has run, and never show an ans
 ── まだ答えに入れていない分析結果 ──
   - {node_id}: {content}
 
+── 前の回までに見せて、答えに入れなかった分析結果 ──
+  - {node_id}: {N}件（言ってもらえれば全部出す）
+
 ── 前は答えの根拠にしていて、今は外している分析結果 ──
   - {node_id}: {content}（{round}回目の振り返りの答えまで根拠にしていた）
 ```
@@ -252,13 +401,19 @@ the drafts.
   The results come from `evidence` in the entry of `answer_changes` for that node and this
   round: say each by its content, with the word the page uses for its kind (`newly_cited`
   新しく根拠にした, `dropped` 根拠から外した, `reworded` 言っていることが変わった).
-- Under the last two headings, list each entry of `uncited_below` under the node it is
-  keyed by, by the content of its event (a `hearing` event as 人に聞いた答え). An entry whose
+- Under the last three headings, take each entry of `uncited_below` under the node it is
+  keyed by, and split them as Step T3 did. An entry whose `shown_before` is `true` is a
+  count under 前の回までに見せて、答えに入れなかった分析結果, not a line of its own: it was
+  shown in an earlier round, and the analyst can ask for all of them. The other entries are
+  the results of this round the analyst did not confirm in Step T3: list each by the
+  content of its event (a `hearing` event as 人に聞いた答え). Of these, an entry whose
   `last_cited_round` is `null` goes under まだ答えに入れていない分析結果; otherwise it goes
   under 前は答えの根拠にしていて、今は外している分析結果, with `last_cited_round` as `{round}`.
-  These are the results the analyst did not choose in Step T3. Leave out a heading with nothing under it. The analyst sees them again here, before the
+  Leave out a heading with nothing under it. The analyst sees them again here, before the
   decision. When a statement that rests on a result the analyst chose was removed in Step
   T3, say so next to it under Removed statements.
+- A statement with `analyst_view` shows （あなたの見立て） after the word of its kind,
+  whatever its kind, and its text as the analyst wrote it.
 - Say the progress the way the page does. The word comes from `progress`. When `below`
   is not empty, add its counts after the word: `この論点の下に置いた論点 {N} つ: 分析済み a、止めた b、調べている c、未着手 d`,
   and `主題の下に置いた論点 {N} つ: 分析済み a、止めた b、調べている c、未着手 d` for the root question.

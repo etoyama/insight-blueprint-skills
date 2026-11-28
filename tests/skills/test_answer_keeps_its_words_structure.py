@@ -140,21 +140,24 @@ class TestResultsNoAnswerAboveRestsOnAreAskedBeforeTheAnswersAreWritten:
             r"(?i)`contradicts` event[^.]*is cited[^.]*not offered", unwrap(_offer())
         )
 
-    def test_the_two_kinds_are_shown_apart_in_the_analysts_words(self) -> None:
-        offer = _offer()
-        assert NOT_YET in offer
-        assert DROPPED in offer
+    def test_a_result_the_draft_dropped_is_shown_apart_in_the_analysts_words(
+        self,
+    ) -> None:
+        # The results never cited are split again, by the round that first listed
+        # them (Epic 36, test_view_and_recommendation_structure).
+        assert DROPPED in _offer()
 
     def test_the_analyst_decides_and_the_answer_is_written_either_way(self) -> None:
         offer = unwrap(_offer())
         assert re.search(r"(?i)the analyst decides", offer)
         assert re.search(r"(?i)written without them", offer)
 
-    def test_the_skill_never_cites_a_result_the_analyst_did_not_choose(
+    def test_the_skill_never_cites_a_result_the_analyst_did_not_confirm(
         self,
     ) -> None:
         assert re.search(
-            r"(?i)never cite a result the analyst did not choose", unwrap(_offer())
+            r"(?i)never cite a result from below that the analyst did not confirm",
+            unwrap(_offer()),
         )
 
     def test_a_heard_answer_is_shown_by_its_own_name(self) -> None:
@@ -165,10 +168,7 @@ class TestResultsNoAnswerAboveRestsOnAreAskedBeforeTheAnswersAreWritten:
     def test_the_offer_never_says_cite_event_or_node_below(self) -> None:
         # Every Japanese run of the offer is text the analyst reads.
         shown = " ".join(re.findall(r"[぀-ヿ一-鿿「」、。（）]+", _offer()))
-        assert (
-            "この中から、答えの根拠にする分析結果を選んでください。選ばなくても答えは書けます。"
-            in shown
-        )
+        assert "件を根拠に入れて、答えを書いてよいですか。" in shown
         for inner in ("引用", "出来事", "下の論点"):
             assert inner not in shown
 

@@ -21,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The theme reflection asks the analyst's view of the 主題 first and recommends the evidence.** Before
+  the answer of the 主題 is written, `/analysis-reflection {theme_id}` asks how the results of the round
+  bear on it, in the analyst's words; the analyst may start from the agent's draft instead. The view is
+  written as a statement with the mark and is never reworded by the agent, in that round or a later one:
+  a violation of it is put to the analyst. The results no answer above rests on are then read from
+  `tree_io changes --with-answers`: the ones new in this round are split into recommended and not, each
+  recommended one with a line of reason, and the ones shown in an earlier round are a count the analyst
+  can open. An answer above rests on a result from below only after the analyst confirmed it
+  ([ADR-0068](docs/adr/0068-an-answer-statement-may-be-the-analysts-view.md),
+  [ADR-0069](docs/adr/0069-evidence-is-recommended-and-results-shown-before-are-folded.md), #305).
 - **`/analysis-auto` and `/analysis-reflection` keep their long parts in reference files.** The hand-over of
   several nodes and the brief of an execution agent are in `skills/analysis-auto/references/`, and the theme
   reflection is in `skills/analysis-reflection/references/`. The body says when to read each. The steps do

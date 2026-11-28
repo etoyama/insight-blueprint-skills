@@ -254,7 +254,9 @@ the round until the analyst closes the walk or says stop.
    `explored` and is never asked for a verdict. Its Step 2 読むもの says what
    the analyst reads; the driver adds no list of files of its own.
 8. **theme reflection**: run `/analysis-reflection {theme_id}`. Its Steps T3 and T7 are the
-   KEEP gates of the round. Before that gate, show the path of the tree's HTML, so the analyst decides
+   KEEP gates of the round. Everything T3 asks before it writes the answers belongs to that
+   one gate, however many replies it takes, and the driver adds no question of its own.
+   Before that gate, show the path of the tree's HTML, so the analyst decides
    with the tree in view. When the analyst chooses 主題そのものを見直す at that gate, the
    reflection runs only 4c of `/analysis-framing {theme_id}`, a KEEP gate of its own. The
    round is not over then: after the revision the reflection asks the decision again at

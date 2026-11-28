@@ -347,6 +347,7 @@ Both are on PATH via the plugin. JSON on stdout.
 | `tree_io answer --theme T` (stdin JSON) | Check and append the answers of one reflection round |
 | `tree_check --theme T` | Check the current answers after writing (read-only) |
 | `tree_io changes --theme T` | What each answer changed, and the results the answers above leave out (read-only) |
+| `tree_io changes --theme T --with-answers` (stdin JSON) | The same for the answers about to be written, with whether each left-out result was shown before (read-only, Step T3) |
 | `tree_io candidates --theme T` | The next candidates: nodes with no design on them or below them |
 | `tree_io candidate --theme T --node N` (stdin JSON) | Write the notes of a candidate (`ask`, `changes_if`, `known`) |
 | `tree_io hear --theme T --node N` (stdin JSON) | Keep the answer a person gave, with who and when |
