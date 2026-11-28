@@ -747,8 +747,8 @@ def _code(note: DesignNote, anchor: str) -> Html:
                     el(
                         "details",
                         el("summary", _cell_heading(c)),
-                        el("pre", el("code", c.source)),
-                        id=cell_anchor(anchor, c.name),
+                        # The target inside the fold: a browser opens the cell on a link.
+                        el("pre", el("code", c.source), id=cell_anchor(anchor, c.name)),
                     )
                     for c in note.cells
                 ),

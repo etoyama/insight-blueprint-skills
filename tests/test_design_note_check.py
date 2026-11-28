@@ -248,8 +248,10 @@ class TestTheTableOfTheCheck:
         ]
 
         assert link.attrs["href"] == "#note-LIB-H01-cell-analysis"
+        # The target sits inside the folded cell, so a browser opens the cell on the link.
         cell = by_id(root, "note-LIB-H01-cell-analysis")
-        assert cell.tag == "details"
+        assert cell.tag == "pre"
+        assert cell.parent is not None and cell.parent.tag == "details"
         assert cell.is_inside(by_id(root, "note-LIB-H01-code"))
 
     def test_a_difference_read_in_the_data_load_cell_names_it_without_a_link(
@@ -306,6 +308,22 @@ class TestACheckNotDone:
 
     def test_a_note_built_without_a_check_reads_as_one_not_done(self) -> None:
         assert "まだ済んでいない" in squash(_section(_note()).text())
+
+
+class TestAReadingThatDoesNotRead:
+    """A reading that says done but names no reader is no check, as a record that does not read."""
+
+    @pytest.mark.parametrize(
+        "reading",
+        [
+            {"checked": True, "items": []},
+            {"checked": True, "checked_by": "someone", "items": []},
+            {"checked": True, "checked_by": "check_agent", "items": [{"subject": "x"}]},
+            {"checked": True, "checked_by": "check_agent", "items": "not a list"},
+        ],
+    )
+    def test_it_reads_as_a_check_not_done(self, reading: dict) -> None:
+        assert NoteCheck.of(reading) == NoteCheck()
 
 
 class TestTheStatusOfTheNote:

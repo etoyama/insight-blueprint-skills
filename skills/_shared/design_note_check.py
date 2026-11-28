@@ -83,17 +83,22 @@ class NoteCheck:
 
     @classmethod
     def of(cls, reading: Mapping[str, object]) -> NoteCheck:
-        if not reading.get("checked"):
-            return cls()
+        """A reading that does not read is no check, as a record that does not read.
+
+        ``check_reading`` always fills these when the check is done; a page is
+        not stopped for a reading built otherwise.
+        """
         items = reading.get("items")
-        return cls(
-            checked=True,
-            checked_by=CheckedBy(reading["checked_by"]),
-            items=tuple(
-                CheckItem.model_validate(item)
-                for item in (items if isinstance(items, list) else [])
-            ),
-        )
+        if not reading.get("checked") or not isinstance(items, list):
+            return cls()
+        try:
+            return cls(
+                checked=True,
+                checked_by=CheckedBy(reading.get("checked_by")),
+                items=tuple(CheckItem.model_validate(item) for item in items),
+            )
+        except ValueError:  # a pydantic ValidationError is a ValueError
+            return cls()
 
     def of_result(self, result: CheckResult) -> tuple[CheckItem, ...]:
         return tuple(i for i in self.items if i.result is result)
@@ -166,11 +171,12 @@ def check_section(
     elif not check.checked:
         body = [el("p", CHECK_WHAT), el("p", CHECK_NOT_DONE)]
     else:
-        assert check.checked_by is not None  # a check that is done says who read it
         rows = [i for result in _ROW_ORDER for i in check.of_result(result)]
         body = [
             el("p", _CHECK_DONE),
-            el("p", CHECKED_BY_WORDS[check.checked_by]),
+            el("p", CHECKED_BY_WORDS[check.checked_by])
+            if check.checked_by is not None
+            else None,
             el("p", CHECK_LEAVES),
             el("p", _standing(check)),
             table(

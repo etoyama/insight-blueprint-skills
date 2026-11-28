@@ -572,10 +572,10 @@ class TestCode:
     ) -> None:
         html = _section_of(str(render_note(_note(cells=CELLS))), "code")
 
-        assert html.count("<details ") == 2
+        assert html.count("<details>") == 2
         assert "<summary>cell 1 · imports</summary>" in html
         assert "<summary>cell 3 · data_prep</summary>" in html
-        assert "<pre><code>import pandas as pd\n\nimport numpy</code></pre>" in html
+        assert "<code>import pandas as pd\n\nimport numpy</code></pre>" in html
         assert _position(html, "cell 1") < _position(html, "cell 3")
 
     def test_a_cell_without_a_name_shows_its_position_alone(self) -> None:
