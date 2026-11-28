@@ -502,6 +502,25 @@ Story の実装に合わせて書く。
 
 ## Decisions
 
+### Decision: story-36-1-three-reference-files-keep-their-headings
+
+- What: `analysis-auto` の Step 3H を `references/handover.md` に、実行エージェントのブリーフを `references/execution-brief.md` に、
+  `analysis-reflection` のテーマの振り返り（Step T1〜T7）を `references/theme-reflection.md` に移す。移した文は見出しの深さも元のままにし、
+  本文には同じ見出しと、いつ読むかを言う1〜2文だけを残す。構造テストは見出しを渡すと、それを持つ参照ファイルから読む
+  （`tests/skills/_skill_text.py` の `skill_section`。読み手は `_auto.py` と `_reflection.py`）。SKILL 全体に「無い」ことを確かめるテストは、
+  本文と参照ファイルの両方を読む（`skill_text`、`auto_all`、`reflection_all`）。
+- Why: 対話エージェントは要る段の文だけを読めばよい（US-7）。後の Story はテーマの振り返り（36.3・36.6）と、
+  reflection の本文・auto の参照ファイル（36.5）を別々に触れる。
+- Criteria: US-7 AC 2（テストが確かめる文は分ける前と同じ）。決め手は見出しを元のまま残せば、テストの期待値を1つも変えずに、
+  読む先だけを変えられること。
+- Affected modules: `skills/analysis-auto/SKILL.md`・`references/`、`skills/analysis-reflection/SKILL.md`・`references/`、
+  `tests/skills/_skill_text.py`（新規）・`_reflection.py`（新規）・`_auto.py`、テーマの振り返りと Step 3H を読む構造テスト
+- Alternatives considered: ブリーフを `handover.md` に含める（36.5 が触る所が1つのファイルに集まり、ブリーフだけを読む実行エージェントの準備でも
+  Step 3H 全体を読むことになる）。見出しごとに読む先を書いた表を読み手に持たせる（移す節が増えるたびに表を直す。見出しが1か所にしか無いことは
+  `test_skill_references_structure.py` が確かめる）。
+- Consequences: 移した文は ADR へのリンクの深さ（`../../` → `../../../`）と、「the brief below」を `execution-brief.md` へのリンクにした
+  1か所だけが元と違う。本文に残した見出しは他の SKILL の「Step 3H を見よ」の文の行き先として残る。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0068: 現時点の答えの文は、分析者の見立てとして書ける](../adr/0068-an-answer-statement-may-be-the-analysts-view.md):
@@ -517,7 +536,7 @@ Story の実装に合わせて書く。
 
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
-| Story 36.1 | ☐ | ☐ | ☐ |
+| Story 36.1 | ✓ | —（SKILL.md と参照ファイルの文だけを動かし、コードは変えていない） | —（振る舞いは変えていない。分ける前の1373件のテストが期待値を変えずに緑のまま、移した文が元の文と一字ずつ同じこと（リンクの深さと、ブリーフを指す1か所を除く）を `diff` で、配布物に `references/` が入ることを手元のプラグインのキャッシュで確かめた。Claude Code のセッションに読み込んで辿ることはしていない） |
 | Story 36.2 | ☐ | ☐ | ☐ |
 | Story 36.3 | ☐ | ☐ | ☐ |
 | Story 36.4 | ☐ | ☐ | ☐ |
@@ -537,3 +556,4 @@ Story の実装に合わせて書く。
 - 2026-11-28 — 人間が d6 を決めた: 分析ノートに点検の節、論点ツリーの HTML に食い違いの印と分析者の見立ての印、レポートに見立ての印を出す。推奨と理由はチャットだけに出す。人間が実物の画面を読む段を 36.7 の後に置く。
 - 2026-11-28 — 人間が初版を承認した（Domain Model 図を含む）。ADR-0068〜0071 を Accepted にした。
 - 2026-11-28 — Story を8本起票した（#303〜#310）。
+- 2026-11-28 — Story 36.1 completed: `analysis-auto` の Step 3H と実行エージェントのブリーフ、`analysis-reflection` のテーマの振り返りを `references/` に分けた（本文は 544→325 行、801→376 行）。#294 の2点を確かめ、値なしの `tree_io render --theme` の文を #311 にした。

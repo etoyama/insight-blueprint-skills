@@ -5,11 +5,18 @@ from __future__ import annotations
 import re
 
 from tests.skills._markdown import section, table_row, unwrap
+from tests.skills._skill_text import skill_section, skill_text
 from tests.skills.test_skill_structure import _read_skill, split_sections
 
 
 def auto() -> str:
+    """The SKILL.md of /analysis-auto, without its reference files."""
     return _read_skill("analysis-auto")
+
+
+def auto_all() -> str:
+    """The SKILL.md of /analysis-auto and its reference files."""
+    return skill_text("analysis-auto")
 
 
 def step_item_text(step: str, name: str) -> str:
@@ -19,7 +26,7 @@ def step_item_text(step: str, name: str) -> str:
     """
     found = re.search(
         rf"^\d+\. \*\*{re.escape(name)}\*\*.*?(?=^\d+\. \*\*|^#{{2,4}} |\Z)",
-        section(auto(), step),
+        auto_step(step),
         re.MULTILINE | re.DOTALL,
     )
     assert found, f"{step} has no '{name}' item"
@@ -47,8 +54,8 @@ def handover_item_text(name: str) -> str:
 
 
 def handover_part(heading: str) -> str:
-    """The body under a ``####`` heading of Step 3H, as written."""
-    return section(section(auto(), "### Step 3H:"), heading)
+    """The body under a ``####`` heading of Step 3H or of the brief, as written."""
+    return skill_section("analysis-auto", heading)
 
 
 def design_beat(name: str) -> str:
@@ -73,8 +80,8 @@ def auto_gates() -> str:
 
 
 def auto_step(heading: str) -> str:
-    """The body under a heading of /analysis-auto."""
-    return section(auto(), heading)
+    """The body under a heading of /analysis-auto, from the file that holds it."""
+    return skill_section("analysis-auto", heading)
 
 
 def framing_section(heading: str) -> str:

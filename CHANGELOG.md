@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`/analysis-auto` and `/analysis-reflection` keep their long parts in reference files.** The hand-over of
+  several nodes and the brief of an execution agent are in `skills/analysis-auto/references/`, and the theme
+  reflection is in `skills/analysis-reflection/references/`. The body says when to read each. The steps do
+  not change. (#303)
+
 ## [0.22.0] - 2026-11-28
 
 ### Added

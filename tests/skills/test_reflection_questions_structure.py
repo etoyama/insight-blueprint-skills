@@ -20,8 +20,9 @@ import pytest
 
 from skills._shared import design_io
 from tests.docs._changelog import changelog_entry
-from tests.skills._auto import gate_row, round_item
+from tests.skills._auto import auto_all, gate_row, round_item
 from tests.skills._markdown import bold_item, section, table_row, table_rows, unwrap
+from tests.skills._reflection import reflection_all
 from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
 
 WHAT_THE_RESULTS_SAY = "#### 結果から何が言えるか"
@@ -196,8 +197,8 @@ class TestAnAnswerThatChangesNoVerdictGoesToTheTheme:
         assert not re.search(r"(?i)it is a (caution|reservation)", beat)
 
     def test_no_text_for_the_analyst_uses_hibiku(self) -> None:
-        assert "響" not in _skill()
-        assert "響" not in _read_skill("analysis-auto")
+        assert "響" not in reflection_all()
+        assert "響" not in auto_all()
 
 
 class TestALegacyExplorationReadsItsUndirectedEvidence:

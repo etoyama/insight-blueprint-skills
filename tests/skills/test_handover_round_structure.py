@@ -20,6 +20,7 @@ from skills._shared import design_io, tree_io
 from skills._shared.tree_words import HANDOVER_HEADING, STAGE_WORDS
 from tests.skills._auto import (
     auto,
+    auto_all,
     auto_gates,
     auto_step,
     framing_section,
@@ -30,6 +31,7 @@ from tests.skills._auto import (
     round_item,
 )
 from tests.skills._markdown import section, table_row, table_rows, unwrap
+from tests.skills._reflection import reflection_section
 from tests.skills._shown import (
     run_shown_design_commands,
     run_shown_design_line,
@@ -242,7 +244,7 @@ class TestOneAnalysisIsStopped:
         assert _stage(staged, RUNNING) == "stopped"
 
     def test_the_stop_is_shown_in_one_place(self) -> None:
-        assert auto().count("| design_io stop") == 1
+        assert auto_all().count("| design_io stop") == 1
         assert "| design_io stop" in handover_part(STOPPING)
         check = handover_item("check before handing over")
         assert re.search(r"stopped[^.]*Stopping an analysis", check)
@@ -369,7 +371,7 @@ class TestTheReflectionReadsTheStage:
     """A reader of whether the analysis ran follows the one rule (ADR-0061 6)."""
 
     def auto_step(self) -> str:
-        return section(_read_skill("analysis-reflection"), "### Step 1")
+        return reflection_section("### Step 1")
 
     def test_whether_a_result_is_on_record_comes_from_design_io(
         self, staged: Path, capsys: pytest.CaptureFixture[str]
@@ -531,9 +533,7 @@ class TestSeveralNodesGoThroughOneCheck:
         assert re.search(
             r"dialogue agent[^.]*alone writes[^.]*tree[^.]*designs[^.]*HTML", step
         )
-        brief = unwrap(
-            section(self._handover(), "#### The brief of an execution agent")
-        )
+        brief = unwrap(handover_part(BRIEF))
         assert re.search(r"only[^.]*notebook[^.]*verdict[^.]*journal", brief)
         assert re.search(r"[Nn]ever[^.]*`tree_io render`", brief)
         assert re.search(r"[Nn]ever[^.]*`design_io`", brief)
@@ -588,7 +588,7 @@ class TestTheAnalystMayChooseSeveralNodes:
     def test_the_first_choice_and_the_reflection_point_at_the_same_rule(self) -> None:
         for prose in (
             framing_section("#### 4b:"),
-            section(_read_skill("analysis-reflection"), "### Step T7:"),
+            reflection_section("### Step T7:"),
         ):
             assert "Several nodes in one decision" in unwrap(prose)
 
@@ -607,7 +607,7 @@ class TestTheAnalystMayChooseSeveralNodes:
 
     def test_the_gate_shows_every_node_the_decision_names(self) -> None:
         assert "`node_ids`" in unwrap(framing_section("#### 4d:"))
-        step = unwrap(section(_read_skill("analysis-reflection"), "### Step T7:"))
+        step = unwrap(reflection_section("### Step T7:"))
         assert "`node_ids`" in step
 
 
@@ -615,10 +615,10 @@ class TestARoundWithoutAResult:
     """Decision 2 of the Story: every analysis of the round was stopped."""
 
     def _load(self) -> str:
-        return unwrap(section(_read_skill("analysis-reflection"), "### Step T1:"))
+        return unwrap(reflection_section("### Step T1:"))
 
     def test_the_reflection_reads_the_position(self) -> None:
-        load = section(_read_skill("analysis-reflection"), "### Step T1:")
+        load = reflection_section("### Step T1:")
         assert re.search(r"tree_io position --theme", load)
         reference = section(
             _read_skill("analysis-reflection"), "## tree_io / tree_check"
@@ -695,7 +695,7 @@ class TestTheReviewOfTheResultIsExplained:
     """Real-data finding 12 of Epic 35: what a review of the result does, and a suggestion."""
 
     def _ask(self) -> str:
-        return unwrap(section(_read_skill("analysis-reflection"), "### Step 4:"))
+        return unwrap(reflection_section("### Step 4:"))
 
     def test_the_reflection_says_what_the_review_does_before_asking(self) -> None:
         step = self._ask()
@@ -719,7 +719,7 @@ class TestTheReviewOfTheResultIsExplained:
         assert re.search(
             r"guide to a review of the result[^.]*`/analysis-reflection`", item
         )
-        assert "批評し、コメントを残す" not in auto()
+        assert "批評し、コメントを残す" not in auto_all()
 
 
 class TestAnAnswerChangesEveryFieldItTouches:

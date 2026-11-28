@@ -22,9 +22,10 @@ from skills._shared import tree_read
 from skills._shared.tree_changes import AnswerChange, ChangeKind, UncitedBelow
 from skills._shared.tree_words import CHANGE_WORDS
 from tests.skills._auto import round_item
-from tests.skills._markdown import section, table_row, unwrap
+from tests.skills._markdown import table_row, unwrap
+from tests.skills._reflection import reflection_section
 from tests.skills.test_next_candidate_structure import _library
-from tests.skills.test_theme_reflection_structure import _skill, _step
+from tests.skills.test_theme_reflection_structure import _step
 
 OFFER = "#### Before writing: results no answer above rests on"
 NOT_YET = "まだ答えに入れていない分析結果"
@@ -36,7 +37,7 @@ def _drafts() -> str:
 
 
 def _offer() -> str:
-    return section(_skill(), OFFER)
+    return reflection_section(OFFER)
 
 
 class TestAStatementWhoseMeaningStaysIsSentAsItWas:
@@ -115,7 +116,7 @@ class TestResultsNoAnswerAboveRestsOnAreAskedBeforeTheAnswersAreWritten:
     """US-3 AC 4, second half."""
 
     def test_the_question_is_asked_before_the_first_answer_is_sent(self) -> None:
-        write = section(_skill(), "### Step T3: ")
+        write = reflection_section("### Step T3: ")
         assert OFFER in write
         assert write.index(OFFER) < write.index("| tree_io answer")
 
@@ -172,7 +173,7 @@ class TestResultsNoAnswerAboveRestsOnAreAskedBeforeTheAnswersAreWritten:
             assert inner not in shown
 
     def test_the_presentation_lists_both_kinds_the_analyst_left_out(self) -> None:
-        present = section(_skill(), "### Step T5: ")
+        present = reflection_section("### Step T5: ")
         assert f"── {NOT_YET} ──" in present
         assert f"── {DROPPED} ──" in present
 
@@ -240,5 +241,5 @@ class TestThePresentationReadsWhatChangedFromTheTree:
         assert re.search(rf"otherwise[^.]*{DROPPED}", present)
 
     def test_the_reference_lists_the_changes_command(self) -> None:
-        reference = section(_skill(), "## tree_io / tree_check Reference")
+        reference = reflection_section("## tree_io / tree_check Reference")
         assert table_row(reference, "`tree_io changes --theme T`")[1]

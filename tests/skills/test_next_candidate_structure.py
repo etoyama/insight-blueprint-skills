@@ -18,13 +18,15 @@ import pytest
 
 from skills._shared import design_io, tree_io
 from tests.skills._markdown import section, table_row, unwrap
+from tests.skills._reflection import reflection_section
 from tests.skills._shown import run_shown_commands, run_shown_line
+from tests.skills._skill_text import skill_section
 from tests.skills.test_skill_structure import _read_skill
 from tests.skills.test_theme_reflection_structure import _below_words
 
 
 def _reflection(heading: str) -> str:
-    return section(_read_skill("analysis-reflection"), heading)
+    return reflection_section(heading)
 
 
 def _framing(heading: str) -> str:
@@ -383,7 +385,7 @@ class TestAnEmptyGetIsCheckedAgainstTheProject:
     def test_the_path_on_stderr_is_compared_with_the_project(
         self, skill: str, heading: str
     ) -> None:
-        step = unwrap(section(_read_skill(skill), heading))
+        step = unwrap(skill_section(skill, heading))
         assert "`tree_io: no tree at {path}`" in step
         assert re.search(r"(?i)never `cd`[^.]*before", step)
         assert "this project's `.insight`" in step

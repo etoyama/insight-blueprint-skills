@@ -20,7 +20,8 @@ from insight_blueprint.models.tree import Progress
 from skills._shared import design_io, tree_check, tree_io
 from skills._shared._atomic import atomic_write_yaml
 from skills._shared.tree_words import BELOW_WORDS, PROGRESS_WORDS
-from tests.skills._markdown import section, table_row, unwrap
+from tests.skills._markdown import table_row, unwrap
+from tests.skills._reflection import reflection_all, reflection_section
 from tests.skills._shown import PIPED
 from tests.skills.test_skill_structure import _read_skill
 
@@ -32,7 +33,7 @@ def _skill() -> str:
 
 
 def _step(heading: str) -> str:
-    return unwrap(section(_skill(), heading))
+    return unwrap(reflection_section(heading))
 
 
 def _library(insight: Path) -> None:
@@ -128,7 +129,7 @@ class TestThemeReflectionWritesCitedAnswers:
         ],
     )
     def test_each_kind_of_statement_is_explained(self, kind: str, label: str) -> None:
-        row = table_row(section(_skill(), "### Step T2: "), f"`{kind}`")
+        row = table_row(reflection_section("### Step T2: "), f"`{kind}`")
         assert label in row[1]
 
     def test_every_statement_cites_an_event(self) -> None:
@@ -165,7 +166,7 @@ class TestAnswersGoThroughTreeIo:
     ) -> None:
         insight = tmp_path / ".insight"
         _library(insight)
-        (shown,) = PIPED.finditer(section(_skill(), "### Step T3: "))
+        (shown,) = PIPED.finditer(reflection_section("### Step T3: "))
         monkeypatch.setattr("sys.stdin", io.StringIO(shown["payload"]))
 
         code = tree_io._main([*shown["args"].split(), "--base-dir", str(insight)])
@@ -210,7 +211,7 @@ class TestViolationsAreFixedBeforeTheAnalystSeesThem:
 
     @pytest.mark.parametrize("kind", get_args(tree_check.ViolationKind))
     def test_every_kind_of_violation_has_a_fix(self, kind: str) -> None:
-        row = table_row(section(_skill(), "### Step T3: "), f"`{kind}`")
+        row = table_row(reflection_section("### Step T3: "), f"`{kind}`")
         assert row[1], f"no fix for {kind}"
 
     def test_dates_stay_out_of_the_text_and_event_ids_go_in_cites(self) -> None:
@@ -226,12 +227,12 @@ class TestViolationsAreFixedBeforeTheAnalystSeesThem:
 
     def test_a_number_not_cited_is_fixed_by_citing_or_taking_it_out(self) -> None:
         # Epic 35, US-6 AC 4: the row says what the `fix` of tree_io says.
-        row = table_row(section(_skill(), "### Step T3: "), "`number-not-cited`")
+        row = table_row(reflection_section("### Step T3: "), "`number-not-cited`")
         assert "`fix`" in row[1]
         assert "take it out" in row[1]
 
     def test_a_number_is_written_the_way_the_record_wrote_it(self) -> None:
-        row = table_row(section(_skill(), "### Step T3: "), "`number-not-cited`")
+        row = table_row(reflection_section("### Step T3: "), "`number-not-cited`")
         assert "the way the record wrote it" in row[1]
         assert "sign" in row[1]
 
@@ -291,7 +292,7 @@ class TestViolationsAreFixedBeforeTheAnalystSeesThem:
 
 class TestReflectionCallsOnlyCommandsThatExist:
     def test_every_named_tree_io_command_exists(self) -> None:
-        named = {c for tool, c in _COMMAND.findall(_skill()) if tool == "io"}
+        named = {c for tool, c in _COMMAND.findall(reflection_all()) if tool == "io"}
 
         assert {"get", "progress", "answer", "render"} <= named
         for command in named:

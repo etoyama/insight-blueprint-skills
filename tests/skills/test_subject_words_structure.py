@@ -13,7 +13,8 @@ from __future__ import annotations
 
 import pytest
 
-from tests.skills._markdown import section
+from tests.skills._reflection import reflection_section
+from tests.skills._skill_text import skill_text
 from tests.skills.test_skill_structure import _read_skill
 
 WORDS_RULE = (
@@ -28,12 +29,12 @@ WORDS_RULE = (
 def test_a_skill_that_talks_about_the_tree_names_the_analysts_words(
     skill: str,
 ) -> None:
-    assert WORDS_RULE in " ".join(_read_skill(skill).split())
+    assert WORDS_RULE in " ".join(skill_text(skill).split())
 
 
 def test_the_theme_reflection_never_shows_a_round_as_a_bare_number() -> None:
-    present = section(_read_skill("analysis-reflection"), "### Step T5: ")
-    ask = section(_read_skill("analysis-reflection"), "### Step T3: ")
+    present = reflection_section("### Step T5: ")
+    ask = reflection_section("### Step T3: ")
 
     for text in (present, ask):
         assert "回 {" not in text
@@ -43,7 +44,7 @@ def test_the_theme_reflection_never_shows_a_round_as_a_bare_number() -> None:
 
 class TestTheThemeReflectionShowsTheAnalystsWords:
     def _present(self) -> str:
-        return section(_read_skill("analysis-reflection"), "### Step T5: ")
+        return reflection_section("### Step T5: ")
 
     def test_the_answers_are_headed_by_the_subject_and_its_revision(self) -> None:
         present = self._present()
@@ -71,7 +72,7 @@ class TestTheThemeReflectionShowsTheAnalystsWords:
         assert "主題を見直し、同じ文で書き直した" in present
 
     def test_a_theme_without_a_tree_is_sent_to_decide_its_subject(self) -> None:
-        load = section(_read_skill("analysis-reflection"), "### Step T1: ")
+        load = reflection_section("### Step T1: ")
 
         assert "主題と論点を決めよう" in load
 

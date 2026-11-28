@@ -18,7 +18,7 @@ import pytest
 
 from skills._shared import design_io
 from tests.docs._changelog import changelog_entry
-from tests.skills._auto import design_beat, gate_row, round_item
+from tests.skills._auto import auto_all, design_beat, gate_row, round_item
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
 
@@ -201,7 +201,7 @@ class TestTheAnalystCanAskForAnyMetric:
         assert "methodology" in round_item("design")
 
     def test_the_driver_never_uses_the_word_it_keeps_out(self) -> None:
-        assert "響" not in _read_skill("analysis-auto")
+        assert "響" not in auto_all()
 
 
 class TestTheDeferredWordingFollowsTheForms:

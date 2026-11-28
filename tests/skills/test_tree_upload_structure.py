@@ -20,6 +20,7 @@ import pytest
 
 from skills._shared import tree_io
 from tests.skills._markdown import section, table_row, unwrap
+from tests.skills._reflection import reflection_section
 from tests.skills.test_skill_structure import (
     REQUIRED_SECTIONS,
     SKILLS_DIR,
@@ -200,7 +201,7 @@ class TestCallersPointAtTheUpload:
         assert "/tree-upload {theme_id}" in step
 
     def test_reflection_points_at_the_upload(self) -> None:
-        step = unwrap(section(_read_skill("analysis-reflection"), "### Step T5: "))
+        step = unwrap(reflection_section("### Step T5: "))
         assert "/tree-upload {theme_id}" in step
 
 

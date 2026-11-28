@@ -18,6 +18,7 @@ from insight_blueprint.models.tree import TreeDecisionKind
 from skills._shared import tree_io
 from tests.docs._changelog import changelog_entry
 from tests.skills._markdown import section, table_row, unwrap
+from tests.skills._reflection import reflection_section
 from tests.skills._shown import run_shown_commands
 from tests.skills.test_next_candidate_structure import _library
 from tests.skills.test_skill_structure import _read_skill
@@ -27,7 +28,7 @@ RENDER = "`tree_io render --theme {theme_id}`"
 
 
 def _gate() -> str:
-    return section(_read_skill("analysis-reflection"), "### Step T7: ")
+    return reflection_section("### Step T7: ")
 
 
 def _auto_walk() -> str:
@@ -43,7 +44,7 @@ class TestTheDecisionCitesWhatItsReasonRestsOn:
         insight = tmp_path / ".insight"
         _library(insight)
         run_shown_commands(
-            section(_read_skill("analysis-reflection"), "### Step T6: "),
+            reflection_section("### Step T6: "),
             insight,
             monkeypatch,
         )
