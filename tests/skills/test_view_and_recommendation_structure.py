@@ -364,3 +364,80 @@ class TestTheWalkCountsTheViewInsideTheGateOfTheReflection:
         assert re.search(r"(?i)the driver adds no question of its own", item)
         for copied in ("見立て", "勧め"):
             assert copied not in item
+
+
+class TestTheEdgesTheReviewFound:
+    """Paths an agent would have had to guess (review of Story 36.3)."""
+
+    def test_a_node_without_a_statement_yet_is_left_out_of_the_file(
+        self, tmp_path: Path
+    ) -> None:
+        assert re.search(
+            r"(?i)leave out of the file a node whose draft has no statement yet",
+            unwrap(_offer()),
+        )
+        # The command lists the results below a node the file leaves out.
+        base = tmp_path / ".insight"
+        _wide_tree.build(base)
+        _wide_tree.add_round_2_events(base)
+        below = [
+            a
+            for a in _wide_tree.round_2_drafts(base)
+            if a["node_id"] != _wide_tree.ROOT
+        ]
+        listed = tree_io.changes(_wide_tree.THEME, answers=below, base_dir=base)[
+            "uncited_below"
+        ][_wide_tree.ROOT]
+        assert sum(not e["shown_before"] for e in listed) == _wide_tree.NEW_IN_ROUND_2
+
+    def test_the_command_says_when_it_could_not_read_the_file(self) -> None:
+        assert re.search(
+            r"(?i)exit code 1[^.]*nothing is listed[^.]*stderr", unwrap(_offer())
+        )
+
+    def test_a_contradicting_result_is_cited_without_being_confirmed(self) -> None:
+        assert re.search(
+            r"(?i)never cite a result from below that the analyst did not confirm,"
+            r" other than a `contradicts` event",
+            unwrap(_offer()),
+        )
+
+    def test_a_kept_statement_keeps_the_results_it_already_cites(self) -> None:
+        assert re.search(
+            r"(?i)does not yet cite[^.]*that its current answer does not cite",
+            _drafts(),
+        )
+
+    def test_an_earlier_view_stays_beside_a_new_one_unless_the_analyst_replaces_it(
+        self,
+    ) -> None:
+        assert re.search(
+            r"(?i)a view of an earlier round stays beside the new one[^.]*unless the"
+            r" analyst says the new one replaces it",
+            unwrap(_view()),
+        )
+        assert "前の回までのあなたの見立て" in _offer()
+
+    def test_an_earlier_view_that_needs_asking_keeps_the_question(self) -> None:
+        assert re.search(
+            r"(?i)skip the question[^.]*only when[^.]*no statement with"
+            r" `analyst_view` needs asking about",
+            unwrap(_offer()),
+        )
+
+    def test_the_view_shows_the_results_it_rests_on_before_it_is_written(
+        self,
+    ) -> None:
+        assert "根拠: {the numbers of the results it rests on}" in _offer()
+
+    def test_a_first_answer_lists_every_design_with_a_result(self) -> None:
+        assert re.search(
+            r"(?i)when the root has no answer yet[^.]*every design whose journal"
+            r" holds an event",
+            unwrap(_view()),
+        )
+
+    def test_no_sentence_for_the_analyst_says_read_for_the_view(self) -> None:
+        # 読む is kept for reading the analysis note (docs/UBIQUITOUS_LANGUAGE.md).
+        for shown in (_shown(_view()), _shown(_offer())):
+            assert "読" not in shown
