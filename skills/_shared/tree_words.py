@@ -356,11 +356,11 @@ CHANGE_WORDS = {
         "文の種類が変わった。"
         "言い回しを変えただけでも、ここに出る。",
     ),
-    # A provisional word: the human reads it on the real page before it is decided.
+    # The human read the page: "印" is not a word the analyst uses for this.
     ChangeKind.view_changed: (
-        "見立ての印が変わった",
-        f"同じ分析結果について同じ文を言っているが、その文に付けた「（{VIEW_WORD}）」の印が、"
-        "付いたか外れた。",
+        f"{VIEW_WORD}にした・外した",
+        f"同じ分析結果について同じ文を言っているが、その文を「{VIEW_WORD}」にしたか、"
+        "見立てから外した。",
     ),
     ChangeKind.unchanged: (
         "変わっていない",

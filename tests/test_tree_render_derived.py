@@ -150,7 +150,7 @@ class TestWhatAnAnswerChanged:
 
         assert (
             "新しく根拠にした 1、根拠から外した 1、言っていることが変わった 1、"
-            "見立ての印が変わった 0、変わっていない 1" in section
+            "分析者の見立てにした・外した 0、変わっていない 1" in section
         )
 
     def test_an_event_names_the_question_and_the_design_it_comes_from(self) -> None:

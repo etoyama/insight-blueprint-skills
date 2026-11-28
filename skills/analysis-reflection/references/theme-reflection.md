@@ -467,7 +467,7 @@ the drafts.
   The results come from `evidence` in the entry of `answer_changes` for that node and this
   round: say each by its content, with the word the page uses for its kind (`newly_cited`
   新しく根拠にした, `dropped` 根拠から外した, `reworded` 言っていることが変わった,
-  `view_changed` 見立ての印が変わった).
+  `view_changed` 分析者の見立てにした・外した).
 - Under the last three headings, take each entry of `uncited_below` under the node it is
   keyed by, and split them as Step T3 did. An entry whose `shown_before` is `true` is a
   count under 前の回までに見せて、答えに入れなかった分析結果, not a line of its own: it was
