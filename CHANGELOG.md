@@ -26,7 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`design_io checked` gives it): a verdict written again in between is refused. A difference holds what differs
   and the notebook cell it was read in. `design_io checked --id <design>` tells whether the check is
   done for the verdict and the design as they are now: a verdict written again with other content, or a
-  design whose content changed (a move of its status does not count), reads as not checked.
+  design changed in a field the check reads (its status, title and referenced knowledge are not among
+  them), reads as not checked.
   The pre-write hook refuses a hand write of the record. A notebook now writes each metric of the
   design under its `target` as its name, and asks before adding a metric the design does not hold. A
   verdict saved before keeps reading; a metric it names otherwise shows as a difference when its

@@ -89,17 +89,29 @@ def verdict_digest(verdict: bytes) -> str:
     return f"sha256:{hashlib.sha256(verdict).hexdigest()}"
 
 
-# What a design holds beside what it says: a review of the result moves the
-# status and the time, and the check stays the check of the same design.
-_NOT_WHAT_A_DESIGN_SAYS = frozenset({"status", "updated_at", "analysis_started_at"})
+# The fields of a design the subjects of a check are written in. Any other may
+# change and the check stays done: a review of the result moves the status, a
+# reflection adds referenced knowledge, and neither changes what was compared.
+COMPARED_FIELDS = (
+    "analysis_intent",  # with exploration_question, whether there is a criterion
+    "exploration_question",
+    "hypothesis_statement",
+    "data_scope",  # population, grain, denominator
+    "methodology",  # extraction
+    "source_ids",
+    "metrics",  # metrics, what a result is compared against, the criterion
+    "explanatory",
+    "chart",  # figures
+)
 
 
 def design_digest(design: Mapping[str, object]) -> str:
-    """The name a check remembers its design by: what the file says, hashed.
+    """The name a check remembers its design by: its ``COMPARED_FIELDS``, hashed.
 
-    *design* is the file as read. The order of its keys does not count.
+    *design* is the file as read. The order of its keys does not count, and a
+    field that is absent reads as one that is null.
     """
-    said = {k: v for k, v in design.items() if k not in _NOT_WHAT_A_DESIGN_SAYS}
+    said = {field: design.get(field) for field in COMPARED_FIELDS}
     text = json.dumps(said, sort_keys=True, ensure_ascii=False, default=str)
     return f"sha256:{hashlib.sha256(text.encode()).hexdigest()}"
 

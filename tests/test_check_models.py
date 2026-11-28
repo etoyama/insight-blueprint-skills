@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from insight_blueprint.models.check import (
     CODE_SUBJECTS,
+    COMPARED_FIELDS,
     CheckedBy,
     CheckItem,
     CheckResult,
@@ -181,14 +182,34 @@ class TestACheckRemembersTheVerdictAndTheDesignItChecked:
             {"status": "in_review"},
             {"updated_at": "2026-11-29T09:00:00+09:00"},
             {"analysis_started_at": None},
+            {"title": "Another"},
+            {"referenced_knowledge": {"src": ["K1"]}},
+            {"next_action": {"if_supported": "extend"}},
         ],
-        ids=["status", "updated_at", "analysis_started_at"],
+        ids=lambda moved: next(iter(moved)),
     )
-    def test_a_move_of_the_status_leaves_the_digest_of_a_design(
+    def test_a_field_the_check_does_not_read_leaves_the_digest(
         self, moved: dict
     ) -> None:
-        """A review of the result moves the status: the design says what it said."""
+        """A review of the result moves the status: the check stays the check."""
         assert design_digest(DESIGN) == design_digest(DESIGN | moved)
+
+    @pytest.mark.parametrize("field", COMPARED_FIELDS)
+    def test_a_field_the_check_reads_changes_the_digest(self, field: str) -> None:
+        assert design_digest(DESIGN) != design_digest(DESIGN | {field: "changed"})
+
+    def test_the_check_reads_what_its_subjects_are_written_in(self) -> None:
+        assert set(COMPARED_FIELDS) == {
+            "analysis_intent",
+            "exploration_question",
+            "hypothesis_statement",
+            "data_scope",
+            "methodology",
+            "source_ids",
+            "metrics",
+            "explanatory",
+            "chart",
+        }
 
     def test_it_is_current_for_the_verdict_and_the_design_it_checked(self) -> None:
         assert _check().is_current(b"{}", DESIGN)
@@ -197,7 +218,7 @@ class TestACheckRemembersTheVerdictAndTheDesignItChecked:
         assert not _check().is_current(b'{"metrics": {}}', DESIGN)
 
     def test_it_is_not_current_once_the_design_changed(self) -> None:
-        assert not _check().is_current(b"{}", DESIGN | {"title": "Another"})
+        assert not _check().is_current(b"{}", DESIGN | {"chart": [{"type": "bar"}]})
 
     def test_a_record_without_the_digest_of_its_design_is_refused(self) -> None:
         with pytest.raises(ValidationError, match="design_digest"):

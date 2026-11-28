@@ -484,6 +484,27 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         again = design_check.record_check(design_id, _payload_for(verdict), insight)
         assert again["checked"] is True and again["differences"] == []
 
+    def test_another_chart_reads_as_not_checked(self, insight: Path) -> None:
+        design_id = _confirmation(insight)
+        _save_result(insight, design_id)
+        design_check.record_check(design_id, _payload(), insight)
+        charts = [{"intent": "comparison"}, {"intent": "trend"}]
+        design_io.update_design(design_id, {"chart": charts}, insight)
+        assert design_check.check_reading(design_id, insight)["checked"] is False
+
+    def test_a_field_the_check_does_not_read_keeps_the_check(
+        self, insight: Path
+    ) -> None:
+        design_id = _confirmation(insight)
+        _save_result(insight, design_id)
+        design_check.record_check(design_id, _payload(), insight)
+        design_io.update_design(
+            design_id,
+            {"title": "Another title", "referenced_knowledge": {"src": ["K1"]}},
+            insight,
+        )
+        assert design_check.check_reading(design_id, insight)["checked"] is True
+
     def test_a_move_of_the_status_keeps_the_check(self, insight: Path) -> None:
         """A review of the result sends the design to in_review and back."""
         design_id = _confirmation(insight)
