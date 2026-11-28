@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import copy
 
+import pytest
+
 from insight_blueprint.models.tree import AnswerStatement, QuestionTree, StatementKind
 from insight_blueprint.validate import validate_tree_schema
 from skills._shared.tree_changes import (
@@ -188,6 +190,26 @@ class TestHowAnEventChanged:
         )
 
         assert kinds(change) == {E1: ChangeKind.unchanged, E2: ChangeKind.reworded}
+
+    @pytest.mark.parametrize(("before", "after"), [(False, True), (True, False)])
+    def test_the_same_words_marked_or_unmarked_as_the_view_change_the_view(
+        self, before: bool, after: bool
+    ) -> None:
+        """The analyst may take a view back: the table shows that it changed (gate review)."""
+        change = change_of(
+            answer(1, said("claim", "延ばす", E1) | {"analyst_view": before}),
+            answer(2, said("claim", "延ばす", E1) | {"analyst_view": after}),
+        )
+
+        assert kinds(change) == {E1: ChangeKind.view_changed}
+
+    def test_other_words_with_another_mark_are_reworded(self) -> None:
+        change = change_of(
+            answer(1, said("claim", "延ばす", E1)),
+            answer(2, said("claim", "延ばしたい", E1) | {"analyst_view": True}),
+        )
+
+        assert kinds(change) == {E1: ChangeKind.reworded}
 
     def test_the_order_of_the_statements_does_not_make_a_change(self) -> None:
         change = change_of(

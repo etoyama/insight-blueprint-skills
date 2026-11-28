@@ -33,6 +33,8 @@ class ChangeKind(StrEnum):
     newly_cited = "newly_cited"
     dropped = "dropped"
     reworded = "reworded"
+    # The same words, with the mark of the analyst's view put on or taken off.
+    view_changed = "view_changed"
     unchanged = "unchanged"
 
 
@@ -149,6 +151,9 @@ def _evidence_change(
         kind = ChangeKind.dropped
     elif _said(before) != _said(after):
         kind = ChangeKind.reworded
+    # Not refused: the analyst may take a view back, and the reader sees that it moved.
+    elif _views(before) != _views(after):
+        kind = ChangeKind.view_changed
     else:
         kind = ChangeKind.unchanged
     return EvidenceChange(event_id=event_id, kind=kind, before=before, after=after)
@@ -157,6 +162,11 @@ def _evidence_change(
 def _said(statements: tuple[AnswerStatement, ...]) -> set[tuple[StatementKind, str]]:
     """What the statements say, without their order and their other cites."""
     return {(s.kind, s.text) for s in statements}
+
+
+def _views(statements: tuple[AnswerStatement, ...]) -> set[tuple[str, bool]]:
+    """Which of the statements are the analyst's view, by what they say."""
+    return {(s.text, s.analyst_view) for s in statements}
 
 
 def uncited_below(tree: QuestionTree) -> dict[str, tuple[UncitedBelow, ...]]:

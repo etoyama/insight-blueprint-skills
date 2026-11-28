@@ -180,7 +180,7 @@ class TestTheViewOnThePage:
 
 
 class TestAMarkAddedToTheSameWords:
-    """An answer that says the same, now as the analyst's view, did not change."""
+    """An answer that says the same, now as the analyst's view, changed its view (gate review)."""
 
     def _tree(self) -> dict:
         tree = make_tree()
@@ -201,22 +201,15 @@ class TestAMarkAddedToTheSameWords:
         ]
         return tree
 
-    def test_the_card_has_no_mark_of_a_change(self) -> None:
+    def test_the_card_has_the_mark_of_a_change(self) -> None:
         marks = marks_text(page(tree=self._tree()), "LIB-Q02")
 
         changed = MARK_WORDS[Mark.changed][0].format(round=3)
-        assert changed not in marks
+        assert changed in marks
 
-    def test_the_table_of_changes_says_unchanged(self) -> None:
+    def test_the_table_of_changes_says_the_view_changed(self) -> None:
         text = squash(node_card(page(tree=self._tree()), "LIB-Q02").text())
 
-        assert "根拠も、根拠について言っていることも" in text
         assert f"{CHANGE_WORDS[ChangeKind.reworded][0]} 0" in text
-        assert f"{CHANGE_WORDS[ChangeKind.unchanged][0]} 2" in text
-
-    def test_new_words_still_carry_the_mark_of_a_change(self) -> None:
-        tree = self._tree()
-        tree["nodes"][1]["answers"][2]["statements"][0]["text"] = VIEW_TEXT
-        marks = marks_text(page(tree=tree), "LIB-Q02")
-
-        assert MARK_WORDS[Mark.changed][0].format(round=3) in marks
+        assert f"{CHANGE_WORDS[ChangeKind.view_changed][0]} 1" in text
+        assert f"{CHANGE_WORDS[ChangeKind.unchanged][0]} 1" in text

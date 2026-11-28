@@ -356,6 +356,12 @@ CHANGE_WORDS = {
         "文の種類が変わった。"
         "言い回しを変えただけでも、ここに出る。",
     ),
+    # A provisional word: the human reads it on the real page before it is decided.
+    ChangeKind.view_changed: (
+        "見立ての印が変わった",
+        f"同じ分析結果について同じ文を言っているが、その文に付けた「（{VIEW_WORD}）」の印が、"
+        "付いたか外れた。",
+    ),
     ChangeKind.unchanged: (
         "変わっていない",
         "同じ分析結果について、同じ文を言っている。表では畳んで出す。",

@@ -205,7 +205,7 @@ class Context:
         """Whether the table of changes has a row that changed (ADR-0056).
 
         The mark reads the same derived value as the table: a statement that only
-        gained the mark of the analyst's view says the same, so it did not change.
+        gained or lost the mark of the analyst's view changed its view, so it changed.
         """
         return any(
             e.kind is not ChangeKind.unchanged for e in self.changes[node.id].evidence
