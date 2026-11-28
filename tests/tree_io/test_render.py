@@ -800,6 +800,19 @@ class TestChangesWithTheAnswersAboutToBeWritten:
         assert done.returncode == 0, done.stderr
         assert json.loads(done.stdout) == tree_io.changes("LIB", base_dir=world)
 
+    @pytest.mark.parametrize("payload", [None, {}, {"answers": None}])
+    def test_the_flag_without_answers_on_stdin_is_an_error(
+        self, world: Path, payload: dict | None
+    ) -> None:
+        # Giving what the tree holds instead would pass for the list before writing.
+        done = _run_cli(
+            world, "changes", "--theme", "LIB", "--with-answers", payload=payload
+        )
+
+        assert done.returncode == 1
+        assert "--with-answers" in done.stderr
+        assert done.stdout == ""
+
     def test_the_flag_belongs_to_changes_only(self, world: Path) -> None:
         done = _run_cli(world, "progress", "--theme", "LIB", "--with-answers")
 

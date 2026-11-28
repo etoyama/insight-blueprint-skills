@@ -691,6 +691,9 @@ def _main(argv: list[str] | None = None) -> int:
         if args.with_answers and args.command != "changes":
             raise ValueError("--with-answers goes with changes only")
         payload = read_payload() if takes_payload or args.with_answers else {}
+        # Without them the command would give what the tree holds, and pass for more.
+        if args.with_answers and payload.get("answers") is None:
+            raise ValueError('--with-answers needs {"answers": [...]} on stdin')
         if args.command not in ("create", "render") and args.theme is None:
             raise ValueError(f"--theme is required for {args.command}")
         result = handler(args, base, payload)
