@@ -159,18 +159,18 @@ AC の正本はここ。
 
 ## Stories
 
-Story は仮の分割で、起票は PM のセッションが行う。「触る所」が重なる Story は同じ波に置かない。
+Story は PM のセッションが起票した。「触る所」が重なる Story は同じ波に置かない。
 
-| Story | 波 | User Story | 扱う AC | 触る所 | 前提 |
+| Story issue | 波 | User Story | 扱う AC | 触る所 | 前提 |
 |---|---|---|---|---|---|
-| 36.1 SKILL を参照ファイルに分ける | 1 | US-7 | AC 1, AC 2, AC 3 | `skills/analysis-auto/SKILL.md` と `references/`（新規）、`skills/analysis-reflection/SKILL.md` と `references/`（新規）、`tests/skills/` の構造テスト | — |
-| 36.2 分析者の見立ての印と、前の回に見せた結果 | 1 | US-1、US-2 | US-1 AC 2, AC 3、US-2 AC 1 | `src/insight_blueprint/models/tree.py`（`AnswerStatement`）、`skills/_shared/tree_io.py`（`answer`）、`skills/_shared/tree_changes.py`（`UncitedBelow`）、`skills/_shared/tree_read.py`（`changes`）、`tests/test_tree_changes.py`、`tests/tree_io/`、`docs/UBIQUITOUS_LANGUAGE.md`、`docs/ARCHITECTURE.md` の Domain Model | — |
-| 36.3 見立てを先に聞き、根拠を推奨する | 2 | US-1、US-2 | US-1 AC 1, AC 4、US-2 AC 2, AC 3, AC 4 | `skills/analysis-reflection/references/`（テーマの振り返りの Step T2・T3・T5）、`skills/analysis-auto/SKILL.md` の Gate policy の theme reflection の行、`tests/skills/` | 36.1、36.2 |
-| 36.4 計算の点検の記録と、コードが見る項目 | 2 | US-4 | AC 1, AC 2, AC 5 | `skills/_shared/design_check.py`（新規）、`skills/_shared/design_io.py`（`check` の命令）、`src/insight_blueprint/models/`（点検の記録の型）、`src/insight_blueprint/validate.py`（手で書かせない）、`skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-notebook/SKILL.md` の Step 3、`tests/`、`docs/UBIQUITOUS_LANGUAGE.md` | — |
-| 36.5 読む前の点検の段 | 3 | US-4、US-5 | US-4 AC 3, AC 4、US-5 AC 1, AC 2, AC 3 | `skills/analysis-reflection/SKILL.md` の Step 1・2・3、`skills/analysis-auto/SKILL.md` の Gate policy と `references/`（まとめて任せる流れの return と endings、点検エージェントのブリーフ、実行エージェントのブリーフの止まる条件）、`skills/analysis-notebook/SKILL.md` の Step 7、`tests/skills/` | 36.1、36.4 |
-| 36.6 言い過ぎに見える文を見せて聞く | 3 | US-3 | AC 1, AC 2, AC 3 | `skills/analysis-reflection/references/`（テーマの振り返りの Step T2・T3）、`tests/skills/test_answer_keeps_its_words_structure.py` | 36.3 |
-| 36.7 点検の結果と分析者の見立てを画面に出す | 4 | US-1、US-5 | US-1 AC 5、US-5 AC 4 | `skills/_shared/design_note.py`・`design_note_read.py`、`skills/_shared/tree_render_parts.py`・`tree_render_stage.py`・`tree_render_derived.py`、`skills/_shared/tree_words.py`、`skills/_shared/theme_report.py`、`tests/test_tree_render*.py`、`tests/test_design_note*.py` | 36.2、36.4 |
-| 36.8 結果のレビューを絞る | 4 | US-6 | AC 1, AC 2 | `skills/analysis-review/SKILL.md` の Step 3b、`skills/analysis-reflection/SKILL.md` の Step 4、`docs/UBIQUITOUS_LANGUAGE.md`（結果のレビュー）、`tests/skills/` | 36.5 |
+| #303 36.1 SKILL を参照ファイルに分ける | 1 | US-7 | AC 1, AC 2, AC 3 | `skills/analysis-auto/SKILL.md` と `references/`（新規）、`skills/analysis-reflection/SKILL.md` と `references/`（新規）、`tests/skills/` の構造テスト | — |
+| #304 36.2 分析者の見立ての印と、前の回に見せた結果 | 1 | US-1、US-2 | US-1 AC 2, AC 3、US-2 AC 1 | `src/insight_blueprint/models/tree.py`（`AnswerStatement`）、`skills/_shared/tree_io.py`（`answer`）、`skills/_shared/tree_changes.py`（`UncitedBelow`）、`skills/_shared/tree_read.py`（`changes`）、`tests/test_tree_changes.py`、`tests/tree_io/`、`docs/UBIQUITOUS_LANGUAGE.md`、`docs/ARCHITECTURE.md` の Domain Model | — |
+| #305 36.3 見立てを先に聞き、根拠を推奨する | 2 | US-1、US-2 | US-1 AC 1, AC 4、US-2 AC 2, AC 3, AC 4 | `skills/analysis-reflection/references/`（テーマの振り返りの Step T2・T3・T5）、`skills/analysis-auto/SKILL.md` の Gate policy の theme reflection の行、`tests/skills/` | 36.1、36.2 |
+| #306 36.4 計算の点検の記録と、コードが見る項目 | 2 | US-4 | AC 1, AC 2, AC 5 | `skills/_shared/design_check.py`（新規）、`skills/_shared/design_io.py`（`check` の命令）、`src/insight_blueprint/models/`（点検の記録の型）、`src/insight_blueprint/validate.py`（手で書かせない）、`skills/analysis-notebook/references/notebook-contract.md`、`skills/analysis-notebook/SKILL.md` の Step 3、`tests/`、`docs/UBIQUITOUS_LANGUAGE.md` | — |
+| #307 36.5 読む前の点検の段 | 3 | US-4、US-5 | US-4 AC 3, AC 4、US-5 AC 1, AC 2, AC 3 | `skills/analysis-reflection/SKILL.md` の Step 1・2・3、`skills/analysis-auto/SKILL.md` の Gate policy と `references/`（まとめて任せる流れの return と endings、点検エージェントのブリーフ、実行エージェントのブリーフの止まる条件）、`skills/analysis-notebook/SKILL.md` の Step 7、`tests/skills/` | 36.1、36.4 |
+| #308 36.6 言い過ぎに見える文を見せて聞く | 3 | US-3 | AC 1, AC 2, AC 3 | `skills/analysis-reflection/references/`（テーマの振り返りの Step T2・T3）、`tests/skills/test_answer_keeps_its_words_structure.py` | 36.3 |
+| #309 36.7 点検の結果と分析者の見立てを画面に出す | 4 | US-1、US-5 | US-1 AC 5、US-5 AC 4 | `skills/_shared/design_note.py`・`design_note_read.py`、`skills/_shared/tree_render_parts.py`・`tree_render_stage.py`・`tree_render_derived.py`、`skills/_shared/tree_words.py`、`skills/_shared/theme_report.py`、`tests/test_tree_render*.py`、`tests/test_design_note*.py` | 36.2、36.4 |
+| #310 36.8 結果のレビューを絞る | 4 | US-6 | AC 1, AC 2 | `skills/analysis-review/SKILL.md` の Step 3b、`skills/analysis-reflection/SKILL.md` の Step 4、`docs/UBIQUITOUS_LANGUAGE.md`（結果のレビュー）、`tests/skills/` | 36.5 |
 | 人間が実物の画面と言い回しの一覧を読む（FLOW-0019） | 4 の後 | — | — | 合成シナリオで作った論点ツリーの HTML と分析ノート、`tree_words.py` から抜き出した言い回しの一覧 | 36.7 |
 
 - 波 1 は 36.1 と 36.2 で、並行で進められる。36.1 は SKILL.md だけ、36.2 はコードと用語集だけを触る。
@@ -536,3 +536,4 @@ Story の実装に合わせて書く。
 - 2026-11-28 — 見本の後の整合: 用語を変えた所（AC、分析者に見せる言葉、Stories、Ubiquitous Language、Scope、図、ADR-0068〜0071、ADR の索引、ARCHITECTURE の対応表）と、点検の範囲を書き足した所（US-5 AC 4、Scope、ADR-0070 の Decision 1）を1つずつ見た。
 - 2026-11-28 — 人間が d6 を決めた: 分析ノートに点検の節、論点ツリーの HTML に食い違いの印と分析者の見立ての印、レポートに見立ての印を出す。推奨と理由はチャットだけに出す。人間が実物の画面を読む段を 36.7 の後に置く。
 - 2026-11-28 — 人間が初版を承認した（Domain Model 図を含む）。ADR-0068〜0071 を Accepted にした。
+- 2026-11-28 — Story を8本起票した（#303〜#310）。
