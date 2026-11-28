@@ -29,10 +29,19 @@ def skill_section(skill: str, heading: str) -> str:
     """The body under ``heading``, read from the reference file that holds it, else SKILL.md.
 
     A moved part leaves its heading in SKILL.md with a pointer under it, so the reference
-    is read first.
+    is read first. ``heading`` must name one heading line: ``### Step 3`` would match both
+    ``### Step 3:`` in SKILL.md and ``### Step 3H:`` in a reference, and is refused.
     """
-    for path in references(skill):
-        text = path.read_text(encoding="utf-8")
+    texts = [p.read_text(encoding="utf-8") for p in references(skill)]
+    texts.append(_read_skill(skill))
+    matched = {
+        line
+        for text in texts
+        for line in text.splitlines()
+        if line.startswith("#") and line.startswith(heading)
+    }
+    assert len(matched) <= 1, f"{heading!r} names several headings: {sorted(matched)}"
+    for text in texts:
         if any(line.startswith(heading) for line in text.splitlines()):
             return section(text, heading)
-    return section(_read_skill(skill), heading)
+    raise AssertionError(f"{skill} has no heading that starts with {heading!r}")

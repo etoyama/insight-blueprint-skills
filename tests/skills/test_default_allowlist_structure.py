@@ -15,6 +15,7 @@ import tomllib
 import yaml
 
 from tests.skills._markdown import section, table_row, unwrap
+from tests.skills._skill_text import skill_text
 from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
 
 REPO_ROOT = SKILLS_DIR.parent
@@ -158,7 +159,7 @@ class TestDefaultAllowlistIsAlwaysAllowed:
 
     def test_the_replaced_rules_are_gone(self) -> None:
         texts = [_contract()] + [
-            _read_skill(name) for name in ("premortem", "analysis-auto")
+            skill_text(name) for name in ("premortem", "analysis-auto")
         ]
         for text in texts:
             for phrase in STALE_PHRASES:

@@ -13,6 +13,7 @@ import re
 import pytest
 
 from tests.skills._markdown import section, unwrap
+from tests.skills._skill_text import skill_text
 from tests.skills.test_skill_structure import SKILLS_DIR, _prose_files, _read_skill
 
 # Each one points a reader at the source YAML, which holds the connection. The first
@@ -94,7 +95,7 @@ class TestDesignPointsAtSourcesById:
 
     @pytest.mark.parametrize("skill", ["analysis-auto", "analysis-design"])
     def test_the_data_extraction_beat_shows_ids_not_files(self, skill: str) -> None:
-        text = unwrap(_read_skill(skill))
+        text = unwrap(skill_text(skill))
         assert "the data source id + " in text
         assert "the file + " not in text
 

@@ -1,7 +1,7 @@
 # /analysis-auto — Hand several nodes over together
 
 Step 3H of [the /analysis-auto SKILL.md](../SKILL.md), kept here because only a round of
-several nodes needs it.
+several nodes needs all of it. A round of one node reads only *Stopping an analysis*.
 
 ### Step 3H: Hand several nodes over together
 

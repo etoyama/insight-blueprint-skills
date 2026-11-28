@@ -17,6 +17,7 @@ import pytest
 from insight_blueprint.models.analysis_stage import SETTLED, AnalysisStage
 from skills._shared import design_io, tree_io
 from tests.skills._auto import auto as _auto
+from tests.skills._auto import auto_all
 from tests.skills._auto import auto_gates as _gates
 from tests.skills._auto import auto_step as _step
 from tests.skills._auto import framing_section as _framing
@@ -296,7 +297,7 @@ class TestTheWalkGoesOnUntilTheAnalystStops:
         assert "The root question or the aim" in asked
 
     def test_the_driver_never_writes_the_tree(self) -> None:
-        text = _auto()
+        text = auto_all()
         for write in ("create", "add-node", "decide", "answer", "hear", "link"):
             assert f"tree_io {write}" not in text, write
 

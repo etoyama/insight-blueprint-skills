@@ -17,6 +17,7 @@ from skills._shared import design_io, tree_io
 from tests.docs._changelog import changelog_entry
 from tests.skills._markdown import section, table_row, unwrap
 from tests.skills._shown import run_shown_commands, run_shown_line
+from tests.skills._skill_text import skill_text
 from tests.skills.test_skill_structure import SKILLS_DIR, _read_skill
 
 _COMMAND = re.compile(r"(?<![\w/])tree_io ([a-z][a-z-]*)")
@@ -309,7 +310,7 @@ class TestSkillsCallOnlyCommandsTreeIoHas:
         ["analysis-framing", "analysis-design", "analysis-reflection", "tree-upload"],
     )
     def test_every_named_command_exists(self, skill: str) -> None:
-        named = set(_COMMAND.findall(_read_skill(skill)))
+        named = set(_COMMAND.findall(skill_text(skill)))
 
         assert named, f"{skill} names no tree_io command"
         for command in named:

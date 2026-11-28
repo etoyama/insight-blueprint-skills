@@ -189,10 +189,10 @@ Story は PM のセッションが起票した。「触る所」が重なる Sto
 
 | 出す値 | 規則を持つ所 | 出している所 |
 |---|---|---|
-| 引用していない下の結果と、その分け方 | `skills/_shared/tree_changes.py` の `uncited_below`・`UncitedBelow` | コマンドは `tree_read.changes`（`tree_io changes`）。ページは `tree_render_derived.py` の `left_out_sections`・`_left_out_row` と `tree_render_parts.py`。言葉は `tree_words.py`。チャットは `skills/analysis-reflection/SKILL.md` の Step T3・T5 |
+| 引用していない下の結果と、その分け方 | `skills/_shared/tree_changes.py` の `uncited_below`・`UncitedBelow` | コマンドは `tree_read.changes`（`tree_io changes`）。ページは `tree_render_derived.py` の `left_out_sections`・`_left_out_row` と `tree_render_parts.py`。言葉は `tree_words.py`。チャットは `skills/analysis-reflection/references/theme-reflection.md` の Step T3・T5 |
 | 答えの文と、その種類 | `src/insight_blueprint/models/tree.py` の `AnswerStatement` | ページは `tree_render.py`・`tree_render_parts.py`・`tree_render_derived.py`。レポートは `theme_report.py` の `_statements`。分析ノートは `design_note_read.py`。検査は `tree_check.py` |
 | 計算の点検の結果（新規） | `skills/_shared/design_check.py`（新規） | 分析ノートは `design_note.py`（`_results` の前）。ページは `tree_render_stage.py` の `stage_notes`。チャットは `/analysis-reflection` の Step 2 と、まとめて任せる流れの endings |
-| 結果のレビューの説明と目安 | `skills/analysis-reflection/SKILL.md` の Step 4 | `skills/analysis-auto/SKILL.md` のまとめて任せる流れの endings（Step 4 を参照し、写さない）。`skills/analysis-review/SKILL.md` の Step 3b。`docs/UBIQUITOUS_LANGUAGE.md` の「結果のレビュー」 |
+| 結果のレビューの説明と目安 | `skills/analysis-reflection/SKILL.md` の Step 4 | `skills/analysis-auto/references/handover.md`（まとめて任せる流れ）の endings（Step 4 を参照し、写さない）。`skills/analysis-review/SKILL.md` の Step 3b。`docs/UBIQUITOUS_LANGUAGE.md` の「結果のレビュー」 |
 
 Story が使う既存の helper（作り直さない）。
 
@@ -519,7 +519,8 @@ Story の実装に合わせて書く。
   Step 3H 全体を読むことになる）。見出しごとに読む先を書いた表を読み手に持たせる（移す節が増えるたびに表を直す。見出しが1か所にしか無いことは
   `test_skill_references_structure.py` が確かめる）。
 - Consequences: 移した文は ADR へのリンクの深さ（`../../` → `../../../`）と、「the brief below」を `execution-brief.md` へのリンクにした
-  1か所だけが元と違う。本文に残した見出しは他の SKILL の「Step 3H を見よ」の文の行き先として残る。
+  1か所だけが元と違う。本文に残した見出しは他の SKILL の「Step 3H を見よ」の文の行き先として残る。1論点の回でも、分析者が分析を止めるよう頼んだら `handover.md` の *Stopping an analysis* を読む（本文の案内に書いた）。
+  構造テストの読み手は2つ以上の見出し行に前方一致する見出しを拒む。
 
 ### Cross-epic decisions (links to ADR)
 

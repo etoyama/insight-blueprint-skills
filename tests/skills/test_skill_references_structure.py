@@ -87,3 +87,13 @@ def test_relative_links_resolve_from_the_file(path: Path) -> None:
         and not (path.parent / target.split("#", 1)[0]).exists()
     ]
     assert dead == []
+
+
+def test_a_round_of_one_node_reads_how_to_stop_an_analysis() -> None:
+    """The stop is asked in a round of one node as well, and its steps are in handover.md."""
+    pointer = unwrap(section(_read_skill("analysis-auto"), "### Step 3H:"))
+    assert re.search(
+        r"\[references/handover\.md\]\(references/handover\.md\)[^.]*"
+        r"the analyst asks to stop an analysis",
+        pointer,
+    ), pointer

@@ -285,7 +285,8 @@ as well:
 
 A round of several nodes runs this step in place of **framing brief** to **reflection** of
 Step 3. Read [references/handover.md](references/handover.md) when a decision hands several
-nodes over or Step 1 resumes a round of several nodes, and go through its items there.
+nodes over, when Step 1 resumes a round of several nodes, or when the analyst asks to stop an
+analysis in any round, and go through its items there.
 Read [references/execution-brief.md](references/execution-brief.md) before you start an
 execution agent: it says what to write in the agent's brief.
 
