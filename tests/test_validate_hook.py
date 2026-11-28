@@ -8,6 +8,7 @@ running the hook as a subprocess, the way Claude Code invokes it.
 
 from __future__ import annotations
 
+import copy
 import importlib.util
 import json
 import subprocess
@@ -746,6 +747,41 @@ class TestHookSubprocessTree:
                 },
             }
         )
+
+        assert result.returncode == 2
+        assert "the answer of round 1 is history" in result.stderr
+
+    def test_a_write_that_marks_a_written_answer_as_the_analysts_view_is_blocked(
+        self, tmp_path: Path
+    ) -> None:
+        path = tree_path(tmp_path)
+        on_disk = tree_dict()
+        on_disk["nodes"].append(
+            {
+                "id": "LIB-Q02",
+                "question": "期限切れを数えられるか",
+                "parent_question_id": "LIB-Q01",
+                "contribution": "件数が変わる",
+                "answers": [
+                    {
+                        "round": 1,
+                        "root_revision": 1,
+                        "statements": [
+                            {
+                                "kind": "claim",
+                                "text": "取消を除いて比べられた",
+                                "cites": ["LIB-H01-E01"],
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+        path.write_text(dump_yaml(on_disk), encoding="utf-8")
+        marked = copy.deepcopy(on_disk)
+        marked["nodes"][-1]["answers"][0]["statements"][0]["analyst_view"] = True
+
+        result = run_hook(write_tool(path, marked))
 
         assert result.returncode == 2
         assert "the answer of round 1 is history" in result.stderr

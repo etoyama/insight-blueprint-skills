@@ -118,6 +118,9 @@ class AnswerStatement(BaseModel):
     text: str = Field(min_length=1)
     # The form of each cite is checked by QuestionTree, which knows the theme.
     cites: list[str] = Field(min_length=1)
+    # The analyst's own words, which no agent rewords (ADR-0068). A marked
+    # statement cites and is checked like any other.
+    analyst_view: bool = False
 
 
 class Answer(BaseModel):

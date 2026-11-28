@@ -70,6 +70,11 @@ class UncitedBelow(BaseModel):
     last earlier answer of the node that cited the event, ``None`` when no answer
     of the node ever did. ``cited_instead`` holds the events the answer after
     that one newly cited; it is empty when the event was never cited.
+
+    ``shown_before`` says whether the event was listed for this node before the
+    last round of the tree too (ADR-0069): the answers the tree held before that
+    round left it out in the same way. It is ``False`` for a node that had no
+    answer then.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -80,6 +85,7 @@ class UncitedBelow(BaseModel):
     statements: tuple[AnswerStatement, ...]
     last_cited_round: int | None
     cited_instead: tuple[str, ...]
+    shown_before: bool
 
 
 class CitedAbove(BaseModel):
@@ -160,18 +166,11 @@ def uncited_below(tree: QuestionTree) -> dict[str, tuple[UncitedBelow, ...]]:
     nothing to list are left out of the dict.
     """
     cited_now = {node.id: _current_citing(node) for node in tree.nodes}
+    listed_before = _left_out_before(tree, tree.current_round())
     position = {node.id: at for at, node in enumerate(tree.walk())}
     uncited: dict[str, tuple[UncitedBelow, ...]] = {}
     for node in tree.nodes:
-        # The first node to cite an event, level by level, is the nearest one.
-        nearest: dict[str, QuestionNode] = {}
-        level = tree.children(node.id)
-        while level:
-            for below in level:
-                for event_id in cited_now[below.id]:
-                    if event_id not in cited_now[node.id]:
-                        nearest.setdefault(event_id, below)
-            level = [c for below in level for c in tree.children(below.id)]
+        nearest = _nearest_citing_below(tree, node, cited_now)
 
         def page_order(item: tuple[str, QuestionNode]) -> tuple[int, int]:
             event_id, below = item
@@ -180,10 +179,56 @@ def uncited_below(tree: QuestionTree) -> dict[str, tuple[UncitedBelow, ...]]:
         rows = sorted(nearest.items(), key=page_order)
         if rows:
             uncited[node.id] = tuple(
-                _uncited(node, event_id, below, cited_now[below.id])
+                _uncited(
+                    node,
+                    event_id,
+                    below,
+                    cited_now[below.id],
+                    shown_before=event_id in listed_before.get(node.id, ()),
+                )
                 for event_id, below in rows
             )
     return uncited
+
+
+_Citing = dict[str, tuple[AnswerStatement, ...]]
+
+
+def _nearest_citing_below(
+    tree: QuestionTree, node: QuestionNode, cited: dict[str, _Citing]
+) -> dict[str, QuestionNode]:
+    """The events cited below *node* that it leaves out, each with the nearest node citing it.
+
+    *cited* holds what the answer of each node cites, by node id.
+    """
+    # The first node to cite an event, level by level, is the nearest one.
+    nearest: dict[str, QuestionNode] = {}
+    level = tree.children(node.id)
+    while level:
+        for below in level:
+            for event_id in cited[below.id]:
+                if event_id not in cited[node.id]:
+                    nearest.setdefault(event_id, below)
+        level = [c for below in level for c in tree.children(below.id)]
+    return nearest
+
+
+def _left_out_before(tree: QuestionTree, round: int) -> dict[str, set[str]]:
+    """What each node left out of the events cited below it, before *round* was written.
+
+    Only the nodes that had an answer then: a node without one was asked nothing.
+    """
+    answered = {
+        node.id: _citing(answers[-1])
+        for node in tree.nodes
+        if (answers := [a for a in node.answers if a.round < round])
+    }
+    cited_then = {node.id: answered.get(node.id, {}) for node in tree.nodes}
+    return {
+        node.id: set(_nearest_citing_below(tree, node, cited_then))
+        for node in tree.nodes
+        if node.id in answered
+    }
 
 
 def _current_citing(node: QuestionNode) -> dict[str, tuple[AnswerStatement, ...]]:
@@ -196,6 +241,8 @@ def _uncited(
     event_id: str,
     below: QuestionNode,
     citing: dict[str, tuple[AnswerStatement, ...]],
+    *,
+    shown_before: bool,
 ) -> UncitedBelow:
     answer = below.current_answer()
     assert answer is not None  # a node cites something only through an answer
@@ -214,6 +261,7 @@ def _uncited(
         statements=citing[event_id],
         last_cited_round=last_cited_round,
         cited_instead=cited_instead,
+        shown_before=shown_before,
     )
 
 

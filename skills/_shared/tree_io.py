@@ -16,6 +16,8 @@ Usage from a skill (CLI):
     echo '{"answers": [...]}' | python -m skills._shared.tree_io answer --theme LIB
     python -m skills._shared.tree_io render --design LIB-H01   # the analysis note
     python -m skills._shared.tree_io changes --theme LIB   # what each answer changed
+    echo '{"answers": [...]}' | python -m skills._shared.tree_io changes --theme LIB \\
+        --with-answers   # the same, as if those answers were written
     python -m skills._shared.tree_io report --theme LIB   # .insight/reports/LIB.md
 
 Exit 0: done. Exit 1: error (message on stderr). Exit 3 (answer, decide and report
@@ -63,7 +65,7 @@ from skills._shared.tree_check import check_last_decision, check_tree, reported
 from skills._shared.tree_read import (
     ReportStop,
     WalkState,
-    changes,
+    changes_of,
     handover,
     load_tree,
     load_tree_model,
@@ -555,6 +557,26 @@ def _append_round(
     return written, unchanged
 
 
+def changes(
+    theme_id: str,
+    *,
+    answers: list[dict] | None = None,
+    base_dir: Path = DEFAULT_BASE_DIR,
+) -> dict[str, Any]:
+    """What each answer changed, and what the answers above and below cite. Writes nothing.
+
+    With *answers*, the entries ``answer`` takes, the values are those of the
+    tree as that call would leave it: what a skill shows before it writes
+    (ADR-0069). The answers are not checked against the journal here.
+    """
+    tree = load_tree_model(theme_id, base_dir)
+    if answers is not None:
+        entries = TypeAdapter(list[_AnswerEntry]).validate_python(answers)
+        _append_round(tree, entries)
+        tree = _checked(tree, theme_id)
+    return changes_of(tree)
+
+
 def _required(args: argparse.Namespace, name: str) -> str:
     value = getattr(args, name)
     if value is None:
@@ -638,7 +660,7 @@ _COMMANDS: dict[str, tuple[_Handler, bool]] = {
     "position": (_position, False),
     "handover": (lambda a, base, p: handover(a.theme, base_dir=base), False),
     "progress": (lambda a, base, p: progress(a.theme, base_dir=base), False),
-    "changes": (lambda a, base, p: changes(a.theme, base_dir=base), False),
+    "changes": (lambda a, base, p: changes(a.theme, base_dir=base, **p), False),
     "render": (_render, False),
     "report": (_report, False),
 }
@@ -659,12 +681,16 @@ def _main(argv: list[str] | None = None) -> int:
     parser.add_argument("--theme", default=None)
     parser.add_argument("--node", default=None)
     parser.add_argument("--design", default=None)
+    # Stdin is read only on request: a pipe that never closes would block (see read_payload).
+    parser.add_argument("--with-answers", action="store_true")
     args = parser.parse_args(argv)
     base = resolve_base_dir(Path(args.base_dir))
     handler, takes_payload = _COMMANDS[args.command]
 
     try:
-        payload = read_payload() if takes_payload else {}
+        if args.with_answers and args.command != "changes":
+            raise ValueError("--with-answers goes with changes only")
+        payload = read_payload() if takes_payload or args.with_answers else {}
         if args.command not in ("create", "render") and args.theme is None:
             raise ValueError(f"--theme is required for {args.command}")
         result = handler(args, base, payload)

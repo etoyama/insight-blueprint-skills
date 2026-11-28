@@ -338,6 +338,7 @@ class TestWhatTheAnswersBelowCite:
             ),
             last_cited_round=None,
             cited_instead=(),
+            shown_before=False,
         )
 
     def test_a_node_whose_answer_cites_everything_below_lists_nothing(self) -> None:
@@ -702,3 +703,135 @@ class TestTheRoundTheAnswerAboveChangedIt:
         (found,) = cited_above(tree)["LIB-Q03"]
 
         assert found.reworded_in is None
+
+
+# --- Whether a listed event was also listed before the last round (ADR-0069) ---
+
+
+def shown_before(tree: QuestionTree, node_id: str = "LIB-Q01") -> dict[str, bool]:
+    return {u.event_id: u.shown_before for u in uncited_below(tree)[node_id]}
+
+
+class TestWhetherAnEventWasListedBefore:
+    def test_nothing_was_listed_before_the_first_round(self) -> None:
+        tree = three_levels(
+            root=(answer(1, said("claim", "延ばす", E1)),),
+            q02=(
+                answer(1, said("claim", "数えられる", E1), said("claim", "減る", E2)),
+            ),
+        )
+
+        assert shown_before(tree) == {E2: False}
+
+    def test_an_event_left_out_in_the_round_before_too_was_listed_before(self) -> None:
+        tree = three_levels(
+            root=(
+                answer(1, said("claim", "延ばす", E1)),
+                answer(2, said("claim", "延ばしてよい", E1)),
+            ),
+            q02=(
+                answer(1, said("claim", "数えられる", E1), said("claim", "減る", E2)),
+            ),
+        )
+
+        assert shown_before(tree) == {E2: True}
+
+    def test_an_event_first_cited_below_in_the_last_round_was_not(self) -> None:
+        tree = three_levels(
+            root=(
+                answer(1, said("claim", "延ばす", E1)),
+                answer(2, said("claim", "延ばしてよい", E1)),
+            ),
+            q02=(
+                answer(1, said("claim", "数えられる", E1), said("claim", "減る", E2)),
+                answer(
+                    2,
+                    said("claim", "数えられる", E1),
+                    said("claim", "減る", E2),
+                    said("weakening", "1館だけ", E3),
+                ),
+            ),
+        )
+
+        assert shown_before(tree) == {E2: True, E3: False}
+
+    def test_a_node_the_last_round_skipped_keeps_what_was_listed(self) -> None:
+        tree = three_levels(
+            root=(answer(1, said("claim", "延ばす", E1)),),
+            q02=(
+                answer(1, said("claim", "数えられる", E1), said("claim", "減る", E2)),
+                answer(
+                    2,
+                    said("claim", "数えられる", E1),
+                    said("claim", "減る", E2),
+                    said("weakening", "1館だけ", E3),
+                ),
+            ),
+        )
+
+        assert shown_before(tree) == {E2: True, E3: False}
+
+    def test_a_node_first_answered_in_the_last_round_was_shown_nothing(self) -> None:
+        tree = three_levels(
+            root=(answer(2, said("claim", "延ばす", E1)),),
+            q02=(
+                answer(1, said("claim", "数えられる", E1), said("claim", "減る", E2)),
+            ),
+        )
+
+        assert shown_before(tree) == {E2: False}
+
+    def test_a_node_without_an_answer_was_shown_nothing(self) -> None:
+        tree = three_levels(
+            q02=(
+                answer(1, said("claim", "数えられる", E1)),
+                answer(2, said("claim", "数えられる", E1), said("claim", "減る", E2)),
+            ),
+        )
+
+        assert shown_before(tree) == {E1: False, E2: False}
+
+    def test_an_event_the_node_cited_until_the_last_round_was_not_listed(self) -> None:
+        tree = three_levels(
+            root=(
+                answer(1, said("claim", "延ばす", E1), said("claim", "減る", E2)),
+                answer(2, said("claim", "延ばす", E1)),
+            ),
+            q02=(
+                answer(1, said("claim", "数えられる", E1), said("claim", "減る", E2)),
+            ),
+        )
+
+        (found,) = uncited_below(tree)["LIB-Q01"]
+        assert (found.last_cited_round, found.shown_before) == (1, False)
+
+    def test_an_event_the_answer_below_took_up_again_was_not_listed(self) -> None:
+        # Round 2 dropped E2 below, round 3 cites it again: no list held it before round 3.
+        tree = three_levels(
+            root=(answer(1, said("claim", "延ばす", E1)),),
+            q02=(
+                answer(1, said("claim", "数えられる", E1), said("claim", "減る", E2)),
+                answer(2, said("claim", "数えられる", E1)),
+                answer(3, said("claim", "数えられる", E1), said("claim", "減る", E2)),
+            ),
+        )
+
+        assert shown_before(tree) == {E2: False}
+
+    def test_events_further_below_count_the_same_way(self) -> None:
+        tree = three_levels(
+            root=(
+                answer(1, said("claim", "延ばす", E1)),
+                answer(2, said("claim", "延ばしてよい", E1)),
+            ),
+            q02=(answer(1, said("claim", "数えられる", E1)),),
+            q03=(
+                answer(1, said("claim", "金曜に多い", F1)),
+                answer(
+                    2, said("claim", "金曜に多い", F1), said("claim", "雨の日も", F2)
+                ),
+            ),
+        )
+
+        assert shown_before(tree) == {F1: True, F2: False}
+        assert shown_before(tree, "LIB-Q02") == {F1: True, F2: False}

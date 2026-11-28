@@ -321,6 +321,24 @@ class TestUbiquitousLanguage:
         ]
         assert missing == []
 
+    @pytest.mark.parametrize(
+        ("term", "code_name"),
+        [("分析者の見立て", "analyst_view"), ("前の回に見せた結果", "shown_before")],
+    )
+    def test_a_term_of_epic_36_names_the_field_that_holds_it(
+        self, term: str, code_name: str
+    ) -> None:
+        rows = {
+            r[words.TERM]: r
+            for r in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md"))
+        }
+        assert f"`{code_name}`" in rows[term][words.CODE_NAME]
+
+    def test_architecture_domain_model_shows_the_analysts_view(self) -> None:
+        model = words.section(_read("docs/ARCHITECTURE.md"), "Domain Model")
+        statement = model[model.index("class AnswerStatement {") :]
+        assert "analyst_view" in statement[: statement.index("}")]
+
     def test_has_no_removed_feature_terms(self) -> None:
         for row in words.terms_rows(_read("docs/UBIQUITOUS_LANGUAGE.md")):
             text = " ".join(

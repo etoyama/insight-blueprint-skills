@@ -174,14 +174,23 @@ def changes(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
     The page ``render`` writes shows the same values with the content of each
     event; here a skill gets them to show the analyst (ADR-0056).
     """
-    tree = load_tree_model(theme_id, base_dir)
+    return changes_of(load_tree_model(theme_id, base_dir))
+
+
+def changes_of(tree: QuestionTree) -> dict[str, Any]:
+    """The values of ``changes`` for *tree*, which need not be the one on disk."""
     return {
         "answer_changes": [
-            change.model_dump(mode="json") for change in answer_changes(tree).values()
+            _as_json(change) for change in answer_changes(tree).values()
         ],
         "cited_above": _by_node(cited_above(tree)),
         "uncited_below": _by_node(uncited_below(tree)),
     }
+
+
+def _as_json(entry: BaseModel) -> dict[str, Any]:
+    # A statement is shown as the tree file holds it: the analyst's view only where marked.
+    return entry.model_dump(mode="json", exclude_defaults=True)
 
 
 def _by_node(
@@ -189,7 +198,7 @@ def _by_node(
 ) -> dict[str, list[dict[str, Any]]]:
     """The entries of each node as JSON, keyed by the id of that node."""
     return {
-        node_id: [entry.model_dump(mode="json") for entry in entries]
+        node_id: [_as_json(entry) for entry in entries]
         for node_id, entries in found.items()
     }
 

@@ -996,3 +996,42 @@ class TestDesignsNamedByADecision:
         tree = build(raw)
 
         assert "LIB-H01" not in tree.designs_named_by(tree.decisions[-1])
+
+
+class TestTheAnalystsView:
+    """A statement can be marked as the analyst's own words (ADR-0068)."""
+
+    def test_a_statement_is_not_the_analysts_view_unless_marked(self) -> None:
+        tree = QuestionTree.model_validate(tree_with_answers(answer()))
+
+        assert tree.nodes[1].answers[0].statements[0].analyst_view is False
+
+    def test_a_marked_statement_keeps_the_mark(self) -> None:
+        marked = answer(statements=[statement(analyst_view=True)])
+
+        tree = QuestionTree.model_validate(tree_with_answers(marked))
+
+        assert tree.nodes[1].answers[0].statements[0].analyst_view is True
+
+    def test_an_unmarked_statement_dumps_no_mark(self) -> None:
+        both = answer(statements=[statement(), statement(analyst_view=True)])
+
+        dumped = QuestionTree.model_validate(tree_with_answers(both)).model_dump(
+            exclude_defaults=True
+        )
+
+        plain, marked = dumped["nodes"][1]["answers"][0]["statements"]
+        assert "analyst_view" not in plain
+        assert marked["analyst_view"] is True
+
+    def test_a_marked_statement_needs_a_cite_like_any_other(self) -> None:
+        uncited = answer(statements=[statement(analyst_view=True, cites=[])])
+
+        with pytest.raises(ValidationError, match="cites"):
+            QuestionTree.model_validate(tree_with_answers(uncited))
+
+    def test_the_mark_is_true_or_false_and_nothing_else(self) -> None:
+        named = answer(statements=[statement(analyst_view="analyst")])
+
+        with pytest.raises(ValidationError, match="analyst_view"):
+            QuestionTree.model_validate(tree_with_answers(named))

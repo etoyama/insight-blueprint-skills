@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A statement of an answer can be the analyst's view, and `tree_io changes` tells which results
+  were listed the round before.** A statement passed to `tree_io answer` may carry
+  `"analyst_view": true`: it is stored word for word, cites at least one journal event and takes the
+  same tree check as any other. A tree saved without the mark reads as before. Each entry of
+  `uncited_below` in `tree_io changes` now has `shown_before`, derived from the answers the tree held
+  before its last round and never stored. `tree_io changes --with-answers` reads the answers about to
+  be written from stdin and gives the values of the tree as `tree_io answer` would leave it, writing
+  nothing ([ADR-0068](docs/adr/0068-an-answer-statement-may-be-the-analysts-view.md),
+  [ADR-0069](docs/adr/0069-evidence-is-recommended-and-results-shown-before-are-folded.md), #304).
+
 ### Changed
 
 - **`/analysis-auto` and `/analysis-reflection` keep their long parts in reference files.** The hand-over of

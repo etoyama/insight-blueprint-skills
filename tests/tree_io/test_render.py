@@ -500,9 +500,31 @@ class TestChanges:
                     "statements": [friday],
                     "last_cited_round": None,
                     "cited_instead": [],
+                    "shown_before": False,
                 }
             ]
         }
+
+    def test_a_marked_statement_is_listed_with_its_mark(self, world: Path) -> None:
+        view = {
+            "kind": "claim",
+            "text": "延長は試す価値がある",
+            "cites": ["LIB-H01-E01"],
+            "analyst_view": True,
+        }
+        count = {"kind": "claim", "text": "152件ある", "cites": ["LIB-H01-E01"]}
+        tree_io.answer(
+            "LIB",
+            answers=[
+                {"node_id": "LIB-Q01", "statements": [view]},
+                {"node_id": "LIB-Q02", "statements": [count]},
+            ],
+            base_dir=world,
+        )
+
+        (above,) = tree_io.changes("LIB", base_dir=world)["cited_above"]["LIB-Q02"]
+
+        assert above["statements"] == [view]
 
     def test_changes_writes_nothing(self, world: Path) -> None:
         _two_rounds(world)
@@ -651,3 +673,135 @@ class TestWhatADecisionRestsOn:
         assert "別の本文" not in shown
         assert "LIB-H01 は期限切れ152件" not in shown
         assert "check-notice" not in _rendered(world)
+
+
+def _below(text: str, *cites: str) -> dict:
+    return {"kind": "claim", "text": text, "cites": list(cites)}
+
+
+class TestChangesWithTheAnswersAboutToBeWritten:
+    """``changes`` over the tree as ``answer`` would leave it, written nowhere (ADR-0069)."""
+
+    FIRST = [
+        {"node_id": "LIB-Q01", "statements": [_below("延ばす", "LIB-H01-E01")]},
+        {"node_id": "LIB-Q02", "statements": [_below("152件ある", "LIB-H01-E01")]},
+        {"node_id": "LIB-Q03", "statements": [_below("34.6%", "LIB-H02-E01")]},
+    ]
+
+    def _second_event(self, world: Path) -> None:
+        design_io.append_journal_event(
+            "LIB-H01", {"type": "observe", "content": "金曜に多い"}, base_dir=world
+        )
+
+    def _shown(self, found: dict, node_id: str = "LIB-Q01") -> dict[str, bool]:
+        return {
+            u["event_id"]: u["shown_before"] for u in found["uncited_below"][node_id]
+        }
+
+    def test_the_list_is_the_one_the_answers_would_leave(self, world: Path) -> None:
+        tree_io.answer("LIB", answers=self.FIRST, base_dir=world)
+        self._second_event(world)
+        drafts = [
+            {
+                "node_id": "LIB-Q02",
+                "statements": [
+                    _below("152件、金曜に多い", "LIB-H01-E01", "LIB-H01-E02")
+                ],
+            }
+        ]
+
+        found = tree_io.changes("LIB", answers=drafts, base_dir=world)
+
+        assert self._shown(found) == {"LIB-H01-E02": False, "LIB-H02-E01": True}
+
+    def test_a_draft_of_the_node_itself_takes_its_cites_off_the_list(
+        self, world: Path
+    ) -> None:
+        tree_io.answer("LIB", answers=self.FIRST, base_dir=world)
+        drafts = [
+            {
+                "node_id": "LIB-Q01",
+                "statements": [_below("延ばす", "LIB-H01-E01", "LIB-H02-E01")],
+            }
+        ]
+
+        found = tree_io.changes("LIB", answers=drafts, base_dir=world)
+
+        assert "LIB-Q01" not in found["uncited_below"]
+        (change,) = found["answer_changes"]
+        assert (change["previous_round"], change["round"]) == (1, 2)
+
+    def test_nothing_is_written(self, world: Path) -> None:
+        tree_io.answer("LIB", answers=self.FIRST, base_dir=world)
+        path = world / "themes" / "LIB_tree.yaml"
+        before = path.read_bytes()
+
+        tree_io.changes(
+            "LIB",
+            answers=[
+                {"node_id": "LIB-Q02", "statements": [_below("別の文", "LIB-H01-E01")]}
+            ],
+            base_dir=world,
+        )
+
+        assert path.read_bytes() == before
+
+    def test_answers_that_change_nothing_give_what_the_tree_gives(
+        self, world: Path
+    ) -> None:
+        tree_io.answer("LIB", answers=self.FIRST, base_dir=world)
+
+        found = tree_io.changes("LIB", answers=self.FIRST, base_dir=world)
+
+        assert found == tree_io.changes("LIB", base_dir=world)
+
+    def test_an_answer_for_a_node_the_tree_does_not_hold_is_an_error(
+        self, world: Path
+    ) -> None:
+        drafts = [{"node_id": "LIB-Q99", "statements": [_below("文", "LIB-H01-E01")]}]
+
+        with pytest.raises(ValueError, match="LIB-Q99"):
+            tree_io.changes("LIB", answers=drafts, base_dir=world)
+
+    def test_the_cli_reads_the_answers_from_stdin_when_told_to(
+        self, world: Path
+    ) -> None:
+        tree_io.answer("LIB", answers=self.FIRST, base_dir=world)
+        self._second_event(world)
+        drafts = [
+            {
+                "node_id": "LIB-Q02",
+                "statements": [
+                    _below("152件、金曜に多い", "LIB-H01-E01", "LIB-H01-E02")
+                ],
+            }
+        ]
+
+        done = _run_cli(
+            world,
+            "changes",
+            "--theme",
+            "LIB",
+            "--with-answers",
+            payload={"answers": drafts},
+        )
+
+        assert done.returncode == 0, done.stderr
+        assert self._shown(json.loads(done.stdout)) == {
+            "LIB-H01-E02": False,
+            "LIB-H02-E01": True,
+        }
+
+    def test_the_cli_without_the_flag_does_not_read_stdin(self, world: Path) -> None:
+        tree_io.answer("LIB", answers=self.FIRST, base_dir=world)
+
+        done = _run_cli(world, "changes", "--theme", "LIB", payload={"answers": "x"})
+
+        assert done.returncode == 0, done.stderr
+        assert json.loads(done.stdout) == tree_io.changes("LIB", base_dir=world)
+
+    def test_the_flag_belongs_to_changes_only(self, world: Path) -> None:
+        done = _run_cli(world, "progress", "--theme", "LIB", "--with-answers")
+
+        assert done.returncode == 1
+        assert "--with-answers" in done.stderr

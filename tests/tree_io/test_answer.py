@@ -436,3 +436,116 @@ class TestDecideAfterTheStart:
                 round=5,  # type: ignore[call-arg]
                 base_dir=started,
             )
+
+
+VIEW = "延長は試す価値がある。\n  期限切れの多くは通知の遅れで説明できそうだ"
+
+
+def _view(node_id: str, text: str = VIEW, cite: str = "LIB-H01-E01") -> dict:
+    entry = _entry(node_id, text, cite)
+    entry["statements"][0]["analyst_view"] = True
+    return entry
+
+
+class TestTheAnalystsView:
+    """A statement marked as the analyst's view is written like any other (ADR-0068)."""
+
+    @staticmethod
+    def _statements_of(base: Path, node_id: str) -> list[list[dict]]:
+        stored = tree_io.load_tree("LIB", base_dir=base)
+        node = next(n for n in stored["nodes"] if n["id"] == node_id)
+        return [a["statements"] for a in node.get("answers", [])]
+
+    def test_a_marked_statement_is_stored_word_for_word_with_its_mark(
+        self, world: Path
+    ) -> None:
+        result = tree_io.answer("LIB", answers=[_view("LIB-Q01")], base_dir=world)
+
+        assert result["violations"] == []
+        ((stored,),) = self._statements_of(world, "LIB-Q01")
+        assert stored == {
+            "kind": "claim",
+            "text": VIEW,
+            "cites": ["LIB-H01-E01"],
+            "analyst_view": True,
+        }
+
+    def test_an_unmarked_statement_is_stored_without_the_mark(
+        self, world: Path
+    ) -> None:
+        tree_io.answer(
+            "LIB", answers=[_entry("LIB-Q02", "期限切れは152件")], base_dir=world
+        )
+
+        ((stored,),) = self._statements_of(world, "LIB-Q02")
+        assert "analyst_view" not in stored
+
+    def test_a_marked_statement_with_a_number_no_cited_event_records_is_refused(
+        self, world: Path
+    ) -> None:
+        result = tree_io.answer(
+            "LIB", answers=[_view("LIB-Q01", "期限切れは999件だと見る")], base_dir=world
+        )
+
+        (violation,) = result["violations"]
+        assert violation["node_id"] == "LIB-Q01"
+        assert result["written"] == []
+        assert self._statements_of(world, "LIB-Q01") == []
+
+    def test_a_marked_statement_citing_an_event_that_does_not_exist_is_refused(
+        self, world: Path
+    ) -> None:
+        result = tree_io.answer(
+            "LIB", answers=[_view("LIB-Q01", cite="LIB-H01-E99")], base_dir=world
+        )
+
+        assert result["violations"]
+        assert self._statements_of(world, "LIB-Q01") == []
+
+    def test_a_marked_statement_without_a_cite_is_an_error(self, world: Path) -> None:
+        uncited = _view("LIB-Q01")
+        uncited["statements"][0]["cites"] = []
+
+        with pytest.raises(ValueError, match="cites"):
+            tree_io.answer("LIB", answers=[uncited], base_dir=world)
+
+    def test_the_same_words_with_the_mark_added_are_a_new_answer(
+        self, world: Path
+    ) -> None:
+        tree_io.answer("LIB", answers=[_entry("LIB-Q01", VIEW)], base_dir=world)
+
+        result = tree_io.answer("LIB", answers=[_view("LIB-Q01")], base_dir=world)
+
+        assert result["written"] == [
+            {"node_id": "LIB-Q01", "previous_round": 1, "restated": False}
+        ]
+        before, after = self._statements_of(world, "LIB-Q01")
+        assert "analyst_view" not in before[0]
+        assert after[0]["analyst_view"] is True
+
+    def test_a_marked_statement_sent_again_as_it_is_writes_nothing(
+        self, world: Path
+    ) -> None:
+        tree_io.answer("LIB", answers=[_view("LIB-Q01")], base_dir=world)
+
+        result = tree_io.answer("LIB", answers=[_view("LIB-Q01")], base_dir=world)
+
+        assert (result["written"], result["unchanged"]) == ([], ["LIB-Q01"])
+
+    def test_a_tree_saved_before_the_mark_existed_reads_and_takes_a_marked_answer(
+        self, world: Path
+    ) -> None:
+        tree_io.answer(
+            "LIB", answers=[_entry("LIB-Q01", "期限切れは152件")], base_dir=world
+        )
+        saved = (world / "themes" / "LIB_tree.yaml").read_text("utf-8")
+        assert "analyst_view" not in saved
+
+        tree_io.answer("LIB", answers=[_view("LIB-Q01")], base_dir=world)
+
+        first, second = self._statements_of(world, "LIB-Q01")
+        assert first == [
+            {"kind": "claim", "text": "期限切れは152件", "cites": ["LIB-H01-E01"]}
+        ]
+        assert second[0]["analyst_view"] is True
+        assert tree_check.check_theme("LIB", base_dir=world) == []

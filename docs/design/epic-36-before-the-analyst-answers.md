@@ -410,7 +410,7 @@ classDiagram
 | 型 | 種類 | 不変条件 |
 |---|---|---|
 | `AnswerStatement` | 値オブジェクト | 分析者の見立ての印を持つ文も、引用を1つ以上持ち、ツリーの検査を受ける。印は既定で無しで、印の無い保存済みの文はそのまま読める。答えは追記だけなので、書いた文の印は変わらない |
-| `UncitedBelow` | 値オブジェクト（導く） | 前の回の一覧にもあったかは、その論点の前の回の答えと、その時点の下の論点の答えから導く。保存しない。答えが1つの論点では、どの結果も前の回に見せていない |
+| `UncitedBelow` | 値オブジェクト（導く） | 前の回の一覧にもあったかは、論点ツリーの最後の振り返りの回より前の答えだけで同じ一覧を作り、そこにもあったかで導く。保存しない。その回より前に答えを持たない論点では、どの結果も前の回に見せていない（Decision `story-36-2-shown-before-is-told-against-the-tree-before-its-last-round`） |
 | `DesignCheck` | エンティティ（分析設計ごとに0か1つ） | `design_io check` だけが書く。点検した verdict を覚え、いまの verdict と違えば済んでいないと読む。書き直すと前の点検を置き換える。分析設計の状態を変えない |
 | `CheckItem` | 値オブジェクト | 食い違う項目は、何が違うかの文と、根拠にした cell を持つ。指標・図・cell の並びの項目はコードが決め、点検エージェントの返事では上書きできない。検証でない分析設計は、判定の基準の項目を持たない |
 
@@ -500,6 +500,15 @@ sequenceDiagram
 
 Story の実装に合わせて書く。
 
+| モジュール / 関数 | 責務（する） | 境界（しない → 委譲先） |
+|---|---|---|
+| `src/insight_blueprint/models/tree.py::AnswerStatement` | 答えの文が、分析者の見立ての印（`analyst_view`、既定は無し）を持つ。印のある文も引用を1つ以上持つ | 引用先が実在するか、数が本文にあるかは見ない → `tree_check`。印を画面に出さない → `tree_render_*`・`theme_report`（36.7） |
+| `skills/_shared/tree_io.py::answer` | 印の付いた文を、ほかの文と同じ手順で検査してから書く。印だけが違う答えは、新しい回の答えとして書く | 誰の言葉かを確かめない。印を付けるのは呼ぶ側 → `/analysis-reflection` のテーマの振り返り（36.3） |
+| `skills/_shared/tree_changes.py::uncited_below` | 引用していない下の結果ごとに、前の回の一覧にもあったか（`shown_before`）を、論点ツリーだけから導く | 推奨しない。たたんで見せない → 問いは 36.3、ページは 36.7。答えの変化の比べ方は変えない（文の種類と本文だけ） |
+| `skills/_shared/tree_io.py::changes`（`tree_io changes --with-answers`） | 書く前の答えを受け取り、それを書いた後の論点ツリーとして、答えの変化と、上と下の論点での引用を返す。何も書かない | ツリーの検査をしない → `tree_io answer`。標準入力を読むのはフラグがあるときだけ |
+| `skills/_shared/tree_read.py::changes_of` | 渡された論点ツリーから、`tree_io changes` の JSON を作る。文は正本と同じ形で出す（印は、ある文にだけ出る） | ファイルを読まない → `tree_read.changes`・`tree_io.changes` |
+| `tests/_wide_tree.py` | 実データと同じ大きさの合成の論点ツリー（論点7つ、分析設計6つ、2回の振り返り。主題の一覧は書く前に41件、うち17件が前の回に見せた結果）を作る | 実データの値を持たない。HTML の中身は確かめない → 36.7 のテスト |
+
 ## Decisions
 
 ### Decision: story-36-1-three-reference-files-keep-their-headings
@@ -522,6 +531,35 @@ Story の実装に合わせて書く。
   1か所だけが元と違う。本文に残した見出しは他の SKILL の「Step 3H を見よ」の文の行き先として残る。1論点の回でも、分析者が分析を止めるよう頼んだら `handover.md` の *Stopping an analysis* を読む（本文の案内に書いた）。
   構造テストの読み手は2つ以上の見出し行に前方一致する見出しを拒む。
 
+### Decision: story-36-2-shown-before-is-told-against-the-tree-before-its-last-round
+
+- What: 前の回に見せたか（`shown_before`）は、論点ツリーの最後の振り返りの回より前の答えだけで同じ一覧を作り、そこにもあったかで決める。
+  その回より前に答えを持たない論点では、どの結果も前の回に見せていないと読む。
+- Why: 初版の案はその論点の1つ前の答えと比べるとしていた。それだと、最後の回に答えを書かなかった論点で、2つ前の一覧と比べることになる。
+  下の論点だけが新しい結果を引用した回の、上の論点がこの形になる。書く前の答えを渡して導くとき（次の Decision）に主題の答えを渡さなければ、主題もこの形になる。
+  回は論点ツリー全体の番号なので、「最後の回の前」はどの論点でも同じ時点を指す。
+- Criteria: US-2 AC 1（保存せず、論点ツリーだけから導く）と、ADR-0069 の事実（一覧が、前の回にもあった結果と、この回に初めて入った結果に分かれる）。
+  決め手は、主題が最後の回に答えたときは初版の案と同じ値になり、答えなかったときも前の回の一覧と比べられること。
+- Affected modules: `skills/_shared/tree_changes.py`（`uncited_below`、`UncitedBelow`）。
+- Alternatives considered: その論点の1つ前の答えと比べる（初版の案。Why のとおり、最後の回に答えなかった論点でずれる）。
+  その回より前に答えを持たない論点にも一覧があったと読む（見せていない結果までたたむ誤りが出る。たたまない誤りは読む量が増えるだけなので、採らない）。
+- Consequences: Domain Model の表の不変条件を、この規則の文に直した（図は変えていない）。答えが1つの論点でも、その答えが最後の回より前のものなら、
+  残っていた結果は前の回に見せたと読む。1回の振り返りの中で回を2つ書いたとき、1つ目の回に残った結果は2つ目の回では前の回に見せたと読む。
+
+### Decision: story-36-2-changes-takes-the-answers-about-to-be-written
+
+- What: `tree_io changes --with-answers` は、標準入力から `tree_io answer` と同じ形の答えを読み、それを書いた後の論点ツリーとして値を返す。
+  何も書かず、ツリーの検査もしない。フラグが無いときは標準入力を読まない。
+- Why: 答えを書く前の問い（Step T3）の一覧は、検査の前の下書きから作る。保存した論点ツリーだけを読む `tree_io changes` は、書いた後の一覧しか返せない。
+  Epic 34 の Decision `story-34-8-keep-the-words-and-ask-before-writing` は、この一覧を Claude が下書きから作り、コードが導いた値とは照らしていないと書いた。
+  一覧が40件になると、手で作る一覧も、前の回に見せたかの見分けも誤りやすい。ADR-0069 は、たたむ所をコードが導くと決めている。
+- Criteria: US-2 AC 1 と AC 2（36.3 が使う）、ADR-0069 の W3（たたむ所は unit test で確かめる）。36.3 が触るのは参照ファイルだけなので、コードはこの Story で入れる。
+- Affected modules: `skills/_shared/tree_io.py`（`changes`、CLI の `--with-answers`）、`skills/_shared/tree_read.py`（`changes_of`）。
+- Alternatives considered: 足さない（36.3 が「書く前の `tree_io changes` の一覧にある出来事は、前の回に見せた」と読む。下書きからの一覧は手で作るままで、
+  `shown_before` の読み方が書く前と後で変わる）。`changes` がいつも標準入力を読む（アプリの Bash は閉じないパイプを渡すことがあり、今の呼び方が止まる）。
+- Consequences: 36.3 は Step T3 で、書くつもりの答えを `--with-answers` に渡し、`uncited_below` の `shown_before` でたたむ。
+  出力には検査の前の文が入るので、分析者には見せない（ADR-0025。見せるのは出来事の本文）。ブリーフが挙げた範囲（出力に足す項目）の外の判断である。
+
 ### Cross-epic decisions (links to ADR)
 
 - [ADR-0068: 現時点の答えの文は、分析者の見立てとして書ける](../adr/0068-an-answer-statement-may-be-the-analysts-view.md):
@@ -538,7 +576,7 @@ Story の実装に合わせて書く。
 | Story \ Layer | Unit | Integration | E2E |
 |---|---|---|---|
 | Story 36.1 | ✓ | —（SKILL.md と参照ファイルの文だけを動かし、コードは変えていない） | —（振る舞いは変えていない。分ける前の1373件のテストが期待値を変えずに緑のまま、移した文が元の文と一字ずつ同じこと（リンクの深さと、ブリーフを指す1か所を除く）を `diff` で、配布物に `references/` が入ることを手元のプラグインのキャッシュで確かめた。Claude Code のセッションに読み込んで辿ることはしていない） |
-| Story 36.2 | ☐ | ☐ | ☐ |
+| Story 36.2 | ✓ | ✓ | —（画面とチャットの文を変えない。印を画面に出すのは 36.7、問いは 36.3。合成シナリオ `lib` と、実データと同じ大きさの合成の論点ツリーで、印の付いた答えを `tree_io answer` で書き、`changes`・`changes --with-answers`・`render --theme`・`report`・`tree_check` を通して確かめた） |
 | Story 36.3 | ☐ | ☐ | ☐ |
 | Story 36.4 | ☐ | ☐ | ☐ |
 | Story 36.5 | ☐ | ☐ | ☐ |
@@ -558,3 +596,4 @@ Story の実装に合わせて書く。
 - 2026-11-28 — 人間が初版を承認した（Domain Model 図を含む）。ADR-0068〜0071 を Accepted にした。
 - 2026-11-28 — Story を8本起票した（#303〜#310）。
 - 2026-11-28 — Story 36.1 completed: `analysis-auto` の Step 3H と実行エージェントのブリーフ、`analysis-reflection` のテーマの振り返りを `references/` に分けた（本文は 544→325 行、801→376 行）。#294 の2点を確かめ、値なしの `tree_io render --theme` の文を #311 にした。
+- 2026-11-28 — Story 36.2 completed: 答えの文に分析者の見立ての印（`analyst_view`）を足し、引用していない下の結果に前の回の一覧にもあったか（`shown_before`）を持たせた。`tree_io changes --with-answers` で、書く前の答えから同じ値を導ける。実データと同じ大きさの合成の論点ツリー（`tests/_wide_tree.py`）を足した。名前は初版の案のまま。Domain Model の表の `UncitedBelow` の不変条件の文を直した（図は変えていない）。
