@@ -60,8 +60,19 @@ class TestTheDraftNeverFixesAClaimThatSaysMoreOnItsOwn:
 
     def test_the_draft_keeps_such_a_claim_and_asks_about_it(self) -> None:
         assert re.search(
-            r"(?i)a claim of the current answer that seems to say more than the events"
-            r" it cites is sent as it was[^.]*asked about in Step T3[^.]*ADR-0069",
+            r"(?i)a claim of the current answer that no new result bears on and that"
+            r" seems to say more than the events it cites is sent as the current answer"
+            r" has it[^.]*asked about in Step T3[^.]*ADR-0069\)\. Never weaken or drop"
+            r" it on your own\.",
+            _drafts(),
+        )
+
+    def test_a_claim_a_new_result_bears_on_is_rewritten_and_not_asked_about(
+        self,
+    ) -> None:
+        assert re.search(
+            r"(?i)a claim a new result bears on is rewritten for that result[^.]*and is"
+            r" not asked about",
             _drafts(),
         )
 
@@ -74,8 +85,12 @@ class TestTheDraftNeverFixesAClaimThatSaysMoreOnItsOwn:
             _drafts(),
         )
         assert fixed
-        assert "`contradicts`" in fixed.group(0)
-        assert "more than" not in fixed.group(0)
+        # The parenthesis names the contradicts rule and nothing else.
+        assert re.search(
+            r"breaks a rule of this step \(a `contradicts` event cited outside a"
+            r" `weakening`\) or where",
+            fixed.group(0),
+        )
 
 
 class TestTheQuestionListsTheStatementsThatSeemToSayMore:
@@ -100,15 +115,32 @@ class TestTheQuestionListsTheStatementsThatSeemToSayMore:
     def test_the_block_shows_the_heading_and_asks_keep_weaken_or_drop(self) -> None:
         offer = _offer()
         assert f"{OVERSTATED}（{{N}}件）" in offer
-        assert f"{CHOICE}、のどれにしますか。" in offer
+        assert f"{CHOICE}から選べます（書かなければ残します）。" in offer
 
     def test_the_block_says_what_the_cites_say_next_to_the_sentence(self) -> None:
         assert "← 根拠は{what its cited events say}" in _offer()
 
-    def test_a_node_with_such_a_statement_gets_a_block(self) -> None:
+    def test_only_a_claim_of_the_current_answer_is_listed_never_the_new_view(
+        self,
+    ) -> None:
+        assert re.search(
+            r"(?i)only a claim of the current answer is listed, never the view of this"
+            r" round",
+            _part("Overstated"),
+        )
+
+    def test_a_kept_claim_is_listed_again_while_it_still_seems_to_say_more(
+        self,
+    ) -> None:
+        assert re.search(
+            r"(?i)a claim the analyst kept in an earlier round is listed again",
+            _part("Overstated"),
+        )
+
+    def test_a_node_with_such_a_claim_gets_a_block(self) -> None:
         assert re.search(
             r"(?i)show one block for each node that leaves an event out or has a"
-            r" statement that seems to say more than its cites",
+            r" claim that seems to say more than its cites",
             unwrap(_offer()),
         )
 
@@ -116,7 +148,7 @@ class TestTheQuestionListsTheStatementsThatSeemToSayMore:
         self,
     ) -> None:
         assert re.search(
-            r"(?i)skip the question[^.]*only when[^.]*and no statement seems to say"
+            r"(?i)skip the question[^.]*only when[^.]*and no claim seems to say"
             r" more than its cites",
             unwrap(_offer()),
         )
@@ -151,18 +183,43 @@ class TestTheAnalystDecidesWhatHappensToEachStatement:
 
     def test_a_kept_statement_is_sent_character_for_character(self) -> None:
         assert re.search(
-            r"(?i)残す[^.]*sent character for character",
-            unwrap(_offer()),
+            r"^- 残す: the statement is sent character for character",
+            _offer(),
+            re.MULTILINE,
         )
 
     def test_a_dropped_statement_is_left_out(self) -> None:
-        assert re.search(r"(?i)落とす[^.]*left out of the draft", unwrap(_offer()))
+        assert re.search(
+            r"^- 落とす: the statement is left out of the draft\.",
+            _offer(),
+            re.MULTILINE,
+        )
+
+    def test_dropping_the_last_statement_of_a_node_is_asked_and_never_reported(
+        self,
+    ) -> None:
+        offer = unwrap(_offer())
+        assert re.search(
+            r"(?i)when it is the last statement of the node, the answer cannot be"
+            r" written without it[^.]*ask whether to keep or weaken it",
+            offer,
+        )
+        assert re.search(r"(?i)never say in Step T5 that it was dropped", offer)
 
     def test_a_weakened_statement_takes_the_analysts_words_or_says_only_its_cites(
         self,
     ) -> None:
         weaken = unwrap(_offer())
-        assert re.search(r"(?i)弱める[^.]*the analyst's words, exactly", weaken)
+        assert re.search(
+            r"^- 弱める: the statement takes the analyst's words, exactly",
+            _offer(),
+            re.MULTILINE,
+        )
+        assert re.search(
+            r"(?i)the analyst's words, exactly, when they give them, with"
+            r" `\"analyst_view\": true`",
+            weaken,
+        )
         assert re.search(
             r"(?i)rewrite only that statement to say no more than its cited events"
             r"[^.]*same `cites`",
@@ -172,7 +229,7 @@ class TestTheAnalystDecidesWhatHappensToEachStatement:
     def test_the_agent_never_writes_a_weakened_sentence_for_a_view(self) -> None:
         offer = unwrap(_offer())
         assert re.search(
-            r"(?i)a statement with `analyst_view`[^.]*listed here[^.]*（あなたの見立て）",
+            r"(?i)a claim with `analyst_view`[^.]*listed here[^.]*（あなたの見立て）",
             offer,
         )
         assert re.search(

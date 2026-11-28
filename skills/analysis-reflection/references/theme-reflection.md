@@ -96,9 +96,11 @@ rewording the reader cannot tell from a change buries the change that matters.
   `tree_check` reports a violation of it. Change only that part, and name the rule or the
   violation in Step T5. Reading old results again in other words is not a reason to change
   a statement.
-- A claim of the current answer that seems to say more than the events it cites is sent as
-  it was in the draft, and asked about in Step T3: the analyst decides whether to keep,
-  weaken or drop it (ADR-0069). Never weaken or drop it on your own.
+- A claim of the current answer that no new result bears on and that seems to say more
+  than the events it cites is sent as the current answer has it, and asked about in Step
+  T3: the analyst decides whether to keep, weaken or drop it (ADR-0069). Never weaken or
+  drop it on your own. A claim a new result bears on is rewritten for that result as above,
+  and is not asked about.
 - When the 主題の版 has gone up since a node's answer (`root_revision` is lower than the
   current one), rewrite that answer for the new 主題 where its question asks something new,
   and say so in Step T5. A statement the new 主題 does not change still keeps its words.
@@ -220,8 +222,8 @@ with （前の回にも見せた）. Every other result shown before stays in th
 
 **The question.** Skip the question and send the answers only when no node leaves an event
 out, the analyst wrote no view, no statement with `analyst_view` needs asking about
-(Step T2) and no statement seems to say more than its cites. Otherwise show one block for
-each node that leaves an event out or has a statement that seems to say more than its
+(Step T2) and no claim seems to say more than its cites. Otherwise show one block for
+each node that leaves an event out or has a claim that seems to say more than its
 cites, the root first, and ask once for all of them. A block holds these parts in this
 order, and a part with nothing in it is left out:
 
@@ -235,11 +237,12 @@ order, and a part with nothing in it is left out:
 4. **Shown before** — the count of the results shown before that you did not raise.
 5. **Dropped** — the results an earlier answer rested on and the draft does not.
 6. **Overstated** — every claim of the node's current answer that seems to say more than
-   the events it cites, as Step T2 keeps it: the sentence as written, what its cited events
-   say, and, when a result of this round bears on it, that result by its number. Only a
-   statement of the current answer is listed, never the view of this round. A statement
-   with `analyst_view` that seems to say more is listed here with （あなたの見立て）, not
-   again under **The view**, and its line asks for the analyst's words.
+   the events it cites and that Step T2 keeps as it is: the sentence as written and what its
+   cited events say. Only a claim of the current answer is listed, never the view of this
+   round. A claim with `analyst_view` that seems to say more is listed here with
+   （あなたの見立て）, not again under **The view**, and its line asks for the analyst's
+   words. A claim the analyst kept in an earlier round is listed again while it still
+   seems to say more: the record keeps no choice.
 7. **The question** — one sentence for all blocks, after the last block.
 
 ```
@@ -269,15 +272,15 @@ order, and a part with nothing in it is left out:
 
 根拠より強く言っているように見える、前の答えの文（{N}件）
   文1. 「{text}」 ← 根拠は{what its cited events say}
-     {この回の結果（{numbers}）で{what they do to it}。}残す・弱める・落とす、のどれにしますか。
+     残す・弱める・落とすから選べます（書かなければ残します）。
   文2. 「{text}」（あなたの見立て） ← 根拠は{what its cited events say}
-     残す・弱める・落とす、のどれにしますか。弱めるときは、文をあなたの言葉で書いてください。
+     残す・弱める・落とすから選べます（書かなければ残します）。弱めるときは、文をあなたの言葉で書いてください。
 
 ── 論点「{question}」の答え ──
 根拠に入れることを勧める分析結果: 2、4
 根拠より強く言っているように見える、前の答えの文（{N}件）
   文3. 「{text}」 ← 根拠は{what its cited events say}
-     残す・弱める・落とす、のどれにしますか。
+     残す・弱める・落とすから選べます（書かなければ残します）。
 
 「勧めた{N}件を根拠に入れて、答えを書いてよいですか。
  外す番号、足す番号、見立ての言い直し、前の答えの文の扱いがあれば、あわせて書いてください。」
@@ -318,10 +321,15 @@ once the answers are written, taking in another result needs another round.
 For each statement of the part **Overstated**, the reply decides (ADR-0069):
 
 - 残す: the statement is sent character for character, as Step T2 says.
-- 落とす: the statement is left out of the draft.
-- 弱める: the statement takes the analyst's words, exactly, when they give them. When they
-  do not, rewrite only that statement to say no more than its cited events, under the rules
-  of Step T2, with the same `kind` and the same `cites`.
+- 落とす: the statement is left out of the draft. Its cites from below may then show in
+  Step T5 under 前は答えの根拠にしていて、今は外している分析結果. When it is the last statement
+  of the node, the answer cannot be written without it (`tree_io answer` takes one statement
+  or more, and an answer is never withdrawn): say so in the same question and ask whether
+  to keep or weaken it. Never say in Step T5 that it was dropped.
+- 弱める: the statement takes the analyst's words, exactly, when they give them, with
+  `"analyst_view": true`: the words are theirs, and a violation of them is asked as for a
+  view (ADR-0068). When they do not, rewrite only that statement to say no more than its
+  cited events, under the rules of Step T2, with the same `kind` and the same `cites`.
 - A listed statement the reply says nothing of is kept: never weaken or drop it on your
   own.
 - Never write a weakened sentence for a statement with `analyst_view` (ADR-0068). When the
