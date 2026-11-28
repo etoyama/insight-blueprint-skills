@@ -67,10 +67,10 @@ cross-epic な設計判断・長期制約・`docs/ARCHITECTURE.md` への変更�
 | [0065](0065-ids-and-reflection-rounds-are-not-counted-as-numbers.md) | ツリーの検査は、id と振り返りの回を数として数えない | Accepted |
 | [0066](0066-a-design-may-state-its-population-grain-and-denominator.md) | 分析設計は、対象・粒度・分母を持てる | Accepted |
 | [0067](0067-the-hook-keeps-the-journal-marks-of-design-io.md) | 検証 hook は、journal の印を design_io が書いたとおりに保つ | Accepted |
-| [0068](0068-an-answer-statement-may-be-the-analysts-view.md) | 現時点の答えの文は、分析者の見立てとして書ける（ADR-0025 の一部を改訂） | Proposed |
-| [0069](0069-evidence-is-recommended-and-results-shown-before-are-folded.md) | 根拠はエージェントが理由を添えて推奨し、前の回に見せた結果はたたむ | Proposed |
-| [0070](0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md) | 計算の点検を、分析者が読む前に済ませる | Proposed |
-| [0071](0071-a-difference-is-shown-before-reading-and-the-review-of-a-result-is-narrowed.md) | 食い違いは読む前に見せて聞き、結果のレビューは解釈と交絡に絞る | Proposed |
+| [0068](0068-an-answer-statement-may-be-the-analysts-view.md) | 現時点の答えの文は、分析者の見立てとして書ける（ADR-0025 の一部を改訂） | Accepted |
+| [0069](0069-evidence-is-recommended-and-results-shown-before-are-folded.md) | 根拠はエージェントが理由を添えて推奨し、前の回に見せた結果はたたむ | Accepted |
+| [0070](0070-the-computation-is-checked-against-the-design-before-the-analyst-reads.md) | 計算の点検を、分析者が読む前に済ませる | Accepted |
+| [0071](0071-a-difference-is-shown-before-reading-and-the-review-of-a-result-is-narrowed.md) | 食い違いは読む前に見せて聞き、結果のレビューは解釈と交絡に絞る | Accepted |
 
 - ADR-0001〜0008 は旧形式のまま残す。ADR-0009 からは新形式（Problem と Decision Analysis の節を持つ）で書く。
 - 開発フローの決定の出典は [flow/](flow/README.md) にある。repo-template の ADR のコピーで、`FLOW-000N` と表記する。
