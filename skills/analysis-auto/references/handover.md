@@ -117,6 +117,12 @@ tree_io position --theme LIB
      lets you, and never hold back an execution agent, a confirmation or another check for
      a check. When its reply arrives, record it. You alone record it with
      `design_io check`: neither a check agent nor an execution agent does.
+   - A design handed over again at **endings** stays `awaiting_reflection` whatever its
+     agent did, so go by what the agent returned. When it computed again, check it again
+     whatever `checked` says: the code changed even if the verdict did not. When it
+     returned without computing again, start no check, tell the analyst what its agent
+     reported, and ask at **endings** how that analysis ends, with its differences as
+     they were.
    - `running` → it came back without a result. Tell the analyst what its agent reported,
      and hand it over again only if they ask. Say as well that the round stays open until
      this analysis is handed over again or stopped (*Stopping an analysis*).
@@ -182,8 +188,8 @@ echo '{"answers": "LIB-H04-E01", "content": "2025年10月以降の予約に絞�
      agent, with the differences in its brief, each as written
      ([execution-brief.md](execution-brief.md)), and is not ended on this reply, whatever
      else the reply says of it. No premortem runs again: the extraction does not change. A design that a review of its result holds cannot be computed again:
-     say so. When it returns, go through **return**, which starts its check again, and come
-     back to this item to ask how that analysis ends. The other designs go on with their
+     say so. When it returns, go through **return**, which starts its check again when the
+     agent computed again, and come back to this item to ask how that analysis ends. The other designs go on with their
      answers meanwhile.
    - Then do what each answer chose, as `/analysis-reflection` says. A design that ends goes
      through its Step 4, one design after another, never in parallel: the `conclude` event,

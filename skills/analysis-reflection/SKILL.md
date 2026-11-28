@@ -129,6 +129,7 @@ from the endings of `/analysis-auto`. It asks the analyst nothing. Before the re
 design_io checked --id {design_id}
 ```
 
+- A design that has ended is not checked. Show its 点検 line only when `checked` is true.
 - `checked` is true: the check is done for the verdict and the design as they are now, so
   never run it again.
 - `has_verdict` is true and `checked` is false: run the check now, before the block. Read
@@ -137,7 +138,6 @@ design_io checked --id {design_id}
   recorded. Then go on with what `design_io check` printed.
 - `has_verdict` is false: no notebook left a verdict, so there is no computation to check.
   Leave the 点検 block out.
-- A design that has ended is not checked. Show its 点検 line only when `checked` is true.
 - If the check cannot be recorded, show the stderr and write 「点検できなかった」 with the
   reason as the 点検 line. Step 3 still goes on.
 
@@ -239,8 +239,8 @@ first question, above its heading, so that the analyst knows them before answeri
 - 「分析設計どおりに計算し直させる」 → run `/analysis-notebook {design_id}` in this session, with
   the differences as what to put right: the notebook is changed to compute as the design
   says, run, and its verdict recorded again, and no premortem runs again, since the
-  extraction does not change. Then come back to Step 2 of this skill, which checks the new verdict before
-  it shows 読むもの again, and ask the three questions after that. Differences that remain
+  extraction does not change. Then come back to Step 2 of this skill, which checks the new verdict whatever `checked`
+  says before it shows 読むもの again, and ask the three questions after that. Differences that remain
   are shown and asked about in the same way.
 - A design that a review of its result holds (`in_review` or `revision_requested`) takes
   no new result, so it cannot be computed again until the review returns it to
