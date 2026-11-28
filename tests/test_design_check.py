@@ -440,7 +440,7 @@ class TestTheReaderTellsWhetherTheCheckIsDone:
         grain = {"result": "differs", "note": "per visit", "cell": "data_prep"}
         written = design_check.record_check(design_id, _payload(grain=grain), insight)
         reading = design_check.check_reading(design_id, insight)
-        assert reading == written
+        assert _json(reading) == _json(written)
         assert _json(reading)["checked"] is True
         assert len(_json(reading)["items"]) == 9
 

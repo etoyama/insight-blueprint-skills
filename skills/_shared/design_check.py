@@ -154,8 +154,11 @@ def _record_path(design_id: str, base_dir: Path) -> Path:
     return Path(base_dir) / "designs" / f"{design_id}_check.yaml"
 
 
-def _reader_items(payload: dict, design: AnalysisDesign) -> list[CheckItem]:
-    """The items of the reader, held to the subjects a reader answers for *design*."""
+def _reader_items(payload: dict) -> list[CheckItem]:
+    """The items of the reader; the subjects of the code are refused.
+
+    Which subjects a check holds for its design is the rule of ``DesignCheck``.
+    """
     given = payload.get("items")
     if not isinstance(given, list):
         raise ValueError("items: give the list of the subjects the reader checked")
@@ -166,14 +169,6 @@ def _reader_items(payload: dict, design: AnalysisDesign) -> list[CheckItem]:
             f"items: {', '.join(of_the_code)} are decided by design_io check itself; "
             "leave them out"
         )
-    has_criterion = any(i.subject is CheckSubject.criterion for i in items)
-    judges = design.form().judges
-    if has_criterion and not judges:
-        raise ValueError(
-            "items: criterion is checked only for a design that judges a hypothesis"
-        )
-    if judges and not has_criterion:
-        raise ValueError("items: not checked: criterion")
     return items
 
 
@@ -217,7 +212,7 @@ def record_check(
                 "(verdict_digest differs): read it again, then check"
             )
         items = [
-            *_reader_items(payload, design),
+            *_reader_items(payload),
             *code_items(
                 design,
                 verdict,
@@ -233,6 +228,7 @@ def record_check(
                 "design_digest": design_digest(data),
                 "checked_by": payload.get("checked_by"),
                 "items": sorted(items, key=lambda item: order.index(item.subject)),
+                "judges": design.form().judges,
             }
         )
         record = check.model_dump(mode="json") | {

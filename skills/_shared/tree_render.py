@@ -125,6 +125,7 @@ _TREE_CSS = """.legend { background: var(--panel); border: 1px solid var(--line)
 .mark { color: var(--mark); font-weight: 700; margin-right: .6rem; }
 .statements { margin: .3rem 0; padding-left: 1.2rem; }
 .kind { font-weight: 700; }
+.view { font-weight: 700; color: var(--mark); }
 .notice { border: 1px solid var(--investigating); padding: .4rem .8rem; }
 .notes { margin: .3rem 0; padding-left: 1.2rem; }
 .design-note { scroll-margin-top: 4rem; }

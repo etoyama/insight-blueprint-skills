@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from enum import StrEnum
 from typing import Self
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from insight_blueprint.models.design import AnalysisDesign
 
@@ -36,6 +36,16 @@ class CheckSubject(StrEnum):
 
 # The subjects the code decides. A reader's answer never stands for them (ADR-0070 6).
 CODE_SUBJECTS = (CheckSubject.metrics, CheckSubject.figures, CheckSubject.cells)
+
+
+def required_subjects(judges: bool) -> frozenset[CheckSubject]:
+    """The subjects a check of a design holds, each once.
+
+    Only a design that judges a hypothesis (``DesignForm.judges``) has a
+    criterion to compare.
+    """
+    every = frozenset(CheckSubject)
+    return every if judges else every - {CheckSubject.criterion}
 
 
 class CheckResult(StrEnum):
@@ -136,6 +146,9 @@ class DesignCheck(BaseModel):
     design_digest: str
     checked_by: CheckedBy
     items: list[CheckItem]
+    # Whether the design judges a hypothesis, as the writer read it. The record
+    # does not keep it: a record read back holds the criterion or not, as written.
+    judges: bool | None = Field(default=None, exclude=True)
 
     @model_validator(mode="after")
     def _each_subject_is_checked_once(self) -> Self:
@@ -143,13 +156,13 @@ class DesignCheck(BaseModel):
         twice = [s.value for s, n in count.items() if n > 1]
         if twice:
             raise ValueError(f"items: given more than once: {', '.join(twice)}")
-        # Only a design that judges a hypothesis has a criterion; the model does
-        # not see the design, so the writer holds that rule.
-        missing = [
-            s.value
-            for s in CheckSubject
-            if s is not CheckSubject.criterion and s not in count
-        ]
+        given = set(count)
+        if self.judges is False and CheckSubject.criterion in given:
+            raise ValueError(
+                "items: criterion is checked only for a design that judges a hypothesis"
+            )
+        required = required_subjects(judges=bool(self.judges))
+        missing = [s.value for s in CheckSubject if s in required and s not in given]
         if missing:
             raise ValueError(f"items: not checked: {', '.join(missing)}")
         return self

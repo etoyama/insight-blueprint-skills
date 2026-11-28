@@ -45,11 +45,11 @@ from skills._shared.tree_words import (
     HEARD_WORD,
     KIND_WORDS,
     RESULT_WORD,
-    VIEW_WORD,
     Mark,
     left_as_written,
     mark_text,
     reflection,
+    view_mark,
 )
 
 
@@ -263,9 +263,7 @@ def statement_item(statement: AnswerStatement, *tail: str) -> Html:
     return el(
         "li",
         el("span", KIND_WORDS[statement.kind][0], class_="kind"),
-        el("span", f"（{VIEW_WORD}）", class_="view")
-        if statement.analyst_view
-        else None,
+        el("span", mark, class_="view") if (mark := view_mark(statement)) else None,
         f" {statement.text}",
         *tail,
     )

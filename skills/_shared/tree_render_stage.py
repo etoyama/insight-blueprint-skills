@@ -56,7 +56,6 @@ STAGE_CSS = """.progress-stopped { border-left-color: var(--stopped); border-lef
   margin: 1rem 0;
 }
 .asks h2 { margin-top: .6rem; }
-.view { font-weight: 700; color: var(--mark); }
 .differences { margin: .2rem 0; padding-left: 1.2rem; }
 """
 

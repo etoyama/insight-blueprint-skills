@@ -14,7 +14,7 @@ from collections import Counter
 
 import pytest
 
-from insight_blueprint.models.tree import Progress
+from insight_blueprint.models.tree import AnswerStatement, Progress
 from skills._shared import tree_words
 from skills._shared.tree_words import Mark
 from tests._tree_page import (
@@ -284,3 +284,18 @@ class TestEachPhrasingIsSpelledOnce:
         self, table: dict, words: list[str]
     ) -> None:
         assert [word for word, _ in table.values()] == words
+
+
+class TestTheMarkOfTheAnalystsView:
+    """The page and the report mark a statement of the analyst's view in one word."""
+
+    STATEMENT = {"kind": "claim", "text": "延ばす", "cites": ["LIB-H01-E01"]}
+
+    def test_a_marked_statement_says_whose_view_it_is(self) -> None:
+        marked = AnswerStatement.model_validate(self.STATEMENT | {"analyst_view": True})
+        assert tree_words.view_mark(marked) == f"（{tree_words.VIEW_WORD}）"
+
+    def test_an_unmarked_statement_has_no_mark(self) -> None:
+        assert (
+            tree_words.view_mark(AnswerStatement.model_validate(self.STATEMENT)) == ""
+        )

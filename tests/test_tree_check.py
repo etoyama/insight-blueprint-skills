@@ -567,6 +567,27 @@ class TestCheckTheme:
 
         assert tree_check.check_theme("LIB", tmp_path) == []
 
+    def test_a_statement_of_the_analysts_view_is_checked_like_any_other(
+        self, tmp_path: Path
+    ) -> None:
+        view = claim("延ばすべきだ", "LIB-H01-E09") | {"analyst_view": True}
+        write_tree(
+            tmp_path,
+            tree_with(
+                node(
+                    "LIB-Q02",
+                    "LIB-Q01",
+                    design_ids=["LIB-H01"],
+                    answers=[answer_of(view)],
+                )
+            ),
+        )
+        write_journal(tmp_path, "LIB-H01", (1, "期限切れは152件"))
+
+        found = tree_check.check_theme("LIB", tmp_path)
+
+        assert [(v.kind, v.text) for v in found] == [("missing-event", "LIB-H01-E09")]
+
     def test_a_journal_file_that_does_not_exist_makes_the_cite_missing(
         self, tmp_path: Path
     ) -> None:

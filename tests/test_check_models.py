@@ -18,6 +18,7 @@ from insight_blueprint.models.check import (
     CheckSubject,
     DesignCheck,
     design_digest,
+    required_subjects,
     verdict_digest,
 )
 
@@ -137,6 +138,29 @@ class TestACheckHoldsEachSubjectOnce:
     def test_a_subject_given_twice_is_refused(self) -> None:
         with pytest.raises(ValidationError, match="grain"):
             _check([*_items(), {"subject": "grain", "result": "agrees"}])
+
+    def test_a_design_that_judges_needs_every_subject(self) -> None:
+        assert required_subjects(judges=True) == frozenset(CheckSubject)
+
+    def test_a_design_that_does_not_judge_needs_all_but_the_criterion(self) -> None:
+        assert required_subjects(judges=False) == frozenset(CheckSubject) - {
+            CheckSubject.criterion
+        }
+
+    def test_a_check_of_a_design_that_judges_without_the_criterion_is_refused(
+        self,
+    ) -> None:
+        with pytest.raises(ValidationError, match="criterion"):
+            _check(_items(without=("criterion",)), judges=True)
+
+    def test_a_check_of_a_design_that_does_not_judge_with_a_criterion_is_refused(
+        self,
+    ) -> None:
+        with pytest.raises(ValidationError, match="criterion"):
+            _check(judges=False)
+
+    def test_whether_the_design_judges_is_not_written_in_the_record(self) -> None:
+        assert "judges" not in _check(judges=True).model_dump(mode="json")
 
     def test_who_checked_is_required(self) -> None:
         with pytest.raises(ValidationError, match="checked_by"):

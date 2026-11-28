@@ -24,6 +24,7 @@ from insight_blueprint.models.design import DesignForm, DesignStatus
 from insight_blueprint.models.tree import (
     AimKind,
     Answer,
+    AnswerStatement,
     Progress,
     QuestionTree,
     StatementKind,
@@ -307,6 +308,11 @@ VIEW_MEANING = (
     "エージェントは言い換えていない。ほかの文と同じく journal の出来事を引用し、"
     "記録と照らして確かめる。"
 )
+
+
+def view_mark(statement: AnswerStatement) -> str:
+    """The mark after the kind of *statement*; empty for one the analyst did not say."""
+    return f"（{VIEW_WORD}）" if statement.analyst_view else ""
 
 
 MARK_WORDS = {

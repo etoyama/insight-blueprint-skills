@@ -23,7 +23,6 @@ from insight_blueprint.models.tree import (
     Aim,
     AimKind,
     Answer,
-    AnswerStatement,
     NextCandidate,
     Progress,
     StatementKind,
@@ -51,9 +50,9 @@ from skills._shared.tree_words import (
     NEXT_QUESTION_HEADING,
     PROGRESS_WORDS,
     SUBJECT,
-    VIEW_WORD,
     below_text,
     reflection,
+    view_mark,
 )
 from skills._shared.verdict_table import Fixed, Text, VerdictMetric, metric_tables
 
@@ -294,17 +293,12 @@ def _aim_sentence(aim: Aim) -> str:
     return _AIM_SENTENCES[aim.kind].format(**fields)
 
 
-def _view(statement: AnswerStatement) -> str:
-    """The mark of a statement the analyst said in their own words (ADR-0068)."""
-    return f"（{VIEW_WORD}）" if statement.analyst_view else ""
-
-
 def _statements(answer: Answer, cites: _Cites) -> list[str]:
     blocks: list[str] = []
     for kind in _KIND_ORDER:
         heading = KIND_WORDS[kind][0]
         lines = [
-            f"- {_view(s)}{_e(s.text)}{cites.mark(s.cites)}"
+            f"- {view_mark(s)}{_e(s.text)}{cites.mark(s.cites)}"
             for s in answer.statements
             if s.kind is kind
         ]
