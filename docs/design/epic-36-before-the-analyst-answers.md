@@ -203,7 +203,7 @@ Story は PM のセッションが起票した。「触る所」が重なる Sto
 
 | 出す値 | 規則を持つ所 | 出している所 |
 |---|---|---|
-| 引用していない下の結果と、その分け方 | `skills/_shared/tree_changes.py` の `uncited_below`・`UncitedBelow` | コマンドは `tree_read.changes`（`tree_io changes`）。ページは `tree_render_derived.py` の `left_out_sections`・`_left_out_row` と `tree_render_parts.py`。言葉は `tree_words.py`。チャットは `skills/analysis-reflection/references/theme-reflection.md` の Step T3・T5 |
+| 引用していない下の結果と、その分け方 | `skills/_shared/tree_changes.py` の `uncited_below`・`UncitedBelow` | コマンドは `tree_io.changes`（`tree_io changes`）。ページは `tree_render_derived.py` の `left_out_sections`・`_left_out_row` と `tree_render_parts.py`。言葉は `tree_words.py`。チャットは `skills/analysis-reflection/references/theme-reflection.md` の Step T3・T5 |
 | 答えの文と、その種類 | `src/insight_blueprint/models/tree.py` の `AnswerStatement` | ページは `tree_render.py`・`tree_render_parts.py`・`tree_render_derived.py`。レポートは `theme_report.py` の `_statements`。分析ノートは `design_note_read.py`。検査は `tree_check.py` |
 | 計算の点検の結果（新規） | `skills/_shared/design_check.py`（新規） | 分析ノートは `design_note.py`（冒頭の状態の欄に1行、節は付録の側の、分析コードの直前）。ページは `tree_render_stage.py` の `stage_notes`。チャットは `/analysis-reflection` の Step 2 と、まとめて任せる流れの endings |
 | 結果のレビューの説明と目安 | `skills/analysis-reflection/SKILL.md` の Step 4 | `skills/analysis-auto/references/handover.md`（まとめて任せる流れ）の endings（Step 4 を参照し、写さない）。`skills/analysis-review/SKILL.md` の Step 3b。`docs/UBIQUITOUS_LANGUAGE.md` の「結果のレビュー」 |
@@ -521,8 +521,8 @@ Story の実装に合わせて書く。
 | `src/insight_blueprint/models/tree.py::AnswerStatement` | 答えの文が、分析者の見立ての印（`analyst_view`、既定は無し）を持つ。印のある文も引用を1つ以上持つ | 引用先が実在するか、数が本文にあるかは見ない → `tree_check`。印を画面に出さない → `tree_render_*`・`theme_report`（36.7） |
 | `skills/_shared/tree_io.py::answer` | 印の付いた文を、ほかの文と同じ手順で検査してから書く。印だけが違う答えは、新しい回の答えとして書く | 誰の言葉かを確かめない。印を付けるのは呼ぶ側 → `/analysis-reflection` のテーマの振り返り（36.3） |
 | `skills/_shared/tree_changes.py::uncited_below` | 引用していない下の結果ごとに、前の回の一覧にもあったか（`shown_before`）を、論点ツリーだけから導く | 推奨しない。たたんで見せない → 問いは 36.3、ページは 36.7。答えの変化の比べ方は変えない（文の種類と本文だけ） |
-| `skills/_shared/tree_io.py::changes`（`tree_io changes --with-answers`） | 書く前の答えを受け取り、それを書いた後の論点ツリーとして、答えの変化と、上と下の論点での引用を返す。何も書かない | ツリーの検査をしない → `tree_io answer`。標準入力を読むのはフラグがあるときだけ |
-| `skills/_shared/tree_read.py::changes_of` | 渡された論点ツリーから、`tree_io changes` の JSON を作る。文は正本と同じ形で出す（印は、ある文にだけ出る） | ファイルを読まない → `tree_read.changes`・`tree_io.changes` |
+| `skills/_shared/tree_io.py::changes`（`tree_io changes --with-answers`） | 書く前の答えを受け取り、それを書いた後の論点ツリーとして、答えの変化と、上と下の論点での引用を返す。何も書かない | ツリーの検査をしない → `tree_io answer`。標準入力を読むのはフラグがあるときだけで、`answers` 以外のキーは断る |
+| `skills/_shared/tree_read.py::changes_of` | 渡された論点ツリーから、`tree_io changes` の JSON を作る。文は正本と同じ形で出す（印は、ある文にだけ出る） | ファイルを読まない → `tree_io.changes` |
 | `src/insight_blueprint/models/check.py::DesignCheck`・`CheckItem` | 点検の記録の形と、その不変条件を持つ。記録がいまの verdict と分析設計のものか（`is_current`）と、食い違う項目（`differences`）を返す。分析設計の名前（`design_digest`）は、点検の項目が読む欄（`COMPARED_FIELDS`）だけで作る | 分析設計を知らない。判定の基準の項目を持つべきかは見ない → `design_check.record_check`。ファイルを読まない |
 | `skills/_shared/design_check.py::code_items` | 分析設計・verdict・notebook から、指標・図・cell の並びの項目を決める。指標は `target` と verdict の指標の名前を照らし、図は数を比べ、cell の並びは分析ノートと同じ切り方（`notebook_cells`）で読む。比べる指標と図は、分析ノートが見せるものと同じ（`notebook_files`） | 対象・粒度・分母・抽出・比べ先・判定の基準は読まない → 点検エージェント（36.5）。数を計算し直さない |
 | `skills/_shared/notebook_files.py` | `.insight/notebooks/` の notebook・verdict・図のファイルを読む、ただ1つの読み手。リンクを読まない。verdict の指標（中身がオブジェクトのものだけ）と図（名前が正しく、PNG のファイルがあるものだけ）、cell の切り方を持つ。分析ノートと計算の点検が、同じものを読む | 他の `skills/_shared` のモジュールを import しない。画面に出さない → `design_note_read.py`。分析設計と比べない → `design_check.py` |

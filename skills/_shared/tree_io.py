@@ -612,6 +612,24 @@ def _report(args: argparse.Namespace, base: Path, payload: dict) -> dict[str, An
     return result
 
 
+def _changes(args: argparse.Namespace, base: Path, payload: dict) -> dict[str, Any]:
+    if not args.with_answers:
+        return changes(args.theme, base_dir=base)
+    # Stdin is read only on request: a pipe that never closes would block (see read_payload).
+    given = read_payload()
+    if not isinstance(given, dict):
+        raise ValueError('--with-answers needs {"answers": [...]} on stdin')
+    others = sorted(set(given) - {"answers"})
+    if others:
+        raise ValueError(
+            f"--with-answers takes only answers on stdin, not {', '.join(others)}"
+        )
+    # Without them the command would give what the tree holds, and pass for more.
+    if given.get("answers") is None:
+        raise ValueError('--with-answers needs {"answers": [...]} on stdin')
+    return changes(args.theme, answers=given["answers"], base_dir=base)
+
+
 def _render(args: argparse.Namespace, base: Path, payload: dict) -> dict[str, Any]:
     if (args.theme is None) == (args.design is None):
         raise ValueError("render takes exactly one of --theme and --design")
@@ -660,7 +678,7 @@ _COMMANDS: dict[str, tuple[_Handler, bool]] = {
     "position": (_position, False),
     "handover": (lambda a, base, p: handover(a.theme, base_dir=base), False),
     "progress": (lambda a, base, p: progress(a.theme, base_dir=base), False),
-    "changes": (lambda a, base, p: changes(a.theme, base_dir=base, **p), False),
+    "changes": (_changes, False),
     "render": (_render, False),
     "report": (_report, False),
 }
@@ -681,7 +699,6 @@ def _main(argv: list[str] | None = None) -> int:
     parser.add_argument("--theme", default=None)
     parser.add_argument("--node", default=None)
     parser.add_argument("--design", default=None)
-    # Stdin is read only on request: a pipe that never closes would block (see read_payload).
     parser.add_argument("--with-answers", action="store_true")
     args = parser.parse_args(argv)
     base = resolve_base_dir(Path(args.base_dir))
@@ -690,10 +707,7 @@ def _main(argv: list[str] | None = None) -> int:
     try:
         if args.with_answers and args.command != "changes":
             raise ValueError("--with-answers goes with changes only")
-        payload = read_payload() if takes_payload or args.with_answers else {}
-        # Without them the command would give what the tree holds, and pass for more.
-        if args.with_answers and payload.get("answers") is None:
-            raise ValueError('--with-answers needs {"answers": [...]} on stdin')
+        payload = read_payload() if takes_payload else {}
         if args.command not in ("create", "render") and args.theme is None:
             raise ValueError(f"--theme is required for {args.command}")
         result = handler(args, base, payload)

@@ -9,9 +9,10 @@ import json
 from pathlib import Path
 
 import pytest
+from pydantic import BaseModel
 
-from insight_blueprint.models.tree import StatementKind
-from skills._shared import design_io, tree_io, tree_words
+from insight_blueprint.models.tree import AnswerStatement, StatementKind
+from skills._shared import design_io, tree_io, tree_read, tree_words
 from skills._shared._atomic import atomic_write_yaml
 from skills._shared.tree_changes import ChangeKind
 from skills._shared.tree_words import SUBJECT, Mark, changes_title, reflection
@@ -813,8 +814,47 @@ class TestChangesWithTheAnswersAboutToBeWritten:
         assert "--with-answers" in done.stderr
         assert done.stdout == ""
 
+    def test_a_key_other_than_the_answers_is_refused_in_plain_words(
+        self, world: Path
+    ) -> None:
+        done = _run_cli(
+            world,
+            "changes",
+            "--theme",
+            "LIB",
+            "--with-answers",
+            payload={"answers": self.FIRST, "theme": "LIB"},
+        )
+
+        assert done.returncode == 1
+        assert "theme" in done.stderr and "answers" in done.stderr
+        assert "keyword argument" not in done.stderr
+        assert done.stdout == ""
+
     def test_the_flag_belongs_to_changes_only(self, world: Path) -> None:
         done = _run_cli(world, "progress", "--theme", "LIB", "--with-answers")
 
         assert done.returncode == 1
         assert "--with-answers" in done.stderr
+
+
+class TestTheChangesKeepTheFieldsAsTheModelsHoldThem:
+    """Only the analyst's view is left out where unmarked, as the tree file leaves it."""
+
+    def test_a_default_field_other_than_the_view_is_kept(self) -> None:
+        class Entry(BaseModel):
+            statements: tuple[AnswerStatement, ...]
+            reworded_in: int | None = None
+
+        statement = {"kind": "claim", "text": "延ばす", "cites": ["LIB-H01-E01"]}
+        entry = Entry(
+            statements=(
+                AnswerStatement.model_validate(statement),
+                AnswerStatement.model_validate(statement | {"analyst_view": True}),
+            )
+        )
+
+        assert tree_read._as_json(entry) == {
+            "statements": [statement, statement | {"analyst_view": True}],
+            "reworded_in": None,
+        }

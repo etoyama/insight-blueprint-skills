@@ -19,7 +19,7 @@ from collections.abc import Iterable, Iterator, Mapping
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel
 
@@ -168,17 +168,12 @@ def progress(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, dict
     }
 
 
-def changes(theme_id: str, base_dir: Path = DEFAULT_BASE_DIR) -> dict[str, Any]:
-    """What each answer changed, and what the answers above and below cite. Writes nothing.
+def changes_of(tree: QuestionTree) -> dict[str, Any]:
+    """The values of ``tree_io changes`` for *tree*, which need not be the one on disk.
 
     The page ``render`` writes shows the same values with the content of each
     event; here a skill gets them to show the analyst (ADR-0056).
     """
-    return changes_of(load_tree_model(theme_id, base_dir))
-
-
-def changes_of(tree: QuestionTree) -> dict[str, Any]:
-    """The values of ``changes`` for *tree*, which need not be the one on disk."""
     return {
         "answer_changes": [
             _as_json(change) for change in answer_changes(tree).values()
@@ -189,8 +184,24 @@ def changes_of(tree: QuestionTree) -> dict[str, Any]:
 
 
 def _as_json(entry: BaseModel) -> dict[str, Any]:
-    # A statement is shown as the tree file holds it: the analyst's view only where marked.
-    return entry.model_dump(mode="json", exclude_defaults=True)
+    return cast(dict[str, Any], _view_where_marked(entry.model_dump(mode="json")))
+
+
+def _view_where_marked(value: object) -> object:
+    """*value* with ``analyst_view`` left out of each statement it is false in.
+
+    A statement is shown as the tree file holds it: the analyst's view only
+    where marked. Every other field stays, default or not.
+    """
+    if isinstance(value, list):
+        return [_view_where_marked(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    return {
+        key: _view_where_marked(item)
+        for key, item in value.items()
+        if not (key == "analyst_view" and item is False)
+    }
 
 
 def _by_node(
